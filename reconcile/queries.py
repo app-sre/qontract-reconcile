@@ -2515,6 +2515,7 @@ GABI_INSTANCES_QUERY = """
     }
     users{
       github_username
+      org_username
     }
     instances{
       account
