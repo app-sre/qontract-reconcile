@@ -47,7 +47,7 @@ def test_ocm_oidc_idp_fetch_current_state(
 def test_ocm_oidc_idp_fetch_desired_state(
     secret_reader: Mock, clusters: Iterable[ClusterV1]
 ) -> None:
-    secret_reader.read_all.return_value = {
+    secret_reader.read_all_secret.return_value = {
         "client_id": "just-garbage",
         "client_id_issued_at": 0,
         "client_name": "just-garbage",
@@ -84,6 +84,30 @@ def test_ocm_oidc_idp_fetch_desired_state(
             id=None,
             cluster="cluster-2",
             name="oidc-auth",
+            client_id="client-id",
+            client_secret="client-secret",
+            issuer="https://issuer.com",
+            email_claims=["email"],
+            name_claims=["name"],
+            username_claims=["username"],
+            groups_claims=[],
+        ),
+        OCMOidcIdp(
+            id=None,
+            cluster="cluster-3",
+            name="oidc-auth-1",
+            client_id="client-id",
+            client_secret="client-secret",
+            issuer="https://issuer.com",
+            email_claims=["email"],
+            name_claims=["name"],
+            username_claims=["username"],
+            groups_claims=[],
+        ),
+        OCMOidcIdp(
+            id=None,
+            cluster="cluster-3",
+            name="oidc-auth-2",
             client_id="client-id",
             client_secret="client-secret",
             issuer="https://issuer.com",

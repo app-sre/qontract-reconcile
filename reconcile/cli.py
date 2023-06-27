@@ -2125,6 +2125,139 @@ def ocm_oidc_idp_standalone(
     )
 
 
+@integration.command(short_help="Manage Keycloak SSO clients. Part of RHIDP.")
+@click.option(
+    "--keycloak-instance-vault-paths",
+    help="A comma seperated list of vault paths to keycloak instance secrets.",
+    required=True,
+)
+@click.option(
+    "--contact-emails",
+    default="sd-app-sre+auth@redhat.com",
+    help="A comma seperated list of contact email addresses.",
+    required=True,
+)
+@click.option(
+    "--default-auth-issuer-url",
+    default="https://auth.redhat.com/auth/realms/EmployeeIDP",
+    help="The Issuer (SSO server) URL.",
+    required=True,
+    envvar="RHIDP_AUTH_ISSUER_URL",
+)
+@click.option(
+    "--vault-input-path",
+    help="path in Vault to find input resources.",
+    required=True,
+)
+@click.pass_context
+def rhidp_sso_client(
+    ctx,
+    keycloak_instance_vault_paths,
+    contact_emails,
+    default_auth_issuer_url,
+    vault_input_path,
+):
+    from reconcile.rhidp.sso_client.integration import (
+        SSOClientIntegration,
+        SSOClientIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=SSOClientIntegration(
+            SSOClientIntegrationParams(
+                keycloak_vault_paths=list(
+                    set(keycloak_instance_vault_paths.split(","))
+                ),
+                vault_input_path=vault_input_path,
+                default_auth_issuer_url=default_auth_issuer_url,
+                contacts=list(set(contact_emails.split(","))),
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
+@integration.command(
+    short_help="Manage Keycloak SSO clients for OCM clusters. Part of RHIDP."
+)
+@click.option(
+    "--keycloak-instance-vault-paths",
+    help="A comma seperated list of vault paths to keycloak instance secrets.",
+    required=True,
+)
+@click.option(
+    "--contact-emails",
+    default="sd-app-sre+auth@redhat.com",
+    help="A comma seperated list of contact email addresses.",
+    required=True,
+)
+@click.option(
+    "--vault-input-path",
+    help="path in Vault to find input resources.",
+    required=True,
+)
+@click.option(
+    "--ocm-env",
+    help="The OCM environment RHIDP should operator on. If none is specified, all environments will be operated on.",
+    required=False,
+    envvar="RHIDP_OCM_ENV",
+)
+@click.option(
+    "--ocm-org-ids",
+    help="A comma seperated list of OCM organization IDs RHIDP should operator on. If none is specified, all organizations are considered.",
+    required=False,
+    envvar="RHIDP_OCM_ORG_IDS",
+)
+@click.option(
+    "--auth-name",
+    default="redhat-app-sre-auth",
+    help="The authentication name must match that one used in the redirect URL.",
+    required=True,
+    envvar="RHIDP_AUTH_NAME",
+)
+@click.option(
+    "--auth-issuer-url",
+    default="https://auth.redhat.com/auth/realms/EmployeeIDP",
+    help="The Issuer (SSO server) URL.",
+    required=True,
+    envvar="RHIDP_AUTH_ISSUER_URL",
+)
+@click.pass_context
+def rhidp_sso_client_standalone(
+    ctx,
+    keycloak_instance_vault_paths,
+    contact_emails,
+    vault_input_path,
+    ocm_env,
+    ocm_org_ids,
+    auth_name,
+    auth_issuer_url,
+):
+    from reconcile.rhidp.sso_client.standalone import (
+        SSOClientStandalone,
+        SSOClientStandaloneParams,
+    )
+
+    run_class_integration(
+        integration=SSOClientStandalone(
+            SSOClientStandaloneParams(
+                keycloak_vault_paths=list(
+                    set(keycloak_instance_vault_paths.split(","))
+                ),
+                vault_input_path=vault_input_path,
+                ocm_environment=ocm_env,
+                ocm_organization_ids=set(ocm_org_ids.split(","))
+                if ocm_org_ids
+                else None,
+                auth_name=auth_name,
+                auth_issuer_url=auth_issuer_url,
+                contacts=list(set(contact_emails.split(","))),
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage additional routers in OCM.")
 @click.pass_context
 def ocm_additional_routers(ctx):

@@ -1,4 +1,3 @@
-import logging
 from typing import Optional
 
 from reconcile.gql_definitions.common.ocm_environments import (
@@ -7,13 +6,11 @@ from reconcile.gql_definitions.common.ocm_environments import (
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.rhidp.clusters import ClusterV1
 from reconcile.rhidp.common import (
-    RHIDP_LABEL_KEY,
-    RhidpLabelValue,
     build_cluster_auths,
     build_cluster_obj,
     discover_clusters,
 )
-from reconcile.rhidp.ocm_oidc_idp.base import run
+from reconcile.rhidp.sso_client.base import run
 from reconcile.utils import gql
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
@@ -23,22 +20,23 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.secret_reader import VaultSecretReader
 
-QONTRACT_INTEGRATION = "ocm-oidc-idp-standalone"
+QONTRACT_INTEGRATION = "rhidp-sso-client-standalone"
 
 
-class OCMOidcIdpStandaloneParams(PydanticRunParams):
+class SSOClientStandaloneParams(PydanticRunParams):
+    keycloak_vault_paths: list[str]
     vault_input_path: str
     ocm_environment: Optional[str] = None
     ocm_organization_ids: Optional[set[str]] = None
     auth_name: str
     auth_issuer_url: str
+    contacts: list[str]
 
 
-class OCMOidcIdpStandalone(QontractReconcileIntegration[OCMOidcIdpStandaloneParams]):
-    """A flavour of the OCM OIDC IDP integration, that uses
-    OCM labels to discover clusters.
-    """
+class SSOClientStandalone(QontractReconcileIntegration[SSOClientStandaloneParams]):
+    """A flavour of the RHDID SSO Client integration, that uses OCM labels to discover clusters."""
 
     @property
     def name(self) -> str:
@@ -47,28 +45,17 @@ class OCMOidcIdpStandalone(QontractReconcileIntegration[OCMOidcIdpStandalonePara
     def run(self, dry_run: bool) -> None:
         for ocm_env in self.get_ocm_environments():
             ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
-            # data query
-            # clusters with enabled RHIDP
-            clusters = self.get_clusters(
-                ocm_api=ocm_api,
-                ocm_env=ocm_env,
-                label_value=RhidpLabelValue.ENABLED,
-            )
-            # with disabled RHIDP
-            clusters += self.get_clusters(
-                ocm_api=ocm_api,
-                ocm_env=ocm_env,
-                label_value=RhidpLabelValue.DISABLED,
-            )
-            if not clusters:
-                logging.debug(f"No clusters with {RHIDP_LABEL_KEY} label found.")
-                continue
+            clusters = self.get_clusters(ocm_api=ocm_api, ocm_env=ocm_env)
 
             run(
                 integration_name=self.name,
                 clusters=clusters,
-                secret_reader=self.secret_reader,
+                secret_reader=VaultSecretReader(),
+                keycloak_vault_paths=self.params.keycloak_vault_paths,
+                # put secrets in a subpath per OCM environment to avoid deleting
+                # clusters from other environments
                 vault_input_path=f"{self.params.vault_input_path}/{ocm_env.name}",
+                contacts=self.params.contacts,
                 dry_run=dry_run,
             )
 
@@ -76,12 +63,10 @@ class OCMOidcIdpStandalone(QontractReconcileIntegration[OCMOidcIdpStandalonePara
         self,
         ocm_api: OCMBaseClient,
         ocm_env: OCMEnvironment,
-        label_value: RhidpLabelValue,
     ) -> list[ClusterV1]:
         clusters_by_org = discover_clusters(
             ocm_api=ocm_api,
             org_ids=self.params.ocm_organization_ids,
-            label_value=label_value,
         )
 
         return [
@@ -91,9 +76,7 @@ class OCMOidcIdpStandalone(QontractReconcileIntegration[OCMOidcIdpStandalonePara
                 auth=build_cluster_auths(
                     name=self.params.auth_name,
                     issuer_url=self.params.auth_issuer_url,
-                )
-                if label_value == RhidpLabelValue.ENABLED
-                else [],
+                ),
             )
             for ocm_clusters in clusters_by_org.values()
             for c in ocm_clusters

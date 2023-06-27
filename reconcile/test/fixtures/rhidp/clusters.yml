@@ -34,6 +34,7 @@ clusters:
           username:
             - username
           groups: null
+  # OIDC and github auth
   - name: cluster-2
     ocm:
       name: ocm-production
@@ -57,7 +58,6 @@ clusters:
     upgradePolicy: null
     disable: null
     auth:
-      - service: github-org-team
       - service: oidc
         name: oidc-auth
         issuer: "https://issuer.com"
@@ -69,8 +69,55 @@ clusters:
           username:
             - username
           groups: null
-  # no oidc auth
+      - service: github-org-team
+  # multiple OIDC auths
   - name: cluster-3
+    ocm:
+      name: ocm-production
+      accessTokenClientId: null
+      accessTokenUrl: null
+      accessTokenClientSecret: null
+      environment:
+        name: "name"
+        url: "https://api.openshift.com"
+        accessTokenClientId: "access-token-client-id"
+        accessTokenUrl: "http://token-url.com"
+        accessTokenClientSecret:
+          field: client_secret
+          format: null
+          path: path/to/client_secret
+          version: null
+      orgId: "org-id"
+      blockedVersions: []
+      sectors: null
+    consoleUrl: "https://console.url.com"
+    upgradePolicy: null
+    disable: null
+    auth:
+      - service: oidc
+        name: oidc-auth-1
+        issuer: "https://issuer.com"
+        claims:
+          email:
+            - email
+          name:
+            - name
+          username:
+            - username
+          groups: null
+      - service: oidc
+        name: oidc-auth-2
+        issuer: "https://issuer.com"
+        claims:
+          email:
+            - email
+          name:
+            - name
+          username:
+            - username
+          groups: null
+  # no oidc auth
+  - name: cluster-4
     ocm:
       name: ocm-production
       environment:
@@ -99,7 +146,7 @@ clusters:
     auth:
       - service: github-org-team
   # no ocm - must be ignored
-  - name: cluster-4
+  - name: cluster-5
     ocm: null
     consoleUrl: "https://console.url.com"
     upgradePolicy: null
@@ -117,7 +164,7 @@ clusters:
             - username
           groups: null
   # disabled - must be ignored
-  - name: cluster-5
+  - name: cluster-6
     ocm:
       name: ocm-production
       accessTokenClientId: null
@@ -141,6 +188,7 @@ clusters:
     disable:
       integrations:
         - ocm-oidc-idp
+        - rhidp-sso-client
     auth:
       - service: oidc
         name: oidc-auth

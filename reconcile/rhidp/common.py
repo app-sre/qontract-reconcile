@@ -1,11 +1,13 @@
 from collections import defaultdict
+from collections.abc import Callable
+from enum import Enum
 from typing import (
-    Any,
-    Callable,
     Optional,
+    Sequence,
 )
 
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.rhidp.clusters import (
     ClusterAuthOIDCV1,
     ClusterV1,
@@ -26,15 +28,22 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 RHIDP_LABEL_KEY = sre_capability_label_key("rhidp")
 
 
+class RhidpLabelValue(Enum):
+    ENABLED = "enabled"
+    DISABLED = "disabled"
+
+
 def discover_clusters(
-    ocm_api: OCMBaseClient, org_ids: Optional[set[str]] = None
+    ocm_api: OCMBaseClient,
+    org_ids: Optional[set[str]] = None,
+    label_value: RhidpLabelValue = RhidpLabelValue.ENABLED,
 ) -> dict[str, list[ClusterDetails]]:
     """Discover all clusters that are part of the RHIDP service."""
     clusters = discover_clusters_by_labels(
         ocm_api=ocm_api,
         label_filter=subscription_label_filter()
         .eq("key", RHIDP_LABEL_KEY)
-        .eq("value", "enabled"),
+        .eq("value", label_value.value),
     )
 
     # group by org and filter if org_id is specified
@@ -47,11 +56,20 @@ def discover_clusters(
     return clusters_by_org
 
 
+def build_cluster_auths(name: str, issuer_url: str) -> list[ClusterAuthOIDCV1]:
+    return [
+        ClusterAuthOIDCV1(
+            service="oidc",
+            name=name,
+            issuer=issuer_url,
+            # stick with the defaults
+            claims=None,
+        )
+    ]
+
+
 def build_cluster_obj(
-    ocm_env: OCMEnvironment,
-    cluster: ClusterDetails,
-    auth_name: str,
-    auth_issuer_url: str,
+    ocm_env: OCMEnvironment, cluster: ClusterDetails, auth: Sequence[ClusterAuthOIDCV1]
 ) -> ClusterV1:
     return ClusterV1(
         name=cluster.ocm_cluster.name,
@@ -67,15 +85,7 @@ def build_cluster_obj(
             blockedVersions=None,
             sectors=None,
         ),
-        auth=[
-            ClusterAuthOIDCV1(
-                service="oidc",
-                name=auth_name,
-                issuer=auth_issuer_url,
-                # stick with the defaults
-                claims=None,
-            )
-        ],
+        auth=auth,
         # unused values
         upgradePolicy=None,
         disable=None,
@@ -117,7 +127,7 @@ def cluster_vault_secret(
     cluster_name: Optional[str] = None,
     auth_name: Optional[str] = None,
     vault_secret_id: Optional[str] = None,
-) -> dict[str, Any]:
+) -> VaultSecret:
     """Returns the vault secret path for the given cluster."""
     if not vault_secret_id and (org_id and cluster_name and auth_name):
         cid = cluster_vault_secret_id(org_id, cluster_name, auth_name)
@@ -127,4 +137,9 @@ def cluster_vault_secret(
         raise ValueError(
             "vault_secret_id or org_id, cluster_name and auth_name must be provided"
         )
-    return {"path": f"{vault_input_path.rstrip('/')}/{cid}"}
+    return VaultSecret(
+        path=f"{vault_input_path.rstrip('/')}/{cid}",
+        field="",
+        version=None,
+        format=None,
+    )
