@@ -1030,6 +1030,11 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         }
         image.modify_attribute(LaunchPermission=launch_permission)
 
+    def get_cloudwatch_logs(self, account):
+        cloudwatch_logs = self._account_cloudwatch_client(account["name"])
+        log_groups = cloudwatch_logs.describe_log_groups()["logGroups"]
+        return log_groups
+
     def set_cloudwatch_log_retention(self, account, regex_string, retention_days):
         cloudwatch_logs = self._account_cloudwatch_client(account["name"])
         log_groups = cloudwatch_logs.describe_log_groups()["logGroups"]
