@@ -268,13 +268,13 @@ def version_history(ctx):
     )
 
     results = []
-    for ocm_name, version_data in version_data_map.items():
+    for org, version_data in version_data_map.items():
         for version, version_history in version_data.versions.items():
             if not version:
                 continue
             for workload, workload_data in version_history.workloads.items():
                 item = {
-                    "ocm": ocm_name,
+                    "ocm": org,
                     "version": parse_semver(version),
                     "workload": workload,
                     "soak_days": round(workload_data.soak_days, 2),
@@ -384,7 +384,7 @@ def get_upgrade_policies_data(
         for w in c.workloads or []:
             if not workload or workload == w:
                 s = aus.soaking_days(
-                    version_data_map[ocm_org.name],
+                    version_data_map.get(ocm_org.ocm_env, ocm_org.org_id),
                     upgrades,
                     w,
                     show_only_soaking_upgrades,

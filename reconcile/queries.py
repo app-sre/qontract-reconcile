@@ -663,6 +663,7 @@ CLUSTERS_QUERY = """
     ocm {
       name
       environment {
+        name
         url
         accessTokenClientId
         accessTokenUrl
@@ -685,7 +686,12 @@ CLUSTERS_QUERY = """
       blockedVersions
       inheritVersionData {
         name
+        orgId
+        environment {
+          name
+        }
         publishVersionData {
+          orgId
           name
         }
       }
@@ -1004,6 +1010,7 @@ CLUSTER_PEERING_QUERY = """
     ocm {
       name
       environment {
+        name
         url
         accessTokenClientId
         accessTokenUrl
@@ -1197,6 +1204,7 @@ OCM_QUERY = """
     path
     name
     environment {
+      name
       url
       accessTokenClientId
       accessTokenUrl
