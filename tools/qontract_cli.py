@@ -2512,7 +2512,7 @@ def saas_targets(
                 if target.parameters:
                     param_table = Table("Key", "Value", box=box.MINIMAL)
                     for k, v in target.parameters.items():
-                        param_table.add_row(k, v)
+                        param_table.add_row(k, str(v))
                     info.add_row("Parameters", param_table)
 
                 if target.secret_parameters:
