@@ -82,6 +82,7 @@ fragment ClusterUpgradePolicy on ClusterUpgradePolicy_v1 {
     mutexes
     soakDays
     sector
+    frozen
   }
 }
 

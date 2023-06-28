@@ -654,6 +654,8 @@ def upgradeable_version(
     addon_id: str = "",
 ) -> Optional[str]:
     """Get the highest next version we can upgrade to, fulfilling all conditions"""
+    if policy.conditions.frozen:
+        return None
     for version in reversed(sort_versions(upgrades)):
         if addon_id and ocm.addon_version_blocked(version, addon_id):
             continue

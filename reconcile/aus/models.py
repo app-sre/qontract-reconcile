@@ -71,6 +71,7 @@ class ConfiguredUpgradePolicyConditions(BaseModel):
     mutexes: Optional[list[str]]
     soakDays: int
     sector: Optional[Sector]
+    frozen: bool = False
 
     def get_mutexes(self) -> list[str]:
         return self.mutexes or []
@@ -111,6 +112,8 @@ class ConfiguredAddonUpgradePolicy(ConfiguredUpgradePolicy):
             conditions=ConfiguredUpgradePolicyConditions(
                 mutexes=ous.upgrade_policy.conditions.mutexes,
                 soakDays=ous.upgrade_policy.conditions.soak_days,
+                sector=ous.upgrade_policy.conditions.sector,
+                frozen=ous.upgrade_policy.conditions.frozen or False,
             ),
             schedule=ous.upgrade_policy.schedule,
             workloads=ous.upgrade_policy.workloads,
@@ -145,6 +148,8 @@ class ConfiguredClusterUpgradePolicy(ConfiguredUpgradePolicy):
             conditions=ConfiguredUpgradePolicyConditions(
                 mutexes=ous.upgrade_policy.conditions.mutexes,
                 soakDays=ous.upgrade_policy.conditions.soak_days,
+                sector=ous.upgrade_policy.conditions.sector,
+                frozen=ous.upgrade_policy.conditions.frozen or False,
             ),
             schedule=ous.upgrade_policy.schedule,
             workloads=ous.upgrade_policy.workloads,

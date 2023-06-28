@@ -130,6 +130,7 @@ query Clusters($name: String) {
         soakDays
         mutexes
         sector
+        frozen
       }
     }
     additionalRouters {

@@ -778,6 +778,7 @@ CLUSTERS_QUERY = """
         soakDays
         mutexes
         sector
+        frozen
       }
     }
     additionalRouters {
@@ -1277,6 +1278,7 @@ OCM_QUERY = """
           sector
           soakDays
           mutexes
+          frozen
         }
       }
       upgradePolicyTemplate {
@@ -1297,6 +1299,7 @@ OCM_QUERY = """
           soakDays
           mutexes
           sector
+          frozen
         }
       }
     }

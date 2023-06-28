@@ -347,6 +347,13 @@ class TestUpgradeableVersion:
         x = aus.upgradeable_version(upgrade_policy, version_data_map, ocm, upgrades)
         assert x == "4.4.1"
 
+    @staticmethod
+    def test_upgradeable_version_frozen(upgrade_policy, ocm):
+        upgrade_policy.conditions.frozen = True
+        upgrades = ocm.get_available_upgrades()
+        x = aus.upgradeable_version(upgrade_policy, {}, ocm, upgrades)
+        assert x is None
+
 
 class TestVersionGateAgreement:
     @staticmethod

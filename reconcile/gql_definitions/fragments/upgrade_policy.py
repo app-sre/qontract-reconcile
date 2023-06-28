@@ -28,6 +28,7 @@ class ClusterUpgradePolicyConditionsV1(ConfiguredBaseModel):
     mutexes: Optional[list[str]] = Field(..., alias="mutexes")
     soak_days: Optional[int] = Field(..., alias="soakDays")
     sector: Optional[str] = Field(..., alias="sector")
+    frozen: Optional[bool] = Field(..., alias="frozen")
 
 
 class ClusterUpgradePolicy(ConfiguredBaseModel):

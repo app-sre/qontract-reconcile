@@ -200,6 +200,7 @@ query Clusters($name: String) {
         soakDays
         mutexes
         sector
+        frozen
       }
     }
     additionalRouters {
@@ -510,6 +511,7 @@ class ClusterUpgradePolicyConditionsV1(ConfiguredBaseModel):
     soak_days: Optional[int] = Field(..., alias="soakDays")
     mutexes: Optional[list[str]] = Field(..., alias="mutexes")
     sector: Optional[str] = Field(..., alias="sector")
+    frozen: Optional[bool] = Field(..., alias="frozen")
 
 
 class ClusterUpgradePolicyV1(ConfiguredBaseModel):
