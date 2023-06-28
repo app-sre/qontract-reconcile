@@ -663,7 +663,6 @@ CLUSTERS_QUERY = """
     ocm {
       name
       environment {
-        name
         url
         accessTokenClientId
         accessTokenUrl
@@ -686,12 +685,7 @@ CLUSTERS_QUERY = """
       blockedVersions
       inheritVersionData {
         name
-        orgId
-        environment {
-          name
-        }
         publishVersionData {
-          orgId
           name
         }
       }

@@ -154,32 +154,3 @@ def build_cluster_details(
         subscription_labels=subscription_labels or LabelContainer(),
         organization_labels=organization_labels or LabelContainer(),
     )
-
-
-def build_ocm_info(
-    org_name: str,
-    org_id: str,
-    ocm_url: str,
-    access_token_url: str,
-    ocm_env_name: Optional[str] = None,
-    sectors: Optional[list[dict[str, Any]]] = None,
-    inherit_version_data: Optional[list[dict[str, Any]]] = None,
-) -> dict[str, Any]:
-    return {
-        "name": org_name,
-        "sectors": sectors,
-        "orgId": org_id,
-        "inheritVersionData": inherit_version_data,
-        "environment": {
-            "name": ocm_env_name or "prod",
-            "url": ocm_url,
-            "accessTokenClientId": "atci",
-            "accessTokenUrl": access_token_url,
-            "accessTokenClientSecret": {
-                "path": "/path/to/secret",
-                "field": "field",
-                "version": None,
-                "format": None,
-            },
-        },
-    }

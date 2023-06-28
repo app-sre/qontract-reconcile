@@ -18,16 +18,15 @@ from croniter import croniter
 from dateutil import parser
 
 import reconcile.aus.base as aus
-from reconcile.aus.cluster_version_data import (
-    Stats,
-    VersionData,
-    VersionDataMap,
-)
 from reconcile.aus.models import (
     ConfiguredAddonUpgradePolicy,
     ConfiguredClusterUpgradePolicy,
     ConfiguredUpgradePolicy,
     ConfiguredUpgradePolicyConditions,
+)
+from reconcile.utils.cluster_version_data import (
+    Stats,
+    VersionData,
 )
 from reconcile.utils.ocm import (
     OCM,
@@ -115,9 +114,7 @@ class TestUpdateHistory(TestCase):
 class TestVersionConditionsMetSoakDays(TestCase):
     def setUp(self):
         self.version = "1.2.3"
-        self.org_name = "org"
-        self.ocm_env = "prod"
-        self.org_id = "org-id"
+        self.ocm_name = "ocm"
         self.workload = "workload1"
         version_data_dict = {
             "check_in": None,
@@ -132,14 +129,16 @@ class TestVersionConditionsMetSoakDays(TestCase):
                 }
             },
         }
-        self.version_data = VersionData(**version_data_dict)
+        version_data = VersionData(**version_data_dict)
+        self.version_data_map = {self.ocm_name: version_data}
 
     def test_conditions_met_larger(self):
         upgrade_conditions = ConfiguredUpgradePolicyConditions(**{"soakDays": 1.0})
 
         conditions_met = aus.version_conditions_met(
             self.version,
-            self.version_data,
+            self.version_data_map,
+            self.ocm_name,
             [self.workload],
             upgrade_conditions,
         )
@@ -150,7 +149,8 @@ class TestVersionConditionsMetSoakDays(TestCase):
 
         conditions_met = aus.version_conditions_met(
             self.version,
-            self.version_data,
+            self.version_data_map,
+            self.ocm_name,
             [self.workload],
             upgrade_conditions,
         )
@@ -161,7 +161,8 @@ class TestVersionConditionsMetSoakDays(TestCase):
 
         conditions_met = aus.version_conditions_met(
             self.version,
-            self.version_data,
+            self.version_data_map,
+            self.ocm_name,
             [self.workload],
             upgrade_conditions,
         )
@@ -172,7 +173,8 @@ class TestVersionConditionsMetSoakDays(TestCase):
 
         conditions_met = aus.version_conditions_met(
             "0.0.0",
-            self.version_data,
+            self.version_data_map,
+            self.ocm_name,
             [self.workload],
             upgrade_conditions,
         )
@@ -284,8 +286,6 @@ class TestUpgradeableVersion:
         map = mock_ocm_map.return_value
         ocm = map.get.return_value
         ocm.name = "foo"
-        ocm.org_id = "org-id"
-        ocm.ocm_env = "prod"
         ocm.get_available_upgrades.return_value = ["4.3.5", "4.3.6", "4.4.1"]
         ocm.version_blocked.return_value = False
         return map.get("foo")
@@ -307,12 +307,9 @@ class TestUpgradeableVersion:
 
     @staticmethod
     @pytest.fixture
-    def version_data_map() -> VersionDataMap:
-        map = VersionDataMap()
-        map.add(
-            "prod",
-            "org-id",
-            VersionData(
+    def version_data_map():
+        return {
+            "foo": VersionData(
                 **{
                     "check_in": "2021-08-29T18:00:00",
                     "versions": {
@@ -326,9 +323,8 @@ class TestUpgradeableVersion:
                         }
                     },
                 }
-            ),
-        )
-        return map
+            )
+        }
 
     @staticmethod
     def test_upgradeable_version_blocked(upgrade_policy, ocm):
@@ -338,12 +334,8 @@ class TestUpgradeableVersion:
         assert x is None
 
     @staticmethod
-    def test_upgradeable_version_no_gate(
-        upgrade_policy: ConfiguredUpgradePolicy,
-        ocm: OCM,
-        version_data_map: VersionDataMap,
-    ):
-        upgrades = ocm.get_available_upgrades(upgrade_policy.cluster)
+    def test_upgradeable_version_no_gate(upgrade_policy, ocm, version_data_map):
+        upgrades = ocm.get_available_upgrades()
         x = aus.upgradeable_version(upgrade_policy, version_data_map, ocm, upgrades)
         assert x == "4.4.1"
 
@@ -500,31 +492,33 @@ class TestVersionConditionsMetSector:
         }
 
     @pytest.fixture
-    def empty_version_data(self):
-        return VersionData(
-            check_in="2021-08-29T18:00:00",
-            versions={},
-            stats=Stats(min_version="1.0.0", min_version_per_workload={}),
-        )
+    def empty_version_data_map(self):
+        return {
+            "ocm1": VersionData(
+                check_in="2021-08-29T18:00:00",
+                versions={},
+                stats=Stats(min_version="1.0.0", min_version_per_workload={}),
+            )
+        }
 
     def test_conditions_met_no_deps(
-        self, sector1_ocm1: Sector, empty_version_data: VersionData
+        self, sector1_ocm1: Sector, empty_version_data_map: dict[str, VersionData]
     ):
         upgrade_conditions = ConfiguredUpgradePolicyConditions(
             sector=sector1_ocm1, soakDays=0
         )
         assert aus.version_conditions_met(
-            "1.2.3", empty_version_data, ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
     def test_conditions_met_single_deps_no_cluster(
-        self, sector2_ocm1: Sector, empty_version_data: VersionData
+        self, sector2_ocm1: Sector, empty_version_data_map: dict[str, VersionData]
     ):
         upgrade_conditions = ConfiguredUpgradePolicyConditions(
             sector=sector2_ocm1, soakDays=0
         )
         assert aus.version_conditions_met(
-            "1.2.3", empty_version_data, ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
     # return the ocmspec of the cluster from its name
@@ -546,14 +540,14 @@ class TestVersionConditionsMetSector:
         sector1_ocm1: Sector,
         sector2_ocm1: Sector,
         cluster_high_version: dict[str, Any],
-        empty_version_data: VersionData,
+        empty_version_data_map: dict[str, VersionData],
     ):
         upgrade_conditions = ConfiguredUpgradePolicyConditions(
             sector=sector2_ocm1, soakDays=0
         )
         self.set_clusters(mocker, sector1_ocm1, [cluster_high_version])
         assert aus.version_conditions_met(
-            "1.2.3", empty_version_data, ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
     def test_conditions_met_single_deps_low_version(
@@ -562,14 +556,14 @@ class TestVersionConditionsMetSector:
         sector1_ocm1: Sector,
         sector2_ocm1: Sector,
         cluster_low_version: dict[str, Any],
-        empty_version_data: VersionData,
+        empty_version_data_map: dict[str, VersionData],
     ):
         upgrade_conditions = ConfiguredUpgradePolicyConditions(
             sector=sector2_ocm1, soakDays=0
         )
         self.set_clusters(mocker, sector1_ocm1, [cluster_low_version])
         assert not aus.version_conditions_met(
-            "1.2.3", empty_version_data, ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
     def test_conditions_met_single_deps_mix_versions(
@@ -579,7 +573,7 @@ class TestVersionConditionsMetSector:
         sector2_ocm1: Sector,
         cluster_low_version,
         cluster_high_version: dict[str, Any],
-        empty_version_data: VersionData,
+        empty_version_data_map: dict[str, VersionData],
     ):
         upgrade_conditions = ConfiguredUpgradePolicyConditions(
             sector=sector2_ocm1, soakDays=0
@@ -588,7 +582,7 @@ class TestVersionConditionsMetSector:
             mocker, sector1_ocm1, [cluster_low_version, cluster_high_version]
         )
         assert not aus.version_conditions_met(
-            "1.2.3", empty_version_data, ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
     # first dependency level (sector2) contains no cluster with the workload,
@@ -601,7 +595,7 @@ class TestVersionConditionsMetSector:
         sector3_ocm1: Sector,
         cluster_low_version,
         cluster_high_version: dict[str, Any],
-        empty_version_data: VersionData,
+        empty_version_data_map: dict[str, VersionData],
     ):
         upgrade_conditions = ConfiguredUpgradePolicyConditions(
             sector=sector3_ocm1, soakDays=0
@@ -609,19 +603,19 @@ class TestVersionConditionsMetSector:
 
         # no clusters in deps: upgrade ok
         assert aus.version_conditions_met(
-            "1.2.3", empty_version_data, ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
         # all clusters with higher version in deps: upgrade ok
         self.set_clusters(mocker, sector1_ocm1, [cluster_high_version])
         assert aus.version_conditions_met(
-            "1.2.3", empty_version_data, ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
         # no cluster with higher version in deps: upgrade not ok
         self.set_clusters(mocker, sector1_ocm1, [cluster_low_version])
         assert not aus.version_conditions_met(
-            "1.2.3", empty_version_data, ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
         # not all clusters with higher version in deps: upgrade not ok
@@ -629,7 +623,7 @@ class TestVersionConditionsMetSector:
             mocker, sector1_ocm1, [cluster_low_version, cluster_high_version]
         )
         assert not aus.version_conditions_met(
-            "1.2.3", empty_version_data, ["workload1"], upgrade_conditions
+            "1.2.3", empty_version_data_map, "ocm1", ["workload1"], upgrade_conditions
         )
 
 
@@ -809,8 +803,6 @@ class TestCalculateDiff:
         ocm.get_available_upgrades.return_value = ["4.9.5", "4.10.1"]
         ocm.addons = [{"id": "addon1", "version": {"id": "4.9.5"}}]
         ocm.version_blocked.return_value = False
-        ocm.ocm_env = "prod"
-        ocm.org_id = "org-id"
         cluster = mocker.patch("reconcile.ocm.types.OCMSpec")
         cluster.spec.hypershift = False
         ocm = map.get.return_value
@@ -853,12 +845,9 @@ class TestCalculateDiff:
         )
 
     @staticmethod
-    def create_version_data_map(soakDays: int = 11) -> VersionDataMap:
-        map = VersionDataMap()
-        map.add(
-            "prod",
-            "org-id",
-            VersionData(
+    def create_version_data_map(soakDays: int = 11) -> dict[str, Any]:
+        return {
+            "foo": VersionData(
                 **{
                     "check_in": "2021-08-29T18:00:00",
                     "versions": {
@@ -873,11 +862,10 @@ class TestCalculateDiff:
                     },
                 }
             ),
-        )
-        return map
+        }
 
     def test_calculate_diff_empty(self, ocm_map: OCMMap):
-        x = aus.calculate_diff([], [], ocm_map, VersionDataMap())
+        x = aus.calculate_diff([], [], ocm_map, {})
         assert not x
 
     def test_calculate_simple(
