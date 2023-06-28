@@ -1010,6 +1010,7 @@ CLUSTER_PEERING_QUERY = """
     ocm {
       name
       environment {
+        name
         url
         accessTokenClientId
         accessTokenUrl
@@ -1203,6 +1204,7 @@ OCM_QUERY = """
     path
     name
     environment {
+      name
       url
       accessTokenClientId
       accessTokenUrl
