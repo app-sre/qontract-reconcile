@@ -43,24 +43,14 @@ class AddonUpgradeTestV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
-class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1(
-    ConfiguredBaseModel
-):
-    name: str = Field(..., alias="name")
-
-
 class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(
     ConfiguredBaseModel
 ):
-    org_id: str = Field(..., alias="orgId")
+    name: str = Field(..., alias="name")
 
 
 class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    org_id: str = Field(..., alias="orgId")
-    environment: OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1 = Field(
-        ..., alias="environment"
-    )
     publish_version_data: Optional[
         list[
             OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1

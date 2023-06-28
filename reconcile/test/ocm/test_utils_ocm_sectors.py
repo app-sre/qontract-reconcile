@@ -3,7 +3,6 @@ from typing import Any
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.test.ocm.fixtures import build_ocm_info
 from reconcile.utils.ocm import (
     OCM,
     OCMMap,
@@ -11,22 +10,6 @@ from reconcile.utils.ocm import (
     SectorConfigError,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
-
-
-def build_ocm_info_with_sectors(
-    org_name: str, org_id: str, ocm_url: str, access_token_url: str
-) -> dict[str, Any]:
-    return build_ocm_info(
-        org_name=org_name,
-        org_id=org_id,
-        ocm_url=ocm_url,
-        access_token_url=access_token_url,
-        sectors=[
-            {"name": "s1"},
-            {"name": "s2", "dependencies": [{"name": "s1"}]},
-            {"name": "s3", "dependencies": [{"ocm": {"name": "ocm1"}, "name": "s1"}]},
-        ],
-    )
 
 
 def test_sector_validate_dependencies(ocm: OCM) -> None:
@@ -57,13 +40,37 @@ def test_sector_validate_dependencies(ocm: OCM) -> None:
         sector3.validate_dependencies()
 
 
+def build_ocm_info(
+    org_name: str, ocm_url: str, access_token_url: str
+) -> dict[str, Any]:
+    return {
+        "name": org_name,
+        "sectors": [
+            {"name": "s1"},
+            {"name": "s2", "dependencies": [{"name": "s1"}]},
+            {"name": "s3", "dependencies": [{"ocm": {"name": "ocm1"}, "name": "s1"}]},
+        ],
+        "orgId": org_name,
+        "environment": {
+            "name": "name",
+            "url": ocm_url,
+            "accessTokenClientId": "atci",
+            "accessTokenUrl": access_token_url,
+            "accessTokenClientSecret": {
+                "path": "/path/to/secret",
+                "field": "field",
+                "version": None,
+                "format": None,
+            },
+        },
+    }
+
+
 def test_ocm_map_upgrade_policies_sector(
     ocm_url: str, access_token_url: str, ocm_api: OCMBaseClient, mocker: MockerFixture
 ) -> None:
     mocker.patch("reconcile.utils.ocm.ocm.SecretReader")
-    ocm_org1_info = build_ocm_info_with_sectors(
-        "org-1", "org-1-id", ocm_url, access_token_url
-    )
+    ocm_org1_info = build_ocm_info("org-1", ocm_url, access_token_url)
     c1 = {
         "name": "c1",
         "ocm": ocm_org1_info,
@@ -76,9 +83,7 @@ def test_ocm_map_upgrade_policies_sector(
     }
 
     # second org, using the same sector names
-    ocm_org2_info = build_ocm_info_with_sectors(
-        "org-2", "org-2-id", ocm_url, access_token_url
-    )
+    ocm_org2_info = build_ocm_info("org-2", ocm_url, access_token_url)
     c3 = {
         "name": "c3",
         "ocm": ocm_org2_info,

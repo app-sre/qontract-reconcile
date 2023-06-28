@@ -29,7 +29,7 @@ def ocm(mocker: MockerFixture, ocm_url: str, cluster: str, cluster_id: str) -> O
     mocker.patch("reconcile.utils.ocm.OCM._init_blocked_versions")
     mocker.patch("reconcile.utils.ocm.OCM._init_version_gates")
     ocm_client = OCMBaseClient("url", "tid", "turl", "cid")
-    ocm = OCM("name", "org_id", "prod", ocm_client)
+    ocm = OCM("name", "org_id", ocm_client)
     ocm._ocm_client._url = ocm_url
     ocm.cluster_ids = {cluster: cluster_id}
     return ocm

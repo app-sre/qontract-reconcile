@@ -174,6 +174,5 @@ def ocm(
     return OCM(
         "my-org",
         "org-id",
-        "prod",
         ocm_api,
     )
