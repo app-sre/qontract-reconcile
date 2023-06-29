@@ -6,6 +6,7 @@ from collections.abc import (
 from datetime import datetime
 from typing import Optional
 
+from reconcile import queries
 from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -18,6 +19,7 @@ from reconcile.utils.oc_map import (
     OCMap,
     init_oc_map_from_clusters,
 )
+from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import (
@@ -54,63 +56,98 @@ def handle_slack_notification(
     state.add(state_key, state_value, force=True)
 
 
+def _get_start_osd(
+    oc_map: OCMap, cluster_name: str
+) -> tuple[Optional[str], Optional[str]]:
+    oc = oc_map.get(cluster_name)
+    if isinstance(oc, OCLogMsg):
+        logging.log(level=oc.log_level, msg=oc.message)
+        return None, None
+
+    upgrade_config = oc.get(
+        namespace="openshift-managed-upgrade-operator",
+        kind="UpgradeConfig",
+        allow_not_found=True,
+    )["items"]
+    if not upgrade_config:
+        logging.debug(f"[{cluster_name}] UpgradeConfig not found.")
+        return None, None
+    [upgrade_config] = upgrade_config
+
+    upgrade_spec = upgrade_config["spec"]
+    upgrade_at = upgrade_spec["upgradeAt"]
+    version = upgrade_spec["desired"]["version"]
+    return upgrade_at, version
+
+
+def _get_start_hypershift(
+    ocm_map: OCMMap, cluster_name: str
+) -> tuple[Optional[str], Optional[str]]:
+    ocm_map_cluster = ocm_map.get(cluster_name)
+    schedules = ocm_map_cluster.get_control_plan_upgrade_policies(cluster_name)
+    schedule = [s for s in schedules if s["state"]["value"] == "started"]
+    if not schedule:
+        return None, None
+
+    if len(schedule) > 1:
+        logging.error(f"[{cluster_name}] More than one schedule started.")
+
+    return schedule[0]["next_run"], schedule[0]["version"]
+
+
 def notify_upgrades_start(
+    clusters: list[ClusterV1],
     oc_map: OCMap,
+    ocm_map: OCMMap,
     state: State,
     slack: Optional[SlackApi],
 ) -> None:
     now = datetime.utcnow()
-    for cluster in oc_map.clusters(include_errors=True):
-        oc = oc_map.get(cluster)
-        if isinstance(oc, OCLogMsg):
-            logging.log(level=oc.log_level, msg=oc.message)
-            continue
-        upgrade_config = oc.get(
-            namespace="openshift-managed-upgrade-operator",
-            kind="UpgradeConfig",
-            allow_not_found=True,
-        )["items"]
-        if not upgrade_config:
-            logging.debug(f"[{cluster}] UpgradeConfig not found.")
-            continue
-        [upgrade_config] = upgrade_config
+    for cluster in clusters:
+        if cluster.spec and not cluster.spec.hypershift:
+            upgrade_at, version = _get_start_osd(oc_map, cluster.name)
+        else:
+            upgrade_at, version = _get_start_hypershift(ocm_map, cluster.name)
 
-        upgrade_spec = upgrade_config["spec"]
-        upgrade_at = upgrade_spec["upgradeAt"]
-        version = upgrade_spec["desired"]["version"]
-        upgrade_at_obj = datetime.strptime(upgrade_at, "%Y-%m-%dT%H:%M:%SZ")
-        state_key = f"{cluster}-{upgrade_at}"
-        # if this is the first iteration in which 'now' had passed
-        # the upgrade at date time, we send a notification
-        if upgrade_at_obj < now:
-            msg = (
-                f"Heads up {cluster_slack_handle(cluster, slack)}! "
-                + f"cluster `{cluster}` is currently "
-                + f"being upgraded to version `{version}`"
-            )
-            handle_slack_notification(
-                msg=msg, slack=slack, state=state, state_key=state_key, state_value=None
-            )
+        if upgrade_at and version:
+            upgrade_at_obj = datetime.strptime(upgrade_at, "%Y-%m-%dT%H:%M:%SZ")
+            state_key = f"{cluster.name}-{upgrade_at}1"
+            # if this is the first iteration in which 'now' had passed
+            # the upgrade at date time, we send a notification
+            if upgrade_at_obj < now:
+                msg = (
+                    f"Heads up {cluster_slack_handle(cluster.name, slack)}! "
+                    + f"cluster `{cluster.name}` is currently "
+                    + f"being upgraded to version `{version}`"
+                )
+                handle_slack_notification(
+                    msg=msg,
+                    slack=slack,
+                    state=state,
+                    state_key=state_key,
+                    state_value=None,
+                )
 
 
-def notify_upgrades_done(
+def notify_cluster_new_version(
     clusters: Iterable[ClusterV1], state: State, slack: Optional[SlackApi]
 ) -> None:
+    # Send a notification, if a cluster runs a version it was not running in the past
+    # This does not check if an upgrade was successful or not
     for cluster in clusters:
-        if not cluster.spec:
-            raise RuntimeError(f"Cluster '{cluster.name}' does not have any spec.")
-        state_key = f"{cluster.name}-{cluster.spec.version}"
-        msg = (
-            f"{cluster_slack_handle(cluster.name, slack)}: "
-            + f"cluster `{cluster.name}` is now running version `{cluster.spec.version}`"
-        )
-        handle_slack_notification(
-            msg=msg,
-            slack=slack,
-            state=state,
-            state_key=state_key,
-            state_value=cluster.spec.version,
-        )
+        if cluster.spec:
+            state_key = f"{cluster.name}-{cluster.spec.version}"
+            msg = (
+                f"{cluster_slack_handle(cluster.name, slack)}: "
+                + f"cluster `{cluster.name}` is now running version `{cluster.spec.version}`"
+            )
+            handle_slack_notification(
+                msg=msg,
+                slack=slack,
+                state=state,
+                state_key=state_key,
+                state_value=cluster.spec.version,
+            )
 
 
 @defer
@@ -121,17 +158,18 @@ def run(
     use_jump_host: bool = True,
     defer: Optional[Callable] = None,
 ) -> None:
+    slack: Optional[SlackApi] = None
+    if not dry_run:
+        slack = slackapi_from_queries(QONTRACT_INTEGRATION)
+
     vault_settings = get_app_interface_vault_settings()
+    settings = queries.get_app_interface_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     state = init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader)
     if defer:
         defer(state.cleanup)
 
-    clusters = [c for c in get_clusters() if c.ocm and c.spec and not c.spec.hypershift]
-
-    slack: Optional[SlackApi] = None
-    if not dry_run:
-        slack = slackapi_from_queries(QONTRACT_INTEGRATION)
+    clusters = [c for c in get_clusters() if c.ocm and c.spec]
 
     oc_map = init_oc_map_from_clusters(
         clusters=clusters,
@@ -143,6 +181,16 @@ def run(
     )
     if defer:
         defer(oc_map.cleanup)
-    notify_upgrades_start(oc_map=oc_map, state=state, slack=slack)
 
-    notify_upgrades_done(clusters=clusters, state=state, slack=slack)
+    cluster_like_objects = [cluster.dict(by_alias=True) for cluster in clusters]
+    ocm_map = OCMMap(
+        clusters=cluster_like_objects,
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+    )
+
+    notify_upgrades_start(
+        clusters=clusters, oc_map=oc_map, ocm_map=ocm_map, state=state, slack=slack
+    )
+
+    notify_cluster_new_version(clusters=clusters, state=state, slack=slack)

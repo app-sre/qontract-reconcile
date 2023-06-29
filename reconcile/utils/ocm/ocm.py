@@ -59,7 +59,14 @@ NODE_POOL_DESIRED_KEYS = {
     "subnet",
 }
 UPGRADE_CHANNELS = {"stable", "fast", "candidate"}
-UPGRADE_POLICY_DESIRED_KEYS = {"id", "schedule_type", "schedule", "next_run", "version"}
+UPGRADE_POLICY_DESIRED_KEYS = {
+    "id",
+    "schedule_type",
+    "schedule",
+    "next_run",
+    "version",
+    "state",
+}
 ADDON_UPGRADE_POLICY_DESIRED_KEYS = {
     "id",
     "addon_id",
