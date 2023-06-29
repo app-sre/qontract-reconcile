@@ -19,6 +19,12 @@ from croniter import croniter
 from pydantic import BaseModel
 from semver import VersionInfo
 
+from reconcile.aus.cluster_version_data import (
+    VersionData,
+    VersionDataMap,
+    WorkloadHistory,
+    get_version_data,
+)
 from reconcile.aus.metrics import (
     AUSClusterUpgradePolicyInfoMetric,
     AUSOrganizationErrorRate,
@@ -39,11 +45,6 @@ from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.utils import (
     gql,
     metrics,
-)
-from reconcile.utils.cluster_version_data import (
-    VersionData,
-    WorkloadHistory,
-    get_version_data,
 )
 from reconcile.utils.defer import defer
 from reconcile.utils.filtering import remove_none_values_from_dict
@@ -470,6 +471,10 @@ def update_history(
     version_data.check_in = now
 
 
+def version_data_state_key(ocm_env: str, org_id: str, addon_id: Optional[str]) -> str:
+    return f"{ocm_env}/{org_id}/{addon_id}" if addon_id else f"{ocm_env}/{org_id}"
+
+
 @defer
 def get_version_data_map(
     dry_run: bool,
@@ -478,7 +483,7 @@ def get_version_data_map(
     integration: str,
     addon_id: str = "",
     defer: Optional[Callable] = None,
-) -> dict[str, VersionData]:
+) -> VersionDataMap:
     """Get a summary of versions history per OCM instance
 
     Args:
@@ -490,42 +495,49 @@ def get_version_data_map(
         defer (Optional<Callable>): defer function
 
     Returns:
-        dict: version data per OCM instance
+        dict: version data per OCM organization keyed by the organization ID
     """
     state = init_state(integration=integration)
     if defer:
         defer(state.cleanup)
-    results: dict[str, VersionData] = {}
+    result = VersionDataMap()
     # we keep a remote state per OCM instance
     for ocm_name in ocm_map.instances():
-        state_key = f"{ocm_name}/{addon_id}" if addon_id else ocm_name
+        org = ocm_map[ocm_name]
+        state_key = version_data_state_key(org.ocm_env, org.org_id, addon_id)
         version_data = get_version_data(state, state_key)
         update_history(version_data, upgrade_policies)
-        results[ocm_name] = version_data
+        result.add(org.ocm_env, org.org_id, version_data)
         if not dry_run:
             version_data.save(state, state_key)
 
     # aggregate data from other ocm orgs
     # this is done *after* saving the state: we do not store the other orgs data in our state.
     for ocm_name in ocm_map.instances():
-        ocm = ocm_map[ocm_name]
-        for other_ocm in ocm.inheritVersionData:
-            other_ocm_name = other_ocm["name"]
-            if ocm_name == other_ocm_name:
+        org = ocm_map[ocm_name]
+        for other_ocm in org.inheritVersionData:
+            other_ocm_org_id = other_ocm["orgId"]
+            other_ocm_env = other_ocm["environment"]["name"]
+            if org.org_id == other_ocm_org_id:
                 raise ValueError(
-                    f"[{ocm_name}] OCM organization inherits version data from itself"
+                    f"[{ocm_name} - {org.org_id}] OCM organization inherits version data from itself"
                 )
-            if ocm.name not in [
-                o["name"] for o in other_ocm.get("publishVersionData") or []
+            if org.org_id not in [
+                o["orgId"] for o in other_ocm.get("publishVersionData") or []
             ]:
                 raise ValueError(
-                    f"[{ocm_name}] OCM organization inherits version data from {other_ocm_name}, but this data is not published to it: missing publishVersionData in {other_ocm_name}"
+                    f"[{ocm_name} - {org.org_id}] OCM organization inherits version data from "
+                    f"{other_ocm_org_id}, but this data is not published to it: "
+                    f"missing publishVersionData in {other_ocm_org_id}"
                 )
-            state_key = f"{other_ocm_name}/{addon_id}" if addon_id else other_ocm_name
-            other_ocm_data = get_version_data(state, state_key)
-            results[ocm_name].aggregate(other_ocm_data, other_ocm_name)
+            other_ocm_data = get_version_data(
+                state, version_data_state_key(other_ocm_env, other_ocm_org_id, addon_id)
+            )
+            result.get(org.ocm_env, org.org_id).aggregate(
+                other_ocm_data, f"{other_ocm_env}/{other_ocm_org_id}"
+            )
 
-    return results
+    return result
 
 
 def workload_sector_versions(sector: Sector, workload: str) -> list[VersionInfo]:
@@ -559,8 +571,7 @@ def workload_sector_dependencies(sector: Sector, workload: str) -> set[Sector]:
 
 def version_conditions_met(
     version: str,
-    version_data_map: dict[str, VersionData],
-    ocm_name: str,
+    version_data: VersionData,
     workloads: list[str],
     upgrade_conditions: ConfiguredUpgradePolicyConditions,
 ) -> bool:
@@ -568,8 +579,7 @@ def version_conditions_met(
 
     Args:
         version (string): version to check
-        version_data_map (dict): history of versions per OCM instance
-        ocm_name (string): name of OCM instance
+        version_data (VersionData): history of versions of an OCM organization
         upgrade_conditions (dict): query results of upgrade conditions
         workloads (list): strings representing types of workloads
 
@@ -578,7 +588,6 @@ def version_conditions_met(
     """
     sector = upgrade_conditions.sector
     if sector:
-        version_data = version_data_map[ocm_name]
         # check that inherited orgs run at least that version for our workloads
         if not version_data.validate_against_inherited(version, workloads):
             return False
@@ -597,7 +606,6 @@ def version_conditions_met(
     # check soak days condition is met for this version
     soak_days = upgrade_conditions.soakDays
     if soak_days is not None:
-        version_data = version_data_map[ocm_name]
         for w in workloads:
             workload_history = version_data.workload_history(version, w)
             if soak_days > workload_history.soak_days:
@@ -640,7 +648,7 @@ def get_version_prefix(version: str) -> str:
 
 def upgradeable_version(
     policy: ConfiguredUpgradePolicy,
-    version_data_map: dict[str, VersionData],
+    version_data_map: VersionDataMap,
     ocm: OCM,
     upgrades: Iterable[str],
     addon_id: str = "",
@@ -653,8 +661,7 @@ def upgradeable_version(
             continue
         if version_conditions_met(
             version,
-            version_data_map,
-            ocm.name,
+            version_data_map.get(ocm.ocm_env, ocm.org_id),
             policy.workloads,
             policy.conditions,
         ):
@@ -768,7 +775,7 @@ def calculate_diff(
     current_state: list[AbstractUpgradePolicy],
     upgrade_policies: list[ConfiguredUpgradePolicy],
     ocm_map: OCMMap,
-    version_data_map: dict[str, VersionData],
+    version_data_map: VersionDataMap,
     addon_id: str = "",
 ) -> list[UpgradePolicyHandler]:
     """Check available upgrades for each cluster in the desired state
@@ -778,7 +785,7 @@ def calculate_diff(
         current_state (list): currently existing upgrade policies
         upgrade_policies (list): upgradePolicy in app interface
         ocm_map (OCMMap): OCM clients per OCM instance
-        version_data_map (dict): version data history per OCM instance
+        version_data_map (VersionDataMap): version data history per OCM org
         addon_id (str): optional addonid to calculate diffs for
 
     Returns:

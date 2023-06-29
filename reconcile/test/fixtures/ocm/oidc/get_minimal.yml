@@ -5,6 +5,7 @@ expected_return_value:
   id: idp-id-2
   client_id: another-client-id
   issuer: "https://issuer-url.com/foobar"
+  mapping_method: add
   email_claims:
     - email
   name_claims:
@@ -29,6 +30,7 @@ urls:
             href: /api/clusters_mgmt/v1/clusters/osd-cluster-id/identity_providers/idp-id-2
             id: idp-id-2
             name: oidc-auth
+            mapping_method: add
             open_id:
               client_id: another-client-id
               issuer: "https://issuer-url.com/foobar"
