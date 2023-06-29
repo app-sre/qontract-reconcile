@@ -99,6 +99,10 @@ def change_type_contexts_for_self_service_roles(
     # schema role lookup enables fast lookup roles for a (schema, changetype-name)
     schema_role_lookup: dict[tuple[str, str], list[RoleV1]] = defaultdict(list)
     orphaned_roles: list[RoleV1] = []
+    change_types_by_name: dict[str, ChangeTypeProcessor] = {
+        ctp.name: ctp for ctp in change_type_processors
+    }
+
     for r in roles:
         # build role lookup for self_service section of a role
         if r.self_service:
@@ -143,21 +147,38 @@ def change_type_contexts_for_self_service_roles(
             ):
                 # if the context file is bound with the change type in
                 # a role, build a changetypecontext
-                directly_owning_roles = role_lookup[
-                    (
-                        ownership.owned_file_ref.file_type,
-                        ownership.owned_file_ref.path,
-                        ownership.change_type.name,
+                owning_roles: dict[str, RoleV1] = {}
+                for ct_lineage in change_types_by_name[
+                    ownership.change_type.name
+                ].lineage:
+                    owning_roles.update(
+                        {
+                            role.name: role
+                            for role in role_lookup[
+                                (
+                                    ownership.owned_file_ref.file_type,
+                                    ownership.owned_file_ref.path,
+                                    ct_lineage,
+                                )
+                            ]
+                        }
                     )
-                ]
-                schema_owning_roles = (
-                    schema_role_lookup[
-                        (ownership.owned_file_ref.schema, ownership.change_type.name)
-                    ]
-                    if ownership.owned_file_ref.schema
-                    else []
+                owning_roles.update(
+                    {
+                        role.name: role
+                        for role in (
+                            schema_role_lookup[
+                                (
+                                    ownership.owned_file_ref.schema,
+                                    ownership.change_type.name,
+                                )
+                            ]
+                            if ownership.owned_file_ref.schema
+                            else []
+                        )
+                    }
                 )
-                for role in directly_owning_roles + schema_owning_roles:
+                for role in owning_roles.values():
                     approvers = [
                         Approver(u.org_username, u.tag_on_merge_requests)
                         for u in role.users or []

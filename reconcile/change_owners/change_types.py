@@ -478,6 +478,7 @@ class ChangeTypeProcessor:
         ] = defaultdict(list)
         self._change_detectors: list[ChangeDetector] = []
         self._context_expansions: list[ContextExpansion] = []
+        self._heritage: set[str] = set()
 
     @property
     def change_detectors(self) -> Sequence[ChangeDetector]:
@@ -669,6 +670,15 @@ class ChangeTypeProcessor:
     def add_context_expansion(self, context_expansion: ContextExpansion) -> None:
         self._context_expansions.append(context_expansion)
 
+    def inherit_from(self, other: "ChangeTypeProcessor") -> None:
+        for detector in other.change_detectors:
+            self.add_change_detector(detector)
+        other._heritage = self.lineage.union(other._heritage)
+
+    @property
+    def lineage(self) -> set[str]:
+        return self._heritage.union({self.name})
+
 
 def build_ownership_context(
     file_diff_resolver: FileDiffResolver,
@@ -783,8 +793,7 @@ def init_change_type_processors(
                 )
 
             # the higher level change type adopts the change detectors from his decentents
-            for detector in processors[d].change_detectors:
-                ctp.add_change_detector(detector)
+            ctp.inherit_from(processors[d])
 
             # the decentents adopt the context expansions from the higher level change type
             for ce in ctp._context_expansions:
