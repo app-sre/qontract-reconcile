@@ -1,7 +1,6 @@
-from cmath import log
-from collections.abc import Callable
 import logging
 import re
+from collections.abc import Callable
 from typing import Optional
 
 from pydantic import BaseModel
@@ -50,26 +49,31 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
         regex_pattern = re.compile(cloudwatch_cleanup_entry.log_regex)
         for log_group in log_groups:
             group_name = log_group["logGroupName"]
-            # retention_days = log_group["retentionInDays"]
-            retention_days = log_group.get('retentionInDays')
+            retention_days = log_group.get("retentionInDays")
             if retention_days is not None:
-                if regex_pattern.match(group_name) and retention_days != cloudwatch_cleanup_entry.log_retention_day_length:
-                    logging.info(f" Setting {group_name} retention days to {cloudwatch_cleanup_entry.log_retention_day_length}")
+                if (
+                    regex_pattern.match(group_name)
+                    and retention_days
+                    != cloudwatch_cleanup_entry.log_retention_day_length
+                ):
+                    logging.info(
+                        f" Setting {group_name} retention days to {cloudwatch_cleanup_entry.log_retention_day_length}"
+                    )
                     if not dry_run:
                         logging.info("we are in here")
-                        awsapi.set_cloudwatch_log_retention(group_name, )
-                        # cloudwatch_logs.put_retention_policy(logGroupName=group_name, retentionInDays=retention_days)
+                        awsapi.set_cloudwatch_log_retention(
+                            accounts[0],
+                            log_groups,
+                            cloudwatch_cleanup_entry.log_retention_day_length,
+                        )
             else:
-                logging.info(f"log group {log_group} retentionInDays not specified")
+                logging.info(
+                    f"log group {group_name} retentionInDays not specified, setting retention days to {cloudwatch_cleanup_entry.log_retention_day_length}"
+                )
                 if not dry_run:
-                        logging.info("we are in here")
-                        awsapi.set_cloudwatch_log_retention(group_name, )
-                        # cloudwatch_logs.put_retention_policy(logGroupName=group_name, retentionInDays=retention_days)
-
-
-
-        # awsapi.set_cloudwatch_log_retention(
-        #     accounts[0],
-        #     cloudwatch_cleanup_entry.log_regex,
-        #     transformed_retention_day_length,
-        # )
+                    logging.info("we are in here")
+                    awsapi.set_cloudwatch_log_retention(
+                        accounts[0],
+                        log_groups,
+                        cloudwatch_cleanup_entry.log_retention_day_length,
+                    )

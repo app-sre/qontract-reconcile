@@ -1035,15 +1035,13 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         log_groups = cloudwatch_logs.describe_log_groups()["logGroups"]
         return log_groups
 
-    def set_cloudwatch_log_retention(self, account, regex_string, retention_days):
+    def set_cloudwatch_log_retention(self, account, log_groups, retention_days):
         cloudwatch_logs = self._account_cloudwatch_client(account["name"])
-        log_groups = cloudwatch_logs.describe_log_groups()["logGroups"]
-        regex_pattern = re.compile(regex_string)
         for log_group in log_groups:
             group_name = log_group["logGroupName"]
-            if regex_pattern.match(group_name):
-                logging.debug("call on put_retention_policy method")
-                # cloudwatch_logs.put_retention_policy(logGroupName=group_name, retentionInDays=retention_days)
+            cloudwatch_logs.put_retention_policy(
+                logGroupName=group_name, retentionInDays=retention_days
+            )
 
     def create_tag(
         self, account: Mapping[str, Any], resource_id: str, tag: Mapping[str, str]
