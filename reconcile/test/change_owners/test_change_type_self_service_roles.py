@@ -8,6 +8,7 @@ from reconcile.change_owners.self_service_roles import (
     DatafileIncompatibleWithChangeTypeError,
     NoApproversInSelfServiceRoleError,
     approver_reachability_from_role,
+    cover_changes_with_self_service_roles,
     validate_self_service_role,
 )
 from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
@@ -17,7 +18,11 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     SelfServiceConfigV1,
     UserV1,
 )
-from reconcile.test.change_owners.fixtures import build_role
+from reconcile.test.change_owners.fixtures import (
+    build_change_type,
+    build_role,
+    build_test_datafile,
+)
 
 #
 # test self-service role validation
@@ -88,6 +93,64 @@ def test_invalid_self_service_role_no_approvers() -> None:
             users=[],
         )
         validate_self_service_role(role)
+
+
+#
+# change type context resolution
+#
+
+
+def test_change_type_contexts_for_self_service_roles_schema() -> None:
+    role = RoleV1(
+        name="role",
+        path="/role.yaml",
+        self_service=[
+            SelfServiceConfigV1(
+                change_type=ChangeTypeV1(
+                    name="schema-admin",
+                    contextSchema="schema-1.yml",
+                ),
+                datafiles=None,
+                resources=None,
+            )
+        ],
+        users=[UserV1(org_username="u", tag_on_merge_requests=False)],
+        bots=[],
+        permissions=[],
+    )
+    ctp = build_change_type(
+        name="schema-admin",
+        change_selectors=["allowed_path"],
+        context_schema="schema-1.yml",
+    )
+    df = build_test_datafile(
+        content={
+            "restricted_path": "value",
+            "allowed_path": "value",
+        },
+        filepath="file-1.yaml",
+        schema="schema-1.yml",
+    )
+
+    self_serviceable_change = df.create_bundle_change(
+        jsonpath_patches={"allowed_path": "new_value"}
+    )
+    cover_changes_with_self_service_roles(
+        roles=[role],
+        change_type_processors=[ctp],
+        bundle_changes=[self_serviceable_change],
+    )
+    assert self_serviceable_change.all_changes_covered()
+
+    not_self_serviceable_change = df.create_bundle_change(
+        jsonpath_patches={"restricted_path": "new_value"}
+    )
+    cover_changes_with_self_service_roles(
+        roles=[role],
+        change_type_processors=[ctp],
+        bundle_changes=[not_self_serviceable_change],
+    )
+    assert not not_self_serviceable_change.all_changes_covered()
 
 
 #
