@@ -5,6 +5,7 @@ expected_return_value:
   id: idp-id-2
   client_id: another-client-id
   issuer: "https://issuer-url.com/foobar"
+  mapping_method: claim
   email_claims:
     - email
   name_claims:
