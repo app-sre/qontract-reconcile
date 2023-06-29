@@ -43,6 +43,7 @@ def oidc_idp(cluster_name: str) -> OCMOidcIdp:
         name_claims=["name"],
         username_claims=["username"],
         groups_claims=["groups"],
+        mapping_method="add",
     )
 
 
@@ -93,7 +94,7 @@ def test_ocm_create_oidc_idp(
     request_data = {
         "type": "OpenIDIdentityProvider",
         "name": oidc_idp.name,
-        "mapping_method": "claim",
+        "mapping_method": "add",
         "open_id": {
             "claims": {
                 "email": oidc_idp.email_claims,
@@ -144,6 +145,7 @@ def test_ocm_update_oidc_idp(
     url = f"/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers/idp-id-1"
     request_data = {
         "type": "OpenIDIdentityProvider",
+        "mapping_method": "add",
         "open_id": {
             "claims": {
                 "email": oidc_idp.email_claims,

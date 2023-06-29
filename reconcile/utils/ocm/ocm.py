@@ -963,8 +963,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         for idp in idps:
             if idp["type"] != "GithubIdentityProvider":
                 continue
-            if idp["mapping_method"] != "claim":
-                continue
             idp_name = idp["name"]
             idp_github = idp["github"]
 
@@ -992,7 +990,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers"
         payload = {
             "type": "GithubIdentityProvider",
-            "mapping_method": "claim",
+            "mapping_method": "add",
             "name": spec["name"],
             "github": {
                 "client_id": spec["client_id"],
@@ -1035,6 +1033,7 @@ class OCM:  # pylint: disable=too-many-public-methods
                     name_claims=claims.get("name", []),
                     username_claims=claims.get("preferred_username", []),
                     groups_claims=claims.get("groups", []),
+                    mapping_method=idp["mapping_method"],
                 )
             )
         return results
@@ -1050,7 +1049,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         payload = {
             "type": "OpenIDIdentityProvider",
             "name": oidc_idp.name,
-            "mapping_method": "claim",
+            "mapping_method": oidc_idp.mapping_method,
             "open_id": {
                 "claims": {
                     "email": oidc_idp.email_claims,
@@ -1075,6 +1074,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers/{id}"
         payload = {
             "type": "OpenIDIdentityProvider",
+            "mapping_method": oidc_idp.mapping_method,
             "open_id": {
                 "claims": {
                     "email": oidc_idp.email_claims,

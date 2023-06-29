@@ -108,6 +108,7 @@ class OCMOidcIdp(BaseModel):
     name_claims: list[str]
     username_claims: list[str]
     groups_claims: list[str]
+    mapping_method: str = "add"
 
     def __lt__(self, other: OCMOidcIdp) -> bool:
         return self.cluster < other.cluster
@@ -128,4 +129,5 @@ class OCMOidcIdp(BaseModel):
             or self.username_claims != other.username_claims
             or self.name_claims != other.name_claims
             or self.groups_claims != other.groups_claims
+            or self.mapping_method != other.mapping_method
         )
