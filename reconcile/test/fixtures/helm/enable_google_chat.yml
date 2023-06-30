@@ -91,7 +91,7 @@ objects:
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
-                log_stream_name integrations-manager
+                log_stream_name integ
                 auto_create_stream true
               </store>
               # only ship errors and warnings to Google Chat
