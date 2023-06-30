@@ -158,16 +158,6 @@ objects:
               </exclude>
             </filter>
 
-            {{- if $logs.errorsOnly }}
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /\[INFO\]/
-              </exclude>
-            </filter>
-            {{- end }}
-
             <match integration>
               @type copy
               {{- if $logs.slack }}
@@ -185,34 +175,48 @@ objects:
                 message "\`\`\`[{{ $integration.name }}] %s\`\`\`"
               </store>
               {{- end }}
-              {{- if $logs.googleChat }}
-              <store>
-                @type teams
-                webhook_url "${GOOGLE_CHAT_WEBHOOK_URL}&threadKey=${POD_NAME}"
-                text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
-                buffered true
-                <buffer>
-                  @type file
-                  path /fluentd/buffer
-
-                  flush_mode interval
-                  flush_interval 15s
-                  flush_at_shutdown true
-
-                  retry_max_times 5
-                  retry_wait 30
-
-                  disable_chunk_backup true
-                </buffer>
-              </store>
-              {{- end }}
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
                 log_stream_name {{ $integration.name }}
                 auto_create_stream true
               </store>
+              {{- if $logs.googleChat }}
+              # only ship errors and warnings to Google Chat
+              <store>
+                @type rewrite_tag_filter
+                <rule>
+                  key message
+                  pattern /\[INFO\]/
+                  invert true
+                  tag gchat
+                </rule>
+              </store>
+              {{- end}}
             </match>
+
+            {{- if $logs.googleChat }}
+            <match gchat>
+              @type teams
+              webhook_url "${GOOGLE_CHAT_WEBHOOK_URL}&threadKey=${POD_NAME}"
+              text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
+              buffered true
+              <buffer>
+                @type file
+                path /fluentd/buffer
+
+                flush_mode interval
+                flush_interval 15s
+                flush_at_shutdown true
+
+                retry_max_times 0
+                retry_wait 30
+
+                disable_chunk_backup true
+              </buffer>
+            </match>
+            {{- end }}
+            
             EOF
           volumeMounts:
           - name: fluentd-config
@@ -230,7 +234,7 @@ objects:
             - name: http
               containerPort: 9090
           env:
-          {{- if $logs.errorsOnly }}
+          {{- if $logs.googleChat }}
           - name: PREFIX_LOG_LEVEL
             value: "true"
           {{- end }}
