@@ -19,6 +19,7 @@ integrations:
   logs:
     slack: false
     googleChat: true
+    errorsOnly: true
   disableUnleash: true
   shard_specs:
   - shard_id: 0

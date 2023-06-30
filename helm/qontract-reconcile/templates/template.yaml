@@ -96,6 +96,10 @@ objects:
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           {{- end }}
+          {{- if $logs.errorsOnly }}
+          - name: PREFIX_LOG_LEVEL
+            value: "true"
+          {{- end }}
           {{- if $logs.googleChat }}
 
           {{- /*
@@ -157,6 +161,16 @@ objects:
                 pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
+
+            {{- if $logs.errorsOnly }}
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /\[INFO\]/
+              </exclude>
+            </filter>
+            {{- end }}
 
             <match integration>
               @type copy

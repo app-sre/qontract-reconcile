@@ -35,6 +35,7 @@ https://github.com/helm/helm/releases
 | logs                      | ship logs to providers                                                   | cloudwatch is enabled by default                                        |
 | logs.slack                | ship logs to slack                                                       | false                                                                   |
 | logs.googleChat           | ship logs to google chat                                                 | false                                                                   |
+| logs.errorsOnly           | filter shipped logs to only include errors (anything not INFO level)     | false                                                                   |
 | resources                 | CPU/Memory resource requests/limits                                      |                                                                         |
 | fluentdResources          | CPU/Memory resource requests/limits for Fluentd                          | {requests: {memory: 30Mi, cpu: 15m}, limits: {memory: 120Mi, cpu: 25m}} |
 | shards                    | number of shards to run integration with                                 | 1                                                                       |
@@ -48,7 +49,6 @@ https://github.com/helm/helm/releases
 | restartPolicy             | restarts of the integration                                              | OnFailure                                                               |
 | successfulJobHistoryLimit | number of history records reserved for successful integration executions | 3                                                                       |
 | failedJobHistoryLimit     | number of history records reserved for failed integration executions     | 1                                                                       |
-
 ## Logging
 
 ### Usage of "teams" plugin for Google Chat support
