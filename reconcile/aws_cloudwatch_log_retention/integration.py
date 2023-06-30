@@ -33,7 +33,9 @@ def get_app_interface_cloudwatch_retention_period(aws_accounts) -> list:
                             name=aws_acct_name,
                             acct_uid=acct_uid,
                             log_regex=aws_acct_field["regex"],
-                            log_retention_day_length=aws_acct_field["retention_in_days"],
+                            log_retention_day_length=aws_acct_field[
+                                "retention_in_days"
+                            ],
                         )
                     )
     return results
@@ -41,7 +43,9 @@ def get_app_interface_cloudwatch_retention_period(aws_accounts) -> list:
 
 def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) -> None:
     aws_accounts = get_aws_accounts(cleanup=True)
-    cloudwatch_cleanup_list = get_app_interface_cloudwatch_retention_period(aws_accounts)
+    cloudwatch_cleanup_list = get_app_interface_cloudwatch_retention_period(
+        aws_accounts
+    )
     for cloudwatch_cleanup_entry in cloudwatch_cleanup_list:
         settings = queries.get_secret_reader_settings()
         accounts = queries.get_aws_accounts(uid=cloudwatch_cleanup_entry.acct_uid)
