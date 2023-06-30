@@ -19,7 +19,7 @@ class AWSCloudwatchLogRetention(BaseModel):
     log_retention_day_length: str
 
 
-def get_app_interface_cloudwatch_retention_period(aws_accounts) -> list:
+def get_app_interface_cloudwatch_retention_period(aws_accounts: list) -> list:
     # aws_accounts = get_aws_accounts(cleanup=True)
     results = []
     for aws_acct in aws_accounts:
