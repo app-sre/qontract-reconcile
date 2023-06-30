@@ -85,6 +85,13 @@ objects:
                 pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /\[INFO\]/
+              </exclude>
+            </filter>
 
             <match integration>
               @type copy
@@ -125,6 +132,8 @@ objects:
             - name: http
               containerPort: 9090
           env:
+          - name: PREFIX_LOG_LEVEL
+            value: "true"
           - name: DRY_RUN
             value: ${DRY_RUN}
           - name: MANAGER_DRY_RUN

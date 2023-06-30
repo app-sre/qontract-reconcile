@@ -96,10 +96,6 @@ objects:
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           {{- end }}
-          {{- if $logs.errorsOnly }}
-          - name: PREFIX_LOG_LEVEL
-            value: "true"
-          {{- end }}
           {{- if $logs.googleChat }}
 
           {{- /*
@@ -234,6 +230,10 @@ objects:
             - name: http
               containerPort: 9090
           env:
+          {{- if $logs.errorsOnly }}
+          - name: PREFIX_LOG_LEVEL
+            value: "true"
+          {{- end }}
           {{- if $shard.shard_id }}
           - name: SHARDS
             value: "{{ $shard.shards }}"
