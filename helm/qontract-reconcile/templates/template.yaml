@@ -216,7 +216,6 @@ objects:
               </buffer>
             </match>
             {{- end }}
-            
             EOF
           volumeMounts:
           - name: fluentd-config

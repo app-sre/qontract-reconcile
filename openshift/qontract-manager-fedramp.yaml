@@ -85,41 +85,44 @@ objects:
                 pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /\[INFO\]/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
-              <store>
-                @type teams
-                webhook_url "${GOOGLE_CHAT_WEBHOOK_URL}&threadKey=${POD_NAME}"
-                text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
-                buffered true
-                <buffer>
-                  @type file
-                  path /fluentd/buffer
-
-                  flush_mode interval
-                  flush_interval 15s
-                  flush_at_shutdown true
-
-                  retry_max_times 5
-                  retry_wait 30
-
-                  disable_chunk_backup true
-                </buffer>
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
                 log_stream_name integrations-manager
                 auto_create_stream true
               </store>
+              # only ship errors and warnings to Google Chat
+              <store>
+                @type rewrite_tag_filter
+                <rule>
+                  key message
+                  pattern /\[INFO\]/
+                  invert true
+                  tag gchat
+                </rule>
+              </store>
+            </match>
+            <match gchat>
+              @type teams
+              webhook_url "${GOOGLE_CHAT_WEBHOOK_URL}&threadKey=${POD_NAME}"
+              text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
+              buffered true
+              <buffer>
+                @type file
+                path /fluentd/buffer
+
+                flush_mode interval
+                flush_interval 15s
+                flush_at_shutdown true
+
+                retry_max_times 0
+                retry_wait 30
+
+                disable_chunk_backup true
+              </buffer>
             </match>
             EOF
           volumeMounts:
