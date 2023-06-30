@@ -19,28 +19,29 @@ class AWSCloudwatchLogRetention(BaseModel):
     log_retention_day_length: str
 
 
-def get_app_interface_cloudwatch_retention_period() -> list:
-    aws_accounts = get_aws_accounts(cleanup=True)
+def get_app_interface_cloudwatch_retention_period(aws_accounts) -> list:
+    # aws_accounts = get_aws_accounts(cleanup=True)
     results = []
     for aws_acct in aws_accounts:
         aws_acct_name = aws_acct.get("name")
         acct_uid = aws_acct.get("uid")
         if aws_acct.get("cleanup"):
-            for x in aws_acct.get("cleanup"):
-                if x["provider"] == "cloudwatch":
+            for aws_acct_field in aws_acct.get("cleanup"):
+                if aws_acct_field["provider"] == "cloudwatch":
                     results.append(
                         AWSCloudwatchLogRetention(
                             name=aws_acct_name,
                             acct_uid=acct_uid,
-                            log_regex=x["regex"],
-                            log_retention_day_length=x["retention_in_days"],
+                            log_regex=aws_acct_field["regex"],
+                            log_retention_day_length=aws_acct_field["retention_in_days"],
                         )
                     )
     return results
 
 
 def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) -> None:
-    cloudwatch_cleanup_list = get_app_interface_cloudwatch_retention_period()
+    aws_accounts = get_aws_accounts(cleanup=True)
+    cloudwatch_cleanup_list = get_app_interface_cloudwatch_retention_period(aws_accounts)
     for cloudwatch_cleanup_entry in cloudwatch_cleanup_list:
         settings = queries.get_secret_reader_settings()
         accounts = queries.get_aws_accounts(uid=cloudwatch_cleanup_entry.acct_uid)
@@ -60,7 +61,6 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                         f" Setting {group_name} retention days to {cloudwatch_cleanup_entry.log_retention_day_length}"
                     )
                     if not dry_run:
-                        logging.info("we are in here")
                         awsapi.set_cloudwatch_log_retention(
                             accounts[0],
                             log_groups,
@@ -71,7 +71,6 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                     f"log group {group_name} retentionInDays not specified, setting retention days to {cloudwatch_cleanup_entry.log_retention_day_length}"
                 )
                 if not dry_run:
-                    logging.info("we are in here")
                     awsapi.set_cloudwatch_log_retention(
                         accounts[0],
                         log_groups,
