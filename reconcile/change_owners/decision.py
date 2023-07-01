@@ -5,8 +5,15 @@ from collections.abc import (
 )
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import (
+    Any,
+    Optional,
+)
 
+from reconcile.change_owners.approver import (
+    Approver,
+    ApproverReachability,
+)
 from reconcile.change_owners.bundle import FileRef
 from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.change_owners.changes import BundleFileChange
@@ -59,6 +66,13 @@ def get_approver_decisions_from_mr_comments(
 
 
 @dataclass
+class ChangeResponsibles:
+    context: str
+    approvers: list[Approver]
+    approver_reachability: Optional[list[ApproverReachability]] = None
+
+
+@dataclass
 class ChangeDecision:
     file: FileRef
     diff: Diff
@@ -67,6 +81,7 @@ class ChangeDecision:
     def __post_init__(self) -> None:
         self.approve: dict[str, bool] = defaultdict(bool)
         self.hold: dict[str, bool] = defaultdict(bool)
+        self.context_auto_approval: dict[str, bool] = defaultdict(bool)
 
     def apply_decision(
         self, ctx: ChangeTypeContext, decision_cmd: DecisionCommand
@@ -80,18 +95,38 @@ class ChangeDecision:
         elif decision_cmd == DecisionCommand.CANCEL_HOLD:
             self.hold[ctx.context] = False
 
+    def auto_approve(self, ctx: ChangeTypeContext, decision: bool) -> None:
+        self.context_auto_approval[ctx.context] = decision
+
     def is_approved(self) -> bool:
-        return any(self.approve.values())
+        """
+        A diff is considered approved if
+        * at least one eligible approver party (context) approved it
+          OR
+        * ALL eligible approver parties (contexts) have issued an auto-approval
+
+        An approved diff does not imply that the MR is approved. There might still be holds.
+        """
+        return any(self.approve.values()) or (
+            len(self.context_auto_approval) > 0
+            and all(self.context_auto_approval.values())
+        )
 
     def is_held(self) -> bool:
         return any(self.hold.values())
 
-    def deduped_coverage(self) -> list[ChangeTypeContext]:
-        unique_coverage = {}
+    @property
+    def change_responsibles(self) -> list[ChangeResponsibles]:
+        unique_contexts: dict[str, ChangeResponsibles] = {}
         for ctx in self.coverage:
-            key = f"{ctx.change_type_processor.name}:{ctx.context}"
-            unique_coverage[key] = ctx
-        return list(unique_coverage.values())
+            if ctx.context in unique_contexts:
+                continue
+            unique_contexts[ctx.context] = ChangeResponsibles(
+                context=ctx.context,
+                approvers=ctx.approvers,
+                approver_reachability=ctx.approver_reachability,
+            )
+        return list(unique_contexts.values())
 
 
 def apply_decisions_to_changes(
@@ -106,6 +141,10 @@ def apply_decisions_to_changes(
     to generate the coverage report and to reason about the approval
     state of the MR.
     """
+    approvers_decisions_by_name = {
+        d.approver_name: d.command for d in approver_decisions
+    }
+
     diff_decisions = []
     for c in changes:
         for d in c.diff_coverage:
@@ -113,21 +152,26 @@ def apply_decisions_to_changes(
                 file=c.fileref, diff=d.diff, coverage=d.coverage
             )
             diff_decisions.append(change_decision)
+
             for change_type_context in change_decision.coverage:
                 # approvers of a disabled change-type are ignored
                 if change_type_context.disabled:
                     continue
 
-                # autoapproval authors
-                if (
+                # a context is auto-approved if
+                #  * it has only one approver
+                #  * the approver is an auto-approver
+                #  * the approver has not issued an explicit hold decision
+                context_auto_approved = (
                     len(change_type_context.approvers) == 1
                     and change_type_context.approvers[0].org_username
                     in auto_approver_usernames
-                ):
-                    change_decision.apply_decision(
-                        change_type_context, DecisionCommand.APPROVED
+                    and approvers_decisions_by_name.get(
+                        change_type_context.approvers[0].org_username
                     )
-                    continue
+                    != DecisionCommand.HOLD
+                )
+                change_decision.auto_approve(change_type_context, context_auto_approved)
 
                 for decision in approver_decisions:
                     if change_type_context.includes_approver(decision.approver_name):
