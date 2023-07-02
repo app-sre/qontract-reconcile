@@ -266,28 +266,45 @@ def test_change_decision_one_change_multiple_groups(
     assert change_decision[0].file == change.fileref
 
 
-def test_change_decision_auto_approve_only_approver(
+def test_change_decision_auto_approve_exclusive_approver_in_role_in_all_diffs_and_contexts(
     saas_file_changetype: ChangeTypeV1,
 ) -> None:
+    """
+    Test case: multiple diffs in a changed file, each diff having multiple approver contexts
+    where only the auto-approved user is approver in all contexts.
+
+    Test that the change is auto-approved because the only approver for all diffs is an auto-approver
+    and there can't be any contradicting decisions from anyone else.
+    """
     bot_user = "i-am-a-bot"
     change = build_bundle_datafile_change(
         path="/my/file.yml",
         schema="/my/schema.yml",
         old_content={"foo": "bar"},
-        new_content={"foo": "baz"},
+        new_content={"foo": "baz", "sna": "fu"},
     )
-    assert change and len(change.diff_coverage) == 1
-    change.diff_coverage[0].coverage = [
-        ChangeTypeContext(
-            change_type_processor=change_type_to_processor(saas_file_changetype),
-            context="something-something",
-            origin="",
-            approvers=[
-                Approver(org_username=bot_user, tag_on_merge_requests=False),
-            ],
-            context_file=change.fileref,
-        )
-    ]
+    assert change and len(change.diff_coverage) == 2
+    for dc in change.diff_coverage:
+        dc.coverage = [
+            ChangeTypeContext(
+                change_type_processor=change_type_to_processor(saas_file_changetype),
+                context="RoleV1 - a role",
+                origin="",
+                approvers=[
+                    Approver(org_username=bot_user, tag_on_merge_requests=False),
+                ],
+                context_file=change.fileref,
+            ),
+            ChangeTypeContext(
+                change_type_processor=change_type_to_processor(saas_file_changetype),
+                context="RoleV1 - another role",
+                origin="",
+                approvers=[
+                    Approver(org_username=bot_user, tag_on_merge_requests=False),
+                ],
+                context_file=change.fileref,
+            ),
+        ]
 
     change_decision = apply_decisions_to_changes(
         approver_decisions={},
@@ -296,47 +313,78 @@ def test_change_decision_auto_approve_only_approver(
     )
 
     assert change_decision[0].is_approved()
+    assert change_decision[1].is_approved()
 
 
-def test_change_decision_auto_approve_not_only_approver(
+def test_change_decision_auto_approve_not_exclusive_approver_in_all_contexts(
     saas_file_changetype: ChangeTypeV1,
 ) -> None:
-    nothing_sayer = "nothing-sayer"
-    bot_user = "i-am-a-bot"
+    """
+    Test case: multiple diffs in a changed file, each diff having multiple approver contexts.
+    The auto-approver is the only approver in some of them but not all.
+
+    Test that the change is not auto-approved because the only auto-approver is not the only
+    approver in all diffs and all related approver contexts.
+    """
+    auto_approver_user = "auto-approver"
     change = build_bundle_datafile_change(
         path="/my/file.yml",
         schema="/my/schema.yml",
         old_content={"foo": "bar"},
-        new_content={"foo": "baz"},
+        new_content={"foo": "baz", "sna": "fu"},
     )
-    assert change and len(change.diff_coverage) == 1
+    assert change and len(change.diff_coverage) == 2
     change.diff_coverage[0].coverage = [
         ChangeTypeContext(
             change_type_processor=change_type_to_processor(saas_file_changetype),
-            context="something-something",
+            context="RoleV1 - role 1",
             origin="",
             approvers=[
-                Approver(org_username=nothing_sayer, tag_on_merge_requests=False),
-                Approver(org_username=bot_user, tag_on_merge_requests=False),
+                Approver(org_username=auto_approver_user, tag_on_merge_requests=False),
             ],
             context_file=change.fileref,
         )
+    ]
+    change.diff_coverage[1].coverage = [
+        ChangeTypeContext(
+            change_type_processor=change_type_to_processor(saas_file_changetype),
+            context="RoleV1 - role 2",
+            origin="",
+            approvers=[
+                Approver(org_username=auto_approver_user, tag_on_merge_requests=False),
+            ],
+            context_file=change.fileref,
+        ),
+        ChangeTypeContext(
+            change_type_processor=change_type_to_processor(saas_file_changetype),
+            context="RoleV1 - role 3",
+            origin="",
+            approvers=[
+                Approver(org_username=auto_approver_user, tag_on_merge_requests=False),
+                Approver(org_username="another-user", tag_on_merge_requests=False),
+            ],
+            context_file=change.fileref,
+        ),
     ]
 
     change_decision = apply_decisions_to_changes(
         approver_decisions={},
         changes=[change],
-        auto_approver_usernames={bot_user},
+        auto_approver_usernames={auto_approver_user},
     )
 
-    assert not change_decision[0].is_approved()
+    assert change_decision[0].is_approved()
+    assert not change_decision[1].is_approved()
 
 
-def test_change_decision_auto_approve_with_approval(
+def test_change_decision_auto_approver_hold_decision(
     saas_file_changetype: ChangeTypeV1,
 ) -> None:
-    nothing_sayer = "nothing-sayer"
-    bot_user = "i-am-a-bot"
+    """
+    Ensure that an auto-approvers hold decision is honored even when a change
+    would be auto-approved otherwise.
+    """
+    auto_approver = "auto-approver"
     change = build_bundle_datafile_change(
         path="/my/file.yml",
         schema="/my/schema.yml",
@@ -347,11 +395,10 @@ def test_change_decision_auto_approve_with_approval(
     change.diff_coverage[0].coverage = [
         ChangeTypeContext(
             change_type_processor=change_type_to_processor(saas_file_changetype),
-            context="something-something",
+            context="RoleV1 - a role",
             origin="",
             approvers=[
-                Approver(org_username=nothing_sayer, tag_on_merge_requests=False),
-                Approver(org_username=bot_user, tag_on_merge_requests=False),
+                Approver(org_username=auto_approver, tag_on_merge_requests=False),
             ],
             context_file=change.fileref,
         )
@@ -359,10 +406,11 @@ def test_change_decision_auto_approve_with_approval(
 
     change_decision = apply_decisions_to_changes(
         approver_decisions=[
-            Decision(approver_name=bot_user, command=DecisionCommand.APPROVED),
+            Decision(approver_name=auto_approver, command=DecisionCommand.HOLD),
         ],
         changes=[change],
-        auto_approver_usernames={bot_user},
+        auto_approver_usernames={auto_approver},
     )
 
-    assert change_decision[0].is_approved()
+    assert not change_decision[0].is_approved()
+    assert change_decision[0].is_held()

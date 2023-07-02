@@ -127,12 +127,12 @@ def write_coverage_report_to_mr(
     approver_reachability = set()
     for d in change_decisions:
         approvers = [
-            f"{ctctx.context} - { ' '.join([f'@{a.org_username}' if a.tag_on_merge_requests else a.org_username for a in ctctx.approvers]) }"
-            for ctctx in d.deduped_coverage()
+            f"{cr.context} - { ' '.join([f'@{a.org_username}' if a.tag_on_merge_requests else a.org_username for a in cr.approvers]) }"
+            for cr in d.change_responsibles
         ]
-        for cctx in d.deduped_coverage():
+        for cr in d.change_responsibles:
             approver_reachability.update(
-                {ar.render_for_mr_report() for ar in cctx.approver_reachability or []}
+                {ar.render_for_mr_report() for ar in cr.approver_reachability or []}
             )
         if not approvers:
             approvers = ["[- not self-serviceable -]"]
