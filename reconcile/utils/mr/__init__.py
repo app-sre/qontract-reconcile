@@ -1,5 +1,4 @@
 from reconcile.utils.mr.app_interface_reporter import CreateAppInterfaceReporter
-from reconcile.utils.mr.auto_promoter import AutoPromoter
 from reconcile.utils.mr.aws_access import CreateDeleteAwsAccessKey
 from reconcile.utils.mr.base import (
     MergeRequestBase,
@@ -30,7 +29,6 @@ __all__ = [
     "CreateAppInterfaceNotificator",
     "CreateDeleteUserAppInterface",
     "CreateDeleteUserInfra",
-    "AutoPromoter",
 ]
 
 
