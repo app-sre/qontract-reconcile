@@ -40,6 +40,7 @@ from reconcile.utils.mr.labels import (
     DO_NOT_MERGE_PENDING_REVIEW,
     HOLD,
     LGTM,
+    NEEDS_REBASE,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     prioritized_approval_label,
@@ -59,6 +60,7 @@ HOLD_LABELS = [
     HOLD,
     DO_NOT_MERGE_HOLD,
     DO_NOT_MERGE_PENDING_REVIEW,
+    NEEDS_REBASE,
 ]
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
