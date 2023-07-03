@@ -1,0 +1,10 @@
+# qenerate: plugin=pydantic_v1
+
+query JiraSettings {
+    jira_settings: app_interface_settings_v1 {
+        jiraWatcher {
+            readTimeout
+            connectTimeout
+        }
+    }
+}

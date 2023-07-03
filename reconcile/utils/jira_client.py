@@ -6,6 +6,7 @@ from collections.abc import (
 from typing import (
     Any,
     Optional,
+    Protocol,
 )
 
 from jira import (
@@ -17,13 +18,25 @@ from jira.client import ResultList
 from reconcile.utils.secret_reader import SecretReader
 
 
+class JiraWatcherSettings(Protocol):
+    read_timeout: int
+    connect_timeout: int
+
+
 class JiraClient:
     """Wrapper around Jira client."""
 
     def __init__(
-        self, jira_board: Mapping[str, Any], settings: Optional[Mapping] = None
+        self,
+        jira_board: Mapping[str, Any],
+        settings: Optional[Mapping] = None,
+        jira_watcher_settings: Optional[JiraWatcherSettings] = None,
+        secret_reader: Optional[SecretReader] = None,
     ):
-        self.secret_reader = SecretReader(settings=settings)
+        if not (secret_reader or settings):
+            raise RuntimeError("JiraClient needs secret_reader or settings.")
+        if not secret_reader:
+            self.secret_reader = SecretReader(settings=settings)
         self.project = jira_board["name"]
         jira_server = jira_board["server"]
         self.server = jira_server["serverUrl"]
@@ -34,6 +47,10 @@ class JiraClient:
         if settings and settings["jiraWatcher"]:
             read_timeout = settings["jiraWatcher"]["readTimeout"]
             connect_timeout = settings["jiraWatcher"]["connectTimeout"]
+
+        if jira_watcher_settings:
+            read_timeout = jira_watcher_settings.read_timeout
+            connect_timeout = jira_watcher_settings.connect_timeout
 
         self.jira = JIRA(
             self.server, token_auth=token_auth, timeout=(read_timeout, connect_timeout)
