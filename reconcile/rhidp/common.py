@@ -1,7 +1,11 @@
-from collections import defaultdict
+from collections import (
+    Counter,
+    defaultdict,
+)
 from collections.abc import Callable
 from enum import Enum
 from typing import (
+    Iterable,
     Optional,
     Sequence,
 )
@@ -14,7 +18,9 @@ from reconcile.gql_definitions.rhidp.clusters import (
     OpenShiftClusterManagerV1,
 )
 from reconcile.gql_definitions.rhidp.clusters import query as cluster_query
+from reconcile.rhidp.metrics import RhIdpClusterCounter
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.metrics import MetricsContainer
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
     discover_clusters_by_labels,
@@ -143,3 +149,26 @@ def cluster_vault_secret(
         version=None,
         format=None,
     )
+
+
+def expose_base_metrics(
+    metrics_container: MetricsContainer,
+    integration_name: str,
+    clusters: Iterable[ClusterV1],
+) -> None:
+    clusters_per_org: Counter[str] = Counter()
+    for cluster in clusters:
+        if cluster.ocm:
+            clusters_per_org[cluster.ocm.org_id] += 1
+        else:
+            clusters_per_org["unknown-org-id"] += 1
+
+    # clusters per org counter
+    for org_id, count in clusters_per_org.items():
+        metrics_container.set_gauge(
+            RhIdpClusterCounter(
+                integration=integration_name,
+                org_id=org_id,
+            ),
+            value=count,
+        )
