@@ -68,7 +68,7 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 merged_merge_requests = Counter(
     name="qontract_reconcile_merged_merge_requests",
     documentation="Number of merge requests that have been successfully merged in a repository",
-    labelnames=["project_id", "self_service"],
+    labelnames=["project_id", "self_service", "auto_merge"],
 )
 
 rebased_merge_requests = Counter(
@@ -496,9 +496,11 @@ def merge_merge_requests(
         if not dry_run and merges < merge_limit:
             try:
                 mr.merge()
+                labels = get_labels(mr, gl)
                 merged_merge_requests.labels(
                     project_id=mr.target_project_id,
-                    self_service=SELF_SERVICEABLE in get_labels(mr, gl),
+                    self_service=SELF_SERVICEABLE in labels,
+                    auto_merge=AUTO_MERGE in labels,
                 ).inc()
                 time_to_merge.labels(mr.target_project_id).observe(
                     _calculate_time_since_approval(merge_request_approved_at[mr])
