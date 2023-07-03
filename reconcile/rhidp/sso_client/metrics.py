@@ -28,7 +28,7 @@ class RhIdpSSOClientIatExpiration(RhIdpBaseMetric, GaugeMetric):
 
     @classmethod
     def name(cls) -> str:
-        return "rhidp_sso_client_iat_expiration"
+        return "rhidp_sso_client_inital_access_token_expiration"
 
 
 class RhIdpSSOClientCounter(RhIdpBaseMetric, GaugeMetric):
