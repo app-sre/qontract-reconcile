@@ -32,12 +32,13 @@ DEFAULT_GROUPS_CLAIMS: list[str] = []
 
 def run(
     integration_name: str,
+    flavor: str,
     clusters: Iterable[ClusterV1],
     secret_reader: SecretReaderBase,
     vault_input_path: str,
     dry_run: bool,
 ) -> None:
-    with metrics.transactional_metrics(integration_name) as metrics_container:
+    with metrics.transactional_metrics(flavor) as metrics_container:
         # metrics
         expose_base_metrics(metrics_container, integration_name, clusters)
 
