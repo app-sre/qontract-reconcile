@@ -11,10 +11,13 @@ from reconcile.gql_definitions.rhidp.clusters import (
     ClusterV1,
 )
 from reconcile.ocm.types import OCMOidcIdp
-from reconcile.rhidp.common import cluster_vault_secret
-from reconcile.rhidp.metrics import (
-    RhIdpReconcileCounter,
-    RhIdpReconcileErrorCounter,
+from reconcile.rhidp.common import (
+    cluster_vault_secret,
+    expose_base_metrics,
+)
+from reconcile.rhidp.ocm_oidc_idp.metrics import (
+    RhIdpOCMOidcIdpReconcileCounter,
+    RhIdpOCMOidcIdpReconcileErrorCounter,
 )
 from reconcile.utils import metrics
 from reconcile.utils.keycloak import SSOClient
@@ -35,6 +38,9 @@ def run(
     dry_run: bool,
 ) -> None:
     with metrics.transactional_metrics(integration_name) as metrics_container:
+        # metrics
+        expose_base_metrics(metrics_container, integration_name, clusters)
+
         # APIs
         settings = queries.get_app_interface_settings()
         ocm_map = OCMMap(
@@ -51,11 +57,11 @@ def run(
             )
             act(dry_run, ocm_map, current_state, desired_state)
             metrics_container.inc_counter(
-                RhIdpReconcileCounter(integration=integration_name)
+                RhIdpOCMOidcIdpReconcileCounter(integration=integration_name)
             )
         except Exception:
             metrics_container.inc_counter(
-                RhIdpReconcileErrorCounter(integration=integration_name)
+                RhIdpOCMOidcIdpReconcileErrorCounter(integration=integration_name)
             )
             raise
 

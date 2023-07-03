@@ -5,6 +5,8 @@ from collections.abc import (
 )
 from urllib.parse import urljoin
 
+import jwt
+
 from reconcile.gql_definitions.rhidp.clusters import (
     ClusterAuthOIDCV1,
     ClusterV1,
@@ -12,10 +14,13 @@ from reconcile.gql_definitions.rhidp.clusters import (
 from reconcile.rhidp.common import (
     cluster_vault_secret,
     cluster_vault_secret_id,
+    expose_base_metrics,
 )
-from reconcile.rhidp.metrics import (
-    RhIdpReconcileCounter,
-    RhIdpReconcileErrorCounter,
+from reconcile.rhidp.sso_client.metrics import (
+    RhIdpSSOClientCounter,
+    RhIdpSSOClientIatExpiration,
+    RhIdpSSOClientReconcileCounter,
+    RhIdpSSOClientReconcileErrorCounter,
 )
 from reconcile.utils import metrics
 from reconcile.utils.keycloak import (
@@ -46,14 +51,31 @@ def run(
     dry_run: bool,
 ) -> None:
     with metrics.transactional_metrics(integration_name) as metrics_container:
+        # metrics
+        expose_base_metrics(metrics_container, integration_name, clusters)
+
         # APIs
         keycloak_instances: list[KeycloakInstance] = []
         for path in keycloak_vault_paths:
             secret = secret_reader.read_all({"path": path})
+            iat = secret["initial-access-token"]
+            token = jwt.decode(
+                iat,
+                "secret",
+                algorithms=["HS256"],
+                options={"verify_signature": False},
+            )
+            metrics_container.set_gauge(
+                RhIdpSSOClientIatExpiration(
+                    integration=integration_name,
+                    path=path,
+                ),
+                value=token["exp"],
+            )
             keycloak_instances.append(
                 KeycloakInstance(
                     url=secret["url"],
-                    initial_access_token=secret["initial-access-token"],
+                    initial_access_token=iat,
                 )
             )
         keycloak_map = KeycloakMap(keycloak_instances)
@@ -62,6 +84,12 @@ def run(
         try:
             existing_sso_client_ids = fetch_current_state(
                 secret_reader=secret_reader, vault_input_path=vault_input_path
+            )
+            metrics_container.set_gauge(
+                RhIdpSSOClientCounter(
+                    integration=integration_name,
+                ),
+                value=len(existing_sso_client_ids),
             )
             desired_sso_clients = fetch_desired_state(clusters=clusters)
             act(
@@ -74,11 +102,11 @@ def run(
                 dry_run=dry_run,
             )
             metrics_container.inc_counter(
-                RhIdpReconcileCounter(integration=integration_name)
+                RhIdpSSOClientReconcileCounter(integration=integration_name)
             )
         except Exception:
             metrics_container.inc_counter(
-                RhIdpReconcileErrorCounter(integration=integration_name)
+                RhIdpSSOClientReconcileErrorCounter(integration=integration_name)
             )
             raise
 

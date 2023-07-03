@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from reconcile.utils.metrics import CounterMetric
+from reconcile.utils.metrics import GaugeMetric
 
 
 class RhIdpBaseMetric(BaseModel):
@@ -9,17 +9,11 @@ class RhIdpBaseMetric(BaseModel):
     integration: str
 
 
-class RhIdpReconcileErrorCounter(RhIdpBaseMetric, CounterMetric):
-    """Counter for the failed reconcile runs."""
+class RhIdpClusterCounter(RhIdpBaseMetric, GaugeMetric):
+    """Number of managed clusters per organization."""
+
+    org_id: str
 
     @classmethod
     def name(cls) -> str:
-        return "RhIdp_reconcile_errors"
-
-
-class RhIdpReconcileCounter(RhIdpBaseMetric, CounterMetric):
-    """Counter for successful reconcile runs."""
-
-    @classmethod
-    def name(cls) -> str:
-        return "rhidp_reconciled"
+        return "rhidp_managed_clusters"
