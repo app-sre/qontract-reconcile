@@ -812,6 +812,14 @@ def jenkins_webhooks_cleaner(ctx):
     run_integration(reconcile.jenkins_webhooks_cleaner, ctx.obj)
 
 
+@integration.command(short_help="Validate permissions in Jira.")
+@click.pass_context
+def jira_permissions_validator(ctx):
+    import reconcile.jira_permissions_validator
+
+    run_integration(reconcile.jira_permissions_validator, ctx.obj)
+
+
 @integration.command(short_help="Watch for changes in Jira boards and notify on Slack.")
 @click.pass_context
 def jira_watcher(ctx):

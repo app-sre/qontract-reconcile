@@ -2176,6 +2176,7 @@ JIRA_BOARDS_QUERY = """
         format
       }
     }
+    {% if with_slack %}
     slack {
       workspace {
         name
@@ -2204,15 +2205,17 @@ JIRA_BOARDS_QUERY = """
       }
       channel
     }
+    {% endif %}
   }
 }
 """
 
 
-def get_jira_boards():
+def get_jira_boards(with_slack: Optional[bool] = True):
     """Returns Jira boards resources defined in app-interface"""
     gqlapi = gql.get_api()
-    return gqlapi.query(JIRA_BOARDS_QUERY)["jira_boards"]
+    query = Template(JIRA_BOARDS_QUERY).render(with_slack=with_slack)
+    return gqlapi.query(query)["jira_boards"]
 
 
 # Use APATH as the place holder because Python formatting interferes
