@@ -216,10 +216,16 @@ def run(
     zones = queries.get_dns_zones(account_name=account_name)
 
     all_accounts = queries.get_aws_accounts(terraform_state=True)
-    participating_account_names = [z["account"]["name"] for z in zones]
+    participating_account_names = {z["account"]["name"] for z in zones}
     participating_accounts = [
         a for a in all_accounts if a["name"] in participating_account_names
     ]
+
+    if not participating_accounts:
+        logging.warning(
+            f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
+        )
+        return
 
     ts = Terrascript(
         QONTRACT_INTEGRATION,
