@@ -1853,7 +1853,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         success: bool,
         all_saas_files: Iterable[SaasFile],
         mr_cli: MRClient,
-        auto_promote: bool = False,
     ) -> None:
         """
         If there were promotion sections in the participating saas file
@@ -1862,13 +1861,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             subscribe_saas_file_path_map,
             subscribe_target_path_map,
         ) = self._get_subscribe_path_map(all_saas_files, auto_only=True)
-        trigger_promotion = False
-
-        if self.promotions and not auto_promote:
-            logging.info(
-                "Auto-promotions to next stages are disabled. "
-                "Promotions are being handled by SAPM."
-            )
 
         if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
@@ -1911,19 +1903,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
                 promotion.saas_file_paths = list(all_subscribed_saas_file_paths)
                 promotion.target_paths = list(all_subscribed_target_paths)
-
-                if auto_promote and (
-                    all_subscribed_saas_file_paths or all_subscribed_target_paths
-                ):
-                    trigger_promotion = True
-
-        if success and trigger_promotion:
-            from reconcile.utils.mr.auto_promoter import (
-                AutoPromoter,  # avoid circular import
-            )
-
-            mr = AutoPromoter([p for p in self.promotions if p is not None])
-            mr.submit(cli=mr_cli)
 
     @staticmethod
     def _get_subscribe_path_map(
