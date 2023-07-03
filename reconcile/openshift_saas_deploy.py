@@ -246,9 +246,7 @@ def run(
         # However, we still need saas-herder to publish the state to S3, because
         # saas-auto-promotions-manager needs that information
         with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
-            saasherder.publish_promotions(
-                success, all_saas_files, mr_cli, auto_promote=False
-            )
+            saasherder.publish_promotions(success, all_saas_files, mr_cli)
 
     if not success:
         sys.exit(ExitCodes.ERROR)
