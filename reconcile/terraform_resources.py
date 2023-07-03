@@ -14,7 +14,10 @@ from typing import (
     cast,
 )
 
-from sretoolbox.utils import threaded
+from sretoolbox.utils import (
+    retry,
+    threaded,
+)
 
 import reconcile.openshift_base as ob
 from reconcile import queries
@@ -296,6 +299,7 @@ def cleanup_and_exit(
     sys.exit(status)
 
 
+@retry()
 def write_outputs_to_vault(
     vault_path: str, resource_specs: ExternalResourceSpecInventory
 ) -> None:
@@ -415,6 +419,15 @@ def run(
         if err:
             cleanup_and_exit(tf, err)
 
+        if defer:
+            defer(
+                disable_keys,
+                dry_run,
+                thread_pool_size,
+                disable_service_account_keys=True,
+                account_name=acc_name,
+            )
+
     # refresh output data after terraform apply
     tf.populate_terraform_output_secrets(
         resource_specs=resource_specs, init_rds_replica_source=True
@@ -426,14 +439,6 @@ def run(
     if oc_map:
         actions = ob.realize_data(
             dry_run, oc_map, ri, thread_pool_size, caller=acc_name
-        )
-
-    if not light and tf.should_apply:
-        disable_keys(
-            dry_run,
-            thread_pool_size,
-            disable_service_account_keys=True,
-            account_name=acc_name,
         )
 
     if actions and vault_output_path:
