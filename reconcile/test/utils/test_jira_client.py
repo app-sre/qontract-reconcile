@@ -47,10 +47,20 @@ def test_create_with_settings(secret_reader: Mock, jira_board: dict) -> None:
     assert jira_client._token_auth == "secret"
 
 
-def test_create_too_many_settings(secret_reader: Mock) -> None:
+def test_create_secret_reader_and_settings(secret_reader: Mock) -> None:
     with pytest.raises(RuntimeError):
         JiraClient(
             jira_board={}, secret_reader=secret_reader, settings={"name": "test"}
+        )
+
+
+def test_create_jira_and_settings(secret_reader: Mock) -> None:
+    jira_watcher_settings = JiraWatcherSettingsV1(connectTimeout=42, readTimeout=42)
+    with pytest.raises(RuntimeError):
+        JiraClient(
+            jira_board={},
+            jira_watcher_settings=jira_watcher_settings,
+            settings={"name": "test"},
         )
 
 

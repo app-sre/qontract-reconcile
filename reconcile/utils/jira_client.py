@@ -39,7 +39,7 @@ class JiraClient:
         """
         if not (secret_reader or settings):
             raise RuntimeError("JiraClient needs secret_reader or settings.")
-        if secret_reader and settings:
+        if (secret_reader or jira_watcher_settings) and settings:
             raise RuntimeError(
                 "settings parameter is deprecated. Use only jira_watcher_settings and secret_reader."
             )
