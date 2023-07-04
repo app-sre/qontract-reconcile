@@ -50,7 +50,7 @@ class SSOClientStandalone(QontractReconcileIntegration[SSOClientStandaloneParams
 
             run(
                 integration_name=self.name,
-                flavor=ocm_env.name,
+                ocm_environment=ocm_env.name,
                 clusters=clusters,
                 secret_reader=secret_reader,
                 keycloak_vault_paths=self.params.keycloak_vault_paths,

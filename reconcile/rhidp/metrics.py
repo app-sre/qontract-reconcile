@@ -7,6 +7,7 @@ class RhIdpBaseMetric(BaseModel):
     """Base class for RhIdp metrics"""
 
     integration: str
+    ocm_environment: str
 
 
 class RhIdpClusterCounter(RhIdpBaseMetric, GaugeMetric):

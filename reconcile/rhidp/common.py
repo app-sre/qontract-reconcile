@@ -154,6 +154,7 @@ def cluster_vault_secret(
 def expose_base_metrics(
     metrics_container: MetricsContainer,
     integration_name: str,
+    ocm_environment: str,
     clusters: Iterable[ClusterV1],
 ) -> None:
     clusters_per_org: Counter[str] = Counter()
@@ -168,6 +169,7 @@ def expose_base_metrics(
         metrics_container.set_gauge(
             RhIdpClusterCounter(
                 integration=integration_name,
+                ocm_environment=ocm_environment,
                 org_id=org_id,
             ),
             value=count,
