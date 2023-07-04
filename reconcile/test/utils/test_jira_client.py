@@ -10,15 +10,19 @@ from reconcile.gql_definitions.common.jira_settings import JiraWatcherSettingsV1
 from reconcile.utils.jira_client import JiraClient
 
 
-def test_create_defaults(secret_reader: Mock) -> None:
-    jira_api = create_autospec(spec=JIRA)
-    jira_board = {
+@pytest.fixture
+def jira_board() -> dict:
+    return {
         "name": "test",
         "server": {
             "serverUrl": "test",
             "token": {},
         },
     }
+
+
+def test_create_defaults(secret_reader: Mock, jira_board: dict) -> None:
+    jira_api = create_autospec(spec=JIRA)
     jira_client = JiraClient(
         jira_board=jira_board, secret_reader=secret_reader, jira_api=jira_api
     )
@@ -28,15 +32,8 @@ def test_create_defaults(secret_reader: Mock) -> None:
     assert jira_client._token_auth == "secret"
 
 
-def test_create_with_settings(secret_reader: Mock) -> None:
+def test_create_with_settings(secret_reader: Mock, jira_board: dict) -> None:
     jira_api = create_autospec(spec=JIRA)
-    jira_board = {
-        "name": "test",
-        "server": {
-            "serverUrl": "test",
-            "token": {},
-        },
-    }
     jira_watcher_settings = JiraWatcherSettingsV1(connectTimeout=42, readTimeout=42)
     jira_client = JiraClient(
         jira_board=jira_board,
