@@ -964,6 +964,12 @@ def upgrade_cluster_addon(
         ocm.create_addon_upgrade_policy(cluster, spec)
 
 
+def has_cluster_account_access(cluster: dict[str, Any]):
+    spec = cluster.get("spec") or {}
+    account = spec.get("account")
+    return account or cluster.get("awsInfrastructureManagementAccounts") is not None
+
+
 @get.command()
 @click.argument("name", default="")
 @click.pass_context
@@ -972,8 +978,7 @@ def clusters_network(ctx, name):
     clusters = [
         c
         for c in queries.get_clusters()
-        if c.get("ocm") is not None
-        and c.get("awsInfrastructureManagementAccounts") is not None
+        if c.get("ocm") is not None and has_cluster_account_access(c)
     ]
     if name:
         clusters = [c for c in clusters if c["name"] == name]
@@ -991,15 +996,25 @@ def clusters_network(ctx, name):
     for cluster in clusters:
         cluster_name = cluster["name"]
         management_account = tfvpc._get_default_management_account(cluster)
-        account = tfvpc._build_infrastructure_assume_role(
-            management_account,
-            cluster,
-            ocm_map.get(cluster_name),
-            provided_assume_role=None,
-        )
-        if not account:
-            continue
-        account["resourcesDefaultRegion"] = management_account["resourcesDefaultRegion"]
+        if management_account is None:
+            # This is a CCS/ROSA cluster.
+            # We can access the account directly, without assuming a network-mgmt role
+            account = cluster["spec"]["account"]
+            account.update(
+                {
+                    "assume_role": None,
+                    "assume_region": cluster["spec"]["region"],
+                    "assume_cidr": cluster["network"]["vpc"],
+                }
+            )
+        else:
+            account = tfvpc._build_infrastructure_assume_role(
+                management_account,
+                cluster,
+                ocm_map.get(cluster_name),
+                provided_assume_role=None,
+            )
+            account["resourcesDefaultRegion"] = management_account["resourcesDefaultRegion"]
         with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
             vpc_id, _, _ = aws_api.get_cluster_vpc_details(account)
             cluster["vpc_id"] = vpc_id
