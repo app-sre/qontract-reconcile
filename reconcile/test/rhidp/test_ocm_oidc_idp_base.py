@@ -120,10 +120,11 @@ def test_ocm_oidc_idp_fetch_desired_state(
 
 
 def test_ocm_oidc_idp_act(ocm_map: Mock) -> None:
-    cluster_in_sync = OCMOidcIdp(
+    MANAGED_OIDC_NAME = "oidc-auth"
+    idp_in_sync = OCMOidcIdp(
         id="idp-id-cluster-1",
         cluster="cluster-1",
-        name="oidc-auth",
+        name=MANAGED_OIDC_NAME,
         client_id="client-id-cluster-1",
         client_secret=None,
         issuer="https://issuer.com",
@@ -132,10 +133,10 @@ def test_ocm_oidc_idp_act(ocm_map: Mock) -> None:
         username_claims=["username"],
         groups_claims=[],
     )
-    cluster_to_be_removed = OCMOidcIdp(
+    idp_to_be_removed = OCMOidcIdp(
         id="idp-id-cluster-2",
         cluster="cluster-2",
-        name="oidc-auth",
+        name=MANAGED_OIDC_NAME,
         client_id="client-id-cluster-2",
         client_secret=None,
         issuer="https://issuer.com",
@@ -144,10 +145,22 @@ def test_ocm_oidc_idp_act(ocm_map: Mock) -> None:
         username_claims=["username"],
         groups_claims=[],
     )
-    cluster_to_be_changed = OCMOidcIdp(
+    idp_to_be_ignored = OCMOidcIdp(
+        id="idp-id-cluster-2",
+        cluster="cluster-2",
+        name="manually-configured-idp",
+        client_id="client-id-cluster-2",
+        client_secret=None,
+        issuer="https://issuer.com",
+        email_claims=["email"],
+        name_claims=["name"],
+        username_claims=["username"],
+        groups_claims=[],
+    )
+    idp_to_be_changed = OCMOidcIdp(
         id="idp-id-cluster-3",
         cluster="cluster-3",
-        name="oidc-auth",
+        name=MANAGED_OIDC_NAME,
         client_id="client-id-cluster-2",
         client_secret=None,
         issuer="https://issuer.com",
@@ -156,10 +169,10 @@ def test_ocm_oidc_idp_act(ocm_map: Mock) -> None:
         username_claims=["username"],
         groups_claims=[],
     )
-    cluster_to_be_added = OCMOidcIdp(
+    idp_to_be_added = OCMOidcIdp(
         id=None,
         cluster="cluster-4",
-        name="oidc-auth",
+        name=MANAGED_OIDC_NAME,
         client_id="client-id",
         client_secret="client-secret",
         issuer="https://issuer.com",
@@ -168,10 +181,16 @@ def test_ocm_oidc_idp_act(ocm_map: Mock) -> None:
         username_claims=["username"],
         groups_claims=[],
     )
-    current_state = [cluster_in_sync, cluster_to_be_removed, cluster_to_be_changed]
-    cluster_to_be_changed_copy = cluster_to_be_changed.copy(deep=True)
-    cluster_to_be_changed_copy.username_claims = ["username", "preferred_username"]
-    desired_state = [cluster_in_sync, cluster_to_be_added, cluster_to_be_changed_copy]
+
+    current_state = [
+        idp_in_sync,
+        idp_to_be_removed,
+        idp_to_be_changed,
+        idp_to_be_ignored,
+    ]
+    idp_to_be_changed_copy = idp_to_be_changed.copy(deep=True)
+    idp_to_be_changed_copy.username_claims = ["username", "preferred_username"]
+    desired_state = [idp_in_sync, idp_to_be_added, idp_to_be_changed_copy]
 
     # dry-run
     act(
@@ -179,6 +198,7 @@ def test_ocm_oidc_idp_act(ocm_map: Mock) -> None:
         ocm_map=ocm_map,
         current_state=current_state,
         desired_state=desired_state,
+        managed_idps=[MANAGED_OIDC_NAME],
     )
     ocm_map.get.assert_not_called()
     ocm = ocm_map.get.return_value
@@ -192,14 +212,15 @@ def test_ocm_oidc_idp_act(ocm_map: Mock) -> None:
         ocm_map=ocm_map,
         current_state=current_state,
         desired_state=desired_state,
+        managed_idps=[MANAGED_OIDC_NAME],
     )
     ocm = ocm_map.get.return_value
-    ocm.create_oidc_idp.assert_called_once_with(cluster_to_be_added)
+    ocm.create_oidc_idp.assert_called_once_with(idp_to_be_added)
     ocm.delete_idp.assert_called_once_with(
-        cluster_to_be_removed.cluster, cluster_to_be_removed.id
+        idp_to_be_removed.cluster, idp_to_be_removed.id
     )
     ocm.update_oidc_idp.assert_called_once_with(
-        cluster_to_be_changed.id, cluster_to_be_changed_copy
+        idp_to_be_changed.id, idp_to_be_changed_copy
     )
 
 
@@ -228,4 +249,5 @@ def test_ocm_oidc_idp_act_issuer_change_not_allowed(ocm_map: Mock) -> None:
             ocm_map=ocm_map,
             current_state=current_state,
             desired_state=desired_state,
+            managed_idps=[],
         )

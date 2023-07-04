@@ -71,6 +71,7 @@ class OCMOidcIdpStandalone(QontractReconcileIntegration[OCMOidcIdpStandalonePara
                 secret_reader=self.secret_reader,
                 vault_input_path=f"{self.params.vault_input_path}/{ocm_env.name}",
                 dry_run=dry_run,
+                managed_idps=[self.params.auth_name],
             )
 
     def get_clusters(

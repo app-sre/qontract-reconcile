@@ -4,6 +4,7 @@ from collections.abc import (
     Iterable,
     Sequence,
 )
+from typing import Optional
 
 from reconcile import queries
 from reconcile.gql_definitions.rhidp.clusters import (
@@ -37,6 +38,7 @@ def run(
     secret_reader: SecretReaderBase,
     vault_input_path: str,
     dry_run: bool,
+    managed_idps: Optional[list[str]] = None,
 ) -> None:
     with metrics.transactional_metrics(flavor) as metrics_container:
         # metrics
@@ -56,7 +58,13 @@ def run(
             desired_state = fetch_desired_state(
                 secret_reader, clusters, vault_input_path
             )
-            act(dry_run, ocm_map, current_state, desired_state)
+            act(
+                dry_run,
+                ocm_map,
+                current_state,
+                desired_state,
+                managed_idps=managed_idps or [],
+            )
             metrics_container.inc_counter(
                 RhIdpOCMOidcIdpReconcileCounter(integration=integration_name)
             )
@@ -155,6 +163,7 @@ def act(
     ocm_map: OCMMap,
     current_state: Sequence[OCMOidcIdp],
     desired_state: Sequence[OCMOidcIdp],
+    managed_idps: list[str],
 ) -> None:
     """Compare current and desired OIDC identity providers and add, remove, or update them."""
     to_add = set(desired_state) - set(current_state)
@@ -162,6 +171,9 @@ def act(
     to_compare = set(current_state) & set(desired_state)
 
     for idp in to_remove:
+        if managed_idps and idp.name not in managed_idps:
+            logging.debug(f"Skipping removal of unmanged '{idp.name}' IDP.")
+            continue
         logging.info(["remove_oidc_idp", idp.cluster, idp.name])
         if not idp.id:
             logging.error(
