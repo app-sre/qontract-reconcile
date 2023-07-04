@@ -32,11 +32,20 @@ class JiraClient:
         settings: Optional[Mapping] = None,
         jira_watcher_settings: Optional[JiraWatcherSettings] = None,
         secret_reader: Optional[SecretReader] = None,
+        jira_api: Optional[JIRA] = None,
     ):
+        """
+        Note: settings is to be deprecated. Use jira_watcher_settings  + secret_reader instead.
+        """
         if not (secret_reader or settings):
             raise RuntimeError("JiraClient needs secret_reader or settings.")
-        if not secret_reader:
-            self.secret_reader = SecretReader(settings=settings)
+        if secret_reader and settings:
+            raise RuntimeError(
+                "settings parameter is deprecated. Use only jira_watcher_settings and secret_reader."
+            )
+        self.secret_reader = (
+            secret_reader if secret_reader else SecretReader(settings=settings)
+        )
         self.project = jira_board["name"]
         jira_server = jira_board["server"]
         self.server = jira_server["serverUrl"]
@@ -52,8 +61,19 @@ class JiraClient:
             read_timeout = jira_watcher_settings.read_timeout
             connect_timeout = jira_watcher_settings.connect_timeout
 
-        self.jira = JIRA(
-            self.server, token_auth=token_auth, timeout=(read_timeout, connect_timeout)
+        # These are added to simplify unit tests
+        self._read_timeout = read_timeout
+        self._connect_timeout = connect_timeout
+        self._token_auth = token_auth
+
+        self.jira = (
+            jira_api
+            if jira_api
+            else JIRA(
+                self.server,
+                token_auth=token_auth,
+                timeout=(read_timeout, connect_timeout),
+            )
         )
 
     def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:
