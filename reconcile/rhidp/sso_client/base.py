@@ -43,6 +43,7 @@ def console_url_to_oauth_url(console_url: str, auth_name: str) -> str:
 
 def run(
     integration_name: str,
+    flavor: str,
     clusters: Iterable[ClusterV1],
     secret_reader: VaultSecretReader,
     keycloak_vault_paths: Iterable[str],
@@ -50,7 +51,7 @@ def run(
     contacts: Sequence[str],
     dry_run: bool,
 ) -> None:
-    with metrics.transactional_metrics(integration_name) as metrics_container:
+    with metrics.transactional_metrics(flavor) as metrics_container:
         # metrics
         expose_base_metrics(metrics_container, integration_name, clusters)
 

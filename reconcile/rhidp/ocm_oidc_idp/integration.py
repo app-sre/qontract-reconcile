@@ -45,6 +45,7 @@ class OCMOidcIdpIntegration(
 
         run(
             integration_name=self.name,
+            flavor="app-interface",
             clusters=clusters,
             secret_reader=self.secret_reader,
             vault_input_path=self.params.vault_input_path,

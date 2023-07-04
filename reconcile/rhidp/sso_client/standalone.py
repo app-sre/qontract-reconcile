@@ -43,14 +43,16 @@ class SSOClientStandalone(QontractReconcileIntegration[SSOClientStandaloneParams
         return QONTRACT_INTEGRATION
 
     def run(self, dry_run: bool) -> None:
+        secret_reader = VaultSecretReader()
         for ocm_env in self.get_ocm_environments():
             ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
             clusters = self.get_clusters(ocm_api=ocm_api, ocm_env=ocm_env)
 
             run(
                 integration_name=self.name,
+                flavor=ocm_env.name,
                 clusters=clusters,
-                secret_reader=VaultSecretReader(),
+                secret_reader=secret_reader,
                 keycloak_vault_paths=self.params.keycloak_vault_paths,
                 # put secrets in a subpath per OCM environment to avoid deleting
                 # clusters from other environments
