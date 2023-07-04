@@ -1002,7 +1002,7 @@ def clusters_network(ctx, name):
             account = cluster["spec"]["account"]
             account.update(
                 {
-                    "assume_role": None,
+                    "assume_role": "",
                     "assume_region": cluster["spec"]["region"],
                     "assume_cidr": cluster["network"]["vpc"],
                 }
