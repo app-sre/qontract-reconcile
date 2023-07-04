@@ -4,6 +4,23 @@ from unittest.mock import Mock
 import pytest
 from pytest_mock import MockerFixture
 
+from reconcile.aus.cluster_version_data import VersionData
+from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
+
+@pytest.fixture
+def ocm_env() -> OCMEnvironment:
+    return OCMEnvironment(
+        name="env",
+        url="https://ocm",
+        accessTokenUrl="https://sso/token",
+        accessTokenClientId="client-id",
+        accessTokenClientSecret=VaultSecret(
+            field="client-secret", path="path", format=None, version=None
+        ),
+    )
+
 
 @pytest.fixture
 def low_version() -> str:
@@ -50,6 +67,11 @@ def ocm1_state(low_version: str) -> dict[str, Any]:
 
 
 @pytest.fixture
+def ocm1_version_data(ocm1_state: dict[str, Any]) -> VersionData:
+    return VersionData(**ocm1_state)
+
+
+@pytest.fixture
 def ocm2_state(low_version: str, high_version: str) -> dict[str, Any]:
     return {
         "check_in": "2021-08-29T18:00:00",
@@ -81,3 +103,8 @@ def ocm2_state(low_version: str, high_version: str) -> dict[str, Any]:
             },
         },
     }
+
+
+@pytest.fixture
+def ocm2_version_data(ocm2_state: dict[str, Any]) -> VersionData:
+    return VersionData(**ocm2_state)

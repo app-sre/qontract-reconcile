@@ -124,13 +124,7 @@ query Clusters($name: String) {
       labels
     }
     upgradePolicy {
-      workloads
-      schedule
-      conditions {
-        soakDays
-        mutexes
-        sector
-      }
+      ... ClusterUpgradePolicyV1
     }
     additionalRouters {
       private

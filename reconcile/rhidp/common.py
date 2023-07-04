@@ -79,7 +79,9 @@ def build_cluster_obj(
 ) -> ClusterV1:
     return ClusterV1(
         name=cluster.ocm_cluster.name,
-        consoleUrl=cluster.ocm_cluster.console.url,
+        consoleUrl=cluster.ocm_cluster.console.url
+        if cluster.ocm_cluster.console
+        else "",
         ocm=OpenShiftClusterManagerV1(
             name=cluster.organization_id,
             environment=ocm_env,

@@ -11,7 +11,7 @@ from pydantic import (
     Field,
 )
 
-from reconcile.aus.models import ConfiguredUpgradePolicy
+from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import State
 
@@ -118,12 +118,12 @@ class VersionData(BaseModel):
             workloads.update(v.workloads.keys())
         return workloads
 
-    def update_stats(self, upgrade_policies: list[ConfiguredUpgradePolicy]) -> None:
+    def update_stats(self, org_upgrade_spec: OrganizationUpgradeSpec) -> None:
         """Update the versiondata stats with the provided upgrade_policies info"""
         min_version_per_workload: dict[str, str] = {}
-        for item in upgrade_policies:
-            current_version = item.current_version
-            for w in item.workloads:
+        for spec in org_upgrade_spec.specs:
+            current_version = spec.current_version
+            for w in spec.upgrade_policy.workloads:
                 min_ver = min_version_per_workload.setdefault(w, current_version)
                 if parse_semver(current_version) < parse_semver(min_ver):
                     min_version_per_workload[w] = current_version

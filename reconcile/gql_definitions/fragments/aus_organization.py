@@ -17,7 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicy
+from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -90,7 +90,7 @@ class OpenShiftClusterManagerSectorV1(ConfiguredBaseModel):
 
 class OpenShiftClusterManagerUpgradePolicyClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    upgrade_policy: ClusterUpgradePolicy = Field(..., alias="upgradePolicy")
+    upgrade_policy: ClusterUpgradePolicyV1 = Field(..., alias="upgradePolicy")
 
 
 class AUSOCMOrganization(ConfiguredBaseModel):

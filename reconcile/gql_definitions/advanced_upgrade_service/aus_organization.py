@@ -69,12 +69,12 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   upgradePolicyClusters {
     name
     upgradePolicy {
-      ... ClusterUpgradePolicy
+      ... ClusterUpgradePolicyV1
     }
   }
 }
 
-fragment ClusterUpgradePolicy on ClusterUpgradePolicy_v1 {
+fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
   workloads
   schedule
   conditions {

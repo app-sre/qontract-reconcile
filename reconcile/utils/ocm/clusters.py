@@ -1,4 +1,5 @@
 from collections import defaultdict
+from collections.abc import Iterable
 from enum import Enum
 from typing import (
     Generator,
@@ -6,6 +7,7 @@ from typing import (
 )
 
 from pydantic import BaseModel
+from pydantic.fields import Field
 
 from reconcile.utils.ocm.base import OCMModelLink
 from reconcile.utils.ocm.labels import (
@@ -57,10 +59,21 @@ class OCMClusterAWSSettings(BaseModel):
 class OCMClusterVersion(BaseModel):
     id: str
     raw_id: str
+    channel_group: str
+    available_upgrades: list[str] = Field(default_factory=list)
 
 
 class OCMClusterConsole(BaseModel):
     url: str
+
+
+class OCMClusterAPI(BaseModel):
+    url: str
+    listening: str
+
+
+class OCMClusterDns(BaseModel):
+    base_domain: str
 
 
 PRODUCT_ID_OSD = "osd"
@@ -92,7 +105,14 @@ class OCMCluster(BaseModel):
 
     hypershift: OCMClusterFlag
 
-    console: OCMClusterConsole
+    console: Optional[OCMClusterConsole]
+
+    api: Optional[OCMClusterAPI]
+
+    dns: Optional[OCMClusterDns]
+
+    def available_upgrades(self) -> list[str]:
+        return self.version.available_upgrades
 
     def is_osd(self) -> bool:
         return self.product.id == PRODUCT_ID_OSD
@@ -102,6 +122,28 @@ class OCMCluster(BaseModel):
 
     def is_rosa_hypershift(self) -> bool:
         return self.product.id == PRODUCT_ID_ROSA and self.hypershift.enabled
+
+    def is_sts(self) -> bool:
+        return self.aws.sts_enabled if self.aws else False
+
+    def ready(self) -> bool:
+        return (
+            self.managed
+            and self.state == OCMClusterState.READY
+            and self.product.id in [PRODUCT_ID_OSD, PRODUCT_ID_ROSA]
+        )
+
+    @property
+    def console_url(self) -> Optional[str]:
+        return self.console.url if self.console else None
+
+    @property
+    def api_url(self) -> Optional[str]:
+        return self.api.url if self.api else None
+
+    @property
+    def base_domain(self) -> Optional[str]:
+        return self.dns.base_domain if self.dns else None
 
 
 class ClusterDetails(BaseModel):
@@ -197,7 +239,7 @@ def discover_clusters_for_subscriptions(
 
 def discover_clusters_for_organizations(
     ocm_api: OCMBaseClient,
-    organization_ids: list[str],
+    organization_ids: Iterable[str],
     cluster_filter: Optional[Filter] = None,
 ) -> list[ClusterDetails]:
     """

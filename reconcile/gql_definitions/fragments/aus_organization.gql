@@ -48,7 +48,7 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   upgradePolicyClusters {
     name
     upgradePolicy {
-      ... ClusterUpgradePolicy
+      ... ClusterUpgradePolicyV1
     }
   }
 }

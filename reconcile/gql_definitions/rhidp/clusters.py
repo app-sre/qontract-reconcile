@@ -17,11 +17,22 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
+fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
+  workloads
+  schedule
+  conditions {
+    mutexes
+    soakDays
+    sector
+  }
+}
+
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
     name
     url
@@ -66,11 +77,7 @@ query OidcClusters($name: String) {
       }
     }
     upgradePolicy {
-      workloads
-      schedule
-      conditions {
-        sector
-      }
+      ... ClusterUpgradePolicyV1
     }
     disable {
       integrations
@@ -132,16 +139,6 @@ class OpenShiftClusterManagerV1(ConfiguredBaseModel):
     sectors: Optional[list[OpenShiftClusterManagerSectorV1]] = Field(
         ..., alias="sectors"
     )
-
-
-class ClusterUpgradePolicyConditionsV1(ConfiguredBaseModel):
-    sector: Optional[str] = Field(..., alias="sector")
-
-
-class ClusterUpgradePolicyV1(ConfiguredBaseModel):
-    workloads: list[str] = Field(..., alias="workloads")
-    schedule: str = Field(..., alias="schedule")
-    conditions: ClusterUpgradePolicyConditionsV1 = Field(..., alias="conditions")
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):

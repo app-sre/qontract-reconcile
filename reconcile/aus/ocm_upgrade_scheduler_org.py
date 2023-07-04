@@ -68,11 +68,9 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
     ) -> list[ClusterUpgradeSpec]:
         return [
             ClusterUpgradeSpec(
-                name=cluster.name,
-                ocm=org,
+                org=org,
                 upgradePolicy=cluster.upgrade_policy,
-                cluster_uuid=clusters_by_name[cluster.name].external_id,
-                current_version=clusters_by_name[cluster.name].version.raw_id,
+                cluster=clusters_by_name[cluster.name],
             )
             for cluster in org.upgrade_policy_clusters or []
             # clusters that are not in the UUID dict will be ignored because
