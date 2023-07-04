@@ -220,6 +220,11 @@ def setup(
     # build a resource inventory for all the kube secrets managed by the
     # app-interface managed terraform resources
     tf_namespaces = get_tf_namespaces(account_names)
+    if not tf_namespaces:
+        logging.warning(
+            "No terraform namespaces found, consider disabling this integration, account names: "
+            f"{', '.join(account_names)}"
+        )
     ri, oc_map = fetch_current_state(
         dry_run, tf_namespaces, thread_pool_size, internal, use_jump_host, account_names
     )
