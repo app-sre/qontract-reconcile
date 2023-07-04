@@ -1,7 +1,10 @@
-from unittest.mock import Mock
+from unittest.mock import (
+    Mock,
+    create_autospec,
+)
 
 import pytest
-from pytest_mock import MockerFixture
+from jira import JIRA
 
 from reconcile.gql_definitions.common.jira_settings import JiraWatcherSettingsV1
 from reconcile.utils.jira_client import JiraClient
@@ -18,70 +21,50 @@ def jira_board() -> dict:
     }
 
 
-def test_create_secret_reader_and_settings(secret_reader: Mock) -> None:
-    with pytest.raises(RuntimeError):
-        JiraClient(
-            jira_board={}, secret_reader=secret_reader, settings={"name": "test"}
-        )
-
-
-def test_create_jira_and_settings() -> None:
-    jira_watcher_settings = JiraWatcherSettingsV1(connectTimeout=42, readTimeout=42)
+def test_create_api_and_settings() -> None:
     with pytest.raises(RuntimeError):
         JiraClient(
             jira_board={},
-            jira_watcher_settings=jira_watcher_settings,
+            jira_api=create_autospec(spec=JIRA),
             settings={"name": "test"},
         )
 
 
-def test_create_no_settings() -> None:
+def test_create_no_api_no_settings() -> None:
     with pytest.raises(RuntimeError):
         JiraClient(jira_board={})
 
 
-def test_create_defaults(
-    secret_reader: Mock,
-    jira_board: dict,
-    mocker: MockerFixture,
-) -> None:
-    mocked_jira = mocker.patch("reconcile.utils.jira_client.JIRA")
-    expected_server = jira_board["server"]["serverUrl"]
-    expected_token_auth = secret_reader.read.return_value
-    expected_read_timeout = 60
-    expected_connect_timeout = 60
-
-    jira_client = JiraClient(jira_board=jira_board, secret_reader=secret_reader)
-
-    assert jira_client.jira == mocked_jira.return_value
-    mocked_jira.assert_called_once_with(
-        expected_server,
-        token_auth=expected_token_auth,
-        timeout=(expected_read_timeout, expected_connect_timeout),
-    )
-
-
-def test_create_with_settings(
-    secret_reader: Mock,
-    jira_board: dict,
-    mocker: MockerFixture,
-) -> None:
-    mocked_jira = mocker.patch("reconcile.utils.jira_client.JIRA")
-    jira_watcher_settings = JiraWatcherSettingsV1(connectTimeout=42, readTimeout=43)
-    expected_server = jira_board["server"]["serverUrl"]
-    expected_token_auth = secret_reader.read.return_value
-    expected_read_timeout = jira_watcher_settings.read_timeout
-    expected_connect_timeout = jira_watcher_settings.connect_timeout
-
-    jira_client = JiraClient(
+def test_parameters(secret_reader: Mock, jira_board: dict):
+    jira_watcher_settings = JiraWatcherSettingsV1(readTimeout=42, connectTimeout=43)
+    parameters = JiraClient.parameters(
         jira_board=jira_board,
         secret_reader=secret_reader,
         jira_watcher_settings=jira_watcher_settings,
     )
 
-    assert jira_client.jira == mocked_jira.return_value
-    mocked_jira.assert_called_once_with(
-        expected_server,
-        token_auth=expected_token_auth,
-        timeout=(expected_read_timeout, expected_connect_timeout),
+    expected_server = jira_board["server"]["serverUrl"]
+    expected_token = secret_reader.read.return_value
+    expected_connect_timeout = jira_watcher_settings.connect_timeout
+    expected_read_timeout = jira_watcher_settings.read_timeout
+
+    assert parameters.connect_timeout == expected_connect_timeout
+    assert parameters.read_timeout == expected_read_timeout
+    assert parameters.token == expected_token
+    assert parameters.server == expected_server
+
+
+def test_default_parameters(secret_reader: Mock, jira_board: dict):
+    parameters = JiraClient.parameters(
+        jira_board=jira_board, secret_reader=secret_reader
     )
+
+    expected_server = jira_board["server"]["serverUrl"]
+    expected_token = secret_reader.read.return_value
+    expected_connect_timeout = 60
+    expected_read_timeout = 60
+
+    assert parameters.connect_timeout == expected_connect_timeout
+    assert parameters.read_timeout == expected_read_timeout
+    assert parameters.token == expected_token
+    assert parameters.server == expected_server
