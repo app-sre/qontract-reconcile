@@ -43,7 +43,7 @@ def console_url_to_oauth_url(console_url: str, auth_name: str) -> str:
 
 def run(
     integration_name: str,
-    flavor: str,
+    ocm_environment: str,
     clusters: Iterable[ClusterV1],
     secret_reader: VaultSecretReader,
     keycloak_vault_paths: Iterable[str],
@@ -51,9 +51,11 @@ def run(
     contacts: Sequence[str],
     dry_run: bool,
 ) -> None:
-    with metrics.transactional_metrics(flavor) as metrics_container:
+    with metrics.transactional_metrics(ocm_environment) as metrics_container:
         # metrics
-        expose_base_metrics(metrics_container, integration_name, clusters)
+        expose_base_metrics(
+            metrics_container, integration_name, ocm_environment, clusters
+        )
 
         # APIs
         keycloak_instances: list[KeycloakInstance] = []
@@ -69,6 +71,7 @@ def run(
             metrics_container.set_gauge(
                 RhIdpSSOClientIatExpiration(
                     integration=integration_name,
+                    ocm_environment=ocm_environment,
                     path=path,
                 ),
                 value=token["exp"],
@@ -89,6 +92,7 @@ def run(
             metrics_container.set_gauge(
                 RhIdpSSOClientCounter(
                     integration=integration_name,
+                    ocm_environment=ocm_environment,
                 ),
                 value=len(existing_sso_client_ids),
             )
@@ -103,11 +107,15 @@ def run(
                 dry_run=dry_run,
             )
             metrics_container.inc_counter(
-                RhIdpSSOClientReconcileCounter(integration=integration_name)
+                RhIdpSSOClientReconcileCounter(
+                    integration=integration_name, ocm_environment=ocm_environment
+                )
             )
         except Exception:
             metrics_container.inc_counter(
-                RhIdpSSOClientReconcileErrorCounter(integration=integration_name)
+                RhIdpSSOClientReconcileErrorCounter(
+                    integration=integration_name, ocm_environment=ocm_environment
+                )
             )
             raise
 

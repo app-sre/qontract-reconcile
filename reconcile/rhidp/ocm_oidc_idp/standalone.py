@@ -66,7 +66,7 @@ class OCMOidcIdpStandalone(QontractReconcileIntegration[OCMOidcIdpStandalonePara
 
             run(
                 integration_name=self.name,
-                flavor=ocm_env.name,
+                ocm_environment=ocm_env.name,
                 clusters=clusters,
                 secret_reader=self.secret_reader,
                 vault_input_path=f"{self.params.vault_input_path}/{ocm_env.name}",

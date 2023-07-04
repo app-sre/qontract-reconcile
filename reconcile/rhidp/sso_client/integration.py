@@ -48,7 +48,7 @@ class SSOClientIntegration(
 
         run(
             integration_name=self.name,
-            flavor="app-interface",
+            ocm_environment="all",
             clusters=clusters,
             secret_reader=VaultSecretReader(),
             keycloak_vault_paths=self.params.keycloak_vault_paths,

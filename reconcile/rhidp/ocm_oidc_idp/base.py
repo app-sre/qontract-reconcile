@@ -33,16 +33,18 @@ DEFAULT_GROUPS_CLAIMS: list[str] = []
 
 def run(
     integration_name: str,
-    flavor: str,
+    ocm_environment: str,
     clusters: Iterable[ClusterV1],
     secret_reader: SecretReaderBase,
     vault_input_path: str,
     dry_run: bool,
     managed_idps: Optional[list[str]] = None,
 ) -> None:
-    with metrics.transactional_metrics(flavor) as metrics_container:
+    with metrics.transactional_metrics(ocm_environment) as metrics_container:
         # metrics
-        expose_base_metrics(metrics_container, integration_name, clusters)
+        expose_base_metrics(
+            metrics_container, integration_name, ocm_environment, clusters
+        )
 
         # APIs
         settings = queries.get_app_interface_settings()
@@ -66,11 +68,15 @@ def run(
                 managed_idps=managed_idps or [],
             )
             metrics_container.inc_counter(
-                RhIdpOCMOidcIdpReconcileCounter(integration=integration_name)
+                RhIdpOCMOidcIdpReconcileCounter(
+                    integration=integration_name, ocm_environment=ocm_environment
+                )
             )
         except Exception:
             metrics_container.inc_counter(
-                RhIdpOCMOidcIdpReconcileErrorCounter(integration=integration_name)
+                RhIdpOCMOidcIdpReconcileErrorCounter(
+                    integration=integration_name, ocm_environment=ocm_environment
+                )
             )
             raise
 
