@@ -34,7 +34,6 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 151955,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -137,6 +136,7 @@ data:
               },
               "editorMode": "code",
               "expr": "sum(rhidp_managed_clusters{integration=~\"rhidp-sso-client.*\"})",
+              "interval": "10m",
               "legendFormat": "SSO",
               "range": true,
               "refId": "A"
@@ -149,6 +149,7 @@ data:
               "editorMode": "code",
               "expr": "sum(rhidp_managed_clusters{integration=~\"ocm-oidc-idp.*\"})",
               "hide": false,
+              "interval": "10m",
               "legendFormat": "OIDC",
               "range": true,
               "refId": "B"
@@ -244,6 +245,7 @@ data:
               },
               "editorMode": "code",
               "expr": "sum(rhidp_sso_client_number_of_clients{integration=~\"rhidp-sso-client.*\"})",
+              "interval": "10m",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -251,6 +253,136 @@ data:
           ],
           "title": "Managed SSO Clients",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P2C3F6ECC774D80E6"
+          },
+          "description": "Expiration date for auth.stage.redhat.com initial-access-token (IAT)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "dateTimeAsIso"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 9
+          },
+          "id": 9,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "last"
+              ],
+              "fields": "",
+              "limit": 1,
+              "values": true
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P2C3F6ECC774D80E6"
+              },
+              "editorMode": "code",
+              "expr": "rhidp_sso_client_inital_access_token_expiration{integration=\"rhidp-sso-client\", path=\"app-sre/creds/rhidp/auth.redhat.com\"} * 1000",
+              "interval": "5m",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "IAT Expiration Date (auth.redhat.com)",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P2C3F6ECC774D80E6"
+          },
+          "description": "Expiration date for auth.stage.redhat.com initial-access-token (IAT)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "dateTimeAsIso"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 9
+          },
+          "id": 10,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "last"
+              ],
+              "fields": "",
+              "limit": 1,
+              "values": true
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P2C3F6ECC774D80E6"
+              },
+              "editorMode": "code",
+              "expr": "rhidp_sso_client_inital_access_token_expiration{integration=\"rhidp-sso-client\", path=\"app-sre/creds/rhidp/auth.stage.redhat.com\"} * 1000",
+              "interval": "5m",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "IAT Expiration Date (auth.stage.redhat.com)",
+          "type": "stat"
         }
       ],
       "schemaVersion": 37,
@@ -267,6 +399,6 @@ data:
       "timezone": "",
       "title": "RedHat SSO IDP Overview",
       "uid": "0lZiDarVz",
-      "version": 2,
+      "version": 3,
       "weekStart": ""
     }
