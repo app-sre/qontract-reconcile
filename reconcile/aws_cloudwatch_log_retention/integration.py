@@ -58,10 +58,14 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                     group_name = log_group["logGroupName"]
                     retention_days = log_group.get("retentionInDays")
                     regex_pattern = re.compile(cloudwatch_cleanup_entry.log_regex)
-                    if regex_pattern.match(group_name) and retention_days != cloudwatch_cleanup_entry.log_retention_day_length:
+                    if (
+                        regex_pattern.match(group_name)
+                        and retention_days
+                        != cloudwatch_cleanup_entry.log_retention_day_length
+                    ):
                         logging.info(
-                                f" Setting {group_name} retention days to {cloudwatch_cleanup_entry.log_retention_day_length}"
-                            )
+                            f" Setting {group_name} retention days to {cloudwatch_cleanup_entry.log_retention_day_length}"
+                        )
                         if not dry_run:
                             awsapi.set_cloudwatch_log_retention(
                                 aws_acct,
