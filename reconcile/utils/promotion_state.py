@@ -67,8 +67,13 @@ class PromotionState:
         return PromotionData(**data)
 
     def publish_promotion_data(
-        self, sha: str, channel: str, data: PromotionData
+        self, sha: str, channel: str, target_uid: str, data: PromotionData
     ) -> None:
+        # TODO: this will be deprecated once we fully moved to promotions_v2
         state_key = f"promotions/{channel}/{sha}"
         self._state.add(state_key, data.dict(), force=True)
         logging.info("Uploaded %s to %s", data, state_key)
+
+        state_key_v2 = f"promotions_v2/{channel}/{target_uid}/{sha}"
+        self._state.add(state_key_v2, data.dict(), force=True)
+        logging.info("Uploaded %s to %s", data, state_key_v2)
