@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import (
     Iterable,
     Mapping,
 )
-from dataclasses import dataclass
 from typing import (
     Any,
     Optional,
@@ -27,15 +28,6 @@ class JiraWatcherSettings(Protocol):
     connect_timeout: int
 
 
-@dataclass
-class JiraClientParameters:
-    token: str
-    server: str
-    project: str
-    read_timeout: int
-    connect_timeout: int
-
-
 class JiraClient:
     """Wrapper around Jira client."""
 
@@ -50,11 +42,11 @@ class JiraClient:
         project: Optional[str] = None,
     ):
         """
-        Note: jira_board and settings is to be deprecated. Use create_jira_client() instead.
+        Note: jira_board and settings is to be deprecated. Use JiraClient.create() instead.
         """
         if jira_api and jira_board:
             raise RuntimeError(
-                "jira_board parameter is deprecated. Use create_jira_client() instead."
+                "jira_board parameter is deprecated. Use JiraClient.create() instead."
             )
         if not (jira_api and project):
             # kept for backwards-compatibility
@@ -89,24 +81,26 @@ class JiraClient:
         )
 
     @staticmethod
-    def parameters(
+    def create(
         jira_board: Mapping[str, Any],
         secret_reader: SecretReaderBase,
         jira_watcher_settings: Optional[JiraWatcherSettings] = None,
-    ) -> JiraClientParameters:
+    ) -> JiraClient:
         secret = jira_board["server"]["token"]
+        server = jira_board["server"]["serverUrl"]
+        project = jira_board["name"]
         token = secret_reader.read(secret)
         read_timeout = JiraClient.DEFAULT_READ_TIMEOUT
         connect_timeout = JiraClient.DEFAULT_CONNECT_TIMEOUT
         if jira_watcher_settings:
             read_timeout = jira_watcher_settings.read_timeout
             connect_timeout = jira_watcher_settings.connect_timeout
-        return JiraClientParameters(
-            project=jira_board["name"],
-            server=jira_board["server"]["serverUrl"],
-            token=token,
-            read_timeout=read_timeout,
-            connect_timeout=connect_timeout,
+        jira_api = JIRA(
+            server=server, token_auth=token, timeout=(read_timeout, connect_timeout)
+        )
+        return JiraClient(
+            jira_api=jira_api,
+            project=project,
         )
 
     def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:
@@ -168,27 +162,3 @@ class JiraClient:
 
     def can_create_issues(self) -> bool:
         return self.can_i("CREATE_ISSUES")
-
-
-def create_jira_client(
-    jira_board: Mapping[str, Any],
-    secret_reader: SecretReaderBase,
-    jira_watcher_settings: Optional[JiraWatcherSettings],
-) -> JiraClient:
-    """
-    Glue function for setting up a JiraClient
-    """
-    parameters = JiraClient.parameters(
-        jira_board=jira_board,
-        secret_reader=secret_reader,
-        jira_watcher_settings=jira_watcher_settings,
-    )
-    jira_api = JIRA(
-        parameters.server,
-        token_auth=parameters.token,
-        timeout=(parameters.read_timeout, parameters.connect_timeout),
-    )
-    return JiraClient(
-        jira_api=jira_api,
-        project=parameters.project,
-    )
