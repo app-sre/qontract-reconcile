@@ -166,7 +166,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             self.created_users.extend(created_users)
         return disabled_deletions_detected, errors
 
-    @retry()
+    @retry(no_retry_exceptions=(ValueError))
     def terraform_plan(
         self, plan_spec: dict, enable_deletion: bool
     ) -> tuple[bool, list[AccountUser], bool]:
@@ -293,6 +293,13 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                             f"can be skipped, should_apply will not be set."
                         )
                         continue
+                if (
+                    action in ["create", "update"]
+                    and resource_type == "aws_elasticache_replication_group"
+                ):
+                    self.validate_elasticache_availability_zones(
+                        name, resource_name, resource_change
+                    )
                 with self._log_lock:
                     logging.info(
                         [
@@ -739,6 +746,19 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 raise ValueError(
                     "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
                     f"{resource_name} to a new major version."
+                )
+
+    def validate_elasticache_availability_zones(
+        self, account_name: str, resource_name: str, resource_change: Mapping[str, Any]
+    ):
+        if self._aws_api is not None:
+            resource_azs = resource_change["after"]["availability_zones"]
+            available_azs = self._aws_api.get_elasticache_availability_zones(
+                account_name
+            )
+            if not all(az in available_azs for az in resource_azs):
+                raise ValueError(
+                    f"elasticache availability zones invalid for {resource_name}, should be within {available_azs}"
                 )
 
 

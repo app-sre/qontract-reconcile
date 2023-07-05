@@ -11,5 +11,5 @@ types-setuptools
 types-tabulate
 types-toml
 types-dateparser
-boto3-stubs[ec2,s3,rds,iam,route53]==1.24.71
+boto3-stubs[ec2,s3,rds,iam,route53,elasticache]==1.24.71
 qenerate==0.6.1

@@ -41,6 +41,7 @@ if TYPE_CHECKING:
         TransitGatewayVpcAttachmentTypeDef,
         VpcTypeDef,
     )
+    from mypy_boto3_elasticache import ElastiCacheClient
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
     from mypy_boto3_rds import RDSClient
@@ -79,6 +80,8 @@ else:
         LaunchPermissionModificationsTypeDef
     ) = (
         FilterTypeDef
+    ) = (
+        ElastiCacheClient
     ) = (
         Route53Client
     ) = (
@@ -224,6 +227,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     ) -> EC2ServiceResource:
         session = self.get_session(account_name)
         return self._get_session_resource(session, "ec2", region_name)
+
+    def _account_elasticache_client(
+        self, account_name: str, region_name: Optional[str] = None
+    ) -> ElastiCacheClient:
+        session = self.get_session(account_name)
+        return self.get_session_client(session, "elasticache", region_name)
 
     def _account_route53_client(
         self, account_name: str, region_name: Optional[str] = None
@@ -940,6 +949,16 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                 egress_ips.add(address["PublicIp"])
 
         return egress_ips
+
+    def get_elasticache_availability_zones(self, account_name: str) -> set[str]:
+        elasticache = self._account_elasticache_client(account_name)
+        subnet_groups = elasticache.describe_cache_subnet_groups()["CacheSubnetGroups"]
+        azs = set()
+        for sg in subnet_groups:
+            subnets = sg["Subnets"]
+            for s in subnets:
+                azs.add(s["SubnetAvailabilityZone"]["Name"])
+        return azs
 
     def get_vpcs_details(self, account, tags=None, route_tables=False):
         results = []
