@@ -339,11 +339,6 @@ class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
     def image(self) -> Optional[SaasResourceTemplateTargetImage]:
         ...
 
-    def uid(
-        self, parent_saas_file_name: str, parent_resource_template_name: str
-    ) -> str:
-        ...
-
     def dict(self, *, by_alias: bool = False) -> dict[str, Any]:
         ...
 

@@ -1021,10 +1021,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 commit_sha=commit_sha,
                 saas_file=saas_file_name,
                 target_config_hash=target_config_hash,
-                saas_target_uid=target.uid(
-                    parent_resource_template_name=resource_template_name,
-                    parent_saas_file_name=saas_file_name,
-                ),
             )
         return resources, html_url, target_promotion
 
@@ -1881,7 +1877,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     self._promotion_state.publish_promotion_data(
                         sha=promotion.commit_sha,
                         channel=channel,
-                        target_uid=promotion.saas_target_uid,
                         data=PromotionData(
                             saas_file=promotion.saas_file,
                             success=success,

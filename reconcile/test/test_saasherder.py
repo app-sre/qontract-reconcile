@@ -28,11 +28,10 @@ from reconcile.gql_definitions.common.saas_files import (
     SaasResourceTemplateTargetV2_SaasSecretParametersV1,
     SaasResourceTemplateV2,
 )
-from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.utils.saasherder.interfaces import SaasFile as SaasFileInterface
+from reconcile.utils.saasherder.interfaces import SaasFile
 from reconcile.utils.saasherder.models import TriggerSpecMovingCommit
 from reconcile.utils.secret_reader import SecretReaderBase
 
@@ -762,7 +761,7 @@ class TestConfigHashPromotionsValidation(TestCase):
 
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
         self.all_saas_files = [self.saas_file]
 
@@ -960,7 +959,7 @@ class TestRemoveNoneAttributes(TestCase):
 
 
 def test_render_templated_parameters(
-    gql_class_factory: Callable[..., SaasFileInterface]
+    gql_class_factory: Callable[..., SaasFile]
 ) -> None:
     saas_file = gql_class_factory(
         SaasFileV2,
