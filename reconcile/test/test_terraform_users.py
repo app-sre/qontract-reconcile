@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from unittest.mock import create_autospec
 
 import pytest
 from pytest_mock import MockerFixture
@@ -113,9 +112,9 @@ def test_setup(
     mocker: MockerFixture,
     test_aws_account: dict,
     test_aws_account_role: dict,
+    gql_api_builder: Callable[..., GqlApi],
 ) -> None:
-    mocked_gql_api = create_autospec(GqlApi)
-    mocked_gql_api.query.return_value = {"roles": [test_aws_account_role]}
+    mocked_gql_api = gql_api_builder({"roles": [test_aws_account_role]})
     mocker.patch("reconcile.terraform_users.gql").get_api.return_value = mocked_gql_api
     mocked_queries = mocker.patch("reconcile.terraform_users.queries")
     mocked_queries.get_aws_accounts.return_value = [test_aws_account]
@@ -157,9 +156,9 @@ def test_empty_run(
     mocker: MockerFixture,
     pgp_reencryption_settings: PgpReencryptionSettingsQueryData,
     test_aws_account: dict,
+    gql_api_builder: Callable[..., GqlApi],
 ) -> None:
-    mocked_gql_api = create_autospec(GqlApi)
-    mocked_gql_api.query.return_value = {"roles": []}
+    mocked_gql_api = gql_api_builder({"roles": []})
     mocker.patch("reconcile.terraform_users.gql").get_api.return_value = mocked_gql_api
     mocker.patch(
         "reconcile.terraform_users.query"

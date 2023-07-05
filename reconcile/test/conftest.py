@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from pydantic.error_wrappers import ValidationError
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.utils.gql import GqlApi
 from reconcile.utils.models import data_default_none
 from reconcile.utils.state import State
 
@@ -132,3 +133,13 @@ def gql_class_factory() -> (
             raise GQLClassFactoryError(msg) from e
 
     return _gql_class_factory
+
+
+@pytest.fixture
+def gql_api_builder() -> Callable[[Optional[Mapping]], GqlApi]:
+    def builder(data: Optional[Mapping] = None) -> GqlApi:
+        gql_api = create_autospec(GqlApi)
+        gql_api.query.return_value = data
+        return gql_api
+
+    return builder
