@@ -126,7 +126,9 @@ class OCMProduct:
 
     @staticmethod
     @abstractmethod
-    def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
+    def update_cluster(
+        ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any], dry_run: bool
+    ):
         pass
 
     @staticmethod
@@ -168,11 +170,15 @@ class OCMProductOsd(OCMProduct):
         ocm._post(api, ocm_spec, params)
 
     @staticmethod
-    def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
+    def update_cluster(
+        ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any], dry_run: bool
+    ):
         ocm_spec = OCMProductOsd._get_update_cluster_spec(update_spec)
         cluster_id = ocm.cluster_ids.get(cluster_name)
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
         params: dict[str, Any] = {}
+        if dry_run:
+            params["dryRun"] = "true"
         ocm._patch(api, ocm_spec, params)
 
     @staticmethod
@@ -356,11 +362,15 @@ class OCMProductRosa(OCMProduct):
         ocm._post(api, ocm_spec, params)
 
     @staticmethod
-    def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
+    def update_cluster(
+        ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any], dry_run: bool
+    ):
         ocm_spec = OCMProductRosa._get_update_cluster_spec(update_spec)
         cluster_id = ocm.cluster_ids.get(cluster_name)
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
         params: dict[str, Any] = {}
+        if dry_run:
+            params["dryRun"] = "true"
         ocm._patch(api, ocm_spec, params)
 
     @staticmethod
@@ -566,11 +576,15 @@ class OCMProductHypershift(OCMProduct):
         logging.error("Please use rosa cli to create new clusters")
 
     @staticmethod
-    def update_cluster(ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any]):
+    def update_cluster(
+        ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any], dry_run: bool
+    ):
         ocm_spec = OCMProductRosa._get_update_cluster_spec(update_spec)
         cluster_id = ocm.cluster_ids.get(cluster_name)
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
         params: dict[str, Any] = {}
+        if dry_run:
+            params["dryRun"] = "true"
         ocm._patch(api, ocm_spec, params)
 
     @staticmethod
@@ -791,7 +805,7 @@ class OCM:  # pylint: disable=too-many-public-methods
     ):
         cluster = self.clusters[cluster_name]
         impl = self._get_ocm_impl(cluster.spec.product, cluster.spec.hypershift)
-        impl.update_cluster(self, cluster_name, update_spec)
+        impl.update_cluster(self, cluster_name, update_spec, dry_run)
 
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
