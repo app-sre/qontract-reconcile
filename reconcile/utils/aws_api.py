@@ -846,8 +846,6 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self, account_name: str, assume_role: str, assume_region: str, client_type="ec2"
     ) -> EC2Client:
         session = self.get_session(account_name)
-        if assume_role == "":
-            return self.get_session_client(session, client_type)
         sts = self.get_session_client(session, "sts")
         assumed_session = self._get_assume_role_session(
             sts, account_name, assume_role, assume_region
@@ -932,14 +930,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return vpc_id, route_table_ids, subnets_id_az
 
-    def get_cluster_nat_gateways_egress_ips(self, account: dict[str, Any], vpc_id: str):
+    def get_cluster_nat_gateways_egress_ips(self, account):
         assumed_role_data = self._get_account_assume_data(account)
         assumed_ec2 = self._get_assumed_role_client(*assumed_role_data)
         nat_gateways = assumed_ec2.describe_nat_gateways()
         egress_ips = set()
-        for nat in nat_gateways.get("NatGateways") or []:
-            if nat["VpcId"] != vpc_id:
-                continue
+        for nat in nat_gateways.get("NatGateways"):
             for address in nat["NatGatewayAddresses"]:
                 egress_ips.add(address["PublicIp"])
 
