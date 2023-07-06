@@ -1,3 +1,4 @@
+import logging
 import sys
 from textwrap import indent
 from typing import (
@@ -89,6 +90,19 @@ def get_tf_roles() -> list[dict[str, Any]]:
     ]
 
 
+def _filter_participating_aws_accounts(
+    accounts: list,
+    roles: list[dict[str, Any]],
+) -> list:
+    participating_aws_account_names = set()
+    for role in roles:
+        for aws_group in role["aws_groups"] or []:
+            participating_aws_account_names.add(aws_group["account"]["name"])
+        for user_policy in role["user_policies"] or []:
+            participating_aws_account_names.add(user_policy["account"]["name"])
+    return [a for a in accounts if a["name"] in participating_aws_account_names]
+
+
 def setup(
     print_to_file,
     thread_pool_size: int,
@@ -101,23 +115,26 @@ def setup(
         accounts = [n for n in accounts if n["name"] == account_name]
         if not accounts:
             raise ValueError(f"aws account {account_name} is not found")
+    roles = get_tf_roles()
+    participating_aws_accounts = _filter_participating_aws_accounts(accounts, roles)
+
     settings = queries.get_app_interface_settings()
     ts = Terrascript(
         QONTRACT_INTEGRATION,
         QONTRACT_TF_PREFIX,
         thread_pool_size,
-        accounts,
+        participating_aws_accounts,
         settings=settings,
     )
     err = ts.populate_users(
-        get_tf_roles(),
+        roles,
         skip_reencrypt_accounts,
         appsre_pgp_key=appsre_pgp_key,
     )
     working_dirs = ts.dump(print_to_file)
-    aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
+    aws_api = AWSApi(1, participating_aws_accounts, settings=settings, init_users=False)
 
-    return accounts, working_dirs, err, aws_api
+    return participating_aws_accounts, working_dirs, err, aws_api
 
 
 def send_email_invites(
@@ -231,6 +248,12 @@ def run(
         account_name=account_name,
         appsre_pgp_key=appsre_pgp_key,
     )
+
+    if not accounts:
+        logging.warning(
+            f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
+        )
+        return
 
     if print_to_file:
         cleanup_and_exit()
