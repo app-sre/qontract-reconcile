@@ -735,7 +735,16 @@ CLUSTERS_QUERY = """
         subnet_ids
         availability_zones
         account {
+          name
           uid
+          terraformUsername
+          resourcesDefaultRegion
+          automationToken {
+            path
+            field
+            version
+            format
+          }
           rosa {
             ocm_environments {
               ocm {
