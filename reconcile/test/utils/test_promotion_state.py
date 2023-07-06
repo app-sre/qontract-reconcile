@@ -10,7 +10,7 @@ from reconcile.utils.promotion_state import (
 from reconcile.utils.state import State
 
 
-def test_key_exists(s3_state_builder: Callable[[Mapping], State]):
+def test_key_exists_v1(s3_state_builder: Callable[[Mapping], State]):
     state = s3_state_builder(
         {
             "ls": ["/promotions/channel/sha"],
@@ -25,7 +25,34 @@ def test_key_exists(s3_state_builder: Callable[[Mapping], State]):
     )
     deployment_state = PromotionState(state=state)
     deployment_state.cache_commit_shas_from_s3()
-    deployment_info = deployment_state.get_promotion_data(channel="channel", sha="sha")
+    deployment_info = deployment_state.get_promotion_data(
+        channel="channel", sha="sha", target_uid="uid"
+    )
+    assert deployment_info == PromotionData(
+        success=True,
+        target_config_hash="hash",
+        saas_file="saas_file",
+    )
+
+
+def test_key_exists_v2(s3_state_builder: Callable[[Mapping], State]):
+    state = s3_state_builder(
+        {
+            "ls": ["/promotions_v2/channel/uid/sha"],
+            "get": {
+                "promotions_v2/channel/uid/sha": {
+                    "success": True,
+                    "target_config_hash": "hash",
+                    "saas_file": "saas_file",
+                }
+            },
+        }
+    )
+    deployment_state = PromotionState(state=state)
+    deployment_state.cache_commit_shas_from_s3()
+    deployment_info = deployment_state.get_promotion_data(
+        channel="channel", sha="sha", target_uid="uid"
+    )
     assert deployment_info == PromotionData(
         success=True,
         target_config_hash="hash",
@@ -42,7 +69,9 @@ def test_key_does_not_exist(s3_state_builder: Callable[[Mapping], State]):
     )
     deployment_state = PromotionState(state=state)
     deployment_state.cache_commit_shas_from_s3()
-    deployment_info = deployment_state.get_promotion_data(channel="channel", sha="sha")
+    deployment_info = deployment_state.get_promotion_data(
+        channel="channel", sha="sha", target_uid="uid"
+    )
     assert deployment_info is None
 
 
@@ -61,7 +90,7 @@ def test_key_does_not_exist_locally(s3_state_builder: Callable[[Mapping], State]
     )
     deployment_state = PromotionState(state=state)
     deployment_info = deployment_state.get_promotion_data(
-        channel="channel", sha="sha", local_lookup=False
+        channel="channel", sha="sha", target_uid="uid", local_lookup=False
     )
     assert deployment_info == PromotionData(
         success=True, target_config_hash="hash", saas_file="saas_file"
