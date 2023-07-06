@@ -847,7 +847,9 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     ) -> EC2Client:
         session = self.get_session(account_name)
         if assume_role == "":
-            return self.get_session_client(session, client_type)
+            return self.get_session_client(
+                session, client_type, region_name=assume_region
+            )
         sts = self.get_session_client(session, "sts")
         assumed_session = self._get_assume_role_session(
             sts, account_name, assume_role, assume_region
