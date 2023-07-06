@@ -29,6 +29,7 @@ class Publisher:
         self,
         ref: str,
         repo_url: str,
+        uid: str,
         auth_code: Optional[HasSecret],
     ):
         self._ref = ref
@@ -37,6 +38,7 @@ class Publisher:
         self.channels: set[str] = set()
         self.commit_sha: str = ""
         self.deployment_info_by_channel: dict[str, Optional[DeploymentInfo]] = {}
+        self.uid = uid
 
     def fetch_commit_shas_and_deployment_info(
         self, vcs: VCS, deployment_state: PromotionState
@@ -51,6 +53,7 @@ class Publisher:
             promotion_data = deployment_state.get_promotion_data(
                 sha=self.commit_sha,
                 channel=channel,
+                target_uid=self.uid,
             )
             if not (
                 promotion_data
