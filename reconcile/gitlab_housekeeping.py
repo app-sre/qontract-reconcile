@@ -70,7 +70,7 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 merged_merge_requests = Counter(
     name="qontract_reconcile_merged_merge_requests",
     documentation="Number of merge requests that have been successfully merged in a repository",
-    labelnames=["project_id", "self_service", "auto_merge"],
+    labelnames=["project_id", "self_service", "auto_merge", "app_sre"],
 )
 
 rebased_merge_requests = Counter(
@@ -434,7 +434,7 @@ def rebase_merge_requests(
 @retry(max_attempts=10, hook=_log_exception)
 def merge_merge_requests(
     dry_run,
-    gl,
+    gl: GitLabApi,
     merge_limit,
     rebase,
     pipeline_timeout=None,
@@ -453,6 +453,7 @@ def merge_merge_requests(
 
     merge_requests_waiting.labels(gl.project.id).set(len(merge_requests))
 
+    app_sre_usernames = [u.username for u in gl.get_app_sre_group_users()]
     for mr in merge_requests:
         if rebase and not is_rebased(mr, gl):
             continue
@@ -503,6 +504,7 @@ def merge_merge_requests(
                     project_id=mr.target_project_id,
                     self_service=SELF_SERVICEABLE in labels,
                     auto_merge=AUTO_MERGE in labels,
+                    app_sre=mr.author["username"] in app_sre_usernames,
                 ).inc()
                 time_to_merge.labels(mr.target_project_id).observe(
                     _calculate_time_since_approval(merge_request_approved_at[mr])
