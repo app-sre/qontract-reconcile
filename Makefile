@@ -1,6 +1,11 @@
 .PHONY: help build push rc build-test test-app test-container-image test clean
 
 CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
+NETWORK_ARG ?= --add-host=host.docker.internal:host-gateway  ## for docker
+ifeq ($(CONTAINER_ENGINE), podman)
+  NETWORK_ARG = --network host  ## big hammer here, but just put it on the host network
+endif
+
 CONTAINER_UID ?= $(shell id -u)
 IMAGE_TEST := reconcile-test
 
@@ -9,6 +14,9 @@ IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
 VENV_CMD := . venv/bin/activate &&
 UUID := $(shell python3 -c 'import uuid; print(str(uuid.uuid4()))')
 EXPECTED_QENERATE_VERSION := $(shell grep qenerate requirements/requirements-type.txt | cut -d = -f3)
+
+LOG_LEVEL ?= 'DEBUG'
+SLEEP_DURATION_SECS ?= 60
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
@@ -65,8 +73,8 @@ test: test-app test-container-image
 
 dev-reconcile-loop: build-dev ## Trigger the reconcile loop inside a container for an integration
 	@$(CONTAINER_ENGINE) run --rm -it \
-		--add-host=host.docker.internal:host-gateway \
-		-v "$(CURDIR)":/work \
+		-v "$(CURDIR)":/work:Z \
+		$(NETWORK_ARG) \
 		-p 5678:5678 \
 		-e INTEGRATION_NAME="$(INTEGRATION_NAME)" \
 		-e INTEGRATION_EXTRA_ARGS="$(INTEGRATION_EXTRA_ARGS)" \
