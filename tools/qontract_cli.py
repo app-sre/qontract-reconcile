@@ -964,6 +964,12 @@ def upgrade_cluster_addon(
         ocm.create_addon_upgrade_policy(cluster, spec)
 
 
+def has_cluster_account_access(cluster: dict[str, Any]):
+    spec = cluster.get("spec") or {}
+    account = spec.get("account")
+    return account or cluster.get("awsInfrastructureManagementAccounts") is not None
+
+
 @get.command()
 @click.argument("name", default="")
 @click.pass_context
@@ -972,8 +978,7 @@ def clusters_network(ctx, name):
     clusters = [
         c
         for c in queries.get_clusters()
-        if c.get("ocm") is not None
-        and c.get("awsInfrastructureManagementAccounts") is not None
+        if c.get("ocm") is not None and has_cluster_account_access(c)
     ]
     if name:
         clusters = [c for c in clusters if c["name"] == name]
@@ -991,19 +996,31 @@ def clusters_network(ctx, name):
     for cluster in clusters:
         cluster_name = cluster["name"]
         management_account = tfvpc._get_default_management_account(cluster)
-        account = tfvpc._build_infrastructure_assume_role(
-            management_account,
-            cluster,
-            ocm_map.get(cluster_name),
-            provided_assume_role=None,
-        )
-        if not account:
-            continue
-        account["resourcesDefaultRegion"] = management_account["resourcesDefaultRegion"]
+        if management_account is None:
+            # This is a CCS/ROSA cluster.
+            # We can access the account directly, without assuming a network-mgmt role
+            account = cluster["spec"]["account"]
+            account.update(
+                {
+                    "assume_role": "",
+                    "assume_region": cluster["spec"]["region"],
+                    "assume_cidr": cluster["network"]["vpc"],
+                }
+            )
+        else:
+            account = tfvpc._build_infrastructure_assume_role(
+                management_account,
+                cluster,
+                ocm_map.get(cluster_name),
+                provided_assume_role=None,
+            )
+            account["resourcesDefaultRegion"] = management_account[
+                "resourcesDefaultRegion"
+            ]
         with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
             vpc_id, _, _ = aws_api.get_cluster_vpc_details(account)
             cluster["vpc_id"] = vpc_id
-            egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
+            egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account, vpc_id)
             cluster["egress_ips"] = ", ".join(sorted(egress_ips))
 
     # TODO(mafriedm): fix this
@@ -1066,41 +1083,6 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
         print("")
         print(f"# {user}")
         print_output(ctx.obj["options"], by_user[user], columns)
-
-
-@get.command()
-@click.pass_context
-def clusters_egress_ips(ctx):
-    settings = queries.get_app_interface_settings()
-    clusters = queries.get_clusters()
-    clusters = [
-        c
-        for c in clusters
-        if c.get("ocm") is not None
-        and c.get("awsInfrastructureManagementAccounts") is not None
-    ]
-    ocm_map = OCMMap(clusters=clusters, settings=settings)
-
-    results = []
-    for cluster in clusters:
-        cluster_name = cluster["name"]
-        management_account = tfvpc._get_default_management_account(cluster)
-        account = tfvpc._build_infrastructure_assume_role(
-            management_account,
-            cluster,
-            ocm_map.get(cluster_name),
-            provided_assume_role=None,
-        )
-        if not account:
-            continue
-        account["resourcesDefaultRegion"] = management_account["resourcesDefaultRegion"]
-        with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
-            egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account)
-        item = {"cluster": cluster_name, "egress_ips": ", ".join(sorted(egress_ips))}
-        results.append(item)
-
-    columns = ["cluster", "egress_ips"]
-    print_output(ctx.obj["options"], results, columns)
 
 
 @get.command()
