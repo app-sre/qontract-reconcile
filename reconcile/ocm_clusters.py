@@ -12,7 +12,10 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
-from reconcile.ocm.types import OCMSpec
+from reconcile.ocm.types import (
+    OCMSpec,
+    ROSAClusterAWSAccount,
+)
 from reconcile.status import ExitCodes
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.semver_helper import parse_semver
@@ -50,6 +53,10 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
 
     # Make pydantic happy
     del rosa["ocm_environments"]
+
+    uid = cluster["spec"]["account"]["uid"]
+    # doing this allows to exclude account fields which can be queried in graphql
+    cluster["spec"]["account"] = ROSAClusterAWSAccount(uid=uid, rosa=rosa)
 
 
 def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> dict[str, OCMSpec]:
