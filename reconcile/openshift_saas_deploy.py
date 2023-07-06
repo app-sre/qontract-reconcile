@@ -6,7 +6,6 @@ from typing import Optional
 import reconcile.openshift_base as ob
 from reconcile import (
     jenkins_base,
-    mr_client_gateway,
     queries,
 )
 from reconcile.gql_definitions.common.saas_files import PipelinesProviderTektonV1
