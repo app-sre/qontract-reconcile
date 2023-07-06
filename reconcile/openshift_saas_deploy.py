@@ -6,7 +6,6 @@ from typing import Optional
 import reconcile.openshift_base as ob
 from reconcile import (
     jenkins_base,
-    mr_client_gateway,
     queries,
 )
 from reconcile.gql_definitions.common.saas_files import PipelinesProviderTektonV1
@@ -245,8 +244,7 @@ def run(
         # Auto-promotions are now created by saas-auto-promotions-manager integration
         # However, we still need saas-herder to publish the state to S3, because
         # saas-auto-promotions-manager needs that information
-        with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
-            saasherder.publish_promotions(success, all_saas_files, mr_cli)
+        saasherder.publish_promotions(success, all_saas_files)
 
     if not success:
         sys.exit(ExitCodes.ERROR)

@@ -43,7 +43,6 @@ from reconcile.status import RunningState
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.jjb_client import JJB
-from reconcile.utils.mr.base import MRClient
 from reconcile.utils.oc import (
     OCLocal,
     StatusCodeError,
@@ -1797,7 +1796,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             if promotion.subscribe:
                 for channel in promotion.subscribe:
                     info = self._promotion_state.get_promotion_data(
-                        sha=promotion.commit_sha, channel=channel, local_lookup=False
+                        sha=promotion.commit_sha,
+                        channel=channel,
+                        target_uid=promotion.saas_target_uid,
+                        local_lookup=False,
                     )
                     if not (info and info.success):
                         logging.error(
@@ -1856,7 +1858,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self,
         success: bool,
         all_saas_files: Iterable[SaasFile],
-        mr_cli: MRClient,
     ) -> None:
         """
         If there were promotion sections in the participating saas file
