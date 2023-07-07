@@ -92,7 +92,7 @@ class OCMBaseClient:
         # fetch pages
         records_seen = 0
         while True:
-            rs = self.get(api_path, params=params)
+            rs = self.get(api_path, params=params_copy)
             for item in rs.get("items", []):
                 yield item
             total_records = rs.get("total", 0)
@@ -100,7 +100,7 @@ class OCMBaseClient:
             records_on_page = rs.get("size", len(rs.get("items", [])))
             records_seen += records_on_page
             if total_records > records_seen and (
-                max_pages and max_pages < current_page
+                not max_pages or max_pages > current_page
             ):
                 # more page available
                 params_copy["page"] = current_page + 1
