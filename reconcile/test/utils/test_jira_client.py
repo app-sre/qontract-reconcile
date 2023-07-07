@@ -1,6 +1,4 @@
-from unittest.mock import (
-    create_autospec,
-)
+from unittest.mock import create_autospec
 
 import pytest
 from jira import JIRA
