@@ -17,9 +17,7 @@ from jira import (
 )
 from jira.client import ResultList
 
-from reconcile.utils.secret_reader import (
-    SecretReader,
-)
+from reconcile.utils.secret_reader import SecretReader
 
 
 class JiraWatcherSettings(Protocol):

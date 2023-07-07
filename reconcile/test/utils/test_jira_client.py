@@ -44,7 +44,7 @@ def test_create_with_jira_watcher_settings(
         jira_watcher_settings=jira_watcher_settings,
     )
 
-    assert jira_client.project ==  expected_project
+    assert jira_client.project == expected_project
     assert jira_client.jira == mocked_jira.return_value
 
     mocked_jira.assert_called_once_with(
@@ -71,7 +71,7 @@ def test_create_with_defaults(
         token=expected_token,
     )
 
-    assert jira_client.project ==  expected_project
+    assert jira_client.project == expected_project
     assert jira_client.jira == mocked_jira.return_value
 
     mocked_jira.assert_called_once_with(
