@@ -26,6 +26,7 @@ from reconcile.utils.state import (
     State,
     init_state,
 )
+from reconcile.utils.ocm.upgrades import get_control_plan_upgrade_policies
 
 QONTRACT_INTEGRATION = "openshift-upgrade-watcher"
 
@@ -84,7 +85,8 @@ def _get_start_hypershift(
     ocm_map: OCMMap, cluster_name: str
 ) -> tuple[Optional[str], Optional[str]]:
     ocm_map_cluster = ocm_map.get(cluster_name)
-    schedules = ocm_map_cluster.get_control_plan_upgrade_policies(cluster_name)
+    cluster_id = ocm_map_cluster.cluster_ids[cluster_name]
+    schedules = get_control_plan_upgrade_policies(ocm_map_cluster._ocm_client, cluster_id)
     schedule = [s for s in schedules if s["state"]["value"] == "started"]
     if not schedule:
         return None, None
