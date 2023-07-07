@@ -175,27 +175,33 @@ def test_new_version_notify(mocker, state, slack, clusters):
 
 
 def test__get_start_hypershift_started(mocker):
-    ocm_map = mocker.patch("reconcile.utils.ocm.OCMMap", autospec=True)
-    ocm = mocker.patch("reconcile.utils.ocm.OCM", autospec=True)
-    ocm.get_control_plan_upgrade_policies.return_value = [
+    get_control_plan_upgrade_policies_mock = mocker.patch.object(
+        ouw, "get_control_plan_upgrade_policies", autospec=True
+    )
+    get_control_plan_upgrade_policies_mock.return_value = [
         {
             "next_run": upgrade_at,
             "version": upgrade_version,
             "state": {"value": "started"},
         }
     ]
-    ocm_map.get.return_value = ocm
-    next_run, version = ouw._get_start_hypershift(ocm_map, "foo")
+    ocm_api_mock = mocker.patch(
+        "reconcile.utils.ocm_base_client.OCMBaseClient", auto_spec=True
+    )
+    next_run, version = ouw._get_start_hypershift(ocm_api_mock, "cluster-id")
     assert next_run == upgrade_at
     assert version == upgrade_version
 
 
 def test__get_start_hypershift_noop(mocker):
-    ocm_map = mocker.patch("reconcile.utils.ocm.OCMMap", autospec=True)
-    ocm = mocker.patch("reconcile.utils.ocm.OCM", autospec=True)
-    ocm.get_control_plan_upgrade_policies.return_value = []
-    ocm_map.get.return_value = ocm
-    next_run, version = ouw._get_start_hypershift(ocm_map, "foo")
+    get_control_plan_upgrade_policies_mock = mocker.patch.object(
+        ouw, "get_control_plan_upgrade_policies", autospec=True
+    )
+    get_control_plan_upgrade_policies_mock.return_value = []
+    ocm_api_mock = mocker.patch(
+        "reconcile.utils.ocm_base_client.OCMBaseClient", auto_spec=True
+    )
+    next_run, version = ouw._get_start_hypershift(ocm_api_mock, "cluster-id")
     assert not next_run
     assert not version
 

@@ -20,13 +20,14 @@ from reconcile.utils.oc_map import (
     init_oc_map_from_clusters,
 )
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm.upgrades import get_control_plan_upgrade_policies
+from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import (
     State,
     init_state,
 )
-from reconcile.utils.ocm.upgrades import get_control_plan_upgrade_policies
 
 QONTRACT_INTEGRATION = "openshift-upgrade-watcher"
 
@@ -82,17 +83,15 @@ def _get_start_osd(
 
 
 def _get_start_hypershift(
-    ocm_map: OCMMap, cluster_name: str
+    ocm_api: OCMBaseClient, cluster_id: str
 ) -> tuple[Optional[str], Optional[str]]:
-    ocm_map_cluster = ocm_map.get(cluster_name)
-    cluster_id = ocm_map_cluster.cluster_ids[cluster_name]
-    schedules = get_control_plan_upgrade_policies(ocm_map_cluster._ocm_client, cluster_id)
+    schedules = get_control_plan_upgrade_policies(ocm_api, cluster_id)
     schedule = [s for s in schedules if s["state"]["value"] == "started"]
     if not schedule:
         return None, None
 
     if len(schedule) > 1:
-        logging.error(f"[{cluster_name}] More than one schedule started.")
+        logging.error(f"[{cluster_id}] More than one schedule started.")
 
     return schedule[0]["next_run"], schedule[0]["version"]
 
@@ -108,8 +107,12 @@ def notify_upgrades_start(
     for cluster in clusters:
         if cluster.spec and not cluster.spec.hypershift:
             upgrade_at, version = _get_start_osd(oc_map, cluster.name)
+        elif cluster.spec and cluster.spec.q_id:
+            upgrade_at, version = _get_start_hypershift(
+                ocm_map.get(cluster.name)._ocm_client, cluster.spec.q_id
+            )
         else:
-            upgrade_at, version = _get_start_hypershift(ocm_map, cluster.name)
+            continue
 
         if upgrade_at and version:
             upgrade_at_obj = datetime.strptime(upgrade_at, "%Y-%m-%dT%H:%M:%SZ")
