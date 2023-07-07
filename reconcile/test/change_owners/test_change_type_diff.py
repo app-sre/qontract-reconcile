@@ -568,6 +568,25 @@ def test_bundle_change_diff_item_reorder() -> None:
     assert bundle_change.old_content_sha != bundle_change.new_content_sha
 
 
+def test_bundle_change_diff_type_changed() -> None:
+    """
+    detect a change in a fields type
+    """
+    bundle_change = build_bundle_datafile_change(
+        path="path",
+        schema="schema",
+        old_content={"field": 10},
+        new_content={"field": "10"},
+    )
+
+    assert bundle_change
+    assert len(bundle_change.diff_coverage) == 1
+    assert str(bundle_change.diff_coverage[0].diff.path) == "field"
+    assert bundle_change.diff_coverage[0].diff.diff_type == DiffType.CHANGED
+    assert bundle_change.diff_coverage[0].diff.old == 10
+    assert bundle_change.diff_coverage[0].diff.new == "10"
+
+
 def test_bundle_change_diff_resourcefile_without_schema_unparsable() -> None:
     bundle_change = build_bundle_resourcefile_change(
         path="path",
