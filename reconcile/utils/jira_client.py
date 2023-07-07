@@ -19,7 +19,6 @@ from jira.client import ResultList
 
 from reconcile.utils.secret_reader import (
     SecretReader,
-    SecretReaderBase,
 )
 
 
@@ -82,25 +81,22 @@ class JiraClient:
 
     @staticmethod
     def create(
-        jira_board: Mapping[str, Any],
-        secret_reader: SecretReaderBase,
+        project_name: str,
+        token: str,
+        server_url: str,
         jira_watcher_settings: Optional[JiraWatcherSettings] = None,
     ) -> JiraClient:
-        secret = jira_board["server"]["token"]
-        server = jira_board["server"]["serverUrl"]
-        project = jira_board["name"]
-        token = secret_reader.read(secret)
         read_timeout = JiraClient.DEFAULT_READ_TIMEOUT
         connect_timeout = JiraClient.DEFAULT_CONNECT_TIMEOUT
         if jira_watcher_settings:
             read_timeout = jira_watcher_settings.read_timeout
             connect_timeout = jira_watcher_settings.connect_timeout
         jira_api = JIRA(
-            server=server, token_auth=token, timeout=(read_timeout, connect_timeout)
+            server=server_url, token_auth=token, timeout=(read_timeout, connect_timeout)
         )
         return JiraClient(
             jira_api=jira_api,
-            project=project,
+            project=project_name,
         )
 
     def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:

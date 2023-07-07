@@ -1,0 +1,14 @@
+# qenerate: plugin=pydantic_v1
+
+query JiraBoardsForPermissionValidation {
+  jira_boards: jira_boards_v1 {
+    path
+    name
+    server {
+      serverUrl
+      token {
+        ... VaultSecret
+      }
+    }
+  }
+}
