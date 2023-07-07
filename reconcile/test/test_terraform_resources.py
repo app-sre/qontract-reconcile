@@ -6,6 +6,7 @@ from collections.abc import (
 from typing import Any
 
 import pytest
+from pytest_mock import MockerFixture
 
 import reconcile.terraform_resources as integ
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
@@ -255,3 +256,29 @@ def test_filter_tf_namespaces_namespace_deleted(gql_class_factory: Callable):
     namespaces = [ns1, ns2]
     filtered = integ.filter_tf_namespaces(namespaces, None)
     assert filtered == [ns2]
+
+
+def test_empty_run(mocker: MockerFixture) -> None:
+    mocked_queries = mocker.patch("reconcile.terraform_resources.queries")
+    mocked_queries.get_aws_accounts.return_value = [{"name": "a"}]
+    mocked_queries.get_app_interface_settings.return_value = []
+
+    mocker.patch("reconcile.terraform_resources.get_namespaces").return_value = []
+
+    mocked_ts = mocker.patch("reconcile.terraform_resources.Terrascript", autospec=True)
+    mocked_ts.return_value.resource_spec_inventory = {}
+
+    mocked_tf = mocker.patch("reconcile.terraform_resources.Terraform", autospec=True)
+    mocked_tf.return_value.plan.return_value = (False, None)
+    mocked_tf.return_value.should_apply = False
+
+    mocker.patch("reconcile.terraform_resources.AWSApi", autospec=True)
+    mocker.patch("reconcile.terraform_resources.sys")
+
+    mocked_logging = mocker.patch("reconcile.terraform_resources.logging")
+
+    integ.run(True, account_name="a")
+
+    mocked_logging.warning.assert_called_once_with(
+        "No terraform namespaces found, consider disabling this integration, account names: a"
+    )
