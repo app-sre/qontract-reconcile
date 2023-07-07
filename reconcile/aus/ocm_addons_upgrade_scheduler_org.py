@@ -66,36 +66,43 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
             addons=True,
         )
 
-        for spec in org_upgrade_spec.specs:
-            if not isinstance(spec, ClusterAddonUpgradeSpec):
-                continue
-            version_data_map = aus.get_version_data_map(
+        addons = {
+            spec.addon.id
+            for spec in org_upgrade_spec.specs
+            if isinstance(spec, ClusterAddonUpgradeSpec)
+        }
+        for addon_id in addons:
+            version_data = aus.get_version_data_map(
                 dry_run=dry_run,
                 org_upgrade_spec=org_upgrade_spec,
-                addon_id=spec.addon.id,
+                addon_id=addon_id,
                 integration=self.name,
-            )
-            version_data = version_data_map.get(
-                org_upgrade_spec.org.environment.name, org_upgrade_spec.org.org_id
-            )
+            ).get(org_upgrade_spec.org.environment.name, org_upgrade_spec.org.org_id)
+
             diffs = calculate_diff(
-                [
+                addon_current_state=[
                     s
                     for s in current_state
-                    if isinstance(s, AddonUpgradePolicy)
-                    and s.cluster_id == spec.cluster.id
-                    and s.addon_id == spec.addon.id
+                    if isinstance(s, AddonUpgradePolicy) and s.addon_id == addon_id
                 ],
-                org_upgrade_spec,
-                ocm_api,
-                version_data,
-                addon_id=spec.addon.id,
+                org_upgrade_spec=OrganizationUpgradeSpec(
+                    org=org_upgrade_spec.org,
+                    specs=[
+                        spec
+                        for spec in org_upgrade_spec.specs
+                        if isinstance(spec, ClusterAddonUpgradeSpec)
+                        and spec.addon.id == addon_id
+                    ],
+                ),
+                ocm_api=ocm_api,
+                version_data=version_data,
+                addon_id=addon_id,
             )
             aus.act(
                 dry_run,
                 diffs,
                 ocm_api,
-                addon_id=spec.addon.id,
+                addon_id=addon_id,
             )
 
     def get_ocm_env_upgrade_specs(

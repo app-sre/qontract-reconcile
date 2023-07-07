@@ -44,8 +44,11 @@ def get_addons_for_cluster(
         api_path=f"/api/clusters_mgmt/v1/clusters/{cluster_id}/addons",
         params=params,
     ):
-        available_upgrades = [addon_latest_versions.get(addon["id"])]
-        addon["addon_version"]["available_upgrades"] = available_upgrades
+        current_version = addon["addon_version"]["id"]
+        latest_version = addon_latest_versions.get(addon["id"])
+        addon["addon_version"]["available_upgrades"] = (
+            [latest_version] if latest_version != current_version else []
+        )
         addons.append(OCMAddonInstallation(**addon))
     return addons
 
