@@ -1,5 +1,4 @@
 from unittest.mock import (
-    Mock,
     create_autospec,
 )
 
