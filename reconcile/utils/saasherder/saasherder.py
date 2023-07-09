@@ -256,17 +256,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             saas_file_name_path_map.setdefault(saas_file.name, [])
             saas_file_name_path_map[saas_file.name].append(saas_file.path)
 
-            saas_file_owners = [
-                u.org_username
-                for r in saas_file.self_service_roles or []
-                for u in list(r.users) + list(r.bots)
-            ]
-            if not saas_file_owners:
-                logging.error(
-                    f"saas file {saas_file.name} has no owners: {saas_file.path}"
-                )
-                self.valid = False
-
             self._validate_allowed_secret_parameter_paths(
                 saas_file.name,
                 saas_file.secret_parameters or [],
