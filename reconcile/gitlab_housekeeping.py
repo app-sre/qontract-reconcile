@@ -445,16 +445,12 @@ def merge_merge_requests(
     users_allowed_to_label=None,
 ):
     merges = 0
-    mrs = get_merge_requests(dry_run, gl, users_allowed_to_label)
-    merge_requests: list[ProjectMergeRequest] = [item["mr"] for item in mrs]
-    merge_request_approved_at: dict[ProjectMergeRequest, str] = {
-        item["mr"]: item["approved_at"] for item in mrs
-    }
-
+    merge_requests = get_merge_requests(dry_run, gl, users_allowed_to_label)
     merge_requests_waiting.labels(gl.project.id).set(len(merge_requests))
 
     app_sre_usernames = [u.username for u in gl.get_app_sre_group_users()]
-    for mr in merge_requests:
+    for merge_request in merge_requests:
+        mr: ProjectMergeRequest = merge_request["mr"]
         if rebase and not is_rebased(mr, gl):
             continue
 
@@ -507,7 +503,7 @@ def merge_merge_requests(
                     app_sre=mr.author["username"] in app_sre_usernames,
                 ).inc()
                 time_to_merge.labels(project_id=mr.target_project_id).observe(
-                    _calculate_time_since_approval(merge_request_approved_at[mr])
+                    _calculate_time_since_approval(merge_request["approved_at"])
                 )
                 if rebase:
                     return
