@@ -82,7 +82,7 @@ rebased_merge_requests = Counter(
 time_to_merge = Histogram(
     name="qontract_reconcile_time_to_merge_merge_request_minutes",
     documentation="The number of minutes it takes from when a merge request is mergeable until it is actually merged. This is an indicator of how busy the merge queue is.",
-    labelnames=["project_id"],
+    labelnames=["project_id", "priority"],
     buckets=(5.0, 10.0, 20.0, 40.0, 60.0, float("inf")),
 )
 
@@ -353,6 +353,7 @@ def get_merge_requests(
             "mr": mr,
             "labels": labels,
             "label_priority": label_priotiry,
+            "priority": f"{label_priotiry} - {MERGE_LABELS_PRIORITY[label_priotiry]}",
             "approved_at": approved_at,
             "approved_by": approved_by,
         }
@@ -502,9 +503,9 @@ def merge_merge_requests(
                     auto_merge=AUTO_MERGE in labels,
                     app_sre=mr.author["username"] in app_sre_usernames,
                 ).inc()
-                time_to_merge.labels(project_id=mr.target_project_id).observe(
-                    _calculate_time_since_approval(merge_request["approved_at"])
-                )
+                time_to_merge.labels(
+                    project_id=mr.target_project_id, priority=merge_request["priority"]
+                ).observe(_calculate_time_since_approval(merge_request["approved_at"]))
                 if rebase:
                     return
                 merges += 1
