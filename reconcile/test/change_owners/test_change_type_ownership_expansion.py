@@ -74,6 +74,9 @@ def app_hierarchy_change_type() -> ChangeTypeV1:
         disabled=False,
         priority=ChangeTypePriority.HIGH.value,
         changes=[
+            build_jsonpath_change(
+                selectors=["description"],
+            ),
             build_change_type_change(
                 schema="app-1.yml",
                 change_type_names=["app-hierarchy"],
@@ -154,7 +157,11 @@ def test_change_type_ownership_resolve(
             saas_file_change_type,
             rds_defaults_change_type,
         ],
-        MockFileDiffResolver(fail_on_unknown_path=False),
+        MockFileDiffResolver()
+        .register_raw_diff(
+            path="my-app.yml", old={"name": "name"}, new={"name": "name"}
+        )
+        .register_bundle_change(namespace_change),
     )
 
     namespace_change_type_processor = processors[namespace_change_type.name]
@@ -250,7 +257,8 @@ def test_change_type_ownership_expansion_backrefs(
     """
     processors = init_change_type_processors(
         [rds_defaults_change_type, namespace_change_type],
-        MockFileDiffResolver().register_raw_diff(
+        MockFileDiffResolver()
+        .register_raw_diff(
             path="my-namespace.yml",
             old={
                 "rds": {"defaults": "my-rds-defaults-file.yml"},
@@ -260,6 +268,11 @@ def test_change_type_ownership_expansion_backrefs(
                 "rds": {"defaults": "my-rds-defaults-file.yml"},
                 "description": "my-description",
             },
+        )
+        .register_raw_diff(
+            path="my-rds-defaults-file.yml",
+            old={"storage": "10"},
+            new={"storage": "20"},
         ),
     )
 
@@ -312,6 +325,7 @@ def test_change_type_expansion_hierarchy(
     processors = init_change_type_processors(
         [app_hierarchy_change_type],
         MockFileDiffResolver()
+        .register_bundle_change(app_change)
         .register_raw_diff(
             path="parent-app.yml",
             old={"name": "parent-app", "parent": "grand-parent-app.yml"},
