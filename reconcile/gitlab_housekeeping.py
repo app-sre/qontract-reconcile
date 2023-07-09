@@ -506,7 +506,7 @@ def merge_merge_requests(
                     auto_merge=AUTO_MERGE in labels,
                     app_sre=mr.author["username"] in app_sre_usernames,
                 ).inc()
-                time_to_merge.labels(mr.target_project_id).observe(
+                time_to_merge.labels(project_id=mr.target_project_id).observe(
                     _calculate_time_since_approval(merge_request_approved_at[mr])
                 )
                 if rebase:
