@@ -216,13 +216,17 @@ class AdvancedUpgradeSchedulerBaseIntegration(
 class GateAgreement(BaseModel):
     id: str
 
-    def create(self, ocm_api: OCMBaseClient, cluster_id: str) -> None:
-        logging.info(f"create agreement for gate {self.id} on cluster {cluster_id}")
+    def create(
+        self, ocm_api: OCMBaseClient, cluster_name: str, cluster_id: str
+    ) -> None:
+        logging.info(
+            f"create agreement for gate {self.id} on cluster {cluster_name} (id={cluster_id})"
+        )
         agreement = create_version_agreement(ocm_api, self.id, cluster_id)
         if agreement.get("version_gate") is None:
             logging.error(
                 "Unexpected response while creating version "
-                f"agreement with id {self.id} for cluster {cluster_id}"
+                f"agreement with id {self.id} for cluster {cluster_name} (id={cluster_id})"
             )
 
 
@@ -346,7 +350,7 @@ class UpgradePolicyHandler(BaseModel):
 
     def _create_gate_agreements(self, ocm_api: OCMBaseClient) -> None:
         for gate in self.gates_to_agree or []:
-            gate.create(ocm_api, self.policy.cluster_id)
+            gate.create(ocm_api, self.policy.cluster, self.policy.cluster_id)
 
     def act(self, dry_run: bool, ocm_api: OCMBaseClient) -> None:
         logging.info(f"{self.action} {self.policy.summarize()}")
