@@ -46,7 +46,12 @@ def fetch_current_state(sg_client):
     state = []
 
     # pending invites
-    invites = sg_client.teammates.pending.get().to_dict["result"]
+    limit = 300
+    invites = sg_client.teammates.pending.get({"limit": limit}).to_dict["result"]
+    if len(invites) == limit:
+        raise RuntimeError(
+            "too many pending invites and i was too lazy to implement paging. take that future me"
+        )
     for invite in invites:
         t = Teammate(invite["email"], pending_token=invite["token"])
         state.append(t)
