@@ -7,7 +7,6 @@ from reconcile.gql_definitions.change_owners.queries.change_types import ChangeT
 from reconcile.test.change_owners.fixtures import (
     StubFile,
     build_bundle_datafile_change,
-    build_change_type,
     change_type_to_processor,
 )
 
@@ -100,48 +99,6 @@ def test_extract_context_file_refs_selector(
             file_type=BundleFileType.DATAFILE,
             schema="/openshift/cluster-1.yml",
             path=cluster,
-        )
-    ]
-
-
-def test_extract_context_file_refs_selector_on_metadata() -> None:
-    """
-    this testcase extracts the context file based on the change types context
-    selector referencing the .path metadata of the changed file
-    """
-
-    ctp = build_change_type(
-        name="namespace-editor",
-        context_schema="/openshift/namespace-1.yml",
-        context_selector="$.path",
-        change_selectors=["$"],
-    )
-
-    namespace_path = "/my/namespace.yml"
-    namespace_change = build_bundle_datafile_change(
-        path=namespace_path,
-        schema="/openshift/namespace-1.yml",
-        old_content={
-            "foo": "bar",
-        },
-        new_content={
-            "foo": "baz",
-        },
-    )
-    assert namespace_change
-    file_refs = ctp.find_context_file_refs(
-        FileChange(
-            file_ref=namespace_change.fileref,
-            old=namespace_change.old,
-            new=namespace_change.new,
-        ),
-        set(),
-    )
-    assert [o.context_file_ref for o in file_refs] == [
-        FileRef(
-            file_type=BundleFileType.DATAFILE,
-            schema="/openshift/namespace-1.yml",
-            path=namespace_path,
         )
     ]
 

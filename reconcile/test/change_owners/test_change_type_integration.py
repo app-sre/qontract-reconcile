@@ -9,8 +9,6 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
 )
 from reconcile.test.change_owners.fixtures import (
     StubFile,
-    build_bundle_datafile_change,
-    build_change_type,
     build_role,
     change_type_to_processor,
 )
@@ -74,75 +72,3 @@ def test_change_coverage(
             assert len(d.coverage) == 1
             assert len(d.coverage[0].approvers) == 1
             assert d.coverage[0].approvers[0].org_username == expected_approver
-
-
-def test_remove_coverage() -> None:
-    """
-    Test scenario: a namespace gets removed and we want to make sure that only
-    the role with the namespace-remover change-type is covering the change.
-    """
-    namespace_remover = build_change_type(
-        name="namespace-remover",
-        context_schema="/openshift/namespace-1.yml",
-        context_selector="$.path",
-        context_when="removed",
-        change_selectors=["$"],
-    )
-
-    namespace_editor = build_change_type(
-        name="namespace-editor",
-        context_schema="/openshift/namespace-1.yml",
-        change_selectors=["description"],
-    )
-
-    namespace_change = build_bundle_datafile_change(
-        path="my-namespace.yml",
-        schema="/openshift/namespace-1.yml",
-        old_content={
-            "description": "bar",
-        },
-        new_content=None,
-    )
-    assert namespace_change
-
-    a_namespace_remover_user = "a-namespace-remover-user"
-    namespace_remover_role = build_role(
-        name="remover-role",
-        change_type_name=namespace_remover.name,
-        datafiles=[
-            DatafileObjectV1(
-                datafileSchema="/openshift/namespace-1.yml",
-                path=namespace_change.fileref.path,
-            )
-        ],
-        users=[a_namespace_remover_user],
-    )
-
-    a_namespace_editor_user = "a-namespace-editor-user"
-    namespace_editor_role = build_role(
-        name="editor-role",
-        change_type_name=namespace_editor.name,
-        datafiles=[
-            DatafileObjectV1(
-                datafileSchema="/openshift/namespace-1.yml",
-                path=namespace_change.fileref.path,
-            )
-        ],
-        users=[a_namespace_editor_user],
-    )
-
-    cover_changes_with_self_service_roles(
-        roles=[namespace_remover_role, namespace_editor_role],
-        change_type_processors=[
-            namespace_remover,
-            namespace_editor,
-        ],
-        bundle_changes=[namespace_change],
-    )
-
-    assert len(namespace_change.diff_coverage) == 1
-    dc = namespace_change.diff_coverage[0]
-    assert str(dc.diff.path) == "$"
-    assert len(dc.coverage) == 1
-    assert len(dc.coverage[0].approvers) == 1
-    assert dc.coverage[0].approvers[0].org_username == a_namespace_remover_user

@@ -320,7 +320,7 @@ def build_jsonpath_change(
     context_when: Optional[str] = None,
     context_where: Optional[str] = None,
 ) -> ChangeTypeChangeDetectorJsonPathProviderV1:
-    if context_selector or context_when or context_where:
+    if context_selector:
         context = ChangeTypeChangeDetectorContextSelectorV1(
             selector=context_selector,
             when=context_when,
@@ -367,9 +367,6 @@ def build_change_type(
     change_schema: Optional[str] = None,
     context_schema: Optional[str] = None,
     context_type: BundleFileType = BundleFileType.DATAFILE,
-    context_selector: Optional[str] = None,
-    context_when: Optional[str] = None,
-    context_where: Optional[str] = None,
 ) -> ChangeTypeProcessor:
     return change_type_to_processor(
         ChangeTypeV1(
@@ -381,9 +378,6 @@ def build_change_type(
                 build_jsonpath_change(
                     schema=change_schema,
                     selectors=change_selectors,
-                    context_selector=context_selector,
-                    context_when=context_when,
-                    context_where=context_where,
                 )
             ],
             disabled=False,

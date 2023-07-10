@@ -22,8 +22,6 @@ def test_priority_for_changes(
         fileref=None,  # type: ignore
         old=None,
         new=None,
-        old_path=None,
-        new_path=None,
         old_content_sha="",
         new_content_sha="",
         diffs=[],
@@ -35,8 +33,6 @@ def test_priority_for_changes(
         fileref=None,  # type: ignore
         old=None,
         new=None,
-        old_path=None,
-        new_path=None,
         old_content_sha="",
         new_content_sha="",
         diffs=[],
@@ -54,8 +50,6 @@ def test_priorty_for_changes_no_coverage() -> None:
             fileref=None,  # type: ignore
             old=None,
             new=None,
-            old_path=None,
-            new_path=None,
             old_content_sha="",
             new_content_sha="",
             diffs=[],

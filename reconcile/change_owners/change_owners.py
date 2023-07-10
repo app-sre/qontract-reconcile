@@ -255,14 +255,13 @@ def run(
         )
         return
 
+    file_diff_resolver = QontractServerFileDiffResolver(comparison_sha=comparison_sha)
+
     try:
         # fetch change-types from current bundle to verify they are syntactically correct.
         # this is a cheap way to figure out if a newly introduced change-type works.
         # needs a lot of improvements!
-        fetch_change_type_processors(
-            gql.get_api(),
-            QontractServerFileDiffResolver(comparison_sha=comparison_sha, cache={}),
-        )
+        fetch_change_type_processors(gql.get_api(), file_diff_resolver)
         # also verify that self service roles are configured correctly, e.g. if change-types
         # are brought together only with compatible schema files
         fetch_self_service_roles(gql.get_api())
@@ -276,25 +275,17 @@ def run(
         f"(sha={comparison_sha}, commit_id={comparison_gql_api.commit}, "
         f"build_time {comparison_gql_api.commit_timestamp_utc})"
     )
+    change_type_processors = fetch_change_type_processors(
+        comparison_gql_api, file_diff_resolver
+    )
 
     # an error while trying to cover changes will not fail the integration
     # and the PR check - self service merges will not be available though
     try:
         #
-        # L O A D   C H A N G E   T Y P E S   A N D   C H A N G E S
-        #
-        changes = fetch_bundle_changes(comparison_sha)
-        change_type_processors = fetch_change_type_processors(
-            gql_api=comparison_gql_api,
-            file_diff_resolver=QontractServerFileDiffResolver(
-                comparison_sha=comparison_sha,
-                cache={bc.fileref: (bc.old, bc.new) for bc in changes},
-            ),
-        )
-
-        #
         #   C H A N G E   C O V E R A G E
         #
+        changes = fetch_bundle_changes(comparison_sha)
         logging.info(
             f"detected {len(changes)} changed files "
             f"with {sum(c.raw_diff_count() for c in changes)} differences "
