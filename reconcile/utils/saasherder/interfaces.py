@@ -364,15 +364,6 @@ class SaasResourceTemplate(HasParameters, HasSecretParameters, Protocol):
         ...
 
 
-class SaasUser(Protocol):
-    org_username: str
-    tag_on_merge_requests: Optional[bool]
-
-
-class SaasBot(Protocol):
-    org_username: Optional[str]
-
-
 class SaasRole(Protocol):
     name: str
 
