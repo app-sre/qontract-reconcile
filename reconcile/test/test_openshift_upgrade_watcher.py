@@ -175,10 +175,10 @@ def test_new_version_notify(mocker, state, slack, clusters):
 
 
 def test__get_start_hypershift_started(mocker):
-    get_control_plan_upgrade_policies_mock = mocker.patch.object(
-        ouw, "get_control_plan_upgrade_policies", autospec=True
+    get_control_plane_upgrade_policies_mock = mocker.patch.object(
+        ouw, "get_control_plane_upgrade_policies", autospec=True
     )
-    get_control_plan_upgrade_policies_mock.return_value = [
+    get_control_plane_upgrade_policies_mock.return_value = [
         {
             "next_run": upgrade_at,
             "version": upgrade_version,
@@ -194,10 +194,10 @@ def test__get_start_hypershift_started(mocker):
 
 
 def test__get_start_hypershift_noop(mocker):
-    get_control_plan_upgrade_policies_mock = mocker.patch.object(
-        ouw, "get_control_plan_upgrade_policies", autospec=True
+    get_control_plane_upgrade_policies_mock = mocker.patch.object(
+        ouw, "get_control_plane_upgrade_policies", autospec=True
     )
-    get_control_plan_upgrade_policies_mock.return_value = []
+    get_control_plane_upgrade_policies_mock.return_value = []
     ocm_api_mock = mocker.patch(
         "reconcile.utils.ocm_base_client.OCMBaseClient", auto_spec=True
     )

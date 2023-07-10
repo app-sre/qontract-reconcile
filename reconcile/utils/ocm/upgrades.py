@@ -111,7 +111,7 @@ def delete_upgrade_policy(
 #
 
 
-def get_control_plan_upgrade_policies(
+def get_control_plane_upgrade_policies(
     ocm_api: OCMBaseClient, cluster_id: str, schedule_type: Optional[str] = None
 ) -> list[dict[str, Any]]:
     """

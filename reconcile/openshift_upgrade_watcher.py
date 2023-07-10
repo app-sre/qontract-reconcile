@@ -20,7 +20,7 @@ from reconcile.utils.oc_map import (
     init_oc_map_from_clusters,
 )
 from reconcile.utils.ocm import OCMMap
-from reconcile.utils.ocm.upgrades import get_control_plan_upgrade_policies
+from reconcile.utils.ocm.upgrades import get_control_plane_upgrade_policies
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.slack_api import SlackApi
@@ -85,7 +85,7 @@ def _get_start_osd(
 def _get_start_hypershift(
     ocm_api: OCMBaseClient, cluster_id: str
 ) -> tuple[Optional[str], Optional[str]]:
-    schedules = get_control_plan_upgrade_policies(ocm_api, cluster_id)
+    schedules = get_control_plane_upgrade_policies(ocm_api, cluster_id)
     schedule = [s for s in schedules if s["state"]["value"] == "started"]
     if not schedule:
         return None, None

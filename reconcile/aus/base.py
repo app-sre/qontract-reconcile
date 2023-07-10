@@ -56,7 +56,7 @@ from reconcile.utils.ocm.upgrades import (
     delete_control_plane_upgrade_policy,
     delete_upgrade_policy,
     get_addon_upgrade_policies,
-    get_control_plan_upgrade_policies,
+    get_control_plane_upgrade_policies,
     get_upgrade_policies,
     get_version_agreement,
     get_version_gates,
@@ -381,7 +381,7 @@ def fetch_current_state(
                 upgrade_policy["cluster_id"] = spec.cluster.id
                 current_state.append(AddonUpgradePolicy(**upgrade_policy))
         elif spec.cluster.is_rosa_hypershift():
-            upgrade_policies = get_control_plan_upgrade_policies(
+            upgrade_policies = get_control_plane_upgrade_policies(
                 ocm_api, spec.cluster.id
             )
             for upgrade_policy in upgrade_policies:
