@@ -374,13 +374,7 @@ class SaasBot(Protocol):
 
 
 class SaasRole(Protocol):
-    @property
-    def users(self) -> Sequence[SaasUser]:
-        ...
-
-    @property
-    def bots(self) -> Sequence[SaasBot]:
-        ...
+    name: str
 
 
 SaasPipelinesProviders = Union[SaasPipelinesProviderTekton, SaasPipelinesProvider]
