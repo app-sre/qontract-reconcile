@@ -58,6 +58,10 @@ class SaasApp(Protocol):
     def parent_app(self) -> Optional[SaasParentApp]:
         ...
 
+    @property
+    def self_service_roles(self) -> Optional[Sequence[SaasRole]]:
+        ...
+
 
 class SaasPipelinesProvider(Protocol):
     name: str

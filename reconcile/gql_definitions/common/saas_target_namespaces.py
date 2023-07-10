@@ -75,6 +75,9 @@ fragment SaasTargetNamespace on Namespace_v1 {
       name
     }
     labels
+    selfServiceRoles {
+      name
+    }
   }
   cluster {
     ...OcConnectionCluster
