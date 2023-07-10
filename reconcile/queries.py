@@ -787,7 +787,6 @@ CLUSTERS_QUERY = """
         soakDays
         mutexes
         sector
-        blockedVersions
       }
     }
     additionalRouters {
@@ -1287,7 +1286,6 @@ OCM_QUERY = """
           sector
           soakDays
           mutexes
-          blockedVersions
         }
       }
       upgradePolicyTemplate {
@@ -1308,7 +1306,6 @@ OCM_QUERY = """
           soakDays
           mutexes
           sector
-          blockedVersions
         }
       }
     }
