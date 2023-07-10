@@ -568,6 +568,7 @@ def integration(
     init_env(
         log_level=log_level,
         config_file=configfile,
+        dry_run=dry_run,
         # don't print gql url in dry-run mode - less noisy PR check logs and
         # the actual SHA is not that important during PR checks
         print_gql_url=(not dry_run and bool(gql_url_print)),

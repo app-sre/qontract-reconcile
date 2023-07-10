@@ -26,7 +26,7 @@ from reconcile.utils.metrics import (
 )
 from reconcile.utils.runtime.environment import (
     LOG_DATEFMT,
-    LOG_FMT,
+    log_fmt,
 )
 
 SHARDS = int(os.environ.get("SHARDS", 1))
@@ -57,7 +57,9 @@ LOG = logging.getLogger(__name__)
 
 # Messages to stdout
 STREAM_HANDLER = logging.StreamHandler(sys.stdout)
-STREAM_HANDLER.setFormatter(logging.Formatter(fmt=LOG_FMT, datefmt=LOG_DATEFMT))
+STREAM_HANDLER.setFormatter(
+    logging.Formatter(fmt=log_fmt(dry_run_option=DRY_RUN), datefmt=LOG_DATEFMT)
+)
 HANDLERS = [STREAM_HANDLER]
 
 # Messages to the log file
