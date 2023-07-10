@@ -3,6 +3,8 @@ path: /services/test-saas-deployment-pipelines/cicd/deploy.yml
 name: test-saas-deployments-deploy
 app:
   name: app-interface
+  selfServiceRoles:
+  - name: test
 
 pipelinesProvider:
   name: tekton-app-sre-pipelines-appsres03ue1
@@ -100,10 +102,3 @@ resourceTemplates:
         - type: parent_saas_config
           parent_saas: test-saas-deployments-deploy
           target_config_hash: ed2af38cf21f268c
-
-selfServiceRoles:
-- users:
-  - org_username: user1
-  - org_username: user2
-    tag_on_merge_requests: true
-  bots: []
