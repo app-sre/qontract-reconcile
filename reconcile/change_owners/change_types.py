@@ -1,3 +1,4 @@
+import copy
 from abc import (
     ABC,
     abstractmethod,
@@ -257,8 +258,27 @@ class FileChange:
     file_ref: FileRef
     old: Optional[dict[str, Any]]
     new: Optional[dict[str, Any]]
+    old_path: Optional[str] = None
+    new_path: Optional[str] = None
     old_backrefs: set[FileRef] = field(default_factory=set)
     new_backrefs: set[FileRef] = field(default_factory=set)
+
+    def old_content_with_metadata(self) -> Optional[dict[str, Any]]:
+        if not self.old:
+            return None
+        content = copy.deepcopy(self.old)
+        content["path"] = self.old_path or self.file_ref.path
+        return content
+
+    def new_content_with_metadata(self) -> Optional[dict[str, Any]]:
+        if not self.new:
+            return None
+        content = copy.deepcopy(self.new)
+        content["path"] = self.new_path or self.file_ref.path
+        return content
+
+    def is_noop_change(self) -> bool:
+        return self.old == self.new
 
 
 class OwnershipContext(ABC):
@@ -281,8 +301,12 @@ class ForwardrefOwnershipContext(OwnershipContext):
         context_schema: Optional[str],
         change: FileChange,
     ) -> list[FileRef]:
-        old_contexts = {e.value for e in self.selector.find(change.old)}
-        new_contexts = {e.value for e in self.selector.find(change.new)}
+        old_contexts = {
+            e.value for e in self.selector.find(change.old_content_with_metadata())
+        }
+        new_contexts = {
+            e.value for e in self.selector.find(change.new_content_with_metadata())
+        }
 
         # apply conditions
         if self.when == "added":
@@ -366,6 +390,8 @@ class ContextExpansion:
                 file_ref=file_ref,
                 old=old_data,
                 new=new_data,
+                old_path=file_ref.path,
+                new_path=file_ref.path,
             ),
             expansion_trail,
         )
@@ -555,13 +581,14 @@ class ChangeTypeProcessor:
         # the changed file itself is giving the context for approver extraction
         # see doc string for more details
         if self.context_schema is None or self.context_schema == change.file_ref.schema:
-            contexts.append(
-                ResolvedContext(
-                    owned_file_ref=change.file_ref,
-                    context_file_ref=change.file_ref,
-                    change_type=self,
+            if change.is_noop_change():
+                contexts.append(
+                    ResolvedContext(
+                        owned_file_ref=change.file_ref,
+                        context_file_ref=change.file_ref,
+                        change_type=self,
+                    )
                 )
-            )
 
             # expand context based on change-type composition
             for ce in self._context_expansions:
@@ -602,7 +629,12 @@ class ChangeTypeProcessor:
                                 )
                             )
 
-        return contexts
+        # dedup
+        context_map = {
+            f"{c.change_type.name}-{c.context_file_ref.path}-{c.owned_file_ref.path}": c
+            for c in contexts
+        }
+        return list(context_map.values())
 
     def allowed_changed_paths(
         self, file_ref: FileRef, file_content: Any, ctx: "ChangeTypeContext"
@@ -728,9 +760,21 @@ def init_change_type_processors(
                 if change_detector.context:
                     ownership_context = build_ownership_context(
                         file_diff_resolver=file_diff_resolver,
-                        selector=parse_jsonpath(change_detector.context.selector),
+                        selector=parse_jsonpath(
+                            change_detector.context.selector or "$.path"
+                        ),
                         when=change_detector.context.when,
                         where=change_detector.context.where,
+                    )
+                elif change_detector.context is None and (
+                    change_detector.change_schema is None
+                    or change_detector.change_schema == change_type.context_schema
+                ):
+                    ownership_context = build_ownership_context(
+                        file_diff_resolver=file_diff_resolver,
+                        selector=parse_jsonpath("$.path"),
+                        when=None,
+                        where=None,
                     )
                 processor.add_change_detector(
                     JsonPathChangeDetector(
