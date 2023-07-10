@@ -52,8 +52,6 @@ class BundleFileChange:
     fileref: FileRef
     old: Optional[dict[str, Any]]
     new: Optional[dict[str, Any]]
-    old_path: Optional[str]
-    new_path: Optional[str]
     old_content_sha: str
     new_content_sha: str
     diffs: list[Diff]
@@ -260,8 +258,6 @@ def _create_bundle_file_change(
             fileref=fileref,
             old=old_file_content,
             new=new_file_content,
-            old_path=old_path,
-            new_path=new_path,
             old_content_sha=old_content_sha,
             new_content_sha=new_content_sha,
             old_backrefs=set(old_backrefs or []),
@@ -284,8 +280,6 @@ def _create_bundle_file_change(
             fileref=fileref,
             old=old_file_content,
             new=new_file_content,
-            old_path=old_path,
-            new_path=new_path,
             old_content_sha=old_content_sha,
             new_content_sha=new_content_sha,
             old_backrefs=set(old_backrefs or []),

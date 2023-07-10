@@ -34,7 +34,7 @@ def test_qontract_server_file_diff_resolver(
         resolved_data["new"] = new
     get_diff_mock.return_value = resolved_data
 
-    resolver = QontractServerFileDiffResolver("sha", {})
+    resolver = QontractServerFileDiffResolver("sha")
     resolved_old, resolved_new = resolver.lookup_file_diff(
         FileRef(file_type=BundleFileType.DATAFILE, path="path", schema=None)
     )

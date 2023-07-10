@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from copy import copy
 from dataclasses import dataclass
 from enum import Enum
 from typing import (
@@ -165,32 +164,18 @@ class FileDiffResolver(Protocol):
         ...
 
 
+@dataclass
 class QontractServerFileDiffResolver:
     """
     An implementation of the FileDiffResolver protocol that uses the comparison
     SHA from a qontract-server to lookup the diff of a file.
     """
 
-    def __init__(
-        self,
-        comparison_sha: str,
-        cache: dict[FileRef, tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]],
-    ) -> None:
-        self.comparison_sha = comparison_sha
-        self.cache = copy(cache)
+    comparison_sha: str
 
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
-        if file_ref in self.cache:
-            return self.cache[file_ref]
-        old, new = self.live_lookup_file_diff(file_ref)
-        self.cache[file_ref] = (old, new)
-        return old, new
-
-    def live_lookup_file_diff(
-        self, file_ref: FileRef
-    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
         data = get_diff(
             old_sha=self.comparison_sha,
             file_type=file_ref.file_type.value,

@@ -140,8 +140,6 @@ def change_type_contexts_for_self_service_roles(
                     file_ref=bc.fileref,
                     old=bc.old,
                     new=bc.new,
-                    old_path=bc.old_path,
-                    new_path=bc.new_path,
                     old_backrefs=bc.old_backrefs,
                     new_backrefs=bc.new_backrefs,
                 ),
