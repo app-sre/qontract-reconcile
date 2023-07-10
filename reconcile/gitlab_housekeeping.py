@@ -343,7 +343,7 @@ def get_merge_requests(
         if not is_good_to_merge(labels):
             continue
 
-        label_priotiry = min(
+        label_priority = min(
             MERGE_LABELS_PRIORITY.index(merge_label)
             for merge_label in MERGE_LABELS_PRIORITY
             if merge_label in labels
@@ -352,8 +352,8 @@ def get_merge_requests(
         item = {
             "mr": mr,
             "labels": labels,
-            "label_priority": label_priotiry,
-            "priority": f"{label_priotiry} - {MERGE_LABELS_PRIORITY[label_priotiry]}",
+            "label_priority": label_priority,
+            "priority": f"{label_priority} - {MERGE_LABELS_PRIORITY[label_priority]}",
             "approved_at": approved_at,
             "approved_by": approved_by,
         }
