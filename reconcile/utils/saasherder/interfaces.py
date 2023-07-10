@@ -58,6 +58,10 @@ class SaasApp(Protocol):
     def parent_app(self) -> Optional[SaasParentApp]:
         ...
 
+    @property
+    def self_service_roles(self) -> Optional[Sequence[SaasRole]]:
+        ...
+
 
 class SaasPipelinesProvider(Protocol):
     name: str
@@ -360,23 +364,8 @@ class SaasResourceTemplate(HasParameters, HasSecretParameters, Protocol):
         ...
 
 
-class SaasUser(Protocol):
-    org_username: str
-    tag_on_merge_requests: Optional[bool]
-
-
-class SaasBot(Protocol):
-    org_username: Optional[str]
-
-
 class SaasRole(Protocol):
-    @property
-    def users(self) -> Sequence[SaasUser]:
-        ...
-
-    @property
-    def bots(self) -> Sequence[SaasBot]:
-        ...
+    name: str
 
 
 SaasPipelinesProviders = Union[SaasPipelinesProviderTekton, SaasPipelinesProvider]

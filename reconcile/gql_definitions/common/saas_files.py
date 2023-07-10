@@ -79,6 +79,9 @@ fragment SaasTargetNamespace on Namespace_v1 {
       name
     }
     labels
+    selfServiceRoles {
+      name
+    }
   }
   cluster {
     ...OcConnectionCluster
@@ -102,6 +105,9 @@ query SaasFiles {
     app {
       name
       parentApp {
+        name
+      }
+      selfServiceRoles {
         name
       }
     }
@@ -255,13 +261,7 @@ query SaasFiles {
       }
     }
     selfServiceRoles {
-      users {
-        org_username
-        tag_on_merge_requests
-      }
-      bots {
-        org_username
-      }
+      name
     }
   }
 }
@@ -278,9 +278,14 @@ class AppV1_AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
+class RoleV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     parent_app: Optional[AppV1_AppV1] = Field(..., alias="parentApp")
+    self_service_roles: Optional[list[RoleV1]] = Field(..., alias="selfServiceRoles")
 
 
 class PipelinesProviderV1(ConfiguredBaseModel):
@@ -491,18 +496,8 @@ class SaasResourceTemplateV2(ConfiguredBaseModel):
     targets: list[SaasResourceTemplateTargetV2] = Field(..., alias="targets")
 
 
-class UserV1(ConfiguredBaseModel):
-    org_username: str = Field(..., alias="org_username")
-    tag_on_merge_requests: Optional[bool] = Field(..., alias="tag_on_merge_requests")
-
-
-class BotV1(ConfiguredBaseModel):
-    org_username: Optional[str] = Field(..., alias="org_username")
-
-
-class RoleV1(ConfiguredBaseModel):
-    users: list[UserV1] = Field(..., alias="users")
-    bots: list[BotV1] = Field(..., alias="bots")
+class SaasFileV2_RoleV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
 
 
 class SaasFileV2(ConfiguredBaseModel):
@@ -539,7 +534,9 @@ class SaasFileV2(ConfiguredBaseModel):
     resource_templates: list[SaasResourceTemplateV2] = Field(
         ..., alias="resourceTemplates"
     )
-    self_service_roles: Optional[list[RoleV1]] = Field(..., alias="selfServiceRoles")
+    self_service_roles: Optional[list[SaasFileV2_RoleV1]] = Field(
+        ..., alias="selfServiceRoles"
+    )
 
 
 class SaasFilesQueryData(ConfiguredBaseModel):

@@ -41,7 +41,7 @@ def test_saasherder_allowed_secret_paths(
                 "name": "a1",
                 "managedResourceTypes": [],
                 "allowedSecretParameterPaths": [allowed_secret_parameter_path],
-                "app": {"name": "app1"},
+                "app": {"name": "app1", "selfServiceRoles": [{"name": "test"}]},
                 "pipelinesProvider": {
                     "name": "tekton-app-sre-pipelines-appsres03ue1",
                     "provider": "tekton",
@@ -105,9 +105,6 @@ def test_saasherder_allowed_secret_paths(
                             },
                         ],
                     },
-                ],
-                "selfServiceRoles": [
-                    {"users": [{"org_username": "theirname"}], "bots": []}
                 ],
             },
         )
