@@ -1,11 +1,6 @@
-from collections.abc import Callable
 from datetime import (
     datetime,
     timedelta,
-)
-from typing import (
-    Any,
-    Optional,
 )
 
 import pytest
@@ -23,8 +18,6 @@ from reconcile.aus.base import (
 from reconcile.aus.cluster_version_data import (
     Stats,
     VersionData,
-    VersionHistory,
-    WorkloadHistory,
 )
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
@@ -38,12 +31,8 @@ from reconcile.test.ocm.aus.fixtures import (
     build_organization_upgrade_spec,
     build_upgrade_policy,
 )
-from reconcile.test.ocm.fixtures import (
-    OcmUrl,
-    build_ocm_cluster,
-)
+from reconcile.test.ocm.fixtures import build_ocm_cluster
 from reconcile.utils.ocm.clusters import OCMCluster
-from reconcile.utils.ocm.upgrades import OCMVersionGate
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
@@ -66,124 +55,11 @@ def cluster_2() -> OCMCluster:
 
 
 @pytest.fixture
-def version_gate_4_13_ocp_id() -> str:
-    return "f0bbef99-d1ea-11ed-aefd-0a580a800209"
-
-
-@pytest.fixture
-def version_gate_4_13_ocp(version_gate_4_13_ocp_id: str) -> dict[str, Any]:
-    return {
-        "kind": "VersionGate",
-        "id": version_gate_4_13_ocp_id,
-        "version_raw_id_prefix": "4.13",
-        "value": "4.13",
-        "sts_only": False,
-    }
-
-
-@pytest.fixture
-def version_gate_4_13_sts_id() -> str:
-    return "ec6fa2a0-d1ea-11ed-aefd-0a580a800209"
-
-
-@pytest.fixture
-def version_gate_4_13_sts(version_gate_4_13_sts_id: str) -> dict[str, Any]:
-    return {
-        "kind": "VersionGate",
-        "id": version_gate_4_13_sts_id,
-        "version_raw_id_prefix": "4.13",
-        "label": "api.openshift.com/gate-sts",
-        "value": "4.13",
-        "sts_only": True,
-    }
-
-
-@pytest.fixture
-def version_gates(
-    version_gate_4_13_ocp: dict[str, Any], version_gate_4_13_sts: dict[str, Any]
-) -> list[dict[str, Any]]:
-    # this fixture is used to mock the response from the OCM API
-    return [version_gate_4_13_ocp, version_gate_4_13_sts]
-
-
-@pytest.fixture
 def now(mocker: MockerFixture) -> datetime:
     d = parser.parse("2021-08-30T18:00:00.00000")
     datetime_mock = mocker.patch.object(base, "datetime", autospec=True)
     datetime_mock.utcnow.return_value = d
     return d
-
-
-@pytest.fixture
-def cluster_1_version_gate_agreement_4_13_ocp(
-    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    cluster_1: OCMCluster,
-    version_gate_4_13_ocp: dict[str, Any],
-) -> str:
-    gate_agreement_id = "cluster-1-4-13-ocp"
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri=f"/api/clusters_mgmt/v1/clusters/{cluster_1.id}/gate_agreements",
-            ).add_list_response(
-                [
-                    {
-                        "kind": "VersionGateAgreement",
-                        "id": gate_agreement_id,
-                        "href": f"/api/clusters_mgmt/v1/clusters/{cluster_1.id}/gate_agreements/{gate_agreement_id}",
-                        "version_gate": version_gate_4_13_ocp,
-                    }
-                ]
-            )
-        ]
-    )
-    return gate_agreement_id
-
-
-@pytest.fixture
-def cluster_1_version_gate_agreement_4_13_sts(
-    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    cluster_1: OCMCluster,
-    version_gate_4_13_sts: dict[str, Any],
-) -> str:
-    gate_agreement_id = "cluster-1-4-13-sts"
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri=f"/api/clusters_mgmt/v1/clusters/{cluster_1.id}/gate_agreements",
-            ).add_list_response(
-                [
-                    {
-                        "kind": "VersionGateAgreement",
-                        "id": gate_agreement_id,
-                        "href": f"/api/clusters_mgmt/v1/clusters/{cluster_1.id}/gate_agreements/{gate_agreement_id}",
-                        "version_gate": version_gate_4_13_sts,
-                    }
-                ]
-            )
-        ]
-    )
-    return gate_agreement_id
-
-
-@pytest.fixture
-def cluster_1_version_gate_agreement_none(
-    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    cluster_1: OCMCluster,
-    version_gate_4_13_sts: dict[str, Any],
-) -> str:
-    gate_agreement_id = "cluster-1-4-13-sts"
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri=f"/api/clusters_mgmt/v1/clusters/{cluster_1.id}/gate_agreements",
-            ).add_list_response([])
-        ]
-    )
-    return gate_agreement_id
 
 
 #
@@ -214,8 +90,7 @@ def test_calculate_diff_no_lock(
         UpgradePolicyHandler(
             action="create",
             policy=ClusterUpgradePolicy(
-                cluster=cluster_1.name,
-                cluster_id=cluster_1.id,
+                cluster=cluster_1,
                 version="4.12.19",
                 schedule_type="manual",
                 next_run="2021-08-30T18:06:00Z",
@@ -237,9 +112,7 @@ def test_calculate_diff_locked_out(
     """
     current_state: list[AbstractUpgradePolicy] = [
         ClusterUpgradePolicy(
-            cluster=cluster_2.name,
-            cluster_uuid=cluster_2.external_id,
-            cluster_id=cluster_2.id,
+            cluster=cluster_2,
             version="4.12.19",
             schedule_type="manual",
         )
@@ -284,8 +157,7 @@ def test_calculate_diff_inter_lock(
         UpgradePolicyHandler(
             action="create",
             policy=ClusterUpgradePolicy(
-                cluster=cluster_1.name,
-                cluster_id=cluster_1.id,
+                cluster=cluster_1,
                 version="4.12.19",
                 schedule_type="manual",
                 next_run="2021-08-30T18:06:00Z",
@@ -317,99 +189,6 @@ def test_upgradeable_version_no_block(cluster_1: OCMCluster) -> None:
         upgradePolicy=build_upgrade_policy(workloads=["workload1"], soak_days=0),
     )
     assert "4.12.19" == base.upgradeable_version(upgrade_spec, VersionData(), None)
-
-
-#
-# test gate agreement
-#
-
-
-def test_gates_to_agree_same_version(
-    cluster_1: OCMCluster,
-    version_gates: list[dict[str, Any]],
-    version_gate_4_13_ocp_id: str,
-    cluster_1_version_gate_agreement_none: str,
-    ocm_api: OCMBaseClient,
-) -> None:
-    gates = base.gates_to_agree(
-        gates=[OCMVersionGate(**g) for g in version_gates],
-        version_prefix="4.12",
-        cluster=cluster_1,
-        ocm_api=ocm_api,
-    )
-    assert gates == []
-
-
-def test_gates_to_agree_ocp_agreement_required(
-    cluster_1: OCMCluster,
-    version_gates: list[dict[str, Any]],
-    version_gate_4_13_ocp_id: str,
-    cluster_1_version_gate_agreement_none: str,
-    ocm_api: OCMBaseClient,
-) -> None:
-    cluster_1.version.available_upgrades = ["4.13.2"]
-    cluster_1.aws.sts.enabled = False  # type: ignore
-    gates = base.gates_to_agree(
-        gates=[OCMVersionGate(**g) for g in version_gates],
-        version_prefix="4.13",
-        cluster=cluster_1,
-        ocm_api=ocm_api,
-    )
-    assert gates == [version_gate_4_13_ocp_id]
-
-
-def test_gates_to_agree_ocp_agreement_present(
-    cluster_1: OCMCluster,
-    version_gates: list[dict[str, Any]],
-    version_gate_4_13_ocp_id: str,
-    cluster_1_version_gate_agreement_4_13_ocp: str,
-    ocm_api: OCMBaseClient,
-) -> None:
-    cluster_1.version.available_upgrades = ["4.13.2"]
-    cluster_1.aws.sts.enabled = False  # type: ignore
-    gates = base.gates_to_agree(
-        gates=[OCMVersionGate(**g) for g in version_gates],
-        version_prefix="4.13",
-        cluster=cluster_1,
-        ocm_api=ocm_api,
-    )
-    assert gates == []
-
-
-def test_gates_to_agree_sts_agreement_required(
-    cluster_1: OCMCluster,
-    version_gates: list[dict[str, Any]],
-    version_gate_4_13_sts_id: str,
-    cluster_1_version_gate_agreement_none: str,
-    ocm_api: OCMBaseClient,
-) -> None:
-    cluster_1.version.available_upgrades = ["4.13.2"]
-    cluster_1.aws.sts.enabled = True  # type: ignore
-    gates = base.gates_to_agree(
-        gates=[OCMVersionGate(**g) for g in version_gates],
-        version_prefix="4.13",
-        cluster=cluster_1,
-        ocm_api=ocm_api,
-    )
-    assert gates == [version_gate_4_13_sts_id]
-
-
-def test_gates_to_agree_sts_agreement_present(
-    cluster_1: OCMCluster,
-    version_gates: list[dict[str, Any]],
-    version_gate_4_13_sts_id: str,
-    cluster_1_version_gate_agreement_4_13_sts: str,
-    ocm_api: OCMBaseClient,
-) -> None:
-    cluster_1.version.available_upgrades = ["4.13.2"]
-    cluster_1.aws.sts.enabled = True  # type: ignore
-    gates = base.gates_to_agree(
-        gates=[OCMVersionGate(**g) for g in version_gates],
-        version_prefix="4.13",
-        cluster=cluster_1,
-        ocm_api=ocm_api,
-    )
-    assert gates == []
 
 
 #
@@ -699,21 +478,19 @@ class StubPolicy(base.AbstractUpgradePolicy):
 
 
 @pytest.fixture
-def stub_policy() -> StubPolicy:
+def stub_policy(cluster_1: OCMCluster) -> StubPolicy:
     return StubPolicy(
-        cluster="cluster",
-        cluster_id="cluster-id",
+        cluster=cluster_1,
         schedule_type="manual",
         version="4.1.2",
     )
 
 
 @pytest.fixture
-def cluster_upgrade_policy() -> ClusterUpgradePolicy:
+def cluster_upgrade_policy(cluster_1: OCMCluster) -> ClusterUpgradePolicy:
     return ClusterUpgradePolicy(
         id="test-policy-id",
-        cluster="cluster",
-        cluster_id="cluster-id",
+        cluster=cluster_1,
         schedule_type="manual",
         version="4.1.2",
         next_run="soon",
@@ -721,11 +498,10 @@ def cluster_upgrade_policy() -> ClusterUpgradePolicy:
 
 
 @pytest.fixture
-def control_plane_upgrade_policy() -> ControlPlaneUpgradePolicy:
+def control_plane_upgrade_policy(cluster_2: OCMCluster) -> ControlPlaneUpgradePolicy:
     return ControlPlaneUpgradePolicy(
         id="test-policy-id",
-        cluster="cluster",
-        cluster_id="cluster-id",
+        cluster=cluster_2,
         schedule_type="manual",
         version="4.1.2",
         next_run="soon",
@@ -733,11 +509,10 @@ def control_plane_upgrade_policy() -> ControlPlaneUpgradePolicy:
 
 
 @pytest.fixture
-def addon_upgrade_policy() -> AddonUpgradePolicy:
+def addon_upgrade_policy(cluster_1: OCMCluster) -> AddonUpgradePolicy:
     return AddonUpgradePolicy(
         id="test-policy-id",
-        cluster="cluster",
-        cluster_id="cluster-id",
+        cluster=cluster_1,
         schedule_type="manual",
         version="1.2.3",
         next_run="soon",
@@ -784,7 +559,7 @@ def test_policy_handler_create_cluster_upgrade(
     base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
     create_upgrade_policy_mock.assert_called_once_with(
         ocm_api,
-        cluster_upgrade_policy.cluster_id,
+        cluster_upgrade_policy.cluster.id,
         {
             "version": cluster_upgrade_policy.version,
             "schedule_type": cluster_upgrade_policy.schedule_type,
@@ -808,7 +583,7 @@ def test_policy_handler_delete_cluster_upgrade(
     base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
     delete_upgrade_policy_mock.assert_called_once_with(
         ocm_api,
-        cluster_upgrade_policy.cluster_id,
+        cluster_upgrade_policy.cluster.id,
         cluster_upgrade_policy.id,
     )
 
@@ -828,12 +603,12 @@ def test_policy_handler_create_control_plane_upgrade(
     base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
     create_control_plane_upgrade_policy_mock.assert_called_once_with(
         ocm_api,
-        control_plane_upgrade_policy.cluster_id,
+        control_plane_upgrade_policy.cluster.id,
         {
             "version": control_plane_upgrade_policy.version,
             "schedule_type": control_plane_upgrade_policy.schedule_type,
             "next_run": control_plane_upgrade_policy.next_run,
-            "cluster_id": control_plane_upgrade_policy.cluster_id,
+            "cluster_id": control_plane_upgrade_policy.cluster.id,
             "upgrade_type": "ControlPlane",
         },
     )
@@ -854,7 +629,7 @@ def test_policy_handler_delete_control_plane_upgrade(
     base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
     delete_control_plane_upgrade_policy_mock.assert_called_once_with(
         ocm_api,
-        control_plane_upgrade_policy.cluster_id,
+        control_plane_upgrade_policy.cluster.id,
         control_plane_upgrade_policy.id,
     )
 
@@ -874,11 +649,11 @@ def test_policy_handler_create_addon_upgrade(
     base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
     create_addon_upgrade_policy_mock.assert_called_once_with(
         ocm_api,
-        addon_upgrade_policy.cluster_id,
+        addon_upgrade_policy.cluster.id,
         {
             "version": addon_upgrade_policy.version,
             "schedule_type": addon_upgrade_policy.schedule_type,
-            "cluster_id": addon_upgrade_policy.cluster_id,
+            "cluster_id": addon_upgrade_policy.cluster.id,
             "upgrade_type": "ADDON",
             "addon_id": addon_upgrade_policy.addon_id,
         },
@@ -900,154 +675,9 @@ def test_policy_handler_delete_addon_upgrade(
     base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
     delete_addon_upgrade_policy_mock.assert_called_once_with(
         ocm_api,
-        addon_upgrade_policy.cluster_id,
+        addon_upgrade_policy.cluster.id,
         addon_upgrade_policy.id,
     )
-
-
-#
-# calculate diff
-#
-
-
-def build_version_data(
-    check_in: datetime,
-    version: str,
-    workload: str,
-    soak_days: int,
-    reporting_clusters: Optional[list[str]] = None,
-) -> VersionData:
-    return VersionData(
-        check_in=check_in,
-        versions={
-            version: VersionHistory(
-                version=version,
-                workloads={
-                    workload: WorkloadHistory(
-                        workload=workload,
-                        soak_days=soak_days,
-                        reporting=reporting_clusters
-                        or ["a-cluster", "another-cluster"],
-                    )
-                },
-            )
-        },
-    )
-
-
-def test_calculate_diff_empty(ocm_api: OCMBaseClient) -> None:
-    assert not base.calculate_diff(
-        [], build_organization_upgrade_spec(specs=[]), ocm_api, VersionData()
-    )
-
-
-def test_calculate_diff_create_cluster_upgrade_no_gate(
-    ocm_api: OCMBaseClient,
-    cluster_1: OCMCluster,
-    now: datetime,
-) -> None:
-    workload = "wl"
-    org_upgrade_spec = build_organization_upgrade_spec(
-        specs=[
-            (
-                cluster_1,
-                build_upgrade_policy(workloads=[workload], soak_days=10),
-            ),
-        ],
-    )
-    diffs = base.calculate_diff(
-        [],
-        org_upgrade_spec,
-        ocm_api,
-        build_version_data(
-            check_in=now,
-            version=cluster_1.available_upgrades()[0],
-            workload=workload,
-            soak_days=11,
-        ),
-    )
-    assert diffs == [
-        UpgradePolicyHandler(
-            action="create",
-            policy=ClusterUpgradePolicy(
-                cluster=cluster_1.name,
-                cluster_id=cluster_1.id,
-                version="4.12.19",
-                schedule_type="manual",
-                next_run="2021-08-30T18:06:00Z",
-            ),
-            gates_to_agree=[],
-        )
-    ]
-
-
-def test_calculate_diff_create_control_plane_upgrade_no_gate(
-    ocm_api: OCMBaseClient,
-    cluster_1: OCMCluster,
-    now: datetime,
-) -> None:
-    workload = "wl"
-    cluster_1.hypershift.enabled = True
-    org_upgrade_spec = build_organization_upgrade_spec(
-        specs=[
-            (
-                cluster_1,
-                build_upgrade_policy(workloads=[workload], soak_days=10),
-            ),
-        ],
-    )
-    diffs = base.calculate_diff(
-        [],
-        org_upgrade_spec,
-        ocm_api,
-        build_version_data(
-            check_in=now,
-            version=cluster_1.available_upgrades()[0],
-            workload=workload,
-            soak_days=11,
-        ),
-    )
-    assert diffs == [
-        UpgradePolicyHandler(
-            action="create",
-            policy=ControlPlaneUpgradePolicy(
-                cluster=cluster_1.name,
-                cluster_id=cluster_1.id,
-                version="4.12.19",
-                schedule_type="manual",
-                next_run="2021-08-30T18:06:00Z",
-            ),
-            gates_to_agree=[],
-        )
-    ]
-
-
-def test_calculate_diff_not_soaked(
-    ocm_api: OCMBaseClient,
-    cluster_1: OCMCluster,
-    now: datetime,
-) -> None:
-    workload = "wl"
-    org_upgrade_spec = build_organization_upgrade_spec(
-        specs=[
-            (
-                cluster_1,
-                build_upgrade_policy(workloads=[workload], soak_days=12),
-            ),
-        ],
-    )
-    diffs = base.calculate_diff(
-        [],
-        org_upgrade_spec,
-        ocm_api,
-        build_version_data(
-            check_in=now,
-            version=cluster_1.available_upgrades()[0],
-            workload=workload,
-            soak_days=11,
-        ),
-    )
-    assert not diffs
 
 
 #

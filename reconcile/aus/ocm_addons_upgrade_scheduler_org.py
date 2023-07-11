@@ -219,7 +219,6 @@ def calculate_diff(
                     action="delete",
                     policy=aus.AddonUpgradePolicy(
                         cluster=current.cluster,
-                        cluster_id=current.cluster_id,
                         version=current.schedule_type,
                         id=current.id,
                         addon_id=current.addon_id,

@@ -214,19 +214,17 @@ class AdvancedUpgradeSchedulerBaseIntegration(
 
 
 class GateAgreement(BaseModel):
-    id: str
+    gate: OCMVersionGate
 
-    def create(
-        self, ocm_api: OCMBaseClient, cluster_name: str, cluster_id: str
-    ) -> None:
+    def create(self, ocm_api: OCMBaseClient, cluster: OCMCluster) -> None:
         logging.info(
-            f"create agreement for gate {self.id} on cluster {cluster_name} (id={cluster_id})"
+            f"create agreement for gate {self.gate.id} on cluster {cluster.name} (id={cluster.id})"
         )
-        agreement = create_version_agreement(ocm_api, self.id, cluster_id)
+        agreement = create_version_agreement(ocm_api, self.gate.id, cluster.id)
         if agreement.get("version_gate") is None:
             logging.error(
                 "Unexpected response while creating version "
-                f"agreement with id {self.id} for cluster {cluster_name} (id={cluster_id})"
+                f"agreement with id {self.gate.id} for cluster {cluster.name} (id={cluster.id})"
             )
 
 
@@ -234,8 +232,8 @@ class AbstractUpgradePolicy(ABC, BaseModel):
     """Abstract class for upgrade policies
     Used to create and delete upgrade policies in OCM."""
 
-    cluster: str
-    cluster_id: str
+    cluster: OCMCluster
+
     id: Optional[str]
     next_run: Optional[str]
     schedule: Optional[str]
@@ -265,20 +263,20 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
             "version": self.version,
             "schedule_type": "manual",
             "addon_id": self.addon_id,
-            "cluster_id": self.cluster_id,
+            "cluster_id": self.cluster.id,
             "upgrade_type": "ADDON",
         }
-        create_addon_upgrade_policy(ocm_api, self.cluster_id, item)
+        create_addon_upgrade_policy(ocm_api, self.cluster.id, item)
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
         if not self.id:
             return
-        delete_addon_upgrade_policy(ocm_api, self.cluster_id, self.id)
+        delete_addon_upgrade_policy(ocm_api, self.cluster.id, self.id)
 
     def summarize(self) -> str:
         details = {
-            "cluster": self.cluster,
-            "cluster_id": self.cluster_id,
+            "cluster": self.cluster.name,
+            "cluster_id": self.cluster.id,
             "version": self.version,
             "next_run": self.next_run,
             "addon_id": self.addon_id,
@@ -295,17 +293,17 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
             "schedule_type": "manual",
             "next_run": self.next_run,
         }
-        create_upgrade_policy(ocm_api, self.cluster_id, policy)
+        create_upgrade_policy(ocm_api, self.cluster.id, policy)
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
         if not self.id:
             return
-        delete_upgrade_policy(ocm_api, self.cluster_id, self.id)
+        delete_upgrade_policy(ocm_api, self.cluster.id, self.id)
 
     def summarize(self) -> str:
         details = {
-            "cluster": self.cluster,
-            "cluster_id": self.cluster_id,
+            "cluster": self.cluster.name,
+            "cluster_id": self.cluster.id,
             "version": self.version,
             "next_run": self.next_run,
         }
@@ -320,20 +318,20 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
             "version": self.version,
             "schedule_type": "manual",
             "upgrade_type": "ControlPlane",
-            "cluster_id": self.cluster_id,
+            "cluster_id": self.cluster.id,
             "next_run": self.next_run,
         }
-        create_control_plane_upgrade_policy(ocm_api, self.cluster_id, policy)
+        create_control_plane_upgrade_policy(ocm_api, self.cluster.id, policy)
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
         if not self.id:
             return
-        delete_control_plane_upgrade_policy(ocm_api, self.cluster_id, self.id)
+        delete_control_plane_upgrade_policy(ocm_api, self.cluster.id, self.id)
 
     def summarize(self) -> str:
         details = {
-            "cluster": self.cluster,
-            "cluster_id": self.cluster_id,
+            "cluster": self.cluster.name,
+            "cluster_id": self.cluster.id,
             "version": self.version,
             "next_run": self.next_run,
         }
@@ -350,7 +348,7 @@ class UpgradePolicyHandler(BaseModel):
 
     def _create_gate_agreements(self, ocm_api: OCMBaseClient) -> None:
         for gate in self.gates_to_agree or []:
-            gate.create(ocm_api, self.policy.cluster, self.policy.cluster_id)
+            gate.create(ocm_api, self.policy.cluster)
 
     def act(self, dry_run: bool, ocm_api: OCMBaseClient) -> None:
         logging.info(f"{self.action} {self.policy.summarize()}")
@@ -373,26 +371,22 @@ def fetch_current_state(
 ) -> list[AbstractUpgradePolicy]:
     current_state: list[AbstractUpgradePolicy] = []
     for spec in org_upgrade_spec.specs:
-        cluster_name = spec.cluster.name
         if addons:
             upgrade_policies = get_addon_upgrade_policies(ocm_api, spec.cluster.id)
             for upgrade_policy in upgrade_policies:
-                upgrade_policy["cluster"] = cluster_name
-                upgrade_policy["cluster_id"] = spec.cluster.id
+                upgrade_policy["cluster"] = spec.cluster
                 current_state.append(AddonUpgradePolicy(**upgrade_policy))
         elif spec.cluster.is_rosa_hypershift():
             upgrade_policies = get_control_plane_upgrade_policies(
                 ocm_api, spec.cluster.id
             )
             for upgrade_policy in upgrade_policies:
-                upgrade_policy["cluster"] = cluster_name
-                upgrade_policy["cluster_id"] = spec.cluster.id
+                upgrade_policy["cluster"] = spec.cluster
                 current_state.append(ControlPlaneUpgradePolicy(**upgrade_policy))
         else:
             upgrade_policies = get_upgrade_policies(ocm_api, spec.cluster.id)
             for upgrade_policy in upgrade_policies:
-                upgrade_policy["cluster"] = cluster_name
-                upgrade_policy["cluster_id"] = spec.cluster.id
+                upgrade_policy["cluster"] = spec.cluster
                 current_state.append(ClusterUpgradePolicy(**upgrade_policy))
 
     return current_state
@@ -591,7 +585,7 @@ def gates_to_agree(
     version_prefix: str,
     cluster: OCMCluster,
     ocm_api: OCMBaseClient,
-) -> list[str]:
+) -> list[OCMVersionGate]:
     """Check via OCM if a version is agreed
 
     Args:
@@ -603,24 +597,28 @@ def gates_to_agree(
         ocm_api (OCMBaseClient): used to fetch infos from OCM
 
     Returns:
-        list[str]: list of gate ids to agree
+        list[OCMVersionGate]: list of gates to agree
     """
     semver_cluster = parse_semver(f"{cluster.version.raw_id}")
 
-    relevant_gates = [
+    applicable_gates = [
         g
         for g in gates
         if g.version_raw_id_prefix == version_prefix
-        and g.sts_only == cluster.is_sts()
+        # todo: sts version gates need special handling - https://issues.redhat.com/browse/APPSRE-7949
+        #       until this is solved, we can't do automated upgrades for STS clusters that cross a version gate
+        #       once we have proper and secure handling get gate agreements for STS clusters, we can use this condition:
+        #       `and (not g.sts_only or g.sts_only == cluster.is_sts())`
+        and not g.sts_only
         and semver_cluster.match(f"<{g.version_raw_id_prefix}.0")
     ]
 
-    if relevant_gates:
+    if applicable_gates:
         current_agreements = {
             agreement["version_gate"]["id"]
             for agreement in get_version_agreement(ocm_api, cluster.id)
         }
-        return [gate.id for gate in relevant_gates if gate.id not in current_agreements]
+        return [gate for gate in applicable_gates if gate.id not in current_agreements]
     return []
 
 
@@ -654,7 +652,7 @@ def verify_current_should_skip(
     now: datetime,
     addon_id: str = "",
 ) -> tuple[bool, Optional[UpgradePolicyHandler]]:
-    current_policies = [c for c in current_state if c.cluster_id == desired.cluster.id]
+    current_policies = [c for c in current_state if c.cluster.id == desired.cluster.id]
     if not current_policies:
         return False, None
 
@@ -756,7 +754,7 @@ def calculate_diff(
     # all clusters IDs with a current upgradePolicy are considered locked
     locked: dict[str, str] = {}
     for spec in desired_state.specs:
-        if spec.cluster.id in [s.cluster_id for s in current_state]:
+        if spec.cluster.id in [s.cluster.id for s in current_state]:
             for mutex in spec.upgrade_policy.conditions.mutexes or []:
                 locked[mutex] = spec.cluster.id
 
@@ -791,8 +789,7 @@ def calculate_diff(
                         action="create",
                         policy=AddonUpgradePolicy(
                             action="create",
-                            cluster=spec.cluster.name,
-                            cluster_id=spec.cluster.id,
+                            cluster=spec.cluster,
                             version=version,
                             schedule_type="manual",
                             addon_id=addon_id,
@@ -806,14 +803,13 @@ def calculate_diff(
                         action="create",
                         policy=ControlPlaneUpgradePolicy(
                             action="create",
-                            cluster=spec.cluster.name,
-                            cluster_id=spec.cluster.id,
+                            cluster=spec.cluster,
                             version=version,
                             schedule_type="manual",
                             next_run=next_schedule,
                         ),
                         gates_to_agree=[
-                            GateAgreement(id=g)
+                            GateAgreement(gate=g)
                             for g in gates_to_agree(
                                 gates,
                                 get_version_prefix(version),
@@ -829,14 +825,13 @@ def calculate_diff(
                         action="create",
                         policy=ClusterUpgradePolicy(
                             action="create",
-                            cluster=spec.cluster.name,
-                            cluster_id=spec.cluster.id,
+                            cluster=spec.cluster,
                             version=version,
                             schedule_type="manual",
                             next_run=next_schedule,
                         ),
                         gates_to_agree=[
-                            GateAgreement(id=g)
+                            GateAgreement(gate=g)
                             for g in gates_to_agree(
                                 gates,
                                 get_version_prefix(version),
