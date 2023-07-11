@@ -219,7 +219,7 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
 
 ## Installation
 
-This project targets Python version 3.9.x for best compatibility. Verify the Python3 version that your shell is using with `python3 --version`. You can optionally use a tool like [pyenv](https://github.com/pyenv/pyenv) to manage Python versions on your computer.
+This project targets Python version 3.11.x for best compatibility. Verify the Python3 version that your shell is using with `python3 --version`. You can optionally use a tool like [pyenv](https://github.com/pyenv/pyenv) to manage Python versions on your computer.
 
 Create and enter the [virtualenv](https://virtualenv.pypa.io/en/latest/) environment:
 

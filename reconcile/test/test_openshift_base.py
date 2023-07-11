@@ -60,7 +60,6 @@ def oc_map(mocker, oc_cs1: oc.OCNative) -> oc.OC_Map:
         )
 
     oc_map = mocker.patch("reconcile.utils.oc.OC_Map", autospec=True).return_value
-    oc_map.get.mock_add_spec(oc.OC_Map.get)
     oc_map.get.side_effect = get_cluster
     return oc_map
 
@@ -599,15 +598,12 @@ def test_populate_current_state_unknown_kind(
     get_item_mock.assert_not_called()
 
 
-@patch("reconcile.utils.oc.OCNative")
 def test_populate_current_state_resource_name_filtering(
     resource_inventory: resource.ResourceInventory, oc_cs1: oc.OCNative, mocker
 ):
     """
     test if the resource names are passed properly to the oc client when fetching items
     """
-    get_item_mock = mocker.patch.object(oc.OCNative, "get_items", autospec=True)
-
     spec = sut.CurrentStateSpec(
         oc=oc_cs1,
         cluster="cs1",
@@ -617,8 +613,7 @@ def test_populate_current_state_resource_name_filtering(
     )
     sut.populate_current_state(spec, resource_inventory, TEST_INT, TEST_INT_VER)
 
-    get_item_mock.assert_called_with(
-        oc_cs1,
+    oc_cs1.get_items.assert_called_with(
         "Kind.fully.qualified",
         namespace="ns1",
         resource_names=["name1", "name2"],

@@ -183,7 +183,6 @@ def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite(mocker):
         .register("r_c", "acc", "terraform", "arn:r_acc")
         .register("a_c", "acc_overwrite", "terraform", "arn:a_acc_overwrite")
         .register("a_c", "acc", "terraform", "arn:a_acc")
-        .auto_speced_mock(mocker)
     )
     req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
         requester_connection,
@@ -234,7 +233,6 @@ def test_c2c_vpc_peering_assume_role_acc_overwrite_fail(mocker):
         MockOCM()
         .register("r_c", "acc", "terraform", "arn:r_acc")
         .register("a_c", "acc", "terraform", "arn:a_acc")
-        .auto_speced_mock(mocker)
     )
     with pytest.raises(BadTerraformPeeringState) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
@@ -265,7 +263,6 @@ def test_c2c_vpc_peering_assume_role_accepter_cluster_account(mocker):
         .register("r_c", "other_acc", "terraform", "arn:r_other_acc")
         .register("a_c", "default_acc", "terraform", "arn:a_default_acc")
         .register("a_c", "other_acc", "terraform", "arn:a_other_acc")
-        .auto_speced_mock(mocker)
     )
     req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
         requester_connection,
@@ -308,7 +305,7 @@ def test_c2c_vpc_peering_missing_ocm_assume_role(mocker):
     accepter_cluster = build_cluster(name="a_c", network_mgmt_accounts=["acc"])
     accepter_connection = build_accepter_connection(name="a_c", cluster="a_c")
 
-    ocm = MockOCM().auto_speced_mock(mocker)
+    ocm = MockOCM()
 
     with pytest.raises(BadTerraformPeeringState) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
@@ -330,7 +327,7 @@ def test_c2c_vpc_peering_missing_account(mocker):
     accepter_cluster = build_cluster(name="a_c")
     accepter_connection = build_accepter_connection(name="a_c", cluster="a_c")
 
-    ocm = MockOCM().auto_speced_mock(mocker)
+    ocm = MockOCM()
 
     with pytest.raises(BadTerraformPeeringState) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(

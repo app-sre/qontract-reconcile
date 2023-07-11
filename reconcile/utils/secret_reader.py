@@ -8,6 +8,7 @@ from typing import (
     Optional,
     Protocol,
     Union,
+    runtime_checkable,
 )
 
 from hvac.exceptions import Forbidden
@@ -28,6 +29,7 @@ class SecretNotFound(Exception):
     pass
 
 
+@runtime_checkable
 class HasSecret(Protocol):
     """HasSecret defines all attributes needed to fetch a secret from Vault or config.
 

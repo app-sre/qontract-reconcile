@@ -41,7 +41,6 @@ def test_c2c_all_clusters(mocker):
         "requester_cluster": MockOCM()
         .register("requester_cluster", "acc", "terraform", "r")
         .register("accepter_cluster", "acc", "terraform", "a")
-        .auto_speced_mock(mocker)
     }
 
     awsapi = (
@@ -56,7 +55,6 @@ def test_c2c_all_clusters(mocker):
             vpc_id="requester_vpc_id",
             route_tables=["requester_rt_id"],
         )
-        .auto_speced_mock(mocker)
     )
 
     expected = [
@@ -183,7 +181,6 @@ def test_c2c_base(mocker):
         MockOCM()
         .register("requester_cluster", "acc", "terraform", "r")
         .register("accepter_cluster", "acc", "terraform", "a")
-        .auto_speced_mock(mocker)
     )
 
     awsapi = (
@@ -198,7 +195,6 @@ def test_c2c_base(mocker):
             vpc_id="requester_vpc_id",
             route_tables=["requester_rt_id"],
         )
-        .auto_speced_mock(mocker)
     )
 
     expected = [
@@ -272,8 +268,8 @@ def test_c2c_no_peerings(mocker):
     )
     result = sut.build_desired_state_single_cluster(
         requester_cluster,
-        MockOCM().auto_speced_mock(mocker),
-        MockAWSAPI().auto_speced_mock(mocker),
+        MockOCM(),
+        MockAWSAPI(),
         account_filter=None,
     )
     assert not result
@@ -304,8 +300,8 @@ def test_c2c_no_matches(mocker):
     with pytest.raises(sut.BadTerraformPeeringState) as ex:
         sut.build_desired_state_single_cluster(
             requester_cluster,
-            MockOCM().auto_speced_mock(mocker),
-            MockAWSAPI().auto_speced_mock(mocker),
+            MockOCM(),
+            MockAWSAPI(),
             account_filter=None,
         )
     assert str(ex.value).startswith("[no_matching_peering]")
@@ -336,10 +332,9 @@ def test_c2c_no_vpc_in_aws(mocker):
         MockOCM()
         .register("requester_cluster", "acc", "terraform", "r")
         .register("accepter_cluster", "acc", "terraform", "a")
-        .auto_speced_mock(mocker)
     )
 
-    awsapi = MockAWSAPI().auto_speced_mock(mocker)
+    awsapi = MockAWSAPI()
 
     with pytest.raises(sut.BadTerraformPeeringState) as ex:
         sut.build_desired_state_single_cluster(
@@ -374,8 +369,8 @@ def test_c2c_no_peer_account(mocker):
         ],
     )
 
-    ocm = MockOCM().auto_speced_mock(mocker)
-    awsapi = MockAWSAPI().auto_speced_mock(mocker)
+    ocm = MockOCM()
+    awsapi = MockAWSAPI()
 
     with pytest.raises(sut.BadTerraformPeeringState) as ex:
         sut.build_desired_state_single_cluster(

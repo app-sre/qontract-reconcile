@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import (
     Optional,
     Protocol,
+    runtime_checkable,
 )
 
 from sretoolbox.utils import threaded
@@ -37,6 +38,7 @@ class Jumphost(Protocol):
         ...
 
 
+@runtime_checkable
 class Cluster(Protocol):
     name: str
     server_url: str

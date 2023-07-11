@@ -11,7 +11,7 @@ setup(
     license="Apache License 2.0",
     author="Red Hat App-SRE Team",
     author_email="sd-app-sre@redhat.com",
-    python_requires=">=3.9",
+    python_requires=">=3.11",
     description="Collection of tools to reconcile services with their desired "
     "state as defined in the app-interface DB.",
     url="https://github.com/app-sre/qontract-reconcile",
@@ -58,7 +58,7 @@ setup(
         "MarkupSafe==2.1.1",
         # this is really needed only in lint and type validations.
         # Is there any better place to put this in?
-        "packaging~=21.3",
+        "packaging~=23.1",
         "deepdiff6==6.2.0",
         "jsonpath-ng~=1.5",
         "networkx~=2.8",
@@ -72,7 +72,7 @@ setup(
         "Development Status :: 2 - Pre-Alpha",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.11",
     ],
     entry_points={
         "console_scripts": [

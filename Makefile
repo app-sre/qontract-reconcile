@@ -91,7 +91,7 @@ pypi-release:
 	@$(CONTAINER_ENGINE) rmi $(UUID):latest
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
-	python3.9 -m venv venv
+	python3.11 -m venv venv
 	@$(VENV_CMD) pip install --upgrade pip
 	@$(VENV_CMD) pip install -e .
 	@$(VENV_CMD) pip install -r requirements/requirements-dev.txt
