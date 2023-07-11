@@ -145,10 +145,10 @@ class GlitchtipClient:
             )
         )
 
-    def delete_project(self, organization_slug: str, team_slug: str, slug: str) -> None:
+    def delete_project(self, organization_slug: str, slug: str) -> None:
         """Delete a project."""
         self._delete(
-            f"/api/0/teams/{organization_slug}/{team_slug}/projects/{slug}/",
+            f"/api/0/projects/{organization_slug}/{slug}/",
         )
 
     def project_key(self, organization_slug: str, project_slug: str) -> ProjectKey:

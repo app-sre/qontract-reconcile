@@ -35,8 +35,6 @@ class GlitchtipReconciler:
             if not self.dry_run:
                 self.client.delete_project(
                     organization_slug=organization_slug,
-                    # there is always at least one team
-                    team_slug=project.teams[0].slug,
                     slug=project.slug,
                 )
 
