@@ -69,6 +69,6 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                         if not dry_run:
                             awsapi.set_cloudwatch_log_retention(
                                 aws_acct,
-                                log_group,
+                                group_name,
                                 cloudwatch_cleanup_entry.log_retention_day_length,
                             )
