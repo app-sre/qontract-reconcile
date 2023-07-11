@@ -341,20 +341,8 @@ def run(dry_run: bool, gitlab_project_id=None, thread_pool_size=10):
                     f"current_spec: {current_spec}, desired_spec: {desired_spec}"
                 )
                 ocm = ocm_map.get(cluster_name)
-                try:
-                    ocm.update_cluster(cluster_name, update_spec, dry_run)
-                except NotImplementedError:
-                    logging.error(
-                        f"[{cluster_name}] Update clusters is currently not "
-                        f"implemented for [{desired_spec.spec.product}] product. "
-                        "Fix the app-interface manifest with the required changes. "
-                        f" {update_spec}"
-                    )
-                    # Not marking error because in cases where specific product
-                    # updates are not yet supported, changes made directly in OCM
-                    # and not added to app-interface would trigger this exception
-                    # and break this integration
-                    # error = True
+                ocm.update_cluster(cluster_name, update_spec, dry_run)
+
         else:
             # create cluster
             if cluster_name in pending_state:
