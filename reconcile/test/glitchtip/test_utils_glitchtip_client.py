@@ -247,9 +247,7 @@ def test_glitchtip_create_project(glitchtip_client: GlitchtipClient) -> None:
 
 
 def test_glitchtip_delete_project(glitchtip_client: GlitchtipClient) -> None:
-    glitchtip_client.delete_project(
-        organization_slug="nasa", team_slug="nasa-pilots", slug="science-tools"
-    )
+    glitchtip_client.delete_project(organization_slug="nasa", slug="science-tools")
 
 
 def test_glitchtip_add_project_to_team(glitchtip_client: GlitchtipClient) -> None:
