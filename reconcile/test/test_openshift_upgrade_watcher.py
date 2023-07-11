@@ -186,7 +186,7 @@ def test__get_start_hypershift_started(mocker):
         }
     ]
     ocm_api_mock = mocker.patch(
-        "reconcile.utils.ocm_base_client.OCMBaseClient", auto_spec=True
+        "reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True
     )
     next_run, version = ouw._get_start_hypershift(ocm_api_mock, "cluster-id")
     assert next_run == upgrade_at
@@ -199,7 +199,7 @@ def test__get_start_hypershift_noop(mocker):
     )
     get_control_plane_upgrade_policies_mock.return_value = []
     ocm_api_mock = mocker.patch(
-        "reconcile.utils.ocm_base_client.OCMBaseClient", auto_spec=True
+        "reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True
     )
     next_run, version = ouw._get_start_hypershift(ocm_api_mock, "cluster-id")
     assert not next_run

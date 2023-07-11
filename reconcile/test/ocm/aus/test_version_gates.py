@@ -208,7 +208,8 @@ def test_gates_to_agree_sts_cluster_agreement_required(
         cluster=cluster,
         ocm_api=ocm_api,
     )
-    assert {g.id for g in gates} == {version_gate_4_13_ocp_id, version_gate_4_13_sts_id}
+    # version gate for sts is not present becaues we don't want to agree to them automatically for now
+    assert {g.id for g in gates} == {version_gate_4_13_ocp_id}
 
 
 def test_gates_to_agree_sts_agreement_present(

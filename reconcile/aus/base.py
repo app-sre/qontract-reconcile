@@ -609,8 +609,7 @@ def gates_to_agree(
         #       until this is solved, we can't do automated upgrades for STS clusters that cross a version gate
         #       once we have proper and secure handling get gate agreements for STS clusters, we can use this condition:
         #       `and (not g.sts_only or g.sts_only == cluster.is_sts())`
-        and not g.sts_only
-        and semver_cluster.match(f"<{g.version_raw_id_prefix}.0")
+        and not g.sts_only and semver_cluster.match(f"<{g.version_raw_id_prefix}.0")
     ]
 
     if applicable_gates:

@@ -138,7 +138,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                 ocm_api=ocm_api,
                 cluster_id=cluster.ocm_cluster.id,
                 addon_latest_versions=addon_latest_versions,
-                required_state="ready"
+                required_state="ready",
             )
             for cluster in clusters
         }
