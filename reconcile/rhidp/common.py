@@ -81,7 +81,7 @@ def build_cluster_obj(
         name=cluster.ocm_cluster.name,
         consoleUrl=cluster.ocm_cluster.console.url,
         ocm=OpenShiftClusterManagerV1(
-            name="",
+            name=cluster.organization_id,
             environment=ocm_env,
             orgId=cluster.organization_id,
             # unused values
