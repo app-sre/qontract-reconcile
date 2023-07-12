@@ -98,27 +98,35 @@ class Subscriber:
         successfully deployed, then this subscriber is not ready for promotion and we keep
         the current ref.
         """
-        new_ref = ""
+        publisher_refs: set[str] = set()
+        any_bad_deployment = False
         for channel in self.channels:
-            publisher = channel.publishers[0]
-            valid_deployment = self._validate_deployment(
-                publisher=publisher, channel=channel
-            )
-            if not valid_deployment:
-                new_ref = ""
-                break
-            if self.ref != publisher.commit_sha:
-                if new_ref and new_ref != publisher.commit_sha:
+            for publisher in channel.publishers:
+                valid_deployment = self._validate_deployment(
+                    publisher=publisher, channel=channel
+                )
+                if not valid_deployment:
+                    any_bad_deployment = True
                     logging.info(
-                        "[%s] mismatching commit shas in different subscribed channels (%s != %s) -> not ready for promotion",
-                        channel.name,
-                        publisher.commit_sha,
-                        new_ref,
+                        "[%s] publisher with uid %s has unsuccessful deployment",
+                        channel,
+                        publisher.uid,
                     )
-                    new_ref = ""
                     break
-                new_ref = publisher.commit_sha
-        self.desired_ref = new_ref if new_ref else self.ref
+                publisher_refs.add(publisher.commit_sha)
+
+        if len(publisher_refs) > 1:
+            logging.info(
+                "Publishers for subscriber at path %s have mismatching refs: %s",
+                self.target_file_path,
+                publisher_refs,
+            )
+        if len(publisher_refs) != 1 or any_bad_deployment:
+            # We keep current state due to issues/mismatches in publishers
+            self.desired_ref = self.ref
+        else:
+            # We have a common single publisher ref w/o any deployment issues
+            self.desired_ref = next(iter(publisher_refs))
 
     def _compute_desired_config_hashes(self) -> None:
         """
