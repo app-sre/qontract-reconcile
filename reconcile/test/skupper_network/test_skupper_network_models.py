@@ -2,10 +2,12 @@ from collections.abc import (
     Callable,
     MutableMapping,
 )
-from typing import Optional
+from typing import (
+    Any,
+    Optional,
+)
 
 import pytest
-from pyparsing import Any
 
 from reconcile.gql_definitions.skupper_network.skupper_networks import NamespaceV1
 from reconcile.skupper_network.models import SkupperSite
