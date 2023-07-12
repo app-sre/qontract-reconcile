@@ -81,6 +81,13 @@ class PromotionState:
             # Lets reduce unecessary calls to S3
             return None
 
+        path_v2 = f"promotions_v2/{channel}/{target_uid}/{sha}"
+        try:
+            data = self._state.get(path_v2)
+            return PromotionData(**data)
+        except KeyError:
+            pass
+        
         # BACKWARDS-COMPAT BLOCK
         # Keep for backwards-compatibility with v1 promotions
         # We wait a couple of months to be sure all pipelines have
@@ -91,15 +98,8 @@ class PromotionState:
             data = self._state.get(path_v1)
             return PromotionData(**data)
         except KeyError:
-            pass
-        # / BACKWARDS-COMPAT BLOCK
-
-        path_v2 = f"promotions_v2/{channel}/{target_uid}/{sha}"
-        try:
-            data = self._state.get(path_v2)
-            return PromotionData(**data)
-        except KeyError:
             return None
+        # / BACKWARDS-COMPAT BLOCK
 
     def publish_promotion_data(
         self, sha: str, channel: str, target_uid: str, data: PromotionData
