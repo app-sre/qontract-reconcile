@@ -34,25 +34,6 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   }
 }
 
-fragment OcConnectionCluster on Cluster_v1 {
-  name
-  serverUrl
-  internal
-  insecureSkipTLSVerify
-  jumpHost {
-    ...CommonJumphostFields
-  }
-  automationToken {
-    ...VaultSecret
-  }
-  clusterAdminAutomationToken {
-    ...VaultSecret
-  }
-  disable {
-    integrations
-  }
-}
-
 fragment SaasTargetNamespace on Namespace_v1 {
   name
   labels
@@ -80,7 +61,29 @@ fragment SaasTargetNamespace on Namespace_v1 {
     }
   }
   cluster {
-    ...OcConnectionCluster
+    name
+    serverUrl
+    internal
+    insecureSkipTLSVerify
+    labels
+    jumpHost {
+      ...CommonJumphostFields
+    }
+    automationToken {
+      ...VaultSecret
+    }
+    clusterAdminAutomationToken {
+      ...VaultSecret
+    }
+    disable {
+      integrations
+    }
+    spec {
+      region
+    }
+    externalConfiguration {
+      labels
+    }
   }
   skupperSite {
     delete

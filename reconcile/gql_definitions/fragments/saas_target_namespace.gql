@@ -27,7 +27,29 @@ fragment SaasTargetNamespace on Namespace_v1 {
     }
   }
   cluster {
-    ...OcConnectionCluster
+    name
+    serverUrl
+    internal
+    insecureSkipTLSVerify
+    labels
+    jumpHost {
+      ...CommonJumphostFields
+    }
+    automationToken {
+      ...VaultSecret
+    }
+    clusterAdminAutomationToken {
+      ...VaultSecret
+    }
+    disable {
+      integrations
+    }
+    spec {
+      region
+    }
+    externalConfiguration {
+      labels
+    }
   }
   skupperSite {
     delete
