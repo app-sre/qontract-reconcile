@@ -35,6 +35,13 @@ DesiredSSOClients = dict[str, tuple[ClusterV1, ClusterAuthOIDCV1]]
 
 def console_url_to_oauth_url(console_url: str, auth_name: str) -> str:
     """Convert a console URL to an OAuth callback URL."""
+    if console_url.startswith("https://console-openshift-console.apps.rosa."):
+        # ROSA cluster
+        return urljoin(
+            console_url.replace("console-openshift-console.apps.rosa", "oauth"),
+            f"/oauth2callback/{auth_name}",
+        )
+    # OSD cluster
     return urljoin(
         console_url.replace("console-openshift-console", "oauth-openshift"),
         f"/oauth2callback/{auth_name}",
