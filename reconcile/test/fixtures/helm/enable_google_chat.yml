@@ -94,13 +94,12 @@ objects:
                 log_stream_name integ
                 auto_create_stream true
               </store>
-              # only ship errors and warnings to Google Chat
+              # only ship errors to Google Chat
               <store>
                 @type rewrite_tag_filter
                 <rule>
                   key message
-                  pattern /^\[INFO\]/
-                  invert true
+                  pattern /^\[ERROR\]/
                   tag gchat
                 </rule>
               </store>
