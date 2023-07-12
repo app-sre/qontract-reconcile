@@ -26,12 +26,13 @@ from reconcile.utils.metrics import (
 )
 from reconcile.utils.runtime.environment import (
     LOG_DATEFMT,
-    LOG_FMT,
+    log_fmt,
 )
 
 SHARDS = int(os.environ.get("SHARDS", 1))
 SHARD_ID = int(os.environ.get("SHARD_ID", 0))
 SHARD_ID_LABEL = os.environ.get("SHARD_KEY", f"{SHARD_ID}-{SHARDS}")
+PREFIX_LOG_LEVEL = os.environ.get("PREFIX_LOG_LEVEL", "false")
 
 INTEGRATION_NAME = os.environ["INTEGRATION_NAME"]
 COMMAND_NAME = os.environ.get("COMMAND_NAME", "qontract-reconcile")
@@ -57,13 +58,18 @@ LOG = logging.getLogger(__name__)
 
 # Messages to stdout
 STREAM_HANDLER = logging.StreamHandler(sys.stdout)
-STREAM_HANDLER.setFormatter(logging.Formatter(fmt=LOG_FMT, datefmt=LOG_DATEFMT))
+STREAM_HANDLER.setFormatter(
+    logging.Formatter(fmt=log_fmt(dry_run_option=DRY_RUN), datefmt=LOG_DATEFMT)
+)
 HANDLERS = [STREAM_HANDLER]
 
 # Messages to the log file
 if LOG_FILE is not None:
     FILE_HANDLER = logging.FileHandler(LOG_FILE)
-    FILE_HANDLER.setFormatter(logging.Formatter(fmt="%(message)s"))
+    logFileFormat = "%(message)s"
+    if PREFIX_LOG_LEVEL == "true":
+        logFileFormat = "[%(levelname)s] %(message)s"
+    FILE_HANDLER.setFormatter(logging.Formatter(fmt=logFileFormat))
     HANDLERS.append(FILE_HANDLER)  # type: ignore
 
 # Setting up the root logger

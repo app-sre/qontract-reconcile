@@ -7,7 +7,6 @@ from typing import (
     Optional,
 )
 
-from reconcile import queries
 from reconcile.glitchtip.reconciler import GlitchtipReconciler
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     DEFINITION as GLITCHTIP_INSTANCE_DEFINITION,
@@ -25,9 +24,10 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     query as glitchtip_project_query,
 )
-from reconcile.gql_definitions.glitchtip.glitchtip_settings import (
-    query as glitchtip_settings_query,
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
 )
+from reconcile.typed_queries.glitchtip_settings import get_glitchtip_settings
 from reconcile.utils import gql
 from reconcile.utils.glitchtip import (
     GlitchtipClient,
@@ -36,7 +36,7 @@ from reconcile.utils.glitchtip import (
     Team,
     User,
 )
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import create_secret_reader
 
 QONTRACT_INTEGRATION = "glitchtip"
 
@@ -118,18 +118,9 @@ def fetch_desired_state(
 
 def run(dry_run: bool, instance: Optional[str] = None) -> None:
     gqlapi = gql.get_api()
-    secret_reader = SecretReader(queries.get_secret_reader_settings())
-    read_timeout = 30
-    max_retries = 3
-    mail_domain = "redhat.com"
-    if _s := glitchtip_settings_query(query_func=gqlapi.query).settings:
-        if _gs := _s[0].glitchtip:
-            if _gs.read_timeout is not None:
-                read_timeout = _gs.read_timeout
-            if _gs.max_retries is not None:
-                max_retries = _gs.max_retries
-            if _gs.mail_domain is not None:
-                mail_domain = _gs.mail_domain
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    read_timeout, max_retries, mail_domain = get_glitchtip_settings()
 
     glitchtip_instances = glitchtip_instance_query(query_func=gqlapi.query).instances
     glitchtip_projects = (
