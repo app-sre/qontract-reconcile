@@ -56,6 +56,7 @@ setup(
         "transity-statuspageio>=0.0.3,<0.1",
         "pydantic~=1.10.6",
         "MarkupSafe==2.1.1",
+        "filetype~=1.2.0",
         # this is really needed only in lint and type validations.
         # Is there any better place to put this in?
         "packaging~=23.1",
