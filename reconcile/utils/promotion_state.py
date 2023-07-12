@@ -87,7 +87,7 @@ class PromotionState:
             return PromotionData(**data)
         except KeyError:
             pass
-        
+
         # BACKWARDS-COMPAT BLOCK
         # Keep for backwards-compatibility with v1 promotions
         # We wait a couple of months to be sure all pipelines have
