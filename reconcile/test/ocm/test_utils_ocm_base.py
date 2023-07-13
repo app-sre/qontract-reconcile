@@ -46,12 +46,8 @@ def test_get_json_pagination(
     assert resp == [{"id": i} for i in range(nr_of_items)]
 
     ocm_calls = find_all_ocm_http_requests("GET", "/api")
-    expected_call_cnt = nr_of_items // page_size
 
-    if nr_of_items % page_size != 0:
-        expected_call_cnt += 1
-
-    assert len(ocm_calls) == expected_call_cnt
+    assert len(ocm_calls) == (nr_of_items // page_size) + 1
 
 
 def test_get_json_pagination_max_pages(
