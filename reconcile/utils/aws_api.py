@@ -1038,7 +1038,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             log_group_name = log_group.get("logGroupName")
             log_group_tags = cloudwatch_logs.list_tags_log_group(logGroupName=log_group_name)
             tag_list = log_group_tags.get('tags', {})
-            tag_match = any(k == 'managed_by_integration' and (v == 'terraform' or v == 'terraform_resources') for k, v in tag_list.items())
+            tag_match = any(k == 'managed_by_integration' and (v == 'terraform_resources') for k, v in tag_list.items())
             if not tag_match:
                 log_groups_without_tf_tag.append(log_group)
 
