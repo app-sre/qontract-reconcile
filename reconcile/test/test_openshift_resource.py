@@ -2,13 +2,14 @@ import pytest
 
 from reconcile.utils.openshift_resource import ConstructResourceError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.openshift_base import three_way_merge_patch_diff_using_hash
+from reconcile.utils.semver_helper import make_semver
+
 from reconcile.utils.openshift_resource import (
     ResourceInventory,
     ResourceNotManagedError,
     build_secret,
 )
-from reconcile.utils.semver_helper import make_semver
-
 from .fixtures import Fixtures
 
 fxt = Fixtures("openshift_resource")
@@ -31,6 +32,46 @@ def build_resource(kind: str, api_version: str, name: str):
 #
 # OpenshiftResource tests
 #
+
+
+@pytest.fixture
+def deployment():
+    resource = fxt.get_anymarkup("deployment.yml")
+    yield resource
+
+
+def test_3wpd_equal_objects_should_not_apply(deployment):
+    d_item = OR(deployment, "", "")
+
+    # sha256 Hash is calculated over the DESIRED object
+    c_item = d_item.annotate(canonicalize=False)
+    assert three_way_merge_patch_diff_using_hash(c_item, d_item) is False
+
+
+def test_3wpd_change_desired_should_apply(deployment):
+    d_item = OR(deployment, "", "")
+    c_item = d_item.annotate(canonicalize=False)
+
+    del d_item.body["metadata"]["annotations"]
+    assert three_way_merge_patch_diff_using_hash(c_item, d_item) is True
+
+
+# Changes in current objects over attributes defined in desired
+def test_3wpd_change_current_should_apply(deployment):
+    d_item = OR(deployment, "", "")
+    c_item = d_item.annotate(canonicalize=False)
+
+    c_item.body["spec"]["replicas"] = 5
+    assert three_way_merge_patch_diff_using_hash(c_item, d_item) is True
+
+
+# Changes in current objects on attributes *NOT* defined in desired
+def test_3wpd_change_current_not_in_desired_should_not_apply(deployment):
+    d_item = OR(deployment, "", "")
+    c_item = d_item.annotate(canonicalize=False)
+
+    c_item.body["spec"]["manual_added_attr"] = 5
+    assert three_way_merge_patch_diff_using_hash(c_item, d_item) is False
 
 
 def test_obj_intersect_equal_status_depth_0_current():

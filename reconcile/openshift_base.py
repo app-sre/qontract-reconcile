@@ -17,7 +17,12 @@ from typing import (
     runtime_checkable,
 )
 
+import json
+import copy
+import base64
 import yaml
+import jsonpatch
+
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -556,6 +561,123 @@ def check_unused_resource_types(ri):
             logging.warning(msg)
 
 
+def _normalize_secret(secret: OR):
+    body = secret.body
+    string_data = body.pop("stringData", None)
+    if string_data:
+        body.setdefault("data", {})
+        for k, v in string_data.items():
+            v = base64.b64encode(str(v).encode()).decode("utf-8")
+            body["data"][k] = v
+
+
+def _normalize_noop(item: OR):
+    pass
+
+
+def normalize_object(item: OR, deep_copy=True) -> OR:
+    if deep_copy:
+        n = copy.deepcopy(item)
+    else:
+        n = item
+
+    n.body["metadata"].setdefault("annotations", {})
+    n.remove_qontract_annotations()
+
+    # Remove K8s managed attributes not neede to compare objects
+    n.body["metadata"].pop("creationTimestamp", None)
+    n.body["metadata"].pop("resourceVersion", None)
+    n.body["metadata"].pop("generation", None)
+    n.body["metadata"].pop("selfLink", None)
+    n.body["metadata"].pop("uid", None)
+    n.body["metadata"].pop("fieldRef", None)
+    n.body["metadata"].pop("managedFields", None)
+    n.body["metadata"].pop("namespace", None)
+
+    # Run normalizers on Kinds with special needs
+    normalizers = {"Secret": _normalize_secret}
+    normalizers.get(n.body["kind"], _normalize_noop)(n)
+    return n
+
+
+def three_way_merge_patch_diff(c_item: OR, d_item: OR) -> bool:
+    # If the current item does not have the last applied configuratiob annotation
+    # Apply it. This integration is based in client-side applies, so this annotation
+    # must be present
+    if not c_item.last_applied_configuration:
+        logging.debug(
+            "Current object does not have last applied configuration annotation"
+        )
+        return True
+
+    try:
+        original = OR(json.loads(c_item.last_applied_configuration), "", "")
+    except Exception:
+        logging.debug("Error parsing last applied configuration configuration")
+        return True
+
+    current = normalize_object(c_item)
+    original = normalize_object(original, deep_copy=False)
+    desired = normalize_object(d_item, deep_copy=False)
+
+    # If differences between original and desired object -> Apply
+    patch = jsonpatch.JsonPatch.from_diff(desired.body, original.body)
+    if len(patch.patch) > 0:
+        logging.debug("Original and Desired object differs -> Apply")
+        logging.debug(patch.patch)
+        return True
+
+    # If there are differences between current and desired -> Apply
+    # The patch only detects changes with attributes defined in the desired state.
+    # Values in the current state added by operators or other actors are not taken
+    # into account
+    patch = jsonpatch.JsonPatch.from_diff(current.body, desired.body)
+    for item in patch.patch:
+        if item["op"] == "add" or item["op"] == "replace":
+            logging.debug("Current and Desired object differs -> Apply")
+            logging.debug(patch.patch)
+            return True
+
+    return False
+
+
+def three_way_merge_patch_diff_using_hash(c_item: OR, d_item: OR) -> bool:
+    # Get the ORIGINAL object hash
+    # This needs to be improved in OR, by now is just a PoC
+    c_item_sha256 = ""
+    try:
+        annotations = c_item.body["metadata"]["annotations"]
+        c_item_sha256 = annotations["qontract.sha256sum"]
+    except KeyError:
+        # IF no HASH -> Apply
+        return True
+
+    # Original object does not match Desired -> Apply
+    # Current object is not recalculated!
+    # d_item_sha256 = OR.calculate_sha256sum(OR.serialize(d_item.body))
+    # if c_item_sha256 != d_item_sha256:
+    if c_item_sha256 != d_item.sha256sum():
+        logging.info("Original and Desired object differs -> Apply")
+        return True
+
+    # If there are differences between current and desired -> Apply
+    # The patch only detects changes with attributes defined in the desired state.
+    # Values in the current state added by operators or other actors are not taken
+    # into account
+    current = normalize_object(c_item)
+    desired = normalize_object(d_item, deep_copy=False)
+
+    patch = jsonpatch.JsonPatch.from_diff(current.body, desired.body)
+    for item in patch.patch:
+        if item["op"] == "add" or item["op"] == "replace":
+            # Add or Replace from DESIRED Over CURRENT
+            logging.info("Desired and Current objects differ -> Apply")
+            logging.info(patch.patch)
+            return True
+
+    return False
+
+
 def _realize_resource_data(
     unpacked_ri_item,
     dry_run,
@@ -592,18 +714,10 @@ def _realize_resource_data(
                 )
                 logging.debug(msg)
             else:
-                # If resource doesn't have annotations, annotate and apply
-                if not c_item.has_qontract_annotations():
-                    msg = (
-                        "[{}/{}] resource '{}/{}' present "
-                        "w/o annotations, annotating and applying"
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.info(msg)
-
                 # don't apply if there is a caller (saas file)
                 # and this is not a take over
                 # and current item caller is different from the current caller
-                elif caller and not take_over and c_item.caller != caller:
+                if caller and not take_over and c_item.caller != caller:
                     # if the current item is owned by a caller that no longer exists,
                     # do nothing. the condition is nested so we fall into this condition
                     # so we end up either applying to take ownership, or we error if the
@@ -614,35 +728,10 @@ def _realize_resource_data(
                             f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present and managed by another caller: {c_item.caller}"
                         )
                         continue
-
-                # don't apply if resources match
-                # if there is a caller (saas file) and this is a take over
-                # we skip the equal compare as it's not covering
-                # cases of a removed label (for example)
-                # d_item == c_item is uncommutative
-                elif not (caller and take_over) and d_item == c_item:
-                    msg = (
-                        "[{}/{}] resource '{}/{}' present "
-                        "and matches desired, skipping."
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.debug(msg)
+                # Compare the resources using a 3-way merge patch strategy
+                # Don't apply if no differences found.
+                elif not three_way_merge_patch_diff_using_hash(c_item, d_item):
                     continue
-
-                # don't apply if sha256sum hashes match
-                elif c_item.sha256sum() == d_item.sha256sum():
-                    if c_item.has_valid_sha256sum():
-                        msg = (
-                            "[{}/{}] resource '{}/{}' present "
-                            "and hashes match, skipping."
-                        ).format(cluster, namespace, resource_type, name)
-                        logging.debug(msg)
-                        continue
-
-                    msg = (
-                        "[{}/{}] resource '{}/{}' present and "
-                        "has stale sha256sum due to manual changes."
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.info(msg)
 
                 logging.debug("CURRENT: " + OR.serialize(OR.canonicalize(c_item.body)))
         else:
