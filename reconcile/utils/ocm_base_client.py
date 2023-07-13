@@ -100,7 +100,10 @@ class OCMBaseClient:
             records_on_page = rs.get("size", len(rs.get("items", [])))
             records_seen += records_on_page
             if total_records > records_seen and (
-                not max_pages or max_pages > current_page
+                # only consider checking max_pages if it is set, else ignore
+                max_pages > current_page
+                if max_pages
+                else True
             ):
                 # more page available
                 params_copy["page"] = current_page + 1
