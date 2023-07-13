@@ -3,7 +3,11 @@ from collections.abc import (
     Iterable,
     Sequence,
 )
-from urllib.parse import urljoin
+from urllib.parse import (
+    urljoin,
+    urlparse,
+    urlunparse,
+)
 
 import jwt
 
@@ -37,10 +41,16 @@ def console_url_to_oauth_url(console_url: str, auth_name: str) -> str:
     """Convert a console URL to an OAuth callback URL."""
     if console_url.startswith("https://console-openshift-console.apps.rosa."):
         # ROSA cluster
-        return urljoin(
-            console_url.replace("console-openshift-console.apps.rosa", "oauth"),
-            f"/oauth2callback/{auth_name}",
+
+        url = urlparse(
+            urljoin(
+                console_url.replace("console-openshift-console.apps.rosa", "oauth"),
+                f"/oauth2callback/{auth_name}",
+            )
         )
+        if url.port is None:
+            url = url._replace(netloc=url.netloc + ":443")
+        return urlunparse(url)
     # OSD cluster
     return urljoin(
         console_url.replace("console-openshift-console", "oauth-openshift"),
