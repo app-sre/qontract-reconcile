@@ -249,7 +249,7 @@ def is_good_to_merge(labels):
 
 def is_rebased(mr, gl: GitLabApi) -> bool:
     target_branch = mr.target_branch
-    head = gl.project.commits.list(ref_name=target_branch)[0].id
+    head = gl.project.commits.list(ref_name=target_branch, per_page=1)[0].id
     result = gl.project.repository_compare(mr.sha, head)
     return len(result["commits"]) == 0
 
