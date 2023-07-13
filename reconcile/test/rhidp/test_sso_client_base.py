@@ -27,11 +27,25 @@ from reconcile.utils.keycloak import (
 @pytest.mark.parametrize(
     "console_url, auth_name, expected",
     [
+        # OSD cluster w/o port
+        (
+            "https://console-openshift-console.apps.cluster-name.lalala-land.com/huhu/la/le/lu",
+            "super-dupper-auth",
+            "https://oauth-openshift.apps.cluster-name.lalala-land.com/oauth2callback/super-dupper-auth",
+        ),
+        # OSD cluster with port
         (
             "https://console-openshift-console.apps.cluster-name.lalala-land.com:1234/huhu/la/le/lu",
             "super-dupper-auth",
             "https://oauth-openshift.apps.cluster-name.lalala-land.com:1234/oauth2callback/super-dupper-auth",
         ),
+        # ROSA cluster w/o port
+        (
+            "https://console-openshift-console.apps.rosa.cluster-name.lalala-land.com/huhu/la/le/lu",
+            "super-dupper-auth",
+            "https://oauth.cluster-name.lalala-land.com:443/oauth2callback/super-dupper-auth",
+        ),
+        # ROSA cluster with port
         (
             "https://console-openshift-console.apps.rosa.cluster-name.lalala-land.com:1234/huhu/la/le/lu",
             "super-dupper-auth",
