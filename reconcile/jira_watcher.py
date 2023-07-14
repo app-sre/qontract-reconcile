@@ -171,7 +171,9 @@ def run(dry_run: bool, defer: Optional[Callable]) -> None:
             continue
         previous_state = fetch_previous_state(state=state, project=jira.project)
         if previous_state:
-            diffs = calculate_diff(jira.server, current_state, previous_state)
+            diffs = calculate_diff(
+                jira_board.server.server_url, current_state, previous_state
+            )
             act(
                 dry_run=dry_run,
                 slack=jira_board.slack,
