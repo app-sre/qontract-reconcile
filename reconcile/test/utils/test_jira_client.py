@@ -8,6 +8,20 @@ from reconcile.gql_definitions.common.jira_settings import JiraWatcherSettingsV1
 from reconcile.utils.jira_client import JiraClient
 
 
+def test_create_api_and_settings() -> None:
+    with pytest.raises(RuntimeError):
+        JiraClient(
+            jira_board={},
+            jira_api=create_autospec(spec=JIRA),
+            settings={"name": "test"},
+        )
+
+
+def test_create_no_api_no_settings() -> None:
+    with pytest.raises(RuntimeError):
+        JiraClient(jira_board={})
+
+
 def test_create_with_jira_watcher_settings(
     mocker: MockerFixture,
 ):
