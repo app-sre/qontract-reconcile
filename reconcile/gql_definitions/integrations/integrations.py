@@ -82,6 +82,7 @@ query Integrations {
         cache
         command
         disableUnleash
+        environmentAware
         extraArgs
         extraEnv {
           secretName
@@ -219,6 +220,7 @@ class IntegrationSpecV1(ConfiguredBaseModel):
     cache: Optional[bool] = Field(..., alias="cache")
     command: Optional[str] = Field(..., alias="command")
     disable_unleash: Optional[bool] = Field(..., alias="disableUnleash")
+    environment_aware: Optional[bool] = Field(..., alias="environmentAware")
     extra_args: Optional[str] = Field(..., alias="extraArgs")
     extra_env: Optional[list[IntegrationSpecExtraEnvV1]] = Field(..., alias="extraEnv")
     internal_certificates: Optional[bool] = Field(..., alias="internalCertificates")
