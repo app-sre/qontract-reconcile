@@ -159,6 +159,7 @@ def test_dry_run(
 
     mocked_gitlab_api.get_issues.assert_called_once_with(state="opened")
     mocked_gitlab_api.get_merge_requests.assert_called_once_with(state="opened")
+    mocked_gitlab_api.get_app_sre_group_users.assert_called_once_with()
 
 
 @pytest.fixture
@@ -225,6 +226,7 @@ def test_merge_merge_requests(
         gl_h.ReloadToggle(reload=False),
         1,
         False,
+        app_sre_usernames=set(),
         pipeline_timeout=None,
         insist=True,
         wait_for_pipeline=False,
@@ -269,6 +271,7 @@ def test_merge_merge_requests_with_retry(
             gl_h.ReloadToggle(reload=False),
             1,
             False,
+            app_sre_usernames=set(),
             pipeline_timeout=None,
             insist=True,
             wait_for_pipeline=True,
@@ -278,7 +281,7 @@ def test_merge_merge_requests_with_retry(
         )
 
     assert (
-        f"Pipelines for merge request have not completed yet: {can_be_merged_merge_request.iid}"
+        f"Pipelines for merge request in project 'some-name' have not completed yet: {can_be_merged_merge_request.iid}"
         == str(e.value)
     )
 

@@ -1,5 +1,8 @@
 import logging
-from collections.abc import Iterable
+from collections.abc import (
+    Iterable,
+    Set,
+)
 from dataclasses import dataclass
 from datetime import (
     datetime,
@@ -464,6 +467,7 @@ def merge_merge_requests(
     reload_toggle: ReloadToggle,
     merge_limit,
     rebase,
+    app_sre_usernames: set[str],
     pipeline_timeout=None,
     insist=False,
     wait_for_pipeline=False,
@@ -479,7 +483,6 @@ def merge_merge_requests(
     )
     merge_requests_waiting.labels(gl.project.id).set(len(merge_requests))
 
-    app_sre_usernames = [u.username for u in gl.get_app_sre_group_users()]
     for merge_request in merge_requests:
         mr: ProjectMergeRequest = merge_request["mr"]
         if rebase and not is_rebased(mr, gl):
@@ -545,6 +548,10 @@ def merge_merge_requests(
                 logging.error("unable to merge {}: {}".format(mr.iid, e))
 
 
+def get_app_sre_usernames(gl: GitLabApi) -> set[str]:
+    return {u.username for u in gl.get_app_sre_group_users()}
+
+
 def run(dry_run, wait_for_pipeline):
     default_days_interval = 15
     default_limit = 8
@@ -552,6 +559,7 @@ def run(dry_run, wait_for_pipeline):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     repos = queries.get_repos_gitlab_housekeeping(server=instance["url"])
+    app_sre_usernames: Set[str] = set()
 
     for repo in repos:
         hk = repo["housekeeping"]
@@ -569,6 +577,8 @@ def run(dry_run, wait_for_pipeline):
             }
         )
         with GitLabApi(instance, project_url=project_url, settings=settings) as gl:
+            if not app_sre_usernames:
+                app_sre_usernames = get_app_sre_usernames(gl)
             issues = gl.get_issues(state=MRState.OPENED)
             handle_stale_items(
                 dry_run,
@@ -600,6 +610,7 @@ def run(dry_run, wait_for_pipeline):
                     reload_toggle,
                     limit,
                     rebase,
+                    app_sre_usernames,
                     pipeline_timeout,
                     insist=True,
                     wait_for_pipeline=wait_for_pipeline,
@@ -618,6 +629,7 @@ def run(dry_run, wait_for_pipeline):
                     reload_toggle,
                     limit,
                     rebase,
+                    app_sre_usernames,
                     pipeline_timeout,
                     wait_for_pipeline=wait_for_pipeline,
                     gl_instance=instance,
