@@ -40,10 +40,10 @@ query StatusBoard {
     products {
       productEnvironment {
         name
-       	labels
-       	product {
-       	  name
-       	}
+        labels
+        product {
+          name
+        }
         namespaces {
           app {
             name

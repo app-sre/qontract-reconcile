@@ -31,7 +31,7 @@ def get_selected_app_names(
 
     selectors = set(global_selectors)
     if product.app_selectors:
-        selectors.update(product.app_selectors.exclude)
+        selectors.update(product.app_selectors.exclude or [])
 
     apps = {
         "apps": [

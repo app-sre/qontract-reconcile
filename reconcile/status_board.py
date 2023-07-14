@@ -64,6 +64,9 @@ class Product(AbstractStatusBoard):
         create_product(ocm, spec)
 
     def delete(self, ocm: OCMBaseClient) -> None:
+        if not self.id:
+            logging.error(f'Trying to delete Product "{self.name}" without id')
+            return
         delete_product(ocm, self.id)
 
     def summarize(self) -> str:
@@ -81,6 +84,9 @@ class Application(AbstractStatusBoard):
         create_application(ocm, spec)
 
     def delete(self, ocm: OCMBaseClient) -> None:
+        if not self.id:
+            logging.error(f'Trying to delete Application "{self.name}" without id')
+            return
         delete_application(ocm, self.id)
 
     def summarize(self) -> str:
@@ -114,7 +120,10 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return_dict: dict[str, set[str]] = {}
         for p in sb.products:
             return_dict[p.product_environment.product.name] = get_selected_app_names(
-                sb.global_app_selectors.exclude if sb.global_app_selectors else [], p
+                sb.global_app_selectors.exclude or []
+                if sb.global_app_selectors
+                else [],
+                p,
             )
         return return_dict
 
@@ -124,6 +133,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         products = [Product(**p) for p in products_raw]
 
         for p in products:
+            if not p.id:
+                logging.error(f'Product "{p.name}" has no id')
+                continue
             p.applications = [
                 Application(**a) for a in get_product_applications(ocm_api, p.id)
             ]
@@ -143,7 +155,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     StatusBoardHandler(
                         action="create",
                         status_board_object=Product(
-                            name=product_name, fullname=product_name
+                            name=product_name, fullname=product_name, applications=[]
                         ),
                     )
                 )
@@ -152,15 +164,17 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 product_object = next(
                     p for p in current_products_applications if p.name == product_name
                 )
-                current_applications = [a.name for a in product_object.applications]
-                for app in app_names:
-                    if app not in current_applications:
+                current_applications = [
+                    a.name for a in product_object.applications or []
+                ]
+                for app_name in app_names:
+                    if app_name not in current_applications:
                         return_list.append(
                             StatusBoardHandler(
                                 action="create",
                                 status_board_object=Application(
-                                    name=app,
-                                    fullname=f"{product_name}/{app}",
+                                    name=app_name,
+                                    fullname=f"{product_name}/{app_name}",
                                     product=product_object,
                                 ),
                             )
@@ -169,7 +183,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         for product in current_products_applications:
             if product.name not in desired_product_apps:
                 # if product was removed, we have to delete all apps
-                for application in product.applications:
+                for application in product.applications or []:
                     return_list.append(
                         StatusBoardHandler(
                             action="delete", status_board_object=application
@@ -179,7 +193,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     StatusBoardHandler(action="delete", status_board_object=product)
                 )
             else:
-                for app in product.applications:
+                for app in product.applications or []:
                     if app.name not in desired_product_apps.get(product.name, []):
                         return_list.append(
                             StatusBoardHandler(action="delete", status_board_object=app)

@@ -1,4 +1,3 @@
-import pprint
 from typing import Any
 
 from reconcile.utils.ocm_base_client import OCMBaseClient
@@ -28,7 +27,7 @@ def get_product_applications(
 
 def get_managed_products(ocm_api: OCMBaseClient) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
-    for product in ocm_api.get_paginated(f"/api/status-board/v1/products/"):
+    for product in ocm_api.get_paginated("/api/status-board/v1/products/"):
         if (
             product.get("metadata", {}).get(METADATA_MANAGED_BY_KEY, "")
             == METADATA_MANAGED_BY_VALUE
