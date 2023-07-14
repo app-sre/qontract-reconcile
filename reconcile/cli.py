@@ -28,6 +28,7 @@ from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
     ModuleBasedQontractReconcileIntegration,
+    PydanticRunParams,
     QontractReconcileIntegration,
 )
 from reconcile.utils.runtime.meta import IntegrationMeta
@@ -2003,6 +2004,19 @@ def advanced_upgrade_scheduler(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
                 ignore_sts_clusters=ignore_sts_clusters,
             )
         ),
+        ctx=ctx.obj,
+    )
+
+
+@integration.command(
+    short_help="Export Product and Application informnation to Status Board."
+)
+@click.pass_context
+def status_board_exporter(ctx):
+    from reconcile.status_board import StatusBoardExporterIntegration
+
+    run_class_integration(
+        integration=StatusBoardExporterIntegration(PydanticRunParams()),
         ctx=ctx.obj,
     )
 
