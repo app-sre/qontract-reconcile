@@ -97,7 +97,7 @@ class JiraClient:
             project=project_name,
         )
 
-    def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:
+    def get_issues(self, fields: Optional[Iterable] = None) -> list[Issue]:
         block_size = 100
         block_num = 0
 

@@ -1,0 +1,39 @@
+# qenerate: plugin=pydantic_v1
+
+query JiraWatcherBoards {
+  jira_boards: jira_boards_v1 {
+    path
+    name
+    server {
+      serverUrl
+      token {
+        ... VaultSecret
+      }
+    }
+    slack {
+      workspace {
+        name
+        integrations {
+          name
+          token {
+            ... VaultSecret
+          }
+          channel
+          icon_emoji
+          username
+        }
+        api_client {
+          global {
+            max_retries
+            timeout
+          }
+          methods {
+            name
+            args
+          }
+        }
+      }
+      channel
+    }
+  }
+}
