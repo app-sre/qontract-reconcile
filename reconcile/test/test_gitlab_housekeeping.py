@@ -7,13 +7,16 @@ from unittest.mock import (
     patch,
 )
 
+import pytest
 from gitlab import Gitlab
 from gitlab.v4.objects import (
     Project,
     ProjectCommit,
     ProjectCommitManager,
     ProjectMergeRequest,
+    ProjectMergeRequestResourceLabelEvent,
 )
+from pytest_mock import MockerFixture
 
 import reconcile.gitlab_housekeeping as gl_h
 from reconcile.test.fixtures import Fixtures
@@ -126,3 +129,157 @@ def test_is_rebase():
         expected_sha,
         expected_head,
     )
+
+
+@pytest.fixture
+def repo_gitlab_housekeeping() -> dict:
+    return {
+        "url": "https://gitlab.com/org/repo",
+        "housekeeping": {
+            "enabled": True,
+            "rebase": False,
+            "enable_closing": True,
+        },
+    }
+
+
+def test_dry_run(
+    mocker: MockerFixture,
+    repo_gitlab_housekeeping: dict,
+) -> None:
+    mocked_queries = mocker.patch("reconcile.gitlab_housekeeping.queries")
+    mocked_queries.get_repos_gitlab_housekeeping.return_value = [
+        repo_gitlab_housekeeping,
+    ]
+    mocked_gitlab_api = mocker.patch(
+        "reconcile.gitlab_housekeeping.GitLabApi", autospec=True
+    ).return_value.__enter__.return_value
+
+    gl_h.run(True, False)
+
+    mocked_gitlab_api.get_issues.assert_called_once_with(state="opened")
+    mocked_gitlab_api.get_merge_requests.assert_called_once_with(state="opened")
+
+
+@pytest.fixture
+def project() -> Project:
+    project = create_autospec(Project)
+    project.id = "some-id"
+    project.name = "some-name"
+    return project
+
+
+@pytest.fixture
+def can_be_merged_merge_request() -> ProjectMergeRequest:
+    mr = create_autospec(ProjectMergeRequest)
+    mr.merge_status = "can_be_merged"
+    mr.work_in_progress = False
+    mr.commits.return_value = [create_autospec(ProjectCommit)]
+    mr.attributes = {
+        "labels": ["lgtm"],
+    }
+    mr.iid = 1
+    mr.target_project_id = 3
+    mr.author = {"username": "user"}
+    return mr
+
+
+@pytest.fixture
+def add_lgtm_merge_request_resource_label_event() -> (
+    ProjectMergeRequestResourceLabelEvent
+):
+    event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+    event.action = "add"
+    event.label = {"name": "lgtm"}
+    event.user = {"username": "user"}
+    event.created_at = "2023-01-01T00:00:00.0Z"
+    return event
+
+
+@pytest.fixture
+def success_merge_request_pipeline() -> dict:
+    return {
+        "status": "success",
+    }
+
+
+def test_merge_merge_requests(
+    project: Project,
+    can_be_merged_merge_request: ProjectMergeRequest,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+    success_merge_request_pipeline: dict,
+) -> None:
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        success_merge_request_pipeline
+    ]
+
+    gl_h.merge_merge_requests(
+        False,
+        mocked_gl,
+        [can_be_merged_merge_request],
+        gl_h.ReloadToggle(reload=False),
+        1,
+        False,
+        pipeline_timeout=None,
+        insist=True,
+        wait_for_pipeline=False,
+        gl_instance=None,
+        gl_settings=None,
+        users_allowed_to_label=None,
+    )
+
+    can_be_merged_merge_request.merge.assert_called_once()
+
+
+@pytest.fixture
+def running_merge_request_pipeline() -> dict:
+    return {
+        "status": "running",
+    }
+
+
+def test_merge_merge_requests_with_retry(
+    mocker: MockerFixture,
+    project: Project,
+    can_be_merged_merge_request: ProjectMergeRequest,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+    running_merge_request_pipeline: dict,
+) -> None:
+    mocker.patch("time.sleep")
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_requests.return_value = [can_be_merged_merge_request]
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        running_merge_request_pipeline
+    ]
+
+    with pytest.raises(gl_h.InsistOnPipelineError) as e:
+        gl_h.merge_merge_requests(
+            False,
+            mocked_gl,
+            [can_be_merged_merge_request],
+            gl_h.ReloadToggle(reload=False),
+            1,
+            False,
+            pipeline_timeout=None,
+            insist=True,
+            wait_for_pipeline=True,
+            gl_instance=None,
+            gl_settings=None,
+            users_allowed_to_label=None,
+        )
+
+    assert (
+        f"Pipelines for merge request have not completed yet: {can_be_merged_merge_request.iid}"
+        == str(e.value)
+    )
+
+    assert mocked_gl.get_merge_requests.call_count == 9

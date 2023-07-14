@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import (
     datetime,
     timedelta,
@@ -97,6 +98,13 @@ class InsistOnPipelineError(Exception):
     """Exception used to retry a merge when the pipeline isn't yet complete."""
 
 
+@dataclass
+class ReloadToggle:
+    """A class to toggle the reload of merge requests."""
+
+    reload: bool = False
+
+
 def _log_exception(ex: Exception) -> None:
     logging.info("Retrying - %s: %s", type(ex).__name__, ex)
 
@@ -180,13 +188,15 @@ def close_item(
         )
 
 
-def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
+def handle_stale_items(
+    dry_run,
+    gl,
+    days_interval,
+    enable_closing,
+    items,
+    item_type,
+):
     LABEL = "stale"
-
-    if item_type == "issue":
-        items = gl.get_issues(state=MRState.OPENED)
-    elif item_type == "merge-request":
-        items = gl.get_merge_requests(state=MRState.OPENED)
 
     now = datetime.utcnow()
     for item in items:
@@ -275,8 +285,22 @@ def get_merge_requests(
     users_allowed_to_label: Optional[Iterable[str]] = None,
 ) -> list[dict[str, Any]]:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
+    return preprocess_merge_requests(
+        dry_run=dry_run,
+        gl=gl,
+        project_merge_requests=mrs,
+        users_allowed_to_label=users_allowed_to_label,
+    )
+
+
+def preprocess_merge_requests(
+    dry_run: bool,
+    gl: GitLabApi,
+    project_merge_requests: list[ProjectMergeRequest],
+    users_allowed_to_label: Optional[Iterable[str]] = None,
+) -> list[dict[str, Any]]:
     results = []
-    for mr in mrs:
+    for mr in project_merge_requests:
         if mr.merge_status in [
             MRStatus.CANNOT_BE_MERGED,
             MRStatus.CANNOT_BE_MERGED_RECHECK,
@@ -436,6 +460,8 @@ def rebase_merge_requests(
 def merge_merge_requests(
     dry_run,
     gl: GitLabApi,
+    project_merge_requests: list[ProjectMergeRequest],
+    reload_toggle: ReloadToggle,
     merge_limit,
     rebase,
     pipeline_timeout=None,
@@ -446,7 +472,11 @@ def merge_merge_requests(
     users_allowed_to_label=None,
 ):
     merges = 0
-    merge_requests = get_merge_requests(dry_run, gl, users_allowed_to_label)
+    if reload_toggle.reload:
+        project_merge_requests = gl.get_merge_requests(state=MRState.OPENED)
+    merge_requests = preprocess_merge_requests(
+        dry_run, gl, project_merge_requests, users_allowed_to_label
+    )
     merge_requests_waiting.labels(gl.project.id).set(len(merge_requests))
 
     app_sre_usernames = [u.username for u in gl.get_app_sre_group_users()]
@@ -483,6 +513,7 @@ def merge_merge_requests(
                     # for now is being considered a feature because a higher priority
                     # merge request could have become available since we've been waiting
                     # for this pipeline to complete.
+                    reload_toggle.reload = True
                     raise InsistOnPipelineError(
                         f"Pipelines for merge request in project '{gl.project.name}' have not completed yet: {mr.iid}"
                     )
@@ -507,6 +538,7 @@ def merge_merge_requests(
                     project_id=mr.target_project_id, priority=merge_request["priority"]
                 ).observe(_calculate_time_since_approval(merge_request["approved_at"]))
                 if rebase:
+                    # other merge requests need to be rebased first after this one merged, so terminate
                     return
                 merges += 1
             except gitlab.exceptions.GitlabMRClosedError as e:
@@ -537,15 +569,35 @@ def run(dry_run, wait_for_pipeline):
             }
         )
         with GitLabApi(instance, project_url=project_url, settings=settings) as gl:
-            handle_stale_items(dry_run, gl, days_interval, enable_closing, "issue")
+            issues = gl.get_issues(state=MRState.OPENED)
             handle_stale_items(
-                dry_run, gl, days_interval, enable_closing, "merge-request"
+                dry_run,
+                gl,
+                days_interval,
+                enable_closing,
+                issues,
+                "issue",
             )
+            opened_merge_requests = gl.get_merge_requests(state=MRState.OPENED)
+            handle_stale_items(
+                dry_run,
+                gl,
+                days_interval,
+                enable_closing,
+                opened_merge_requests,
+                "merge-request",
+            )
+            project_merge_requests = [
+                mr for mr in opened_merge_requests if mr.state == MRState.OPENED
+            ]
+            reload_toggle = ReloadToggle(reload=False)
             rebase = hk.get("rebase")
             try:
                 merge_merge_requests(
                     dry_run,
                     gl,
+                    project_merge_requests,
+                    reload_toggle,
                     limit,
                     rebase,
                     pipeline_timeout,
@@ -562,6 +614,8 @@ def run(dry_run, wait_for_pipeline):
                 merge_merge_requests(
                     dry_run,
                     gl,
+                    project_merge_requests,
+                    reload_toggle,
                     limit,
                     rebase,
                     pipeline_timeout,
