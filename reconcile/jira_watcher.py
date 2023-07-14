@@ -5,7 +5,6 @@ from collections.abc import (
     Mapping,
 )
 from typing import (
-    Any,
     Optional,
 )
 
