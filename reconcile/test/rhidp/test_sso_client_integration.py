@@ -7,8 +7,8 @@ from reconcile.rhidp.sso_client.integration import (
 )
 
 
-def test_ocm_oidc_idp_integration_get_clusters(
-    cluster_query_func: Callable, clusters_to_act_on: list[ClusterV1]
+def test_rhidp_sso_client_integration_get_clusters(
+    cluster_query_func: Callable, rhidp_sso_client_clusters_to_act_on: list[ClusterV1]
 ) -> None:
     intg = SSOClientIntegration(
         SSOClientIntegrationParams(
@@ -18,4 +18,4 @@ def test_ocm_oidc_idp_integration_get_clusters(
             contacts=["email@foobar.com"],
         )
     )
-    assert intg.get_clusters(cluster_query_func) == clusters_to_act_on
+    assert intg.get_clusters(cluster_query_func) == rhidp_sso_client_clusters_to_act_on

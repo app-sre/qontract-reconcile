@@ -151,15 +151,11 @@ def fetch_desired_state(
     desired_sso_clients = {}
     for cluster in clusters:
         for auth in cluster.auth:
-            if (
-                not isinstance(auth, ClusterAuthOIDCV1)
-                or not auth.issuer
-                or not cluster.ocm
-            ):
+            if not isinstance(auth, ClusterAuthOIDCV1) or not auth.issuer:
                 # this cannot happen, these attributes are set via cluster retrieval method - just make mypy happy
                 continue
             cid = cluster_vault_secret_id(
-                org_id=cluster.ocm.org_id,
+                org_id=cluster.ocm.org_id if cluster.ocm else "unknown",
                 cluster_name=cluster.name,
                 auth_name=auth.name,
             )
@@ -216,7 +212,7 @@ def create_sso_client(
     vault_input_path: str,
 ) -> None:
     """Create an SSO client and store SSO client data in Vault."""
-    if not auth.issuer or not cluster.ocm:
+    if not auth.issuer:
         # this cannot happen, these attributes are set via cluster retrieval method - just make mypy happy
         return
 

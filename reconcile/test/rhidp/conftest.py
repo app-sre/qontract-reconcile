@@ -8,6 +8,7 @@ from pytest_mock import MockerFixture
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.rhidp.clusters import ClusterV1
+from reconcile.gql_definitions.rhidp.clusters import query as cluster_query
 from reconcile.ocm.types import OCMOidcIdp
 from reconcile.rhidp import common
 from reconcile.rhidp.ocm_oidc_idp import integration
@@ -41,8 +42,26 @@ def clusters(cluster_query_func: Callable) -> list[ClusterV1]:
 
 
 @pytest.fixture
-def clusters_to_act_on(clusters: list[ClusterV1]) -> list[ClusterV1]:
-    return [c for c in clusters if c.name in ["cluster-1", "cluster-2", "cluster-3"]]
+def all_clusters(cluster_query_func: Callable) -> list[ClusterV1]:
+    return cluster_query(cluster_query_func).clusters or []
+
+
+@pytest.fixture
+def ocm_oidc_idp_clusters_to_act_on(all_clusters: list[ClusterV1]) -> list[ClusterV1]:
+    return [
+        c for c in all_clusters if c.name in ["cluster-1", "cluster-2", "cluster-3"]
+    ]
+
+
+@pytest.fixture
+def rhidp_sso_client_clusters_to_act_on(
+    all_clusters: list[ClusterV1],
+) -> list[ClusterV1]:
+    return [
+        c
+        for c in all_clusters
+        if c.name in ["cluster-1", "cluster-2", "cluster-3", "cluster-5"]
+    ]
 
 
 @pytest.fixture
