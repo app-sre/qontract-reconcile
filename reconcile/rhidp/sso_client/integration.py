@@ -58,7 +58,12 @@ class SSOClientIntegration(
         )
 
     def get_clusters(self, query_func: Callable) -> list[ClusterV1]:
-        return get_clusters(self.name, query_func, self.params.default_auth_issuer_url)
+        return get_clusters(
+            self.name,
+            query_func,
+            self.params.default_auth_issuer_url,
+            exclude_clusters_without_ocm=False,
+        )
 
     def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
         gqlapi = gql.get_api()
