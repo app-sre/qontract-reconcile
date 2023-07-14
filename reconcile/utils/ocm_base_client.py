@@ -95,16 +95,11 @@ class OCMBaseClient:
                 yield item
             current_page = rs.get("page", 0)
             records_on_page = rs.get("size", len(rs.get("items", [])))
-            if records_on_page >= max_page_size and (
-                # only consider checking max_pages if it is set, else ignore
-                max_pages > current_page
-                if max_pages
-                else True
-            ):
-                # more page available
-                params_copy["page"] = current_page + 1
-            else:
+            if records_on_page < max_page_size:
                 return
+            if max_pages is not None and current_page >= max_pages:
+                return
+            params_copy["page"] = current_page + 1
 
     def post(
         self,
