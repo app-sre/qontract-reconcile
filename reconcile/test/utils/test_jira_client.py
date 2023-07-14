@@ -1,3 +1,7 @@
+from unittest.mock import create_autospec
+
+import pytest
+from jira import JIRA
 from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.jira_settings import JiraWatcherSettingsV1

@@ -4,7 +4,10 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Optional
+from typing import (
+    Any,
+    Optional,
+)
 
 from reconcile.gql_definitions.common.jira_settings import AppInterfaceSettingsV1
 from reconcile.gql_definitions.jira_watcher.jira_watcher_boards import (
