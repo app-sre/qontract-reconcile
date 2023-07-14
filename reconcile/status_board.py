@@ -3,7 +3,10 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from typing import Optional, Any
+from typing import (
+    Any,
+    Optional,
+)
 
 from pydantic import BaseModel
 
@@ -13,8 +16,12 @@ from reconcile.typed_queries.status_board import (
     get_status_board,
 )
 from reconcile.utils.ocm.status_board import (
+    create_application,
+    create_product,
+    delete_application,
+    delete_product,
     get_managed_products,
-    get_product_applications, create_product, create_application,
+    get_product_applications,
 )
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
@@ -48,20 +55,19 @@ class AbstractStatusBoard(ABC, BaseModel):
 
 
 class Product(AbstractStatusBoard):
-
     applications: Optional[list["Application"]]
 
     def create(self, ocm: OCMBaseClient) -> None:
         spec = self.dict(by_alias=True)
         spec.pop("applications")
         spec.pop("id")
-        create_product(ocm,spec )
+        create_product(ocm, spec)
 
     def delete(self, ocm: OCMBaseClient) -> None:
-        pass
+        delete_product(ocm, self.id)
 
     def summarize(self) -> str:
-        return f"Product: {self.name}"
+        return f'Product: "{self.name}"'
 
 
 class Application(AbstractStatusBoard):
@@ -71,14 +77,14 @@ class Application(AbstractStatusBoard):
         spec = self.dict(by_alias=True)
         spec.pop("id")
         product = spec.pop("product")
-        spec["product_id"] = product.id
+        spec["product"] = {"id": product["id"]}
         create_application(ocm, spec)
 
     def delete(self, ocm: OCMBaseClient) -> None:
-        pass
+        delete_application(ocm, self.id)
 
     def summarize(self) -> str:
-        return f"Application: {self.name} {self.fullname}"
+        return f'Application: "{self.name}" "{self.fullname}"'
 
 
 class StatusBoardHandler(BaseModel):
@@ -86,9 +92,7 @@ class StatusBoardHandler(BaseModel):
     status_board_object: AbstractStatusBoard
 
     def act(self, dry_run: bool, ocm: OCMBaseClient) -> None:
-        logging.info(
-            f"{self.action} - {self.status_board_object.summarize()}"
-        )
+        logging.info(f"{self.action} - {self.status_board_object.summarize()}")
         if dry_run:
             return
 
@@ -101,7 +105,6 @@ class StatusBoardHandler(BaseModel):
 
 
 class StatusBoardExporterIntegration(QontractReconcileIntegration):
-
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
@@ -111,10 +114,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return_dict: dict[str, set[str]] = {}
         for p in sb.products:
             return_dict[p.product_environment.product.name] = get_selected_app_names(
-                sb.global_app_selectors.exclude, p
+                sb.global_app_selectors.exclude if sb.global_app_selectors else [], p
             )
         return return_dict
-
 
     @staticmethod
     def get_current_products_applications(ocm_api: OCMBaseClient) -> list[Product]:
@@ -128,11 +130,11 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
         return products
 
-
-
     @staticmethod
-    def get_diff(desired_product_apps: dict[str, set[str]], current_products_applications: list[Product]) -> list[StatusBoardHandler]:
-
+    def get_diff(
+        desired_product_apps: dict[str, set[str]],
+        current_products_applications: list[Product],
+    ) -> list[StatusBoardHandler]:
         return_list: list[StatusBoardHandler] = []
         current_products = [p.name for p in current_products_applications]
         for product_name, app_names in desired_product_apps.items():
@@ -141,12 +143,12 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     StatusBoardHandler(
                         action="create",
                         status_board_object=Product(
-                        name=product_name,
-                        fullname=product_name
+                            name=product_name, fullname=product_name
+                        ),
                     )
-                ))
-                # continue, will create Applications on the next run
+                )
             else:
+                # else, only create App if Product exists
                 product_object = next(
                     p for p in current_products_applications if p.name == product_name
                 )
@@ -159,10 +161,30 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                                 status_board_object=Application(
                                     name=app,
                                     fullname=f"{product_name}/{app}",
-                                    product=product_object
-                                )
+                                    product=product_object,
+                                ),
                             )
                         )
+
+        for product in current_products_applications:
+            if product.name not in desired_product_apps:
+                # if product was removed, we have to delete all apps
+                for application in product.applications:
+                    return_list.append(
+                        StatusBoardHandler(
+                            action="delete", status_board_object=application
+                        )
+                    )
+                return_list.append(
+                    StatusBoardHandler(action="delete", status_board_object=product)
+                )
+            else:
+                for app in product.applications:
+                    if app.name not in desired_product_apps.get(product.name, []):
+                        return_list.append(
+                            StatusBoardHandler(action="delete", status_board_object=app)
+                        )
+
         return return_list
 
     def run(self, dry_run: bool) -> None:
@@ -170,7 +192,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
             desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
 
-            current_products_applications = self.get_current_products_applications(ocm_api)
+            current_products_applications = self.get_current_products_applications(
+                ocm_api
+            )
 
             diff = self.get_diff(desired_product_apps, current_products_applications)
 
