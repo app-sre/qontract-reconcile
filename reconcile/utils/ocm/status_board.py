@@ -18,9 +18,13 @@ def get_product_applications(
     for application in ocm_api.get_paginated(
         f"/api/status-board/v1/products/{product_id}/applications"
     ):
-        results.append(
-            {k: v for k, v in application.items() if k in APPLICATION_DESIRED_KEYS}
-        )
+        if (
+            application.get("metadata", {}).get(METADATA_MANAGED_BY_KEY, "")
+            == METADATA_MANAGED_BY_VALUE
+        ):
+            results.append(
+                {k: v for k, v in application.items() if k in APPLICATION_DESIRED_KEYS}
+            )
 
     return results
 
