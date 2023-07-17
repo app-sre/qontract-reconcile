@@ -1,3 +1,4 @@
+from cmath import log
 import logging
 import re
 import time
@@ -1030,19 +1031,27 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         }
         image.modify_attribute(LaunchPermission=launch_permission)
 
+    def create_cloudwatch_tag(self, account, group_name, new_tag):
+        cloudwatch_logs = self._account_cloudwatch_client(account["name"])
+        cloudwatch_logs.tag_log_group(logGroupName=group_name, tags=new_tag)
+
     def get_cloudwatch_logs(self, account):
         cloudwatch_logs = self._account_cloudwatch_client(account["name"])
         log_groups = cloudwatch_logs.describe_log_groups()["logGroups"]
-        log_groups_without_tf_tag = []
+        log_group_list = []
         for log_group in log_groups:
             log_group_name = log_group.get("logGroupName")
             log_group_tags = cloudwatch_logs.list_tags_log_group(logGroupName=log_group_name)
             tag_list = log_group_tags.get('tags', {})
             tag_match = any(k == 'managed_by_integration' and (v == 'terraform_resources') for k, v in tag_list.items())
             if not tag_match:
-                log_groups_without_tf_tag.append(log_group)
+                log_group_tag_info = {
+                    **log_group,
+                    'tags': tag_list
+                }
+                log_group_list.append(log_group_tag_info)
 
-        return log_groups_without_tf_tag
+        return log_group_list
 
     def set_cloudwatch_log_retention(self, account, group_name, retention_days):
         cloudwatch_logs = self._account_cloudwatch_client(account["name"])
