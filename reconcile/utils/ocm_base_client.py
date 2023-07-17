@@ -89,23 +89,17 @@ class OCMBaseClient:
             params_copy = params.copy()
         params_copy["size"] = max_page_size
 
-        # fetch pages
-        records_seen = 0
         while True:
-            rs = self.get(api_path, params=params)
+            rs = self.get(api_path, params=params_copy)
             for item in rs.get("items", []):
                 yield item
-            total_records = rs.get("total", 0)
             current_page = rs.get("page", 0)
             records_on_page = rs.get("size", len(rs.get("items", [])))
-            records_seen += records_on_page
-            if total_records > records_seen and (
-                max_pages and max_pages < current_page
-            ):
-                # more page available
-                params_copy["page"] = current_page + 1
-            else:
+            if records_on_page < max_page_size:
                 return
+            if max_pages is not None and current_page >= max_pages:
+                return
+            params_copy["page"] = current_page + 1
 
     def post(
         self,
