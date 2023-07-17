@@ -3,10 +3,12 @@ import pytest
 from reconcile.utils.ocm.status_board import (
     METADATA_MANAGED_BY_KEY,
     METADATA_MANAGED_BY_VALUE,
+    create_application,
     create_product,
-    get_managed_products,
-    get_product_applications, create_application, delete_product,
     delete_application,
+    delete_product,
+    get_managed_products,
+    get_product_applications,
 )
 
 

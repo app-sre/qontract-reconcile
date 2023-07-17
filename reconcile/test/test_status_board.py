@@ -1,0 +1,193 @@
+from typing import Optional
+
+import pytest
+
+from reconcile.gql_definitions.status_board.status_board import (
+    AppV1,
+    EnvironmentV1,
+    NamespaceV1,
+    OpenShiftClusterManagerEnvironmentV1,
+    ProductV1,
+    StatusBoardProductV1,
+    StatusBoardProductV1_StatusBoardAppSelectorV1,
+    StatusBoardV1,
+    VaultSecretV1,
+)
+from reconcile.status_board import (
+    AbstractStatusBoard,
+    Application,
+    Product,
+    StatusBoardExporterIntegration,
+    StatusBoardHandler,
+)
+from reconcile.utils.ocm_base_client import OCMBaseClient
+
+
+class TestStatusBoard(AbstractStatusBoard):
+    created: Optional[bool] = False
+    deleted: Optional[bool] = False
+    summarized: Optional[bool] = False
+
+    def create(self, ocm: OCMBaseClient) -> None:
+        self.created = True
+
+    def delete(self, ocm: OCMBaseClient) -> None:
+        self.deleted = True
+
+    def summarize(self) -> str:
+        self.summarized = True
+
+
+@pytest.fixture
+def status_board():
+    return StatusBoardV1(
+        name="foo",
+        ocm=OpenShiftClusterManagerEnvironmentV1(
+            url="https://foo.com",
+            accessTokenUrl="foo",
+            accessTokenClientId="foo",
+            accessTokenClientSecret=VaultSecretV1(
+                path="foo",
+                field="foo",
+                version="1",
+                format="foo",
+            ),
+        ),
+        globalAppSelectors=StatusBoardProductV1_StatusBoardAppSelectorV1(
+            exclude=['apps[?@.name=="excluded"]'],
+        ),
+        products=[
+            StatusBoardProductV1(
+                appSelectors=StatusBoardProductV1_StatusBoardAppSelectorV1(
+                    exclude=['apps[?@.onboardingStatus!="OnBoarded"]'],
+                ),
+                productEnvironment=EnvironmentV1(
+                    name="foo",
+                    labels='{"foo": "foo"}',
+                    namespaces=[
+                        NamespaceV1(
+                            app=AppV1(name="excluded", onboardingStatus="OnBoarded")
+                        ),
+                        NamespaceV1(
+                            app=AppV1(name="foo", onboardingStatus="OnBoarded")
+                        ),
+                        NamespaceV1(
+                            app=AppV1(name="oof", onboardingStatus="BestEffort")
+                        ),
+                    ],
+                    product=ProductV1(name="foo"),
+                ),
+            )
+        ],
+    )
+
+
+def test_status_board_handler():
+    h = StatusBoardHandler(
+        action="create",
+        status_board_object=TestStatusBoard(name="foo", fullname="foo"),
+    )
+
+    h.act(dry_run=False, ocm=None)
+    assert h.status_board_object.created
+    assert h.status_board_object.summarized
+
+    h = StatusBoardHandler(
+        action="delete",
+        status_board_object=TestStatusBoard(name="foo", fullname="foo"),
+    )
+
+    h.act(dry_run=False, ocm=None)
+    assert h.status_board_object.deleted
+    assert h.status_board_object.summarized
+
+
+def test_get_product_apps(status_board):
+    p = StatusBoardExporterIntegration.get_product_apps(status_board)
+    assert p == {"foo": {"foo"}}
+
+
+def test_get_diff_create_app():
+    Product.update_forward_refs()
+
+    h = StatusBoardExporterIntegration.get_diff(
+        {"foo": {"foo", "bar"}},
+        [Product(name="foo", fullname="foo")],
+    )
+
+    assert len(h) == 2
+    assert h[0].action == h[1].action == "create"
+    assert isinstance(h[0].status_board_object, Application)
+    assert isinstance(h[1].status_board_object, Application)
+    assert sorted([x.status_board_object.name for x in h]) == ["bar", "foo"]
+    assert sorted([x.status_board_object.fullname for x in h]) == ["foo/bar", "foo/foo"]
+
+
+def test_get_diff_create_product():
+    Product.update_forward_refs()
+
+    h = StatusBoardExporterIntegration.get_diff(
+        {"foo": {"foo", "bar"}},
+        [],
+    )
+
+    assert len(h) == 1
+    assert h[0].action == "create"
+    assert isinstance(h[0].status_board_object, Product)
+
+
+def test_get_diff_create_noop():
+    Product.update_forward_refs()
+
+    h = StatusBoardExporterIntegration.get_diff(
+        {"foo": {"bar"}},
+        [
+            Product(
+                name="foo",
+                fullname="foo",
+                applications=[Application(name="bar", fullname="foo/bar")],
+            )
+        ],
+    )
+
+    assert len(h) == 0
+
+
+def test_get_diff_create_delete_app():
+    Product.update_forward_refs()
+
+    h = StatusBoardExporterIntegration.get_diff(
+        {"foo": {}},
+        [
+            Product(
+                name="foo",
+                fullname="foo",
+                applications=[Application(name="bar", fullname="foo/bar")],
+            )
+        ],
+    )
+
+    assert len(h) == 1
+    assert h[0].action == "delete"
+    assert isinstance(h[0].status_board_object, Application)
+    assert h[0].status_board_object.name == "bar"
+
+
+def test_get_diff_create_delete_app():
+    Product.update_forward_refs()
+
+    h = StatusBoardExporterIntegration.get_diff(
+        {},
+        [
+            Product(
+                name="foo",
+                fullname="foo",
+                applications=[Application(name="bar", fullname="foo/bar")],
+            )
+        ],
+    )
+
+    assert len(h) == 2
+    assert h[0].action == h[1].action == "delete"
+    assert isinstance(h[0].status_board_object, Application)
+    assert isinstance(h[1].status_board_object, Product)
