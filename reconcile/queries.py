@@ -2171,62 +2171,6 @@ def get_pipelines_providers():
     return pipelines_providers
 
 
-JIRA_BOARDS_QUERY = """
-{
-  jira_boards: jira_boards_v1 {
-    path
-    name
-    server {
-      serverUrl
-      token {
-        path
-        field
-        version
-        format
-      }
-    }
-    {% if with_slack %}
-    slack {
-      workspace {
-        name
-        integrations {
-          name
-          token {
-            path
-            field
-            version
-            format
-          }
-          channel
-          icon_emoji
-          username
-        }
-        api_client {
-          global {
-            max_retries
-            timeout
-          }
-          methods {
-            name
-            args
-          }
-        }
-      }
-      channel
-    }
-    {% endif %}
-  }
-}
-"""
-
-
-def get_jira_boards(with_slack: Optional[bool] = True):
-    """Returns Jira boards resources defined in app-interface"""
-    gqlapi = gql.get_api()
-    query = Template(JIRA_BOARDS_QUERY).render(with_slack=with_slack)
-    return gqlapi.query(query)["jira_boards"]
-
-
 # Use APATH as the place holder because Python formatting interferes
 # with graphql use of curly braces
 JIRA_BOARDS_QUICK_QUERY = """
