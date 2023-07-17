@@ -46,8 +46,8 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
     for aws_acct in aws_accounts:
         if aws_acct.get("cleanup"):
             cloudwatch_cleanup_list = get_app_interface_cloudwatch_retention_period(
-        aws_acct
-    )
+                aws_acct
+            )
             settings = queries.get_secret_reader_settings()
             accounts = queries.get_aws_accounts(uid=aws_acct.get("uid"))
             awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
@@ -60,9 +60,13 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                     regex_pattern = re.compile(cloudwatch_cleanup_entry.log_regex)
                     log_group_tags = log_group["tags"]
                     if MANAGED_TAG not in log_group_tags:
-                        logging.info(f"Setting tag {MANAGED_TAG} for group {group_name}")
+                        logging.info(
+                            f"Setting tag {MANAGED_TAG} for group {group_name}"
+                        )
                         if not dry_run:
-                            awsapi.create_cloudwatch_tag(aws_acct, group_name, MANAGED_TAG)
+                            awsapi.create_cloudwatch_tag(
+                                aws_acct, group_name, MANAGED_TAG
+                            )
                     if (
                         regex_pattern.match(group_name)
                         and retention_days
