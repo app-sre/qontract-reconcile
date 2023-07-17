@@ -1,4 +1,7 @@
+from typing import Any
+
 import pytest
+from pytest_mock import MockFixture
 
 from reconcile.utils.ocm.status_board import (
     METADATA_MANAGED_BY_KEY,
@@ -13,7 +16,7 @@ from reconcile.utils.ocm.status_board import (
 
 
 @pytest.fixture
-def application_status_board():
+def application_status_board() -> list[dict[str, Any]]:
     return [
         {
             "id": "foo",
@@ -33,7 +36,7 @@ def application_status_board():
 
 
 @pytest.fixture
-def products_status_board():
+def products_status_board() -> list[dict[str, Any]]:
     return [
         {
             "id": "foo",
@@ -52,7 +55,9 @@ def products_status_board():
     ]
 
 
-def test_get_product_applications_fields(mocker, application_status_board):
+def test_get_product_applications_fields(
+    mocker: MockFixture, application_status_board: list[dict[str, Any]]
+) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
     mocker.patch(
         "reconcile.utils.ocm_base_client.OCMBaseClient.get_paginated",
@@ -68,7 +73,9 @@ def test_get_product_applications_fields(mocker, application_status_board):
     }
 
 
-def test_get_managed_products(mocker, products_status_board):
+def test_get_managed_products(
+    mocker: MockFixture, products_status_board: list[dict[str, Any]]
+) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
     mocker.patch(
         "reconcile.utils.ocm_base_client.OCMBaseClient.get_paginated",
@@ -85,7 +92,7 @@ def test_get_managed_products(mocker, products_status_board):
     }
 
 
-def test_create_product(mocker):
+def test_create_product(mocker: MockFixture) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
     p = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient.post")
 
@@ -100,7 +107,7 @@ def test_create_product(mocker):
     )
 
 
-def test_create_application(mocker):
+def test_create_application(mocker: MockFixture) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
     p = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient.post")
 
@@ -115,7 +122,7 @@ def test_create_application(mocker):
     )
 
 
-def test_delete_product(mocker):
+def test_delete_product(mocker: MockFixture) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
     d = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient.delete")
 
@@ -125,7 +132,7 @@ def test_delete_product(mocker):
     d.assert_called_once_with(f"/api/status-board/v1/products/{product_id}")
 
 
-def test_delete_application(mocker):
+def test_delete_application(mocker: MockFixture) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
     d = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient.delete")
 

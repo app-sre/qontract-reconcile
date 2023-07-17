@@ -1,6 +1,7 @@
 from typing import Optional
 
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.status_board.status_board import (
     AppV1,
@@ -36,10 +37,11 @@ class TestStatusBoard(AbstractStatusBoard):
 
     def summarize(self) -> str:
         self.summarized = True
+        return ""
 
 
 @pytest.fixture
-def status_board():
+def status_board() -> StatusBoardV1:
     return StatusBoardV1(
         name="foo",
         ocm=OpenShiftClusterManagerEnvironmentV1(
@@ -82,13 +84,15 @@ def status_board():
     )
 
 
-def test_status_board_handler():
+def test_status_board_handler(mocker: MockerFixture) -> None:
+    ocm = mocker.patch("reconcile.status_board.OCMBaseClient")
     h = StatusBoardHandler(
         action="create",
         status_board_object=TestStatusBoard(name="foo", fullname="foo"),
     )
 
-    h.act(dry_run=False, ocm=None)
+    h.act(dry_run=False, ocm=ocm)
+    assert isinstance(h.status_board_object, TestStatusBoard)
     assert h.status_board_object.created
     assert h.status_board_object.summarized
 
@@ -97,22 +101,23 @@ def test_status_board_handler():
         status_board_object=TestStatusBoard(name="foo", fullname="foo"),
     )
 
-    h.act(dry_run=False, ocm=None)
+    h.act(dry_run=False, ocm=ocm)
+    assert isinstance(h.status_board_object, TestStatusBoard)
     assert h.status_board_object.deleted
     assert h.status_board_object.summarized
 
 
-def test_get_product_apps(status_board):
+def test_get_product_apps(status_board) -> None:
     p = StatusBoardExporterIntegration.get_product_apps(status_board)
     assert p == {"foo": {"foo"}}
 
 
-def test_get_diff_create_app():
+def test_get_diff_create_app() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
         {"foo": {"foo", "bar"}},
-        [Product(name="foo", fullname="foo")],
+        [Product(name="foo", fullname="foo", applications=[])],
     )
 
     assert len(h) == 2
@@ -123,7 +128,7 @@ def test_get_diff_create_app():
     assert sorted([x.status_board_object.fullname for x in h]) == ["foo/bar", "foo/foo"]
 
 
-def test_get_diff_create_product():
+def test_get_diff_create_product() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
@@ -136,7 +141,7 @@ def test_get_diff_create_product():
     assert isinstance(h[0].status_board_object, Product)
 
 
-def test_get_diff_create_noop():
+def test_get_diff_create_noop() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
@@ -153,11 +158,11 @@ def test_get_diff_create_noop():
     assert len(h) == 0
 
 
-def test_get_diff_create_delete_app():
+def test_get_diff_create_delete_app() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {"foo": {}},
+        {"foo": set()},
         [
             Product(
                 name="foo",
@@ -173,7 +178,7 @@ def test_get_diff_create_delete_app():
     assert h[0].status_board_object.name == "bar"
 
 
-def test_get_diff_create_delete_app():
+def test_get_diff_create_delete_apps_and_product() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
