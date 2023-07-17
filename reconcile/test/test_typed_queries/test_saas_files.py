@@ -613,7 +613,7 @@ def test_export_model(
         {
             "path": "path1",
             "name": "saas-file-01",
-            "app": {"name": "app-01", "parentApp": None},
+            "app": {"name": "app-01", "parentApp": None, "selfServiceRoles": None},
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -687,6 +687,7 @@ def test_export_model(
                                     "name": "app-01",
                                     "labels": None,
                                     "parentApp": None,
+                                    "selfServiceRoles": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -702,6 +703,9 @@ def test_export_model(
                                     },
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
+                                    "externalConfiguration": None,
+                                    "labels": None,
+                                    "spec": None,
                                 },
                                 "skupperSite": None,
                             },
@@ -732,6 +736,7 @@ def test_export_model(
                                     "name": "app-01",
                                     "labels": None,
                                     "parentApp": None,
+                                    "selfServiceRoles": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -747,6 +752,9 @@ def test_export_model(
                                     },
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
+                                    "externalConfiguration": None,
+                                    "labels": None,
+                                    "spec": None,
                                 },
                                 "skupperSite": None,
                             },
@@ -767,7 +775,7 @@ def test_export_model(
         {
             "path": "path2",
             "name": "saas-file-02",
-            "app": {"name": "app-02", "parentApp": None},
+            "app": {"name": "app-02", "parentApp": None, "selfServiceRoles": None},
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -841,6 +849,7 @@ def test_export_model(
                                     "name": "app-02",
                                     "labels": None,
                                     "parentApp": None,
+                                    "selfServiceRoles": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -856,6 +865,9 @@ def test_export_model(
                                     },
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
+                                    "externalConfiguration": None,
+                                    "labels": None,
+                                    "spec": None,
                                 },
                                 "skupperSite": None,
                             },
@@ -886,6 +898,7 @@ def test_export_model(
                                     "name": "app-02",
                                     "labels": None,
                                     "parentApp": None,
+                                    "selfServiceRoles": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -901,6 +914,9 @@ def test_export_model(
                                     },
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
+                                    "externalConfiguration": None,
+                                    "labels": None,
+                                    "spec": None,
                                 },
                                 "skupperSite": None,
                             },
@@ -921,7 +937,7 @@ def test_export_model(
         {
             "path": "path3",
             "name": "saas-file-03",
-            "app": {"name": "example", "parentApp": None},
+            "app": {"name": "example", "parentApp": None, "selfServiceRoles": None},
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -994,6 +1010,7 @@ def test_export_model(
                                 "app": {
                                     "name": "example",
                                     "parentApp": None,
+                                    "selfServiceRoles": None,
                                     "labels": None,
                                 },
                                 "cluster": {
@@ -1010,6 +1027,9 @@ def test_export_model(
                                     },
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
+                                    "externalConfiguration": None,
+                                    "labels": None,
+                                    "spec": None,
                                 },
                                 "skupperSite": None,
                             },
@@ -1039,6 +1059,7 @@ def test_export_model(
                                 "app": {
                                     "name": "example",
                                     "parentApp": None,
+                                    "selfServiceRoles": None,
                                     "labels": None,
                                 },
                                 "cluster": {
@@ -1055,6 +1076,9 @@ def test_export_model(
                                     },
                                     "clusterAdminAutomationToken": None,
                                     "disable": None,
+                                    "externalConfiguration": None,
+                                    "labels": None,
+                                    "spec": None,
                                 },
                                 "skupperSite": None,
                             },

@@ -81,7 +81,7 @@ expected_return_value:
 
 glitchtip_urls:
   - name: delete rosetta-old
-    uri: /api/0/teams/esa/esa-flight-control/projects/rosetta-old/
+    uri: /api/0/projects/esa/rosetta-old/
     method: delete
 
   - name: create rosetta-spacecraft

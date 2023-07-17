@@ -44,22 +44,37 @@ def fetch_desired_state(users):
 @retry()
 def fetch_current_state(sg_client):
     state = []
+    limit = 100
 
     # pending invites
-    invites = sg_client.teammates.pending.get().to_dict["result"]
-    for invite in invites:
-        t = Teammate(invite["email"], pending_token=invite["token"])
-        state.append(t)
+    offset = 0
+    while True:
+        invites = sg_client.teammates.pending.get(
+            query_params={"limit": limit, "offset": offset}
+        ).to_dict["result"]
+        if not invites:
+            break
+        for invite in invites:
+            t = Teammate(invite["email"], pending_token=invite["token"])
+            state.append(t)
+        offset += limit
 
     # current teammates
-    teammates = sg_client.teammates.get().to_dict["result"]
-    for teammate in teammates:
-        if teammate["user_type"] == "owner":
-            # we want to ignore the root account (owner account)
-            continue
+    offset = 0
+    while True:
+        teammates = sg_client.teammates.get(
+            query_params={"limit": limit, "offset": offset}
+        ).to_dict["result"]
+        if not teammates:
+            break
+        for teammate in teammates:
+            if teammate["user_type"] == "owner":
+                # we want to ignore the root account (owner account)
+                continue
 
-        t = Teammate(teammate["email"], username=teammate["username"])
-        state.append(t)
+            t = Teammate(teammate["email"], username=teammate["username"])
+            state.append(t)
+        offset += limit
 
     return state
 

@@ -81,7 +81,7 @@ def build_cluster_obj(
         name=cluster.ocm_cluster.name,
         consoleUrl=cluster.ocm_cluster.console.url,
         ocm=OpenShiftClusterManagerV1(
-            name="",
+            name=cluster.organization_id,
             environment=ocm_env,
             orgId=cluster.organization_id,
             # unused values
@@ -99,7 +99,10 @@ def build_cluster_obj(
 
 
 def get_clusters(
-    integration_name: str, query_func: Callable, default_issuer_url: str
+    integration_name: str,
+    query_func: Callable,
+    default_issuer_url: str,
+    exclude_clusters_without_ocm: bool = True,
 ) -> list[ClusterV1]:
     """Get all clusters from AppInterface."""
     data = cluster_query(query_func, variables={})
@@ -109,7 +112,7 @@ def get_clusters(
         if not integration_is_enabled(integration_name, c):
             # integration disabled for this particular cluster
             continue
-        if c.ocm is None:
+        if c.ocm is None and exclude_clusters_without_ocm:
             # no ocm relation
             continue
         if not [auth for auth in c.auth if isinstance(auth, ClusterAuthOIDCV1)]:

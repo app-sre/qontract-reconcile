@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from unittest.mock import Mock
 
+import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
@@ -23,14 +24,39 @@ from reconcile.utils.keycloak import (
 )
 
 
-def test_sso_client_console_url_to_oauth_url() -> None:
-    assert (
-        console_url_to_oauth_url(
-            "https://console-openshift-console.foo.bar.lalala-land.com:1234/huhu/la/le/lu",
+@pytest.mark.parametrize(
+    "console_url, auth_name, expected",
+    [
+        # OSD cluster w/o port
+        (
+            "https://console-openshift-console.apps.cluster-name.lalala-land.com/huhu/la/le/lu",
             "super-dupper-auth",
-        )
-        == "https://oauth-openshift.foo.bar.lalala-land.com:1234/oauth2callback/super-dupper-auth"
-    )
+            "https://oauth-openshift.apps.cluster-name.lalala-land.com/oauth2callback/super-dupper-auth",
+        ),
+        # OSD cluster with port
+        (
+            "https://console-openshift-console.apps.cluster-name.lalala-land.com:1234/huhu/la/le/lu",
+            "super-dupper-auth",
+            "https://oauth-openshift.apps.cluster-name.lalala-land.com:1234/oauth2callback/super-dupper-auth",
+        ),
+        # ROSA cluster w/o port
+        (
+            "https://console-openshift-console.apps.rosa.cluster-name.lalala-land.com/huhu/la/le/lu",
+            "super-dupper-auth",
+            "https://oauth.cluster-name.lalala-land.com:443/oauth2callback/super-dupper-auth",
+        ),
+        # ROSA cluster with port
+        (
+            "https://console-openshift-console.apps.rosa.cluster-name.lalala-land.com:1234/huhu/la/le/lu",
+            "super-dupper-auth",
+            "https://oauth.cluster-name.lalala-land.com:1234/oauth2callback/super-dupper-auth",
+        ),
+    ],
+)
+def test_sso_client_console_url_to_oauth_url_osd(
+    console_url: str, auth_name: str, expected: str
+) -> None:
+    assert console_url_to_oauth_url(console_url, auth_name) == expected
 
 
 def test_sso_client_fetch_current_state(secret_reader: Mock) -> None:

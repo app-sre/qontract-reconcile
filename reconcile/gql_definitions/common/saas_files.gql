@@ -9,6 +9,9 @@ query SaasFiles {
       parentApp {
         name
       }
+      selfServiceRoles {
+        name
+      }
     }
     pipelinesProvider {
       name
@@ -160,13 +163,7 @@ query SaasFiles {
       }
     }
     selfServiceRoles {
-      users {
-        org_username
-        tag_on_merge_requests
-      }
-      bots {
-        org_username
-      }
+      name
     }
   }
 }

@@ -134,7 +134,7 @@ def test_rhidp_common_build_cluster_obj(
         name="cluster_name",
         consoleUrl="https://console.foobar.com",
         ocm=OpenShiftClusterManagerV1(
-            name="",
+            name="org_id",
             environment=OCMEnvironment(
                 name="env",
                 url="https://ocm",

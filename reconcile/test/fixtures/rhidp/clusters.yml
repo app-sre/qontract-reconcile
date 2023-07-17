@@ -145,7 +145,7 @@ clusters:
     disable: null
     auth:
       - service: github-org-team
-  # no ocm - must be ignored
+  # no ocm - must be ignored by ocm-oidc-idp but not by rhidp-sso-client
   - name: cluster-5
     ocm: null
     consoleUrl: "https://console.url.com"

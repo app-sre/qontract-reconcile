@@ -208,6 +208,19 @@ def extract_diffs(old_file_content: Any, new_file_content: Any) -> list[Diff]:
             ]
         )
 
+        # handle type changes
+        diffs.extend(
+            [
+                Diff(
+                    path=deepdiff_path_to_jsonpath(path),
+                    diff_type=DiffType.CHANGED,
+                    old=change.get("old_value"),
+                    new=change.get("new_value"),
+                )
+                for path, change in deep_diff.get("type_changes", {}).items()
+            ]
+        )
+
     elif old_file_content:
         # file was deleted
         diffs.append(

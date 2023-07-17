@@ -82,7 +82,7 @@ rebased_merge_requests = Counter(
 time_to_merge = Histogram(
     name="qontract_reconcile_time_to_merge_merge_request_minutes",
     documentation="The number of minutes it takes from when a merge request is mergeable until it is actually merged. This is an indicator of how busy the merge queue is.",
-    labelnames=["project_id"],
+    labelnames=["project_id", "priority"],
     buckets=(5.0, 10.0, 20.0, 40.0, 60.0, float("inf")),
 )
 
@@ -343,7 +343,7 @@ def get_merge_requests(
         if not is_good_to_merge(labels):
             continue
 
-        label_priotiry = min(
+        label_priority = min(
             MERGE_LABELS_PRIORITY.index(merge_label)
             for merge_label in MERGE_LABELS_PRIORITY
             if merge_label in labels
@@ -352,7 +352,8 @@ def get_merge_requests(
         item = {
             "mr": mr,
             "labels": labels,
-            "label_priority": label_priotiry,
+            "label_priority": label_priority,
+            "priority": f"{label_priority} - {MERGE_LABELS_PRIORITY[label_priority]}",
             "approved_at": approved_at,
             "approved_by": approved_by,
         }
@@ -445,16 +446,12 @@ def merge_merge_requests(
     users_allowed_to_label=None,
 ):
     merges = 0
-    mrs = get_merge_requests(dry_run, gl, users_allowed_to_label)
-    merge_requests: list[ProjectMergeRequest] = [item["mr"] for item in mrs]
-    merge_request_approved_at: dict[ProjectMergeRequest, str] = {
-        item["mr"]: item["approved_at"] for item in mrs
-    }
-
+    merge_requests = get_merge_requests(dry_run, gl, users_allowed_to_label)
     merge_requests_waiting.labels(gl.project.id).set(len(merge_requests))
 
     app_sre_usernames = [u.username for u in gl.get_app_sre_group_users()]
-    for mr in merge_requests:
+    for merge_request in merge_requests:
+        mr: ProjectMergeRequest = merge_request["mr"]
         if rebase and not is_rebased(mr, gl):
             continue
 
@@ -506,9 +503,9 @@ def merge_merge_requests(
                     auto_merge=AUTO_MERGE in labels,
                     app_sre=mr.author["username"] in app_sre_usernames,
                 ).inc()
-                time_to_merge.labels(mr.target_project_id).observe(
-                    _calculate_time_since_approval(merge_request_approved_at[mr])
-                )
+                time_to_merge.labels(
+                    project_id=mr.target_project_id, priority=merge_request["priority"]
+                ).observe(_calculate_time_since_approval(merge_request["approved_at"]))
                 if rebase:
                     return
                 merges += 1

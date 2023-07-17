@@ -3,7 +3,11 @@ from collections.abc import (
     Iterable,
     Sequence,
 )
-from urllib.parse import urljoin
+from urllib.parse import (
+    urljoin,
+    urlparse,
+    urlunparse,
+)
 
 import jwt
 
@@ -35,6 +39,19 @@ DesiredSSOClients = dict[str, tuple[ClusterV1, ClusterAuthOIDCV1]]
 
 def console_url_to_oauth_url(console_url: str, auth_name: str) -> str:
     """Convert a console URL to an OAuth callback URL."""
+    if console_url.startswith("https://console-openshift-console.apps.rosa."):
+        # ROSA cluster
+
+        url = urlparse(
+            urljoin(
+                console_url.replace("console-openshift-console.apps.rosa", "oauth"),
+                f"/oauth2callback/{auth_name}",
+            )
+        )
+        if url.port is None:
+            url = url._replace(netloc=url.netloc + ":443")
+        return urlunparse(url)
+    # OSD cluster
     return urljoin(
         console_url.replace("console-openshift-console", "oauth-openshift"),
         f"/oauth2callback/{auth_name}",
@@ -134,15 +151,11 @@ def fetch_desired_state(
     desired_sso_clients = {}
     for cluster in clusters:
         for auth in cluster.auth:
-            if (
-                not isinstance(auth, ClusterAuthOIDCV1)
-                or not auth.issuer
-                or not cluster.ocm
-            ):
+            if not isinstance(auth, ClusterAuthOIDCV1) or not auth.issuer:
                 # this cannot happen, these attributes are set via cluster retrieval method - just make mypy happy
                 continue
             cid = cluster_vault_secret_id(
-                org_id=cluster.ocm.org_id,
+                org_id=cluster.ocm.org_id if cluster.ocm else "unknown",
                 cluster_name=cluster.name,
                 auth_name=auth.name,
             )
@@ -199,7 +212,7 @@ def create_sso_client(
     vault_input_path: str,
 ) -> None:
     """Create an SSO client and store SSO client data in Vault."""
-    if not auth.issuer or not cluster.ocm:
+    if not auth.issuer:
         # this cannot happen, these attributes are set via cluster retrieval method - just make mypy happy
         return
 
