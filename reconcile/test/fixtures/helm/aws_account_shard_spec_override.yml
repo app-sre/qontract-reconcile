@@ -92,7 +92,7 @@ objects:
             mountPath: /fluentd/etc/
         containers:
         - name: int
-          image: ${IMAGE}:oofrab
+          image: ${IMAGE}:${IMAGE_TAG}
           ports:
             - name: http
               containerPort: 9090

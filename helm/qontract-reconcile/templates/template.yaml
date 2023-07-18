@@ -221,8 +221,8 @@ objects:
             mountPath: /fluentd/etc/
         containers:
         - name: int
-          {{- if and ($shard.shard_spec_overrides) ($shard.shard_spec_overrides.image_ref) }}
-          image: ${IMAGE}:{{$shard.shard_spec_overrides.image_ref }}
+          {{- if and ($shard.shard_spec_overrides) ($shard.shard_spec_overrides.imageRef) }}
+          image: ${IMAGE}:{{$shard.shard_spec_overrides.imageRef }}
           {{- else if $integration.imageRef}}
           image: ${IMAGE}:{{$integration.imageRef}}
           {{- else }}
