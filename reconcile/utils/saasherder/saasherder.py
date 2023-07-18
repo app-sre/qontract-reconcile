@@ -98,7 +98,7 @@ def is_commit_sha(ref: str) -> bool:
     return bool(re.search(r"^[0-9a-f]{40}$", ref))
 
 
-RtRef = tuple[str, str, str]
+RtRef = tuple[str, str, str, str]
 Resource = dict[str, Any]
 Resources = list[Resource]
 
@@ -327,6 +327,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             saas_file.path,
                             resource_template.name,
                             resource_template.url,
+                            target.uid(
+                                parent_saas_file_name=saas_file.name,
+                                parent_resource_template_name=resource_template.name,
+                            ),
                         )
 
                         # Get publications and subscriptions for the target
@@ -440,7 +444,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
         for sub_channel, sub_targets in subscriptions.items():
             pub_channel_refs = publications.get(sub_channel, set())
-            for sub_saas, sub_rt_name, sub_rt_url in sub_targets:
+            for sub_saas, sub_rt_name, sub_rt_url, _ in sub_targets:
                 if not pub_channel_refs:
                     logging.error(
                         "Channel is not published by any target\n"
@@ -449,7 +453,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         "channel: {}".format(sub_saas, sub_rt_name, sub_channel)
                     )
                 for pub_ref in pub_channel_refs:
-                    (pub_saas, pub_rt_name, pub_rt_url) = pub_ref
+                    (pub_saas, pub_rt_name, pub_rt_url, _) = pub_ref
                     if sub_rt_url != pub_rt_url:
                         self.valid = False
                         logging.error(
