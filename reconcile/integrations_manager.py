@@ -123,14 +123,15 @@ class HelmValues(BaseModel):
     cronjobs: list[HelmIntegrationSpec] = []
 
 
-def build_helm_values(specs: Iterable[HelmIntegrationSpec]):
+def build_helm_values(specs: Iterable[HelmIntegrationSpec]) -> dict:
     values = HelmValues()
     for s in specs:
         if s.cron:
             values.cronjobs.append(s)
         else:
             values.integrations.append(s)
-    return values
+
+    return values.dict(exclude_none=True, by_alias=True)
 
 
 class IntegrationsEnvironment(BaseModel):
@@ -170,7 +171,7 @@ def construct_oc_resources(
     # Generate the openshift template with the helm chart. The resulting template
     # contains all the integrations in the environment
     values = build_helm_values(integrations_environment.integration_specs)
-    template = helm.template(values.dict(exclude_none=True, by_alias=True))
+    template = helm.template(values)
 
     parameters = collect_parameters(
         template,

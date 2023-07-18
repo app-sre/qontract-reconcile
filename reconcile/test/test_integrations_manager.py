@@ -210,7 +210,7 @@ def test_build_helm_values_empty():
         "cronjobs": [],
     }
     values = intop.build_helm_values(integrations_specs)
-    assert values.dict(exclude_none=True) == expected
+    assert values == expected
 
 
 def test_build_helm_values(
@@ -227,7 +227,7 @@ def test_build_helm_values(
         "integrations": [
             {
                 "name": "basic-integration",
-                "extra_args": "integ-extra-arg",
+                "extraArgs": "integ-extra-arg",
                 "resources": resources,
                 "shard_specs": [],
             },
@@ -236,14 +236,14 @@ def test_build_helm_values(
             {
                 "name": "cron1",
                 "cron": "yup",
-                "extra_args": "integ-extra-arg",
+                "extraArgs": "integ-extra-arg",
                 "resources": resources,
                 "shard_specs": [],
             },
         ],
     }
     values = intop.build_helm_values(integrations_specs)
-    assert values.dict(exclude_none=True) == expected
+    assert values == expected
 
 
 # Per-AWS-account Tests

@@ -28,6 +28,7 @@ query Integrations {
         cache
         command
         disableUnleash
+        environmentAware
         extraArgs
         extraEnv {
           secretName
