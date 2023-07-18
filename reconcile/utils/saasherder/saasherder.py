@@ -5,7 +5,10 @@ import json
 import logging
 import os
 import re
-from collections import ChainMap
+from collections import (
+    ChainMap,
+    defaultdict,
+)
 from collections.abc import (
     Iterable,
     Mapping,
@@ -249,8 +252,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         saas_file_name_path_map: dict[str, list[str]] = {}
         tkn_unique_pipelineruns: dict[str, str] = {}
 
-        publications: dict[str, RtRef] = {}
-        subscriptions: dict[str, list[RtRef]] = {}
+        publications: dict[str, set[RtRef]] = defaultdict(set)
+        subscriptions: dict[str, list[RtRef]] = defaultdict(list)
 
         for saas_file in self.saas_files:
             saas_file_name_path_map.setdefault(saas_file.name, [])
@@ -404,7 +407,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self,
         rt_ref: RtRef,
         promotion: SaasResourceTemplateTargetPromotion,
-        publications: MutableMapping[str, RtRef],
+        publications: MutableMapping[str, set[RtRef]],
         subscriptions: MutableMapping[str, list[RtRef]],
     ) -> None:
         """
@@ -412,23 +415,22 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         It validates a publish channel is unique across all publish targets.
         """
         for channel in promotion.publish or []:
-            if channel in publications:
+            if rt_ref in publications[channel]:
                 self.valid = False
                 logging.error(
-                    "saas file promotion publish channel"
-                    "is not unique: {}".format(channel)
+                    "Non-unique resource template reference {} in "
+                    "channel {}".format(rt_ref, channel)
                 )
                 continue
-            publications[channel] = rt_ref
+            publications[channel].add(rt_ref)
 
         for channel in promotion.subscribe or []:
-            subscriptions.setdefault(channel, [])
             subscriptions[channel].append(rt_ref)
 
     def _check_promotions_have_same_source(
         self,
         subscriptions: Mapping[str, list[RtRef]],
-        publications: Mapping[str, RtRef],
+        publications: Mapping[str, set[RtRef]],
     ) -> None:
         """
         Function to check that a promotion has the same repository
@@ -436,21 +438,17 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         """
 
         for sub_channel, sub_targets in subscriptions.items():
-            pub_channel_ref = publications.get(sub_channel)
-            if not pub_channel_ref:
-                self.valid = False
-            else:
-                (pub_saas, pub_rt_name, pub_rt_url) = pub_channel_ref
-
+            pub_channel_refs = publications.get(sub_channel, {})
             for sub_saas, sub_rt_name, sub_rt_url in sub_targets:
-                if not pub_channel_ref:
+                if not pub_channel_refs:
                     logging.error(
                         "Channel is not published by any target\n"
                         "subscriber_saas: {}\n"
                         "subscriber_rt: {}\n"
                         "channel: {}".format(sub_saas, sub_rt_name, sub_channel)
                     )
-                else:
+                for pub_ref in pub_channel_refs:
+                    (pub_saas, pub_rt_name, pub_rt_url) = pub_ref
                     if sub_rt_url != pub_rt_url:
                         self.valid = False
                         logging.error(
