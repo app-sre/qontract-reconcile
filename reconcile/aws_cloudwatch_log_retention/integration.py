@@ -58,15 +58,16 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                     group_name = log_group["logGroupName"]
                     retention_days = log_group.get("retentionInDays")
                     regex_pattern = re.compile(cloudwatch_cleanup_entry.log_regex)
-                    log_group_tags = log_group["tags"]
-                    if MANAGED_TAG not in log_group_tags:
-                        logging.info(
-                            f"Setting tag {MANAGED_TAG} for group {group_name}"
-                        )
-                        if not dry_run:
-                            awsapi.create_cloudwatch_tag(
-                                aws_acct, group_name, MANAGED_TAG
+                    if regex_pattern.match(group_name):
+                        log_group_tags = log_group["tags"]
+                        if MANAGED_TAG not in log_group_tags:
+                            logging.info(
+                                f"Setting tag {MANAGED_TAG} for group {group_name}"
                             )
+                            if not dry_run:
+                                awsapi.create_cloudwatch_tag(
+                                    aws_acct, group_name, MANAGED_TAG
+                                )
                     if (
                         regex_pattern.match(group_name)
                         and retention_days
