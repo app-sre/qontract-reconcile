@@ -439,7 +439,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         """
 
         for sub_channel, sub_targets in subscriptions.items():
-            pub_channel_refs = publications.get(sub_channel, {})
+            pub_channel_refs = publications.get(sub_channel, set())
             for sub_saas, sub_rt_name, sub_rt_url in sub_targets:
                 if not pub_channel_refs:
                     logging.error(
