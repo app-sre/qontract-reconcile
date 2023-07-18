@@ -20,6 +20,9 @@ QUERY = """
 {
   jenkins_configs: jenkins_configs_v1 {
     name
+    app {
+      name
+    }
     instance {
       name
       serverUrl

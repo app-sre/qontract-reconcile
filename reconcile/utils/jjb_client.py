@@ -77,8 +77,12 @@ class JJB:  # pylint: disable=too-many-public-methods
             config = c["config"]
             config_file_path = "{}/config.yaml".format(working_dirs[instance_name])
             if config:
+                content = yaml.load(config, Loader=yaml.FullLoader)
+                if c["type"] == "jobs":
+                    for item in content:
+                        item["project"]["app_name"] = c["app"]["name"]
                 with open(config_file_path, "a") as f:
-                    yaml.dump(yaml.load(config, Loader=yaml.FullLoader), f)
+                    yaml.dump(content, f)
                     f.write("\n")
             else:
                 config = c["config_path"]["content"]
