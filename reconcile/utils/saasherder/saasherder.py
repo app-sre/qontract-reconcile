@@ -417,6 +417,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         for channel in promotion.publish or []:
             if rt_ref in publications[channel]:
                 self.valid = False
+                # This should never be possible theoretically ...
                 logging.error(
                     "Non-unique resource template reference {} in "
                     "channel {}".format(rt_ref, channel)
