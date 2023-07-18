@@ -20,24 +20,24 @@ class AWSCloudwatchLogRetention(BaseModel):
     log_retention_day_length: str
 
 
-def get_app_interface_cloudwatch_retention_period(aws_accounts: list) -> list:
+def get_app_interface_cloudwatch_retention_period(aws_acct) -> list:
     results = []
-    for aws_acct in aws_accounts:
-        aws_acct_name = aws_acct.get("name")
-        acct_uid = aws_acct.get("uid")
-        if aws_acct.get("cleanup"):
-            for aws_acct_field in aws_acct.get("cleanup"):
-                if aws_acct_field["provider"] == "cloudwatch":
-                    results.append(
-                        AWSCloudwatchLogRetention(
-                            name=aws_acct_name,
-                            acct_uid=acct_uid,
-                            log_regex=aws_acct_field["regex"],
-                            log_retention_day_length=aws_acct_field[
-                                "retention_in_days"
-                            ],
-                        )
+    # for aws_acct in aws_accounts:
+    aws_acct_name = aws_acct.get("name")
+    acct_uid = aws_acct.get("uid")
+    if aws_acct.get("cleanup"):
+        for aws_acct_field in aws_acct.get("cleanup"):
+            if aws_acct_field["provider"] == "cloudwatch":
+                results.append(
+                    AWSCloudwatchLogRetention(
+                        name=aws_acct_name,
+                        acct_uid=acct_uid,
+                        log_regex=aws_acct_field["regex"],
+                        log_retention_day_length=aws_acct_field[
+                            "retention_in_days"
+                        ],
                     )
+                )
     return results
 
 
