@@ -33,9 +33,7 @@ def get_app_interface_cloudwatch_retention_period(aws_acct) -> list:
                         name=aws_acct_name,
                         acct_uid=acct_uid,
                         log_regex=aws_acct_field["regex"],
-                        log_retention_day_length=aws_acct_field[
-                            "retention_in_days"
-                        ],
+                        log_retention_day_length=aws_acct_field["retention_in_days"],
                     )
                 )
     return results
@@ -69,7 +67,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
             settings = queries.get_secret_reader_settings()
             accounts = queries.get_aws_accounts(uid=aws_acct.get("uid"))
             awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
-            cloudwatch_logs = awsapi._account_cloudwatch_client(aws_acct)
+            cloudwatch_logs = awsapi._account_cloudwatch_client(aws_acct["name"])
 
             all_log_groups = awsapi.get_cloudwatch_logs(aws_acct)
             log_groups = check_cloudwatch_log_group_tag(all_log_groups, cloudwatch_logs)
@@ -80,7 +78,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                     regex_pattern = re.compile(cloudwatch_cleanup_entry.log_regex)
                     if regex_pattern.match(group_name):
                         log_group_tags = log_group["tags"]
-                        if MANAGED_TAG not in log_group_tags:
+                        if all(item in log_group_tags.items() for item in MANAGED_TAG.items()):
                             logging.info(
                                 f"Setting tag {MANAGED_TAG} for group {group_name}"
                             )
