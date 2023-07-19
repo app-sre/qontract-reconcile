@@ -1,1 +1,5 @@
-python 3.11
+# this file is used by asdf to automatically select the correct tool versions
+# but it also serves as a reference for non-asdf users
+python 3.11.4
+terraform 0.13.7
+oc 4.10.15
