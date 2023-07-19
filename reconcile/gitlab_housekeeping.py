@@ -549,7 +549,8 @@ def run(dry_run, wait_for_pipeline):
                     limit,
                     rebase,
                     pipeline_timeout,
-                    insist=True,
+                    # TODO: set insist=True after gitlab issues cleared
+                    insist=False,
                     wait_for_pipeline=wait_for_pipeline,
                     gl_instance=instance,
                     gl_settings=settings,
