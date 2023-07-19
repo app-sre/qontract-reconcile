@@ -411,7 +411,9 @@ def fetch_upgrade_policies(
             sector = ocm.sectors[cluster.upgrade_policy.conditions.sector]
 
         if addons:
-            cluster_addons = ocm.get_cluster_addons(cluster_name, with_version=True)
+            cluster_addons = ocm.get_cluster_addons(
+                cluster_name, with_version=True, required_state="ready"
+            )
             for addon in cluster_addons:
                 ccaup = ConfiguredAddonUpgradePolicy.from_cluster_upgrade_spec(
                     cluster,
