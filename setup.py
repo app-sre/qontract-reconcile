@@ -11,7 +11,7 @@ setup(
     license="Apache License 2.0",
     author="Red Hat App-SRE Team",
     author_email="sd-app-sre@redhat.com",
-    python_requires=">=3.9",
+    python_requires=">=3.11",
     description="Collection of tools to reconcile services with their desired "
     "state as defined in the app-interface DB.",
     url="https://github.com/app-sre/qontract-reconcile",
@@ -44,7 +44,7 @@ setup(
         "UnleashClient~=5.3",
         "prometheus-client~=0.8",
         "sentry-sdk~=0.14",
-        "jenkins-job-builder~=4.0.0",
+        "jenkins-job-builder~=4.3.0",
         "parse==1.18.0",
         "sendgrid>=6.4.8,<6.5.0",
         "dnspython~=2.1",
@@ -56,9 +56,10 @@ setup(
         "transity-statuspageio>=0.0.3,<0.1",
         "pydantic~=1.10.6",
         "MarkupSafe==2.1.1",
+        "filetype~=1.2.0",
         # this is really needed only in lint and type validations.
         # Is there any better place to put this in?
-        "packaging~=21.3",
+        "packaging~=23.1",
         "deepdiff6==6.2.0",
         "jsonpath-ng~=1.5",
         "networkx~=2.8",
@@ -72,7 +73,7 @@ setup(
         "Development Status :: 2 - Pre-Alpha",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.11",
     ],
     entry_points={
         "console_scripts": [

@@ -15,6 +15,7 @@ from reconcile.utils import oc_connection_parameters
 from reconcile.utils.secret_reader import HasSecret
 
 
+@runtime_checkable
 class HasParameters(Protocol):
     parameters: Optional[dict[str, Any]]
 
@@ -41,6 +42,7 @@ AbstractSetIntStr = AbstractSet[Union[int, str]]
 MappingIntStrAny = Mapping[Union[int, str], Any]
 
 
+@runtime_checkable
 class HasSecretParameters(Protocol):
     @property
     def secret_parameters(self) -> SaasSecretParameters:
@@ -51,6 +53,7 @@ class SaasParentApp(Protocol):
     name: str
 
 
+@runtime_checkable
 class SaasApp(Protocol):
     name: str
 
@@ -201,6 +204,7 @@ class SaasEnvironment_SaasSecretParameters(Protocol):
         ...
 
 
+@runtime_checkable
 class SaasEnvironment(HasParameters, HasSecretParameters, Protocol):
     name: str
 

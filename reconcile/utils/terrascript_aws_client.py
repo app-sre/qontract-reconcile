@@ -1,6 +1,5 @@
 import base64
 import enum
-import imghdr
 import json
 import logging
 import os
@@ -27,6 +26,7 @@ from typing import (
 )
 
 import anymarkup
+import filetype
 import requests
 from botocore.errorfactory import ClientError
 from github import Github
@@ -5358,8 +5358,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 f"from s3 bucket {bucket_name} to local filepath {redhat_logo_png_filepath},"
                 f" but no file exists locally at this path!"
             )
-        file_type = imghdr.what(redhat_logo_png_filepath)
-        if file_type != "png":
+        file_type = filetype.guess(redhat_logo_png_filepath)
+        if file_type.extension != "png":
             raise Exception(
                 f"Attempted to download object {redhat_logo_png_obj_name} "
                 f"from s3 bucket {bucket_name} to local filepath {redhat_logo_png_filepath}."

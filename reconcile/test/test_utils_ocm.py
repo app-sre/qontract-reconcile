@@ -24,10 +24,10 @@ def cluster_id(cluster: str) -> str:
 def ocm(mocker: MockerFixture, ocm_url: str, cluster: str, cluster_id: str) -> OCM:
     mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_access_token")
     mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_request_headers")
-    mocker.patch("reconcile.utils.ocm.OCM.whoami")
-    mocker.patch("reconcile.utils.ocm.OCM._init_clusters")
-    mocker.patch("reconcile.utils.ocm.OCM._init_blocked_versions")
-    mocker.patch("reconcile.utils.ocm.OCM._init_version_gates")
+    mocker.patch.object(OCM, "whoami")
+    mocker.patch.object(OCM, "_init_clusters")
+    mocker.patch.object(OCM, "_init_blocked_versions")
+    mocker.patch.object(OCM, "_init_version_gates")
     ocm_client = OCMBaseClient("url", "tid", "turl", "cid")
     ocm = OCM("name", "org_id", "prod", ocm_client)
     ocm._ocm_client._url = ocm_url
