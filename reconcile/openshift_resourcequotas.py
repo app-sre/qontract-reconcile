@@ -1,6 +1,6 @@
-import collections
 import logging
 import sys
+from collections.abc import MutableMapping
 
 import reconcile.openshift_base as ob
 from reconcile import queries
@@ -19,7 +19,7 @@ def flatten(d, parent_key="", sep="."):
         if v is None:
             continue
         new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, collections.MutableMapping):
+        if isinstance(v, MutableMapping):
             items.extend(flatten(v, new_key, sep=sep).items())
         else:
             items.append((new_key, str(v)))
