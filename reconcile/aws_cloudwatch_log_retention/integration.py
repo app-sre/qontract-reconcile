@@ -1,4 +1,3 @@
-from cmath import log
 import logging
 import re
 from collections.abc import Callable
@@ -21,7 +20,7 @@ class AWSCloudwatchLogRetention(BaseModel):
     log_retention_day_length: str
 
 
-def get_app_interface_cloudwatch_retention_period(aws_acct) -> list:
+def get_app_interface_cloudwatch_retention_period(aws_acct: any) -> list:
     results = []
     aws_acct_name = aws_acct.get("name")
     acct_uid = aws_acct.get("uid")
@@ -39,7 +38,7 @@ def get_app_interface_cloudwatch_retention_period(aws_acct) -> list:
     return results
 
 
-def check_cloudwatch_log_group_tag(log_groups, cloudwatch_logs):
+def check_cloudwatch_log_group_tag(log_groups: list, cloudwatch_logs: any):
     log_group_list = []
     for log_group in log_groups:
         log_group_name = log_group.get("logGroupName")
@@ -78,7 +77,10 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                     regex_pattern = re.compile(cloudwatch_cleanup_entry.log_regex)
                     if regex_pattern.match(group_name):
                         log_group_tags = log_group["tags"]
-                        if all(item in log_group_tags.items() for item in MANAGED_TAG.items()):
+                        if all(
+                            item in log_group_tags.items()
+                            for item in MANAGED_TAG.items()
+                        ):
                             logging.info(
                                 f"Setting tag {MANAGED_TAG} for group {group_name}"
                             )
