@@ -1,3 +1,4 @@
+from cmath import log
 import logging
 import re
 from collections.abc import Callable
@@ -22,7 +23,6 @@ class AWSCloudwatchLogRetention(BaseModel):
 
 def get_app_interface_cloudwatch_retention_period(aws_acct) -> list:
     results = []
-    # for aws_acct in aws_accounts:
     aws_acct_name = aws_acct.get("name")
     acct_uid = aws_acct.get("uid")
     if aws_acct.get("cleanup"):
