@@ -553,22 +553,26 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         name: str,
         cmd: str,
         return_code: int,
-        stdout: list[str],
-        stderr: list[str],
+        stdout: str,
+        stderr: str,
     ) -> bool:
-        error_occured = False
+        error_occured = return_code != 0
         line_format = "[{} - {}] {}"
         stdout, stderr = self.split_to_lines(stdout, stderr)
         with self._log_lock:
             for line in stdout:
-                logging.debug(line_format.format(name, cmd, line))
-            if return_code == 0:
-                for line in stderr:
+                if line.startswith("[WARN]"):
                     logging.warning(line_format.format(name, cmd, line))
-            else:
+                elif line.startswith("[ERROR]"):
+                    logging.error(line_format.format(name, cmd, line))
+                else:
+                    logging.debug(line_format.format(name, cmd, line))
+            if error_occured:
                 for line in stderr:
                     logging.error(line_format.format(name, cmd, line))
-                error_occured = True
+            else:
+                for line in stderr:
+                    logging.warning(line_format.format(name, cmd, line))
         return error_occured
 
     @staticmethod

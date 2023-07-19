@@ -5,6 +5,7 @@ from unittest.mock import create_autospec
 
 import pytest
 from botocore.errorfactory import ClientError
+from pytest_mock import MockerFixture
 
 import reconcile.utils.terraform_client as tfclient
 from reconcile.utils.aws_api import AWSApi
@@ -637,3 +638,73 @@ def test_validate_db_upgrade_with_empty_valid_upgrade_targe_and_not_allow_major_
         "test-database-1 to a new version when there is no valid upgrade target available."
         == str(error.value)
     )
+
+
+def test_check_output_debug(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    result = tf.check_output("name", "cmd", 0, "out", "")
+
+    assert result is False
+    mocked_logging.debug.assert_called_once_with("[name - cmd] out")
+    mocked_logging.warning.assert_not_called()
+    mocked_logging.error.assert_not_called()
+
+
+def test_check_output_warning(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    result = tf.check_output("name", "cmd", 0, "out", "error")
+
+    assert result is False
+    mocked_logging.debug.assert_called_once_with("[name - cmd] out")
+    mocked_logging.warning.assert_called_once_with("[name - cmd] error")
+    mocked_logging.error.assert_not_called()
+
+
+def test_check_output_warning_from_stdout(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    result = tf.check_output("name", "cmd", 0, "[WARN] warning in tf", "")
+
+    assert result is False
+    mocked_logging.debug.assert_not_called()
+    mocked_logging.warning.assert_called_once_with("[name - cmd] [WARN] warning in tf")
+    mocked_logging.error.assert_not_called()
+
+
+def test_check_output_error(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    result = tf.check_output("name", "cmd", 1, "out", "error")
+
+    assert result is True
+    mocked_logging.debug.assert_called_once_with("[name - cmd] out")
+    mocked_logging.warning.assert_not_called()
+    mocked_logging.error.assert_called_once_with("[name - cmd] error")
+
+
+def test_check_output_error_from_stdout(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    result = tf.check_output("name", "cmd", 0, "[ERROR] error in tf", "")
+
+    assert result is False
+    mocked_logging.debug.assert_not_called()
+    mocked_logging.warning.assert_not_called()
+    mocked_logging.error.assert_called_once_with("[name - cmd] [ERROR] error in tf")
