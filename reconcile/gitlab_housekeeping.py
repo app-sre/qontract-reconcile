@@ -484,7 +484,7 @@ def merge_merge_requests(
                     # merge request could have become available since we've been waiting
                     # for this pipeline to complete.
                     raise InsistOnPipelineError(
-                        f"Pipelines for merge request have not completed yet: {mr.iid}"
+                        f"Pipelines for merge request in project '{gl.project.name}' have not completed yet: {mr.iid}"
                     )
                 continue
 
