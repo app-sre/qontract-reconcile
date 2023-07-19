@@ -1037,22 +1037,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def get_cloudwatch_logs(self, account):
         cloudwatch_logs = self._account_cloudwatch_client(account["name"])
         log_groups = cloudwatch_logs.describe_log_groups()["logGroups"]
-        log_group_list = []
-        for log_group in log_groups:
-            log_group_name = log_group.get("logGroupName")
-            log_group_tags = cloudwatch_logs.list_tags_log_group(
-                logGroupName=log_group_name
-            )
-            tag_list = log_group_tags.get("tags", {})
-            tag_match = any(
-                k == "managed_by_integration" and (v == "terraform_resources")
-                for k, v in tag_list.items()
-            )
-            if not tag_match:
-                log_group_tag_info = {**log_group, "tags": tag_list}
-                log_group_list.append(log_group_tag_info)
-
-        return log_group_list
+        return log_groups
 
     def set_cloudwatch_log_retention(self, account, group_name, retention_days):
         cloudwatch_logs = self._account_cloudwatch_client(account["name"])
