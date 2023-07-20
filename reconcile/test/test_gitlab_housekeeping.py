@@ -13,6 +13,7 @@ from gitlab.v4.objects import (
     Project,
     ProjectCommit,
     ProjectCommitManager,
+    ProjectIssue,
     ProjectMergeRequest,
     ProjectMergeRequestResourceLabelEvent,
 )
@@ -286,3 +287,41 @@ def test_merge_merge_requests_with_retry(
     )
 
     assert mocked_gl.get_merge_requests.call_count == 9
+
+
+def test_close_item_with_enable_closing(
+    mocker: MockerFixture,
+    project: Project,
+) -> None:
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_logging = mocker.patch("reconcile.gitlab_housekeeping.logging")
+    mocked_issue = create_autospec(ProjectIssue)
+    mocked_issue.attributes = {"iid": 1}
+
+    gl_h.close_item(False, mocked_gl, True, "issue", mocked_issue)
+
+    mocked_gl.close.assert_called_once_with(mocked_issue)
+    mocked_logging.info.assert_called_once_with(
+        ["close_item", project.name, "issue", 1]
+    )
+    mocked_logging.debug.assert_not_called()
+
+
+def test_close_item_without_enable_closing(
+    mocker: MockerFixture,
+    project: Project,
+) -> None:
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_logging = mocker.patch("reconcile.gitlab_housekeeping.logging")
+    mocked_issue = create_autospec(ProjectIssue)
+    mocked_issue.attributes = {"iid": 1}
+
+    gl_h.close_item(False, mocked_gl, False, "issue", mocked_issue)
+
+    mocked_gl.close.assert_not_called()
+    mocked_logging.debug.assert_called_once_with(
+        ["'enable_closing' is not enabled to close item", project.name, "issue", 1]
+    )
+    mocked_logging.info.assert_not_called()

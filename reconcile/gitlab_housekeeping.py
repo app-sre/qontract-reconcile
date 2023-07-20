@@ -179,15 +179,25 @@ def close_item(
     item_type: str,
     item: Union[ProjectIssue, ProjectMergeRequest],
 ):
-    logging.info(["close_item", gl.project.name, item_type, item.attributes.get("iid")])
     if enable_closing:
+        logging.info(
+            [
+                "close_item",
+                gl.project.name,
+                item_type,
+                item.attributes.get("iid"),
+            ]
+        )
         if not dry_run:
             gl.close(item)
     else:
         logging.debug(
-            "'close_item' action is not enabled. "
-            + "Please run the integration manually "
-            + "with the '--enable-deletion' flag."
+            [
+                "'enable_closing' is not enabled to close item",
+                gl.project.name,
+                item_type,
+                item.attributes.get("iid"),
+            ]
         )
 
 
