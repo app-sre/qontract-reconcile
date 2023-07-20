@@ -20,7 +20,7 @@ class AWSCloudwatchLogRetention(BaseModel):
     log_retention_day_length: str
 
 
-def get_app_interface_cloudwatch_retention_period(aws_acct: any) -> list:
+def get_app_interface_cloudwatch_retention_period(aws_acct) -> list:
     results = []
     aws_acct_name = aws_acct.get("name")
     acct_uid = aws_acct.get("uid")
@@ -38,13 +38,11 @@ def get_app_interface_cloudwatch_retention_period(aws_acct: any) -> list:
     return results
 
 
-def check_cloudwatch_log_group_tag(log_groups: list, cloudwatch_logs: any):
+def check_cloudwatch_log_group_tag(log_groups, account, awsapi):
     log_group_list = []
     for log_group in log_groups:
         log_group_name = log_group.get("logGroupName")
-        log_group_tags = cloudwatch_logs.list_tags_log_group(
-            logGroupName=log_group_name
-        )
+        log_group_tags = awsapi.get_cloudwatch_log_group_tags(account, log_group_name)
         tag_list = log_group_tags.get("tags", {})
         tag_match = any(
             k == "managed_by_integration" and (v == "terraform_resources")
@@ -66,12 +64,11 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
             settings = queries.get_secret_reader_settings()
             accounts = queries.get_aws_accounts(uid=aws_acct.get("uid"))
             awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
-            cloudwatch_logs = awsapi._account_cloudwatch_client(aws_acct["name"])
+            log_groups = awsapi.get_cloudwatch_logs(aws_acct)
+            log_group_list = check_cloudwatch_log_group_tag(log_groups, aws_acct, awsapi)
 
-            all_log_groups = awsapi.get_cloudwatch_logs(aws_acct)
-            log_groups = check_cloudwatch_log_group_tag(all_log_groups, cloudwatch_logs)
             for cloudwatch_cleanup_entry in cloudwatch_cleanup_list:
-                for log_group in log_groups:
+                for log_group in log_group_list:
                     group_name = log_group["logGroupName"]
                     retention_days = log_group.get("retentionInDays")
                     regex_pattern = re.compile(cloudwatch_cleanup_entry.log_regex)
