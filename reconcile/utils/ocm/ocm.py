@@ -1655,7 +1655,10 @@ class OCM:  # pylint: disable=too-many-public-methods
         return self._post(api, {"version_gate": {"id": gate_id}})
 
     def get_cluster_addons(
-        self, cluster: str, with_version: bool = False
+        self,
+        cluster: str,
+        with_version: bool = False,
+        required_state: Optional[str] = None,
     ) -> list[dict[str, str]]:
         """Returns a list of Addons installed on a cluster
 
@@ -1673,6 +1676,9 @@ class OCM:  # pylint: disable=too-many-public-methods
             return results
 
         for item in items:
+            if required_state:
+                if item["state"] != required_state:
+                    continue
             result = {k: v for k, v in item.items() if k in CLUSTER_ADDON_DESIRED_KEYS}
             parameters = result.pop("parameters", None)
             if parameters is not None:
