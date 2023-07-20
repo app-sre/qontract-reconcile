@@ -336,6 +336,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_issues(self, state):
         return self.get_items(self.project.issues.list, state=state)
 
+    @retry()
     def get_merge_request(self, mr_id):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         return self.project.mergerequests.get(mr_id)
@@ -351,6 +352,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             self.get_items(mr.pipelines), key=lambda x: x["created_at"], reverse=True
         )
 
+    @retry()
     def get_merge_request_changed_paths(self, mr_id: int) -> list[str]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
@@ -363,11 +365,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             changed_paths.add(new_path)
         return list(changed_paths)
 
+    @retry()
     def get_merge_request_author_username(self, mr_id: int) -> str:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         return merge_request.author["username"]
 
+    @retry()
     def get_merge_request_comments(
         self, mr_id: int, include_description: bool = False
     ) -> list[dict[str, Any]]:
@@ -414,6 +418,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.notes.create({"body": comment})
 
+    @retry()
     def add_merge_request_comment(self, mr_id, comment):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
@@ -423,11 +428,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_project_labels(self):
         return [ln.name for ln in self.get_items(self.project.labels.list)]
 
+    @retry()
     def get_merge_request_labels(self, mr_id):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         return merge_request.labels
 
+    @retry()
     def add_label_to_merge_request(self, mr_id, label):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
@@ -435,6 +442,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         labels.append(label)
         self.update_labels(merge_request, "merge-request", labels)
 
+    @retry()
     def add_labels_to_merge_request(self, mr_id, labels):
         """Adds labels to a Merge Request"""
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
@@ -443,12 +451,14 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         mr_labels += labels
         self.update_labels(merge_request, "merge-request", mr_labels)
 
+    @retry()
     def set_labels_on_merge_request(self, mr_id, labels):
         """Set labels to a Merge Request"""
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         self.update_labels(merge_request, "merge-request", labels)
 
+    @retry()
     def remove_label_from_merge_request(self, mr_id, label):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
@@ -457,12 +467,14 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             labels.remove(label)
         self.update_labels(merge_request, "merge-request", labels)
 
+    @retry()
     def add_comment_to_merge_request(self, mr_id, body):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
         merge_request.notes.create({"body": body})
 
     @staticmethod
+    @retry()
     def get_items(method, **kwargs):
         all_items = []
         page = 1
@@ -495,6 +507,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         labels.remove(label)
         self.update_labels(item, item_type, labels)
 
+    @retry()
     def update_labels(self, item, item_type, labels):
         if item_type == "issue":
             gitlab_request.labels(integration=INTEGRATION_NAME).inc()
