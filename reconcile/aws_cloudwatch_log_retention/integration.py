@@ -20,7 +20,7 @@ class AWSCloudwatchLogRetention(BaseModel):
     log_retention_day_length: str
 
 
-def get_app_interface_cloudwatch_retention_period(aws_acct) -> list:
+def get_app_interface_cloudwatch_retention_period(aws_acct: dict) -> list:
     results = []
     aws_acct_name = aws_acct.get("name")
     acct_uid = aws_acct.get("uid")
@@ -38,7 +38,7 @@ def get_app_interface_cloudwatch_retention_period(aws_acct) -> list:
     return results
 
 
-def check_cloudwatch_log_group_tag(log_groups, account, awsapi):
+def check_cloudwatch_log_group_tag(log_groups: list, account: dict, awsapi: AWSApi) -> list:
     log_group_list = []
     for log_group in log_groups:
         log_group_name = log_group.get("logGroupName")
@@ -65,7 +65,9 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
             accounts = queries.get_aws_accounts(uid=aws_acct.get("uid"))
             awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
             log_groups = awsapi.get_cloudwatch_logs(aws_acct)
-            log_group_list = check_cloudwatch_log_group_tag(log_groups, aws_acct, awsapi)
+            log_group_list = check_cloudwatch_log_group_tag(
+                log_groups, aws_acct, awsapi
+            )
 
             for cloudwatch_cleanup_entry in cloudwatch_cleanup_list:
                 for log_group in log_group_list:
