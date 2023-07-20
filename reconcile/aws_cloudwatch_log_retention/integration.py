@@ -25,7 +25,7 @@ def get_app_interface_cloudwatch_retention_period(aws_acct: dict) -> list:
     aws_acct_name = aws_acct.get("name")
     acct_uid = aws_acct.get("uid")
     if aws_acct.get("cleanup"):
-        for aws_acct_field in aws_acct.get("cleanup"):
+        for aws_acct_field in aws_acct.get("cleanup"):  # type: ignore[union-attr]
             if aws_acct_field["provider"] == "cloudwatch":
                 results.append(
                     AWSCloudwatchLogRetention(
@@ -38,7 +38,9 @@ def get_app_interface_cloudwatch_retention_period(aws_acct: dict) -> list:
     return results
 
 
-def check_cloudwatch_log_group_tag(log_groups: list, account: dict, awsapi: AWSApi) -> list:
+def check_cloudwatch_log_group_tag(
+    log_groups: list, account: dict, awsapi: AWSApi
+) -> list:
     log_group_list = []
     for log_group in log_groups:
         log_group_name = log_group.get("logGroupName")
