@@ -2,12 +2,22 @@ from datetime import (
     datetime,
     timedelta,
 )
-from unittest.mock import patch
+from unittest.mock import (
+    create_autospec,
+    patch,
+)
 
 from gitlab import Gitlab
+from gitlab.v4.objects import (
+    Project,
+    ProjectCommit,
+    ProjectCommitManager,
+    ProjectMergeRequest,
+)
 
 import reconcile.gitlab_housekeeping as gl_h
 from reconcile.test.fixtures import Fixtures
+from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import SecretReader
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -86,3 +96,33 @@ def test_calculate_time_since_approval():
     time_since_merge = gl_h._calculate_time_since_approval(one_hour_ago)
 
     assert round(time_since_merge) == 60
+
+
+def test_is_rebase():
+    expected_ref = "master"
+    mr = create_autospec(ProjectMergeRequest)
+    mr.target_branch = expected_ref
+    expected_sha = "some-sha"
+    mr.sha = expected_sha
+
+    mocked_gitlab_api = create_autospec(GitLabApi)
+    mocked_gitlab_api.project = create_autospec(Project)
+    mocked_gitlab_api.project.commits = create_autospec(ProjectCommitManager)
+    mocked_commit = create_autospec(ProjectCommit)
+    expected_head = "some-id"
+    mocked_commit.id = expected_head
+    mocked_gitlab_api.project.commits.list.return_value = [mocked_commit]
+
+    mocked_gitlab_api.project.repository_compare.return_value = {"commits": []}
+
+    result = gl_h.is_rebased(mr, mocked_gitlab_api)
+
+    assert result is True
+    mocked_gitlab_api.project.commits.list.assert_called_once_with(
+        ref_name=expected_ref,
+        per_page=1,
+    )
+    mocked_gitlab_api.project.repository_compare.assert_called_once_with(
+        expected_sha,
+        expected_head,
+    )
