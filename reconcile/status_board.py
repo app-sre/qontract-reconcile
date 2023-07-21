@@ -104,12 +104,11 @@ class StatusBoardHandler(BaseModel):
         if dry_run:
             return
 
-        if not self.action:
-            pass
-        elif self.action == "delete":
-            self.status_board_object.delete(ocm)
-        elif self.action == "create":
-            self.status_board_object.create(ocm)
+        match self.action:
+            case "delete":
+                self.status_board_object.delete(ocm)
+            case "create":
+                self.status_board_object.create(ocm)
 
 
 class StatusBoardExporterIntegration(QontractReconcileIntegration):
