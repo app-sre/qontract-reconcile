@@ -1,5 +1,6 @@
 from typing import (
     Callable,
+    Iterable,
     Optional,
 )
 
@@ -22,7 +23,7 @@ def get_status_board(
 
 
 def get_selected_app_names(
-    global_selectors: list[str],
+    global_selectors: Iterable[str],
     product: StatusBoardProductV1,
 ) -> set[str]:
     selected_app_names: set[str] = {

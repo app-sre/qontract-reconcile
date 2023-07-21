@@ -5,6 +5,8 @@ from abc import (
 )
 from typing import (
     Any,
+    Iterable,
+    Mapping,
     Optional,
 )
 
@@ -117,15 +119,15 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def get_product_apps(sb: StatusBoardV1) -> dict[str, set[str]]:
-        return_dict: dict[str, set[str]] = {}
-        for p in sb.products:
-            return_dict[p.product_environment.product.name] = get_selected_app_names(
-                sb.global_app_selectors.exclude or []
-                if sb.global_app_selectors
-                else [],
-                p,
+        global_selectors = (
+            sb.global_app_selectors.exclude or [] if sb.global_app_selectors else []
+        )
+        return {
+            p.product_environment.product.name: get_selected_app_names(
+                global_selectors, p
             )
-        return return_dict
+            for p in sb.products
+        }
 
     @staticmethod
     def get_current_products_applications(ocm_api: OCMBaseClient) -> list[Product]:
@@ -144,8 +146,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def get_diff(
-        desired_product_apps: dict[str, set[str]],
-        current_products_applications: list[Product],
+        desired_product_apps: Mapping[str, set[str]],
+        current_products_applications: Iterable[Product],
     ) -> list[StatusBoardHandler]:
         return_list: list[StatusBoardHandler] = []
         current_products = [p.name for p in current_products_applications]
