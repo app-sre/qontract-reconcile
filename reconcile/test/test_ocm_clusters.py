@@ -158,10 +158,12 @@ def rosa_cluster_fxt():
                 "uid": "123123123",
                 "rosa": {
                     "creator_role_arn": "creator_role",
-                    "installer_role_arn": "installer_role",
-                    "support_role_arn": " support_role",
-                    "controlplane_role_arn": "controlplane_role",
-                    "worker_role_arn": "worker_role",
+                    "sts": {
+                        "installer_role_arn": "installer_role",
+                        "support_role_arn": " support_role",
+                        "controlplane_role_arn": "controlplane_role",
+                        "worker_role_arn": "worker_role",
+                    },
                 },
             },
             "id": "the-cluster-id",
