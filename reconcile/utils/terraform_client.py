@@ -1,12 +1,17 @@
 import json
 import logging
+import os
 import re
 import shutil
+import tempfile
+import typing
 from collections import defaultdict
 from collections.abc import (
+    Generator,
     Iterable,
     Mapping,
 )
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import (
     datetime,
@@ -41,6 +46,7 @@ from reconcile.utils.external_resource_spec import (
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 DATE_FORMAT = "%Y-%m-%d"
 PROVIDER_LOG_REGEX = r""".*(?:\[INFO]|\[WARN]|\[ERROR]).+(?:\[WARN]|\[ERROR]).*"""
+TERRAFORM_LOG_LEVEL = "TRACE"  # can change to INFO after tf 0.15
 
 
 @dataclass
@@ -115,13 +121,27 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         results = threaded.run(self.terraform_init, wd_specs, self.thread_pool_size)
         self.specs = [{"name": name, "tf": tf} for name, tf in results]
 
+    @staticmethod
+    @contextmanager
+    def _terraform_log_file(working_dir: str) -> Generator[typing.IO, None, None]:
+        with tempfile.NamedTemporaryFile(dir=working_dir) as f:
+            os.environ["TF_LOG"] = TERRAFORM_LOG_LEVEL
+            os.environ["TF_LOG_PATH"] = f.name
+            try:
+                yield f
+            finally:
+                del os.environ["TF_LOG"]
+                del os.environ["TF_LOG_PATH"]
+
     @retry(exceptions=TerraformCommandError)
     def terraform_init(self, init_spec):
         name = init_spec["name"]
         wd = init_spec["wd"]
-        tf = Terraform(working_dir=wd)
-        return_code, stdout, stderr = tf.init()
-        error = self.check_output(name, "init", return_code, stdout, stderr, "")
+        tf = Terraform(working_dir=wd, is_env_vars_included=True)
+        with self._terraform_log_file(tf.working_dir) as f:
+            return_code, stdout, stderr = tf.init()
+            log = f.read().decode("utf-8")
+        error = self.check_output(name, "init", return_code, stdout, stderr, log)
         if error:
             raise TerraformCommandError(return_code, "init", out=stdout, err=stderr)
         return name, tf
@@ -134,8 +154,10 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def terraform_output(self, spec):
         name = spec["name"]
         tf = spec["tf"]
-        return_code, stdout, stderr = tf.output_cmd(json=IsFlagged)
-        error = self.check_output(name, "output", return_code, stdout, stderr, "")
+        with self._terraform_log_file(tf.working_dir) as f:
+            return_code, stdout, stderr = tf.output_cmd(json=IsFlagged)
+            log = f.read().decode("utf-8")
+        error = self.check_output(name, "output", return_code, stdout, stderr, log)
         no_output_error = (
             "The module root could not be found. There is nothing to output."
         )
@@ -174,10 +196,12 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     ) -> tuple[bool, list[AccountUser], bool]:
         name = plan_spec["name"]
         tf = plan_spec["tf"]
-        return_code, stdout, stderr = tf.plan(
-            detailed_exitcode=False, parallelism=self.parallelism, out=name
-        )
-        error = self.check_output(name, "plan", return_code, stdout, stderr, "")
+        with self._terraform_log_file(tf.working_dir) as f:
+            return_code, stdout, stderr = tf.plan(
+                detailed_exitcode=False, parallelism=self.parallelism, out=name
+            )
+            log = f.read().decode("utf-8")
+        error = self.check_output(name, "plan", return_code, stdout, stderr, log)
         disabled_deletion_detected, created_users = self.log_plan_diff(
             name, tf, enable_deletion
         )
@@ -382,10 +406,12 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def terraform_apply(self, apply_spec):
         name = apply_spec["name"]
         tf = apply_spec["tf"]
-        # adding var=None to allow applying the saved plan
-        # https://github.com/beelit94/python-terraform/issues/67
-        return_code, stdout, stderr = tf.apply(dir_or_plan=name, var=None)
-        error = self.check_output(name, "apply", return_code, stdout, stderr, "")
+        with self._terraform_log_file(tf.working_dir) as f:
+            # adding var=None to allow applying the saved plan
+            # https://github.com/beelit94/python-terraform/issues/67
+            return_code, stdout, stderr = tf.apply(dir_or_plan=name, var=None)
+            log = f.read().decode("utf-8")
+        error = self.check_output(name, "apply", return_code, stdout, stderr, log)
         return error
 
     def get_terraform_output_secrets(self) -> dict[str, dict[str, dict[str, str]]]:
