@@ -1,32 +1,37 @@
+from typing import Callable
+
 import pytest
 
-from reconcile.gql_definitions.status_board.status_board import (
-    AppV1,
-    EnvironmentV1,
-    NamespaceV1,
-    ProductV1,
-    StatusBoardProductV1,
-    StatusBoardProductV1_StatusBoardAppSelectorV1,
-)
+from reconcile.gql_definitions.status_board.status_board import StatusBoardProductV1
 from reconcile.typed_queries.status_board import get_selected_app_names
 
 
 @pytest.fixture
-def status_board_product():
-    return StatusBoardProductV1(
-        appSelectors=StatusBoardProductV1_StatusBoardAppSelectorV1(
-            exclude=['apps[?@.onboardingStatus!="OnBoarded"]'],
-        ),
-        productEnvironment=EnvironmentV1(
-            name="foo",
-            labels='{"foo": "foo"}',
-            namespaces=[
-                NamespaceV1(app=AppV1(name="excluded", onboardingStatus="OnBoarded")),
-                NamespaceV1(app=AppV1(name="foo", onboardingStatus="OnBoarded")),
-                NamespaceV1(app=AppV1(name="oof", onboardingStatus="BestEffort")),
-            ],
-            product=ProductV1(name="foo"),
-        ),
+def status_board_product(
+    gql_class_factory: Callable[..., StatusBoardProductV1]
+) -> StatusBoardProductV1:
+    return gql_class_factory(
+        StatusBoardProductV1,
+        {
+            "appSelectors": {"exclude": ['apps[?@.onboardingStatus!="OnBoarded"]']},
+            "productEnvironment": {
+                "name": "foo",
+                "labels": '{"foo": "foo"}',
+                "namespaces": [
+                    {
+                        "app": {
+                            "name": "excluded",
+                            "onboardingStatus": "OnBoarded",
+                        }
+                    },
+                    {"app": {"name": "foo", "onboardingStatus": "OnBoarded"}},
+                    {"app": {"name": "oof", "onboardingStatus": "BestEffort"}},
+                ],
+                "product": {
+                    "name": "foo",
+                },
+            },
+        },
     )
 
 

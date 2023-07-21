@@ -1,19 +1,12 @@
-from typing import Optional
+from typing import (
+    Callable,
+    Optional,
+)
 
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.gql_definitions.status_board.status_board import (
-    AppV1,
-    EnvironmentV1,
-    NamespaceV1,
-    OpenShiftClusterManagerEnvironmentV1,
-    ProductV1,
-    StatusBoardProductV1,
-    StatusBoardProductV1_StatusBoardAppSelectorV1,
-    StatusBoardV1,
-    VaultSecretV1,
-)
+from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
 from reconcile.status_board import (
     AbstractStatusBoard,
     Application,
@@ -41,46 +34,48 @@ class TestStatusBoard(AbstractStatusBoard):
 
 
 @pytest.fixture
-def status_board() -> StatusBoardV1:
-    return StatusBoardV1(
-        name="foo",
-        ocm=OpenShiftClusterManagerEnvironmentV1(
-            url="https://foo.com",
-            accessTokenUrl="foo",
-            accessTokenClientId="foo",
-            accessTokenClientSecret=VaultSecretV1(
-                path="foo",
-                field="foo",
-                version="1",
-                format="foo",
-            ),
-        ),
-        globalAppSelectors=StatusBoardProductV1_StatusBoardAppSelectorV1(
-            exclude=['apps[?@.name=="excluded"]'],
-        ),
-        products=[
-            StatusBoardProductV1(
-                appSelectors=StatusBoardProductV1_StatusBoardAppSelectorV1(
-                    exclude=['apps[?@.onboardingStatus!="OnBoarded"]'],
-                ),
-                productEnvironment=EnvironmentV1(
-                    name="foo",
-                    labels='{"foo": "foo"}',
-                    namespaces=[
-                        NamespaceV1(
-                            app=AppV1(name="excluded", onboardingStatus="OnBoarded")
-                        ),
-                        NamespaceV1(
-                            app=AppV1(name="foo", onboardingStatus="OnBoarded")
-                        ),
-                        NamespaceV1(
-                            app=AppV1(name="oof", onboardingStatus="BestEffort")
-                        ),
-                    ],
-                    product=ProductV1(name="foo"),
-                ),
-            )
-        ],
+def status_board(gql_class_factory: Callable[..., StatusBoardV1]) -> StatusBoardV1:
+    return gql_class_factory(
+        StatusBoardV1,
+        {
+            "name": "foo",
+            "ocm": {
+                "url": "https://foo.com",
+                "accessTokenUrl": "foo",
+                "accessTokenClientId": "foo",
+                "accessTokenClientSecret": {
+                    "path": "foo",
+                    "field": "foo",
+                    "version": "1",
+                    "format": "foo",
+                },
+            },
+            "globalAppSelectors": {"exclude": ['apps[?@.name=="excluded"]']},
+            "products": [
+                {
+                    "appSelectors": {
+                        "exclude": ['apps[?@.onboardingStatus!="OnBoarded"]']
+                    },
+                    "productEnvironment": {
+                        "name": "foo",
+                        "labels": '{"foo": "foo"}',
+                        "namespaces": [
+                            {
+                                "app": {
+                                    "name": "excluded",
+                                    "onboardingStatus": "OnBoarded",
+                                }
+                            },
+                            {"app": {"name": "foo", "onboardingStatus": "OnBoarded"}},
+                            {"app": {"name": "oof", "onboardingStatus": "BestEffort"}},
+                        ],
+                        "product": {
+                            "name": "foo",
+                        },
+                    },
+                }
+            ],
+        },
     )
 
 
@@ -107,7 +102,7 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
     assert h.status_board_object.summarized
 
 
-def test_get_product_apps(status_board) -> None:
+def test_get_product_apps(status_board: StatusBoardV1) -> None:
     p = StatusBoardExporterIntegration.get_product_apps(status_board)
     assert p == {"foo": {"foo"}}
 
