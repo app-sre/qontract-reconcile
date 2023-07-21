@@ -123,6 +123,27 @@ def test_get_diff_create_app() -> None:
     assert sorted([x.status_board_object.fullname for x in h]) == ["foo/bar", "foo/foo"]
 
 
+def test_get_diff_create_one_app() -> None:
+    Product.update_forward_refs()
+
+    h = StatusBoardExporterIntegration.get_diff(
+        {"foo": {"foo", "bar"}},
+        [
+            Product(
+                name="foo",
+                fullname="foo",
+                applications=[Application(name="bar", fullname="foo/bar")],
+            )
+        ],
+    )
+
+    assert len(h) == 1
+    assert h[0].action == "create"
+    assert isinstance(h[0].status_board_object, Application)
+    assert h[0].status_board_object.name == "foo"
+    assert h[0].status_board_object.fullname == "foo/foo"
+
+
 def test_get_diff_create_product() -> None:
     Product.update_forward_refs()
 
@@ -136,7 +157,7 @@ def test_get_diff_create_product() -> None:
     assert isinstance(h[0].status_board_object, Product)
 
 
-def test_get_diff_create_noop() -> None:
+def test_get_diff_noop() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
@@ -153,7 +174,7 @@ def test_get_diff_create_noop() -> None:
     assert len(h) == 0
 
 
-def test_get_diff_create_delete_app() -> None:
+def test_get_diff_delete_app() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
@@ -173,7 +194,7 @@ def test_get_diff_create_delete_app() -> None:
     assert h[0].status_board_object.name == "bar"
 
 
-def test_get_diff_create_delete_apps_and_product() -> None:
+def test_get_diff_delete_apps_and_product() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(

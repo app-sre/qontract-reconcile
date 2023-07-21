@@ -17,6 +17,7 @@ from reconcile.typed_queries.status_board import (
     get_selected_app_names,
     get_status_board,
 )
+from reconcile.utils.differ import diff_mappings
 from reconcile.utils.ocm.status_board import (
     create_application,
     create_product,
@@ -149,57 +150,62 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         current_products_applications: Iterable[Product],
     ) -> list[StatusBoardHandler]:
         return_list: list[StatusBoardHandler] = []
-        current_products = [p.name for p in current_products_applications]
-        for product_name, app_names in desired_product_apps.items():
-            if product_name not in current_products:
+        current_products = {p.name: p for p in current_products_applications}
+
+        current_as_mapping: Mapping[str, set[str]] = {
+            c.name: {a.name for a in c.applications or []}
+            for c in current_products_applications
+        }
+
+        diff_result = diff_mappings(
+            current_as_mapping,
+            desired_product_apps,
+        )
+
+        for product_name in diff_result.add:
+            return_list.append(
+                StatusBoardHandler(
+                    action="create",
+                    status_board_object=Product(
+                        name=product_name, fullname=product_name, applications=[]
+                    ),
+                )
+            )
+
+        for product, apps in diff_result.change.items():
+            for app in apps.desired - apps.current:
                 return_list.append(
                     StatusBoardHandler(
                         action="create",
-                        status_board_object=Product(
-                            name=product_name, fullname=product_name, applications=[]
+                        status_board_object=Application(
+                            name=app,
+                            fullname=f"{product}/{app}",
+                            product=current_products[product],
                         ),
                     )
                 )
-            else:
-                # else, only create App if Product exists
-                product_object = next(
-                    p for p in current_products_applications if p.name == product_name
-                )
-                current_applications = [
-                    a.name for a in product_object.applications or []
-                ]
-                for app_name in app_names:
-                    if app_name not in current_applications:
-                        return_list.append(
-                            StatusBoardHandler(
-                                action="create",
-                                status_board_object=Application(
-                                    name=app_name,
-                                    fullname=f"{product_name}/{app_name}",
-                                    product=product_object,
-                                ),
-                            )
-                        )
-
-        for product in current_products_applications:
-            if product.name not in desired_product_apps:
-                # if product was removed, we have to delete all apps
-                for application in product.applications or []:
-                    return_list.append(
-                        StatusBoardHandler(
-                            action="delete", status_board_object=application
-                        )
-                    )
+            for app in apps.current - apps.desired:
                 return_list.append(
-                    StatusBoardHandler(action="delete", status_board_object=product)
+                    StatusBoardHandler(
+                        action="delete",
+                        status_board_object=Application(
+                            name=app,
+                            fullname=f"{product}/{app}",
+                            product=current_products[product],
+                        ),
+                    )
                 )
-            else:
-                for app in product.applications or []:
-                    if app.name not in desired_product_apps.get(product.name, []):
-                        return_list.append(
-                            StatusBoardHandler(action="delete", status_board_object=app)
-                        )
 
+        for product in diff_result.delete.keys():
+            for application in current_products[product].applications or []:
+                return_list.append(
+                    StatusBoardHandler(action="delete", status_board_object=application)
+                )
+            return_list.append(
+                StatusBoardHandler(
+                    action="delete", status_board_object=current_products[product]
+                )
+            )
         return return_list
 
     def run(self, dry_run: bool) -> None:
