@@ -58,11 +58,9 @@ def products_status_board() -> list[dict[str, Any]]:
 def test_get_product_applications_fields(
     mocker: MockFixture, application_status_board: list[dict[str, Any]]
 ) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
-    mocker.patch(
-        "reconcile.utils.ocm_base_client.OCMBaseClient.get_paginated",
-        return_value=iter(application_status_board),
-    )
+    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
+    ocm.get_paginated.return_value = iter(application_status_board)
+
     apps = get_product_applications(ocm, "foo")
     assert len(apps) == 2
     assert apps[0] == application_status_board[0]
@@ -76,11 +74,8 @@ def test_get_product_applications_fields(
 def test_get_managed_products(
     mocker: MockFixture, products_status_board: list[dict[str, Any]]
 ) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
-    mocker.patch(
-        "reconcile.utils.ocm_base_client.OCMBaseClient.get_paginated",
-        return_value=iter(products_status_board),
-    )
+    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
+    ocm.get_paginated.return_value = iter(products_status_board)
 
     products = get_managed_products(ocm)
     assert len(products) == 2
@@ -93,12 +88,11 @@ def test_get_managed_products(
 
 
 def test_create_product(mocker: MockFixture) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
-    p = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient.post")
+    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
 
     create_product(ocm, {"name": "foo"})
 
-    p.assert_called_once_with(
+    ocm.post.assert_called_once_with(
         "/api/status-board/v1/products/",
         data={
             "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
@@ -108,12 +102,11 @@ def test_create_product(mocker: MockFixture) -> None:
 
 
 def test_create_application(mocker: MockFixture) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
-    p = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient.post")
+    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
 
     create_application(ocm, {"name": "foo"})
 
-    p.assert_called_once_with(
+    ocm.post.assert_called_once_with(
         "/api/status-board/v1/applications/",
         data={
             "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
@@ -123,20 +116,20 @@ def test_create_application(mocker: MockFixture) -> None:
 
 
 def test_delete_product(mocker: MockFixture) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
-    d = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient.delete")
-
+    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
     product_id = "foo"
+
     delete_product(ocm, product_id)
 
-    d.assert_called_once_with(f"/api/status-board/v1/products/{product_id}")
+    ocm.delete.assert_called_once_with(f"/api/status-board/v1/products/{product_id}")
 
 
 def test_delete_application(mocker: MockFixture) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient")
-    d = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient.delete")
-
+    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
     application_id = "foo"
+
     delete_application(ocm, application_id)
 
-    d.assert_called_once_with(f"/api/status-board/v1/applications/{application_id}")
+    ocm.delete.assert_called_once_with(
+        f"/api/status-board/v1/applications/{application_id}"
+    )
