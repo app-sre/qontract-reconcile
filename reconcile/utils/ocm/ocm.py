@@ -1663,6 +1663,8 @@ class OCM:  # pylint: disable=too-many-public-methods
         """Returns a list of Addons installed on a cluster
 
         :param cluster: cluster name
+        :param with_version: include addon version
+        :param required_state: add search parameter to filter by specified state
 
         :type cluster: string
         """
@@ -1671,14 +1673,16 @@ class OCM:  # pylint: disable=too-many-public-methods
         if not cluster_id:
             return results
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/addons"
-        items = self._get_json(api).get("items")
+
+        p: Optional[dict[str, Any]] = None
+        if required_state:
+            p = {"search": f"state='{required_state}'"}
+
+        items = self._get_json(api, params=p).get("items")
         if not items:
             return results
 
         for item in items:
-            if required_state:
-                if item["state"] != required_state:
-                    continue
             result = {k: v for k, v in item.items() if k in CLUSTER_ADDON_DESIRED_KEYS}
             parameters = result.pop("parameters", None)
             if parameters is not None:
