@@ -279,7 +279,7 @@ class TerraformRepoIntegration(
         # this lets us fail early and avoid multiple GL requests we don't need to make
         if dry_run and len(merged) > 1:
             raise Exception(
-                "Only one repository can be modified per merge request, please split your change out into multiple MRs"
+                "Only one repository can be modified per merge request, please split your change out into multiple MRs. Hint: try rebasing your merge request"
             )
 
         # added repos: do standard validation that SHA is valid
