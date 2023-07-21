@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import shutil
 from collections import defaultdict
 from collections.abc import (
@@ -39,6 +40,7 @@ from reconcile.utils.external_resource_spec import (
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 DATE_FORMAT = "%Y-%m-%d"
+PROVIDER_LOG_REGEX = r""".*(?:\[INFO]|\[WARN]|\[ERROR]).+(?:\[WARN]|\[ERROR]).*"""
 
 
 @dataclass
@@ -119,7 +121,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         wd = init_spec["wd"]
         tf = Terraform(working_dir=wd)
         return_code, stdout, stderr = tf.init()
-        error = self.check_output(name, "init", return_code, stdout, stderr)
+        error = self.check_output(name, "init", return_code, stdout, stderr, "")
         if error:
             raise TerraformCommandError(return_code, "init", out=stdout, err=stderr)
         return name, tf
@@ -133,7 +135,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         name = spec["name"]
         tf = spec["tf"]
         return_code, stdout, stderr = tf.output_cmd(json=IsFlagged)
-        error = self.check_output(name, "output", return_code, stdout, stderr)
+        error = self.check_output(name, "output", return_code, stdout, stderr, "")
         no_output_error = (
             "The module root could not be found. There is nothing to output."
         )
@@ -175,7 +177,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         return_code, stdout, stderr = tf.plan(
             detailed_exitcode=False, parallelism=self.parallelism, out=name
         )
-        error = self.check_output(name, "plan", return_code, stdout, stderr)
+        error = self.check_output(name, "plan", return_code, stdout, stderr, "")
         disabled_deletion_detected, created_users = self.log_plan_diff(
             name, tf, enable_deletion
         )
@@ -383,7 +385,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         # adding var=None to allow applying the saved plan
         # https://github.com/beelit94/python-terraform/issues/67
         return_code, stdout, stderr = tf.apply(dir_or_plan=name, var=None)
-        error = self.check_output(name, "apply", return_code, stdout, stderr)
+        error = self.check_output(name, "apply", return_code, stdout, stderr, "")
         return error
 
     def get_terraform_output_secrets(self) -> dict[str, dict[str, dict[str, str]]]:
@@ -555,24 +557,23 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         return_code: int,
         stdout: str,
         stderr: str,
+        log: str,
     ) -> bool:
         error_occured = return_code != 0
         line_format = "[{} - {}] {}"
-        stdout, stderr = self.split_to_lines(stdout, stderr)
+        stdout, stderr, log = self.split_to_lines(stdout, stderr, log)
+        provider_log_re = re.compile(PROVIDER_LOG_REGEX)
         with self._log_lock:
             for line in stdout:
-                match line.split():
-                    case ["[WARN]", *_]:
-                        logging.warning(line_format.format(name, cmd, line))
-                    case ["[ERROR]", *_]:
-                        logging.error(line_format.format(name, cmd, line))
-                    case _:
-                        logging.debug(line_format.format(name, cmd, line))
+                logging.debug(line_format.format(name, cmd, line))
             if error_occured:
                 for line in stderr:
                     logging.error(line_format.format(name, cmd, line))
             else:
                 for line in stderr:
+                    logging.warning(line_format.format(name, cmd, line))
+            for line in log:
+                if provider_log_re.match(line):
                     logging.warning(line_format.format(name, cmd, line))
         return error_occured
 

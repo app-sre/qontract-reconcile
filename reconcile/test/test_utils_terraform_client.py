@@ -646,7 +646,7 @@ def test_check_output_debug(
 ) -> None:
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
 
-    result = tf.check_output("name", "cmd", 0, "out", "")
+    result = tf.check_output("name", "cmd", 0, "out", "", "")
 
     assert result is False
     mocked_logging.debug.assert_called_once_with("[name - cmd] out")
@@ -660,7 +660,7 @@ def test_check_output_warning(
 ) -> None:
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
 
-    result = tf.check_output("name", "cmd", 0, "out", "error")
+    result = tf.check_output("name", "cmd", 0, "out", "error", "")
 
     assert result is False
     mocked_logging.debug.assert_called_once_with("[name - cmd] out")
@@ -668,17 +668,57 @@ def test_check_output_warning(
     mocked_logging.error.assert_not_called()
 
 
-def test_check_output_warning_from_stdout(
+def test_check_output_from_terraform_log(
     tf: tfclient.TerraformClient,
     mocker: MockerFixture,
 ) -> None:
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
 
-    result = tf.check_output("name", "cmd", 0, "[WARN] warning in tf", "")
+    log = "2023-07-20T15:49:09.681+1000 [INFO] doing something"
+
+    result = tf.check_output("name", "cmd", 0, "", "", log)
 
     assert result is False
     mocked_logging.debug.assert_not_called()
-    mocked_logging.warning.assert_called_once_with("[name - cmd] [WARN] warning in tf")
+    mocked_logging.warning.assert_not_called()
+    mocked_logging.error.assert_not_called()
+
+
+def test_check_output_warning_from_provider_warn_log(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    log = (
+        "2023-07-20T15:49:09.681+1000 [INFO]  plugin.terraform-provider-aws_v3.76.0_x5: 2023/07/20 15:49:09 "
+        "[WARN] DB Instance (xxx) not found, removing from state: timestamp=2023-07-20T15:49:09.673+1000"
+    )
+
+    result = tf.check_output("name", "cmd", 0, "", "", log)
+
+    assert result is False
+    mocked_logging.debug.assert_not_called()
+    mocked_logging.warning.assert_called_once_with(f"[name - cmd] {log}")
+    mocked_logging.error.assert_not_called()
+
+
+def test_check_output_error_from_provider_error_log(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    log = (
+        "2023-07-20T15:49:09.681+1000 [INFO]  plugin.terraform-provider-aws_v3.76.0_x5: 2023/07/20 15:49:09 "
+        "[ERROR] something is wrong: timestamp=2023-07-20T15:49:09.673+1000"
+    )
+
+    result = tf.check_output("name", "cmd", 0, "", "", log)
+
+    assert result is False
+    mocked_logging.debug.assert_not_called()
+    mocked_logging.warning.assert_called_once_with(f"[name - cmd] {log}")
     mocked_logging.error.assert_not_called()
 
 
@@ -688,23 +728,9 @@ def test_check_output_error(
 ) -> None:
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
 
-    result = tf.check_output("name", "cmd", 1, "out", "error")
+    result = tf.check_output("name", "cmd", 1, "", "error", "")
 
     assert result is True
-    mocked_logging.debug.assert_called_once_with("[name - cmd] out")
-    mocked_logging.warning.assert_not_called()
-    mocked_logging.error.assert_called_once_with("[name - cmd] error")
-
-
-def test_check_output_error_from_stdout(
-    tf: tfclient.TerraformClient,
-    mocker: MockerFixture,
-) -> None:
-    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
-
-    result = tf.check_output("name", "cmd", 0, "[ERROR] error in tf", "")
-
-    assert result is False
     mocked_logging.debug.assert_not_called()
     mocked_logging.warning.assert_not_called()
-    mocked_logging.error.assert_called_once_with("[name - cmd] [ERROR] error in tf")
+    mocked_logging.error.assert_called_once_with("[name - cmd] error")
