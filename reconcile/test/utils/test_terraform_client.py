@@ -765,7 +765,12 @@ def test_terraform_init(
     init_spec_builder: Callable[..., dict],
 ) -> None:
     mocked_tf = mocker.patch("reconcile.utils.terraform_client.Terraform")
-    mocked_tf.return_value.init.return_value = (0, "", "")
+
+    def init_side_effect():
+        tf._tf_env_lock.release()
+        return 0, "", ""
+
+    mocked_tf.return_value.init.side_effect = init_side_effect
     mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
     warning_log = "[INFO] a [WARN]"
@@ -810,9 +815,13 @@ def test_terraform_output(
         f.name = "temp-name"
         f.read.return_value.decode.return_value = warning_log
 
+    def output_cmd_side_effect(**_):
+        tf._tf_env_lock.release()
+        return 0, "{}", ""
+
     with tempfile.TemporaryDirectory() as working_dir:
         spec = terraform_spec_builder(ACCOUNT_NAME, working_dir)
-        spec["tf"].output_cmd = MagicMock(return_value=(0, "{}", ""))
+        spec["tf"].output_cmd = MagicMock(side_effect=output_cmd_side_effect)
 
         name, output = tf.terraform_output(spec)
 
@@ -838,9 +847,13 @@ def test_terraform_plan(
         f.name = "temp-name"
         f.read.return_value.decode.return_value = warning_log
 
+    def plan_side_effect(**_):
+        tf._tf_env_lock.release()
+        return 0, "", ""
+
     with tempfile.TemporaryDirectory() as working_dir:
         spec = terraform_spec_builder(ACCOUNT_NAME, working_dir)
-        spec["tf"].plan.return_value = (0, "", "")
+        spec["tf"].plan.side_effect = plan_side_effect
 
         disabled_deletion_detected, created_users, error = tf.terraform_plan(
             spec,
@@ -870,9 +883,13 @@ def test_terraform_apply(
         f.name = "temp-name"
         f.read.return_value.decode.return_value = warning_log
 
+    def apply_side_effect(**_):
+        tf._tf_env_lock.release()
+        return 0, "", ""
+
     with tempfile.TemporaryDirectory() as working_dir:
         spec = terraform_spec_builder(ACCOUNT_NAME, working_dir)
-        spec["tf"].apply.return_value = (0, "", "")
+        spec["tf"].apply.side_effect = apply_side_effect
 
         error = tf.terraform_apply(spec)
 

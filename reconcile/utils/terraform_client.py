@@ -24,6 +24,7 @@ from typing import (
     cast,
 )
 
+import python_terraform
 from botocore.errorfactory import ClientError
 from python_terraform import (
     IsFlagged,
@@ -80,6 +81,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         self.thread_pool_size = thread_pool_size
         self._aws_api = aws_api
         self._log_lock = Lock()
+        self._tf_env_lock = Lock()
         self.should_apply = False
 
         self.init_specs()
@@ -118,20 +120,47 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
     def init_specs(self):
         wd_specs = [{"name": name, "wd": wd} for name, wd in self.working_dirs.items()]
-        results = threaded.run(self.terraform_init, wd_specs, self.thread_pool_size)
+        with self._monkey_patch_terraform_env():
+            results = threaded.run(self.terraform_init, wd_specs, self.thread_pool_size)
         self.specs = [{"name": name, "tf": tf} for name, tf in results]
 
-    @staticmethod
     @contextmanager
-    def _terraform_log_file(working_dir: str) -> Generator[typing.IO, None, None]:
+    def _monkey_patch_terraform_env(self) -> Generator[None, None, None]:
+        # https://github.com/beelit94/python-terraform/blob/release/0.10.1/python_terraform/__init__.py#L290
+        old_copy = python_terraform.os.environ.copy
+
+        def new_copy():
+            result = old_copy()
+            self._tf_env_lock.release()
+            return result
+
+        python_terraform.os.environ.copy = new_copy
+
+        try:
+            yield
+        finally:
+            python_terraform.os.environ.copy = old_copy
+
+    @contextmanager
+    def _terraform_log_file(self, working_dir: str) -> Generator[typing.IO, None, None]:
         with tempfile.NamedTemporaryFile(dir=working_dir) as f:
+            # lock is released in terraform method monkey patched in _monkey_patch_terraform_env
+            self._tf_env_lock.acquire()
             os.environ["TF_LOG"] = TERRAFORM_LOG_LEVEL
             os.environ["TF_LOG_PATH"] = f.name
             try:
                 yield f
+            except Exception:
+                # release lock if exception raised before monkey patched os.environ.copy called
+                if self._tf_env_lock.locked():
+                    self._tf_env_lock.release()
+                raise
             finally:
-                del os.environ["TF_LOG"]
-                del os.environ["TF_LOG_PATH"]
+                with self._tf_env_lock:
+                    if "TF_LOG" in os.environ:
+                        del os.environ["TF_LOG"]
+                    if "TF_LOG_PATH" in os.environ:
+                        del os.environ["TF_LOG_PATH"]
 
     @retry(exceptions=TerraformCommandError)
     def terraform_init(self, init_spec):
@@ -147,7 +176,10 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         return name, tf
 
     def init_outputs(self):
-        results = threaded.run(self.terraform_output, self.specs, self.thread_pool_size)
+        with self._monkey_patch_terraform_env():
+            results = threaded.run(
+                self.terraform_output, self.specs, self.thread_pool_size
+            )
         self.outputs = dict(results)
 
     @retry(exceptions=TerraformCommandError)
@@ -174,12 +206,13 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def plan(self, enable_deletion):
         errors = False
         disabled_deletions_detected = False
-        results = threaded.run(
-            self.terraform_plan,
-            self.specs,
-            self.thread_pool_size,
-            enable_deletion=enable_deletion,
-        )
+        with self._monkey_patch_terraform_env():
+            results = threaded.run(
+                self.terraform_plan,
+                self.specs,
+                self.thread_pool_size,
+                enable_deletion=enable_deletion,
+            )
 
         self.created_users = []
         for disabled_deletion_detected, created_users, error in results:
@@ -396,7 +429,10 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def apply(self):
         errors = False
 
-        results = threaded.run(self.terraform_apply, self.specs, self.thread_pool_size)
+        with self._monkey_patch_terraform_env():
+            results = threaded.run(
+                self.terraform_apply, self.specs, self.thread_pool_size
+            )
 
         for error in results:
             if error:
