@@ -18,7 +18,7 @@ from reconcile.integrations_manager import (
 )
 from reconcile.utils import helm
 
-from .fixtures import Fixtures
+from reconcile.test.fixtures import Fixtures
 
 fxt = Fixtures("helm")
 
