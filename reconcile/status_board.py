@@ -209,6 +209,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return return_list
 
     def run(self, dry_run: bool) -> None:
+        # update cyclic reference
+        Product.update_forward_refs()
+
         for sb in get_status_board():
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
             desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
