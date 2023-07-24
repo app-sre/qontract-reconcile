@@ -15,6 +15,8 @@ from reconcile import (
 from reconcile.ocm.types import (
     OCMSpec,
     ROSAClusterAWSAccount,
+    ROSAOcmAwsAttrs,
+    ROSAOcmAwsStsAttrs,
 )
 from reconcile.status import ExitCodes
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -29,11 +31,9 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
     but the cluster only needs the target OCM environment where it belongs.
     This method changes the cluster dictionary to include just those.
     """
-
-    rosa = cluster["spec"]["account"]["rosa"]
     ocm_env = [
         env
-        for env in rosa["ocm_environments"]
+        for env in cluster["spec"]["account"]["rosa"]["ocm_environments"]
         if env["ocm"]["name"] == cluster["ocm"]["name"]
     ]
 
@@ -45,18 +45,21 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
         )
         sys.exit(ExitCodes.ERROR)
 
-    rosa["creator_role_arn"] = ocm_env[0]["creator_role_arn"]
-    rosa["installer_role_arn"] = ocm_env[0]["installer_role_arn"]
-    rosa["support_role_arn"] = ocm_env[0]["support_role_arn"]
-    rosa["controlplane_role_arn"] = ocm_env[0]["controlplane_role_arn"]
-    rosa["worker_role_arn"] = ocm_env[0]["worker_role_arn"]
-
-    # Make pydantic happy
-    del rosa["ocm_environments"]
-
     uid = cluster["spec"]["account"]["uid"]
+    env = ocm_env[0]
     # doing this allows to exclude account fields which can be queried in graphql
-    cluster["spec"]["account"] = ROSAClusterAWSAccount(uid=uid, rosa=rosa)
+    cluster["spec"]["account"] = ROSAClusterAWSAccount(
+        uid=uid,
+        rosa=ROSAOcmAwsAttrs(
+            creator_role_arn=env["creator_role_arn"],
+            sts=ROSAOcmAwsStsAttrs(
+                installer_role_arn=env["installer_role_arn"],
+                support_role_arn=env["support_role_arn"],
+                controlplane_role_arn=env["controlplane_role_arn"],
+                worker_role_arn=env["worker_role_arn"],
+            ),
+        ),
+    )
 
 
 def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> dict[str, OCMSpec]:

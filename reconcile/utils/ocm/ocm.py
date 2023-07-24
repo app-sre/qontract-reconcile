@@ -32,6 +32,7 @@ from reconcile.ocm.types import (
     ROSAClusterAWSAccount,
     ROSAClusterSpec,
     ROSAOcmAwsAttrs,
+    ROSAOcmAwsStsAttrs,
 )
 from reconcile.utils.exceptions import ParameterError
 from reconcile.utils.ocm_base_client import (
@@ -392,10 +393,9 @@ class OCMProductRosa(OCMProduct):
             else None
         )
 
-        account = ROSAClusterAWSAccount(
-            uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
-            rosa=ROSAOcmAwsAttrs(
-                creator_role_arn=cluster["properties"]["rosa_creator_arn"],
+        sts = None
+        if cluster["aws"].get("sts", None):
+            sts = ROSAOcmAwsStsAttrs(
                 installer_role_arn=cluster["aws"]["sts"]["role_arn"],
                 support_role_arn=cluster["aws"]["sts"]["support_role_arn"],
                 controlplane_role_arn=cluster["aws"]["sts"]["instance_iam_roles"].get(
@@ -404,6 +404,12 @@ class OCMProductRosa(OCMProduct):
                 worker_role_arn=cluster["aws"]["sts"]["instance_iam_roles"][
                     "worker_role_arn"
                 ],
+            )
+        account = ROSAClusterAWSAccount(
+            uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
+            rosa=ROSAOcmAwsAttrs(
+                creator_role_arn=cluster["properties"]["rosa_creator_arn"],
+                sts=sts,
             ),
         )
 
@@ -494,6 +500,9 @@ class OCMProductRosa(OCMProduct):
                 "rosa_creator_arn"
             ] = cluster.spec.account.rosa.creator_role_arn
 
+            if not cluster.spec.account.rosa.sts:
+                raise ParameterError("STS is required for ROSA clusters")
+
             rosa_spec: dict[str, Any] = {
                 "product": {"id": "rosa"},
                 "ccs": {"enabled": True},
@@ -502,20 +511,20 @@ class OCMProductRosa(OCMProduct):
                     "sts": {
                         "enabled": True,
                         "auto_mode": True,
-                        "role_arn": cluster.spec.account.rosa.installer_role_arn,
-                        "support_role_arn": cluster.spec.account.rosa.support_role_arn,
+                        "role_arn": cluster.spec.account.rosa.sts.installer_role_arn,
+                        "support_role_arn": cluster.spec.account.rosa.sts.support_role_arn,
                         "instance_iam_roles": {
-                            "worker_role_arn": cluster.spec.account.rosa.worker_role_arn,
+                            "worker_role_arn": cluster.spec.account.rosa.sts.worker_role_arn,
                         },
                         "operator_role_prefix": f"{cluster_name}-{operator_roles_prefix}",
                     },
                 },
             }
 
-            if cluster.spec.account.rosa.controlplane_role_arn:
+            if cluster.spec.account.rosa.sts.controlplane_role_arn:
                 rosa_spec["aws"]["sts"]["instance_iam_roles"][
                     "master_role_arn"
-                ] = cluster.spec.account.rosa.controlplane_role_arn
+                ] = cluster.spec.account.rosa.sts.controlplane_role_arn
 
             if cluster.spec.hypershift:
                 ocm_spec["nodes"][
@@ -596,10 +605,9 @@ class OCMProductHypershift(OCMProduct):
         else:
             provision_shard_id = None
 
-        account = ROSAClusterAWSAccount(
-            uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
-            rosa=ROSAOcmAwsAttrs(
-                creator_role_arn=cluster["properties"]["rosa_creator_arn"],
+        sts = None
+        if cluster["aws"].get("sts", None):
+            sts = ROSAOcmAwsStsAttrs(
                 installer_role_arn=cluster["aws"]["sts"]["role_arn"],
                 support_role_arn=cluster["aws"]["sts"]["support_role_arn"],
                 controlplane_role_arn=cluster["aws"]["sts"]["instance_iam_roles"].get(
@@ -608,6 +616,12 @@ class OCMProductHypershift(OCMProduct):
                 worker_role_arn=cluster["aws"]["sts"]["instance_iam_roles"][
                     "worker_role_arn"
                 ],
+            )
+        account = ROSAClusterAWSAccount(
+            uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
+            rosa=ROSAOcmAwsAttrs(
+                creator_role_arn=cluster["properties"]["rosa_creator_arn"],
+                sts=sts,
             ),
         )
 

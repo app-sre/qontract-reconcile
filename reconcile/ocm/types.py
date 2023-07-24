@@ -54,12 +54,19 @@ class OSDClusterSpec(OCMClusterSpec):
         extra = Extra.forbid
 
 
-class ROSAOcmAwsAttrs(BaseModel):
-    creator_role_arn: str
+class ROSAOcmAwsStsAttrs(BaseModel):
     installer_role_arn: str
     support_role_arn: str
     controlplane_role_arn: Optional[str]
     worker_role_arn: str
+
+    class Config:
+        extra = Extra.forbid
+
+
+class ROSAOcmAwsAttrs(BaseModel):
+    creator_role_arn: str
+    sts: Optional[ROSAOcmAwsStsAttrs]
 
     class Config:
         extra = Extra.forbid
