@@ -1,0 +1,40 @@
+# qenerate: plugin=pydantic_v1
+
+query StatusBoard {
+  status_board_v1{
+    name
+    ocm {
+      url
+      accessTokenUrl
+      accessTokenClientId
+      accessTokenClientSecret {
+        path
+        field
+        version
+        format
+      }
+
+    }
+    globalAppSelectors {
+      exclude
+    }
+    products {
+      productEnvironment {
+        name
+        labels
+        product {
+          name
+        }
+        namespaces {
+          app {
+            name
+            onboardingStatus
+          }
+        }
+      }
+      appSelectors {
+        exclude
+      }
+    }
+  }
+}
