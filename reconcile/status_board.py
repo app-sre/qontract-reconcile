@@ -149,6 +149,13 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         desired_product_apps: Mapping[str, set[str]],
         current_products_applications: Iterable[Product],
     ) -> list[StatusBoardHandler]:
+        def create_app(app_name: str, product: Product) -> Application:
+            return Application(
+                name=app_name,
+                fullname=f"{product.name}/{app_name}",
+                product=product,
+            )
+
         return_list: list[StatusBoardHandler] = []
         current_products = {p.name: p for p in current_products_applications}
 
@@ -163,50 +170,69 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         )
 
         for product_name in diff_result.add:
+            product = Product(name=product_name, fullname=product_name, applications=[])
             return_list.append(
                 StatusBoardHandler(
                     action="create",
-                    status_board_object=Product(
-                        name=product_name, fullname=product_name, applications=[]
-                    ),
+                    status_board_object=product,
                 )
             )
-
-        for product, apps in diff_result.change.items():
-            for app in apps.desired - apps.current:
+            # new product, so it misses also the applications
+            for app_name in desired_product_apps[product_name]:
                 return_list.append(
                     StatusBoardHandler(
                         action="create",
-                        status_board_object=Application(
-                            name=app,
-                            fullname=f"{product}/{app}",
-                            product=current_products[product],
+                        status_board_object=create_app(app_name, product),
+                    )
+                )
+
+        # existing product, only add/remove applications
+        for product_name, apps in diff_result.change.items():
+            for app_name in apps.desired - apps.current:
+                return_list.append(
+                    StatusBoardHandler(
+                        action="create",
+                        status_board_object=create_app(
+                            app_name, current_products[product_name]
                         ),
                     )
                 )
-            for app in apps.current - apps.desired:
+            for app_name in apps.current - apps.desired:
                 return_list.append(
                     StatusBoardHandler(
                         action="delete",
                         status_board_object=Application(
-                            name=app,
-                            fullname=f"{product}/{app}",
-                            product=current_products[product],
+                            name=app_name,
+                            fullname=f"{product_name}/{app_name}",
+                            product=current_products[product_name],
                         ),
                     )
                 )
 
-        for product in diff_result.delete.keys():
-            for application in current_products[product].applications or []:
+        # product is deleted entirely
+        for product_name in diff_result.delete.keys():
+            for application in current_products[product_name].applications or []:
                 return_list.append(
                     StatusBoardHandler(action="delete", status_board_object=application)
                 )
             return_list.append(
                 StatusBoardHandler(
-                    action="delete", status_board_object=current_products[product]
+                    action="delete", status_board_object=current_products[product_name]
                 )
             )
         return return_list
+
+    @staticmethod
+    def apply_diff(
+        dry_run: bool, ocm_api: OCMBaseClient, diff: list[StatusBoardHandler]
+    ) -> None:
+        def _sort_func(x: StatusBoardHandler) -> int:
+            if x.status_board_object.__class__.__name__ == Product.__name__:
+                return 0
+            return 1
+
+        for d in sorted(diff, key=_sort_func):
+            d.act(dry_run, ocm_api)
 
     def run(self, dry_run: bool) -> None:
         # update cyclic reference
@@ -222,5 +248,4 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
             diff = self.get_diff(desired_product_apps, current_products_applications)
 
-            for d in diff:
-                d.act(dry_run, ocm_api)
+            self.apply_diff(dry_run, ocm_api, diff)

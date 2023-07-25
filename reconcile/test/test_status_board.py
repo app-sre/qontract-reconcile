@@ -2,6 +2,7 @@ from typing import (
     Callable,
     Optional,
 )
+from unittest.mock import call
 
 import pytest
 from pytest_mock import MockerFixture
@@ -144,7 +145,7 @@ def test_get_diff_create_one_app() -> None:
     assert h[0].status_board_object.fullname == "foo/foo"
 
 
-def test_get_diff_create_product() -> None:
+def test_get_diff_create_product_and_apps() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
@@ -152,9 +153,11 @@ def test_get_diff_create_product() -> None:
         [],
     )
 
-    assert len(h) == 1
+    assert len(h) == 3
     assert h[0].action == "create"
     assert isinstance(h[0].status_board_object, Product)
+    assert isinstance(h[1].status_board_object, Application)
+    assert isinstance(h[2].status_board_object, Application)
 
 
 def test_get_diff_noop() -> None:
@@ -212,3 +215,31 @@ def test_get_diff_delete_apps_and_product() -> None:
     assert h[0].action == h[1].action == "delete"
     assert isinstance(h[0].status_board_object, Application)
     assert isinstance(h[1].status_board_object, Product)
+
+
+def test_apply_sorted(mocker: MockerFixture) -> None:
+    ocm = mocker.patch("reconcile.status_board.OCMBaseClient", autospec=True)
+    logging = mocker.patch("reconcile.status_board.logging", autospec=True)
+
+    product = Product(name="foo", fullname="foo", applications=[])
+    h = [
+        StatusBoardHandler(
+            action="create",
+            status_board_object=product,
+        ),
+        StatusBoardHandler(
+            action="create",
+            status_board_object=Application(
+                name="bar", fullname="foo/bar", product=product
+            ),
+        ),
+    ]
+
+    StatusBoardExporterIntegration.apply_diff(True, ocm, h)
+    logging.info.assert_has_calls(
+        calls=[
+            call('create - Product: "foo"'),
+            call('create - Application: "bar" "foo/bar"'),
+        ],
+        any_order=False,
+    )
