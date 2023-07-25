@@ -39,13 +39,13 @@ def get_app_interface_cloudwatch_retention_period(aws_acct: dict) -> list:
 
 
 def check_cloudwatch_log_group_tag(
-    log_groups: list, account: dict, awsapi: AWSApi
+    log_groups: list, client
 ) -> list:
     log_group_list = []
     for log_group in log_groups:
         log_group_name = log_group.get("logGroupName")
-        log_group_tags = awsapi.get_cloudwatch_log_group_tags(account, log_group_name)
-        tag_list = log_group_tags.get("tags", {})
+        tag_result = client.list_tags_log_group(logGroupName=log_group_name)
+        tag_list = tag_result.get("tags", {})
         tag_match = any(
             k == "managed_by_integration" and (v == "terraform_resources")
             for k, v in tag_list.items()
@@ -67,8 +67,11 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
             accounts = queries.get_aws_accounts(uid=aws_acct.get("uid"))
             awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
             log_groups = awsapi.get_cloudwatch_logs(aws_acct)
+            session = awsapi.get_session(aws_acct["name"])
+            region = aws_acct["resourcesDefaultRegion"]
+            log_client = awsapi.get_session_client(session, "logs", region)
             log_group_list = check_cloudwatch_log_group_tag(
-                log_groups, aws_acct, awsapi
+                log_groups, log_client
             )
 
             for cloudwatch_cleanup_entry in cloudwatch_cleanup_list:
