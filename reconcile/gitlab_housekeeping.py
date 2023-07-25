@@ -214,8 +214,7 @@ def handle_stale_items(
     now = datetime.utcnow()
     for item in items:
         item_iid = item.attributes.get("iid")
-        item_labels = get_labels(item, gl)
-        if AUTO_MERGE in item_labels:
+        if AUTO_MERGE in item.labels:
             if item.merge_status == MRStatus.UNCHECKED:
                 # this call triggers a status recheck
                 item = gl.get_merge_request(item_iid)
@@ -227,7 +226,7 @@ def handle_stale_items(
         current_interval = now.date() - update_date.date()
         if current_interval > timedelta(days=days_interval):
             # if item does not have 'stale' label - add it
-            if LABEL not in item_labels:
+            if LABEL not in item.labels:
                 logging.info(["add_label", gl.project.name, item_type, item_iid, LABEL])
                 if not dry_run:
                     gl.add_label(item, item_type, LABEL)
@@ -236,7 +235,7 @@ def handle_stale_items(
                 close_item(dry_run, gl, enable_closing, item_type, item)
         # if item is under days_interval
         else:
-            if LABEL not in item_labels:
+            if LABEL not in item.labels:
                 continue
 
             # if item has 'stale' label - check the notes
@@ -261,7 +260,7 @@ def handle_stale_items(
                     ["remove_label", gl.project.name, item_type, item_iid, LABEL]
                 )
                 if not dry_run:
-                    gl.remove_label(item, item_type, LABEL)
+                    gl.remove_label(item, LABEL)
 
 
 def is_good_to_merge(labels):
@@ -275,21 +274,6 @@ def is_rebased(mr, gl: GitLabApi) -> bool:
     head = gl.project.commits.list(ref_name=target_branch, per_page=1)[0].id
     result = gl.project.repository_compare(mr.sha, head)
     return len(result["commits"]) == 0
-
-
-def get_labels(mr: ProjectMergeRequest, gl: GitLabApi) -> list[str]:
-    """
-    This function used to contain logic for checking if labels were empty and calling
-    gl.get_merge_request_labels() if they were missing because there were reports of the
-    label attribute being empty sometimes when it shouldn't be. This was an expensive
-    approach, increasing the runtime of the integration by something around 20-30%.
-    Through investigation in APPSRE-6653 it was determined this no longer appears to be
-    an issue.
-
-    This is being left to continue to abstract the way that labels are pulled in case
-    this becomes an issue again in the future.
-    """
-    return mr.attributes.get("labels")
 
 
 def get_merge_requests(
@@ -324,7 +308,7 @@ def preprocess_merge_requests(
         if len(mr.commits()) == 0:
             continue
 
-        labels = get_labels(mr, gl)
+        labels = mr.labels
         if not labels:
             continue
 
@@ -336,7 +320,7 @@ def preprocess_merge_requests(
                 + "suitable for self serviceable MRs. removing 'lgtm' label"
             )
             if not dry_run:
-                gl.remove_label_from_merge_request(mr, LGTM)
+                gl.remove_label(mr, LGTM)
             continue
 
         label_events = gl.get_merge_request_label_events(mr)
@@ -366,18 +350,17 @@ def preprocess_merge_requests(
                     approved_by = added_by
 
         for bad_label in labels_by_unauthorized_users - labels_by_authorized_users:
-            if bad_label not in labels:
+            if bad_label not in mr.labels:
                 continue
             logging.warning(
                 f"[{gl.project.name}/{mr.iid}] someone added a label who "
                 f"isn't allowed. removing label {bad_label}"
             )
-            # Remove bad_label from the cached labels list. Otherwise, we may face a caching bug
-            labels.remove(bad_label)
             if not dry_run:
-                gl.remove_label_from_merge_request(mr, bad_label)
+                # TODO: optimize this to remove all bad labels at once
+                gl.remove_label(mr, bad_label)
 
-        if not is_good_to_merge(labels):
+        if not is_good_to_merge(mr.labels):
             continue
 
         label_priority = min(
@@ -540,7 +523,7 @@ def merge_merge_requests(
         if not dry_run and merges < merge_limit:
             try:
                 mr.merge()
-                labels = get_labels(mr, gl)
+                labels = mr.labels
                 merged_merge_requests.labels(
                     project_id=mr.target_project_id,
                     self_service=SELF_SERVICEABLE in labels,
