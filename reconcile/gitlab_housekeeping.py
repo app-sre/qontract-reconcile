@@ -336,7 +336,7 @@ def preprocess_merge_requests(
                 + "suitable for self serviceable MRs. removing 'lgtm' label"
             )
             if not dry_run:
-                gl.remove_label_from_merge_request(mr.iid, LGTM)
+                gl.remove_label_from_merge_request(mr, LGTM)
             continue
 
         label_events = gl.get_merge_request_label_events(mr)
@@ -375,7 +375,7 @@ def preprocess_merge_requests(
             # Remove bad_label from the cached labels list. Otherwise, we may face a caching bug
             labels.remove(bad_label)
             if not dry_run:
-                gl.remove_label_from_merge_request(mr.iid, bad_label)
+                gl.remove_label_from_merge_request(mr, bad_label)
 
         if not is_good_to_merge(labels):
             continue

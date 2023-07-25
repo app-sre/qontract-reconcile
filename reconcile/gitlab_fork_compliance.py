@@ -80,7 +80,7 @@ class GitlabForkCompliance:
         # it is set
         mr_labels = self.gl_cli.get_merge_request_labels(self.mr.iid)
         if BLOCKED_BOT_ACCESS in mr_labels:
-            self.gl_cli.remove_label_from_merge_request(self.mr.iid, BLOCKED_BOT_ACCESS)
+            self.gl_cli.remove_label_from_merge_request(self.mr, BLOCKED_BOT_ACCESS)
 
         sys.exit(self.exit_code)
 

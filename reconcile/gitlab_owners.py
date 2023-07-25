@@ -370,7 +370,7 @@ def act(repo, dry_run, instance, settings, defer=None):
                         f"- removing approval"
                     ]
                 )
-                gitlab_cli.remove_label_from_merge_request(mr.iid, APPROVED)
+                gitlab_cli.remove_label_from_merge_request(mr, APPROVED)
 
         if approval_status["report"] is not None:
             _LOG.info(
@@ -382,7 +382,7 @@ def act(repo, dry_run, instance, settings, defer=None):
             )
 
             if not dry_run:
-                gitlab_cli.remove_label_from_merge_request(mr.iid, APPROVED)
+                gitlab_cli.remove_label_from_merge_request(mr, APPROVED)
                 mr.notes.create({"body": approval_status["report"]})
             continue
 
