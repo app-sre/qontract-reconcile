@@ -16,9 +16,8 @@ from reconcile.integrations_manager import (
     ShardSpec,
     build_helm_values,
 )
+from reconcile.test.fixtures import Fixtures
 from reconcile.utils import helm
-
-from .fixtures import Fixtures
 
 fxt = Fixtures("helm")
 
