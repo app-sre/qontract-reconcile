@@ -6,11 +6,15 @@ from abc import (
 )
 from collections.abc import Mapping
 from typing import (
+    Any,
     Iterable,
     Optional,
 )
 
-from pydantic import BaseModel
+from pydantic import (
+    BaseModel,
+    root_validator,
+)
 
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
@@ -32,14 +36,40 @@ class InvalidUpdateError(Exception):
     pass
 
 
+class AutoScaling(BaseModel):
+    min_replicas: int
+    max_replicas: int
+
+    @root_validator()
+    @classmethod
+    def max_greater_min(cls, field_values):
+        if field_values.get("min_replicas") > field_values.get("max_replicas"):
+            raise ValueError("max_replicas must be greater than min_replicas")
+        return field_values
+
+    def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
+        return (
+            self.min_replicas != pool.autoscale.min_replicas
+            or self.max_replicas != pool.autoscale.max_replicas
+        )
+
+
 class AbstractPool(ABC, BaseModel):
     # Abstract class for machine pools, to be implemented by OSD/HyperShift classes
 
     id: str
-    replicas: int
+    replicas: Optional[int]
     taints: Optional[list[Mapping[str, str]]]
     labels: Optional[Mapping[str, str]]
     cluster: str
+    autoscaling: Optional[AutoScaling]
+
+    @root_validator()
+    @classmethod
+    def validate_scaling(cls, field_values):
+        if field_values.get("autoscaling") and field_values.get("replicas"):
+            raise ValueError("autoscaling and replicas are mutually exclusive")
+        return field_values
 
     @abstractmethod
     def create(self, ocm: OCM) -> None:
@@ -94,6 +124,8 @@ class MachinePool(AbstractPool):
             or self.taints != pool.taints
             or self.labels != pool.labels
             or self.instance_type != pool.instance_type
+            or self.autoscaling
+            and self.autoscaling.has_diff(pool)
         )
 
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
@@ -106,6 +138,7 @@ class MachinePool(AbstractPool):
         return cls(
             id=pool.q_id,
             replicas=pool.replicas,
+            autoscaling=pool.autoscale,
             instance_type=pool.instance_type,
             taints=[p.dict(by_alias=True) for p in pool.taints or []],
             labels=pool.labels,
@@ -123,14 +156,27 @@ class NodePool(AbstractPool):
     aws_node_pool: AWSNodePool
     subnet: Optional[str]
 
+    @staticmethod
+    def _patch_autoscaling(spec: Mapping[str, Any]):
+        if spec.get("autoscaling"):
+            # hypershift uses singular form here
+            spec["autoscaling"]["max_replica"] = spec["autoscaling"]["max_replicas"]
+            spec["autoscaling"]["min_replica"] = spec["autoscaling"]["min_replicas"]
+
+            del spec["autoscaling"]["max_replicas"]
+            del spec["autoscaling"]["min_replicas"]
+
     def delete(self, ocm: OCM) -> None:
         ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
 
     def create(self, ocm: OCM) -> None:
-        ocm.create_node_pool(self.cluster, self.dict(by_alias=True))
+        spec = self.dict(by_alias=True)
+        self._patch_autoscaling(spec)
+        ocm.create_node_pool(self.cluster, spec)
 
     def update(self, ocm: OCM) -> None:
         update_dict = self.dict(by_alias=True)
+        self._patch_autoscaling(update_dict)
         # can not update instance_type
         del update_dict["aws_node_pool"]
         # can not update subnet
@@ -153,6 +199,8 @@ class NodePool(AbstractPool):
             or self.labels != pool.labels
             or self.aws_node_pool.instance_type != pool.instance_type
             or self.subnet != pool.subnet
+            or self.autoscaling
+            and self.autoscaling.has_diff(pool)
         )
 
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
@@ -167,6 +215,7 @@ class NodePool(AbstractPool):
         return cls(
             id=pool.q_id,
             replicas=pool.replicas,
+            autoscaling=pool.autoscale,
             aws_node_pool=AWSNodePool(
                 instance_type=pool.instance_type,
             ),
@@ -222,22 +271,35 @@ def fetch_current_state_for_cluster(cluster, ocm):
     if cluster.spec and cluster.spec.hypershift:
         return [
             NodePool(
-                id=machine_pool["id"],
-                replicas=machine_pool["replicas"],
+                id=node_pool["id"],
+                replicas=node_pool.get("replicas"),
+                autoscaling=AutoScaling(
+                    # Hypershift uses singular form
+                    min_replicas=node_pool["autoscaling"]["min_replica"],
+                    max_replicas=node_pool["autoscaling"]["max_replica"],
+                )
+                if node_pool.get("autoscaling")
+                else None,
                 aws_node_pool=AWSNodePool(
-                    instance_type=machine_pool["aws_node_pool"]["instance_type"]
+                    instance_type=node_pool["aws_node_pool"]["instance_type"]
                 ),
-                taints=machine_pool.get("taints"),
-                labels=machine_pool.get("labels"),
-                subnet=machine_pool.get("subnet"),
+                taints=node_pool.get("taints"),
+                labels=node_pool.get("labels"),
+                subnet=node_pool.get("subnet"),
                 cluster=cluster.name,
             )
-            for machine_pool in ocm.get_node_pools(cluster.name)
+            for node_pool in ocm.get_node_pools(cluster.name)
         ]
     return [
         MachinePool(
             id=machine_pool["id"],
-            replicas=machine_pool["replicas"],
+            replicas=machine_pool.get("replicas"),
+            autoscaling=AutoScaling(
+                min_replicas=machine_pool["autoscaling"]["min_replicas"],
+                max_replicas=machine_pool["autoscaling"]["max_replicas"],
+            )
+            if machine_pool.get("autoscaling")
+            else None,
             instance_type=machine_pool["instance_type"],
             taints=machine_pool.get("taints"),
             labels=machine_pool.get("labels"),

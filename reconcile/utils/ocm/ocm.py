@@ -54,6 +54,7 @@ NODE_POOL_DESIRED_KEYS = {
     "id",
     "instance_type",
     "replicas",
+    "autoscaling",
     "labels",
     "taints",
     "aws_node_pool",
