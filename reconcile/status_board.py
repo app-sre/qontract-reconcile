@@ -83,8 +83,12 @@ class Application(AbstractStatusBoard):
         spec = self.dict(by_alias=True)
         spec.pop("id")
         product = spec.pop("product")
-        spec["product"] = {"id": product["id"]}
-        create_application(ocm, spec)
+        product_id = product.get("id")
+        if product_id:
+            spec["product"] = {"id": product_id}
+            create_application(ocm, spec)
+        else:
+            logging.warning("Missing product id for application")
 
     def delete(self, ocm: OCMBaseClient) -> None:
         if not self.id:
