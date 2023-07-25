@@ -473,15 +473,22 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.labels.create({"name": label_text, "color": label_color})
 
-    def add_label(self, item, item_type, label):
-        note_body = (
-            "item has been marked as {0}. " "to remove say `/{0} cancel`"
-        ).format(label)
-        labels = item.attributes.get("labels")
+    @staticmethod
+    def add_label(
+        item: ProjectMergeRequest | ProjectIssue,
+        label: str,
+    ):
+        labels = item.labels
+        if label in labels:
+            return
         labels.append(label)
+        note_body = (
+            f"item has been marked as {label}. " f"to remove say `/{label} cancel`"
+        )
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.notes.create({"body": note_body})
-        self.update_labels(item, item_type, labels)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        item.save()
 
     @staticmethod
     def remove_label(
@@ -489,10 +496,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         label: str,
     ):
         labels = item.labels
-        if label in labels:
-            labels.remove(label)
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-            item.save()
+        if label not in labels:
+            return
+        labels.remove(label)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        item.save()
 
     def update_labels(self, item, item_type, labels):
         if item_type == "issue":

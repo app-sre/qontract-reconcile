@@ -229,7 +229,7 @@ def handle_stale_items(
             if LABEL not in item.labels:
                 logging.info(["add_label", gl.project.name, item_type, item_iid, LABEL])
                 if not dry_run:
-                    gl.add_label(item, item_type, LABEL)
+                    gl.add_label(item, LABEL)
             # if item has 'stale' label - close it
             else:
                 close_item(dry_run, gl, enable_closing, item_type, item)
