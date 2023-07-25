@@ -31,31 +31,34 @@ else:
     CloudWatchLogsClient = object
     CreateImageResultTypeDef = dict
 
+
 # -> list[dict[str, Any]]
 @pytest.fixture
 def accounts():
-    return [{
-        "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
-        "automationToken": {
+    return [
+        {
+            "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
+            "automationToken": {
                 "path": "path",
             },
-        "cleanup": [
-            {
-                "provider": "cloudwatch",
-                "regex": "some/path*",
-                "retention_in_days": "90",
-            },
-            {
-                "provider": "cloudwatch",
-                "regex": "some/other/path*",
-                "retention_in_days": "90",
-            },
-        ],
-        "consoleUrl": "https://some-url.com/console",
-        "name": "some-account-name",
-        "uid": "0123456789",
-        "resourcesDefaultRegion": "default-region",
-    }]
+            "cleanup": [
+                {
+                    "provider": "cloudwatch",
+                    "regex": "some/path*",
+                    "retention_in_days": "90",
+                },
+                {
+                    "provider": "cloudwatch",
+                    "regex": "some/other/path*",
+                    "retention_in_days": "90",
+                },
+            ],
+            "consoleUrl": "https://some-url.com/console",
+            "name": "some-account-name",
+            "uid": "0123456789",
+            "resourcesDefaultRegion": "default-region",
+        }
+    ]
 
 
 @pytest.fixture
@@ -76,6 +79,7 @@ def cloudwatchlogs_client() -> Generator[CloudWatchLogsClient, None, None]:
     with mock_logs():
         yield boto3.client("logs", region_name="us-east-1")
 
+
 @pytest.fixture(autouse=True)
 def log_group_tf_tag(cloudwatchlogs_client: CloudWatchLogsClient):
     log_group_name1 = "some-group"
@@ -90,9 +94,11 @@ def log_group_tf_tag(cloudwatchlogs_client: CloudWatchLogsClient):
     cloudwatchlogs_client.create_log_group(logGroupName=log_group_name2)
     cloudwatchlogs_client.tag_log_group(logGroupName=log_group_name2, tags=tags2)
 
-    describe_log_output = cloudwatchlogs_client.describe_log_groups(logGroupNamePattern="some")
-    log_output_list = describe_log_output.get('logGroups')
-    
+    describe_log_output = cloudwatchlogs_client.describe_log_groups(
+        logGroupNamePattern="some"
+    )
+    log_output_list = describe_log_output.get("logGroups")
+
     return log_output_list
 
 

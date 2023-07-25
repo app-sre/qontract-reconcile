@@ -38,9 +38,7 @@ def get_app_interface_cloudwatch_retention_period(aws_acct: dict) -> list:
     return results
 
 
-def check_cloudwatch_log_group_tag(
-    log_groups: list, client
-) -> list:
+def check_cloudwatch_log_group_tag(log_groups: list, client) -> list:
     log_group_list = []
     for log_group in log_groups:
         log_group_name = log_group.get("logGroupName")
@@ -70,9 +68,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
             session = awsapi.get_session(aws_acct["name"])
             region = aws_acct["resourcesDefaultRegion"]
             log_client = awsapi.get_session_client(session, "logs", region)
-            log_group_list = check_cloudwatch_log_group_tag(
-                log_groups, log_client
-            )
+            log_group_list = check_cloudwatch_log_group_tag(log_groups, log_client)
 
             for cloudwatch_cleanup_entry in cloudwatch_cleanup_list:
                 for log_group in log_group_list:
