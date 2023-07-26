@@ -116,7 +116,6 @@ def test_get_app_interface_cloudwatch_retention_period():
 
 
 def test_get_log_tag_groups(log_group_tf_tag, cloudwatchlogs_client):
-    boto3.client = MagicMock()
     tag_result = log_group_tf_tag
     result = check_cloudwatch_log_group_tag(tag_result, cloudwatchlogs_client)
     assert len(result) == 1
