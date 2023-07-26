@@ -773,7 +773,7 @@ def test_terraform_init(
     mocked_tf.return_value.init.side_effect = init_side_effect
     mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
-    warning_log = "[INFO] a [WARN]"
+    warning_log = "a [INFO] b [WARN] c"
     with mocked_tempfile.NamedTemporaryFile.return_value as f:
         f.name = "temp-name"
         f.read.return_value.decode.return_value = warning_log
@@ -810,7 +810,7 @@ def test_terraform_output(
 ) -> None:
     mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
-    warning_log = "[INFO] a [WARN]"
+    warning_log = "a [INFO] b [WARN] c"
     with mocked_tempfile.NamedTemporaryFile.return_value as f:
         f.name = "temp-name"
         f.read.return_value.decode.return_value = warning_log
@@ -842,7 +842,7 @@ def test_terraform_plan(
     mocked_lean_tf.show_json.return_value = {"format_version": "0.1"}
     mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
-    warning_log = "[INFO] a [WARN]"
+    warning_log = "a [INFO] b [WARN] c"
     with mocked_tempfile.NamedTemporaryFile.return_value as f:
         f.name = "temp-name"
         f.read.return_value.decode.return_value = warning_log
@@ -878,7 +878,7 @@ def test_terraform_apply(
 ) -> None:
     mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
-    warning_log = "[INFO] a [WARN]"
+    warning_log = " a [INFO] b [WARN] c"
     with mocked_tempfile.NamedTemporaryFile.return_value as f:
         f.name = "temp-name"
         f.read.return_value.decode.return_value = warning_log

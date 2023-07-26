@@ -46,7 +46,9 @@ from reconcile.utils.external_resource_spec import (
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 DATE_FORMAT = "%Y-%m-%d"
-PROVIDER_LOG_REGEX = r""".*(?:\[INFO]|\[WARN]|\[ERROR]).+(?:\[WARN]|\[ERROR]).*"""
+PROVIDER_LOG_REGEX = (
+    r""".*\s(?:\[INFO]|\[WARN]|\[ERROR])\s.+\s(?:\[WARN]|\[ERROR])\s.*"""
+)
 TERRAFORM_LOG_LEVEL = "TRACE"  # can change to INFO after tf 0.15
 
 
