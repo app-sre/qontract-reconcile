@@ -1,10 +1,20 @@
 import base64
+import tempfile
+from collections.abc import Callable
 from logging import DEBUG
 from operator import itemgetter
-from unittest.mock import create_autospec
+from unittest.mock import (
+    MagicMock,
+    create_autospec,
+)
 
 import pytest
 from botocore.errorfactory import ClientError
+from pytest_mock import MockerFixture
+from python_terraform import (
+    IsFlagged,
+    Terraform,
+)
 
 import reconcile.utils.terraform_client as tfclient
 from reconcile.utils.aws_api import AWSApi
@@ -19,9 +29,12 @@ def aws_api():
     return create_autospec(AWSApi)
 
 
+ACCOUNT_NAME = "a1"
+
+
 @pytest.fixture
 def tf(aws_api):
-    account = {"name": "a1", "deletionApprovals": []}
+    account = {"name": ACCOUNT_NAME, "deletionApprovals": []}
     return tfclient.TerraformClient(
         "integ", "v1", "integ_pfx", [account], {}, 1, aws_api
     )
@@ -636,4 +649,252 @@ def test_validate_db_upgrade_with_empty_valid_upgrade_targe_and_not_allow_major_
         "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
         "test-database-1 to a new version when there is no valid upgrade target available."
         == str(error.value)
+    )
+
+
+def test_check_output_debug(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    result = tf.check_output("name", "cmd", 0, "out", "", "")
+
+    assert result is False
+    mocked_logging.debug.assert_called_once_with("[name - cmd] out")
+    mocked_logging.warning.assert_not_called()
+    mocked_logging.error.assert_not_called()
+
+
+def test_check_output_warning(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    result = tf.check_output("name", "cmd", 0, "out", "error", "")
+
+    assert result is False
+    mocked_logging.debug.assert_called_once_with("[name - cmd] out")
+    mocked_logging.warning.assert_called_once_with("[name - cmd] error")
+    mocked_logging.error.assert_not_called()
+
+
+def test_check_output_from_terraform_log(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    log = "2023-07-20T15:49:09.681+1000 [INFO] doing something"
+
+    result = tf.check_output("name", "cmd", 0, "", "", log)
+
+    assert result is False
+    mocked_logging.debug.assert_not_called()
+    mocked_logging.warning.assert_not_called()
+    mocked_logging.error.assert_not_called()
+
+
+def test_check_output_warning_from_provider_warn_log(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    log = (
+        "2023-07-20T15:49:09.681+1000 [INFO]  plugin.terraform-provider-aws_v3.76.0_x5: 2023/07/20 15:49:09 "
+        "[WARN] DB Instance (xxx) not found, removing from state: timestamp=2023-07-20T15:49:09.673+1000"
+    )
+
+    result = tf.check_output("name", "cmd", 0, "", "", log)
+
+    assert result is False
+    mocked_logging.debug.assert_not_called()
+    mocked_logging.warning.assert_called_once_with(f"[name - cmd] {log}")
+    mocked_logging.error.assert_not_called()
+
+
+def test_check_output_error_from_provider_error_log(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    log = (
+        "2023-07-20T15:49:09.681+1000 [INFO]  plugin.terraform-provider-aws_v3.76.0_x5: 2023/07/20 15:49:09 "
+        "[ERROR] something is wrong: timestamp=2023-07-20T15:49:09.673+1000"
+    )
+
+    result = tf.check_output("name", "cmd", 0, "", "", log)
+
+    assert result is False
+    mocked_logging.debug.assert_not_called()
+    mocked_logging.warning.assert_called_once_with(f"[name - cmd] {log}")
+    mocked_logging.error.assert_not_called()
+
+
+def test_check_output_error(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    result = tf.check_output("name", "cmd", 1, "", "error", "")
+
+    assert result is True
+    mocked_logging.debug.assert_not_called()
+    mocked_logging.warning.assert_not_called()
+    mocked_logging.error.assert_called_once_with("[name - cmd] error")
+
+
+@pytest.fixture
+def init_spec_builder() -> Callable[..., dict]:
+    def builder(name: str, working_dir: str) -> dict:
+        return {
+            "name": name,
+            "wd": working_dir,
+        }
+
+    return builder
+
+
+def test_terraform_init(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+    init_spec_builder: Callable[..., dict],
+) -> None:
+    mocked_tf = mocker.patch("reconcile.utils.terraform_client.Terraform")
+
+    def init_side_effect():
+        tf._tf_env_lock.release()
+        return 0, "", ""
+
+    mocked_tf.return_value.init.side_effect = init_side_effect
+    mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+    warning_log = "[INFO] a [WARN]"
+    with mocked_tempfile.NamedTemporaryFile.return_value as f:
+        f.name = "temp-name"
+        f.read.return_value.decode.return_value = warning_log
+
+    with tempfile.TemporaryDirectory() as working_dir:
+        init_spec = init_spec_builder(ACCOUNT_NAME, working_dir)
+
+        tf.terraform_init(init_spec)
+
+    mocked_tf.assert_called_once_with(
+        working_dir=working_dir, is_env_vars_included=True
+    )
+    mocked_tf.return_value.init.assert_called_once_with()
+    mocked_logging.warning.assert_called_once_with(
+        f"[{ACCOUNT_NAME} - init] {warning_log}"
+    )
+
+
+@pytest.fixture
+def terraform_spec_builder() -> Callable[..., dict]:
+    def builder(name: str, working_dir: str) -> dict:
+        return {
+            "name": name,
+            "tf": create_autospec(Terraform, working_dir=working_dir),
+        }
+
+    return builder
+
+
+def test_terraform_output(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+    terraform_spec_builder: Callable[..., dict],
+) -> None:
+    mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+    warning_log = "[INFO] a [WARN]"
+    with mocked_tempfile.NamedTemporaryFile.return_value as f:
+        f.name = "temp-name"
+        f.read.return_value.decode.return_value = warning_log
+
+    def output_cmd_side_effect(**_):
+        tf._tf_env_lock.release()
+        return 0, "{}", ""
+
+    with tempfile.TemporaryDirectory() as working_dir:
+        spec = terraform_spec_builder(ACCOUNT_NAME, working_dir)
+        spec["tf"].output_cmd = MagicMock(side_effect=output_cmd_side_effect)
+
+        name, output = tf.terraform_output(spec)
+
+    assert name == ACCOUNT_NAME
+    assert output == {}
+    spec["tf"].output_cmd.assert_called_once_with(json=IsFlagged)
+    mocked_logging.warning.assert_called_once_with(
+        f"[{ACCOUNT_NAME} - output] {warning_log}"
+    )
+
+
+def test_terraform_plan(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+    terraform_spec_builder,
+) -> None:
+    mocked_lean_tf = mocker.patch("reconcile.utils.terraform_client.lean_tf")
+    mocked_lean_tf.show_json.return_value = {"format_version": "0.1"}
+    mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+    warning_log = "[INFO] a [WARN]"
+    with mocked_tempfile.NamedTemporaryFile.return_value as f:
+        f.name = "temp-name"
+        f.read.return_value.decode.return_value = warning_log
+
+    def plan_side_effect(**_):
+        tf._tf_env_lock.release()
+        return 0, "", ""
+
+    with tempfile.TemporaryDirectory() as working_dir:
+        spec = terraform_spec_builder(ACCOUNT_NAME, working_dir)
+        spec["tf"].plan.side_effect = plan_side_effect
+
+        disabled_deletion_detected, created_users, error = tf.terraform_plan(
+            spec,
+            False,
+        )
+
+    assert disabled_deletion_detected is False
+    assert created_users == []
+    assert error is False
+    spec["tf"].plan.assert_called_once_with(
+        detailed_exitcode=False, parallelism=tf.parallelism, out=ACCOUNT_NAME
+    )
+    mocked_logging.warning.assert_called_once_with(
+        f"[{ACCOUNT_NAME} - plan] {warning_log}"
+    )
+
+
+def test_terraform_apply(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+    terraform_spec_builder,
+) -> None:
+    mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+    warning_log = "[INFO] a [WARN]"
+    with mocked_tempfile.NamedTemporaryFile.return_value as f:
+        f.name = "temp-name"
+        f.read.return_value.decode.return_value = warning_log
+
+    def apply_side_effect(**_):
+        tf._tf_env_lock.release()
+        return 0, "", ""
+
+    with tempfile.TemporaryDirectory() as working_dir:
+        spec = terraform_spec_builder(ACCOUNT_NAME, working_dir)
+        spec["tf"].apply.side_effect = apply_side_effect
+
+        error = tf.terraform_apply(spec)
+
+    assert error is False
+    spec["tf"].apply.assert_called_once_with(dir_or_plan=ACCOUNT_NAME, var=None)
+    mocked_logging.warning.assert_called_once_with(
+        f"[{ACCOUNT_NAME} - apply] {warning_log}"
     )
