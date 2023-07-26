@@ -2,8 +2,8 @@ import logging
 import re
 from collections.abc import Callable
 from typing import (
-    Optional,
     TYPE_CHECKING,
+    Optional,
 )
 
 from pydantic import BaseModel
