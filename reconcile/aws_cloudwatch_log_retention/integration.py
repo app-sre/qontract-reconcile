@@ -1,13 +1,21 @@
 import logging
 import re
 from collections.abc import Callable
-from typing import Optional
+from typing import (
+    Optional,
+    TYPE_CHECKING,
+)
 
 from pydantic import BaseModel
 
 from reconcile import queries
 from reconcile.queries import get_aws_accounts
 from reconcile.utils.aws_api import AWSApi
+
+if TYPE_CHECKING:
+    from mypy_boto3_logs import CloudWatchLogsClient
+else:
+    CloudWatchLogsClient = object
 
 QONTRACT_INTEGRATION = "aws_cloudwatch_log_retention"
 MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
@@ -38,7 +46,7 @@ def get_app_interface_cloudwatch_retention_period(aws_acct: dict) -> list:
     return results
 
 
-def check_cloudwatch_log_group_tag(log_groups: list, client) -> list:
+def check_cloudwatch_log_group_tag(log_groups: list, client: CloudWatchLogsClient) -> list:
     log_group_list = []
     for log_group in log_groups:
         log_group_name = log_group.get("logGroupName")

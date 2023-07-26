@@ -1,32 +1,25 @@
-from optparse import check_choice
-import unittest
 import pytest
 from pytest_mock import MockerFixture
 
 import boto3
 
-from unittest.mock import MagicMock, patch
-from unittest import TestCase
+from unittest.mock import MagicMock
 
 from moto import mock_logs
 
 from collections.abc import Generator
 from typing import (
     TYPE_CHECKING,
-    Any,
 )
 from reconcile.aws_cloudwatch_log_retention.integration import (
     check_cloudwatch_log_group_tag,
     get_app_interface_cloudwatch_retention_period,
 )
 
-
-from reconcile.test.fixtures import Fixtures
 from reconcile.utils.aws_api import AWSApi
 
 if TYPE_CHECKING:
     from mypy_boto3_logs import CloudWatchLogsClient
-    from mypy_boto3_logs.type_defs import CreateLogGroupRequestTypeDef
 else:
     CloudWatchLogsClient = object
     CreateImageResultTypeDef = dict
