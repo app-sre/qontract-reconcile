@@ -715,7 +715,7 @@ def test_check_output_warning_from_provider_warn_log(
     mocked_logging.error.assert_not_called()
 
 
-def test_check_output_error_from_provider_error_log(
+def test_check_output_warning_from_provider_error_log(
     tf: tfclient.TerraformClient,
     mocker: MockerFixture,
 ) -> None:
@@ -731,6 +731,25 @@ def test_check_output_error_from_provider_error_log(
     assert result is False
     mocked_logging.debug.assert_not_called()
     mocked_logging.warning.assert_called_once_with(f"[name - cmd] {log}")
+    mocked_logging.error.assert_not_called()
+
+
+def test_check_output_warning_ignore_from_provider_warning_log(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    log = (
+        "2023-07-20T15:49:09.681+1000 [INFO]  plugin.terraform-provider-aws_v3.76.0_x5: 2023/07/20 15:49:09 "
+        "[WARN] ObjectLockConfigurationNotFoundError: timestamp=2023-07-20T15:49:09.673+1000"
+    )
+
+    result = tf.check_output("name", "cmd", 0, "", "", log)
+
+    assert result is False
+    mocked_logging.debug.assert_not_called()
+    mocked_logging.warning.assert_not_called()
     mocked_logging.error.assert_not_called()
 
 
