@@ -56,8 +56,8 @@ class AbstractStatusBoard(ABC, BaseModel):
     def summarize(self) -> str:
         pass
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def get_priority() -> int:
         pass
 
