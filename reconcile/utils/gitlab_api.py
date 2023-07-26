@@ -14,6 +14,7 @@ import gitlab
 import urllib3
 from gitlab.v4.objects import (
     CurrentUser,
+    ProjectIssue,
     ProjectMergeRequest,
     ProjectMergeRequestNote,
 )
@@ -449,14 +450,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         merge_request = self.project.mergerequests.get(mr_id)
         self.update_labels(merge_request, "merge-request", labels)
 
-    def remove_label_from_merge_request(self, mr_id, label):
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
-        labels = merge_request.attributes.get("labels")
-        if label in labels:
-            labels.remove(label)
-        self.update_labels(merge_request, "merge-request", labels)
-
     def add_comment_to_merge_request(self, mr_id, body):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
@@ -480,20 +473,34 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.labels.create({"name": label_text, "color": label_color})
 
-    def add_label(self, item, item_type, label):
-        note_body = (
-            "item has been marked as {0}. " "to remove say `/{0} cancel`"
-        ).format(label)
-        labels = item.attributes.get("labels")
+    @staticmethod
+    def add_label(
+        item: ProjectMergeRequest | ProjectIssue,
+        label: str,
+    ):
+        labels = item.labels
+        if label in labels:
+            return
         labels.append(label)
+        note_body = (
+            f"item has been marked as {label}. " f"to remove say `/{label} cancel`"
+        )
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.notes.create({"body": note_body})
-        self.update_labels(item, item_type, labels)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        item.save()
 
-    def remove_label(self, item, item_type, label):
-        labels = item.attributes.get("labels")
+    @staticmethod
+    def remove_label(
+        item: ProjectMergeRequest | ProjectIssue,
+        label: str,
+    ):
+        labels = item.labels
+        if label not in labels:
+            return
         labels.remove(label)
-        self.update_labels(item, item_type, labels)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        item.save()
 
     def update_labels(self, item, item_type, labels):
         if item_type == "issue":
