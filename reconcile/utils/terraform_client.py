@@ -1,11 +1,17 @@
 import json
 import logging
+import os
+import re
 import shutil
+import tempfile
+import typing
 from collections import defaultdict
 from collections.abc import (
+    Generator,
     Iterable,
     Mapping,
 )
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import (
     datetime,
@@ -18,6 +24,7 @@ from typing import (
     cast,
 )
 
+import python_terraform
 from botocore.errorfactory import ClientError
 from python_terraform import (
     IsFlagged,
@@ -39,6 +46,13 @@ from reconcile.utils.external_resource_spec import (
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 DATE_FORMAT = "%Y-%m-%d"
+PROVIDER_LOG_REGEX = (
+    r""".*\s(?:\[INFO]|\[WARN]|\[ERROR])\s.+\s(?:\[WARN]|\[ERROR])\s.*"""
+)
+PROVIDER_LOG_IGNORE_REGEX = (
+    r""".*(?:ObjectLockConfigurationNotFoundError|WaitForState).*"""
+)
+TERRAFORM_LOG_LEVEL = "TRACE"  # can change to INFO after tf 0.15
 
 
 @dataclass
@@ -72,6 +86,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         self.thread_pool_size = thread_pool_size
         self._aws_api = aws_api
         self._log_lock = Lock()
+        self._tf_env_lock = Lock()
         self.should_apply = False
 
         self.init_specs()
@@ -110,30 +125,76 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
     def init_specs(self):
         wd_specs = [{"name": name, "wd": wd} for name, wd in self.working_dirs.items()]
-        results = threaded.run(self.terraform_init, wd_specs, self.thread_pool_size)
+        with self._monkey_patch_terraform_env():
+            results = threaded.run(self.terraform_init, wd_specs, self.thread_pool_size)
         self.specs = [{"name": name, "tf": tf} for name, tf in results]
+
+    @contextmanager
+    def _monkey_patch_terraform_env(self) -> Generator[None, None, None]:
+        # https://github.com/beelit94/python-terraform/blob/release/0.10.1/python_terraform/__init__.py#L290
+        old_copy = python_terraform.os.environ.copy
+
+        def new_copy():
+            result = old_copy()
+            self._tf_env_lock.release()
+            return result
+
+        python_terraform.os.environ.copy = new_copy
+
+        try:
+            yield
+        finally:
+            python_terraform.os.environ.copy = old_copy
+
+    @contextmanager
+    def _terraform_log_file(self, working_dir: str) -> Generator[typing.IO, None, None]:
+        with tempfile.NamedTemporaryFile(dir=working_dir) as f:
+            # lock is released in terraform method monkey patched in _monkey_patch_terraform_env
+            self._tf_env_lock.acquire()
+            os.environ["TF_LOG"] = TERRAFORM_LOG_LEVEL
+            os.environ["TF_LOG_PATH"] = f.name
+            try:
+                yield f
+            except Exception:
+                # release lock if exception raised before monkey patched os.environ.copy called
+                if self._tf_env_lock.locked():
+                    self._tf_env_lock.release()
+                raise
+            finally:
+                with self._tf_env_lock:
+                    if "TF_LOG" in os.environ:
+                        del os.environ["TF_LOG"]
+                    if "TF_LOG_PATH" in os.environ:
+                        del os.environ["TF_LOG_PATH"]
 
     @retry(exceptions=TerraformCommandError)
     def terraform_init(self, init_spec):
         name = init_spec["name"]
         wd = init_spec["wd"]
-        tf = Terraform(working_dir=wd)
-        return_code, stdout, stderr = tf.init()
-        error = self.check_output(name, "init", return_code, stdout, stderr)
+        tf = Terraform(working_dir=wd, is_env_vars_included=True)
+        with self._terraform_log_file(tf.working_dir) as f:
+            return_code, stdout, stderr = tf.init()
+            log = f.read().decode("utf-8")
+        error = self.check_output(name, "init", return_code, stdout, stderr, log)
         if error:
             raise TerraformCommandError(return_code, "init", out=stdout, err=stderr)
         return name, tf
 
     def init_outputs(self):
-        results = threaded.run(self.terraform_output, self.specs, self.thread_pool_size)
+        with self._monkey_patch_terraform_env():
+            results = threaded.run(
+                self.terraform_output, self.specs, self.thread_pool_size
+            )
         self.outputs = dict(results)
 
     @retry(exceptions=TerraformCommandError)
     def terraform_output(self, spec):
         name = spec["name"]
         tf = spec["tf"]
-        return_code, stdout, stderr = tf.output_cmd(json=IsFlagged)
-        error = self.check_output(name, "output", return_code, stdout, stderr)
+        with self._terraform_log_file(tf.working_dir) as f:
+            return_code, stdout, stderr = tf.output_cmd(json=IsFlagged)
+            log = f.read().decode("utf-8")
+        error = self.check_output(name, "output", return_code, stdout, stderr, log)
         no_output_error = (
             "The module root could not be found. There is nothing to output."
         )
@@ -150,12 +211,13 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def plan(self, enable_deletion):
         errors = False
         disabled_deletions_detected = False
-        results = threaded.run(
-            self.terraform_plan,
-            self.specs,
-            self.thread_pool_size,
-            enable_deletion=enable_deletion,
-        )
+        with self._monkey_patch_terraform_env():
+            results = threaded.run(
+                self.terraform_plan,
+                self.specs,
+                self.thread_pool_size,
+                enable_deletion=enable_deletion,
+            )
 
         self.created_users = []
         for disabled_deletion_detected, created_users, error in results:
@@ -172,10 +234,12 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     ) -> tuple[bool, list[AccountUser], bool]:
         name = plan_spec["name"]
         tf = plan_spec["tf"]
-        return_code, stdout, stderr = tf.plan(
-            detailed_exitcode=False, parallelism=self.parallelism, out=name
-        )
-        error = self.check_output(name, "plan", return_code, stdout, stderr)
+        with self._terraform_log_file(tf.working_dir) as f:
+            return_code, stdout, stderr = tf.plan(
+                detailed_exitcode=False, parallelism=self.parallelism, out=name
+            )
+            log = f.read().decode("utf-8")
+        error = self.check_output(name, "plan", return_code, stdout, stderr, log)
         disabled_deletion_detected, created_users = self.log_plan_diff(
             name, tf, enable_deletion
         )
@@ -370,7 +434,10 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def apply(self):
         errors = False
 
-        results = threaded.run(self.terraform_apply, self.specs, self.thread_pool_size)
+        with self._monkey_patch_terraform_env():
+            results = threaded.run(
+                self.terraform_apply, self.specs, self.thread_pool_size
+            )
 
         for error in results:
             if error:
@@ -380,10 +447,12 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def terraform_apply(self, apply_spec):
         name = apply_spec["name"]
         tf = apply_spec["tf"]
-        # adding var=None to allow applying the saved plan
-        # https://github.com/beelit94/python-terraform/issues/67
-        return_code, stdout, stderr = tf.apply(dir_or_plan=name, var=None)
-        error = self.check_output(name, "apply", return_code, stdout, stderr)
+        with self._terraform_log_file(tf.working_dir) as f:
+            # adding var=None to allow applying the saved plan
+            # https://github.com/beelit94/python-terraform/issues/67
+            return_code, stdout, stderr = tf.apply(dir_or_plan=name, var=None)
+            log = f.read().decode("utf-8")
+        error = self.check_output(name, "apply", return_code, stdout, stderr, log)
         return error
 
     def get_terraform_output_secrets(self) -> dict[str, dict[str, dict[str, str]]]:
@@ -553,22 +622,29 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         name: str,
         cmd: str,
         return_code: int,
-        stdout: list[str],
-        stderr: list[str],
+        stdout: str,
+        stderr: str,
+        log: str,
     ) -> bool:
-        error_occured = False
+        error_occured = return_code != 0
         line_format = "[{} - {}] {}"
-        stdout, stderr = self.split_to_lines(stdout, stderr)
+        stdout, stderr, log = self.split_to_lines(stdout, stderr, log)
+        provider_log_re = re.compile(PROVIDER_LOG_REGEX)
+        provider_log_ignore_re = re.compile(PROVIDER_LOG_IGNORE_REGEX)
         with self._log_lock:
             for line in stdout:
                 logging.debug(line_format.format(name, cmd, line))
-            if return_code == 0:
-                for line in stderr:
-                    logging.warning(line_format.format(name, cmd, line))
-            else:
+            if error_occured:
                 for line in stderr:
                     logging.error(line_format.format(name, cmd, line))
-                error_occured = True
+            else:
+                for line in stderr:
+                    logging.warning(line_format.format(name, cmd, line))
+            for line in log:
+                if provider_log_re.match(line) and not provider_log_ignore_re.match(
+                    line
+                ):
+                    logging.warning(line_format.format(name, cmd, line))
         return error_occured
 
     @staticmethod
