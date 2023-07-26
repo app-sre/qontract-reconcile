@@ -33,6 +33,10 @@ class TestStatusBoard(AbstractStatusBoard):
         self.summarized = True
         return ""
 
+    @staticmethod
+    def get_priority() -> int:
+        return 0
+
 
 @pytest.fixture
 def status_board(gql_class_factory: Callable[..., StatusBoardV1]) -> StatusBoardV1:
