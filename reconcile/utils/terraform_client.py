@@ -46,7 +46,12 @@ from reconcile.utils.external_resource_spec import (
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 DATE_FORMAT = "%Y-%m-%d"
-PROVIDER_LOG_REGEX = r""".*(?:\[INFO]|\[WARN]|\[ERROR]).+(?:\[WARN]|\[ERROR]).*"""
+PROVIDER_LOG_REGEX = (
+    r""".*\s(?:\[INFO]|\[WARN]|\[ERROR])\s.+\s(?:\[WARN]|\[ERROR])\s.*"""
+)
+PROVIDER_LOG_IGNORE_REGEX = (
+    r""".*(?:ObjectLockConfigurationNotFoundError|WaitForState).*"""
+)
 TERRAFORM_LOG_LEVEL = "TRACE"  # can change to INFO after tf 0.15
 
 
@@ -625,6 +630,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         line_format = "[{} - {}] {}"
         stdout, stderr, log = self.split_to_lines(stdout, stderr, log)
         provider_log_re = re.compile(PROVIDER_LOG_REGEX)
+        provider_log_ignore_re = re.compile(PROVIDER_LOG_IGNORE_REGEX)
         with self._log_lock:
             for line in stdout:
                 logging.debug(line_format.format(name, cmd, line))
@@ -635,7 +641,9 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 for line in stderr:
                     logging.warning(line_format.format(name, cmd, line))
             for line in log:
-                if provider_log_re.match(line):
+                if provider_log_re.match(line) and not provider_log_ignore_re.match(
+                    line
+                ):
                     logging.warning(line_format.format(name, cmd, line))
         return error_occured
 
