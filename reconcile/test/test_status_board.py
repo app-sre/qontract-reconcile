@@ -218,6 +218,7 @@ def test_get_diff_delete_apps_and_product() -> None:
 
 
 def test_apply_sorted(mocker: MockerFixture) -> None:
+    Product.update_forward_refs()
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient", autospec=True)
     logging = mocker.patch("reconcile.status_board.logging", autospec=True)
 
@@ -225,13 +226,13 @@ def test_apply_sorted(mocker: MockerFixture) -> None:
     h = [
         StatusBoardHandler(
             action="create",
-            status_board_object=product,
-        ),
-        StatusBoardHandler(
-            action="create",
             status_board_object=Application(
                 name="bar", fullname="foo/bar", product=product
             ),
+        ),
+        StatusBoardHandler(
+            action="create",
+            status_board_object=product,
         ),
     ]
 

@@ -56,6 +56,10 @@ class AbstractStatusBoard(ABC, BaseModel):
     def summarize(self) -> str:
         pass
 
+    @staticmethod
+    def get_priority() -> int:
+        pass
+
 
 class Product(AbstractStatusBoard):
     applications: Optional[list["Application"]]
@@ -74,6 +78,10 @@ class Product(AbstractStatusBoard):
 
     def summarize(self) -> str:
         return f'Product: "{self.name}"'
+
+    @staticmethod
+    def get_priority() -> int:
+        return 0
 
 
 class Application(AbstractStatusBoard):
@@ -98,6 +106,10 @@ class Application(AbstractStatusBoard):
 
     def summarize(self) -> str:
         return f'Application: "{self.name}" "{self.fullname}"'
+
+    @staticmethod
+    def get_priority() -> int:
+        return 1
 
 
 class StatusBoardHandler(BaseModel):
@@ -230,12 +242,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
     def apply_diff(
         dry_run: bool, ocm_api: OCMBaseClient, diff: list[StatusBoardHandler]
     ) -> None:
-        def _sort_func(x: StatusBoardHandler) -> int:
-            if x.status_board_object.__class__.__name__ == Product.__name__:
-                return 0
-            return 1
-
-        for d in sorted(diff, key=_sort_func):
+        for d in sorted(diff, key=lambda x: x.status_board_object.get_priority()):
             d.act(dry_run, ocm_api)
 
     def run(self, dry_run: bool) -> None:
