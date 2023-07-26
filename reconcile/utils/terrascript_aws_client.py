@@ -381,6 +381,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         version=self.versions.get(name),
                         region=region,
                         alias=region,
+                        skip_region_validation=True,
                     )
 
             # Add default region, which will be in resourcesDefaultRegion
@@ -389,6 +390,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 secret_key=config["aws_secret_access_key"],
                 version=self.versions.get(name),
                 region=config["resourcesDefaultRegion"],
+                skip_region_validation=True,
             )
 
             # the time provider can be removed if all AWS accounts
@@ -872,6 +874,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     region=account["assume_region"],
                     alias=alias,
                     assume_role={"role_arn": assume_role},
+                    skip_region_validation=True,
                 )
 
     def populate_route53(
