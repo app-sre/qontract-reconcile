@@ -13,7 +13,7 @@ from reconcile.queries import get_aws_accounts
 from reconcile.utils.aws_api import AWSApi
 
 if TYPE_CHECKING:
-    from mypy_boto3_logs import CloudWatchLogsClient
+    from mypy_boto3_logs import CloudWatchLogsClient  # type: ignore
 else:
     CloudWatchLogsClient = object
 

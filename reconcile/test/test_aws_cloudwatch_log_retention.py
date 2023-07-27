@@ -13,7 +13,7 @@ from reconcile.aws_cloudwatch_log_retention.integration import (
 from reconcile.utils.aws_api import AWSApi
 
 if TYPE_CHECKING:
-    from mypy_boto3_logs import CloudWatchLogsClient
+    from mypy_boto3_logs import CloudWatchLogsClient  # type: ignore
 else:
     CloudWatchLogsClient = object
     CreateImageResultTypeDef = dict
