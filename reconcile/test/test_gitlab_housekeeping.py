@@ -177,9 +177,7 @@ def can_be_merged_merge_request() -> ProjectMergeRequest:
     mr.merge_status = "can_be_merged"
     mr.work_in_progress = False
     mr.commits.return_value = [create_autospec(ProjectCommit)]
-    mr.attributes = {
-        "labels": ["lgtm"],
-    }
+    mr.labels = ["lgtm"]
     mr.iid = 1
     mr.target_project_id = 3
     mr.author = {"username": "user"}

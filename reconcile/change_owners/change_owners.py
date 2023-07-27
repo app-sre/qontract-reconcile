@@ -372,9 +372,8 @@ def run(
             # e.g. gitlab-housekeeper rejects direct lgtm labels and the review-queue
             # skips MRs with this label
             if SELF_SERVICEABLE in labels:
-                gl.remove_label_from_merge_request(
-                    gitlab_merge_request_id, SELF_SERVICEABLE
-                )
+                merge_request = gl.get_merge_request(gitlab_merge_request_id)
+                gl.remove_label(merge_request, SELF_SERVICEABLE)
 
     except BaseException:
         logging.error(traceback.format_exc())

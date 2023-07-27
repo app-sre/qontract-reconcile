@@ -42,18 +42,20 @@ def get_managed_products(ocm_api: OCMBaseClient) -> list[dict[str, Any]]:
     return results
 
 
-def create_product(ocm_api: OCMBaseClient, spec: dict[str, Any]) -> None:
+def create_product(ocm_api: OCMBaseClient, spec: dict[str, Any]) -> str:
     if "metadata" not in spec or spec["metadata"] is None:
         spec["metadata"] = {}
     spec["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
-    ocm_api.post("/api/status-board/v1/products/", data=spec)
+    resp = ocm_api.post("/api/status-board/v1/products/", data=spec)
+    return resp["id"]
 
 
-def create_application(ocm_api: OCMBaseClient, spec: dict[str, Any]) -> None:
+def create_application(ocm_api: OCMBaseClient, spec: dict[str, Any]) -> str:
     if "metadata" not in spec or spec["metadata"] is None:
         spec["metadata"] = {}
     spec["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
-    ocm_api.post("/api/status-board/v1/applications/", data=spec)
+    resp = ocm_api.post("/api/status-board/v1/applications/", data=spec)
+    return resp["id"]
 
 
 def delete_product(ocm_api: OCMBaseClient, product_id: str) -> None:
