@@ -68,7 +68,7 @@ def cloudwatchlogs_client() -> Generator[CloudWatchLogsClient, None, None]:
 
 
 @pytest.fixture(autouse=True)
-def log_group_tf_tag(cloudwatchlogs_client: CloudWatchLogsClient)  -> list:
+def log_group_tf_tag(cloudwatchlogs_client: CloudWatchLogsClient) -> list:
     log_group_name1 = "some-group"
     tags1 = {"key": "value", "managed_by_integration": "terraform_resources"}
 
@@ -114,7 +114,9 @@ def test_get_app_interface_cloudwatch_retention_period() -> None:
     assert len(refined_cloudwatch_list) == 2
 
 
-def test_get_log_tag_groups(log_group_tf_tag: list, cloudwatchlogs_client: CloudWatchLogsClient) -> None:
+def test_get_log_tag_groups(
+    log_group_tf_tag: list, cloudwatchlogs_client: CloudWatchLogsClient
+) -> None:
     tag_result = log_group_tf_tag
     result = check_cloudwatch_log_group_tag(tag_result, cloudwatchlogs_client)
     assert len(result) == 1
