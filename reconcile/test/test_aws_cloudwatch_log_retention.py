@@ -19,48 +19,6 @@ else:
     CreateImageResultTypeDef = dict
 
 
-# -> list[dict[str, Any]]
-@pytest.fixture
-def accounts() -> list:
-    return [
-        {
-            "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
-            "automationToken": {
-                "path": "path",
-            },
-            "cleanup": [
-                {
-                    "provider": "cloudwatch",
-                    "regex": "some/path*",
-                    "retention_in_days": "90",
-                },
-                {
-                    "provider": "cloudwatch",
-                    "regex": "some/other/path*",
-                    "retention_in_days": "90",
-                },
-            ],
-            "consoleUrl": "https://some-url.com/console",
-            "name": "some-account-name",
-            "uid": "0123456789",
-            "resourcesDefaultRegion": "default-region",
-        }
-    ]
-
-
-@pytest.fixture
-def aws_api(accounts: list, mocker: MockerFixture) -> AWSApi:
-    mock_secret_reader = mocker.patch(
-        "reconcile.utils.aws_api.SecretReader", autospec=True
-    )
-    mock_secret_reader.return_value.read_all.return_value = {
-        "aws_access_key_id": "key_id",
-        "aws_secret_access_key": "access_key",
-        "region": "tf_state_bucket_region",
-    }
-    return AWSApi(1, accounts, init_users=False)
-
-
 @pytest.fixture
 def cloudwatchlogs_client() -> Generator[CloudWatchLogsClient, None, None]:
     with mock_logs():
