@@ -1,6 +1,5 @@
 from collections.abc import Generator
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import boto3
 import pytest
@@ -22,7 +21,7 @@ else:
 
 # -> list[dict[str, Any]]
 @pytest.fixture
-def accounts():
+def accounts() -> list:
     return [
         {
             "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
@@ -50,7 +49,7 @@ def accounts():
 
 
 @pytest.fixture
-def aws_api(accounts, mocker: MockerFixture) -> AWSApi:
+def aws_api(accounts: list, mocker: MockerFixture) -> AWSApi:
     mock_secret_reader = mocker.patch(
         "reconcile.utils.aws_api.SecretReader", autospec=True
     )
@@ -69,7 +68,7 @@ def cloudwatchlogs_client() -> Generator[CloudWatchLogsClient, None, None]:
 
 
 @pytest.fixture(autouse=True)
-def log_group_tf_tag(cloudwatchlogs_client: CloudWatchLogsClient):
+def log_group_tf_tag(cloudwatchlogs_client: CloudWatchLogsClient)  -> list:
     log_group_name1 = "some-group"
     tags1 = {"key": "value", "managed_by_integration": "terraform_resources"}
 
@@ -90,7 +89,7 @@ def log_group_tf_tag(cloudwatchlogs_client: CloudWatchLogsClient):
     return log_output_list
 
 
-def test_get_app_interface_cloudwatch_retention_period():
+def test_get_app_interface_cloudwatch_retention_period() -> None:
     test_cloudwatch_acct = {
         "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
         "cleanup": [
@@ -115,7 +114,7 @@ def test_get_app_interface_cloudwatch_retention_period():
     assert len(refined_cloudwatch_list) == 2
 
 
-def test_get_log_tag_groups(log_group_tf_tag, cloudwatchlogs_client):
+def test_get_log_tag_groups(log_group_tf_tag: list, cloudwatchlogs_client: CloudWatchLogsClient) -> None:
     tag_result = log_group_tf_tag
     result = check_cloudwatch_log_group_tag(tag_result, cloudwatchlogs_client)
     assert len(result) == 1
