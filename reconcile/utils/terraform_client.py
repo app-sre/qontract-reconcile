@@ -11,6 +11,7 @@ from datetime import (
     datetime,
     timedelta,
 )
+from subprocess import CalledProcessError
 from threading import Lock
 from typing import (
     Any,
@@ -19,11 +20,6 @@ from typing import (
 )
 
 from botocore.errorfactory import ClientError
-from python_terraform import (
-    IsFlagged,
-    Terraform,
-    TerraformCommandError,
-)
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -45,6 +41,16 @@ DATE_FORMAT = "%Y-%m-%d"
 class AccountUser:
     account: str
     user: str
+
+
+@dataclass(frozen=True, eq=True)
+class TerraformSpec:
+    name: str
+    working_dir: str
+
+
+class TerraformCommandError(CalledProcessError):
+    pass
 
 
 class DeletionApprovalExpirationValueError(Exception):
@@ -74,25 +80,24 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         self._log_lock = Lock()
         self.should_apply = False
 
+        self.specs = []
         self.init_specs()
+        self.outputs = {}
         self.init_outputs()
 
         self.OUTPUT_TYPE_SECRETS = "Secrets"
         self.OUTPUT_TYPE_PASSWORDS = "enc-passwords"
         self.OUTPUT_TYPE_CONSOLEURLS = "console-urls"
 
+        self.users = {}
         if init_users:
             self.init_existing_users()
 
     def init_existing_users(self):
-        all_users = {}
-        for account, output in self.outputs.items():
-            users = []
-            user_passwords = self.format_output(output, self.OUTPUT_TYPE_PASSWORDS)
-            for user_name in user_passwords:
-                users.append(user_name)
-            all_users[account] = users
-        self.users = all_users
+        self.users = {
+            account: list(self.format_output(output, self.OUTPUT_TYPE_PASSWORDS).keys())
+            for account, output in self.outputs.items()
+        }
 
     def get_new_users(self):
         new_users = []
@@ -109,31 +114,29 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         return new_users
 
     def init_specs(self):
-        wd_specs = [{"name": name, "wd": wd} for name, wd in self.working_dirs.items()]
-        results = threaded.run(self.terraform_init, wd_specs, self.thread_pool_size)
-        self.specs = [{"name": name, "tf": tf} for name, tf in results]
+        self.specs = [
+            TerraformSpec(name=name, working_dir=wd)
+            for name, wd in self.working_dirs.items()
+        ]
+        threaded.run(self.terraform_init, self.specs, self.thread_pool_size)
 
     @retry(exceptions=TerraformCommandError)
-    def terraform_init(self, init_spec):
-        name = init_spec["name"]
-        wd = init_spec["wd"]
-        tf = Terraform(working_dir=wd)
-        return_code, stdout, stderr = tf.init()
-        error = self.check_output(name, "init", return_code, stdout, stderr)
+    def terraform_init(self, spec: TerraformSpec):
+        return_code, stdout, stderr = lean_tf.init(spec.working_dir)
+        error = self.check_output(spec.name, "init", return_code, stdout, stderr)
         if error:
-            raise TerraformCommandError(return_code, "init", out=stdout, err=stderr)
-        return name, tf
+            raise TerraformCommandError(
+                return_code, "init", output=stdout, stderr=stderr
+            )
 
     def init_outputs(self):
         results = threaded.run(self.terraform_output, self.specs, self.thread_pool_size)
         self.outputs = dict(results)
 
     @retry(exceptions=TerraformCommandError)
-    def terraform_output(self, spec):
-        name = spec["name"]
-        tf = spec["tf"]
-        return_code, stdout, stderr = tf.output_cmd(json=IsFlagged)
-        error = self.check_output(name, "output", return_code, stdout, stderr)
+    def terraform_output(self, spec: TerraformSpec):
+        return_code, stdout, stderr = lean_tf.output(spec.working_dir)
+        error = self.check_output(spec.name, "output", return_code, stdout, stderr)
         no_output_error = (
             "The module root could not be found. There is nothing to output."
         )
@@ -142,9 +145,9 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 stdout = "{}"
             else:
                 raise TerraformCommandError(
-                    return_code, "output", out=stdout, err=stderr
+                    return_code, "output", output=stdout, stderr=stderr
                 )
-        return name, json.loads(stdout)
+        return spec.name, json.loads(stdout)
 
     # terraform plan
     def plan(self, enable_deletion):
@@ -168,16 +171,12 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
     @retry()
     def terraform_plan(
-        self, plan_spec: dict, enable_deletion: bool
+        self, spec: TerraformSpec, enable_deletion: bool
     ) -> tuple[bool, list[AccountUser], bool]:
-        name = plan_spec["name"]
-        tf = plan_spec["tf"]
-        return_code, stdout, stderr = tf.plan(
-            detailed_exitcode=False, parallelism=self.parallelism, out=name
-        )
-        error = self.check_output(name, "plan", return_code, stdout, stderr)
+        return_code, stdout, stderr = lean_tf.plan(spec.working_dir, spec.name)
+        error = self.check_output(spec.name, "plan", return_code, stdout, stderr)
         disabled_deletion_detected, created_users = self.log_plan_diff(
-            name, tf, enable_deletion
+            spec, enable_deletion
         )
         return disabled_deletion_detected, created_users, error
 
@@ -216,11 +215,11 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
     def log_plan_diff(
         self,
-        name: str,
-        tf: Terraform,
+        spec: TerraformSpec,
         enable_deletion: bool,
     ) -> tuple[bool, list]:
         disabled_deletion_detected = False
+        name = spec.name
         account_enable_deletion = self.accounts[name].get("enableDeletion") or False
         # deletions are allowed
         # if enableDeletion is true for an account
@@ -228,7 +227,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         deletions_allowed = enable_deletion or account_enable_deletion
         created_users: list[AccountUser] = []
 
-        output = self.terraform_show(name, tf.working_dir)
+        output = lean_tf.show_json(spec.working_dir, name)
         format_version = output.get("format_version")
         if format_version != ALLOWED_TF_SHOW_FORMAT_VERSION:
             raise NotImplementedError("terraform show untested format version")
@@ -362,28 +361,14 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
         return False
 
-    @staticmethod
-    def terraform_show(name, working_dir):
-        return lean_tf.show_json(working_dir, name)
-
     # terraform apply
     def apply(self):
-        errors = False
+        errors = threaded.run(self.terraform_apply, self.specs, self.thread_pool_size)
+        return any(errors)
 
-        results = threaded.run(self.terraform_apply, self.specs, self.thread_pool_size)
-
-        for error in results:
-            if error:
-                errors = True
-        return errors
-
-    def terraform_apply(self, apply_spec):
-        name = apply_spec["name"]
-        tf = apply_spec["tf"]
-        # adding var=None to allow applying the saved plan
-        # https://github.com/beelit94/python-terraform/issues/67
-        return_code, stdout, stderr = tf.apply(dir_or_plan=name, var=None)
-        error = self.check_output(name, "apply", return_code, stdout, stderr)
+    def terraform_apply(self, spec: TerraformSpec):
+        return_code, stdout, stderr = lean_tf.apply(spec.working_dir, spec.name)
+        error = self.check_output(spec.name, "apply", return_code, stdout, stderr)
         return error
 
     def get_terraform_output_secrets(self) -> dict[str, dict[str, dict[str, str]]]:

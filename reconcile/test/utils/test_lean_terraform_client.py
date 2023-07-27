@@ -1,6 +1,7 @@
 from subprocess import CompletedProcess
 
 from pytest_mock import MockerFixture
+
 from reconcile.utils import lean_terraform_client
 
 
