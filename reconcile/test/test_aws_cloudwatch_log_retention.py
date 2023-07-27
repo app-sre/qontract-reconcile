@@ -4,13 +4,11 @@ from typing import TYPE_CHECKING
 import boto3
 import pytest
 from moto import mock_logs
-from pytest_mock import MockerFixture
 
 from reconcile.aws_cloudwatch_log_retention.integration import (
     check_cloudwatch_log_group_tag,
     get_app_interface_cloudwatch_retention_period,
 )
-from reconcile.utils.aws_api import AWSApi
 
 if TYPE_CHECKING:
     from mypy_boto3_logs import CloudWatchLogsClient  # type: ignore
