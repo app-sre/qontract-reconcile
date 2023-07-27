@@ -6,6 +6,9 @@ from reconcile.utils import lean_terraform_client
 
 
 def test_init(mocker: MockerFixture) -> None:
+    mocker.patch(
+        "reconcile.utils.lean_terraform_client.os"
+    ).environ.copy.return_value = {}
     mocked_subprocess = mocker.patch("reconcile.utils.lean_terraform_client.subprocess")
     mocked_subprocess.run.return_value = CompletedProcess(
         args=[],
@@ -14,7 +17,10 @@ def test_init(mocker: MockerFixture) -> None:
         stderr=b"err",
     )
 
-    return_code, stdout, stderr = lean_terraform_client.init("working_dir")
+    return_code, stdout, stderr = lean_terraform_client.init(
+        "working_dir",
+        env={"TF_LOG": "INFO"},
+    )
 
     assert return_code == 0
     assert stdout == "out"
@@ -24,10 +30,14 @@ def test_init(mocker: MockerFixture) -> None:
         capture_output=True,
         check=False,
         cwd="working_dir",
+        env={"TF_LOG": "INFO"},
     )
 
 
 def test_output(mocker: MockerFixture) -> None:
+    mocker.patch(
+        "reconcile.utils.lean_terraform_client.os"
+    ).environ.copy.return_value = {}
     mocked_subprocess = mocker.patch("reconcile.utils.lean_terraform_client.subprocess")
     mocked_subprocess.run.return_value = CompletedProcess(
         args=[],
@@ -36,7 +46,10 @@ def test_output(mocker: MockerFixture) -> None:
         stderr=b"err",
     )
 
-    return_code, stdout, stderr = lean_terraform_client.output("working_dir")
+    return_code, stdout, stderr = lean_terraform_client.output(
+        "working_dir",
+        env={"TF_LOG": "INFO"},
+    )
 
     assert return_code == 0
     assert stdout == "out"
@@ -46,10 +59,14 @@ def test_output(mocker: MockerFixture) -> None:
         capture_output=True,
         check=False,
         cwd="working_dir",
+        env={"TF_LOG": "INFO"},
     )
 
 
 def test_plan(mocker: MockerFixture) -> None:
+    mocker.patch(
+        "reconcile.utils.lean_terraform_client.os"
+    ).environ.copy.return_value = {}
     mocked_subprocess = mocker.patch("reconcile.utils.lean_terraform_client.subprocess")
     mocked_subprocess.run.return_value = CompletedProcess(
         args=[],
@@ -61,6 +78,7 @@ def test_plan(mocker: MockerFixture) -> None:
     return_code, stdout, stderr = lean_terraform_client.plan(
         working_dir="working_dir",
         out="tfplan",
+        env={"TF_LOG": "INFO"},
     )
 
     assert return_code == 0
@@ -77,10 +95,14 @@ def test_plan(mocker: MockerFixture) -> None:
         capture_output=True,
         check=False,
         cwd="working_dir",
+        env={"TF_LOG": "INFO"},
     )
 
 
 def test_apply(mocker: MockerFixture) -> None:
+    mocker.patch(
+        "reconcile.utils.lean_terraform_client.os"
+    ).environ.copy.return_value = {}
     mocked_subprocess = mocker.patch("reconcile.utils.lean_terraform_client.subprocess")
     mocked_subprocess.run.return_value = CompletedProcess(
         args=[],
@@ -92,6 +114,7 @@ def test_apply(mocker: MockerFixture) -> None:
     return_code, stdout, stderr = lean_terraform_client.apply(
         working_dir="working_dir",
         dir_or_plan="tfplan",
+        env={"TF_LOG": "INFO"},
     )
 
     assert return_code == 0
@@ -108,10 +131,14 @@ def test_apply(mocker: MockerFixture) -> None:
         capture_output=True,
         check=False,
         cwd="working_dir",
+        env={"TF_LOG": "INFO"},
     )
 
 
 def test_show_json(mocker: MockerFixture) -> None:
+    mocker.patch(
+        "reconcile.utils.lean_terraform_client.os"
+    ).environ.copy.return_value = {}
     mocked_subprocess = mocker.patch("reconcile.utils.lean_terraform_client.subprocess")
     mocked_subprocess.run.return_value = CompletedProcess(
         args=[],
@@ -137,4 +164,5 @@ def test_show_json(mocker: MockerFixture) -> None:
         capture_output=True,
         check=False,
         cwd="working_dir",
+        env={},
     )

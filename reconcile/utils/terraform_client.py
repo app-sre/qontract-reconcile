@@ -1,11 +1,15 @@
 import json
 import logging
+import re
 import shutil
+import tempfile
 from collections import defaultdict
 from collections.abc import (
+    Generator,
     Iterable,
     Mapping,
 )
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import (
     datetime,
@@ -14,6 +18,7 @@ from datetime import (
 from subprocess import CalledProcessError
 from threading import Lock
 from typing import (
+    IO,
     Any,
     Optional,
     cast,
@@ -35,6 +40,13 @@ from reconcile.utils.external_resource_spec import (
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 DATE_FORMAT = "%Y-%m-%d"
+PROVIDER_LOG_REGEX = (
+    r""".*\s(?:\[INFO]|\[WARN]|\[ERROR])\s.+\s(?:\[WARN]|\[ERROR])\s.*"""
+)
+PROVIDER_LOG_IGNORE_REGEX = (
+    r""".*(?:ObjectLockConfigurationNotFoundError|WaitForState).*"""
+)
+TERRAFORM_LOG_LEVEL = "TRACE"  # can change to INFO after tf 0.15
 
 
 @dataclass
@@ -80,16 +92,16 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         self._log_lock = Lock()
         self.should_apply = False
 
-        self.specs = []
+        self.specs: list[TerraformSpec] = []
         self.init_specs()
-        self.outputs = {}
+        self.outputs: dict = {}
         self.init_outputs()
 
         self.OUTPUT_TYPE_SECRETS = "Secrets"
         self.OUTPUT_TYPE_PASSWORDS = "enc-passwords"
         self.OUTPUT_TYPE_CONSOLEURLS = "console-urls"
 
-        self.users = {}
+        self.users: dict = {}
         if init_users:
             self.init_existing_users()
 
@@ -120,10 +132,23 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         ]
         threaded.run(self.terraform_init, self.specs, self.thread_pool_size)
 
+    @contextmanager
+    def _terraform_log_file(
+        self, working_dir: str
+    ) -> Generator[tuple[IO, dict[str, str]], None, None]:
+        with tempfile.NamedTemporaryFile(dir=working_dir) as f:
+            env = {
+                "TF_LOG": TERRAFORM_LOG_LEVEL,
+                "TF_LOG_PATH": f.name,
+            }
+            yield f, env
+
     @retry(exceptions=TerraformCommandError)
     def terraform_init(self, spec: TerraformSpec):
-        return_code, stdout, stderr = lean_tf.init(spec.working_dir)
-        error = self.check_output(spec.name, "init", return_code, stdout, stderr)
+        with self._terraform_log_file(spec.working_dir) as (f, env):
+            return_code, stdout, stderr = lean_tf.init(spec.working_dir, env=env)
+            log = f.read().decode("utf-8")
+        error = self.check_output(spec.name, "init", return_code, stdout, stderr, log)
         if error:
             raise TerraformCommandError(
                 return_code, "init", output=stdout, stderr=stderr
@@ -135,8 +160,10 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
     @retry(exceptions=TerraformCommandError)
     def terraform_output(self, spec: TerraformSpec):
-        return_code, stdout, stderr = lean_tf.output(spec.working_dir)
-        error = self.check_output(spec.name, "output", return_code, stdout, stderr)
+        with self._terraform_log_file(spec.working_dir) as (f, env):
+            return_code, stdout, stderr = lean_tf.output(spec.working_dir, env=env)
+            log = f.read().decode("utf-8")
+        error = self.check_output(spec.name, "output", return_code, stdout, stderr, log)
         no_output_error = (
             "The module root could not be found. There is nothing to output."
         )
@@ -173,8 +200,14 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def terraform_plan(
         self, spec: TerraformSpec, enable_deletion: bool
     ) -> tuple[bool, list[AccountUser], bool]:
-        return_code, stdout, stderr = lean_tf.plan(spec.working_dir, spec.name)
-        error = self.check_output(spec.name, "plan", return_code, stdout, stderr)
+        with self._terraform_log_file(spec.working_dir) as (f, env):
+            return_code, stdout, stderr = lean_tf.plan(
+                spec.working_dir,
+                spec.name,
+                env=env,
+            )
+            log = f.read().decode("utf-8")
+        error = self.check_output(spec.name, "plan", return_code, stdout, stderr, log)
         disabled_deletion_detected, created_users = self.log_plan_diff(
             spec, enable_deletion
         )
@@ -367,8 +400,14 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         return any(errors)
 
     def terraform_apply(self, spec: TerraformSpec):
-        return_code, stdout, stderr = lean_tf.apply(spec.working_dir, spec.name)
-        error = self.check_output(spec.name, "apply", return_code, stdout, stderr)
+        with self._terraform_log_file(spec.working_dir) as (f, env):
+            return_code, stdout, stderr = lean_tf.apply(
+                spec.working_dir,
+                spec.name,
+                env=env,
+            )
+            log = f.read().decode("utf-8")
+        error = self.check_output(spec.name, "apply", return_code, stdout, stderr, log)
         return error
 
     def get_terraform_output_secrets(self) -> dict[str, dict[str, dict[str, str]]]:
@@ -538,22 +577,29 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         name: str,
         cmd: str,
         return_code: int,
-        stdout: list[str],
-        stderr: list[str],
+        stdout: str,
+        stderr: str,
+        log: str,
     ) -> bool:
-        error_occured = False
+        error_occured = return_code != 0
         line_format = "[{} - {}] {}"
-        stdout, stderr = self.split_to_lines(stdout, stderr)
+        stdout, stderr, log = self.split_to_lines(stdout, stderr, log)
+        provider_log_re = re.compile(PROVIDER_LOG_REGEX)
+        provider_log_ignore_re = re.compile(PROVIDER_LOG_IGNORE_REGEX)
         with self._log_lock:
             for line in stdout:
                 logging.debug(line_format.format(name, cmd, line))
-            if return_code == 0:
-                for line in stderr:
-                    logging.warning(line_format.format(name, cmd, line))
-            else:
+            if error_occured:
                 for line in stderr:
                     logging.error(line_format.format(name, cmd, line))
-                error_occured = True
+            else:
+                for line in stderr:
+                    logging.warning(line_format.format(name, cmd, line))
+            for line in log:
+                if provider_log_re.match(line) and not provider_log_ignore_re.match(
+                    line
+                ):
+                    logging.warning(line_format.format(name, cmd, line))
         return error_occured
 
     @staticmethod
