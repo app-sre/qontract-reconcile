@@ -1,3 +1,5 @@
+import os
+import tempfile
 from subprocess import CompletedProcess
 
 from pytest_mock import MockerFixture
@@ -166,3 +168,14 @@ def test_show_json(mocker: MockerFixture) -> None:
         cwd="working_dir",
         env={},
     )
+
+
+def test_terraform_component() -> None:
+    with tempfile.TemporaryDirectory() as working_dir:
+        with open(os.path.join(working_dir, "main.tf"), "w"):
+            pass
+        assert lean_terraform_client.init(working_dir)[0] == 0
+        assert lean_terraform_client.output(working_dir)[0] == 0
+        assert lean_terraform_client.plan(working_dir, "tfplan")[0] == 0
+        assert lean_terraform_client.show_json(working_dir, "tfplan") is not None
+        assert lean_terraform_client.apply(working_dir, "tfplan")[0] == 0
