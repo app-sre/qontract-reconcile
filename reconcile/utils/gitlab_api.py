@@ -517,21 +517,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.save()
 
-    def update_labels(self, item, item_type, labels):
-        if item_type == "issue":
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-            editable_item = self.project.issues.get(
-                item.attributes.get("iid"), lazy=True
-            )
-        elif item_type == "merge-request":
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-            editable_item = self.project.mergerequests.get(
-                item.attributes.get("iid"), lazy=True
-            )
-        editable_item.labels = labels
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        editable_item.save()
-
     @staticmethod
     def close(item):
         item.state_event = "close"

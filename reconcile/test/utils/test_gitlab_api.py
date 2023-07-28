@@ -39,23 +39,16 @@ def instance() -> dict:
 
 
 def test_remove_label_from_merge_request(
-    instance: dict,
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch("reconcile.utils.gitlab_api.gitlab")
     mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
-    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
-
     expected_label = "a"
     to_be_removed_label = "b"
     current_labels = [expected_label, to_be_removed_label]
     mr = create_autospec(ProjectMergeRequest)
     mr.labels = current_labels
 
-    gitlab_api = GitLabApi(instance, project_id=1)
-    mocked_gitlab_request.reset_mock()
-
-    gitlab_api.remove_label(mr, to_be_removed_label)
+    GitLabApi.remove_label(mr, to_be_removed_label)
 
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     assert mr.labels == [expected_label]
@@ -63,23 +56,16 @@ def test_remove_label_from_merge_request(
 
 
 def test_remove_label_from_issue(
-    instance: dict,
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch("reconcile.utils.gitlab_api.gitlab")
     mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
-    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
-
     expected_label = "a"
     to_be_removed_label = "b"
     current_labels = [expected_label, to_be_removed_label]
     issue = create_autospec(ProjectIssue)
     issue.labels = current_labels
 
-    gitlab_api = GitLabApi(instance, project_id=1)
-    mocked_gitlab_request.reset_mock()
-
-    gitlab_api.remove_label(issue, to_be_removed_label)
+    GitLabApi.remove_label(issue, to_be_removed_label)
 
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     assert issue.labels == [expected_label]
@@ -87,23 +73,16 @@ def test_remove_label_from_issue(
 
 
 def test_add_label_with_note_to_merge_request(
-    instance: dict,
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch("reconcile.utils.gitlab_api.gitlab")
     mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
-    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
-
     existing_label = "a"
     new_label = "b"
     mr = create_autospec(ProjectMergeRequest)
     mr.labels = [existing_label]
     mr.notes = create_autospec(ProjectMergeRequestNoteManager)
 
-    gitlab_api = GitLabApi(instance, project_id=1)
-    mocked_gitlab_request.reset_mock()
-
-    gitlab_api.add_label_with_note(mr, new_label)
+    GitLabApi.add_label_with_note(mr, new_label)
 
     assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
     assert mr.labels == [existing_label, new_label]
@@ -117,23 +96,18 @@ def test_add_label_with_note_to_merge_request(
 
 
 def test_add_label_with_note_to_issue(
-    instance: dict,
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch("reconcile.utils.gitlab_api.gitlab")
     mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
-    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
-
     existing_label = "a"
     new_label = "b"
     issue = create_autospec(ProjectIssue)
     issue.labels = [existing_label]
     issue.notes = create_autospec(ProjectIssueNoteManager)
 
-    gitlab_api = GitLabApi(instance, project_id=1)
     mocked_gitlab_request.reset_mock()
 
-    gitlab_api.add_label_with_note(issue, new_label)
+    GitLabApi.add_label_with_note(issue, new_label)
 
     assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
     assert issue.labels == [existing_label, new_label]
@@ -147,22 +121,15 @@ def test_add_label_with_note_to_issue(
 
 
 def test_add_label_to_merge_request(
-    instance: dict,
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch("reconcile.utils.gitlab_api.gitlab")
     mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
-    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
-
     existing_label = "a"
     new_label = "b"
     mr = create_autospec(ProjectMergeRequest)
     mr.labels = [existing_label]
 
-    gitlab_api = GitLabApi(instance, project_id=1)
-    mocked_gitlab_request.reset_mock()
-
-    gitlab_api.add_label_to_merge_request(mr, new_label)
+    GitLabApi.add_label_to_merge_request(mr, new_label)
 
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     assert mr.labels == [existing_label, new_label]
@@ -173,19 +140,13 @@ def test_add_labels_to_merge_request(
     instance: dict,
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch("reconcile.utils.gitlab_api.gitlab")
     mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
-    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
-
     existing_label = "a"
     new_label = "b"
     mr = create_autospec(ProjectMergeRequest)
     mr.labels = [existing_label]
 
-    gitlab_api = GitLabApi(instance, project_id=1)
-    mocked_gitlab_request.reset_mock()
-
-    gitlab_api.add_labels_to_merge_request(mr, [new_label])
+    GitLabApi.add_labels_to_merge_request(mr, [new_label])
 
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     assert mr.labels == [existing_label, new_label]
@@ -196,19 +157,13 @@ def test_set_labels_on_merge_request(
     instance: dict,
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch("reconcile.utils.gitlab_api.gitlab")
     mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
-    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
-
     existing_label = "a"
     new_label = "b"
     mr = create_autospec(ProjectMergeRequest)
     mr.labels = [existing_label]
 
-    gitlab_api = GitLabApi(instance, project_id=1)
-    mocked_gitlab_request.reset_mock()
-
-    gitlab_api.set_labels_on_merge_request(mr, [new_label])
+    GitLabApi.set_labels_on_merge_request(mr, [new_label])
 
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     assert mr.labels == [new_label]
