@@ -455,11 +455,15 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.save()
 
-    def set_labels_on_merge_request(self, mr_id, labels):
+    @staticmethod
+    def set_labels_on_merge_request(
+        merge_request: ProjectMergeRequest,
+        labels: Iterable[str],
+    ) -> None:
         """Set labels to a Merge Request"""
+        merge_request.labels = labels
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
-        self.update_labels(merge_request, "merge-request", labels)
+        merge_request.save()
 
     def add_comment_to_merge_request(self, mr_id, body):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()

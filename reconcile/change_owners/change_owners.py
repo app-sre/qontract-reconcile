@@ -306,74 +306,78 @@ def run(
         #   D E C I S I O N S
         #
 
-        gl = init_gitlab(gitlab_project_id)
-        approver_decisions = get_approver_decisions_from_mr_comments(
-            gl.get_merge_request_comments(
-                gitlab_merge_request_id, include_description=True
+        with init_gitlab(gitlab_project_id) as gl:
+            merge_request = gl.get_merge_request(gitlab_merge_request_id)
+            approver_decisions = get_approver_decisions_from_mr_comments(
+                gl.get_merge_request_comments(
+                    gitlab_merge_request_id, include_description=True
+                )
             )
-        )
-        change_decisions = apply_decisions_to_changes(
-            changes,
-            approver_decisions,
-            {
-                gl.user.username,
-                gl.get_merge_request_author_username(gitlab_merge_request_id),
-            },
-        )
-        hold = any(d.is_held() for d in change_decisions)
-        approved = all(d.is_approved() and not d.is_held() for d in change_decisions)
-
-        #
-        #   R E P O R T I N G
-        #
-
-        if mr_management_enabled:
-            write_coverage_report_to_mr(
-                self_serviceable,
-                change_decisions,
-                change_type_processing_mode
-                == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE,
-                gitlab_merge_request_id,
-                gl,
+            change_decisions = apply_decisions_to_changes(
+                changes,
+                approver_decisions,
+                {
+                    gl.user.username,
+                    gl.get_merge_request_author_username(gitlab_merge_request_id),
+                },
             )
-        write_coverage_report_to_stdout(change_decisions)
+            hold = any(d.is_held() for d in change_decisions)
+            approved = all(
+                d.is_approved() and not d.is_held() for d in change_decisions
+            )
 
-        #
-        #   L A B E L I N G
-        #
+            #
+            #   R E P O R T I N G
+            #
 
-        labels = gl.get_merge_request_labels(gitlab_merge_request_id)
+            if mr_management_enabled:
+                write_coverage_report_to_mr(
+                    self_serviceable,
+                    change_decisions,
+                    change_type_processing_mode
+                    == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE,
+                    gitlab_merge_request_id,
+                    gl,
+                )
+            write_coverage_report_to_stdout(change_decisions)
 
-        # base labels
-        conditional_labels = {
-            SELF_SERVICEABLE: self_serviceable,
-            NOT_SELF_SERVICEABLE: not self_serviceable,
-            HOLD: self_serviceable and hold,
-        }
+            #
+            #   L A B E L I N G
+            #
 
-        # priority labels
-        mr_priority = get_priority_for_changes(changes)
-        conditional_labels.update(
-            {
-                prioritized_approval_label(p.value): self_serviceable
-                and approved
-                and p == mr_priority
-                for p in ChangeTypePriority
+            labels = gl.get_merge_request_labels(gitlab_merge_request_id)
+
+            # base labels
+            conditional_labels = {
+                SELF_SERVICEABLE: self_serviceable,
+                NOT_SELF_SERVICEABLE: not self_serviceable,
+                HOLD: self_serviceable and hold,
             }
-        )
-        labels = manage_conditional_label(
-            current_labels=labels, conditional_labels=conditional_labels, dry_run=False
-        )
-        if mr_management_enabled:
-            gl.set_labels_on_merge_request(gitlab_merge_request_id, labels)
-        else:
-            # if MR management is disabled, we need to make sure the self-serviceable
-            # labels is not present, because other integration react to them
-            # e.g. gitlab-housekeeper rejects direct lgtm labels and the review-queue
-            # skips MRs with this label
-            if SELF_SERVICEABLE in labels:
-                merge_request = gl.get_merge_request(gitlab_merge_request_id)
-                gl.remove_label(merge_request, SELF_SERVICEABLE)
+
+            # priority labels
+            mr_priority = get_priority_for_changes(changes)
+            conditional_labels.update(
+                {
+                    prioritized_approval_label(p.value): self_serviceable
+                    and approved
+                    and p == mr_priority
+                    for p in ChangeTypePriority
+                }
+            )
+            labels = manage_conditional_label(
+                current_labels=labels,
+                conditional_labels=conditional_labels,
+                dry_run=False,
+            )
+            if mr_management_enabled:
+                gl.set_labels_on_merge_request(merge_request, labels)
+            else:
+                # if MR management is disabled, we need to make sure the self-serviceable
+                # labels is not present, because other integration react to them
+                # e.g. gitlab-housekeeper rejects direct lgtm labels and the review-queue
+                # skips MRs with this label
+                if SELF_SERVICEABLE in labels:
+                    gl.remove_label(merge_request, SELF_SERVICEABLE)
 
     except BaseException:
         logging.error(traceback.format_exc())

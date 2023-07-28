@@ -190,3 +190,26 @@ def test_add_labels_to_merge_request(
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     assert mr.labels == [existing_label, new_label]
     mr.save.assert_called_once()
+
+
+def test_set_labels_on_merge_request(
+    instance: dict,
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch("reconcile.utils.gitlab_api.gitlab")
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
+
+    existing_label = "a"
+    new_label = "b"
+    mr = create_autospec(ProjectMergeRequest)
+    mr.labels = [existing_label]
+
+    gitlab_api = GitLabApi(instance, project_id=1)
+    mocked_gitlab_request.reset_mock()
+
+    gitlab_api.set_labels_on_merge_request(mr, [new_label])
+
+    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
+    assert mr.labels == [new_label]
+    mr.save.assert_called_once()
