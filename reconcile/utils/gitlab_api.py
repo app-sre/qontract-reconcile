@@ -410,12 +410,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             if c["username"] == self.user.username and body.startswith(startswith):
                 self.delete_gitlab_comment(c["note"])
 
-    def add_comment_on_merge_request(
-        self, merge_request: ProjectMergeRequest, comment: str
-    ) -> None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request.notes.create({"body": comment})
-
     def add_merge_request_comment(self, mr_id, comment):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request = self.project.mergerequests.get(mr_id)
@@ -465,9 +459,12 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.save()
 
-    def add_comment_to_merge_request(self, mr_id, body):
+    @staticmethod
+    def add_comment_to_merge_request(
+        merge_request: ProjectMergeRequest,
+        body: str,
+    ) -> None:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
         merge_request.notes.create({"body": body})
 
     @staticmethod

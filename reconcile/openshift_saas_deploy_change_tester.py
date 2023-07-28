@@ -188,6 +188,7 @@ def update_mr_with_ref_diffs(
         project_id=gitlab_project_id,
         settings=queries.get_secret_reader_settings(),
     ) as gl:
+        merge_request = gl.get_merge_request(gitlab_merge_request_id)
         changed_paths = gl.get_merge_request_changed_paths(gitlab_merge_request_id)
         compare_diffs = collect_compare_diffs(
             current_state, desired_state, changed_paths
@@ -199,9 +200,7 @@ def update_mr_with_ref_diffs(
             gl.delete_merge_request_comments(
                 gitlab_merge_request_id, startswith="Diffs:"
             )
-            gl.add_comment_to_merge_request(
-                gitlab_merge_request_id, compare_diffs_comment_body
-            )
+            gl.add_comment_to_merge_request(merge_request, compare_diffs_comment_body)
 
 
 def run(

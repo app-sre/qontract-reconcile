@@ -2,6 +2,8 @@ import logging
 import sys
 import traceback
 
+from gitlab.v4.objects import ProjectMergeRequest
+
 from reconcile import queries
 from reconcile.change_owners.approver import GqlApproverResolver
 from reconcile.change_owners.bundle import (
@@ -110,7 +112,7 @@ def write_coverage_report_to_mr(
     self_serviceable: bool,
     change_decisions: list[ChangeDecision],
     authoritative: bool,
-    mr_id: int,
+    merge_request: ProjectMergeRequest,
     gl: GitLabApi,
 ) -> None:
     """
@@ -120,7 +122,9 @@ def write_coverage_report_to_mr(
     """
     change_coverage_report_header = "Change coverage report"
     # delete previous report comment
-    gl.delete_merge_request_comments(mr_id, startswith=change_coverage_report_header)
+    gl.delete_merge_request_comments(
+        merge_request.iid, startswith=change_coverage_report_header
+    )
 
     # add new report comment
     results = []
@@ -162,7 +166,7 @@ def write_coverage_report_to_mr(
             [f"* {ar}" for ar in approver_reachability or []]
         )
     gl.add_comment_to_merge_request(
-        mr_id,
+        merge_request,
         f"{change_coverage_report_header}<br/>"
         f"{self_serviceability_hint}\n"
         f"{coverage_report}\n\n"
@@ -336,7 +340,7 @@ def run(
                     change_decisions,
                     change_type_processing_mode
                     == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE,
-                    gitlab_merge_request_id,
+                    merge_request,
                     gl,
                 )
             write_coverage_report_to_stdout(change_decisions)

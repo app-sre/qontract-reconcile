@@ -116,9 +116,9 @@ class VCS:
 
     def close_app_interface_mr(self, mr: ProjectMergeRequest, comment: str) -> None:
         if not self._dry_run and self._allow_deleting_mrs:
-            self._app_interface_api.add_comment_on_merge_request(
+            self._app_interface_api.add_comment_to_merge_request(
                 merge_request=mr,
-                comment=comment,
+                body=comment,
             )
             self._app_interface_api.close(mr)
 

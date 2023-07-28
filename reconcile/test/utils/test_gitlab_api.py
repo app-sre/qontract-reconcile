@@ -137,7 +137,6 @@ def test_add_label_to_merge_request(
 
 
 def test_add_labels_to_merge_request(
-    instance: dict,
     mocker: MockerFixture,
 ) -> None:
     mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
@@ -154,7 +153,6 @@ def test_add_labels_to_merge_request(
 
 
 def test_set_labels_on_merge_request(
-    instance: dict,
     mocker: MockerFixture,
 ) -> None:
     mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
@@ -168,3 +166,21 @@ def test_set_labels_on_merge_request(
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     assert mr.labels == [new_label]
     mr.save.assert_called_once()
+
+
+def test_add_comment_to_merge_request(
+    mocker: MockerFixture,
+) -> None:
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    mr = create_autospec(ProjectMergeRequest)
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+    body = "some body"
+
+    GitLabApi.add_comment_to_merge_request(mr, body)
+
+    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
+    mr.notes.create.assert_called_once_with(
+        {
+            "body": body,
+        }
+    )
