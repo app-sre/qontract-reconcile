@@ -171,7 +171,7 @@ class MRApproval:
                     ]
                 )
                 if not self.dry_run:
-                    self.gitlab.delete_gitlab_comment(comment["note"])
+                    self.gitlab.delete_comment(comment["note"])
                 continue
 
             # At this point, we've found an approval comment comment

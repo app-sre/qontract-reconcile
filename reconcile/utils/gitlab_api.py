@@ -399,7 +399,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             )
         return comments
 
-    def delete_gitlab_comment(self, note: ProjectMergeRequestNote) -> None:
+    @staticmethod
+    def delete_comment(note: ProjectMergeRequestNote) -> None:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         note.delete()
 
@@ -408,7 +409,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         for c in comments:
             body = c["body"] or ""
             if c["username"] == self.user.username and body.startswith(startswith):
-                self.delete_gitlab_comment(c["note"])
+                self.delete_comment(c["note"])
 
     def add_merge_request_comment(self, mr_id, comment):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()

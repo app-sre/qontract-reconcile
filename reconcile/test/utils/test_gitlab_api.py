@@ -6,6 +6,7 @@ from gitlab.v4.objects import (
     ProjectIssueNoteManager,
     ProjectMergeRequest,
     ProjectMergeRequestNoteManager,
+    ProjectMergeRequestNote,
 )
 from pytest_mock import MockerFixture
 from requests.exceptions import ConnectTimeout
@@ -184,3 +185,15 @@ def test_add_comment_to_merge_request(
             "body": body,
         }
     )
+
+
+def test_delete_comment(
+    mocker: MockerFixture,
+) -> None:
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    note = create_autospec(ProjectMergeRequestNote)
+
+    GitLabApi.delete_comment(note)
+
+    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
+    note.delete.assert_called_once_with()
