@@ -126,6 +126,7 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None) -> None:
     settings = queries.get_app_interface_settings()
     with GitLabApi(instance, project_id=gitlab_project_id, settings=settings) as gl:
         project_labels = gl.get_project_labels()
+        merge_request = gl.get_merge_request(gitlab_merge_request_id)
         labels = gl.get_merge_request_labels(gitlab_merge_request_id)
         changed_paths = gl.get_merge_request_changed_paths(gitlab_merge_request_id)
         guessed_labels = guess_labels(project_labels, changed_paths)
@@ -141,4 +142,4 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None) -> None:
 
         if labels_to_add:
             logging.info(["add_labels", labels_to_add])
-            gl.add_labels_to_merge_request(gitlab_merge_request_id, labels_to_add)
+            gl.add_labels_to_merge_request(merge_request, labels_to_add)

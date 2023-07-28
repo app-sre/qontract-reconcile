@@ -1,5 +1,6 @@
 import logging
 import os
+from collections.abc import Iterable
 from operator import (
     attrgetter,
     itemgetter,
@@ -441,13 +442,18 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.save()
 
-    def add_labels_to_merge_request(self, mr_id, labels):
+    @staticmethod
+    def add_labels_to_merge_request(
+        merge_request: ProjectMergeRequest,
+        labels: Iterable[str],
+    ):
         """Adds labels to a Merge Request"""
+        new_labels = set(labels) - set(merge_request.labels)
+        if not new_labels:
+            return
+        merge_request.labels.extend(new_labels)
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
-        mr_labels = merge_request.attributes.get("labels")
-        mr_labels += labels
-        self.update_labels(merge_request, "merge-request", mr_labels)
+        merge_request.save()
 
     def set_labels_on_merge_request(self, mr_id, labels):
         """Set labels to a Merge Request"""
