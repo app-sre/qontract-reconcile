@@ -123,7 +123,8 @@ def write_coverage_report_to_mr(
     change_coverage_report_header = "Change coverage report"
     # delete previous report comment
     gl.delete_merge_request_comments(
-        merge_request.iid, startswith=change_coverage_report_header
+        merge_request,
+        startswith=change_coverage_report_header,
     )
 
     # add new report comment

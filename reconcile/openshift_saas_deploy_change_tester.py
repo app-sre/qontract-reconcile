@@ -197,9 +197,7 @@ def update_mr_with_ref_diffs(
             compare_diffs_comment_body = "Diffs:\n" + "\n".join(
                 [f"- {d}" for d in compare_diffs]
             )
-            gl.delete_merge_request_comments(
-                gitlab_merge_request_id, startswith="Diffs:"
-            )
+            gl.delete_merge_request_comments(merge_request, startswith="Diffs:")
             gl.add_comment_to_merge_request(merge_request, compare_diffs_comment_body)
 
 

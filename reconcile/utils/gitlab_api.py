@@ -404,8 +404,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         note.delete()
 
-    def delete_merge_request_comments(self, mr_id: int, startswith: str) -> None:
-        merge_request = self.get_merge_request(mr_id)
+    def delete_merge_request_comments(
+        self,
+        merge_request: ProjectMergeRequest,
+        startswith: str,
+    ) -> None:
         comments = self.get_merge_request_comments(merge_request)
         for c in comments:
             body = c["body"] or ""

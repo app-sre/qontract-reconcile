@@ -2,6 +2,7 @@ from unittest.mock import create_autospec
 
 import pytest
 from gitlab.v4.objects import (
+    CurrentUser,
     ProjectIssue,
     ProjectIssueNoteManager,
     ProjectMergeRequest,
@@ -235,3 +236,31 @@ def test_delete_comment(
 
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     note.delete.assert_called_once_with()
+
+
+def test_delete_merge_request_comments(
+    instance: dict,
+    mocker: MockerFixture,
+) -> None:
+    mocked_gl = mocker.patch("reconcile.utils.gitlab_api.gitlab").Gitlab.return_value
+    mocked_gl.user = create_autospec(CurrentUser)
+    mocked_gl.user.username = "author"
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
+    mr = create_autospec(ProjectMergeRequest)
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+    note = create_autospec(ProjectMergeRequestNote)
+    note.author = {"username": "author"}
+    note.body = "body abc"
+    note.created_at = "2023-01-02T00:00:00Z"
+    note.id = 2
+    note.system = False
+    mr.notes.list.return_value = [note]
+
+    gitlab_api = GitLabApi(instance, project_id=1)
+    mocked_gitlab_request.reset_mock()
+
+    gitlab_api.delete_merge_request_comments(mr, "body")
+
+    note.delete.assert_called_once_with()
+    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
