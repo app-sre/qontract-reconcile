@@ -113,7 +113,7 @@ class GitlabForkCompliance:
 
     def handle_error(self, log_msg, mr_msg):
         LOG.error([log_msg.format(bot=self.gl_cli.user.username)])
-        self.gl_cli.add_label_to_merge_request(self.mr.iid, BLOCKED_BOT_ACCESS)
+        self.gl_cli.add_label_to_merge_request(self.mr, BLOCKED_BOT_ACCESS)
         comment = mr_msg.format(
             user=self.mr.author["username"],
             bot=self.gl_cli.user.username,

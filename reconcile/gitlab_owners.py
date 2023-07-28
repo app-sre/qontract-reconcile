@@ -358,7 +358,7 @@ def act(repo, dry_run, instance, settings, defer=None):
                 ]
             )
             if not dry_run:
-                gitlab_cli.add_label_to_merge_request(mr.iid, APPROVED)
+                gitlab_cli.add_label_to_merge_request(mr, APPROVED)
             continue
 
         if not dry_run:

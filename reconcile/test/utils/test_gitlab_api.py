@@ -52,10 +52,7 @@ def test_remove_label_from_merge_request(
     mr = create_autospec(ProjectMergeRequest)
     mr.labels = current_labels
 
-    gitlab_api = GitLabApi(
-        instance,
-        project_id=1,
-    )
+    gitlab_api = GitLabApi(instance, project_id=1)
     mocked_gitlab_request.reset_mock()
 
     gitlab_api.remove_label(mr, to_be_removed_label)
@@ -79,10 +76,7 @@ def test_remove_label_from_issue(
     issue = create_autospec(ProjectIssue)
     issue.labels = current_labels
 
-    gitlab_api = GitLabApi(
-        instance,
-        project_id=1,
-    )
+    gitlab_api = GitLabApi(instance, project_id=1)
     mocked_gitlab_request.reset_mock()
 
     gitlab_api.remove_label(issue, to_be_removed_label)
@@ -106,10 +100,7 @@ def test_add_label_with_note_to_merge_request(
     mr.labels = [existing_label]
     mr.notes = create_autospec(ProjectMergeRequestNoteManager)
 
-    gitlab_api = GitLabApi(
-        instance,
-        project_id=1,
-    )
+    gitlab_api = GitLabApi(instance, project_id=1)
     mocked_gitlab_request.reset_mock()
 
     gitlab_api.add_label_with_note(mr, new_label)
@@ -139,10 +130,7 @@ def test_add_label_with_note_to_issue(
     issue.labels = [existing_label]
     issue.notes = create_autospec(ProjectIssueNoteManager)
 
-    gitlab_api = GitLabApi(
-        instance,
-        project_id=1,
-    )
+    gitlab_api = GitLabApi(instance, project_id=1)
     mocked_gitlab_request.reset_mock()
 
     gitlab_api.add_label_with_note(issue, new_label)
@@ -156,3 +144,26 @@ def test_add_label_with_note_to_issue(
         }
     )
     issue.save.assert_called_once()
+
+
+def test_add_label_to_merge_request(
+    instance: dict,
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch("reconcile.utils.gitlab_api.gitlab")
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
+
+    existing_label = "a"
+    new_label = "b"
+    mr = create_autospec(ProjectMergeRequest)
+    mr.labels = [existing_label]
+
+    gitlab_api = GitLabApi(instance, project_id=1)
+    mocked_gitlab_request.reset_mock()
+
+    gitlab_api.add_label_to_merge_request(mr, new_label)
+
+    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
+    assert mr.labels == [existing_label, new_label]
+    mr.save.assert_called_once()
