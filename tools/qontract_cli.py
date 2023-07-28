@@ -9,6 +9,7 @@ from collections import defaultdict
 from datetime import (
     datetime,
     timedelta,
+    timezone,
 )
 from operator import itemgetter
 from statistics import median
@@ -17,6 +18,7 @@ from typing import (
     Optional,
 )
 
+import boto3
 import click
 import requests
 import yaml
@@ -2122,6 +2124,92 @@ def selectorsyncset_managed_hypershift_resources(ctx, use_jump_host):
                 pass
 
     print_output(ctx.obj["options"], data, columns)
+
+
+@get.command()
+@click.option(
+    "--aws-access-key-id",
+    help="AWS access key id",
+    default=os.environ.get("QONTRACT_CLI_EC2_JENKINS_WORKER_AWS_ACCESS_KEY_ID", None),
+)
+@click.option(
+    "--aws-secret-access-key",
+    help="AWS secret access key",
+    default=os.environ.get(
+        "QONTRACT_CLI_EC2_JENKINS_WORKER_AWS_SECRET_ACCESS_KEY", None
+    ),
+)
+@click.option(
+    "--aws-region",
+    help="AWS region",
+    default=os.environ.get("QONTRACT_CLI_EC2_JENKINS_WORKER_AWS_REGION", "us-east-1"),
+)
+@click.pass_context
+def ec2_jenkins_workers(ctx, aws_access_key_id, aws_secret_access_key, aws_region):
+    """Prints a list of jenkins workers and their status."""
+    if not aws_access_key_id or not aws_secret_access_key:
+        raise click.ClickException(
+            "AWS credentials not provided. Either set them in the environment "
+            "QONTRACT_CLI_EC2_JENKINS_WORKER_AWS_ACCESS_KEY_ID "
+            "and QONTRACT_CLI_EC2_JENKINS_WORKER_AWS_SECRET_ACCESS_KEY "
+            "or pass them as arguments."
+        )
+
+    boto3.setup_default_session(
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        region_name=aws_region,
+    )
+    client = boto3.client("autoscaling")
+    ec2 = boto3.resource("ec2")
+    results = []
+    now = datetime.now(timezone.utc)
+    DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+    columns = [
+        "type",
+        "id",
+        "IP",
+        "instance type",
+        "launch time (utc)",
+        "OS",
+        "AMI",
+    ]
+
+    auto_scaling_groups = client.describe_auto_scaling_groups()["AutoScalingGroups"]
+    for a in auto_scaling_groups:
+        for i in a["Instances"]:
+            instance = ec2.Instance(i["InstanceId"])
+            state = instance.state["Name"]
+            if state != "running":
+                continue
+            os = ""
+            url = ""
+            for t in instance.tags:
+                if t.get("Key") == "os":
+                    os = t.get("Value")
+                if t.get("Key") == "jenkins_controller":
+                    url = f"https://{t.get('Value').replace('-', '.')}.devshift.net/computer/{instance.id}"
+            image = ec2.Image(instance.image_id)
+            commit_url = ""
+            for t in image.tags:
+                if t.get("Key") == "infra_commit":
+                    commit_url = f"https://gitlab.cee.redhat.com/app-sre/infra/-/tree/{t.get('Value')}"
+            launch_emoji = "💫"
+            launch_hours = (now - instance.launch_time).total_seconds() / 3600
+            if launch_hours > 24:
+                launch_emoji = "⏰"
+            item = {
+                "type": a["AutoScalingGroupName"],
+                "id": f"[{instance.id}]({url})",
+                "IP": instance.private_ip_address,
+                "instance type": instance.instance_type,
+                "launch time (utc)": f"{instance.launch_time.strftime(DATE_FORMAT)} {launch_emoji}",
+                "OS": os,
+                "AMI": f"[{image.name}]({commit_url})",
+            }
+            results.append(item)
+
+    print_output(ctx.obj["options"], results, columns)
 
 
 @root.group(name="set")
