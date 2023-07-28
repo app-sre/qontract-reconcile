@@ -5,8 +5,8 @@ from gitlab.v4.objects import (
     ProjectIssue,
     ProjectIssueNoteManager,
     ProjectMergeRequest,
-    ProjectMergeRequestNoteManager,
     ProjectMergeRequestNote,
+    ProjectMergeRequestNoteManager,
 )
 from pytest_mock import MockerFixture
 from requests.exceptions import ConnectTimeout
@@ -185,6 +185,44 @@ def test_add_comment_to_merge_request(
             "body": body,
         }
     )
+
+
+def test_get_merge_request_comments(
+    mocker: MockerFixture,
+) -> None:
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    mr = create_autospec(ProjectMergeRequest)
+    mr.author = {"username": "author_a"}
+    mr.description = "description"
+    mr.created_at = "2023-01-01T00:00:00Z"
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+    note = create_autospec(ProjectMergeRequestNote)
+    note.author = {"username": "author_b"}
+    note.body = "body"
+    note.created_at = "2023-01-02T00:00:00Z"
+    note.id = 2
+    note.system = False
+    mr.notes.list.return_value = [note]
+
+    comments = GitLabApi.get_merge_request_comments(mr, True)
+
+    expected_comments = [
+        {
+            "username": "author_a",
+            "body": "description",
+            "created_at": "2023-01-01T00:00:00Z",
+            "id": 0,
+        },
+        {
+            "username": "author_b",
+            "body": "body",
+            "created_at": "2023-01-02T00:00:00Z",
+            "id": 2,
+            "note": note,
+        },
+    ]
+    assert comments == expected_comments
+    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
 
 
 def test_delete_comment(

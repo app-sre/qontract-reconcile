@@ -76,7 +76,7 @@ class MRApproval:
         Collects the usernames of all the '/lgtm' comments.
         """
         lgtms = []
-        comments = self.gitlab.get_merge_request_comments(self.mr.iid)
+        comments = self.gitlab.get_merge_request_comments(self.mr)
         for comment in comments:
             # Only interested in '/lgtm' comments
             if comment["body"] != "/lgtm":
@@ -146,7 +146,7 @@ class MRApproval:
         # Now, since we have a report, let's check if that report was
         # already used for a comment
         formatted_report = self.format_report(report)
-        comments = self.gitlab.get_merge_request_comments(self.mr.iid)
+        comments = self.gitlab.get_merge_request_comments(self.mr)
         for comment in comments:
             # Only interested on our own comments
             if comment["username"] != self.gitlab.user.username:

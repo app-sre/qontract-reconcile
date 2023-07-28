@@ -370,12 +370,12 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         merge_request = self.project.mergerequests.get(mr_id)
         return merge_request.author["username"]
 
+    @staticmethod
     def get_merge_request_comments(
-        self, mr_id: int, include_description: bool = False
+        merge_request: ProjectMergeRequest,
+        include_description: bool = False,
     ) -> list[dict[str, Any]]:
         comments = []
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
         if include_description:
             comments.append(
                 {
@@ -385,7 +385,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                     "id": MR_DESCRIPTION_COMMENT_ID,
                 }
             )
-        for note in self.get_items(merge_request.notes.list):
+        for note in GitLabApi.get_items(merge_request.notes.list):
             if note.system:
                 continue
             comments.append(
@@ -405,7 +405,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         note.delete()
 
     def delete_merge_request_comments(self, mr_id: int, startswith: str) -> None:
-        comments = self.get_merge_request_comments(mr_id)
+        merge_request = self.get_merge_request(mr_id)
+        comments = self.get_merge_request_comments(merge_request)
         for c in comments:
             body = c["body"] or ""
             if c["username"] == self.user.username and body.startswith(startswith):
@@ -591,7 +592,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         # what is the time of the last app-sre response?
         last_action_by_team = None
         # comments
-        comments = self.get_merge_request_comments(mr.iid)
+        comments = self.get_merge_request_comments(mr)
         comments.sort(key=itemgetter("created_at"), reverse=True)
         for comment in comments:
             username = comment["username"]
@@ -671,7 +672,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def last_comment(
         self, mr: ProjectMergeRequest, exclude_bot=True
     ) -> Optional[dict[str, Any]]:
-        comments = self.get_merge_request_comments(mr.iid)
+        comments = self.get_merge_request_comments(mr)
         comments.sort(key=itemgetter("created_at"), reverse=True)
         for comment in comments:
             username = comment["username"]

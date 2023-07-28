@@ -313,9 +313,7 @@ def run(
         with init_gitlab(gitlab_project_id) as gl:
             merge_request = gl.get_merge_request(gitlab_merge_request_id)
             approver_decisions = get_approver_decisions_from_mr_comments(
-                gl.get_merge_request_comments(
-                    gitlab_merge_request_id, include_description=True
-                )
+                gl.get_merge_request_comments(merge_request, include_description=True)
             )
             change_decisions = apply_decisions_to_changes(
                 changes,
