@@ -189,8 +189,7 @@ class MRApproval:
         return approval_status
 
     def has_approval_label(self):
-        labels = self.gitlab.get_merge_request_labels(self.mr.iid)
-        return APPROVED in labels
+        return APPROVED in self.mr.labels
 
     @staticmethod
     def format_report(report):

@@ -418,11 +418,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_project_labels(self):
         return [ln.name for ln in self.get_items(self.project.labels.list)]
 
-    def get_merge_request_labels(self, mr_id):
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
-        return merge_request.labels
-
     @staticmethod
     def add_label_to_merge_request(
         merge_request: ProjectMergeRequest,

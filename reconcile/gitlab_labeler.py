@@ -1,6 +1,6 @@
 import logging
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Set
 from typing import Optional
 
 from reconcile import queries
@@ -79,7 +79,7 @@ def guess_onboarding_status(
 
 def guess_labels(
     project_labels: Iterable[str], changed_paths: Iterable[str]
-) -> Iterable[str]:
+) -> Set[str]:
     """
     Guess labels returns a list of labels from the project labels
     that contain parts of the changed paths.
@@ -125,13 +125,12 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None) -> None:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     with GitLabApi(instance, project_id=gitlab_project_id, settings=settings) as gl:
-        project_labels = gl.get_project_labels()
+        project_labels = set(gl.get_project_labels())
         merge_request = gl.get_merge_request(gitlab_merge_request_id)
-        labels = gl.get_merge_request_labels(gitlab_merge_request_id)
         changed_paths = gl.get_merge_request_changed_paths(gitlab_merge_request_id)
         guessed_labels = guess_labels(project_labels, changed_paths)
-        labels_to_add = [b for b in guessed_labels if b not in labels]
-        labels_to_create = [b for b in labels_to_add if b not in project_labels]
+        labels_to_add = guessed_labels - set(merge_request.labels)
+        labels_to_create = labels_to_add - project_labels
 
         # This integration cannot check dry-run mode as it's always running with
         # dry_run flag to true.

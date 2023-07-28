@@ -348,7 +348,7 @@ def run(
             #   L A B E L I N G
             #
 
-            labels = gl.get_merge_request_labels(gitlab_merge_request_id)
+            labels = merge_request.labels
 
             # base labels
             conditional_labels = {
