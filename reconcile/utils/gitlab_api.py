@@ -474,7 +474,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         self.project.labels.create({"name": label_text, "color": label_color})
 
     @staticmethod
-    def add_label(
+    def add_label_with_note(
         item: ProjectMergeRequest | ProjectIssue,
         label: str,
     ):

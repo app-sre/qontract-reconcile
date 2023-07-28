@@ -92,7 +92,7 @@ def test_remove_label_from_issue(
     issue.save.assert_called_once()
 
 
-def test_add_label_to_merge_request(
+def test_add_label_with_note_to_merge_request(
     instance: dict,
     mocker: MockerFixture,
 ) -> None:
@@ -112,7 +112,7 @@ def test_add_label_to_merge_request(
     )
     mocked_gitlab_request.reset_mock()
 
-    gitlab_api.add_label(mr, new_label)
+    gitlab_api.add_label_with_note(mr, new_label)
 
     assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
     assert mr.labels == [existing_label, new_label]
@@ -125,7 +125,7 @@ def test_add_label_to_merge_request(
     mr.save.assert_called_once()
 
 
-def test_add_label_to_issue(
+def test_add_label_with_note_to_issue(
     instance: dict,
     mocker: MockerFixture,
 ) -> None:
@@ -145,7 +145,7 @@ def test_add_label_to_issue(
     )
     mocked_gitlab_request.reset_mock()
 
-    gitlab_api.add_label(issue, new_label)
+    gitlab_api.add_label_with_note(issue, new_label)
 
     assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
     assert issue.labels == [existing_label, new_label]
