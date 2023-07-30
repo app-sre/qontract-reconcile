@@ -29,7 +29,6 @@ setup(
         "anymarkup>=0.7.0,<0.9.0",
         "python-gitlab>=1.11.0,<1.12.0",
         "semver~=2.13",
-        "python-terraform>=0.10.0,<0.11.0",
         "boto3==1.26.139",
         "botocore==1.29.139",
         "urllib3>=1.25.4,<1.27.0",
