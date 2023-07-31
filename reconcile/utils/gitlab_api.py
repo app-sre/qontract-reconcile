@@ -94,8 +94,10 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             if project_url is not None:
                 parsed_project_url = urlparse(project_url)
                 name_with_namespace = parsed_project_url.path.strip("/")
+                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
                 self.project = self.gl.projects.get(name_with_namespace)
         else:
+            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             self.project = self.gl.projects.get(project_id)
         self.saas_files = saas_files
 
@@ -221,6 +223,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return self.get_items(app_sre_group.members.list)
 
     def get_group_if_exists(self, group_name):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         try:
             return self.gl.groups.get(group_name)
         except gitlab.exceptions.GitlabGetError:
@@ -231,7 +234,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if not group:
             logging.error(group_name + " group not found")
             return []
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         return [
             {
                 "user": m.username,
@@ -257,7 +259,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if not group:
             logging.error(group_name + " group not found")
         else:
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             user = self.get_user(username)
             access_level = self.get_access_level(access)
             if user is not None:
@@ -286,6 +287,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         member = group.members.get(user.id)
         member.access_level = self.get_access_level(access)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         member.save()
 
     @staticmethod
