@@ -3,8 +3,11 @@ from unittest.mock import create_autospec
 import pytest
 from gitlab.v4.objects import (
     CurrentUser,
+    Project,
     ProjectIssue,
     ProjectIssueNoteManager,
+    ProjectLabel,
+    ProjectLabelManager,
     ProjectMergeRequest,
     ProjectMergeRequestNote,
     ProjectMergeRequestNoteManager,
@@ -264,3 +267,26 @@ def test_delete_merge_request_comments(
 
     note.delete.assert_called_once_with()
     assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
+
+
+def test_get_project_labels(
+    instance: dict,
+    mocker: MockerFixture,
+) -> None:
+    mocked_gl = mocker.patch("reconcile.utils.gitlab_api.gitlab").Gitlab.return_value
+    label = create_autospec(ProjectLabel)
+    label.name = "a"
+    project = create_autospec(Project)
+    project.labels = create_autospec(ProjectLabelManager)
+    project.labels.list.return_value = [label]
+    mocked_gl.projects.get.return_value = project
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
+
+    gitlab_api = GitLabApi(instance, project_id=1)
+    mocked_gitlab_request.reset_mock()
+
+    labels = gitlab_api.get_project_labels()
+
+    assert labels == {"a"}
+    mocked_gitlab_request.labels.return_value.inc.assert_called_once()

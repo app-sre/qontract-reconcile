@@ -1,6 +1,9 @@
 import logging
 import os
-from collections.abc import Iterable, Set
+from collections.abc import (
+    Iterable,
+    Set,
+)
 from typing import Optional
 
 from reconcile import queries
@@ -125,7 +128,7 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None) -> None:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     with GitLabApi(instance, project_id=gitlab_project_id, settings=settings) as gl:
-        project_labels = set(gl.get_project_labels())
+        project_labels = gl.get_project_labels()
         merge_request = gl.get_merge_request(gitlab_merge_request_id)
         changed_paths = gl.get_merge_request_changed_paths(gitlab_merge_request_id)
         guessed_labels = guess_labels(project_labels, changed_paths)

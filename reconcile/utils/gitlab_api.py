@@ -1,6 +1,9 @@
 import logging
 import os
-from collections.abc import Iterable
+from collections.abc import (
+    Iterable,
+    Set,
+)
 from operator import (
     attrgetter,
     itemgetter,
@@ -415,8 +418,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             if c["username"] == self.user.username and body.startswith(startswith):
                 self.delete_comment(c["note"])
 
-    def get_project_labels(self):
-        return [ln.name for ln in self.get_items(self.project.labels.list)]
+    def get_project_labels(self) -> Set[str]:
+        return {ln.name for ln in self.get_items(self.project.labels.list)}
 
     @staticmethod
     def add_label_to_merge_request(
