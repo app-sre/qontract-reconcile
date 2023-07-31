@@ -310,3 +310,16 @@ def test_get_merge_request_changed_paths(
 
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     assert paths == ["path"]
+
+
+def test_get_merge_request_author_username(
+    mocker: MockerFixture,
+) -> None:
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    mr = create_autospec(ProjectMergeRequest)
+    mr.author = {"username": "author_a"}
+
+    username = GitLabApi.get_merge_request_author_username(mr)
+
+    assert username == "author_a"
+    mocked_gitlab_request.labels.return_value.inc.assert_not_called()

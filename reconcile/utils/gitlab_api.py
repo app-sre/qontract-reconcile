@@ -370,9 +370,10 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             changed_paths.add(new_path)
         return list(changed_paths)
 
-    def get_merge_request_author_username(self, mr_id: int) -> str:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
+    @staticmethod
+    def get_merge_request_author_username(
+        merge_request: ProjectMergeRequest,
+    ) -> str:
         return merge_request.author["username"]
 
     @staticmethod

@@ -321,7 +321,7 @@ def run(
                 approver_decisions,
                 {
                     gl.user.username,
-                    gl.get_merge_request_author_username(gitlab_merge_request_id),
+                    gl.get_merge_request_author_username(merge_request),
                 },
             )
             hold = any(d.is_held() for d in change_decisions)
