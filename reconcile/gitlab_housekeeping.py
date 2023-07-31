@@ -460,7 +460,7 @@ def merge_merge_requests(
     reload_toggle: ReloadToggle,
     merge_limit,
     rebase,
-    app_sre_usernames: set[str],
+    app_sre_usernames: Set[str],
     pipeline_timeout=None,
     insist=False,
     wait_for_pipeline=False,

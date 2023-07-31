@@ -348,8 +348,6 @@ def run(
             #   L A B E L I N G
             #
 
-            labels = merge_request.labels
-
             # base labels
             conditional_labels = {
                 SELF_SERVICEABLE: self_serviceable,
@@ -367,8 +365,9 @@ def run(
                     for p in ChangeTypePriority
                 }
             )
+            GitLabApi.refresh_labels(merge_request)
             labels = manage_conditional_label(
-                current_labels=labels,
+                current_labels=merge_request.labels,
                 conditional_labels=conditional_labels,
                 dry_run=False,
             )

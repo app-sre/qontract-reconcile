@@ -425,6 +425,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         merge_request: ProjectMergeRequest,
         label: str,
     ) -> None:
+        # merge_request maybe stale, refresh it to reduce the possibility of labels overwriting
+        GitLabApi.refresh_labels(merge_request)
+
         labels = merge_request.labels
         if label in labels:
             return
@@ -438,6 +441,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         labels: Iterable[str],
     ):
         """Adds labels to a Merge Request"""
+        # merge_request maybe stale, refresh it to reduce the possibility of labels overwriting
+        GitLabApi.refresh_labels(merge_request)
+
         new_labels = set(labels) - set(merge_request.labels)
         if not new_labels:
             return
@@ -482,10 +488,19 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         self.project.labels.create({"name": label_text, "color": label_color})
 
     @staticmethod
+    def refresh_labels(item: ProjectMergeRequest | ProjectIssue):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        refreshed_item = item.manager.get(item.get_id())
+        item.labels = refreshed_item.labels
+
+    @staticmethod
     def add_label_with_note(
         item: ProjectMergeRequest | ProjectIssue,
         label: str,
-    ):
+    ) -> None:
+        # item maybe stale, refresh it to reduce the possibility of labels overwriting
+        GitLabApi.refresh_labels(item)
+
         labels = item.labels
         if label in labels:
             return
@@ -503,6 +518,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         item: ProjectMergeRequest | ProjectIssue,
         label: str,
     ):
+        # item maybe stale, refresh it to reduce the possibility of labels overwriting
+        GitLabApi.refresh_labels(item)
+
         labels = item.labels
         if label not in labels:
             return
