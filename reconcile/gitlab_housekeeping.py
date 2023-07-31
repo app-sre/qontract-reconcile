@@ -308,7 +308,7 @@ def preprocess_merge_requests(
         if len(mr.commits()) == 0:
             continue
 
-        labels = mr.labels
+        labels = set(mr.labels)
         if not labels:
             continue
 
@@ -349,18 +349,19 @@ def preprocess_merge_requests(
                     approved_at = label.created_at
                     approved_by = added_by
 
-        for bad_label in labels_by_unauthorized_users - labels_by_authorized_users:
-            if bad_label not in mr.labels:
-                continue
+        bad_labels = (
+            labels_by_unauthorized_users - labels_by_authorized_users
+        ) & labels
+        for bad_label in bad_labels:
             logging.warning(
                 f"[{gl.project.name}/{mr.iid}] someone added a label who "
                 f"isn't allowed. removing label {bad_label}"
             )
-            if not dry_run:
-                # TODO: optimize this to remove all bad labels at once
-                gl.remove_label(mr, bad_label)
+        if bad_labels and not dry_run:
+            gl.remove_labels(mr, bad_labels)
 
-        if not is_good_to_merge(mr.labels):
+        labels = set(mr.labels)
+        if not is_good_to_merge(labels):
             continue
 
         label_priority = min(
@@ -371,7 +372,6 @@ def preprocess_merge_requests(
 
         item = {
             "mr": mr,
-            "labels": labels,
             "label_priority": label_priority,
             "priority": f"{label_priority} - {MERGE_LABELS_PRIORITY[label_priority]}",
             "approved_at": approved_at,

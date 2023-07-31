@@ -83,6 +83,44 @@ def test_remove_label_from_issue(
     issue.save.assert_called_once()
 
 
+def test_remove_labels_from_merge_request(
+    mocker: MockerFixture,
+) -> None:
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    expected_label = "a"
+    to_be_removed_label = "b"
+    current_labels = [expected_label, to_be_removed_label]
+    mr = create_autospec(ProjectMergeRequest)
+    mr.manager = create_autospec(ProjectMergeRequestManager)
+    mr.manager.get.return_value = mr
+    mr.labels = current_labels
+
+    GitLabApi.remove_labels(mr, [to_be_removed_label])
+
+    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
+    assert mr.labels == [expected_label]
+    mr.save.assert_called_once()
+
+
+def test_remove_labels_from_issue(
+    mocker: MockerFixture,
+) -> None:
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    expected_label = "a"
+    to_be_removed_label = "b"
+    current_labels = [expected_label, to_be_removed_label]
+    issue = create_autospec(ProjectIssue)
+    issue.manager = create_autospec(ProjectIssueManager)
+    issue.manager.get.return_value = issue
+    issue.labels = current_labels
+
+    GitLabApi.remove_labels(issue, [to_be_removed_label])
+
+    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
+    assert issue.labels == [expected_label]
+    issue.save.assert_called_once()
+
+
 def test_add_label_with_note_to_merge_request(
     mocker: MockerFixture,
 ) -> None:

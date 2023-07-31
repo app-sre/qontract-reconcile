@@ -529,6 +529,24 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         item.save()
 
     @staticmethod
+    def remove_labels(
+        item: ProjectMergeRequest | ProjectIssue,
+        labels: Iterable[str],
+    ):
+        # item maybe stale, refresh it to reduce the possibility of labels overwriting
+        GitLabApi.refresh_labels(item)
+
+        current_labels = set(item.labels)
+        to_be_removed = set(labels) & current_labels
+
+        if not to_be_removed:
+            return
+        item.labels = list(current_labels - to_be_removed)
+
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        item.save()
+
+    @staticmethod
     def close(item):
         item.state_event = "close"
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
