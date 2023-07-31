@@ -130,7 +130,7 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None) -> None:
     with GitLabApi(instance, project_id=gitlab_project_id, settings=settings) as gl:
         project_labels = gl.get_project_labels()
         merge_request = gl.get_merge_request(gitlab_merge_request_id)
-        changed_paths = gl.get_merge_request_changed_paths(gitlab_merge_request_id)
+        changed_paths = gl.get_merge_request_changed_paths(merge_request)
         guessed_labels = guess_labels(project_labels, changed_paths)
         labels_to_add = guessed_labels - set(merge_request.labels)
         labels_to_create = labels_to_add - project_labels

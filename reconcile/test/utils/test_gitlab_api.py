@@ -290,3 +290,23 @@ def test_get_project_labels(
 
     assert labels == {"a"}
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
+
+
+def test_get_merge_request_changed_paths(
+    mocker: MockerFixture,
+) -> None:
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    mr = create_autospec(ProjectMergeRequest)
+    mr.changes.return_value = {
+        "changes": [
+            {
+                "old_path": "path",
+                "new_path": "path",
+            }
+        ]
+    }
+
+    paths = GitLabApi.get_merge_request_changed_paths(mr)
+
+    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
+    assert paths == ["path"]

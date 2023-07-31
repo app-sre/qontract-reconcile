@@ -51,7 +51,7 @@ class MRApproval:
         that change.
         """
         change_owners_map = {}
-        paths = self.gitlab.get_merge_request_changed_paths(self.mr.iid)
+        paths = self.gitlab.get_merge_request_changed_paths(self.mr)
         for path in paths:
             owners = self.owners.get_path_owners(path)
             path_approvers = owners["approvers"]

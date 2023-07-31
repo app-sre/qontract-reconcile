@@ -356,9 +356,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             self.get_items(mr.pipelines), key=lambda x: x["created_at"], reverse=True
         )
 
-    def get_merge_request_changed_paths(self, mr_id: int) -> list[str]:
+    @staticmethod
+    def get_merge_request_changed_paths(
+        merge_request: ProjectMergeRequest,
+    ) -> list[str]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
         changes = merge_request.changes()["changes"]
         changed_paths = set()
         for change in changes:
