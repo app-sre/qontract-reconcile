@@ -196,15 +196,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def mr_exists(self, title):
         mrs = self.get_merge_requests(state=MRState.OPENED)
-        for mr in mrs:
-            # since we are using a naming convention for these MRs
-            # we can determine if a pending MR exists based on the title
-            if mr.attributes.get("title") != title:
-                continue
-
-            return True
-
-        return False
+        # since we are using a naming convention for these MRs
+        # we can determine if a pending MR exists based on the title
+        return any(mr.title == title for mr in mrs)
 
     @retry()
     def get_project_maintainers(self, repo_url=None):

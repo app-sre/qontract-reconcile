@@ -11,6 +11,7 @@ from gitlab.v4.objects import (
     ProjectMergeRequest,
     ProjectMergeRequestNote,
     ProjectMergeRequestNoteManager,
+    ProjectMergeRequestManager,
 )
 from pytest_mock import MockerFixture
 from requests.exceptions import ConnectTimeout
@@ -323,3 +324,26 @@ def test_get_merge_request_author_username(
 
     assert username == "author_a"
     mocked_gitlab_request.labels.return_value.inc.assert_not_called()
+
+
+def test_mr_exist(
+    instance: dict,
+    mocker: MockerFixture,
+) -> None:
+    mocked_gl = mocker.patch("reconcile.utils.gitlab_api.gitlab").Gitlab.return_value
+    project = create_autospec(Project)
+    project.mergerequests = create_autospec(ProjectMergeRequestManager)
+    mr = create_autospec(ProjectMergeRequest)
+    mr.title = "title"
+    project.mergerequests.list.return_value = [mr]
+    mocked_gl.projects.get.return_value = project
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
+
+    gitlab_api = GitLabApi(instance, project_id=1)
+    mocked_gitlab_request.reset_mock()
+
+    exists = gitlab_api.mr_exists("title")
+
+    assert exists is True
+    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
