@@ -214,15 +214,22 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         ),
                     )
                 )
-            for app_name in apps.current - apps.desired:
+
+            for app in apps.current - apps.desired:
+                found_apps = [
+                    application
+                    for application in current_products[product_name].applications or []
+                    if application.name == app
+                ]
+                if len(found_apps) != 1:
+                    logging.error(
+                        f'Application "{app}" not found in product "{product_name}"'
+                    )
+                    continue
                 return_list.append(
                     StatusBoardHandler(
                         action="delete",
-                        status_board_object=Application(
-                            name=app_name,
-                            fullname=f"{product_name}/{app_name}",
-                            product=current_products[product_name],
-                        ),
+                        status_board_object=found_apps[0],
                     )
                 )
 
