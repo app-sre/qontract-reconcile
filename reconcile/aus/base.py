@@ -270,7 +270,9 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
         if not self.id:
-            return
+            raise ValueError(
+                "Cannot delete addon upgrade policy without id (not created yet)"
+            )
         delete_addon_upgrade_policy(ocm_api, self.cluster.id, self.id)
 
     def summarize(self) -> str:
@@ -297,7 +299,9 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
         if not self.id:
-            return
+            raise ValueError(
+                "Cannot delete cluster upgrade policy without id (not created yet)"
+            )
         delete_upgrade_policy(ocm_api, self.cluster.id, self.id)
 
     def summarize(self) -> str:
@@ -325,7 +329,9 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
         if not self.id:
-            return
+            raise ValueError(
+                "Cannot delete controlplane upgrade policy without id (not created yet)"
+            )
         delete_control_plane_upgrade_policy(ocm_api, self.cluster.id, self.id)
 
     def summarize(self) -> str:
