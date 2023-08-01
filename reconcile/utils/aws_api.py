@@ -191,10 +191,6 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             client.close()
 
     def get_session(self, account: str) -> Session:
-        logging.debug("session var in get_session")
-        logging.debug(account)
-        logging.debug("sessions[account] var")
-        logging.debug(self.sessions[account])
         return self.sessions[account]
 
     # pylint: disable=method-hidden
