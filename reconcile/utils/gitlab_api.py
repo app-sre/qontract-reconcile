@@ -1,5 +1,9 @@
 import logging
 import os
+from collections.abc import (
+    Iterable,
+    Set,
+)
 from operator import (
     attrgetter,
     itemgetter,
@@ -90,8 +94,10 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             if project_url is not None:
                 parsed_project_url = urlparse(project_url)
                 name_with_namespace = parsed_project_url.path.strip("/")
+                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
                 self.project = self.gl.projects.get(name_with_namespace)
         else:
+            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             self.project = self.gl.projects.get(project_id)
         self.saas_files = saas_files
 
@@ -190,15 +196,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def mr_exists(self, title):
         mrs = self.get_merge_requests(state=MRState.OPENED)
-        for mr in mrs:
-            # since we are using a naming convention for these MRs
-            # we can determine if a pending MR exists based on the title
-            if mr.attributes.get("title") != title:
-                continue
-
-            return True
-
-        return False
+        # since we are using a naming convention for these MRs
+        # we can determine if a pending MR exists based on the title
+        return any(mr.title == title for mr in mrs)
 
     @retry()
     def get_project_maintainers(self, repo_url=None):
@@ -217,6 +217,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return self.get_items(app_sre_group.members.list)
 
     def get_group_if_exists(self, group_name):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         try:
             return self.gl.groups.get(group_name)
         except gitlab.exceptions.GitlabGetError:
@@ -227,7 +228,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if not group:
             logging.error(group_name + " group not found")
             return []
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         return [
             {
                 "user": m.username,
@@ -253,7 +253,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if not group:
             logging.error(group_name + " group not found")
         else:
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             user = self.get_user(username)
             access_level = self.get_access_level(access)
             if user is not None:
@@ -282,6 +281,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         member = group.members.get(user.id)
         member.access_level = self.get_access_level(access)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         member.save()
 
     @staticmethod
@@ -352,9 +352,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             self.get_items(mr.pipelines), key=lambda x: x["created_at"], reverse=True
         )
 
-    def get_merge_request_changed_paths(self, mr_id: int) -> list[str]:
+    @staticmethod
+    def get_merge_request_changed_paths(
+        merge_request: ProjectMergeRequest,
+    ) -> list[str]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
         changes = merge_request.changes()["changes"]
         changed_paths = set()
         for change in changes:
@@ -364,17 +366,18 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             changed_paths.add(new_path)
         return list(changed_paths)
 
-    def get_merge_request_author_username(self, mr_id: int) -> str:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
+    @staticmethod
+    def get_merge_request_author_username(
+        merge_request: ProjectMergeRequest,
+    ) -> str:
         return merge_request.author["username"]
 
+    @staticmethod
     def get_merge_request_comments(
-        self, mr_id: int, include_description: bool = False
+        merge_request: ProjectMergeRequest,
+        include_description: bool = False,
     ) -> list[dict[str, Any]]:
         comments = []
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
         if include_description:
             comments.append(
                 {
@@ -384,7 +387,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                     "id": MR_DESCRIPTION_COMMENT_ID,
                 }
             )
-        for note in self.get_items(merge_request.notes.list):
+        for note in GitLabApi.get_items(merge_request.notes.list):
             if note.system:
                 continue
             comments.append(
@@ -398,61 +401,72 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             )
         return comments
 
-    def delete_gitlab_comment(self, note: ProjectMergeRequestNote) -> None:
+    @staticmethod
+    def delete_comment(note: ProjectMergeRequestNote) -> None:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         note.delete()
 
-    def delete_merge_request_comments(self, mr_id: int, startswith: str) -> None:
-        comments = self.get_merge_request_comments(mr_id)
+    def delete_merge_request_comments(
+        self,
+        merge_request: ProjectMergeRequest,
+        startswith: str,
+    ) -> None:
+        comments = self.get_merge_request_comments(merge_request)
         for c in comments:
             body = c["body"] or ""
             if c["username"] == self.user.username and body.startswith(startswith):
-                self.delete_gitlab_comment(c["note"])
+                self.delete_comment(c["note"])
 
-    def add_comment_on_merge_request(
-        self, merge_request: ProjectMergeRequest, comment: str
+    def get_project_labels(self) -> Set[str]:
+        return {ln.name for ln in self.get_items(self.project.labels.list)}
+
+    @staticmethod
+    def add_label_to_merge_request(
+        merge_request: ProjectMergeRequest,
+        label: str,
+    ) -> None:
+        # merge_request maybe stale, refresh it to reduce the possibility of labels overwriting
+        GitLabApi.refresh_labels(merge_request)
+
+        labels = merge_request.labels
+        if label in labels:
+            return
+        labels.append(label)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        merge_request.save()
+
+    @staticmethod
+    def add_labels_to_merge_request(
+        merge_request: ProjectMergeRequest,
+        labels: Iterable[str],
+    ):
+        """Adds labels to a Merge Request"""
+        # merge_request maybe stale, refresh it to reduce the possibility of labels overwriting
+        GitLabApi.refresh_labels(merge_request)
+
+        new_labels = set(labels) - set(merge_request.labels)
+        if not new_labels:
+            return
+        merge_request.labels.extend(new_labels)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        merge_request.save()
+
+    @staticmethod
+    def set_labels_on_merge_request(
+        merge_request: ProjectMergeRequest,
+        labels: Iterable[str],
+    ) -> None:
+        """Set labels to a Merge Request"""
+        merge_request.labels = labels
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        merge_request.save()
+
+    @staticmethod
+    def add_comment_to_merge_request(
+        merge_request: ProjectMergeRequest,
+        body: str,
     ) -> None:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request.notes.create({"body": comment})
-
-    def add_merge_request_comment(self, mr_id, comment):
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request.notes.create({"body": comment})
-
-    def get_project_labels(self):
-        return [ln.name for ln in self.get_items(self.project.labels.list)]
-
-    def get_merge_request_labels(self, mr_id):
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
-        return merge_request.labels
-
-    def add_label_to_merge_request(self, mr_id, label):
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
-        labels = merge_request.attributes.get("labels")
-        labels.append(label)
-        self.update_labels(merge_request, "merge-request", labels)
-
-    def add_labels_to_merge_request(self, mr_id, labels):
-        """Adds labels to a Merge Request"""
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
-        mr_labels = merge_request.attributes.get("labels")
-        mr_labels += labels
-        self.update_labels(merge_request, "merge-request", mr_labels)
-
-    def set_labels_on_merge_request(self, mr_id, labels):
-        """Set labels to a Merge Request"""
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
-        self.update_labels(merge_request, "merge-request", labels)
-
-    def add_comment_to_merge_request(self, mr_id, body):
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        merge_request = self.project.mergerequests.get(mr_id)
         merge_request.notes.create({"body": body})
 
     @staticmethod
@@ -474,10 +488,19 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         self.project.labels.create({"name": label_text, "color": label_color})
 
     @staticmethod
-    def add_label(
+    def refresh_labels(item: ProjectMergeRequest | ProjectIssue):
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        refreshed_item = item.manager.get(item.get_id())
+        item.labels = refreshed_item.labels
+
+    @staticmethod
+    def add_label_with_note(
         item: ProjectMergeRequest | ProjectIssue,
         label: str,
-    ):
+    ) -> None:
+        # item maybe stale, refresh it to reduce the possibility of labels overwriting
+        GitLabApi.refresh_labels(item)
+
         labels = item.labels
         if label in labels:
             return
@@ -495,6 +518,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         item: ProjectMergeRequest | ProjectIssue,
         label: str,
     ):
+        # item maybe stale, refresh it to reduce the possibility of labels overwriting
+        GitLabApi.refresh_labels(item)
+
         labels = item.labels
         if label not in labels:
             return
@@ -502,20 +528,23 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.save()
 
-    def update_labels(self, item, item_type, labels):
-        if item_type == "issue":
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-            editable_item = self.project.issues.get(
-                item.attributes.get("iid"), lazy=True
-            )
-        elif item_type == "merge-request":
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-            editable_item = self.project.mergerequests.get(
-                item.attributes.get("iid"), lazy=True
-            )
-        editable_item.labels = labels
+    @staticmethod
+    def remove_labels(
+        item: ProjectMergeRequest | ProjectIssue,
+        labels: Iterable[str],
+    ):
+        # item maybe stale, refresh it to reduce the possibility of labels overwriting
+        GitLabApi.refresh_labels(item)
+
+        current_labels = set(item.labels)
+        to_be_removed = set(labels) & current_labels
+
+        if not to_be_removed:
+            return
+        item.labels = list(current_labels - to_be_removed)
+
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        editable_item.save()
+        item.save()
 
     @staticmethod
     def close(item):
@@ -593,7 +622,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         # what is the time of the last app-sre response?
         last_action_by_team = None
         # comments
-        comments = self.get_merge_request_comments(mr.iid)
+        comments = self.get_merge_request_comments(mr)
         comments.sort(key=itemgetter("created_at"), reverse=True)
         for comment in comments:
             username = comment["username"]
@@ -673,7 +702,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def last_comment(
         self, mr: ProjectMergeRequest, exclude_bot=True
     ) -> Optional[dict[str, Any]]:
-        comments = self.get_merge_request_comments(mr.iid)
+        comments = self.get_merge_request_comments(mr)
         comments.sort(key=itemgetter("created_at"), reverse=True)
         for comment in comments:
             username = comment["username"]
