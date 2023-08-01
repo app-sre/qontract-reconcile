@@ -3,24 +3,8 @@ from typing import (
     Optional,
 )
 
-from pydantic import BaseModel
-
-from reconcile.utils.ocm.base import OCMModelLink
+from reconcile.utils.ocm.base import OCMAddonInstallation
 from reconcile.utils.ocm_base_client import OCMBaseClient
-
-
-class OCMAddonVersion(BaseModel):
-    id: str
-    href: str
-    available_upgrades: list[str]
-
-
-class OCMAddonInstallation(BaseModel):
-    kind: str = "AddOnInstallation"
-    id: str
-    addon: OCMModelLink
-    state: str
-    addon_version: OCMAddonVersion
 
 
 def get_addons_for_cluster(

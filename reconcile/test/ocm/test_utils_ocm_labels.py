@@ -5,13 +5,15 @@ from pytest_mock import MockerFixture
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import labels
-from reconcile.utils.ocm.labels import (
+from reconcile.utils.ocm.base import (
     LabelContainer,
     OCMAccountLabel,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
-    build_container_for_prefix,
     build_label_container,
+)
+from reconcile.utils.ocm.labels import (
+    build_container_for_prefix,
     build_label_from_dict,
     get_organization_labels,
     get_subscription_labels,

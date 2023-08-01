@@ -12,17 +12,17 @@ from reconcile.oum.models import (
     ClusterUserManagementSpec,
     OrganizationUserManagementConfiguration,
 )
+from reconcile.utils.ocm.base import (
+    OCMClusterServiceLogCreateModel,
+    OCMServiceLogSeverity,
+)
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
     discover_clusters_by_labels,
 )
 from reconcile.utils.ocm.labels import build_container_for_prefix
 from reconcile.utils.ocm.search_filters import Filter
-from reconcile.utils.ocm.service_log import (
-    OCMClusterServiceLogCreateModel,
-    OCMServiceLogSeverity,
-    create_service_log,
-)
+from reconcile.utils.ocm.service_log import create_service_log
 from reconcile.utils.ocm.sre_capability_labels import sre_capability_label_key
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,

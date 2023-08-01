@@ -18,11 +18,11 @@ from reconcile.gql_definitions.fragments.upgrade_policy import (
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.test.ocm.fixtures import build_ocm_cluster
-from reconcile.utils.ocm.addons import (
+from reconcile.utils.ocm.base import (
     OCMAddonInstallation,
     OCMAddonVersion,
+    OCMModelLink,
 )
-from reconcile.utils.ocm.base import OCMModelLink
 from reconcile.utils.ocm.clusters import OCMCluster
 
 

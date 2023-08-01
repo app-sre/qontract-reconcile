@@ -1,63 +1,13 @@
-from datetime import datetime
-from enum import Enum
 from typing import Optional
 
-from pydantic import (
-    BaseModel,
-    ValidationError,
-)
+from pydantic import ValidationError
 
-from reconcile.utils.ocm.labels import (
-    OCMOrganizationLabel,
-    OCMSubscriptionLabel,
+from reconcile.utils.ocm.base import (
+    OCMOrganization,
+    OCMSubscription,
 )
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import OCMBaseClient
-
-
-class OCMCapability(BaseModel):
-    """
-    Represents a capability (feature/feature flag) of a subscription, e.g. becoming cluster admin
-    """
-
-    name: str
-    value: str
-
-
-class OCMSubscriptionStatus(Enum):
-    Active = "Active"
-    Deprovisioned = "Deprovisioned"
-    Stale = "Stale"
-    Archived = "Archived"
-    Reserved = "Reserved"
-    Disconnected = "Disconnected"
-
-
-class OCMSubscription(BaseModel):
-    """
-    Represents a subscription in OCM.
-    """
-
-    id: str
-    href: str
-    display_name: str
-    created_at: datetime
-    cluster_id: str
-
-    organization_id: str
-    managed: bool
-    """
-    A managed subscription is one that belongs to a cluster managed by OCM,
-    e.g. ROSA, OSD, etc.
-    """
-
-    status: OCMSubscriptionStatus
-
-    labels: Optional[list[OCMSubscriptionLabel]] = None
-    capabilities: Optional[list[OCMCapability]] = None
-    """
-    Capabilities are a list of features/features flags that are enabled for a subscription.
-    """
 
 
 def get_subscriptions(
@@ -95,21 +45,6 @@ def build_subscription_filter(
     fields: status and managed.
     """
     return Filter().is_in("status", states).eq("managed", str(managed).lower())
-
-
-class OCMOrganization(BaseModel):
-    """
-    Represents an organization in OCM.
-    """
-
-    id: str
-    name: str
-
-    labels: Optional[list[OCMOrganizationLabel]] = None
-    capabilities: Optional[list[OCMCapability]] = None
-    """
-    Capabilities are a list of features/features flags that are enabled for an organization.
-    """
 
 
 def get_organizations(

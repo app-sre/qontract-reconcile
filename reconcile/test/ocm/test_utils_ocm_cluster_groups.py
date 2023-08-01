@@ -6,11 +6,13 @@ import httpretty as httpretty_module
 from httpretty.core import HTTPrettyRequest
 
 from reconcile.test.ocm.fixtures import OcmUrl
-from reconcile.utils.ocm.cluster_groups import (
+from reconcile.utils.ocm.base import (
     OCMClusterGroup,
     OCMClusterGroupId,
     OCMClusterUser,
     OCMClusterUserList,
+)
+from reconcile.utils.ocm.cluster_groups import (
     add_user_to_cluster_group,
     build_cluster_group_user_url,
     build_cluster_group_users_url,

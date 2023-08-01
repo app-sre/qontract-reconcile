@@ -3,10 +3,12 @@ from typing import Optional
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.test.ocm.test_utils_ocm_labels import build_subscription_label
-from reconcile.utils.ocm.search_filters import Filter
-from reconcile.utils.ocm.subscriptions import (
+from reconcile.utils.ocm.base import (
     OCMCapability,
     OCMSubscription,
+)
+from reconcile.utils.ocm.search_filters import Filter
+from reconcile.utils.ocm.subscriptions import (
     build_subscription_filter,
     get_subscriptions,
 )

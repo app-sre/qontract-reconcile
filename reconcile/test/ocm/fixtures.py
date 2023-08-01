@@ -13,8 +13,7 @@ from pydantic import (
     Field,
 )
 
-from reconcile.utils.ocm.base import OCMModelLink
-from reconcile.utils.ocm.clusters import (
+from reconcile.utils.ocm.base import (
     PRODUCT_ID_ROSA,
     ClusterDetails,
     OCMCapability,
@@ -24,6 +23,7 @@ from reconcile.utils.ocm.clusters import (
     OCMClusterFlag,
     OCMClusterState,
     OCMClusterVersion,
+    OCMModelLink,
 )
 from reconcile.utils.ocm.labels import (
     LabelContainer,

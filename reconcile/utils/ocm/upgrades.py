@@ -4,8 +4,7 @@ from typing import (
     Union,
 )
 
-from pydantic import BaseModel
-
+from reconcile.utils.ocm.base import OCMVersionGate
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 UPGRADE_POLICY_DESIRED_KEYS = {"id", "schedule_type", "schedule", "next_run", "version"}
@@ -176,13 +175,6 @@ def get_version_agreement(
     ):
         agreements.append(item)
     return agreements
-
-
-class OCMVersionGate(BaseModel):
-    kind: str = "VersionGate"
-    id: str
-    version_raw_id_prefix: str
-    sts_only: bool
 
 
 def get_version_gates(ocm_api: OCMBaseClient) -> list[OCMVersionGate]:
