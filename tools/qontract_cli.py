@@ -1772,7 +1772,7 @@ def app_interface_merge_queue(ctx):
             ).total_seconds()
             / 60,
             "approved_by": mr["approved_by"],
-            "labels": ", ".join(mr["labels"]),
+            "labels": ", ".join(mr["mr"].labels),
         }
         merge_queue_data.append(item)
 
