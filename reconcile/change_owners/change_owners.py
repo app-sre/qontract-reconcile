@@ -158,9 +158,13 @@ def write_coverage_report_to_mr(
 
     self_serviceability_hint = "All changes require an `/lgtm` from a listed approver "
     if not self_serviceable:
-        self_serviceability_hint += "but <b>not all changes are self-serviceable and require AppSRE approval</b>."
-        self_serviceability_hint += "\nThe AppSRE Interrupt Catcher (IC) will review your Merge Request (MR) as it comes up in their <a href='https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md'>queue</a>, please do not ping them directly unless this is <b>urgent</b>."
-        self_serviceability_hint += "\nPlease see https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette for more information. Thank you :)"
+        self_serviceability_hint += (
+            "but <b>not all changes are self-serviceable and require AppSRE approval</b>."
+            "The AppSRE Interrupt Catcher (IC) will review your Merge Request (MR) as it comes up in their "
+            "<a href='https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md'>queue</a>, "
+            "please do not ping them directly unless this is <b>urgent</b>."
+            "\nPlease see https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette for more information. Thank you :)"
+        )
     if not authoritative:
         self_serviceability_hint += "\n\nchanges outside of data and resources detected - <b>PAY EXTRA ATTENTION WHILE REVIEWING</b>\n\n"
 
