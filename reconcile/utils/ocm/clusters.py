@@ -178,9 +178,7 @@ def get_cluster_details_for_subscriptions(
                 organization_labels=build_label_container(
                     organization_labels.get(subscription.organization_id) or []
                 ),
-                subscription_labels=build_label_container(
-                    (subscription.labels or []) if init_labels else []
-                ),
+                subscription_labels=build_label_container(subscription.labels or []),
             )
 
 

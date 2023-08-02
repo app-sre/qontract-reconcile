@@ -271,6 +271,9 @@ class LabelContainer(BaseModel):
     def get(self, name: str) -> Optional[OCMLabel]:
         return self.labels.get(name)
 
+    def __getitem__(self, name: str) -> OCMLabel:
+        return self.labels[name]
+
     def get_required_label(self, name: str) -> OCMLabel:
         label = self.get(name)
         if not label:

@@ -1,0 +1,18 @@
+# qenerate: plugin=pydantic_v1
+
+query OcmLabelClusters {
+  clusters: clusters_v1 {
+    name
+    ocm {
+      environment {
+        ...OCMEnvironment
+      }
+      orgId
+
+    }
+    disable {
+      integrations
+    }
+    ocmSubscriptionLabels
+  }
+}

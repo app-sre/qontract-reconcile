@@ -33,6 +33,42 @@ def get_subscription_labels(
             yield subscription_label
 
 
+def add_subscription_labels(
+    ocm_api: OCMBaseClient,
+    cluster: ClusterDetails,
+    labels: Mapping[str, str],
+) -> None:
+    """Add the given labels to the cluster subscription."""
+    for key, value in labels.items():
+        ocm_api.post(
+            api_path=f"{cluster.ocm_cluster.subscription.href}/labels",
+            data={"kind": "Label", "key": key, "value": value},
+        )
+
+
+def update_subscription_labels(
+    ocm_api: OCMBaseClient,
+    cluster: ClusterDetails,
+    labels: Mapping[str, str],
+) -> None:
+    """Update the given labels in the cluster subscription."""
+    for key, value in labels.items():
+        ocm_api.patch(
+            api_path=cluster.labels[key].href,
+            data={"kind": "Label", "key": key, "value": value},
+        )
+
+
+def delete_subscription_labels(
+    ocm_api: OCMBaseClient,
+    cluster: ClusterDetails,
+    labels: Iterable[str],
+) -> None:
+    """Delete the given labels from the cluster subscription."""
+    for label in labels:
+        ocm_api.delete(api_path=cluster.labels[label].href)
+
+
 def subscription_label_filter() -> Filter:
     """
     Returns a filter that can be used to find only subscription labels.

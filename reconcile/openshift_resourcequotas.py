@@ -5,25 +5,12 @@ from collections.abc import MutableMapping
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils.defer import defer
+from reconcile.utils.helpers import flatten
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "openshift-resourcequotas"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
-
-
-# Copied with love from https://stackoverflow.com/questions/6027558
-def flatten(d, parent_key="", sep="."):
-    items = []
-    for k, v in d.items():
-        if v is None:
-            continue
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, MutableMapping):
-            items.extend(flatten(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, str(v)))
-    return dict(items)
 
 
 def construct_resource(quota):
