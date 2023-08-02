@@ -16,6 +16,7 @@ from requests import (
 )
 from sretoolbox.utils import retry
 
+from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.utils.secret_reader import (
     HasSecret,
     SecretReaderBase,
@@ -160,6 +161,26 @@ class OCMAPIClientConfiguration(BaseModel, arbitrary_types_allowed=True):
     access_token_client_id: str
     access_token_url: str
     access_token_client_secret: HasSecret
+
+
+def init_ocm_base_client_for_org(
+    org: AUSOCMOrganization,
+    secret_reader: SecretReaderBase,
+    session: Optional[Session] = None,
+) -> OCMBaseClient:
+    if org.access_token_client_id:
+        return init_ocm_base_client(
+            OCMAPIClientConfiguration(
+                url=org.environment.url,
+                access_token_client_id=org.access_token_client_id,
+                access_token_url=org.access_token_url,
+                access_token_client_secret=org.access_token_client_secret,
+            ),
+            secret_reader,
+            session,
+        )
+    else:
+        return init_ocm_base_client(org.environment, secret_reader, session)
 
 
 def init_ocm_base_client(

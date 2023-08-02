@@ -12,6 +12,7 @@ from datetime import (
 from typing import (
     Callable,
     Optional,
+    cast,
 )
 
 from croniter import croniter
@@ -30,6 +31,7 @@ from reconcile.aus.metrics import (
     AUSOrganizationValidationErrorsGauge,
 )
 from reconcile.aus.models import (
+    ClusterAddonUpgradeSpec,
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
     Sector,
@@ -377,8 +379,11 @@ def fetch_current_state(
 ) -> list[AbstractUpgradePolicy]:
     current_state: list[AbstractUpgradePolicy] = []
     for spec in org_upgrade_spec.specs:
-        if addons:
-            upgrade_policies = get_addon_upgrade_policies(ocm_api, spec.cluster.id)
+        if addons and isinstance(spec, ClusterAddonUpgradeSpec):
+            addon_spec = cast(ClusterAddonUpgradeSpec, spec)
+            upgrade_policies = get_addon_upgrade_policies(
+                ocm_api, spec.cluster.id, addon_id=addon_spec.addon.addon.id
+            )
             for upgrade_policy in upgrade_policies:
                 upgrade_policy["cluster"] = spec.cluster
                 current_state.append(AddonUpgradePolicy(**upgrade_policy))
