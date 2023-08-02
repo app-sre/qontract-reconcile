@@ -24,8 +24,8 @@ from reconcile.gql_definitions.fragments.aus_organization import (
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.upgrade_policy import (
-    ClusterUpgradePolicy,
     ClusterUpgradePolicyConditionsV1,
+    ClusterUpgradePolicyV1,
 )
 from reconcile.utils.models import (
     CSV,
@@ -278,13 +278,11 @@ def _build_org_upgrade_spec(
     for c in clusters:
         try:
             upgrade_policy = _build_policy_from_labels(c.labels)
-            org_upgrade_spec.specs.append(
+            org_upgrade_spec.add_spec(
                 ClusterUpgradeSpec(
-                    name=c.ocm_cluster.name,
-                    cluster_uuid=c.ocm_cluster.external_id,
-                    current_version=c.ocm_cluster.version.raw_id,
-                    ocm=org_upgrade_spec.org,
+                    org=org_upgrade_spec.org,
                     upgradePolicy=upgrade_policy,
+                    cluster=c.ocm_cluster,
                 )
             )
         except ValidationError as validation_error:
@@ -309,14 +307,14 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     _schedule_validator = validator("schedule", allow_reuse=True)(cron_validator)
 
 
-def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicy:
+def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicyV1:
     """
     Build a cluster upgrade policy object from a set of OCM labels. Parsing
     and validation of the labels is delegated to the pydantic dataclass
     ClusterUpgradePolicyLabelSet.
     """
     policy_labelset = build_labelset(labels, ClusterUpgradePolicyLabelSet)
-    return ClusterUpgradePolicy(
+    return ClusterUpgradePolicyV1(
         workloads=policy_labelset.workloads,
         schedule=policy_labelset.schedule,
         conditions=ClusterUpgradePolicyConditionsV1(

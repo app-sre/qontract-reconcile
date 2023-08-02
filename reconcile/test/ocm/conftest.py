@@ -51,12 +51,16 @@ def ocm_api(
     ocm_url: str,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
     clusters: list[dict[str, Any]],
+    version_gates: list[dict[str, Any]],
 ) -> OCMBaseClient:
     register_ocm_url_responses(
         [
             OcmUrl(
                 method="GET", uri="/api/clusters_mgmt/v1/clusters"
-            ).add_list_response(clusters)
+            ).add_list_response(clusters),
+            OcmUrl(
+                method="GET", uri="/api/clusters_mgmt/v1/version_gates"
+            ).add_list_response(version_gates),
         ]
     )
     return OCMBaseClient(
@@ -160,9 +164,18 @@ def find_all_ocm_http_requests(
 @pytest.fixture
 def clusters() -> list[dict[str, Any]]:
     """
-    Provides cluster fixtures for the `ocm` fixture.
-    If a test module required actual clusters, it can override the `clusters`
+    Provides cluster fixtures for the `ocm_api` fixture.
+    If a test module requires clusters, it can override this fixture
     fixture.
+    """
+    return []
+
+
+@pytest.fixture
+def version_gates() -> list[dict[str, Any]]:
+    """
+    Provides empty versiongate fixtures for the `ocm_api` fixture.
+    If a test module requires versiongates, it can override this fixture
     """
     return []
 
