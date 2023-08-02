@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import logging
+import re
+from collections.abc import (
+    Iterable,
+    Mapping,
+    Sequence,
+)
 from typing import Optional
 
 from pydantic import (
@@ -9,8 +16,10 @@ from pydantic import (
 )
 
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
-from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicy
-from reconcile.utils.ocm import Sector
+from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
+from reconcile.utils.ocm.addons import OCMAddonInstallation
+from reconcile.utils.ocm.clusters import OCMCluster
+from reconcile.utils.semver_helper import parse_semver
 
 
 class ClusterUpgradeSpec(BaseModel):
@@ -18,11 +27,42 @@ class ClusterUpgradeSpec(BaseModel):
     An upgrade spec for a cluster.
     """
 
-    name: str
-    ocm: AUSOCMOrganization
-    upgrade_policy: ClusterUpgradePolicy = Field(..., alias="upgradePolicy")
-    cluster_uuid: str
-    current_version: str
+    org: AUSOCMOrganization
+    cluster: OCMCluster
+    upgrade_policy: ClusterUpgradePolicyV1 = Field(..., alias="upgradePolicy")
+
+    @property
+    def name(self) -> str:
+        return self.cluster.name
+
+    @property
+    def cluster_uuid(self) -> str:
+        return self.cluster.external_id
+
+    @property
+    def current_version(self) -> str:
+        return self.cluster.version.raw_id
+
+    @property
+    def blocked_versions(self) -> set[str]:
+        return set(self.org.blocked_versions or [])
+
+    def version_blocked(self, version: str) -> bool:
+        return any(re.search(b, version) for b in self.blocked_versions)
+
+    def get_available_upgrades(self) -> list[str]:
+        return self.cluster.available_upgrades()
+
+
+class ClusterAddonUpgradeSpec(ClusterUpgradeSpec):
+    addon: OCMAddonInstallation
+
+    def get_available_upgrades(self) -> list[str]:
+        return self.addon.addon_version.available_upgrades
+
+    @property
+    def current_version(self) -> str:
+        return self.addon.addon_version.id
 
 
 class ClusterValidationError(BaseModel):
@@ -40,10 +80,54 @@ class OrganizationUpgradeSpec(BaseModel):
     """
 
     org: AUSOCMOrganization
-    specs: list[ClusterUpgradeSpec] = Field(default_factory=list)
+    _specs: list[ClusterUpgradeSpec] = PrivateAttr(default_factory=list)
     _cluster_errors: dict[str, ClusterValidationError] = PrivateAttr(
         default_factory=dict
     )
+    _sectors: dict[str, Sector] = PrivateAttr(default_factory=dict)
+
+    def __init__(
+        self,
+        org: AUSOCMOrganization,
+        specs: Optional[Iterable[ClusterUpgradeSpec]] = None,
+    ) -> None:
+        super().__init__(org=org)
+
+        # extract sectors
+        self._sectors = {
+            s.name: Sector(org_id=self.org.org_id, name=s.name)
+            for s in self.org.sectors or []
+        }
+
+        # link sector dependencies
+        for s in self.org.sectors or []:
+            self._sectors[s.name].dependencies = [
+                self._sectors[d.name] for d in s.dependencies or []
+            ]
+
+        # validate sectors
+        for sector in self._sectors.values():
+            sector.validate_dependencies()
+
+        # register specs
+        if specs:
+            for spec in specs:
+                self.add_spec(spec)
+
+    @property
+    def sectors(self) -> Mapping[str, Sector]:
+        return self._sectors
+
+    def add_spec(self, spec: ClusterUpgradeSpec) -> None:
+        self._specs.append(spec)
+        self._specs.sort(key=upgrade_spec_sort_key)
+        # add clusters to their sectors
+        if spec.upgrade_policy.conditions.sector:
+            self._sectors[spec.upgrade_policy.conditions.sector].add_spec(spec)
+
+    @property
+    def specs(self) -> Sequence[ClusterUpgradeSpec]:
+        return self._specs
 
     @property
     def has_validation_errors(self) -> bool:
@@ -65,94 +149,62 @@ class OrganizationUpgradeSpec(BaseModel):
         self._cluster_errors[cluster_uuid].messages.append(message)
 
 
-class ConfiguredUpgradePolicyConditions(BaseModel):
-    """This class is used to represent the conditions of upgrade policies."""
-
-    mutexes: Optional[list[str]]
-    soakDays: int
-    sector: Optional[Sector]
-
-    def get_mutexes(self) -> list[str]:
-        return self.mutexes or []
-
-
-class ConfiguredUpgradePolicy(BaseModel):
-    """This class is used to represent the configuration for upgrade policies.
-    It is a reflection of the configuration done in GraphQL.
-    It is more specific than the generated dataclasses, as it supports
-    additional attributes.
+def upgrade_spec_sort_key(spec: ClusterUpgradeSpec) -> tuple:
     """
-
-    cluster: str
-    cluster_uuid: str
-    conditions: ConfiguredUpgradePolicyConditions
-    current_version: str
-    schedule: str
-    workloads: list[str]
-
-
-class ConfiguredAddonUpgradePolicy(ConfiguredUpgradePolicy):
-    """A class to represent the configuration for addon upgrade policies.
-    See also description of baseclass ConfiguredUpgradePolicy."""
-
-    addon_id: str
-
-    @classmethod
-    def from_cluster_upgrade_spec(
-        cls,
-        ous: ClusterUpgradeSpec,
-        current_version: str,
-        addon_id: str,
-        sector: Optional[Sector] = None,
-    ) -> ConfiguredAddonUpgradePolicy:
-        created_instance = cls(
-            cluster=ous.name,
-            cluster_uuid=ous.cluster_uuid,
-            conditions=ConfiguredUpgradePolicyConditions(
-                mutexes=ous.upgrade_policy.conditions.mutexes,
-                soakDays=ous.upgrade_policy.conditions.soak_days,
-            ),
-            schedule=ous.upgrade_policy.schedule,
-            workloads=ous.upgrade_policy.workloads,
-            current_version=current_version,
-            addon_id=addon_id,
-        )
-        if sector:
-            created_instance.conditions.sector = sector
-
-        return created_instance
+    consider first lower versions and lower soakdays (when versions are equal)
+    """
+    return (
+        parse_semver(spec.current_version),
+        spec.upgrade_policy.conditions.soak_days or 0,
+    )
 
 
-class ConfiguredClusterUpgradePolicy(ConfiguredUpgradePolicy):
-    """A class to represent the configuration for cluster upgrade policies.
-    See also description of baseclass ConfiguredUpgradePolicy."""
+class SectorConfigError(Exception):
+    pass
 
-    available_upgrades: Optional[list[str]]
-    channel: str
 
-    @classmethod
-    def from_cluster_upgrade_spec(
-        cls,
-        ous: ClusterUpgradeSpec,
-        current_version: str,
-        channel: str,
-        available_upgrades: Optional[list[str]] = None,
-        sector: Optional[Sector] = None,
-    ) -> ConfiguredClusterUpgradePolicy:
-        created_instance = cls(
-            cluster=ous.name,
-            cluster_uuid=ous.cluster_uuid,
-            conditions=ConfiguredUpgradePolicyConditions(
-                mutexes=ous.upgrade_policy.conditions.mutexes,
-                soakDays=ous.upgrade_policy.conditions.soak_days,
-            ),
-            schedule=ous.upgrade_policy.schedule,
-            workloads=ous.upgrade_policy.workloads,
-            current_version=current_version,
-            channel=channel,
-            available_upgrades=available_upgrades,
-        )
-        if sector:
-            created_instance.conditions.sector = sector
+class Sector(BaseModel):
+    name: str
+    dependencies: list["Sector"] = Field(default_factory=list)
+    _specs: dict[str, ClusterUpgradeSpec] = PrivateAttr(default_factory=dict)
 
-        return created_instance
+    def __key(self) -> str:
+        return self.name
+
+    def __hash__(self) -> int:
+        return hash(self.__key())
+
+    def __str__(self) -> str:
+        return self.name
+
+    def add_spec(self, spec: ClusterUpgradeSpec) -> None:
+        self._specs[spec.name] = spec
+
+    @property
+    def specs(self) -> Sequence[ClusterUpgradeSpec]:
+        return list(self._specs.values())
+
+    def set_specs(self, specs: Sequence[ClusterUpgradeSpec]) -> None:
+        self._specs = {spec.name: spec for spec in specs}
+
+    def _iter_dependencies(self) -> Iterable[Sector]:
+        """
+        iterate recursively over all the sector dependencies
+        """
+        logging.debug(f"[{self}] checking dependencies")
+        for dep in self.dependencies or []:
+            if self.name == dep.name:
+                raise SectorConfigError(
+                    f"[{self}] infinite sector dependency loop detected: depending on itself"
+                )
+            yield dep
+            for d in dep._iter_dependencies():
+                if self.name == d.name:
+                    raise SectorConfigError(
+                        f"[{self}] infinite sector dependency loop detected under {dep} dependencies"
+                    )
+                yield d
+
+    def validate_dependencies(self) -> bool:
+        list(self._iter_dependencies())
+        return True

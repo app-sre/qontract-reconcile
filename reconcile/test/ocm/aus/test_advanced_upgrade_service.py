@@ -19,7 +19,6 @@ from reconcile.aus.advanced_upgrade_service import (
 )
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.test.ocm.fixtures import (
     build_cluster_details,
     build_label,
@@ -161,19 +160,6 @@ def test_build_policy_from_labels() -> None:
 #
 # build_org_upgrade_spec
 #
-
-
-@pytest.fixture
-def ocm_env() -> OCMEnvironment:
-    return OCMEnvironment(
-        name="env",
-        url="https://ocm",
-        accessTokenUrl="https://sso/token",
-        accessTokenClientId="client-id",
-        accessTokenClientSecret=VaultSecret(
-            field="client-secret", path="path", format=None, version=None
-        ),
-    )
 
 
 @pytest.fixture

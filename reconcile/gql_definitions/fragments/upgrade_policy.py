@@ -30,7 +30,7 @@ class ClusterUpgradePolicyConditionsV1(ConfiguredBaseModel):
     sector: Optional[str] = Field(..., alias="sector")
 
 
-class ClusterUpgradePolicy(ConfiguredBaseModel):
+class ClusterUpgradePolicyV1(ConfiguredBaseModel):
     workloads: list[str] = Field(..., alias="workloads")
     schedule: str = Field(..., alias="schedule")
     conditions: ClusterUpgradePolicyConditionsV1 = Field(..., alias="conditions")
