@@ -179,8 +179,8 @@ def init_ocm_base_client_for_org(
             secret_reader,
             session,
         )
-    else:
-        return init_ocm_base_client(org.environment, secret_reader, session)
+
+    return init_ocm_base_client(org.environment, secret_reader, session)
 
 
 def init_ocm_base_client(
