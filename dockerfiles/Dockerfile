@@ -34,6 +34,7 @@ WORKDIR /work
 
 RUN python3 -m pip install --no-cache-dir --no-index --find-links=/tmp/work/wheels qontract-reconcile
 RUN python3 -m pip install -e .
+RUN python3 -m pip install -r /work/requirements/requirements-debugger.txt
 
 RUN chown -R reconcile /work && \
     chown -R reconcile /.terraform.d

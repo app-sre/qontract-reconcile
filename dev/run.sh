@@ -1,7 +1,5 @@
 #!/bin/bash
 
-pip install -r /work/requirements/requirements-debugger.txt
-
 DEBUGPY_PORT=${DEBUGPY_PORT:-5678}
 
 # for backwards compatibility
