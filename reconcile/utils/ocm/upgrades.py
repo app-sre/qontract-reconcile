@@ -60,7 +60,9 @@ def delete_addon_upgrade_policy(
     """
     Deletes an existing Addon Upgrade Policy
     """
-    ocm_api.delete(f"{build_cluster_url(cluster_id)}/addon_upgrade_policies{policy_id}")
+    ocm_api.delete(
+        f"{build_cluster_url(cluster_id)}/addon_upgrade_policies/{policy_id}"
+    )
 
 
 #
