@@ -172,7 +172,7 @@ def test_calculate_diff_inter_lock(
 #
 
 
-def test_upgradeable_version_blocked(cluster_1: OCMCluster) -> None:
+def test_upgradeable_org_version_blocked(cluster_1: OCMCluster) -> None:
     upgrade_spec = ClusterUpgradeSpec(
         org=build_organization(blocked_versions=[".*"]),
         cluster=cluster_1,
@@ -180,6 +180,36 @@ def test_upgradeable_version_blocked(cluster_1: OCMCluster) -> None:
     )
     x = base.upgradeable_version(upgrade_spec, VersionData(), None)
     assert x is None
+
+
+def test_upgradeable_cluster_version_blocked(cluster_1: OCMCluster) -> None:
+    upgrade_spec = ClusterUpgradeSpec(
+        org=build_organization(),
+        cluster=cluster_1,
+        upgradePolicy=build_upgrade_policy(
+            workloads=["workload1"], soak_days=0, blocked_versions=[".*"]
+        ),
+    )
+    x = base.upgradeable_version(upgrade_spec, VersionData(), None)
+    assert x is None
+
+
+def test_upgradeable_cluster_and_org_version_blocked(cluster_1: OCMCluster) -> None:
+    upgrade_spec = ClusterUpgradeSpec(
+        org=build_organization(blocked_versions=["4.12.*"]),
+        cluster=cluster_1,
+        upgradePolicy=build_upgrade_policy(
+            workloads=["workload1"], soak_days=0, blocked_versions=["4.13.0"]
+        ),
+    )
+    upgrade_spec.cluster.version.available_upgrades = ["4.12.5"]
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) is None
+
+    upgrade_spec.cluster.version.available_upgrades = ["4.13.0"]
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) is None
+
+    upgrade_spec.cluster.version.available_upgrades = ["4.13.1"]
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) == "4.13.1"
 
 
 def test_upgradeable_version_no_block(cluster_1: OCMCluster) -> None:

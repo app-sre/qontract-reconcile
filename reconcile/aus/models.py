@@ -45,7 +45,9 @@ class ClusterUpgradeSpec(BaseModel):
 
     @property
     def blocked_versions(self) -> set[str]:
-        return set(self.org.blocked_versions or [])
+        return set(self.org.blocked_versions or []) | set(
+            self.upgrade_policy.conditions.blocked_versions or []
+        )
 
     def version_blocked(self, version: str) -> bool:
         return any(re.search(b, version) for b in self.blocked_versions)
