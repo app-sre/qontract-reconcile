@@ -205,33 +205,23 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
         # existing product, only add/remove applications
         for product_name, apps in diff_result.change.items():
+            product = current_products[product_name]
             for app_name in apps.desired - apps.current:
                 return_list.append(
                     StatusBoardHandler(
                         action="create",
-                        status_board_object=create_app(
-                            app_name, current_products[product_name]
-                        ),
+                        status_board_object=create_app(app_name, product),
                     )
                 )
-
-            for app in apps.current - apps.desired:
-                found_apps = [
-                    application
-                    for application in current_products[product_name].applications or []
-                    if application.name == app
-                ]
-                if len(found_apps) != 1:
-                    logging.error(
-                        f'Application "{app}" not found in product "{product_name}"'
+            to_delete = apps.current - apps.desired
+            for application in product.applications or []:
+                if application.name in to_delete:
+                    return_list.append(
+                        StatusBoardHandler(
+                            action="delete",
+                            status_board_object=application,
+                        )
                     )
-                    continue
-                return_list.append(
-                    StatusBoardHandler(
-                        action="delete",
-                        status_board_object=found_apps[0],
-                    )
-                )
 
         # product is deleted entirely
         for product_name in diff_result.delete.keys():
