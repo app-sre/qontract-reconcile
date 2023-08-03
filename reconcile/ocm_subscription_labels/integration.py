@@ -76,7 +76,9 @@ class OcmLabelsIntegrationParams(PydanticRunParams):
     managed_label_prefixes: list[str] = []
 
     @validator("managed_label_prefixes")
-    def must_end_with_dot(cls, v: list[str]) -> list[str]:
+    def must_end_with_dot(  # pylint: disable=no-self-argument
+        cls, v: list[str]
+    ) -> list[str]:
         return [prefix + "." if not prefix.endswith(".") else prefix for prefix in v]
 
 
@@ -163,7 +165,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         for env in envs:
             for cluster_details in discover_clusters_for_organizations(
                 ocm_api=self.ocm_apis[env.env.name],
-                organization_ids=list(set([c.ocm.org_id for c in clusters if c.ocm])),
+                organization_ids=list({c.ocm.org_id for c in clusters if c.ocm}),
             ):
                 filtered_labels = {
                     label: value
