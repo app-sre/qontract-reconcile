@@ -32,6 +32,7 @@ def build_upgrade_policy(
     schedule: Optional[str] = None,
     sector: Optional[str] = None,
     mutexes: Optional[list[str]] = None,
+    blocked_versions: Optional[list[str]] = None,
 ) -> ClusterUpgradePolicyV1:
     return ClusterUpgradePolicyV1(
         schedule=schedule or "* * * * *",
@@ -40,6 +41,7 @@ def build_upgrade_policy(
             soakDays=soak_days,
             sector=sector,
             mutexes=mutexes,
+            blockedVersions=blocked_versions,
         ),
     )
 

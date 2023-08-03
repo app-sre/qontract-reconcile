@@ -304,6 +304,7 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     schedule: str = Field(alias=aus_label_key("schedule"))
     mutexes: Optional[CSV] = Field(alias=aus_label_key("mutexes"))
     sector: Optional[str] = Field(alias=aus_label_key("sector"))
+    blocked_versions: Optional[CSV] = Field(alias=aus_label_key("blocked-versions"))
     _schedule_validator = validator("schedule", allow_reuse=True)(cron_validator)
 
 
@@ -321,6 +322,7 @@ def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicyV1:
             soakDays=policy_labelset.soak_days,
             mutexes=policy_labelset.mutexes,
             sector=policy_labelset.sector,
+            blockedVersions=policy_labelset.blocked_versions,
         ),
     )
 
