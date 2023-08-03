@@ -1,6 +1,5 @@
 import logging
 import sys
-from collections.abc import MutableMapping
 
 import reconcile.openshift_base as ob
 from reconcile import queries

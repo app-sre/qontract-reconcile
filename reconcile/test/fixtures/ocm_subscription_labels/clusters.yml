@@ -1,0 +1,39 @@
+
+clusters:
+- name: cluster-disabled
+  ocm:
+    environment:
+      name: ocm-stage
+      accessTokenClientSecret:
+        field: client_secret
+        path: path/to/client_secret
+    orgId: org-id-1
+  disable:
+    integrations:
+    - ocm-subscription-labels
+- name: cluster-1
+  ocm:
+    environment:
+      name: ocm-prod
+      accessTokenClientSecret:
+        field: client_secret
+        path: path/to/client_secret
+    orgId: org-id-1
+  ocmSubscriptionLabels: '{"my-label-prefix":{"to-be-added":"enabled","to-be-changed":"enabled"}}'
+- name: cluster-2
+  ocm:
+    environment:
+      name: ocm-stage
+      accessTokenClientSecret:
+        field: client_secret
+        path: path/to/client_secret
+    orgId: org-id-2
+- name: cluster-3
+  ocm:
+    environment:
+      name: ocm-stage
+      accessTokenClientSecret:
+        field: client_secret
+        path: path/to/client_secret
+    orgId: org-id-2
+  ocmSubscriptionLabels: '{"my-label-prefix":{"to-be-added":"enabled"}}'
