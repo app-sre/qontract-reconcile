@@ -35,6 +35,7 @@ from reconcile.utils.ocm.clusters import (
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
     init_ocm_base_client,
+    init_ocm_base_client_for_org,
 )
 
 QONTRACT_INTEGRATION = "ocm-addons-upgrade-scheduler-org"
@@ -56,9 +57,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
     def process_upgrade_policies_in_org(
         self, dry_run: bool, org_upgrade_spec: OrganizationUpgradeSpec
     ) -> None:
-        ocm_api = init_ocm_base_client(
-            org_upgrade_spec.org.environment, self.secret_reader
-        )
+        ocm_api = init_ocm_base_client_for_org(org_upgrade_spec.org, self.secret_reader)
 
         current_state = aus.fetch_current_state(
             ocm_api,
