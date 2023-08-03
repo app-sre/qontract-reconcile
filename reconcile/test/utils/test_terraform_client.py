@@ -874,6 +874,37 @@ def test_terraform_plan(
     )
 
 
+def test_terraform_plan_with_error(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+    terraform_spec_builder: Callable[..., tfclient.TerraformSpec],
+) -> None:
+    mocked_lean_tf = mocker.patch("reconcile.utils.terraform_client.lean_tf")
+    error_message = "exceeded available rate limit retries"
+    mocked_lean_tf.plan.return_value = (1, "", error_message)
+    mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+    with mocked_tempfile.NamedTemporaryFile.return_value as f:
+        f.name = "temp-name"
+        f.read.return_value.decode.return_value = ""
+
+    with tempfile.TemporaryDirectory() as working_dir:
+        spec = terraform_spec_builder(ACCOUNT_NAME, working_dir)
+
+        disabled_deletion_detected, created_users, error = tf.terraform_plan(
+            spec,
+            False,
+        )
+
+    assert disabled_deletion_detected is False
+    assert created_users == []
+    assert error is True
+    mocked_logging.error.assert_called_once_with(
+        f"[{ACCOUNT_NAME} - plan] {error_message}"
+    )
+    mocked_lean_tf.show_json.assert_not_called()
+
+
 def test_terraform_apply(
     tf: tfclient.TerraformClient,
     mocker: MockerFixture,
