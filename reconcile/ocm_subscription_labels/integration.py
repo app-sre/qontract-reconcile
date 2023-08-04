@@ -104,7 +104,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         envs: dict[str, EnvWithClusters] = {}
 
         for cluster in clusters:
-            if cluster.ocm is None or cluster.ocm.environment is None:
+            if cluster.ocm is None:
                 # already filtered out in get_clusters - make mypy happy
                 continue
             if cluster.ocm.environment.name not in envs:
