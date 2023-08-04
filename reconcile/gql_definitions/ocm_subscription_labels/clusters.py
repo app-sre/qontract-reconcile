@@ -38,7 +38,7 @@ fragment VaultSecret on VaultSecret_v1 {
     format
 }
 
-query OcmLabelClusters {
+query OcmSubscriptionLabel {
   clusters: clusters_v1 {
     name
     ocm {
@@ -79,11 +79,11 @@ class ClusterV1(ConfiguredBaseModel):
     ocm_subscription_labels: Optional[Json] = Field(..., alias="ocmSubscriptionLabels")
 
 
-class OcmLabelClustersQueryData(ConfiguredBaseModel):
+class OcmSubscriptionLabelQueryData(ConfiguredBaseModel):
     clusters: Optional[list[ClusterV1]] = Field(..., alias="clusters")
 
 
-def query(query_func: Callable, **kwargs: Any) -> OcmLabelClustersQueryData:
+def query(query_func: Callable, **kwargs: Any) -> OcmSubscriptionLabelQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -96,7 +96,7 @@ def query(query_func: Callable, **kwargs: Any) -> OcmLabelClustersQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        OcmLabelClustersQueryData: queried data parsed into generated classes
+        OcmSubscriptionLabelQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return OcmLabelClustersQueryData(**raw_data)
+    return OcmSubscriptionLabelQueryData(**raw_data)
