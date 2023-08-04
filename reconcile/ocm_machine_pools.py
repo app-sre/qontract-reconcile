@@ -6,7 +6,6 @@ from abc import (
 )
 from collections.abc import Mapping
 from typing import (
-    Any,
     Iterable,
     Optional,
 )
@@ -38,6 +37,8 @@ class InvalidUpdateError(Exception):
 
 class AbstractAutoscaling(BaseModel):
     def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
+        if not pool.autoscale:
+            return False
         return (
             self.get_min() != pool.autoscale.min_replicas
             or self.get_max() != pool.autoscale.max_replicas
@@ -158,8 +159,7 @@ class MachinePool(AbstractPool):
             or self.taints != pool.taints
             or self.labels != pool.labels
             or self.instance_type != pool.instance_type
-            or self.autoscaling
-            and self.autoscaling.has_diff(pool)
+            or (self.autoscaling is not None and self.autoscaling.has_diff(pool))
         )
 
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
@@ -227,8 +227,7 @@ class NodePool(AbstractPool):
             or self.labels != pool.labels
             or self.aws_node_pool.instance_type != pool.instance_type
             or self.subnet != pool.subnet
-            or self.autoscaling
-            and self.autoscaling.has_diff(pool)
+            or (self.autoscaling is not None and self.autoscaling.has_diff(pool))
         )
 
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
