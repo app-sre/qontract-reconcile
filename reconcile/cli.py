@@ -294,8 +294,23 @@ def vault_throughput_path(function):
 
 
 def cluster_name(function):
+    """This option can be used when more than one cluster needs to be passed as argument"""
     function = click.option(
-        "--cluster-name", help="cluster name to act on.", default=None
+        "--cluster-name",
+        default=None,
+        multiple=True,
+        help="openshift cluster names to act on i.e.: --cluster-name cluster-1 --cluster-name cluster-2",
+    )(function)
+
+    return function
+
+
+def exclude_cluster(function):
+    function = click.option(
+        "--exclude-cluster",
+        multiple=True,
+        help="openshift cluster names to remove from execution when in dry-run",
+        default=[],
     )(function)
 
     return function
@@ -1004,10 +1019,17 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @internal()
 @use_jump_host()
 @cluster_name
+@exclude_cluster
 @namespace_name
 @click.pass_context
 def openshift_resources(
-    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
+    ctx,
+    thread_pool_size,
+    internal,
+    use_jump_host,
+    cluster_name,
+    exclude_cluster,
+    namespace_name,
 ):
     import reconcile.openshift_resources
 
@@ -1017,7 +1039,8 @@ def openshift_resources(
         thread_pool_size,
         internal,
         use_jump_host,
-        cluster_name=cluster_name,
+        cluster_name,
+        exclude_cluster,
         namespace_name=namespace_name,
     )
 
