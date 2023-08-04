@@ -943,6 +943,17 @@ def aws_ami_cleanup(ctx, thread_pool_size):
     run_integration(reconcile.aws_ami_cleanup.integration, ctx.obj, thread_pool_size)
 
 
+@integration.command(short_help="Set up retention period for Cloudwatch logs.")
+@threaded()
+@click.pass_context
+def aws_cloudwatch_log_retention(ctx, thread_pool_size):
+    import reconcile.aws_cloudwatch_log_retention.integration
+
+    run_integration(
+        reconcile.aws_cloudwatch_log_retention.integration, ctx.obj, thread_pool_size
+    )
+
+
 @integration.command(
     short_help="Generate AWS ECR image pull secrets and store them in Vault."
 )

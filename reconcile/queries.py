@@ -537,6 +537,10 @@ AWS_ACCOUNTS_QUERY = """
     {% if cleanup %}
     cleanup {
       provider
+      ... on AWSAccountCleanupOptionCloudWatch_v1 {
+        regex
+        retention_in_days
+      }
       ... on AWSAccountCleanupOptionAMI_v1 {
         regex
         age
