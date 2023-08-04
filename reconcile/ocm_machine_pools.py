@@ -36,7 +36,23 @@ class InvalidUpdateError(Exception):
     pass
 
 
-class AutoScaling(BaseModel):
+class AbstractAutoscaling(BaseModel):
+    def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
+        return (
+            self.get_min() != pool.autoscale.min_replicas
+            or self.get_max() != pool.autoscale.max_replicas
+        )
+
+    @abstractmethod
+    def get_min(self):
+        pass
+
+    @abstractmethod
+    def get_max(self):
+        pass
+
+
+class MachinePoolAutoscaling(AbstractAutoscaling):
     min_replicas: int
     max_replicas: int
 
@@ -47,11 +63,29 @@ class AutoScaling(BaseModel):
             raise ValueError("max_replicas must be greater than min_replicas")
         return field_values
 
-    def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
-        return (
-            self.min_replicas != pool.autoscale.min_replicas
-            or self.max_replicas != pool.autoscale.max_replicas
-        )
+    def get_min(self) -> int:
+        return self.min_replicas
+
+    def get_max(self) -> int:
+        return self.max_replicas
+
+
+class NodePoolAutoscaling(AbstractAutoscaling):
+    min_replica: int
+    max_replica: int
+
+    @root_validator()
+    @classmethod
+    def max_greater_min(cls, field_values):
+        if field_values.get("min_replica") > field_values.get("max_replica"):
+            raise ValueError("max_replicas must be greater than min_replicas")
+        return field_values
+
+    def get_min(self) -> int:
+        return self.min_replica
+
+    def get_max(self) -> int:
+        return self.max_replica
 
 
 class AbstractPool(ABC, BaseModel):
@@ -62,7 +96,7 @@ class AbstractPool(ABC, BaseModel):
     taints: Optional[list[Mapping[str, str]]]
     labels: Optional[Mapping[str, str]]
     cluster: str
-    autoscaling: Optional[AutoScaling]
+    autoscaling: Optional[AbstractAutoscaling]
 
     @root_validator()
     @classmethod
@@ -135,10 +169,16 @@ class MachinePool(AbstractPool):
 
     @classmethod
     def create_from_gql(cls, pool: ClusterMachinePoolV1, cluster: str):
+        autoscaling: Optional[MachinePoolAutoscaling] = None
+        if pool.autoscale:
+            autoscaling = MachinePoolAutoscaling(
+                min_replicas=pool.autoscale.min_replicas,
+                max_replicas=pool.autoscale.max_replicas,
+            )
         return cls(
             id=pool.q_id,
             replicas=pool.replicas,
-            autoscaling=pool.autoscale,
+            autoscaling=autoscaling,
             instance_type=pool.instance_type,
             taints=[p.dict(by_alias=True) for p in pool.taints or []],
             labels=pool.labels,
@@ -156,27 +196,15 @@ class NodePool(AbstractPool):
     aws_node_pool: AWSNodePool
     subnet: Optional[str]
 
-    @staticmethod
-    def _patch_autoscaling(spec: Mapping[str, Any]):
-        if spec.get("autoscaling"):
-            # hypershift uses singular form here
-            spec["autoscaling"]["max_replica"] = spec["autoscaling"]["max_replicas"]
-            spec["autoscaling"]["min_replica"] = spec["autoscaling"]["min_replicas"]
-
-            del spec["autoscaling"]["max_replicas"]
-            del spec["autoscaling"]["min_replicas"]
-
     def delete(self, ocm: OCM) -> None:
         ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
 
     def create(self, ocm: OCM) -> None:
         spec = self.dict(by_alias=True)
-        self._patch_autoscaling(spec)
         ocm.create_node_pool(self.cluster, spec)
 
     def update(self, ocm: OCM) -> None:
         update_dict = self.dict(by_alias=True)
-        self._patch_autoscaling(update_dict)
         # can not update instance_type
         del update_dict["aws_node_pool"]
         # can not update subnet
@@ -212,10 +240,17 @@ class NodePool(AbstractPool):
 
     @classmethod
     def create_from_gql(cls, pool: ClusterMachinePoolV1, cluster: str):
+        autoscaling: Optional[NodePoolAutoscaling] = None
+        if pool.autoscale:
+            autoscaling = NodePoolAutoscaling(
+                min_replica=pool.autoscale.min_replicas,
+                max_replica=pool.autoscale.max_replicas,
+            )
+
         return cls(
             id=pool.q_id,
             replicas=pool.replicas,
-            autoscaling=pool.autoscale,
+            autoscaling=autoscaling,
             aws_node_pool=AWSNodePool(
                 instance_type=pool.instance_type,
             ),
@@ -273,10 +308,10 @@ def fetch_current_state_for_cluster(cluster, ocm):
             NodePool(
                 id=node_pool["id"],
                 replicas=node_pool.get("replicas"),
-                autoscaling=AutoScaling(
+                autoscaling=NodePoolAutoscaling(
                     # Hypershift uses singular form
-                    min_replicas=node_pool["autoscaling"]["min_replica"],
-                    max_replicas=node_pool["autoscaling"]["max_replica"],
+                    min_replica=node_pool["autoscaling"]["min_replica"],
+                    max_replica=node_pool["autoscaling"]["max_replica"],
                 )
                 if node_pool.get("autoscaling")
                 else None,
@@ -294,7 +329,7 @@ def fetch_current_state_for_cluster(cluster, ocm):
         MachinePool(
             id=machine_pool["id"],
             replicas=machine_pool.get("replicas"),
-            autoscaling=AutoScaling(
+            autoscaling=MachinePoolAutoscaling(
                 min_replicas=machine_pool["autoscaling"]["min_replicas"],
                 max_replicas=machine_pool["autoscaling"]["max_replicas"],
             )

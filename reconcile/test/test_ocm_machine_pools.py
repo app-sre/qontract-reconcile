@@ -101,6 +101,7 @@ def cluster_machine_pool() -> ClusterMachinePoolV1:
         id="pool1",
         instance_type="m5.xlarge",
         replicas=1,
+        autoscale=None,
         labels=None,
         taints=None,
         subnet="subnet1",
@@ -125,6 +126,7 @@ def test_calculate_diff_create():
                     ClusterMachinePoolV1(
                         id="pool1",
                         instance_type="m5.xlarge",
+                        autoscale=None,
                         replicas=1,
                         labels=None,
                         taints=None,
@@ -152,6 +154,7 @@ def test_calculate_diff_noop(current_with_pool):
                         id="pool1",
                         instance_type="m5.xlarge",
                         replicas=2,
+                        autoscale=None,
                         labels=None,
                         taints=None,
                         subnet="subnet1",
@@ -176,6 +179,7 @@ def test_calculate_diff_update(current_with_pool):
                         id="pool1",
                         instance_type="m5.xlarge",
                         replicas=1,
+                        autoscale=None,
                         labels=None,
                         taints=None,
                         subnet="subnet1",
@@ -265,14 +269,21 @@ def test_machine_pool_update(machine_pool, mocker):
 
     assert ocm.update_machine_pool.call_count == 1
     ocm.update_machine_pool.assert_called_with(
-        "cluster1", {"id": "pool1", "replicas": 2, "cluster": "cluster1"}
+        "cluster1",
+        {"id": "pool1", "replicas": 2, "cluster": "cluster1", "autoscaling": None},
     )
 
     machine_pool.labels = {"foo": "bar"}
     machine_pool.update(ocm=ocm)
     ocm.update_machine_pool.assert_called_with(
         "cluster1",
-        {"id": "pool1", "replicas": 2, "cluster": "cluster1", "labels": {"foo": "bar"}},
+        {
+            "id": "pool1",
+            "replicas": 2,
+            "cluster": "cluster1",
+            "labels": {"foo": "bar"},
+            "autoscaling": None,
+        },
     )
 
 
@@ -281,12 +292,19 @@ def test_node_pool_update(node_pool, ocm_mock):
 
     assert ocm_mock.update_node_pool.call_count == 1
     ocm_mock.update_node_pool.assert_called_with(
-        "cluster1", {"id": "pool1", "replicas": 2, "cluster": "cluster1"}
+        "cluster1",
+        {"id": "pool1", "replicas": 2, "cluster": "cluster1", "autoscaling": None},
     )
 
     node_pool.labels = {"foo": "bar"}
     node_pool.update(ocm=ocm_mock)
     ocm_mock.update_node_pool.assert_called_with(
         "cluster1",
-        {"id": "pool1", "replicas": 2, "cluster": "cluster1", "labels": {"foo": "bar"}},
+        {
+            "id": "pool1",
+            "replicas": 2,
+            "cluster": "cluster1",
+            "labels": {"foo": "bar"},
+            "autoscaling": None,
+        },
     )
