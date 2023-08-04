@@ -54,7 +54,7 @@ class EnvWithClusters(BaseModel):
         arbitrary_types_allowed = True
 
 
-class ClusterState(BaseModel):
+class ClusterLabelState(BaseModel):
     env: OCMEnvironment
     ocm_api: OCMBaseClient
     cluster_details: ClusterDetails
@@ -64,12 +64,12 @@ class ClusterState(BaseModel):
         arbitrary_types_allowed = True
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, ClusterState):
+        if not isinstance(other, ClusterLabelState):
             raise NotImplementedError("Cannot compare to non ClusterState objects.")
         return self.labels == other.labels
 
 
-ClusterStates = dict[str, ClusterState]
+ClusterStates = dict[str, ClusterLabelState]
 
 
 class OcmLabelsIntegrationParams(PydanticRunParams):
@@ -172,7 +172,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
                     for label, value in cluster_details.subscription_labels.get_values_dict().items()
                     if label.startswith(tuple(managed_label_prefixes))
                 }
-                states[cluster_details.ocm_cluster.name] = ClusterState(
+                states[cluster_details.ocm_cluster.name] = ClusterLabelState(
                     env=env.env,
                     ocm_api=self.ocm_apis[env.env.name],
                     cluster_details=cluster_details,
@@ -197,7 +197,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
                     f"Cluster '{cluster.name}' not found in OCM. Maybe it doesn't exist yet. Skipping."
                 )
                 continue
-            states[cluster.name] = ClusterState(
+            states[cluster.name] = ClusterLabelState(
                 env=cluster.ocm.environment,
                 ocm_api=self.ocm_apis[cluster.ocm.environment.name],
                 cluster_details=cluster_details,

@@ -13,7 +13,7 @@ from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.ocm_subscription_labels.clusters import ClusterV1
 from reconcile.ocm_subscription_labels.integration import (
-    ClusterState,
+    ClusterLabelState,
     ClusterStates,
     EnvWithClusters,
     OcmLabelsIntegration,
@@ -182,7 +182,7 @@ def current_state(
 ) -> ClusterStates:
     return {
         "cluster-1": gql_class_factory(
-            ClusterState,
+            ClusterLabelState,
             {
                 "env": {
                     "name": "ocm-prod",
@@ -200,7 +200,7 @@ def current_state(
             },
         ),
         "cluster-2": gql_class_factory(
-            ClusterState,
+            ClusterLabelState,
             {
                 "env": {
                     "name": "ocm-stage",
@@ -215,7 +215,7 @@ def current_state(
             },
         ),
         "cluster-3": gql_class_factory(
-            ClusterState,
+            ClusterLabelState,
             {
                 "env": {
                     "name": "ocm-stage",
@@ -242,7 +242,7 @@ def desired_state(
 ) -> ClusterStates:
     return {
         "cluster-1": gql_class_factory(
-            ClusterState,
+            ClusterLabelState,
             {
                 "env": {
                     "name": "ocm-prod",
@@ -260,7 +260,7 @@ def desired_state(
             },
         ),
         "cluster-2": gql_class_factory(
-            ClusterState,
+            ClusterLabelState,
             {
                 "env": {
                     "name": "ocm-stage",
@@ -275,7 +275,7 @@ def desired_state(
             },
         ),
         "cluster-3": gql_class_factory(
-            ClusterState,
+            ClusterLabelState,
             {
                 "env": {
                     "name": "ocm-stage",

@@ -12,6 +12,7 @@ from reconcile.utils.ocm.base import (
     ClusterDetails,
     LabelContainer,
     OCMAccountLabel,
+    OCMCluster,
     OCMLabel,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,

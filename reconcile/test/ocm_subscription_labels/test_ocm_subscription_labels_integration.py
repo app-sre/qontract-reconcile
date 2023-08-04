@@ -10,7 +10,7 @@ from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.ocm_subscription_labels.clusters import ClusterV1
 from reconcile.ocm_subscription_labels.integration import (
-    ClusterState,
+    ClusterLabelState,
     ClusterStates,
     EnvWithClusters,
     OcmLabelsIntegration,
@@ -108,7 +108,7 @@ def test_ocm_subscription_labels_cluster_details_cache(
     cluster: ClusterDetails = build_cluster_details(name="cluster-1", org_id="org-id-1")
     cluster_states = {
         "cluster-1": gql_class_factory(
-            ClusterState,
+            ClusterLabelState,
             {
                 "env": {
                     "name": "ocm-stage",
