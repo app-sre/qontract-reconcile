@@ -10,7 +10,6 @@ from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.ocm_subscription_labels.clusters import ClusterV1
 from reconcile.ocm_subscription_labels.integration import (
-    ClusterLabelState,
     ClusterStates,
     EnvWithClusters,
     OcmLabelsIntegration,
@@ -197,60 +196,67 @@ def test_ocm_subscription_labels_reconcile(
     ocm_base_client: OCMBaseClient,
     dry_run: bool,
 ) -> None:
-    add_subscription_labels_mock = mocker.patch(
-        "reconcile.ocm_subscription_labels.integration.add_subscription_labels",
+    add_subscription_label_mock = mocker.patch(
+        "reconcile.ocm_subscription_labels.integration.add_subscription_label",
         autospec=True,
     )
-    update_subscription_labels_mock = mocker.patch(
-        "reconcile.ocm_subscription_labels.integration.update_subscription_labels",
+    update_ocm_label_mock = mocker.patch(
+        "reconcile.ocm_subscription_labels.integration.update_ocm_label",
         autospec=True,
     )
-    delete_subscription_labels_mock = mocker.patch(
-        "reconcile.ocm_subscription_labels.integration.delete_subscription_labels",
+    delete_ocm_label_mock = mocker.patch(
+        "reconcile.ocm_subscription_labels.integration.delete_ocm_label",
         autospec=True,
     )
     ocm_subscription_labels.reconcile(dry_run, current_state, desired_state)
     if dry_run:
-        add_subscription_labels_mock.assert_not_called()
-        update_subscription_labels_mock.assert_not_called()
-        delete_subscription_labels_mock.assert_not_called()
+        add_subscription_label_mock.assert_not_called()
+        update_ocm_label_mock.assert_not_called()
+        delete_ocm_label_mock.assert_not_called()
     else:
         add_calls = [
             call(
                 ocm_api=ocm_base_client,
-                ocm_cluster=desired_state["cluster-1"].cluster_details.ocm_cluster,
-                labels={"my-label-prefix.to-be-added": "enabled"},
+                ocm_cluster=desired_state["cluster-1"].cluster_details.ocm_cluster,  # type: ignore[union-attr]
+                label="my-label-prefix.to-be-added",
+                value="enabled",
             ),
             call(
                 ocm_api=ocm_base_client,
-                ocm_cluster=desired_state["cluster-3"].cluster_details.ocm_cluster,
-                labels={"my-label-prefix.to-be-added": "enabled"},
+                ocm_cluster=desired_state["cluster-3"].cluster_details.ocm_cluster,  # type: ignore[union-attr]
+                label="my-label-prefix.to-be-added",
+                value="enabled",
             ),
         ]
-        add_subscription_labels_mock.assert_has_calls(add_calls)
-        assert add_subscription_labels_mock.call_count == len(add_calls)
+        add_subscription_label_mock.assert_has_calls(add_calls)
+        assert add_subscription_label_mock.call_count == len(add_calls)
 
         update_calls = [
             call(
                 ocm_api=ocm_base_client,
-                cluster=desired_state["cluster-1"].cluster_details,
-                labels={"my-label-prefix.to-be-changed": "enabled"},
+                ocm_label=desired_state["cluster-1"].cluster_details.labels[  # type: ignore[union-attr]
+                    "my-label-prefix.to-be-changed"
+                ],
+                label="my-label-prefix.to-be-changed",
+                value="enabled",
             )
         ]
-        update_subscription_labels_mock.assert_has_calls(update_calls)
-        assert update_subscription_labels_mock.call_count == len(update_calls)
+        update_ocm_label_mock.assert_has_calls(update_calls)
+        assert update_ocm_label_mock.call_count == len(update_calls)
 
         delete_calls = [
             call(
                 ocm_api=ocm_base_client,
-                cluster=desired_state["cluster-1"].cluster_details,
-                labels=["my-label-prefix.to-be-removed"],
+                ocm_label=desired_state["cluster-1"].cluster_details.labels[  # type: ignore[union-attr]
+                    "my-label-prefix.to-be-removed"
+                ],
             ),
             call(
                 ocm_api=ocm_base_client,
-                cluster=desired_state["cluster-3"].cluster_details,
-                labels=["my-label-prefix.to-be-removed"],
+                ocm_label=desired_state["cluster-3"].cluster_details.labels[  # type: ignore[union-attr]
+                    "my-label-prefix.to-be-removed"
+                ],
             ),
         ]
-        delete_subscription_labels_mock.assert_has_calls(delete_calls)
-        assert delete_subscription_labels_mock.call_count == len(delete_calls)
+        delete_ocm_label_mock.assert_has_calls(delete_calls)
+        assert delete_ocm_label_mock.call_count == len(delete_calls)

@@ -29,9 +29,9 @@ from reconcile.utils.ocm.clusters import (
     discover_clusters_for_organizations,
 )
 from reconcile.utils.ocm.labels import (
-    add_subscription_labels,
-    delete_subscription_labels,
-    update_subscription_labels,
+    add_subscription_label,
+    delete_ocm_label,
+    update_ocm_label,
 )
 from reconcile.utils.ocm_base_client import (
     OCMAPIClientConfigurationProtocol,
@@ -222,46 +222,47 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
                 current_cluster_state.labels, desired_cluster_state.labels
             )
 
-            for label_to_add, label in diff_result.add.items():
+            for label_to_add, value in diff_result.add.items():
                 logging.info(
                     [
                         "create_cluster_subscription_label",
                         cluster_name,
-                        f"{label_to_add}={label}",
+                        f"{label_to_add}={value}",
                     ]
                 )
                 if not dry_run:
-                    add_subscription_labels(
+                    add_subscription_label(
                         ocm_api=desired_cluster_state.ocm_api,
-                        ocm_cluster=desired_cluster_state.cluster_details.ocm_cluster,
-                        labels={label_to_add: label},
+                        ocm_cluster=cluster_details.ocm_cluster,
+                        label=label_to_add,
+                        value=value,
                     )
-            for label_to_rm, label in diff_result.delete.items():
+            for label_to_rm, value in diff_result.delete.items():
                 logging.info(
                     [
                         "delete_cluster_subscription_label",
                         cluster_name,
-                        f"{label_to_rm}={label}",
+                        f"{label_to_rm}={value}",
                     ]
                 )
                 if not dry_run:
-                    delete_subscription_labels(
+                    delete_ocm_label(
                         ocm_api=desired_cluster_state.ocm_api,
-                        cluster=desired_cluster_state.cluster_details,
-                        labels=[label_to_rm],
+                        ocm_label=cluster_details.labels[label_to_rm],
                     )
             for label_to_update, diff_pair in diff_result.change.items():
-                label = diff_pair.desired
+                value = diff_pair.desired
                 logging.info(
                     [
                         "update_cluster_subscription_label",
                         cluster_name,
-                        f"{label_to_update}={label}",
+                        f"{label_to_update}={value}",
                     ]
                 )
                 if not dry_run:
-                    update_subscription_labels(
+                    update_ocm_label(
                         ocm_api=desired_cluster_state.ocm_api,
-                        cluster=desired_cluster_state.cluster_details,
-                        labels={label_to_update: label},
+                        ocm_label=cluster_details.labels[label_to_update],
+                        label=label_to_update,
+                        value=value,
                     )

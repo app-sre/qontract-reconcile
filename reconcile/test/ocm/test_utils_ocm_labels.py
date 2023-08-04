@@ -19,13 +19,13 @@ from reconcile.utils.ocm.base import (
     build_label_container,
 )
 from reconcile.utils.ocm.labels import (
-    add_subscription_labels,
+    add_subscription_label,
     build_container_for_prefix,
     build_label_from_dict,
-    delete_subscription_labels,
+    delete_ocm_label,
     get_organization_labels,
     get_subscription_labels,
-    update_subscription_labels,
+    update_ocm_label,
 )
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import OCMBaseClient
@@ -355,57 +355,45 @@ def test_add_subscription_labels(
         [OcmUrl(method="POST", uri=f"{cluster.ocm_cluster.subscription.href}/labels")]
     )
 
-    add_subscription_labels(
-        ocm_api,
-        cluster.ocm_cluster,
-        {"label": "value", "another_label": "another_value"},
-    )
+    add_subscription_label(ocm_api, cluster.ocm_cluster, "label", "value")
 
     ocm_calls = find_all_ocm_http_requests("POST")
-    assert len(ocm_calls) == 2
+    assert len(ocm_calls) == 1
 
 
-def test_update_subscription_labels(
+def test_update_ocm_labels(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
     find_all_ocm_http_requests: Callable[[str], list[HTTPrettyRequest]],
 ) -> None:
-    cluster = build_cluster_details(
-        subs_labels=[("label", "value"), ("another_label", "another_value")]
-    )
+    cluster = build_cluster_details(subs_labels=[("label", "value")])
 
     register_ocm_url_responses(
         [
             OcmUrl(method="PATCH", uri="/label/label_id"),
-            OcmUrl(method="PATCH", uri="/label/another_label_id"),
         ]
     )
 
-    update_subscription_labels(
-        ocm_api, cluster, {"label": "value2", "another_label": "another_value2"}
-    )
+    update_ocm_label(ocm_api, cluster.labels["label"], "label", "value2")
 
     ocm_calls = find_all_ocm_http_requests("PATCH")
-    assert len(ocm_calls) == 2
+    assert len(ocm_calls) == 1
 
 
-def test_delete_subscription_labels(
+def test_delete_ocm_labels(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
     find_all_ocm_http_requests: Callable[[str], list[HTTPrettyRequest]],
 ) -> None:
-    cluster = build_cluster_details(
-        subs_labels=[("label", "value"), ("another_label", "another_value")]
-    )
+    cluster = build_cluster_details(subs_labels=[("label", "value")])
 
     register_ocm_url_responses(
         [
             OcmUrl(method="DELETE", uri="/label/label_id"),
-            OcmUrl(method="DELETE", uri="/label/another_label_id"),
         ]
     )
 
-    delete_subscription_labels(ocm_api, cluster, ["label", "another_label"])
+    delete_ocm_label(ocm_api, cluster.labels["label"])
 
     ocm_calls = find_all_ocm_http_requests("DELETE")
-    assert len(ocm_calls) == 2
+    assert len(ocm_calls) == 1

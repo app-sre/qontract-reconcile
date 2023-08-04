@@ -1,15 +1,10 @@
-from collections.abc import (
-    Generator,
-    Iterable,
-    Mapping,
-)
+from collections.abc import Generator
 from typing import (
     Any,
     Optional,
 )
 
 from reconcile.utils.ocm.base import (
-    ClusterDetails,
     LabelContainer,
     OCMAccountLabel,
     OCMCluster,
@@ -34,40 +29,35 @@ def get_subscription_labels(
             yield subscription_label
 
 
-def add_subscription_labels(
+def add_subscription_label(
     ocm_api: OCMBaseClient,
     ocm_cluster: OCMCluster,
-    labels: Mapping[str, str],
+    label: str,
+    value: str,
 ) -> None:
-    """Add the given labels to the cluster subscription."""
-    for key, value in labels.items():
-        ocm_api.post(
-            api_path=f"{ocm_cluster.subscription.href}/labels",
-            data={"kind": "Label", "key": key, "value": value},
-        )
+    """Add the given label to the cluster subscription."""
+    ocm_api.post(
+        api_path=f"{ocm_cluster.subscription.href}/labels",
+        data={"kind": "Label", "key": label, "value": value},
+    )
 
 
-def update_subscription_labels(
+def update_ocm_label(
     ocm_api: OCMBaseClient,
-    cluster: ClusterDetails,
-    labels: Mapping[str, str],
+    ocm_label: OCMLabel,
+    label: str,
+    value: str,
 ) -> None:
-    """Update the given labels in the cluster subscription."""
-    for key, value in labels.items():
-        ocm_api.patch(
-            api_path=cluster.labels[key].href,
-            data={"kind": "Label", "key": key, "value": value},
-        )
+    """Update the label (key, value) in the given OCM label."""
+    ocm_api.patch(
+        api_path=ocm_label.href,
+        data={"kind": "Label", "key": label, "value": value},
+    )
 
 
-def delete_subscription_labels(
-    ocm_api: OCMBaseClient,
-    cluster: ClusterDetails,
-    labels: Iterable[str],
-) -> None:
-    """Delete the given labels from the cluster subscription."""
-    for label in labels:
-        ocm_api.delete(api_path=cluster.labels[label].href)
+def delete_ocm_label(ocm_api: OCMBaseClient, ocm_label: OCMLabel) -> None:
+    """Delete the given OCM label."""
+    ocm_api.delete(api_path=ocm_label.href)
 
 
 def subscription_label_filter() -> Filter:
