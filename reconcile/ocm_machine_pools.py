@@ -154,6 +154,10 @@ class MachinePool(AbstractPool):
                 f"updating labels or taints for machine pool {pool.q_id} "
                 f"will only be applied to new Nodes"
             )
+
+        if self.autoscaling is None and pool.autoscale is not None:
+            return True
+
         return (
             self.replicas != pool.replicas
             or self.taints != pool.taints
@@ -221,6 +225,10 @@ class NodePool(AbstractPool):
                 f"updating labels or taints for node pool {pool.q_id} "
                 f"will only be applied to new Nodes"
             )
+
+        if self.autoscaling is None and pool.autoscale is not None:
+            return True
+
         return (
             self.replicas != pool.replicas
             or self.taints != pool.taints
