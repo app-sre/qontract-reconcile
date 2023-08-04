@@ -21,6 +21,7 @@ from reconcile.gql_definitions.ocm_subscription_labels.clusters import (
     query as cluster_query,
 )
 from reconcile.utils import gql
+from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.helpers import flatten
 from reconcile.utils.ocm.clusters import (
@@ -217,35 +218,30 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
             if desired_cluster_state == current_cluster_state:
                 continue
 
-            for label_to_add in (
-                desired_cluster_state.labels.keys()
-                - current_cluster_state.labels.keys()
-            ):
+            diff_result = diff_mappings(
+                current_cluster_state.labels, desired_cluster_state.labels
+            )
+
+            for label_to_add, label in diff_result.add.items():
                 logging.info(
                     [
                         "create_cluster_subscription_label",
                         cluster_name,
-                        f"{label_to_add}={desired_cluster_state.labels[label_to_add]}",
+                        f"{label_to_add}={label}",
                     ]
                 )
                 if not dry_run:
                     add_subscription_labels(
                         ocm_api=desired_cluster_state.ocm_api,
                         ocm_cluster=desired_cluster_state.cluster_details.ocm_cluster,
-                        labels={
-                            label_to_add: desired_cluster_state.labels[label_to_add]
-                        },
+                        labels={label_to_add: label},
                     )
-
-            for label_to_rm in (
-                current_cluster_state.labels.keys()
-                - desired_cluster_state.labels.keys()
-            ):
+            for label_to_rm, label in diff_result.delete.items():
                 logging.info(
                     [
                         "delete_cluster_subscription_label",
                         cluster_name,
-                        f"{label_to_rm}={current_cluster_state.labels[label_to_rm]}",
+                        f"{label_to_rm}={label}",
                     ]
                 )
                 if not dry_run:
@@ -254,28 +250,18 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
                         cluster=desired_cluster_state.cluster_details,
                         labels=[label_to_rm],
                     )
-
-            for label_to_cmp in (
-                desired_cluster_state.labels.keys()
-                & current_cluster_state.labels.keys()
-            ):
-                if (
-                    desired_cluster_state.labels[label_to_cmp]
-                    == current_cluster_state.labels[label_to_cmp]
-                ):
-                    continue
+            for label_to_update, diff_pair in diff_result.change.items():
+                label = diff_pair.desired
                 logging.info(
                     [
                         "update_cluster_subscription_label",
                         cluster_name,
-                        f"{label_to_cmp}={desired_cluster_state.labels[label_to_cmp]}",
+                        f"{label_to_update}={label}",
                     ]
                 )
                 if not dry_run:
                     update_subscription_labels(
                         ocm_api=desired_cluster_state.ocm_api,
                         cluster=desired_cluster_state.cluster_details,
-                        labels={
-                            label_to_cmp: desired_cluster_state.labels[label_to_cmp]
-                        },
+                        labels={label_to_update: label},
                     )
