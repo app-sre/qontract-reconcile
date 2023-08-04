@@ -18,7 +18,7 @@ else:
     CloudWatchLogsClient = object
 
 QONTRACT_INTEGRATION = "aws_cloudwatch_log_retention"
-MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
+MANAGED_TAG = {"managed_by_integration": QONTRACT_INTEGRATION}
 
 
 class AWSCloudwatchLogRetention(BaseModel):
