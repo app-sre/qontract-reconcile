@@ -18,7 +18,7 @@ else:
     CloudWatchLogsClient = object
 
 QONTRACT_INTEGRATION = "aws_cloudwatch_log_retention"
-MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
+MANAGED_TAG = {"managed_by_integration": QONTRACT_INTEGRATION}
 
 
 class AWSCloudwatchLogRetention(BaseModel):
@@ -87,7 +87,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                     regex_pattern = re.compile(cloudwatch_cleanup_entry.log_regex)
                     if regex_pattern.match(group_name):
                         log_group_tags = log_group["tags"]
-                        if all(
+                        if not all(
                             item in log_group_tags.items()
                             for item in MANAGED_TAG.items()
                         ):
@@ -109,5 +109,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                                 awsapi.set_cloudwatch_log_retention(
                                     aws_acct,
                                     group_name,
-                                    cloudwatch_cleanup_entry.log_retention_day_length,
+                                    int(
+                                        cloudwatch_cleanup_entry.log_retention_day_length
+                                    ),
                                 )
