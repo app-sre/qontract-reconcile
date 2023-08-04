@@ -1,0 +1,11 @@
+# qenerate: plugin=pydantic_v1
+
+query LdapGroupsRolesQuery {
+  roles: roles_v1 {
+    name
+    ldapGroup
+    users {
+      org_username
+    }
+  }
+}

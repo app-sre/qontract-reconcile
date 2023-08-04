@@ -66,6 +66,7 @@ setup(
         "rich>=13.3.0,<14.0.0",
         "dateparser~=1.1.7",
         "pyjwt~=2.7",
+        "requests-oauthlib~=1.3",
     ],
     test_suite="tests",
     classifiers=[
