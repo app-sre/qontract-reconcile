@@ -98,46 +98,6 @@ def test_ocm_subscription_labels_init_ocm_apis(
     assert len(ocm_subscription_labels.ocm_apis) == 2
 
 
-def test_ocm_subscription_labels_cluster_details_cache(
-    ocm_subscription_labels: OcmLabelsIntegration,
-    build_cluster_details: Callable,
-    gql_class_factory: Callable,
-    ocm_base_client: OCMBaseClient,
-) -> None:
-    cluster: ClusterDetails = build_cluster_details(name="cluster-1", org_id="org-id-1")
-    cluster_states = {
-        "cluster-1": gql_class_factory(
-            ClusterLabelState,
-            {
-                "env": {
-                    "name": "ocm-stage",
-                    "accessTokenClientSecret": {
-                        "field": "client_secret",
-                        "path": "path/to/client_secret",
-                    },
-                },
-                "ocm_api": ocm_base_client,
-                "cluster_details": cluster,
-                "labels": {},
-            },
-        )
-    }
-    ocm_subscription_labels.populate_cluster_details_cache(cluster_states)
-    assert (
-        ocm_subscription_labels.get_cluster_details_from_cache(
-            org_id="org-id-1", name="cluster-1"
-        )
-        == cluster
-    )
-
-    assert (
-        ocm_subscription_labels.get_cluster_details_from_cache(
-            org_id="does-not", name="exist"
-        )
-        is None
-    )
-
-
 def test_ocm_subscription_labels_fetch_current_state(
     ocm_subscription_labels: OcmLabelsIntegration,
     clusters: Iterable[ClusterV1],
@@ -167,12 +127,6 @@ def test_ocm_subscription_labels_fetch_current_state(
         )
         == current_state
     )
-    assert (
-        ocm_subscription_labels.get_cluster_details_from_cache(
-            org_id="org-id-1", name="cluster-1"
-        )
-        == ocm_clusters[0]
-    )
     init_ocm_apis_mock.assert_called_once_with(envs)
 
 
@@ -182,8 +136,6 @@ def test_ocm_subscription_labels_fetch_desired_state(
     current_state: ClusterStates,
     desired_state: ClusterStates,
 ) -> None:
-    ocm_subscription_labels.populate_cluster_details_cache(current_state)
-
     assert ocm_subscription_labels.fetch_desired_state(clusters) == desired_state
 
 
