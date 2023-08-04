@@ -109,5 +109,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                                 awsapi.set_cloudwatch_log_retention(
                                     aws_acct,
                                     group_name,
-                                    int(cloudwatch_cleanup_entry.log_retention_day_length),
+                                    int(
+                                        cloudwatch_cleanup_entry.log_retention_day_length
+                                    ),
                                 )
