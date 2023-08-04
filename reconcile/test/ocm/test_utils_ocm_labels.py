@@ -356,7 +356,9 @@ def test_add_subscription_labels(
     )
 
     add_subscription_labels(
-        ocm_api, cluster, {"label": "value", "another_label": "another_value"}
+        ocm_api,
+        cluster.ocm_cluster,
+        {"label": "value", "another_label": "another_value"},
     )
 
     ocm_calls = find_all_ocm_http_requests("POST")

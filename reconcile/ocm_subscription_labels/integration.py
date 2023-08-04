@@ -231,7 +231,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
                 if not dry_run:
                     add_subscription_labels(
                         ocm_api=desired_cluster_state.ocm_api,
-                        cluster=desired_cluster_state.cluster_details,
+                        ocm_cluster=desired_cluster_state.cluster_details.ocm_cluster,
                         labels={
                             label_to_add: desired_cluster_state.labels[label_to_add]
                         },

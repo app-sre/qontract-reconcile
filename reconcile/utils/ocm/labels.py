@@ -36,13 +36,13 @@ def get_subscription_labels(
 
 def add_subscription_labels(
     ocm_api: OCMBaseClient,
-    cluster: ClusterDetails,
+    ocm_cluster: OCMCluster,
     labels: Mapping[str, str],
 ) -> None:
     """Add the given labels to the cluster subscription."""
     for key, value in labels.items():
         ocm_api.post(
-            api_path=f"{cluster.ocm_cluster.subscription.href}/labels",
+            api_path=f"{ocm_cluster.subscription.href}/labels",
             data={"kind": "Label", "key": key, "value": value},
         )
 

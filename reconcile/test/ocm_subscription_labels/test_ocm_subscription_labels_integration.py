@@ -218,12 +218,12 @@ def test_ocm_subscription_labels_reconcile(
         add_calls = [
             call(
                 ocm_api=ocm_base_client,
-                cluster=desired_state["cluster-1"].cluster_details,
+                ocm_cluster=desired_state["cluster-1"].cluster_details.ocm_cluster,
                 labels={"my-label-prefix.to-be-added": "enabled"},
             ),
             call(
                 ocm_api=ocm_base_client,
-                cluster=desired_state["cluster-3"].cluster_details,
+                ocm_cluster=desired_state["cluster-3"].cluster_details.ocm_cluster,
                 labels={"my-label-prefix.to-be-added": "enabled"},
             ),
         ]
