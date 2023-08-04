@@ -82,6 +82,7 @@ fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
     mutexes
     soakDays
     sector
+    blockedVersions
   }
 }
 

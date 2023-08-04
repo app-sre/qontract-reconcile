@@ -208,6 +208,8 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             )
             log = f.read().decode("utf-8")
         error = self.check_output(spec.name, "plan", return_code, stdout, stderr, log)
+        if error:
+            return False, [], error
         disabled_deletion_detected, created_users = self.log_plan_diff(
             spec, enable_deletion
         )
