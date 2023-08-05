@@ -100,9 +100,8 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                                 awsapi.create_cloudwatch_tag(
                                     aws_acct, group_name, MANAGED_TAG
                                 )
-                        if (
-                            retention_days
-                            != cloudwatch_cleanup_entry.log_retention_day_length
+                        if int(retention_days) != int(
+                            cloudwatch_cleanup_entry.log_retention_day_length
                         ):
                             logging.info(
                                 f" Setting {group_name} retention days to {cloudwatch_cleanup_entry.log_retention_day_length}"
@@ -115,4 +114,3 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                                         cloudwatch_cleanup_entry.log_retention_day_length
                                     ),
                                 )
-    sys.exit(ExitCodes.SUCCESS)
