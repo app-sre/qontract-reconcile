@@ -1,5 +1,6 @@
 import logging
 import re
+import sys
 from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
@@ -9,6 +10,7 @@ from typing import (
 from pydantic import BaseModel
 
 from reconcile import queries
+from reconcile.status import ExitCodes
 from reconcile.queries import get_aws_accounts
 from reconcile.utils.aws_api import AWSApi
 
@@ -113,3 +115,4 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                                         cloudwatch_cleanup_entry.log_retention_day_length
                                     ),
                                 )
+    sys.exit(ExitCodes.SUCCESS)
