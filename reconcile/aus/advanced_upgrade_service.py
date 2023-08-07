@@ -369,8 +369,9 @@ def _build_org_upgrade_spec(
             for org in version_data_inheritance.unverified_inheritance_from_orgs
         ]
         org_upgrade_spec.add_organization_error(
-            f"version data inheritance from organizations {', '.join(sorted(unverified_org_ids))} "
-            f"is unverified. ask the owner of these organizations to publish version data to the organization ID {org.id}"
+            f"Version data inheritance from organizations {', '.join(sorted(unverified_org_ids))} "
+            f"are unverified. Ask the owner of these organizations to publish version data to the organization ID {org.id}. "
+            "See https://source.redhat.com/groups/public/sre/wiki/advanced_upgrade_service_aus"
         )
 
     return org_upgrade_spec
