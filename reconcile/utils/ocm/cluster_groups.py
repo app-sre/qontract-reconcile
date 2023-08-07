@@ -1,60 +1,9 @@
-from enum import Enum
-from typing import Optional
-
-from pydantic import BaseModel
-
+from reconcile.utils.ocm.base import (
+    OCMClusterGroup,
+    OCMClusterGroupId,
+    OCMClusterUser,
+)
 from reconcile.utils.ocm_base_client import OCMBaseClient
-
-
-class OCMClusterGroupId(Enum):
-    """
-    Cluster groups managable by OCM.
-    """
-
-    DEDICATED_ADMINS = "dedicated-admins"
-    CLUSTER_ADMINS = "cluster-admins"
-
-
-class OCMClusterUser(BaseModel):
-    """
-    Represents a cluster user.
-    """
-
-    id: str
-    """
-    The id represents the user name.
-    """
-
-    href: Optional[str] = None
-    kind: str = "User"
-
-
-class OCMClusterUserList(BaseModel):
-    """
-    Represents a list of cluster users.
-    """
-
-    kind: str = "UserList"
-    href: Optional[str] = None
-    items: list[OCMClusterUser]
-
-
-class OCMClusterGroup(BaseModel):
-    """
-    Represents a cluster group.
-    """
-
-    id: OCMClusterGroupId
-    href: Optional[str] = None
-    users: Optional[OCMClusterUserList] = None
-
-    def user_ids(self) -> set[str]:
-        """
-        Returns a set of user ids.
-        """
-        if self.users is None:
-            return set()
-        return {user.id for user in self.users.items}
 
 
 def add_user_to_cluster_group(

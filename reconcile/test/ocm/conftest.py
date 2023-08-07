@@ -115,7 +115,7 @@ def register_ocm_url_callback(
 
 
 def _request_matches(
-    req: HTTPrettyRequest, method: str, base_url: str, path: str
+    req: HTTPrettyRequest, method: str, base_url: str, path: Optional[str] = None
 ) -> bool:
     if req.method != method:
         return False
@@ -124,7 +124,7 @@ def _request_matches(
     if f"{parsed_url.scheme}://{parsed_url.netloc}" != base_url:
         return False
 
-    if parsed_url.path != path:
+    if path and parsed_url.path != path:
         return False
 
     return True
@@ -150,7 +150,7 @@ def find_all_ocm_http_requests(
     ocm_url: str,
     httpretty: httpretty_module,
 ) -> Callable[[str, str], list[HTTPrettyRequest]]:
-    def find_request(method: str, path: str) -> list[HTTPrettyRequest]:
+    def find_request(method: str, path: Optional[str] = None) -> list[HTTPrettyRequest]:
         matching_requests = []
         for req in httpretty.latest_requests():
             if _request_matches(req, method, ocm_url, path):

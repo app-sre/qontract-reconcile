@@ -31,23 +31,23 @@ from reconcile.utils.models import (
     CSV,
     cron_validator,
 )
+from reconcile.utils.ocm.base import (
+    LabelContainer,
+    OCMClusterServiceLogCreateModel,
+    OCMOrganizationLabel,
+    OCMServiceLogSeverity,
+    build_label_container,
+)
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
     discover_clusters_by_labels,
 )
 from reconcile.utils.ocm.labels import (
-    LabelContainer,
-    OCMOrganizationLabel,
-    build_label_container,
     get_organization_labels,
     subscription_label_filter,
 )
 from reconcile.utils.ocm.search_filters import Filter
-from reconcile.utils.ocm.service_log import (
-    OCMClusterServiceLogCreateModel,
-    OCMServiceLogSeverity,
-    create_service_log,
-)
+from reconcile.utils.ocm.service_log import create_service_log
 from reconcile.utils.ocm.sre_capability_labels import (
     build_labelset,
     labelset_groupfield,

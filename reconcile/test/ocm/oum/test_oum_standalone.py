@@ -14,12 +14,12 @@ from reconcile.test.ocm.fixtures import (
     build_cluster_details,
     build_label,
 )
-from reconcile.utils.ocm.cluster_groups import OCMClusterGroupId
-from reconcile.utils.ocm.labels import (
+from reconcile.utils.ocm.base import (
     LabelContainer,
-    build_container_for_prefix,
     build_label_container,
 )
+from reconcile.utils.ocm.cluster_groups import OCMClusterGroupId
+from reconcile.utils.ocm.labels import build_container_for_prefix
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import OCMBaseClient
 

@@ -1,25 +1,24 @@
-from collections.abc import (
-    Generator,
-    Iterable,
-)
-from datetime import datetime
+from collections.abc import Generator
 from typing import (
     Any,
     Optional,
 )
 
-from pydantic import (
-    BaseModel,
-    Field,
+from reconcile.utils.ocm.base import (
+    LabelContainer,
+    OCMAccountLabel,
+    OCMCluster,
+    OCMLabel,
+    OCMOrganizationLabel,
+    OCMSubscriptionLabel,
 )
-
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def get_subscription_labels(
     ocm_api: OCMBaseClient, filter: Filter
-) -> Generator["OCMSubscriptionLabel", None, None]:
+) -> Generator[OCMSubscriptionLabel, None, None]:
     """
     Finds all subscription labels that match the given filter.
     """
@@ -28,6 +27,36 @@ def get_subscription_labels(
     ):
         if isinstance(subscription_label, OCMSubscriptionLabel):
             yield subscription_label
+
+
+def add_subscription_label(
+    ocm_api: OCMBaseClient,
+    ocm_cluster: OCMCluster,
+    label: str,
+    value: str,
+) -> None:
+    """Add the given label to the cluster subscription."""
+    ocm_api.post(
+        api_path=f"{ocm_cluster.subscription.href}/labels",
+        data={"kind": "Label", "key": label, "value": value},
+    )
+
+
+def update_ocm_label(
+    ocm_api: OCMBaseClient,
+    ocm_label: OCMLabel,
+    value: str,
+) -> None:
+    """Update the label value in the given OCM label."""
+    ocm_api.patch(
+        api_path=ocm_label.href,
+        data={"kind": "Label", "key": ocm_label.key, "value": value},
+    )
+
+
+def delete_ocm_label(ocm_api: OCMBaseClient, ocm_label: OCMLabel) -> None:
+    """Delete the given OCM label."""
+    ocm_api.delete(api_path=ocm_label.href)
 
 
 def subscription_label_filter() -> Filter:
@@ -39,7 +68,7 @@ def subscription_label_filter() -> Filter:
 
 def get_organization_labels(
     ocm_api: OCMBaseClient, filter: Filter
-) -> Generator["OCMOrganizationLabel", None, None]:
+) -> Generator[OCMOrganizationLabel, None, None]:
     """
     Finds all organization labels that match the given filter.
     """
@@ -59,7 +88,7 @@ def organization_label_filter() -> Filter:
 
 def get_labels(
     ocm_api: OCMBaseClient, filter: Filter
-) -> Generator["OCMLabel", None, None]:
+) -> Generator[OCMLabel, None, None]:
     """
     Finds all labels that match the given filter.
     """
@@ -70,7 +99,7 @@ def get_labels(
         yield build_label_from_dict(label_dict)
 
 
-def build_label_from_dict(label_dict: dict[str, Any]) -> "OCMLabel":
+def build_label_from_dict(label_dict: dict[str, Any]) -> OCMLabel:
     """
     Translates a label dict into a type specific label object.
     """
@@ -82,96 +111,6 @@ def build_label_from_dict(label_dict: dict[str, Any]) -> "OCMLabel":
     if label_type == "Account":
         return OCMAccountLabel(**label_dict)
     raise ValueError(f"Unknown label type: {label_dict['type']}")
-
-
-class OCMLabel(BaseModel):
-    """
-    Represents a general label without any type specific information.
-    See subclasses for type specific information.
-    """
-
-    id: str
-    internal: bool
-    updated_at: datetime
-    created_at: datetime
-    href: str
-    key: str
-    value: str
-    type: str
-    """
-    The type of the label, e.g. Subscription, Organization, Account.
-    See subclasses.
-    """
-
-
-class OCMOrganizationLabel(OCMLabel):
-    """
-    Represents a label attached to an organization.
-    """
-
-    organization_id: str
-
-
-class OCMSubscriptionLabel(OCMLabel):
-    """
-    Represents a label attached to a subscription.
-    """
-
-    subscription_id: str
-
-
-class OCMAccountLabel(OCMLabel):
-    """
-    Represents a label attached to an account.
-    """
-
-    account_id: str
-
-
-class LabelContainer(BaseModel):
-    """
-    A container for a set of labels with some convenience methods to work
-    efficiently with them.
-    """
-
-    labels: dict[str, OCMLabel] = Field(default_factory=dict)
-
-    def __len__(self) -> int:
-        return len(self.labels)
-
-    def __bool__(self) -> bool:
-        return len(self.labels) > 0
-
-    def get(self, name: str) -> Optional[OCMLabel]:
-        return self.labels.get(name)
-
-    def get_required_label(self, name: str) -> OCMLabel:
-        label = self.get(name)
-        if not label:
-            raise ValueError(f"Required label '{name}' does not exist.")
-        return label
-
-    def get_label_value(self, name: str) -> Optional[str]:
-        label = self.get(name)
-        if label:
-            return label.value
-        return None
-
-    def get_values_dict(self) -> dict[str, str]:
-        return {label.key: label.value for label in self.labels.values()}
-
-
-def build_label_container(
-    *label_iterables: Optional[Iterable[OCMLabel]],
-) -> LabelContainer:
-    """
-    Builds a label container from a list of labels.
-    """
-    merged_labels = {}
-    for labels in label_iterables:
-        for label in labels or []:
-            merged_labels[label.key] = label
-    return LabelContainer(labels=merged_labels)
 
 
 def build_container_for_prefix(

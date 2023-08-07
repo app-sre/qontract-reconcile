@@ -6,7 +6,7 @@ from pydantic import (
 
 from reconcile.test.ocm.fixtures import build_label
 from reconcile.utils.models import CSV
-from reconcile.utils.ocm.labels import (
+from reconcile.utils.ocm.base import (
     LabelContainer,
     build_label_container,
 )

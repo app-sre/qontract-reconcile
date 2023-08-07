@@ -4,6 +4,7 @@ import pytest
 
 from reconcile.utils.helpers import (
     DEFAULT_TOGGLE_LEVEL,
+    flatten,
     toggle_logger,
 )
 
@@ -53,3 +54,20 @@ def test_toggle_logger_default_level(logger, default_level):
         assert logger.level == default_level
 
     assert logger.level == default_level
+
+
+@pytest.mark.parametrize(
+    "input_dict, expected, sep",
+    [
+        ({"a": 1, "b": {"c": 2}}, {"a": "1", "b.c": "2"}, "."),
+        ({"a": 1, "b": {"c": 2}}, {"a": "1", "b/c": "2"}, "/"),
+        ({"a": 1, "b": {"c": [1, 2, 3]}}, {"a": "1", "b.c": "[1, 2, 3]"}, "."),
+        (
+            {"a": 1, "b": {"c": {"d": "foobar"}}, "la": {"le": "lu"}},
+            {"a": "1", "b.c.d": "foobar", "la.le": "lu"},
+            ".",
+        ),
+    ],
+)
+def test_flatten(input_dict: dict, expected: dict, sep: str) -> None:
+    assert flatten(input_dict, sep=sep) == expected
