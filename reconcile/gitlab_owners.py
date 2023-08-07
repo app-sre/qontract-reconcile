@@ -51,7 +51,7 @@ class MRApproval:
         that change.
         """
         change_owners_map = {}
-        paths = self.gitlab.get_merge_request_changed_paths(self.mr.iid)
+        paths = self.gitlab.get_merge_request_changed_paths(self.mr)
         for path in paths:
             owners = self.owners.get_path_owners(path)
             path_approvers = owners["approvers"]
@@ -76,7 +76,7 @@ class MRApproval:
         Collects the usernames of all the '/lgtm' comments.
         """
         lgtms = []
-        comments = self.gitlab.get_merge_request_comments(self.mr.iid)
+        comments = self.gitlab.get_merge_request_comments(self.mr)
         for comment in comments:
             # Only interested in '/lgtm' comments
             if comment["body"] != "/lgtm":
@@ -146,7 +146,7 @@ class MRApproval:
         # Now, since we have a report, let's check if that report was
         # already used for a comment
         formatted_report = self.format_report(report)
-        comments = self.gitlab.get_merge_request_comments(self.mr.iid)
+        comments = self.gitlab.get_merge_request_comments(self.mr)
         for comment in comments:
             # Only interested on our own comments
             if comment["username"] != self.gitlab.user.username:
@@ -171,7 +171,7 @@ class MRApproval:
                     ]
                 )
                 if not self.dry_run:
-                    self.gitlab.delete_gitlab_comment(comment["note"])
+                    self.gitlab.delete_comment(comment["note"])
                 continue
 
             # At this point, we've found an approval comment comment
@@ -189,8 +189,7 @@ class MRApproval:
         return approval_status
 
     def has_approval_label(self):
-        labels = self.gitlab.get_merge_request_labels(self.mr.iid)
-        return APPROVED in labels
+        return APPROVED in self.mr.labels
 
     @staticmethod
     def format_report(report):
@@ -358,7 +357,7 @@ def act(repo, dry_run, instance, settings, defer=None):
                 ]
             )
             if not dry_run:
-                gitlab_cli.add_label_to_merge_request(mr.iid, APPROVED)
+                gitlab_cli.add_label_to_merge_request(mr, APPROVED)
             continue
 
         if not dry_run:
@@ -370,7 +369,7 @@ def act(repo, dry_run, instance, settings, defer=None):
                         f"- removing approval"
                     ]
                 )
-                gitlab_cli.remove_label_from_merge_request(mr.iid, APPROVED)
+                gitlab_cli.remove_label(mr, APPROVED)
 
         if approval_status["report"] is not None:
             _LOG.info(
@@ -382,7 +381,7 @@ def act(repo, dry_run, instance, settings, defer=None):
             )
 
             if not dry_run:
-                gitlab_cli.remove_label_from_merge_request(mr.iid, APPROVED)
+                gitlab_cli.remove_label(mr, APPROVED)
                 mr.notes.create({"body": approval_status["report"]})
             continue
 

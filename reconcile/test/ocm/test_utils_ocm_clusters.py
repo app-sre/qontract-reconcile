@@ -16,21 +16,21 @@ from reconcile.utils.ocm import (
     clusters,
     subscriptions,
 )
-from reconcile.utils.ocm.clusters import (
+from reconcile.utils.ocm.base import (
     ACTIVE_SUBSCRIPTION_STATES,
     ClusterDetails,
     OCMCluster,
+    OCMOrganizationLabel,
+    OCMSubscriptionLabel,
+    build_label_container,
+)
+from reconcile.utils.ocm.clusters import (
     discover_clusters_by_labels,
     discover_clusters_for_organizations,
     discover_clusters_for_subscriptions,
     get_cluster_details_for_subscriptions,
 )
-from reconcile.utils.ocm.labels import (
-    OCMOrganizationLabel,
-    OCMSubscriptionLabel,
-    build_label_container,
-    label_filter,
-)
+from reconcile.utils.ocm.labels import label_filter
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import OCMBaseClient
 

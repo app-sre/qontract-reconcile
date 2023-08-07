@@ -237,6 +237,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         session = self.get_session(account_name)
         return self.get_session_client(session, "rds", region_name)
 
+    def _account_cloudwatch_client(
+        self, account_name: str, region_name: Optional[str] = None
+    ):
+        session = self.get_session(account_name)
+        return self.get_session_client(session, "logs", region_name)
+
     def init_users(self):
         self.users = {}
         for account, s in self.sessions.items():
@@ -1019,6 +1025,21 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             "Add": [{"UserId": share_account_uid}]
         }
         image.modify_attribute(LaunchPermission=launch_permission)
+
+    def create_cloudwatch_tag(self, account, group_name, new_tag):
+        cloudwatch_logs = self._account_cloudwatch_client(account["name"])
+        cloudwatch_logs.tag_log_group(logGroupName=group_name, tags=new_tag)
+
+    def get_cloudwatch_logs(self, account):
+        cloudwatch_logs = self._account_cloudwatch_client(account["name"])
+        log_groups = cloudwatch_logs.describe_log_groups()["logGroups"]
+        return log_groups
+
+    def set_cloudwatch_log_retention(self, account, group_name, retention_days):
+        cloudwatch_logs = self._account_cloudwatch_client(account["name"])
+        cloudwatch_logs.put_retention_policy(
+            logGroupName=group_name, retentionInDays=retention_days
+        )
 
     def create_tag(
         self, account: Mapping[str, Any], resource_id: str, tag: Mapping[str, str]

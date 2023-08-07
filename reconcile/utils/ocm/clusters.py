@@ -1,132 +1,31 @@
 from collections import defaultdict
-from enum import Enum
-from typing import (
+from collections.abc import (
     Generator,
-    Optional,
+    Iterable,
 )
+from typing import Optional
 
-from pydantic import BaseModel
-
-from reconcile.utils.ocm.base import OCMModelLink
-from reconcile.utils.ocm.labels import (
-    LabelContainer,
+from reconcile.utils.ocm.base import (
+    ACTIVE_SUBSCRIPTION_STATES,
+    PRODUCT_ID_OSD,
+    PRODUCT_ID_ROSA,
+    ClusterDetails,
+    OCMCluster,
+    OCMClusterState,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
     build_label_container,
+)
+from reconcile.utils.ocm.labels import (
     get_labels,
     get_organization_labels,
 )
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.subscriptions import (
-    OCMCapability,
     build_subscription_filter,
     get_subscriptions,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
-
-ACTIVE_SUBSCRIPTION_STATES = {"Active", "Reserved"}
-CAPABILITY_MANAGE_CLUSTER_ADMIN = "capability.cluster.manage_cluster_admin"
-
-
-class OCMClusterState(Enum):
-    ERROR = "error"
-    HIBERNATING = "hibernating"
-    INSTALLING = "installing"
-    PENING = "pending"
-    POWERING_DOWN = "powering_down"
-    READY = "ready"
-    RESUMING = "resuming"
-    UNINSTALLING = "uninstalling"
-    UNKNOWN = "unknown"
-    VALIDATING = "validating"
-    WAITING = "waiting"
-
-
-class OCMClusterFlag(BaseModel):
-    enabled: bool
-
-
-class OCMClusterAWSSettings(BaseModel):
-    sts: Optional[OCMClusterFlag]
-
-    @property
-    def sts_enabled(self) -> bool:
-        return self.sts is not None and self.sts.enabled
-
-
-class OCMClusterVersion(BaseModel):
-    id: str
-    raw_id: str
-
-
-class OCMClusterConsole(BaseModel):
-    url: str
-
-
-PRODUCT_ID_OSD = "osd"
-PRODUCT_ID_ROSA = "rosa"
-
-
-class OCMCluster(BaseModel):
-    kind: str = "Cluster"
-    id: str
-    external_id: str
-    """
-    This is sometimes also called the cluster UUID.
-    """
-
-    name: str
-    display_name: str
-
-    managed: bool
-    state: OCMClusterState
-
-    subscription: OCMModelLink
-    region: OCMModelLink
-    cloud_provider: OCMModelLink
-    product: OCMModelLink
-
-    aws: Optional[OCMClusterAWSSettings]
-
-    version: OCMClusterVersion
-
-    hypershift: OCMClusterFlag
-
-    console: OCMClusterConsole
-
-    def is_osd(self) -> bool:
-        return self.product.id == PRODUCT_ID_OSD
-
-    def is_rosa_classic(self) -> bool:
-        return self.product.id == PRODUCT_ID_ROSA and not self.hypershift.enabled
-
-    def is_rosa_hypershift(self) -> bool:
-        return self.product.id == PRODUCT_ID_ROSA and self.hypershift.enabled
-
-
-class ClusterDetails(BaseModel):
-    ocm_cluster: OCMCluster
-
-    organization_id: str
-    capabilities: dict[str, OCMCapability]
-    """
-    The capabilities of a cluster. They represent feature flags and are
-    found on the subscription of a cluster.
-    """
-
-    subscription_labels: LabelContainer
-    organization_labels: LabelContainer
-
-    @property
-    def labels(self) -> LabelContainer:
-        return build_label_container(
-            self.organization_labels.labels.values(),
-            self.subscription_labels.labels.values(),
-        )
-
-    def is_capability_set(self, name: str, value: str) -> bool:
-        capa = self.capabilities.get(name)
-        return capa is not None and capa.value == value
 
 
 def discover_clusters_by_labels(
@@ -197,7 +96,7 @@ def discover_clusters_for_subscriptions(
 
 def discover_clusters_for_organizations(
     ocm_api: OCMBaseClient,
-    organization_ids: list[str],
+    organization_ids: Iterable[str],
     cluster_filter: Optional[Filter] = None,
 ) -> list[ClusterDetails]:
     """
@@ -279,9 +178,7 @@ def get_cluster_details_for_subscriptions(
                 organization_labels=build_label_container(
                     organization_labels.get(subscription.organization_id) or []
                 ),
-                subscription_labels=build_label_container(
-                    (subscription.labels or []) if init_labels else []
-                ),
+                subscription_labels=build_label_container(subscription.labels or []),
             )
 
 

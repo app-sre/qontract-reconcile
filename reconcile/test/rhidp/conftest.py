@@ -15,7 +15,7 @@ from reconcile.rhidp.ocm_oidc_idp import integration
 from reconcile.test.fixtures import Fixtures
 from reconcile.test.ocm.fixtures import build_label
 from reconcile.utils.ocm import OCMMap
-from reconcile.utils.ocm.labels import (
+from reconcile.utils.ocm.base import (
     LabelContainer,
     build_label_container,
 )

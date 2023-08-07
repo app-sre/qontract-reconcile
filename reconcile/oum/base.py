@@ -36,13 +36,15 @@ from reconcile.utils import (
     gql,
     metrics,
 )
-from reconcile.utils.ocm.cluster_groups import (
+from reconcile.utils.ocm.base import (
+    CAPABILITY_MANAGE_CLUSTER_ADMIN,
     OCMClusterGroupId,
+)
+from reconcile.utils.ocm.cluster_groups import (
     add_user_to_cluster_group,
     delete_user_from_cluster_group,
     get_cluster_groups,
 )
-from reconcile.utils.ocm.clusters import CAPABILITY_MANAGE_CLUSTER_ADMIN
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
     init_ocm_base_client,

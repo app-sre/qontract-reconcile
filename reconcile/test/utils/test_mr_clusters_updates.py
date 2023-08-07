@@ -6,8 +6,7 @@ from unittest.mock import (
 )
 
 import reconcile.utils.mr.clusters_updates as sut
-
-from .fixtures import Fixtures
+from reconcile.test.fixtures import Fixtures
 
 fxt = Fixtures("clusters")
 

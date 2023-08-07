@@ -943,6 +943,17 @@ def aws_ami_cleanup(ctx, thread_pool_size):
     run_integration(reconcile.aws_ami_cleanup.integration, ctx.obj, thread_pool_size)
 
 
+@integration.command(short_help="Set up retention period for Cloudwatch logs.")
+@threaded()
+@click.pass_context
+def aws_cloudwatch_log_retention(ctx, thread_pool_size):
+    import reconcile.aws_cloudwatch_log_retention.integration
+
+    run_integration(
+        reconcile.aws_cloudwatch_log_retention.integration, ctx.obj, thread_pool_size
+    )
+
+
 @integration.command(
     short_help="Generate AWS ECR image pull secrets and store them in Vault."
 )
@@ -2747,6 +2758,31 @@ def skupper_network(ctx, thread_pool_size, internal, use_jump_host):
         thread_pool_size,
         internal,
         use_jump_host,
+    )
+
+
+@integration.command(short_help="Manage cluster OCM subscription labels.")
+@click.option(
+    "--managed-label-prefixes",
+    help="A comma list of label prefixes that are managed.",
+    required=True,
+    envvar="OSL_MANAGED_LABEL_PREFIXES",
+    default="sre-capabilities",
+)
+@click.pass_context
+def ocm_subscription_labels(ctx, managed_label_prefixes):
+    from reconcile.ocm_subscription_labels.integration import (
+        OcmLabelsIntegration,
+        OcmLabelsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=OcmLabelsIntegration(
+            OcmLabelsIntegrationParams(
+                managed_label_prefixes=list(set(managed_label_prefixes.split(","))),
+            )
+        ),
+        ctx=ctx.obj,
     )
 
 

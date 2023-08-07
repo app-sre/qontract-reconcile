@@ -7,7 +7,7 @@ query AUSClusters($name: String) {
         ... AUSOCMOrganization
     }
     upgradePolicy {
-        ... ClusterUpgradePolicy
+        ... ClusterUpgradePolicyV1
     }
     spec {
         product

@@ -99,6 +99,7 @@ class OCMOidcIdpStandalone(QontractReconcileIntegration[OCMOidcIdpStandalonePara
             )
             for ocm_clusters in clusters_by_org.values()
             for c in ocm_clusters
+            if c.ocm_cluster.console
         ]
 
     def get_ocm_environments(self) -> list[OCMEnvironment]:

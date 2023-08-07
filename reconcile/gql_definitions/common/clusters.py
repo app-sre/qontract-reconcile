@@ -20,6 +20,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 from reconcile.gql_definitions.fragments.aws_infra_management_account import (
     AWSInfrastructureManagementAccount,
 )
+from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
 from reconcile.gql_definitions.fragments.jumphost_common_fields import (
     CommonJumphostFields,
 )
@@ -40,6 +41,17 @@ fragment AWSInfrastructureManagementAccount on AWSInfrastructureManagementAccoun
   }
   accessLevel
   default
+}
+
+fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
+  workloads
+  schedule
+  conditions {
+    mutexes
+    soakDays
+    sector
+    blockedVersions
+  }
 }
 
 fragment CommonJumphostFields on ClusterJumpHost_v1 {
@@ -194,13 +206,7 @@ query Clusters($name: String) {
       labels
     }
     upgradePolicy {
-      workloads
-      schedule
-      conditions {
-        soakDays
-        mutexes
-        sector
-      }
+      ... ClusterUpgradePolicyV1
     }
     additionalRouters {
       private
@@ -508,18 +514,6 @@ class ClusterSpecROSAV1(ClusterSpecV1):
 
 class ClusterExternalConfigurationV1(ConfiguredBaseModel):
     labels: Json = Field(..., alias="labels")
-
-
-class ClusterUpgradePolicyConditionsV1(ConfiguredBaseModel):
-    soak_days: Optional[int] = Field(..., alias="soakDays")
-    mutexes: Optional[list[str]] = Field(..., alias="mutexes")
-    sector: Optional[str] = Field(..., alias="sector")
-
-
-class ClusterUpgradePolicyV1(ConfiguredBaseModel):
-    workloads: list[str] = Field(..., alias="workloads")
-    schedule: str = Field(..., alias="schedule")
-    conditions: ClusterUpgradePolicyConditionsV1 = Field(..., alias="conditions")
 
 
 class ClusterAdditionalRouterV1(ConfiguredBaseModel):

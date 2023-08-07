@@ -27,11 +27,7 @@ query OidcClusters($name: String) {
       }
     }
     upgradePolicy {
-      workloads
-      schedule
-      conditions {
-        sector
-      }
+      ... ClusterUpgradePolicyV1
     }
     disable {
       integrations

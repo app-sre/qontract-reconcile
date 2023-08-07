@@ -24,30 +24,30 @@ from reconcile.gql_definitions.fragments.aus_organization import (
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.upgrade_policy import (
-    ClusterUpgradePolicy,
     ClusterUpgradePolicyConditionsV1,
+    ClusterUpgradePolicyV1,
 )
 from reconcile.utils.models import (
     CSV,
     cron_validator,
+)
+from reconcile.utils.ocm.base import (
+    LabelContainer,
+    OCMClusterServiceLogCreateModel,
+    OCMOrganizationLabel,
+    OCMServiceLogSeverity,
+    build_label_container,
 )
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
     discover_clusters_by_labels,
 )
 from reconcile.utils.ocm.labels import (
-    LabelContainer,
-    OCMOrganizationLabel,
-    build_label_container,
     get_organization_labels,
     subscription_label_filter,
 )
 from reconcile.utils.ocm.search_filters import Filter
-from reconcile.utils.ocm.service_log import (
-    OCMClusterServiceLogCreateModel,
-    OCMServiceLogSeverity,
-    create_service_log,
-)
+from reconcile.utils.ocm.service_log import create_service_log
 from reconcile.utils.ocm.sre_capability_labels import (
     build_labelset,
     labelset_groupfield,
@@ -278,13 +278,11 @@ def _build_org_upgrade_spec(
     for c in clusters:
         try:
             upgrade_policy = _build_policy_from_labels(c.labels)
-            org_upgrade_spec.specs.append(
+            org_upgrade_spec.add_spec(
                 ClusterUpgradeSpec(
-                    name=c.ocm_cluster.name,
-                    cluster_uuid=c.ocm_cluster.external_id,
-                    current_version=c.ocm_cluster.version.raw_id,
-                    ocm=org_upgrade_spec.org,
+                    org=org_upgrade_spec.org,
                     upgradePolicy=upgrade_policy,
+                    cluster=c.ocm_cluster,
                 )
             )
         except ValidationError as validation_error:
@@ -306,23 +304,25 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     schedule: str = Field(alias=aus_label_key("schedule"))
     mutexes: Optional[CSV] = Field(alias=aus_label_key("mutexes"))
     sector: Optional[str] = Field(alias=aus_label_key("sector"))
+    blocked_versions: Optional[CSV] = Field(alias=aus_label_key("blocked-versions"))
     _schedule_validator = validator("schedule", allow_reuse=True)(cron_validator)
 
 
-def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicy:
+def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicyV1:
     """
     Build a cluster upgrade policy object from a set of OCM labels. Parsing
     and validation of the labels is delegated to the pydantic dataclass
     ClusterUpgradePolicyLabelSet.
     """
     policy_labelset = build_labelset(labels, ClusterUpgradePolicyLabelSet)
-    return ClusterUpgradePolicy(
+    return ClusterUpgradePolicyV1(
         workloads=policy_labelset.workloads,
         schedule=policy_labelset.schedule,
         conditions=ClusterUpgradePolicyConditionsV1(
             soakDays=policy_labelset.soak_days,
             mutexes=policy_labelset.mutexes,
             sector=policy_labelset.sector,
+            blockedVersions=policy_labelset.blocked_versions,
         ),
     )
 

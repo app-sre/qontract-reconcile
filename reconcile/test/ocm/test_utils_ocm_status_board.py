@@ -89,8 +89,9 @@ def test_get_managed_products(
 
 def test_create_product(mocker: MockFixture) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
+    ocm.post.return_value = {"id": "foo"}
 
-    create_product(ocm, {"name": "foo"})
+    id = create_product(ocm, {"name": "foo"})
 
     ocm.post.assert_called_once_with(
         "/api/status-board/v1/products/",
@@ -99,12 +100,14 @@ def test_create_product(mocker: MockFixture) -> None:
             "name": "foo",
         },
     )
+    assert id == "foo"
 
 
 def test_create_application(mocker: MockFixture) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
+    ocm.post.return_value = {"id": "foo"}
 
-    create_application(ocm, {"name": "foo"})
+    id = create_application(ocm, {"name": "foo"})
 
     ocm.post.assert_called_once_with(
         "/api/status-board/v1/applications/",
@@ -113,6 +116,7 @@ def test_create_application(mocker: MockFixture) -> None:
             "name": "foo",
         },
     )
+    assert id == "foo"
 
 
 def test_delete_product(mocker: MockFixture) -> None:

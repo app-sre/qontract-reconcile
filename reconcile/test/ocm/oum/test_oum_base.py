@@ -35,17 +35,15 @@ from reconcile.oum.models import (
 from reconcile.oum.providers import GroupMemberProvider
 from reconcile.test.ocm.fixtures import build_cluster_details
 from reconcile.utils import metrics
-from reconcile.utils.ocm.cluster_groups import (
-    OCMClusterGroup,
-    OCMClusterGroupId,
-    OCMClusterUser,
-    OCMClusterUserList,
-)
-from reconcile.utils.ocm.clusters import (
+from reconcile.utils.ocm.base import (
     CAPABILITY_MANAGE_CLUSTER_ADMIN,
     PRODUCT_ID_OSD,
     PRODUCT_ID_ROSA,
     ClusterDetails,
+    OCMClusterGroup,
+    OCMClusterGroupId,
+    OCMClusterUser,
+    OCMClusterUserList,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 

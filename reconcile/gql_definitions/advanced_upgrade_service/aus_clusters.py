@@ -18,7 +18,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
-from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicy
+from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
 
 
 DEFINITION = """
@@ -70,18 +70,19 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   upgradePolicyClusters {
     name
     upgradePolicy {
-      ... ClusterUpgradePolicy
+      ... ClusterUpgradePolicyV1
     }
   }
 }
 
-fragment ClusterUpgradePolicy on ClusterUpgradePolicy_v1 {
+fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
   workloads
   schedule
   conditions {
     mutexes
     soakDays
     sector
+    blockedVersions
   }
 }
 
@@ -109,7 +110,7 @@ query AUSClusters($name: String) {
         ... AUSOCMOrganization
     }
     upgradePolicy {
-        ... ClusterUpgradePolicy
+        ... ClusterUpgradePolicyV1
     }
     spec {
         product
@@ -143,7 +144,7 @@ class DisableClusterAutomationsV1(ConfiguredBaseModel):
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     ocm: Optional[AUSOCMOrganization] = Field(..., alias="ocm")
-    upgrade_policy: Optional[ClusterUpgradePolicy] = Field(..., alias="upgradePolicy")
+    upgrade_policy: Optional[ClusterUpgradePolicyV1] = Field(..., alias="upgradePolicy")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 

@@ -97,5 +97,6 @@ upgradePolicy:
     mutexes: null
     sector: null
     soakDays: 7
+    blockedVersions: null
   schedule: 0 12 * * 1-5
   workloads: []

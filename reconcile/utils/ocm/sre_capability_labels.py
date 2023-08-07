@@ -2,19 +2,16 @@ from typing import (
     Any,
     Optional,
     Type,
-    TypeVar,
 )
 
-from pydantic import (
-    BaseModel,
-    Field,
-)
+from pydantic import Field
 from pydantic.fields import ModelField
 
-from reconcile.utils.ocm.labels import (
+from reconcile.utils.ocm.base import (
     LabelContainer,
-    build_container_for_prefix,
+    LabelSetTypeVar,
 )
+from reconcile.utils.ocm.labels import build_container_for_prefix
 
 
 def sre_capability_label_key(
@@ -34,9 +31,6 @@ def labelset_groupfield(group_prefix: str) -> Any:
     Helper function to build the FieldMeta for a labelset field that groups labels.
     """
     return Field(group_by_prefix=group_prefix)
-
-
-LabelSetTypeVar = TypeVar("LabelSetTypeVar", bound=BaseModel)
 
 
 def build_labelset(

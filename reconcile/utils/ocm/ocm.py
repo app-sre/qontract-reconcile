@@ -10,14 +10,11 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from dataclasses import field
 from typing import (
     Any,
     Optional,
-    Union,
 )
 
-from pydantic.dataclasses import dataclass
 from sretoolbox.utils import retry
 
 import reconcile.utils.aws_helper as awsh
@@ -692,10 +689,6 @@ OCM_PRODUCTS_IMPL = {
 }
 
 
-class SectorConfigError(Exception):
-    pass
-
-
 class OCM:  # pylint: disable=too-many-public-methods
     """
     OCM is an instance of OpenShift Cluster Manager.
@@ -723,7 +716,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         init_addons=False,
         init_version_gates=False,
         blocked_versions=None,
-        sectors: Optional[list[dict[str, Any]]] = None,
         inheritVersionData: Optional[list[dict[str, Any]]] = None,
     ):
         """Initiates access token and gets clusters information."""
@@ -752,16 +744,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         self.get_aws_infrastructure_access_role_grants = functools.lru_cache()(  # type: ignore
             self.get_aws_infrastructure_access_role_grants
         )
-
-        # organization sectors and their dependencies
-        self.sectors: dict[str, Sector] = {}
-        for sector in sectors or []:
-            sector_name = sector["name"]
-            self.sectors[sector_name] = Sector(name=sector_name, ocm=self)
-        for sector in sectors or []:
-            s = self.sectors[sector["name"]]
-            for dep in sector.get("dependencies") or []:
-                s.dependencies.append(self.sectors[dep["name"]])
 
     @staticmethod
     def _ready_for_app_interface(cluster: dict[str, Any]) -> bool:
@@ -1377,117 +1359,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         """
         return self.available_cluster_upgrades.get(cluster_name) or []
 
-    def get_control_plan_upgrade_policies(
-        self, cluster, schedule_type=None
-    ) -> list[dict[str, Any]]:
-        """Returns a list of details of Upgrade Policies
-
-        :param cluster: cluster name
-
-        :type cluster: string
-        """
-        results: list[dict[str, Any]] = []
-        cluster_id = self.cluster_ids.get(cluster)
-        if not cluster_id:
-            return results
-
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/control_plane/upgrade_policies"
-        items = self._get_json(api).get("items")
-        if not items:
-            return results
-
-        for item in items:
-            if schedule_type and item["schedule_type"] != schedule_type:
-                continue
-            result = {k: v for k, v in item.items() if k in UPGRADE_POLICY_DESIRED_KEYS}
-            results.append(result)
-
-        return results
-
-    def get_upgrade_policies(self, cluster, schedule_type=None) -> list[dict[str, Any]]:
-        """Returns a list of details of Upgrade Policies
-
-        :param cluster: cluster name
-
-        :type cluster: string
-        """
-        results: list[dict[str, Any]] = []
-        cluster_id = self.cluster_ids.get(cluster)
-        if not cluster_id:
-            return results
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/upgrade_policies"
-        items = self._get_json(api).get("items")
-        if not items:
-            return results
-
-        for item in items:
-            if schedule_type and item["schedule_type"] != schedule_type:
-                continue
-            result = {k: v for k, v in item.items() if k in UPGRADE_POLICY_DESIRED_KEYS}
-            results.append(result)
-
-        return results
-
-    def create_control_plane_upgrade_policy(self, cluster, spec):
-        """Creates a new Upgrade Policy for the control plane
-
-        :param cluster: cluster name
-        :param spec: required information for creation
-
-        :type cluster: string
-        :type spec: dictionary
-        """
-        cluster_id = self.cluster_ids[cluster]
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/control_plane/upgrade_policies"
-        self._post(api, spec)
-
-    def create_upgrade_policy(self, cluster, spec):
-        """Creates a new Upgrade Policy
-
-        :param cluster: cluster name
-        :param spec: required information for creation
-
-        :type cluster: string
-        :type spec: dictionary
-        """
-        cluster_id = self.cluster_ids[cluster]
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/upgrade_policies"
-        self._post(api, spec)
-
-    def delete_control_plane_upgrade_policy(self, cluster, spec):
-        """Deletes an existing Control Plane Upgrade Policy
-
-        :param cluster: cluster name
-        :param spec: required information for update
-
-        :type cluster: string
-        :type spec: dictionary
-        """
-        cluster_id = self.cluster_ids[cluster]
-        upgrade_policy_id = spec["id"]
-        api = (
-            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
-            + f"control_plane/upgrade_policies/{upgrade_policy_id}"
-        )
-        self._delete(api)
-
-    def delete_upgrade_policy(self, cluster, spec):
-        """Deletes an existing Upgrade Policy
-
-        :param cluster: cluster name
-        :param spec: required information for update
-
-        :type cluster: string
-        :type spec: dictionary
-        """
-        cluster_id = self.cluster_ids[cluster]
-        upgrade_policy_id = spec["id"]
-        api = (
-            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
-            + f"upgrade_policies/{upgrade_policy_id}"
-        )
-        self._delete(api)
-
     def get_additional_routers(self, cluster):
         """Returns a list of Additional Application Routers
 
@@ -1593,58 +1464,6 @@ class OCM:  # pylint: disable=too-many-public-methods
                 return addon["version"]["id"]
         return None
 
-    def get_addon_upgrade_policies(
-        self, cluster_name: str, addon_id: str = ""
-    ) -> list[dict[str, Any]]:
-        results: list[dict[str, Any]] = []
-        cluster_id = self.cluster_ids.get(cluster_name)
-        if not cluster_id:
-            return results
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/addon_upgrade_policies"
-        items = self._get_json(api).get("items")
-        if not items:
-            return results
-
-        for item in items:
-            if addon_id and item["addon_id"] != addon_id:
-                continue
-            result = {
-                k: v for k, v in item.items() if k in ADDON_UPGRADE_POLICY_DESIRED_KEYS
-            }
-            results.append(result)
-
-        return results
-
-    def create_addon_upgrade_policy(self, cluster_name: str, spec: dict) -> None:
-        """Creates a new Addon Upgrade Policy
-
-        :param cluster: cluster name
-        :param spec: required information for creation
-
-        :type cluster: string
-        :type spec: dictionary
-        """
-        cluster_id = self.cluster_ids[cluster_name]
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/addon_upgrade_policies"
-        self._post(api, spec)
-
-    def delete_addon_upgrade_policy(self, cluster_name: str, spec: dict) -> None:
-        """Deletes an existing Addon Upgrade Policy
-
-        :param cluster: cluster name
-        :param spec: required information for delete
-
-        :type cluster: string
-        :type spec: dictionary
-        """
-        cluster_id = self.cluster_ids[cluster_name]
-        upgrade_policy_id = spec["id"]
-        api = (
-            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
-            + f"addon_upgrade_policies/{upgrade_policy_id}"
-        )
-        self._delete(api)
-
     def get_version_gates(
         self, version_prefix: str, sts_only: bool = False
     ) -> list[dict[str, Any]]:
@@ -1656,25 +1475,6 @@ class OCM:  # pylint: disable=too-many-public-methods
             if g["version_raw_id_prefix"] == version_prefix
             and g["sts_only"] == sts_only
         ]
-
-    def get_version_agreement(self, cluster: str) -> list[dict[str, Any]]:
-        cluster_id = self.cluster_ids.get(cluster)
-        if not cluster_id:
-            return []
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/gate_agreements"
-        agreements = self._get_json(api).get("items")
-        if agreements:
-            return agreements
-        return []
-
-    def create_version_agreement(
-        self, gate_id: str, cluster: str
-    ) -> dict[str, Union[str, bool]]:
-        cluster_id = self.cluster_ids.get(cluster)
-        if not cluster_id:
-            return {}
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/gate_agreements"
-        return self._post(api, {"version_gate": {"id": gate_id}})
 
     def get_cluster_addons(
         self,
@@ -1809,52 +1609,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         )
 
 
-class _SectorDataclassConfig:
-    arbitrary_types_allowed = True
-
-
-@dataclass(config=_SectorDataclassConfig)
-class Sector:
-    name: str
-    ocm: OCM
-    dependencies: list[Sector] = field(default_factory=lambda: [])
-    cluster_infos: list[dict[Any, Any]] = field(default_factory=lambda: [])
-
-    def __key(self):
-        return (self.ocm.name, self.name)
-
-    def __hash__(self) -> int:
-        return hash(self.__key())
-
-    def __str__(self) -> str:
-        return f"{self.ocm.name}/{self.name}"
-
-    def ocmspec(self, cluster_name: str) -> OCMSpec:
-        return self.ocm.clusters[cluster_name]
-
-    def _iter_dependencies(self) -> Iterable[Sector]:
-        """
-        iterate reccursively over all the sector dependencies
-        """
-        logging.debug(f"[{self}] checking dependencies")
-        for dep in self.dependencies or []:
-            if self == dep:
-                raise SectorConfigError(
-                    f"[{self}] infinite sector dependency loop detected: depending on itself"
-                )
-            yield dep
-            for d in dep._iter_dependencies():
-                if self == d:
-                    raise SectorConfigError(
-                        f"[{self}] infinite sector dependency loop detected under {dep} dependencies"
-                    )
-                yield d
-
-    def validate_dependencies(self) -> bool:
-        list(self._iter_dependencies())
-        return True
-
-
 class OCMMap:  # pylint: disable=too-many-public-methods
     """
     OCMMap gets a GraphQL query results list as input
@@ -1895,7 +1649,6 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         """Initiates OCM instances for each OCM referenced in a cluster."""
         self.clusters_map = {}
         self.ocm_map = {}
-        self.sector_map = {}
         self.calling_integration = integration
         self.settings = settings
 
@@ -1930,11 +1683,6 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         else:
             raise KeyError("expected one of clusters, namespaces or ocm.")
 
-        # check sectors dependencies loop
-        for ocm in self.ocm_map.values():
-            for sector in ocm.sectors.values():
-                sector.validate_dependencies()
-
     def __getitem__(self, ocm_name) -> OCM:
         return self.ocm_map[ocm_name]
 
@@ -1953,17 +1701,6 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             self.init_ocm_client(
                 ocm_info, init_provision_shards, init_addons, init_version_gates
             )
-
-        if (
-            cluster_info.get("upgradePolicy") is not None
-            and cluster_info["upgradePolicy"].get("conditions") is not None
-        ):
-            sector_name = cluster_info["upgradePolicy"]["conditions"].get("sector")
-            if sector_name:
-                ocm = self.ocm_map.get(ocm_name)
-                # ensure our cluster actually runs in an OCM org we have access to
-                if ocm and ocm.is_ready(cluster_name):
-                    ocm.sectors[sector_name].cluster_infos.append(cluster_info)
 
     def init_ocm_client(
         self, ocm_info, init_provision_shards, init_addons, init_version_gates
@@ -2015,7 +1752,6 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             init_addons=init_addons,
             blocked_versions=ocm_info.get("blockedVersions"),
             init_version_gates=init_version_gates,
-            sectors=ocm_info.get("sectors"),
             inheritVersionData=ocm_info.get("inheritVersionData"),
         )
 

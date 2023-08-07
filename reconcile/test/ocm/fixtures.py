@@ -13,8 +13,7 @@ from pydantic import (
     Field,
 )
 
-from reconcile.utils.ocm.base import OCMModelLink
-from reconcile.utils.ocm.clusters import (
+from reconcile.utils.ocm.base import (
     PRODUCT_ID_ROSA,
     ClusterDetails,
     OCMCapability,
@@ -24,6 +23,7 @@ from reconcile.utils.ocm.clusters import (
     OCMClusterFlag,
     OCMClusterState,
     OCMClusterVersion,
+    OCMModelLink,
 )
 from reconcile.utils.ocm.labels import (
     LabelContainer,
@@ -99,6 +99,8 @@ def build_ocm_cluster(
     aws_cluster: bool = True,
     sts_cluster: bool = False,
     version: str = "4.13.0",
+    channel_group: Optional[str] = None,
+    available_upgrades: Optional[list[str]] = None,
     cluster_product: str = PRODUCT_ID_ROSA,
     hypershift: bool = False,
 ) -> OCMCluster:
@@ -117,7 +119,12 @@ def build_ocm_cluster(
         state=OCMClusterState.READY,
         managed=True,
         aws=aws_config,
-        version=OCMClusterVersion(id=f"openshift-v{version}", raw_id="version"),
+        version=OCMClusterVersion(
+            id=f"openshift-v{version}",
+            raw_id=version,
+            channel_group=channel_group or "stable",
+            available_upgrades=available_upgrades or [],
+        ),
         hypershift=OCMClusterFlag(enabled=hypershift),
         console=OCMClusterConsole(url="https://console.foobar.com"),
     )

@@ -78,9 +78,8 @@ class GitlabForkCompliance:
 
         # Last but not least, we remove the blocked label, in case
         # it is set
-        mr_labels = self.gl_cli.get_merge_request_labels(self.mr.iid)
-        if BLOCKED_BOT_ACCESS in mr_labels:
-            self.gl_cli.remove_label_from_merge_request(self.mr.iid, BLOCKED_BOT_ACCESS)
+        if BLOCKED_BOT_ACCESS in self.mr.labels:
+            self.gl_cli.remove_label(self.mr, BLOCKED_BOT_ACCESS)
 
         sys.exit(self.exit_code)
 
@@ -113,7 +112,7 @@ class GitlabForkCompliance:
 
     def handle_error(self, log_msg, mr_msg):
         LOG.error([log_msg.format(bot=self.gl_cli.user.username)])
-        self.gl_cli.add_label_to_merge_request(self.mr.iid, BLOCKED_BOT_ACCESS)
+        self.gl_cli.add_label_to_merge_request(self.mr, BLOCKED_BOT_ACCESS)
         comment = mr_msg.format(
             user=self.mr.author["username"],
             bot=self.gl_cli.user.username,

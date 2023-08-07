@@ -12,14 +12,16 @@ from pytest_mock import MockerFixture
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import service_log
+from reconcile.utils.ocm.base import (
+    OCMClusterServiceLog,
+    OCMClusterServiceLogCreateModel,
+    OCMServiceLogSeverity,
+)
 from reconcile.utils.ocm.search_filters import (
     DateRangeCondition,
     Filter,
 )
 from reconcile.utils.ocm.service_log import (
-    OCMClusterServiceLog,
-    OCMClusterServiceLogCreateModel,
-    OCMServiceLogSeverity,
     create_service_log,
     get_service_logs,
 )
