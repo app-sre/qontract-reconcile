@@ -219,7 +219,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
             continue
         is_ami_related = False
         for cleanup in cleanups:
-            is_ami_related |= not (cleanup.get("regex") or cleanup.get("age") or cleanup.get("region"))
+            is_ami_related |= cleanup.get("provider") == "ami"
         if not is_ami_related:
             continue
         cleanup_accounts.append(data)
