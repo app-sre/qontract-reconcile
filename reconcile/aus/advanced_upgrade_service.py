@@ -511,16 +511,38 @@ def _signal_validation_issues_for_org(
     """
     org_id = org_upgrade_spec.org.org_id
     ocm_env_name = org_upgrade_spec.org.environment.name
-    logging.warning(
-        f"Errors found in {ocm_env_name} org {org_id}: "
-        f"{org_upgrade_spec.cluster_errors}"
-    )
-    for cluster_error in org_upgrade_spec.cluster_errors:
-        _expose_cluster_validation_errors_as_service_log(
-            ocm_api=ocm_api,
-            cluster_uuid=cluster_error.cluster_uuid,
-            errors=cluster_error.messages,
+
+    if org_upgrade_spec.cluster_errors:
+        logging.warning(
+            f"Cluster config errors found in {ocm_env_name} org {org_id}: "
+            f"{org_upgrade_spec.cluster_errors}"
         )
+        for cluster_error in org_upgrade_spec.cluster_errors:
+            _expose_cluster_validation_errors_as_service_log(
+                ocm_api=ocm_api,
+                cluster_uuid=cluster_error.cluster_uuid,
+                errors=cluster_error.messages,
+            )
+
+    if org_upgrade_spec.organization_errors:
+        logging.warning(
+            f"Organization config errors found in {ocm_env_name} org {org_id}: "
+            f"{org_upgrade_spec.organization_errors}"
+        )
+        org_error_msg = "\n".join(
+            o.message for o in org_upgrade_spec.organization_errors
+        )
+        for cluster in org_upgrade_spec.specs:
+            create_service_log(
+                ocm_api=ocm_api,
+                service_log=OCMClusterServiceLogCreateModel(
+                    cluster_uuid=cluster.cluster_uuid,
+                    severity=OCMServiceLogSeverity.Warning,
+                    summary="AUS configuration error on organization",
+                    description=org_error_msg,
+                    service_name=QONTRACT_INTEGRATION,
+                ),
+            )
 
 
 def _expose_cluster_validation_errors_as_service_log(
