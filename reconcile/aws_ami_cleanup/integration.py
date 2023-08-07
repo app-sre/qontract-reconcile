@@ -214,10 +214,13 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
     query_data = queries.get_aws_accounts(terraform_state=True, cleanup=True)
     cleanup_accounts = []
     for data in query_data:
-        cleanup = data.get("cleanup")
-        if not cleanup:
+        cleanups = data.get("cleanup")
+        if not cleanups:
             continue
-        if not (cleanup.get("regex") or cleanup.get("age") or cleanup.get("region")):
+        is_ami_related = False
+        for cleanup in cleanups:
+            is_ami_related |= not (cleanup.get("regex") or cleanup.get("age") or cleanup.get("region"))
+        if not is_ami_related:
             continue
         cleanup_accounts.append(data)
 
