@@ -189,7 +189,6 @@ def test_ocm_subscription_labels_reconcile(
                 ocm_label=desired_state["cluster-1"].cluster_details.labels[  # type: ignore[union-attr]
                     "my-label-prefix.to-be-changed"
                 ],
-                label="my-label-prefix.to-be-changed",
                 value="enabled",
             )
         ]

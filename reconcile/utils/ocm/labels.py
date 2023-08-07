@@ -45,13 +45,12 @@ def add_subscription_label(
 def update_ocm_label(
     ocm_api: OCMBaseClient,
     ocm_label: OCMLabel,
-    label: str,
     value: str,
 ) -> None:
-    """Update the label (key, value) in the given OCM label."""
+    """Update the label value in the given OCM label."""
     ocm_api.patch(
         api_path=ocm_label.href,
-        data={"kind": "Label", "key": label, "value": value},
+        data={"kind": "Label", "key": ocm_label.key, "value": value},
     )
 
 

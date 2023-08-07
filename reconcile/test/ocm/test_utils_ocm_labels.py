@@ -374,7 +374,7 @@ def test_update_ocm_labels(
         ]
     )
 
-    update_ocm_label(ocm_api, cluster.labels["label"], "label", "value2")
+    update_ocm_label(ocm_api, cluster.labels["label"], "value2")
 
     ocm_calls = find_all_ocm_http_requests("PATCH")
     assert len(ocm_calls) == 1

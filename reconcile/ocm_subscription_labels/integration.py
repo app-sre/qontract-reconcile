@@ -246,6 +246,5 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
                     update_ocm_label(
                         ocm_api=desired_cluster_state.ocm_api,
                         ocm_label=cluster_details.labels[label_to_update],
-                        label=label_to_update,
                         value=value,
                     )
