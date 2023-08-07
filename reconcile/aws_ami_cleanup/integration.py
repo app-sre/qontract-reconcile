@@ -211,11 +211,15 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
     # cannot still be properly monitored (see https://issues.redhat.com/browse/APPSRE-7674),
     # it's easy that it breaks without being noticed. Once it is properly monitored, this should
     # be moved to a typed query.
-    cleanup_accounts = [
-        a
-        for a in queries.get_aws_accounts(terraform_state=True, cleanup=True)
-        if a.get("cleanup")
-    ]
+    query_data = queries.get_aws_accounts(terraform_state=True, cleanup=True)
+    cleanup_accounts = []
+    for data in query_data:
+        cleanup = data.get("cleanup")
+        if not cleanup:
+            continue
+        if not (cleanup.get("regex") or cleanup.get("age") or cleanup.get("region")):
+            continue
+        cleanup_accounts.append(data)
 
     vault_settings = get_app_interface_vault_settings()
 
