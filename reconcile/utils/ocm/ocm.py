@@ -46,11 +46,19 @@ STATUS_DELETING = "deleting"
 AMS_API_BASE = "/api/accounts_mgmt"
 CS_API_BASE = "/api/clusters_mgmt"
 
-MACHINE_POOL_DESIRED_KEYS = {"id", "instance_type", "replicas", "labels", "taints"}
+MACHINE_POOL_DESIRED_KEYS = {
+    "id",
+    "instance_type",
+    "replicas",
+    "autoscaling",
+    "labels",
+    "taints",
+}
 NODE_POOL_DESIRED_KEYS = {
     "id",
     "instance_type",
     "replicas",
+    "autoscaling",
     "labels",
     "taints",
     "aws_node_pool",

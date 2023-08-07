@@ -140,6 +140,10 @@ query Clusters($name: String) {
       id
       instance_type
       replicas
+      autoscale {
+        min_replicas
+        max_replicas
+      }
       labels
       subnet
       taints {

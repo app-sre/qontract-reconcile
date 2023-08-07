@@ -10,11 +10,15 @@ from typing import (
     Optional,
 )
 
-from pydantic import BaseModel
+from pydantic import (
+    BaseModel,
+    root_validator,
+)
 
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
+    ClusterMachinePoolV1_ClusterSpecAutoScaleV1,
     ClusterV1,
 )
 from reconcile.gql_definitions.common.clusters import query as clusters_query
@@ -32,14 +36,74 @@ class InvalidUpdateError(Exception):
     pass
 
 
+class AbstractAutoscaling(BaseModel):
+    def has_diff(self, autoscale: ClusterMachinePoolV1_ClusterSpecAutoScaleV1) -> bool:
+        return (
+            self.get_min() != autoscale.min_replicas
+            or self.get_max() != autoscale.max_replicas
+        )
+
+    @abstractmethod
+    def get_min(self):
+        pass
+
+    @abstractmethod
+    def get_max(self):
+        pass
+
+
+class MachinePoolAutoscaling(AbstractAutoscaling):
+    min_replicas: int
+    max_replicas: int
+
+    @root_validator()
+    @classmethod
+    def max_greater_min(cls, field_values):
+        if field_values.get("min_replicas") > field_values.get("max_replicas"):
+            raise ValueError("max_replicas must be greater than min_replicas")
+        return field_values
+
+    def get_min(self) -> int:
+        return self.min_replicas
+
+    def get_max(self) -> int:
+        return self.max_replicas
+
+
+class NodePoolAutoscaling(AbstractAutoscaling):
+    min_replica: int
+    max_replica: int
+
+    @root_validator()
+    @classmethod
+    def max_greater_min(cls, field_values):
+        if field_values.get("min_replica") > field_values.get("max_replica"):
+            raise ValueError("max_replicas must be greater than min_replicas")
+        return field_values
+
+    def get_min(self) -> int:
+        return self.min_replica
+
+    def get_max(self) -> int:
+        return self.max_replica
+
+
 class AbstractPool(ABC, BaseModel):
     # Abstract class for machine pools, to be implemented by OSD/HyperShift classes
 
     id: str
-    replicas: int
+    replicas: Optional[int]
     taints: Optional[list[Mapping[str, str]]]
     labels: Optional[Mapping[str, str]]
     cluster: str
+    autoscaling: Optional[AbstractAutoscaling]
+
+    @root_validator()
+    @classmethod
+    def validate_scaling(cls, field_values):
+        if field_values.get("autoscaling") and field_values.get("replicas"):
+            raise ValueError("autoscaling and replicas are mutually exclusive")
+        return field_values
 
     @abstractmethod
     def create(self, ocm: OCM) -> None:
@@ -60,6 +124,15 @@ class AbstractPool(ABC, BaseModel):
     @abstractmethod
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
         pass
+
+    def _has_diff_autoscale(self, pool):
+        match (self.autoscaling, pool.autoscale):
+            case (None, None):
+                return False
+            case (None, _) | (_, None):
+                return True
+            case _:
+                return self.autoscaling.has_diff(pool.autoscale)
 
 
 class MachinePool(AbstractPool):
@@ -89,11 +162,13 @@ class MachinePool(AbstractPool):
                 f"updating labels or taints for machine pool {pool.q_id} "
                 f"will only be applied to new Nodes"
             )
+
         return (
             self.replicas != pool.replicas
             or self.taints != pool.taints
             or self.labels != pool.labels
             or self.instance_type != pool.instance_type
+            or self._has_diff_autoscale(pool)
         )
 
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
@@ -103,9 +178,16 @@ class MachinePool(AbstractPool):
 
     @classmethod
     def create_from_gql(cls, pool: ClusterMachinePoolV1, cluster: str):
+        autoscaling: Optional[MachinePoolAutoscaling] = None
+        if pool.autoscale:
+            autoscaling = MachinePoolAutoscaling(
+                min_replicas=pool.autoscale.min_replicas,
+                max_replicas=pool.autoscale.max_replicas,
+            )
         return cls(
             id=pool.q_id,
             replicas=pool.replicas,
+            autoscaling=autoscaling,
             instance_type=pool.instance_type,
             taints=[p.dict(by_alias=True) for p in pool.taints or []],
             labels=pool.labels,
@@ -127,7 +209,8 @@ class NodePool(AbstractPool):
         ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
 
     def create(self, ocm: OCM) -> None:
-        ocm.create_node_pool(self.cluster, self.dict(by_alias=True))
+        spec = self.dict(by_alias=True)
+        ocm.create_node_pool(self.cluster, spec)
 
     def update(self, ocm: OCM) -> None:
         update_dict = self.dict(by_alias=True)
@@ -147,12 +230,14 @@ class NodePool(AbstractPool):
                 f"updating labels or taints for node pool {pool.q_id} "
                 f"will only be applied to new Nodes"
             )
+
         return (
             self.replicas != pool.replicas
             or self.taints != pool.taints
             or self.labels != pool.labels
             or self.aws_node_pool.instance_type != pool.instance_type
             or self.subnet != pool.subnet
+            or self._has_diff_autoscale(pool)
         )
 
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
@@ -164,9 +249,17 @@ class NodePool(AbstractPool):
 
     @classmethod
     def create_from_gql(cls, pool: ClusterMachinePoolV1, cluster: str):
+        autoscaling: Optional[NodePoolAutoscaling] = None
+        if pool.autoscale:
+            autoscaling = NodePoolAutoscaling(
+                min_replica=pool.autoscale.min_replicas,
+                max_replica=pool.autoscale.max_replicas,
+            )
+
         return cls(
             id=pool.q_id,
             replicas=pool.replicas,
+            autoscaling=autoscaling,
             aws_node_pool=AWSNodePool(
                 instance_type=pool.instance_type,
             ),
@@ -222,22 +315,35 @@ def fetch_current_state_for_cluster(cluster, ocm):
     if cluster.spec and cluster.spec.hypershift:
         return [
             NodePool(
-                id=machine_pool["id"],
-                replicas=machine_pool["replicas"],
+                id=node_pool["id"],
+                replicas=node_pool.get("replicas"),
+                autoscaling=NodePoolAutoscaling(
+                    # Hypershift uses singular form
+                    min_replica=node_pool["autoscaling"]["min_replica"],
+                    max_replica=node_pool["autoscaling"]["max_replica"],
+                )
+                if node_pool.get("autoscaling")
+                else None,
                 aws_node_pool=AWSNodePool(
-                    instance_type=machine_pool["aws_node_pool"]["instance_type"]
+                    instance_type=node_pool["aws_node_pool"]["instance_type"]
                 ),
-                taints=machine_pool.get("taints"),
-                labels=machine_pool.get("labels"),
-                subnet=machine_pool.get("subnet"),
+                taints=node_pool.get("taints"),
+                labels=node_pool.get("labels"),
+                subnet=node_pool.get("subnet"),
                 cluster=cluster.name,
             )
-            for machine_pool in ocm.get_node_pools(cluster.name)
+            for node_pool in ocm.get_node_pools(cluster.name)
         ]
     return [
         MachinePool(
             id=machine_pool["id"],
-            replicas=machine_pool["replicas"],
+            replicas=machine_pool.get("replicas"),
+            autoscaling=MachinePoolAutoscaling(
+                min_replicas=machine_pool["autoscaling"]["min_replicas"],
+                max_replicas=machine_pool["autoscaling"]["max_replicas"],
+            )
+            if machine_pool.get("autoscaling")
+            else None,
             instance_type=machine_pool["instance_type"],
             taints=machine_pool.get("taints"),
             labels=machine_pool.get("labels"),
