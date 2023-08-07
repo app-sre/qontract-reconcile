@@ -18,6 +18,7 @@ from pydantic import (
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
+    ClusterMachinePoolV1_ClusterSpecAutoScaleV1,
     ClusterV1,
 )
 from reconcile.gql_definitions.common.clusters import query as clusters_query
@@ -36,12 +37,10 @@ class InvalidUpdateError(Exception):
 
 
 class AbstractAutoscaling(BaseModel):
-    def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
-        if not pool.autoscale:
-            return False
+    def has_diff(self, autoscale: ClusterMachinePoolV1_ClusterSpecAutoScaleV1) -> bool:
         return (
-            self.get_min() != pool.autoscale.min_replicas
-            or self.get_max() != pool.autoscale.max_replicas
+            self.get_min() != autoscale.min_replicas
+            or self.get_max() != autoscale.max_replicas
         )
 
     @abstractmethod
@@ -126,6 +125,15 @@ class AbstractPool(ABC, BaseModel):
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
         pass
 
+    def _has_diff_autoscale(self, pool):
+        match (self.autoscaling, pool.autoscale):
+            case (None, None):
+                return False
+            case (None, _) | (_, None):
+                return True
+            case _:
+                return self.autoscaling.has_diff(pool.autoscale)
+
 
 class MachinePool(AbstractPool):
     # Machine pool, used for OSD clusters
@@ -155,15 +163,12 @@ class MachinePool(AbstractPool):
                 f"will only be applied to new Nodes"
             )
 
-        if self.autoscaling is None and pool.autoscale is not None:
-            return True
-
         return (
             self.replicas != pool.replicas
             or self.taints != pool.taints
             or self.labels != pool.labels
             or self.instance_type != pool.instance_type
-            or (self.autoscaling is not None and self.autoscaling.has_diff(pool))
+            or self._has_diff_autoscale(pool)
         )
 
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
@@ -226,16 +231,13 @@ class NodePool(AbstractPool):
                 f"will only be applied to new Nodes"
             )
 
-        if self.autoscaling is None and pool.autoscale is not None:
-            return True
-
         return (
             self.replicas != pool.replicas
             or self.taints != pool.taints
             or self.labels != pool.labels
             or self.aws_node_pool.instance_type != pool.instance_type
             or self.subnet != pool.subnet
-            or (self.autoscaling is not None and self.autoscaling.has_diff(pool))
+            or self._has_diff_autoscale(pool)
         )
 
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:

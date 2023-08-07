@@ -15,6 +15,7 @@ from reconcile.ocm_machine_pools import (
     DesiredMachinePool,
     DesiredStateList,
     MachinePool,
+    MachinePoolAutoscaling,
     NodePool,
     PoolHandler,
     calculate_diff,
@@ -114,6 +115,36 @@ def cluster_machine_pool() -> ClusterMachinePoolV1:
 @pytest.fixture
 def ocm_mock(mocker):
     return mocker.patch("reconcile.utils.ocm.OCM")
+
+
+def test_diff__has_diff_autoscale(cluster_machine_pool: ClusterMachinePoolV1):
+    pool = TestPool(id="pool1", cluster="cluster1")
+
+    assert cluster_machine_pool.autoscale is None
+    assert not pool._has_diff_autoscale(cluster_machine_pool)
+
+    cluster_machine_pool.autoscale = ClusterMachinePoolV1_ClusterSpecAutoScaleV1(
+        min_replicas=1, max_replicas=2
+    )
+    assert pool._has_diff_autoscale(cluster_machine_pool)
+
+    cluster_machine_pool.autoscale = None
+    pool.autoscaling = MachinePoolAutoscaling(min_replicas=1, max_replicas=2)
+    assert pool._has_diff_autoscale(cluster_machine_pool)
+
+    cluster_machine_pool.autoscale = ClusterMachinePoolV1_ClusterSpecAutoScaleV1(
+        min_replicas=1, max_replicas=2
+    )
+    assert not pool._has_diff_autoscale(cluster_machine_pool)
+
+    pool.autoscaling.max_replicas = 3
+    assert pool._has_diff_autoscale(cluster_machine_pool)
+
+    pool.autoscaling.max_replicas = 2
+    assert not pool._has_diff_autoscale(cluster_machine_pool)
+
+    pool.autoscaling.min_replicas = 0
+    assert pool._has_diff_autoscale(cluster_machine_pool)
 
 
 def test_calculate_diff_create():
