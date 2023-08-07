@@ -222,6 +222,10 @@ query Clusters($name: String) {
       id
       instance_type
       replicas
+      autoscale {
+        min_replicas
+        max_replicas
+      }
       labels
       subnet
       taints {
@@ -524,6 +528,11 @@ class ClusterNetworkV1(ConfiguredBaseModel):
     pod: str = Field(..., alias="pod")
 
 
+class ClusterMachinePoolV1_ClusterSpecAutoScaleV1(ConfiguredBaseModel):
+    min_replicas: int = Field(..., alias="min_replicas")
+    max_replicas: int = Field(..., alias="max_replicas")
+
+
 class TaintV1(ConfiguredBaseModel):
     key: str = Field(..., alias="key")
     value: str = Field(..., alias="value")
@@ -533,7 +542,10 @@ class TaintV1(ConfiguredBaseModel):
 class ClusterMachinePoolV1(ConfiguredBaseModel):
     q_id: str = Field(..., alias="id")
     instance_type: str = Field(..., alias="instance_type")
-    replicas: int = Field(..., alias="replicas")
+    replicas: Optional[int] = Field(..., alias="replicas")
+    autoscale: Optional[ClusterMachinePoolV1_ClusterSpecAutoScaleV1] = Field(
+        ..., alias="autoscale"
+    )
     labels: Optional[Json] = Field(..., alias="labels")
     subnet: Optional[str] = Field(..., alias="subnet")
     taints: Optional[list[TaintV1]] = Field(..., alias="taints")

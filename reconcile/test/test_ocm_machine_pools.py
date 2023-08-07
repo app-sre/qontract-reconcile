@@ -5,13 +5,17 @@ from typing import (
 
 import pytest
 
-from reconcile.gql_definitions.common.clusters import ClusterMachinePoolV1
+from reconcile.gql_definitions.common.clusters import (
+    ClusterMachinePoolV1,
+    ClusterMachinePoolV1_ClusterSpecAutoScaleV1,
+)
 from reconcile.ocm_machine_pools import (
     AbstractPool,
     AWSNodePool,
     DesiredMachinePool,
     DesiredStateList,
     MachinePool,
+    MachinePoolAutoscaling,
     NodePool,
     PoolHandler,
     calculate_diff,
@@ -101,6 +105,7 @@ def cluster_machine_pool() -> ClusterMachinePoolV1:
         id="pool1",
         instance_type="m5.xlarge",
         replicas=1,
+        autoscale=None,
         labels=None,
         taints=None,
         subnet="subnet1",
@@ -110,6 +115,36 @@ def cluster_machine_pool() -> ClusterMachinePoolV1:
 @pytest.fixture
 def ocm_mock(mocker):
     return mocker.patch("reconcile.utils.ocm.OCM")
+
+
+def test_diff__has_diff_autoscale(cluster_machine_pool: ClusterMachinePoolV1):
+    pool = TestPool(id="pool1", cluster="cluster1")
+
+    assert cluster_machine_pool.autoscale is None
+    assert not pool._has_diff_autoscale(cluster_machine_pool)
+
+    cluster_machine_pool.autoscale = ClusterMachinePoolV1_ClusterSpecAutoScaleV1(
+        min_replicas=1, max_replicas=2
+    )
+    assert pool._has_diff_autoscale(cluster_machine_pool)
+
+    cluster_machine_pool.autoscale = None
+    pool.autoscaling = MachinePoolAutoscaling(min_replicas=1, max_replicas=2)
+    assert pool._has_diff_autoscale(cluster_machine_pool)
+
+    cluster_machine_pool.autoscale = ClusterMachinePoolV1_ClusterSpecAutoScaleV1(
+        min_replicas=1, max_replicas=2
+    )
+    assert not pool._has_diff_autoscale(cluster_machine_pool)
+
+    pool.autoscaling.max_replicas = 3
+    assert pool._has_diff_autoscale(cluster_machine_pool)
+
+    pool.autoscaling.max_replicas = 2
+    assert not pool._has_diff_autoscale(cluster_machine_pool)
+
+    pool.autoscaling.min_replicas = 0
+    assert pool._has_diff_autoscale(cluster_machine_pool)
 
 
 def test_calculate_diff_create():
@@ -125,6 +160,7 @@ def test_calculate_diff_create():
                     ClusterMachinePoolV1(
                         id="pool1",
                         instance_type="m5.xlarge",
+                        autoscale=None,
                         replicas=1,
                         labels=None,
                         taints=None,
@@ -152,6 +188,7 @@ def test_calculate_diff_noop(current_with_pool):
                         id="pool1",
                         instance_type="m5.xlarge",
                         replicas=2,
+                        autoscale=None,
                         labels=None,
                         taints=None,
                         subnet="subnet1",
@@ -176,6 +213,7 @@ def test_calculate_diff_update(current_with_pool):
                         id="pool1",
                         instance_type="m5.xlarge",
                         replicas=1,
+                        autoscale=None,
                         labels=None,
                         taints=None,
                         subnet="subnet1",
@@ -252,6 +290,26 @@ def test_pool_machine_pool_has_diff(machine_pool, cluster_machine_pool):
     assert not machine_pool.has_diff(cluster_machine_pool)
 
 
+def test_pool_machine_pool_has_new_auto_scale(machine_pool, cluster_machine_pool):
+    machine_pool.replicas = None
+    cluster_machine_pool.replicas = None
+    assert not machine_pool.has_diff(cluster_machine_pool)
+    cluster_machine_pool.autoscale = ClusterMachinePoolV1_ClusterSpecAutoScaleV1(
+        min_replicas=1, max_replicas=2
+    )
+    assert machine_pool.has_diff(cluster_machine_pool)
+
+
+def test_pool_node_pool_has_new_auto_scale(node_pool, cluster_machine_pool):
+    node_pool.replicas = None
+    cluster_machine_pool.replicas = None
+    assert not node_pool.has_diff(cluster_machine_pool)
+    cluster_machine_pool.autoscale = ClusterMachinePoolV1_ClusterSpecAutoScaleV1(
+        min_replicas=1, max_replicas=2
+    )
+    assert node_pool.has_diff(cluster_machine_pool)
+
+
 def test_pool_machine_pool_invalid_diff_instance_type(
     machine_pool, cluster_machine_pool
 ):
@@ -265,14 +323,21 @@ def test_machine_pool_update(machine_pool, mocker):
 
     assert ocm.update_machine_pool.call_count == 1
     ocm.update_machine_pool.assert_called_with(
-        "cluster1", {"id": "pool1", "replicas": 2, "cluster": "cluster1"}
+        "cluster1",
+        {"id": "pool1", "replicas": 2, "cluster": "cluster1", "autoscaling": None},
     )
 
     machine_pool.labels = {"foo": "bar"}
     machine_pool.update(ocm=ocm)
     ocm.update_machine_pool.assert_called_with(
         "cluster1",
-        {"id": "pool1", "replicas": 2, "cluster": "cluster1", "labels": {"foo": "bar"}},
+        {
+            "id": "pool1",
+            "replicas": 2,
+            "cluster": "cluster1",
+            "labels": {"foo": "bar"},
+            "autoscaling": None,
+        },
     )
 
 
@@ -281,12 +346,19 @@ def test_node_pool_update(node_pool, ocm_mock):
 
     assert ocm_mock.update_node_pool.call_count == 1
     ocm_mock.update_node_pool.assert_called_with(
-        "cluster1", {"id": "pool1", "replicas": 2, "cluster": "cluster1"}
+        "cluster1",
+        {"id": "pool1", "replicas": 2, "cluster": "cluster1", "autoscaling": None},
     )
 
     node_pool.labels = {"foo": "bar"}
     node_pool.update(ocm=ocm_mock)
     ocm_mock.update_node_pool.assert_called_with(
         "cluster1",
-        {"id": "pool1", "replicas": 2, "cluster": "cluster1", "labels": {"foo": "bar"}},
+        {
+            "id": "pool1",
+            "replicas": 2,
+            "cluster": "cluster1",
+            "labels": {"foo": "bar"},
+            "autoscaling": None,
+        },
     )
