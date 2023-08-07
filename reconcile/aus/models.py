@@ -76,6 +76,14 @@ class ClusterValidationError(BaseModel):
     messages: list[str]
 
 
+class OrganizationValidationError(BaseModel):
+    """
+    A validation error for a cluster.
+    """
+
+    message: str
+
+
 class OrganizationUpgradeSpec(BaseModel):
     """
     Represents all cluster upgrade specs for an OCM organization.
@@ -86,6 +94,7 @@ class OrganizationUpgradeSpec(BaseModel):
     _cluster_errors: dict[str, ClusterValidationError] = PrivateAttr(
         default_factory=dict
     )
+    _org_errors: list[OrganizationValidationError] = PrivateAttr(default_factory=list)
     _sectors: dict[str, Sector] = PrivateAttr(default_factory=dict)
 
     def __init__(
@@ -137,11 +146,15 @@ class OrganizationUpgradeSpec(BaseModel):
 
     @property
     def nr_of_validation_errors(self) -> int:
-        return len(self._cluster_errors)
+        return len(self._cluster_errors) + len(self._org_errors)
 
     @property
     def cluster_errors(self) -> list[ClusterValidationError]:
         return list(self._cluster_errors.values())
+
+    @property
+    def organization_errors(self) -> list[OrganizationValidationError]:
+        return list(self._org_errors)
 
     def add_cluster_error(self, cluster_uuid: str, message: str) -> None:
         if cluster_uuid not in self._cluster_errors:
@@ -149,6 +162,9 @@ class OrganizationUpgradeSpec(BaseModel):
                 cluster_uuid=cluster_uuid, messages=[]
             )
         self._cluster_errors[cluster_uuid].messages.append(message)
+
+    def add_organization_error(self, message: str) -> None:
+        self._org_errors.append(OrganizationValidationError(message=message))
 
 
 def upgrade_spec_sort_key(spec: ClusterUpgradeSpec) -> tuple:

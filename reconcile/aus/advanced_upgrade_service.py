@@ -9,6 +9,7 @@ from pydantic import (
     ValidationError,
     validator,
 )
+from pydantic.dataclasses import dataclass
 
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
@@ -21,6 +22,9 @@ from reconcile.gql_definitions.fragments.aus_organization import (
     AUSOCMOrganization,
     OpenShiftClusterManagerSectorDependenciesV1,
     OpenShiftClusterManagerSectorV1,
+    OpenShiftClusterManagerV1_OpenShiftClusterManagerV1,
+    OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1,
+    OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.upgrade_policy import (
@@ -75,8 +79,46 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
-    def get_ocm_env_upgrade_specs(
-        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
+    def get_upgrade_specs(self) -> dict[str, dict[str, OrganizationUpgradeSpec]]:
+        inheritance_network = self.init_version_data_network()
+
+        return {
+            ocm_env.name: self._build_ocm_env_upgrade_specs(
+                ocm_env=ocm_env,
+                org_ids=self.params.ocm_organization_ids,
+                inheritance_network=inheritance_network,
+            )
+            for ocm_env in self.get_ocm_environments()
+        }
+
+    def init_version_data_network(self) -> dict["OrgRef", "VersionDataInheritance"]:
+        # collect all version data labels from all OCM environments ...
+        org_to_env: dict[str, OCMEnvironment] = {}
+        labels_by_org: dict[str, list[OCMOrganizationLabel]] = defaultdict(list)
+        for env in self.get_ocm_environments(filter=False):
+            ocm_api = init_ocm_base_client(env, self.secret_reader)
+            for label in get_organization_labels(
+                ocm_api=ocm_api,
+                filter=Filter().like("key", aus_label_key("version-data.%")),
+            ):
+                labels_by_org[label.organization_id].append(label)
+                org_to_env[label.organization_id] = env
+
+        # ... and build the inheritance network
+        return build_version_data_inheritance_network(
+            {
+                OrgRef(
+                    org_id=org_id, env_name=org_to_env[org_id].name
+                ): build_label_container(labels)
+                for org_id, labels in labels_by_org.items()
+            }
+        )
+
+    def _build_ocm_env_upgrade_specs(
+        self,
+        ocm_env: OCMEnvironment,
+        org_ids: Optional[set[str]],
+        inheritance_network: dict["OrgRef", "VersionDataInheritance"],
     ) -> dict[str, OrganizationUpgradeSpec]:
         ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
         clusters_by_org = discover_clusters(
@@ -98,6 +140,9 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             orgs=orgs,
             clusters_by_org=clusters_by_org,
             labels_by_org=labels_by_org,
+            inheritance_network={
+                org_ref.org_id: vdi for org_ref, vdi in inheritance_network.items()
+            },
         )
 
     def signal_validation_issues(
@@ -182,6 +227,7 @@ def _build_org_upgrade_specs_for_ocm_env(
     orgs: dict[str, OCMOrganization],
     clusters_by_org: dict[str, list[ClusterDetails]],
     labels_by_org: dict[str, LabelContainer],
+    inheritance_network: dict[str, "VersionDataInheritance"],
 ) -> dict[str, OrganizationUpgradeSpec]:
     """
     Builds the cluster upgrade specs for the given OCM environment.
@@ -193,6 +239,7 @@ def _build_org_upgrade_specs_for_ocm_env(
             orgs[org_id],
             clusters,
             labels_by_org.get(org_id) or build_label_container(),
+            inheritance_network.get(org_id),
         )
         for org_id, clusters in clusters_by_org.items()
     }
@@ -249,12 +296,33 @@ def _build_org_upgrade_spec(
     org: OCMOrganization,
     clusters: list[ClusterDetails],
     org_labels: LabelContainer,
+    version_data_inheritance: Optional["VersionDataInheritance"],
 ) -> OrganizationUpgradeSpec:
     """
     Build a upgrade policy spec for each cluster in the organization that
     has a valid set of labels. Clusters without a set of labels are ignored. Clusters
     with an invalid/incomplete set of labels are reported as an error.
     """
+
+    # build version inheritance config
+    inherit_version_data = None
+    if version_data_inheritance and version_data_inheritance.inherit_from_orgs:
+        inherit_version_data = [
+            OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(
+                name=source_org_ref.org_id,
+                orgId=source_org_ref.org_id,
+                environment=OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1(
+                    name=source_org_ref.env_name
+                ),
+                publishVersionData=[
+                    OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(
+                        orgId=org.id
+                    )
+                ],
+            )
+            for source_org_ref in version_data_inheritance.inherit_from_orgs
+        ]
+
     org_labelset = build_labelset(org_labels, OrganizationLabelSet)
     org_upgrade_spec = OrganizationUpgradeSpec(
         org=AUSOCMOrganization(
@@ -268,7 +336,7 @@ def _build_org_upgrade_spec(
             accessTokenClientSecret=None,
             accessTokenUrl=None,
             addonUpgradeTests=None,
-            inheritVersionData=None,
+            inheritVersionData=inherit_version_data,
             upgradePolicyAllowedWorkloads=None,
             upgradePolicyClusters=None,
         )
@@ -290,6 +358,20 @@ def _build_org_upgrade_spec(
                 org_upgrade_spec.add_cluster_error(
                     c.ocm_cluster.external_id, f"label {e['loc'][0]}: {e['msg']}"
                 )
+
+    # register organization errors
+    if (
+        version_data_inheritance
+        and version_data_inheritance.unverified_inheritance_from_orgs
+    ):
+        unverified_org_ids = [
+            org.org_id
+            for org in version_data_inheritance.unverified_inheritance_from_orgs
+        ]
+        org_upgrade_spec.add_organization_error(
+            f"version data inheritance from organizations {', '.join(sorted(unverified_org_ids))} "
+            f"is unverified. ask the owner of these organizations to publish version data to the organization ID {org.id}"
+        )
 
     return org_upgrade_spec
 
@@ -325,6 +407,92 @@ def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicyV1:
             blockedVersions=policy_labelset.blocked_versions,
         ),
     )
+
+
+class VersionDataInheritanceLabelSet(BaseModel):
+    inherit_version_data: Optional[CSV] = Field(
+        alias=aus_label_key("version-data.inherit")
+    )
+    """
+    A list of OCM organization IDs to inherit version data from. These organization also need
+    to publish their version data via the `publish-version-data` label to the inheriting version.
+    Version data publishing/inheritance can also be defined between OCM environments.
+    """
+
+    publish_version_data: Optional[CSV] = Field(
+        alias=aus_label_key("version-data.publish")
+    )
+    """
+    A list of OCM organization IDs to publish version data to. These organization also need
+    to explicitely inherit version data via the `inherit-version-data` label from this organization.
+    Version data publishing/inheritance can also be defined between OCM environments.
+    """
+
+
+@dataclass(frozen=True, eq=True)
+class OrgRef:
+    org_id: str
+    env_name: str
+
+
+class VersionDataInheritance(BaseModel):
+    org_id: str
+    inherit_from_orgs: set[OrgRef]
+    unverified_inheritance_from_orgs: set[OrgRef]
+
+
+def build_version_data_inheritance_network(
+    labels_per_org: dict[OrgRef, LabelContainer]
+) -> dict[OrgRef, VersionDataInheritance]:
+    """
+    Validates publish/inherit relationships between OCM organizations and environments from the
+    provided label containers.
+
+    This function returns a dictionary of OCM organizations and their version data
+    inheritance relationships.
+    """
+    label_set_per_org = {
+        org_ref: build_labelset(labels, VersionDataInheritanceLabelSet)
+        for org_ref, labels in labels_per_org.items()
+    }
+    org_ref_lookup = {org_ref.org_id: org_ref for org_ref in labels_per_org}
+
+    verified_inheritance_network: dict[OrgRef, VersionDataInheritance] = {}
+    for org_ref, label_set in label_set_per_org.items():
+        if not label_set.inherit_version_data:
+            continue
+
+        verified_inheritance_network[org_ref] = VersionDataInheritance(
+            org_id=org_ref.org_id,
+            inherit_from_orgs={
+                org_ref_lookup[source_org_id]
+                for source_org_id in label_set.inherit_version_data
+                if source_org_id in org_ref_lookup
+                and org_ref.org_id
+                in (
+                    label_set_per_org[
+                        org_ref_lookup[source_org_id]
+                    ].publish_version_data
+                    or []
+                )
+            },
+            unverified_inheritance_from_orgs={
+                org_ref_lookup.get(
+                    source_org_id, OrgRef(org_id=source_org_id, env_name="unknown")
+                )
+                for source_org_id in label_set.inherit_version_data
+                if source_org_id not in org_ref_lookup
+                or org_ref.org_id
+                not in (
+                    label_set_per_org[
+                        org_ref_lookup[source_org_id]
+                    ].publish_version_data
+                    or []
+                )
+            },
+        )
+
+    return verified_inheritance_network
 
 
 #
