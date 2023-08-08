@@ -458,42 +458,47 @@ def build_version_data_inheritance_network(
     }
     org_ref_lookup = {org_ref.org_id: org_ref for org_ref in labels_per_org}
 
-    verified_inheritance_network: dict[OrgRef, VersionDataInheritance] = {}
-    for org_ref, label_set in label_set_per_org.items():
-        if not label_set.inherit_version_data:
-            continue
-
-        verified_inheritance_network[org_ref] = VersionDataInheritance(
-            org_id=org_ref.org_id,
-            inherit_from_orgs={
-                org_ref_lookup[source_org_id]
-                for source_org_id in label_set.inherit_version_data
-                if source_org_id in org_ref_lookup
-                and org_ref.org_id
-                in (
-                    label_set_per_org[
-                        org_ref_lookup[source_org_id]
-                    ].publish_version_data
-                    or []
-                )
-            },
-            unverified_inheritance_from_orgs={
-                org_ref_lookup.get(
-                    source_org_id, OrgRef(org_id=source_org_id, env_name="unknown")
-                )
-                for source_org_id in label_set.inherit_version_data
-                if source_org_id not in org_ref_lookup
-                or org_ref.org_id
-                not in (
-                    label_set_per_org[
-                        org_ref_lookup[source_org_id]
-                    ].publish_version_data
-                    or []
-                )
-            },
+    return {
+        org_ref: _build_version_data_inheritance(
+            org_ref,
+            label_set,
+            org_ref_lookup,
+            label_set_per_org,
         )
+        for org_ref, label_set in label_set_per_org.items()
+        if label_set.inherit_version_data
+    }
 
-    return verified_inheritance_network
+
+def _build_version_data_inheritance(
+    org_ref: OrgRef,
+    label_set: VersionDataInheritanceLabelSet,
+    org_ref_lookup: dict[str, OrgRef],
+    label_set_per_org: dict[OrgRef, VersionDataInheritanceLabelSet],
+) -> VersionDataInheritance:
+    inherit_from_orgs_org_ids = {
+        source_org_id
+        for source_org_id in label_set.inherit_version_data or []
+        if source_org_id in org_ref_lookup
+        and org_ref.org_id
+        in (label_set_per_org[org_ref_lookup[source_org_id]].publish_version_data or [])
+    }
+    unverified_inheritance_from_orgs_org_ids = (
+        set(label_set.inherit_version_data or []) - inherit_from_orgs_org_ids
+    )
+
+    return VersionDataInheritance(
+        org_id=org_ref.org_id,
+        inherit_from_orgs={
+            org_ref_lookup[source_org_id] for source_org_id in inherit_from_orgs_org_ids
+        },
+        unverified_inheritance_from_orgs={
+            org_ref_lookup.get(
+                source_org_id, OrgRef(org_id=source_org_id, env_name="unknown")
+            )
+            for source_org_id in unverified_inheritance_from_orgs_org_ids
+        },
+    )
 
 
 #
