@@ -4,7 +4,6 @@ import logging
 import os
 import re
 import subprocess
-import tempfile
 import threading
 import time
 from collections.abc import (
