@@ -4,7 +4,7 @@ query Projects {
   glitchtip_projects: glitchtip_projects_v1 {
     name
     platform
-    glitchtipId
+    projectId
     teams {
       name
       roles {

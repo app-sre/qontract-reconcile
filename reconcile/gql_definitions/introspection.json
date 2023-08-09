@@ -17984,7 +17984,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "glitchtipId",
+                            "name": "projectId",
                             "description": null,
                             "args": [],
                             "type": {
