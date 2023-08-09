@@ -109,6 +109,12 @@ gitlab_request = Counter(
     labelnames=["integration"],
 )
 
+ocm_request = Counter(
+    name="qontract_reconcile_ocm_request_total",
+    documentation="Number of calls made to OCM API",
+    labelnames=["verb", "client_id"],
+)
+
 
 #
 # Class based metrics
