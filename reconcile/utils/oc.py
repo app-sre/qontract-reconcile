@@ -4,7 +4,6 @@ import logging
 import os
 import re
 import subprocess
-import tempfile
 import threading
 import time
 from collections.abc import (
@@ -549,30 +548,6 @@ class OCCli:  # pylint: disable=too-many-public-methods
         ] + parameters_to_process
         result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
         return json.loads(result)["items"]
-
-    def release_mirror(self, from_release, to, to_release, dockerconfig):
-        with tempfile.NamedTemporaryFile() as fp:
-            content = json.dumps(dockerconfig)
-            fp.write(content.encode())
-            fp.seek(0)
-
-            cmd = [
-                "adm",
-                "--registry-config",
-                fp.name,
-                "release",
-                "mirror",
-                "--from",
-                from_release,
-                "--to",
-                to,
-                "--to-release-image",
-                to_release,
-                "--max-per-registry",
-                "1",
-            ]
-
-            self._run(cmd)
 
     @OCDecorators.process_reconcile_time
     def apply(self, namespace, resource):

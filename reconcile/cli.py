@@ -2403,14 +2403,6 @@ def dashdotdb_slo(ctx, thread_pool_size):
     run_integration(reconcile.dashdotdb_slo, ctx.obj, thread_pool_size)
 
 
-@integration.command(short_help="Mirrors OCP release images.")
-@click.pass_context
-def ocp_release_mirror(ctx):
-    import reconcile.ocp_release_mirror
-
-    run_integration(reconcile.ocp_release_mirror, ctx.obj)
-
-
 @integration.command(short_help="Tests prometheus rules using promtool.")
 @threaded(default=5)
 @binary(["promtool"])
