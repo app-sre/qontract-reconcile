@@ -61,7 +61,7 @@ class GlitchtipReconciler:
                 new_project = Project(name=project.name, platform=project.platform)
             organization_projects.append(new_project)
 
-        for project in [p.desired for p in project_diff.change.values()]:
+        for project in (p.desired for p in project_diff.change.values()):
             logging.info(
                 ["update_project", organization_slug, project.name, self.client.host]
             )
