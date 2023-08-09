@@ -730,8 +730,6 @@ class OCM:  # pylint: disable=too-many-public-methods
 
         self._init_blocked_versions(blocked_versions)
 
-        self.inheritVersionData = inheritVersionData or []
-
         self.init_version_gates = init_version_gates
         self.version_gates: list[Any] = []
         if init_version_gates:

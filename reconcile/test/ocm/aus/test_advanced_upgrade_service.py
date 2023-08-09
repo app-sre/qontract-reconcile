@@ -8,6 +8,8 @@ from reconcile.aus import advanced_upgrade_service
 from reconcile.aus.advanced_upgrade_service import (
     ClusterUpgradePolicyLabelSet,
     OrganizationLabelSet,
+    OrgRef,
+    VersionDataInheritance,
     _build_org_upgrade_spec,
     _build_org_upgrade_specs_for_ocm_env,
     _build_policy_from_labels,
@@ -15,6 +17,7 @@ from reconcile.aus.advanced_upgrade_service import (
     _get_org_labels,
     _signal_validation_issues_for_org,
     aus_label_key,
+    build_version_data_inheritance_network,
     discover_clusters,
 )
 from reconcile.aus.models import OrganizationUpgradeSpec
@@ -183,8 +186,10 @@ def test_build_org_upgrade_spec(
             ),
         ],
         org_labels=org_labels,
+        version_data_inheritance=None,
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
+    assert len(org_upgrade_spec.organization_errors) == 0
     assert len(org_upgrade_spec.specs) == 1
 
 
@@ -204,9 +209,67 @@ def test_build_org_upgrade_spec_with_cluster_error(
             ),
         ],
         org_labels=org_labels,
+        version_data_inheritance=None,
     )
     assert len(org_upgrade_spec.cluster_errors) == 1
+    assert len(org_upgrade_spec.organization_errors) == 0
     assert len(org_upgrade_spec.specs) == 0
+
+
+def test_build_org_upgrade_spec_with_version_inheritance(
+    ocm_env: OCMEnvironment, org_labels: LabelContainer
+) -> None:
+    org_upgrade_spec = _build_org_upgrade_spec(
+        ocm_env=ocm_env,
+        org=OCMOrganization(
+            id="org-id",
+            name="org-name",
+        ),
+        clusters=[
+            build_cluster_details(
+                "cluster-1",
+                build_cluster_upgrade_policy_labels(soak_days=0),
+            ),
+        ],
+        org_labels=org_labels,
+        version_data_inheritance=VersionDataInheritance(
+            org_id="org-id",
+            inherit_from_orgs=[OrgRef(org_id="another-org", env_name="ocm-prod")],
+            unverified_inheritance_from_orgs=[],
+        ),
+    )
+    assert len(org_upgrade_spec.cluster_errors) == 0
+    assert len(org_upgrade_spec.organization_errors) == 0
+    assert len(org_upgrade_spec.specs) == 1
+
+
+def test_build_org_upgrade_spec_with_version_inheritance_no_publish(
+    ocm_env: OCMEnvironment, org_labels: LabelContainer
+) -> None:
+    org_upgrade_spec = _build_org_upgrade_spec(
+        ocm_env=ocm_env,
+        org=OCMOrganization(
+            id="org-id",
+            name="org-name",
+        ),
+        clusters=[
+            build_cluster_details(
+                "cluster-1",
+                build_cluster_upgrade_policy_labels(soak_days=0),
+            ),
+        ],
+        org_labels=org_labels,
+        version_data_inheritance=VersionDataInheritance(
+            org_id="org-id",
+            inherit_from_orgs=[],
+            unverified_inheritance_from_orgs=[
+                OrgRef(org_id="another-org", env_name="ocm-prod")
+            ],
+        ),
+    )
+    assert len(org_upgrade_spec.cluster_errors) == 0
+    assert len(org_upgrade_spec.organization_errors) == 1
+    assert len(org_upgrade_spec.specs) == 1
 
 
 #
@@ -233,6 +296,7 @@ def test_build_org_upgrade_specs_for_ocm_env(ocm_env: OCMEnvironment) -> None:
         labels_by_org={
             org_id: build_org_config_labels(),
         },
+        inheritance_network={},
     )
     assert org_id in upgrade_specs
 
@@ -265,6 +329,7 @@ def test_build_org_upgrade_specs_for_ocm_env_with_cluster_error(
         labels_by_org={
             org_id: build_org_config_labels(),
         },
+        inheritance_network={},
     )
     assert org_id in upgrade_specs
 
@@ -454,6 +519,7 @@ def build_org_upgrade_specs(
         labels_by_org={
             org_id: build_org_config_labels(),
         },
+        inheritance_network={},
     )
 
 
@@ -520,3 +586,52 @@ def test_expose_cluster_validation_error_to_service_log(
 
 def test_aus_label_key() -> None:
     assert aus_label_key("foo") == "sre-capabilities.aus.foo"
+
+
+#
+# test build_version_data_inheritance_network
+#
+
+
+def test_build_version_data_inheritance_network() -> None:
+    org_1 = "org-id-1"
+    org_2 = "org-id-2"
+    org_3 = "org-id-3"
+    labels_per_org = {
+        OrgRef(org_id=org_1, env_name="ocm-prod"): build_label_container(
+            [
+                build_organization_label(
+                    org_id=org_1,
+                    key=aus_label_key("version-data.inherit"),
+                    value=f"{org_2},{org_3},unknown_org",
+                )
+            ]
+        ),
+        OrgRef(org_id=org_2, env_name="ocm-stage"): build_label_container(
+            [
+                build_organization_label(
+                    org_id=org_2,
+                    key=aus_label_key("version-data.publish"),
+                    value=org_1,
+                )
+            ]
+        ),
+        OrgRef(org_id=org_3, env_name="ocm-stage"): build_label_container(
+            [
+                build_organization_label(
+                    org_id=org_3,
+                    key=aus_label_key("version-data.publish"),
+                    value=org_2,
+                )
+            ]
+        ),
+    }
+    inheritance_network = build_version_data_inheritance_network(labels_per_org)
+    org_1_inheritance = inheritance_network[OrgRef(org_id=org_1, env_name="ocm-prod")]
+    assert org_1_inheritance.inherit_from_orgs == {
+        OrgRef(org_id=org_2, env_name="ocm-stage")
+    }
+    assert org_1_inheritance.unverified_inheritance_from_orgs == {
+        OrgRef(org_id=org_3, env_name="ocm-stage"),
+        OrgRef(org_id="unknown_org", env_name="unknown"),
+    }

@@ -141,11 +141,11 @@ class AdvancedUpgradeSchedulerBaseIntegration(
             for ocm_env in self.get_ocm_environments()
         }
 
-    def get_ocm_environments(self) -> list[OCMEnvironment]:
+    def get_ocm_environments(self, filter: bool = True) -> list[OCMEnvironment]:
         return ocm_environment_query(
             gql.get_api().query,
             variables={"name": self.params.ocm_environment}
-            if self.params.ocm_environment
+            if self.params.ocm_environment and filter
             else None,
         ).environments
 
