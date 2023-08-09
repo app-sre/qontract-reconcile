@@ -17,6 +17,7 @@ from requests import (
 from sretoolbox.utils import retry
 
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+from reconcile.utils.metrics import ocm_request
 from reconcile.utils.secret_reader import (
     HasSecret,
     SecretReaderBase,
@@ -69,6 +70,7 @@ class OCMBaseClient:
         )
 
     def get(self, api_path: str, params: Optional[Mapping[str, str]] = None) -> Any:
+        ocm_request.labels(verb="GET").inc()
         r = self._session.get(
             f"{self._url}{api_path}",
             params=params,
@@ -108,6 +110,7 @@ class OCMBaseClient:
         data: Optional[Mapping[str, Any]] = None,
         params: Optional[Mapping[str, str]] = None,
     ) -> Any:
+        ocm_request.labels(verb="POST").inc()
         r = self._session.post(
             f"{self._url}{api_path}",
             json=data,
@@ -129,6 +132,7 @@ class OCMBaseClient:
         data: Mapping[str, Any],
         params: Optional[Mapping[str, str]] = None,
     ):
+        ocm_request.labels(verb="PATCH").inc()
         r = self._session.patch(
             f"{self._url}{api_path}",
             json=data,
@@ -142,6 +146,7 @@ class OCMBaseClient:
             raise e
 
     def delete(self, api_path: str):
+        ocm_request.labels(verb="DELETE").inc()
         r = self._session.delete(f"{self._url}{api_path}", timeout=REQUEST_TIMEOUT_SEC)
         r.raise_for_status()
 
