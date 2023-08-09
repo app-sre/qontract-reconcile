@@ -1,6 +1,7 @@
 ---
 - name: rosetta-spacecraft
   platform: python
+  glitchtipId: null
   namespaces: []
   teams:
     - name: esa-pilots
@@ -41,6 +42,7 @@
     path: /path/to/app
 - name: rosetta-flight-control
   platform: python
+  glitchtipId: rosetta-flight-control
   namespaces: []
   teams:
     - name: esa-flight-control
@@ -72,6 +74,7 @@
     path: /path/to/app
 - name: apollo-11-spacecraft
   platform: python
+  glitchtipId: null
   namespaces: []
   teams:
     - name: nasa-pilots
@@ -112,6 +115,7 @@
     path: /path/to/app
 - name: apollo-11-flight-control
   platform: python
+  glitchtipId: null
   namespaces: []
   teams:
     - name: nasa-flight-control

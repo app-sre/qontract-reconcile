@@ -101,10 +101,16 @@ class Project(BaseModel):
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Project):
             raise NotImplementedError("Cannot compare to non Project objects.")
-        return self.name == other.name
+        # use the slug attribute to compare projects
+        # it can't be changed by the Glithtip users, so it's more reliable
+        # and can be used to detect changes in the project name
+        return self.slug == other.slug
+
+    def diff(self, other: Project) -> bool:
+        return self.name == other.name and self.platform == other.platform
 
     def __hash__(self) -> int:
-        return hash(self.name)
+        return hash(self.slug)
 
 
 class Organization(BaseModel):

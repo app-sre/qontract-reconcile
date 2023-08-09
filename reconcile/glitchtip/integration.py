@@ -88,7 +88,11 @@ def fetch_desired_state(
             Organization(name=glitchtip_project.organization.name),
         )
         project = Project(
-            name=glitchtip_project.name, platform=glitchtip_project.platform
+            name=glitchtip_project.name,
+            platform=glitchtip_project.platform,
+            slug=glitchtip_project.glitchtip_id
+            if glitchtip_project.glitchtip_id
+            else "",
         )
         # Check project is unique within an organization
         if project.name in [p.name for p in organization.projects]:

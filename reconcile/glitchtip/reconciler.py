@@ -4,6 +4,7 @@ from collections.abc import (
     Sequence,
 )
 
+from reconcile.utils.differ import diff_any_iterables
 from reconcile.utils.glitchtip import (
     GlitchtipClient,
     Organization,
@@ -27,9 +28,16 @@ class GlitchtipReconciler:
     ) -> list[Project]:
         """Reconcile organization projects."""
         organization_projects = list(current_projects)
-        for project in set(current_projects).difference(desired_projects):
+        project_diff = diff_any_iterables(
+            current=current_projects,
+            desired=desired_projects,
+            current_key=lambda p: p.slug,
+            desired_key=lambda p: p.slug,
+            equal=lambda p1, p2: p1.diff(p2),
+        )
+        for project in project_diff.delete.values():
             logging.info(
-                ["delete_project", organization_slug, project.slug, self.client.host]
+                ["delete_project", organization_slug, project.name, self.client.host]
             )
             del organization_projects[organization_projects.index(project)]
             if not self.dry_run:
@@ -38,9 +46,9 @@ class GlitchtipReconciler:
                     slug=project.slug,
                 )
 
-        for project in set(desired_projects).difference(current_projects):
+        for project in project_diff.add.values():
             logging.info(
-                ["create_project", organization_slug, project.slug, self.client.host]
+                ["create_project", organization_slug, project.name, self.client.host]
             )
             if not self.dry_run:
                 new_project = self.client.create_project(
@@ -53,6 +61,21 @@ class GlitchtipReconciler:
             else:
                 new_project = Project(name=project.name, platform=project.platform)
             organization_projects.append(new_project)
+
+        for project in [p.desired for p in project_diff.change.values()]:
+            logging.info(
+                ["update_project", organization_slug, project.name, self.client.host]
+            )
+            if not self.dry_run:
+                updated_project = self.client.update_project(
+                    organization_slug=organization_slug,
+                    slug=project.slug,
+                    name=project.name,
+                    platform=project.platform,
+                )
+                organization_projects[
+                    organization_projects.index(project)
+                ] = updated_project
 
         for desired_project in desired_projects:
             current_project = organization_projects[

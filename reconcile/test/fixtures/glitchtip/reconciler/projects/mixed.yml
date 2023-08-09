@@ -43,7 +43,7 @@ current_projects:
         users: []
 
 desired_projects:
-  - name: rosetta-flight-control
+  - name: rosetta-flight-control-advanced
     platform: python
     slug: rosetta-flight-control
     teams:
@@ -59,7 +59,7 @@ desired_projects:
         users: []
 
 expected_return_value:
-  - name: rosetta-flight-control
+  - name: rosetta-flight-control-advanced
     id: 10
     platform: python
     slug: rosetta-flight-control
@@ -95,6 +95,18 @@ glitchtip_urls:
         teams:
           - id: 7
             slug: esa-flight-control
+          - id: 6
+            slug: esa-pilots
+
+  - name: rename rosetta-flight-control to rosetta-flight-control-advanced
+    uri: /api/0/projects/esa/rosetta-flight-control/
+    method: put
+    responses:
+      - name: rosetta-flight-control-advanced
+        id: 9
+        platform: python
+        slug: rosetta-flight-control
+        teams:
           - id: 6
             slug: esa-pilots
 

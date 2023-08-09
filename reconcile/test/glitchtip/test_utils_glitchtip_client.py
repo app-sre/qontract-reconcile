@@ -246,6 +246,18 @@ def test_glitchtip_create_project(glitchtip_client: GlitchtipClient) -> None:
     assert project.teams[0].pk == 2
 
 
+def test_glitchtip_update_project(glitchtip_client: GlitchtipClient) -> None:
+    project = glitchtip_client.update_project(
+        organization_slug="nasa",
+        slug="science-tools",
+        name="science-tools-advanced",
+        platform="python",
+    )
+    assert project.pk == 11
+    assert project.slug == "science-tools"
+    assert project.name == "science-tools-advanced"
+
+
 def test_glitchtip_delete_project(glitchtip_client: GlitchtipClient) -> None:
     glitchtip_client.delete_project(organization_slug="nasa", slug="science-tools")
 

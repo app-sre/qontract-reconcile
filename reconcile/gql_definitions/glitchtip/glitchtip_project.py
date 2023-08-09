@@ -46,6 +46,7 @@ query Projects {
   glitchtip_projects: glitchtip_projects_v1 {
     name
     platform
+    glitchtipId
     teams {
       name
       roles {
@@ -180,6 +181,7 @@ class AppV1(ConfiguredBaseModel):
 class GlitchtipProjectsV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     platform: str = Field(..., alias="platform")
+    glitchtip_id: Optional[str] = Field(..., alias="glitchtipId")
     teams: list[GlitchtipTeamV1] = Field(..., alias="teams")
     organization: GlitchtipProjectsV1_GlitchtipOrganizationV1 = Field(
         ..., alias="organization"
