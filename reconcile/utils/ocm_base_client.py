@@ -70,7 +70,7 @@ class OCMBaseClient:
         )
 
     def get(self, api_path: str, params: Optional[Mapping[str, str]] = None) -> Any:
-        ocm_request.labels(verb="GET").inc()
+        ocm_request.labels(verb="GET", client_id=self._access_token_client_id).inc()
         r = self._session.get(
             f"{self._url}{api_path}",
             params=params,
@@ -110,7 +110,7 @@ class OCMBaseClient:
         data: Optional[Mapping[str, Any]] = None,
         params: Optional[Mapping[str, str]] = None,
     ) -> Any:
-        ocm_request.labels(verb="POST").inc()
+        ocm_request.labels(verb="POST", client_id=self._access_token_client_id).inc()
         r = self._session.post(
             f"{self._url}{api_path}",
             json=data,
@@ -132,7 +132,7 @@ class OCMBaseClient:
         data: Mapping[str, Any],
         params: Optional[Mapping[str, str]] = None,
     ):
-        ocm_request.labels(verb="PATCH").inc()
+        ocm_request.labels(verb="PATCH", client_id=self._access_token_client_id).inc()
         r = self._session.patch(
             f"{self._url}{api_path}",
             json=data,
@@ -146,7 +146,7 @@ class OCMBaseClient:
             raise e
 
     def delete(self, api_path: str):
-        ocm_request.labels(verb="DELETE").inc()
+        ocm_request.labels(verb="DELETE", client_id=self._access_token_client_id).inc()
         r = self._session.delete(f"{self._url}{api_path}", timeout=REQUEST_TIMEOUT_SEC)
         r.raise_for_status()
 
