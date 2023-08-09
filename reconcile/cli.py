@@ -2269,6 +2269,19 @@ def rhidp_sso_client(
     )
 
 
+@integration.command(
+    short_help= "Automatically provide dedicated Dynatrace tokens to management clusters"
+)
+@click.pass_context
+def dynatrace_token_provider(ctx):
+    from reconcile import dynatrace_token_provider
+
+    run_class_integration(
+        integration=dynatrace_token_provider.DynatraceTokenProviderIntegration(PydanticRunParams()),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage additional routers in OCM.")
 @click.pass_context
 def ocm_additional_routers(ctx):
