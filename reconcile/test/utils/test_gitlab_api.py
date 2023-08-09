@@ -215,13 +215,18 @@ def test_set_labels_on_merge_request(
     mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
     existing_label = "a"
     new_label = "b"
+    extra_existing_label = "c"
+    refreshed_mr = create_autospec(ProjectMergeRequest)
+    refreshed_mr.labels = [existing_label, extra_existing_label]
     mr = create_autospec(ProjectMergeRequest)
     mr.labels = [existing_label]
+    mr.manager = create_autospec(ProjectMergeRequestManager)
+    mr.manager.get.return_value = refreshed_mr
 
     GitLabApi.set_labels_on_merge_request(mr, [new_label])
 
-    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
-    assert mr.labels == [new_label]
+    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
+    assert set(mr.labels) == {extra_existing_label, new_label}
     mr.save.assert_called_once()
 
 

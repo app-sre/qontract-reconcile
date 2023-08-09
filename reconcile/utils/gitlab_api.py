@@ -457,7 +457,26 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         labels: Iterable[str],
     ) -> None:
         """Set labels to a Merge Request"""
-        merge_request.labels = labels
+        desired_labels = set(labels)
+        current_labels = set(merge_request.labels)
+        labels_to_add = desired_labels - current_labels
+        labels_to_remove = current_labels - desired_labels
+
+        if not labels_to_add and not labels_to_remove:
+            return
+
+        # merge_request maybe stale, refresh it to reduce the possibility of labels overwriting
+        GitLabApi.refresh_labels(merge_request)
+
+        refreshed_current_labels = set(merge_request.labels)
+        new_desired_labels = (
+            refreshed_current_labels - labels_to_remove
+        ) | labels_to_add
+
+        if new_desired_labels == refreshed_current_labels:
+            return
+
+        merge_request.labels = list(new_desired_labels)
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.save()
 
