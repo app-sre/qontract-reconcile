@@ -745,15 +745,14 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def _ready_for_app_interface(cluster: dict[str, Any]) -> bool:
-        return (
-            cluster["managed"]
-            and cluster["state"] == STATUS_READY
-            and cluster["product"]["id"] in OCM_PRODUCTS_IMPL
-        )
+        return cluster["state"] == STATUS_READY
 
     def _init_clusters(self, init_provision_shards: bool):
         api = f"{CS_API_BASE}/v1/clusters"
-        params = {"search": f"organization.id='{self.org_id}'"}
+        product_csv = ",".join([f"'{p}'" for p in OCM_PRODUCTS_IMPL])
+        params = {
+            "search": f"organization.id='{self.org_id}' and managed='true' and product.id in ({product_csv})"
+        }
         clusters = self._get_json(api, params=params).get("items", [])
         self.cluster_ids = {c["name"]: c["id"] for c in clusters}
 
