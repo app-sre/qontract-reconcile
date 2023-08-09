@@ -107,7 +107,7 @@ class Project(BaseModel):
         return self.slug == other.slug
 
     def diff(self, other: Project) -> bool:
-        return self.name == other.name and self.platform == other.platform
+        return self.name != other.name or self.platform != other.platform
 
     def __hash__(self) -> int:
         return hash(self.slug)

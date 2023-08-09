@@ -4,7 +4,7 @@ from collections.abc import (
     Sequence,
 )
 
-from reconcile.utils.differ import diff_any_iterables
+from reconcile.utils.differ import diff_iterables
 from reconcile.utils.glitchtip import (
     GlitchtipClient,
     Organization,
@@ -28,12 +28,11 @@ class GlitchtipReconciler:
     ) -> list[Project]:
         """Reconcile organization projects."""
         organization_projects = list(current_projects)
-        project_diff = diff_any_iterables(
+        project_diff = diff_iterables(
             current=current_projects,
             desired=desired_projects,
-            current_key=lambda p: p.slug,
-            desired_key=lambda p: p.slug,
-            equal=lambda p1, p2: p1.diff(p2),
+            key=lambda p: p.slug,
+            equal=lambda p1, p2: not p1.diff(p2),
         )
         for project in project_diff.delete.values():
             logging.info(
