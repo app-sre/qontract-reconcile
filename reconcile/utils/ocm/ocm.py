@@ -745,7 +745,11 @@ class OCM:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def _ready_for_app_interface(cluster: dict[str, Any]) -> bool:
-        return cluster["state"] == STATUS_READY
+        return (
+            cluster["managed"]
+            and cluster["state"] == STATUS_READY
+            and cluster["product"]["id"] in OCM_PRODUCTS_IMPL
+        )
 
     def _init_clusters(self, init_provision_shards: bool):
         api = f"{CS_API_BASE}/v1/clusters"
