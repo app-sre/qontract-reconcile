@@ -22,7 +22,10 @@ from reconcile.utils.ocm import (
     OCM_PRODUCT_ROSA,
 )
 from reconcile.utils.ocm.clusters import discover_clusters_for_organizations
-from reconcile.utils.ocm_base_client import init_ocm_base_client, init_ocm_base_client_for_org
+from reconcile.utils.ocm_base_client import (
+    init_ocm_base_client,
+    init_ocm_base_client_for_org,
+)
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD, OCM_PRODUCT_ROSA]
