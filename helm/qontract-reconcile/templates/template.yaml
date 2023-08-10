@@ -297,11 +297,13 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: API_URL
+                optional: true
           - name: UNLEASH_CLIENT_ACCESS_TOKEN
             valueFrom:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+                optional: true
           {{- end }}
           - name: SLOW_OC_RECONCILE_THRESHOLD
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
@@ -538,11 +540,13 @@ objects:
                   secretKeyRef:
                     name: unleash
                     key: API_URL
+                    optional: true
               - name: UNLEASH_CLIENT_ACCESS_TOKEN
                 valueFrom:
                   secretKeyRef:
                     name: unleash
                     key: CLIENT_ACCESS_TOKEN
+                    optional: true
               {{- end }}
               {{- with $integration.extraEnv }}
               {{- range $i, $env := . }}

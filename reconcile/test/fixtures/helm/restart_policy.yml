@@ -41,11 +41,13 @@ objects:
                   secretKeyRef:
                     name: unleash
                     key: API_URL
+                    optional: true
               - name: UNLEASH_CLIENT_ACCESS_TOKEN
                 valueFrom:
                   secretKeyRef:
                     name: unleash
                     key: CLIENT_ACCESS_TOKEN
+                    optional: true
               - name: KUBE_SA_TOKEN_PATH
                 value: "${KUBE_SA_TOKEN_MOUNT_PATH}/${KUBE_SA_TOKEN_FILENAME}"
               volumeMounts:
