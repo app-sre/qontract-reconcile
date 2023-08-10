@@ -372,7 +372,6 @@ def run(
                     for p in ChangeTypePriority
                 }
             )
-            GitLabApi.refresh_labels(merge_request)
             labels = manage_conditional_label(
                 current_labels=merge_request.labels,
                 conditional_labels=conditional_labels,
