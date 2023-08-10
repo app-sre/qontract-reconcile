@@ -94,7 +94,7 @@ class GlitchtipClient:
         return response.json()
 
     def _delete(self, url: str) -> None:
-        self._session.delete(urljoin(self.host, url), timeout=self.read_timeout)
+        self._session.delete(urljoin(self.host, url), timeout=None)
 
     def organizations(self) -> list[Organization]:
         """List organizations."""
