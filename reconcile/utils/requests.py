@@ -14,33 +14,30 @@ class SessionClosingCache:
         Technically it could happen we call close() twice on a session
     """
 
-    def __init__(self):
-        self.foo = "bar"
-        self.cache: list[weakref] = []
-        self.finalizer = []
+    def __init__(self) -> None:
+        self.cache: list[weakref.ref] = []
+        self.finalizer: list[weakref.finalize] = []
         self.cache_lock = Lock()
 
     @staticmethod
-    def __default_finalizer(s: requests.Session):
+    def __default_finalizer(s: requests.Session) -> None:
         s.close()
 
-    def add_session(self, session: requests.Session):
-        self.cache_lock.acquire(blocking=True)
-        self.cache.append(weakref.ref(session))
+    def add_session(self, session: requests.Session) -> None:
+        with self.cache_lock:
+            self.cache.append(weakref.ref(session))
 
-        # This finalizer
-        self.finalizer.append(
-            weakref.finalize(session, self.__default_finalizer, session)
-        )
-        self.cache_lock.release()
+            # This finalizer
+            self.finalizer.append(
+                weakref.finalize(session, self.__default_finalizer, session)
+            )
 
-    def close_all(self):
-        self.cache_lock.acquire(blocking=True)
-        for s in self.cache:
-            session = s()
-            if session:
-                session.close()
-        self.cache_lock.release()
+    def close_all(self) -> None:
+        with self.cache_lock:
+            for s in self.cache:
+                session = s()
+                if session:
+                    session.close()
 
 
 global_session_cache = SessionClosingCache()

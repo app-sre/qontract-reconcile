@@ -102,13 +102,12 @@ from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.ocm_base_client import init_ocm_base_client
 from reconcile.utils.output import print_output
+from reconcile.utils.requests import global_session_cache
 from reconcile.utils.saasherder.saasherder import SaasHerder
 from reconcile.utils.secret_reader import (
     SecretReader,
     create_secret_reader,
 )
-from reconcile.utils.requests import global_session_cache
-from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform

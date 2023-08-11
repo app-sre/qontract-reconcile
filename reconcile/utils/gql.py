@@ -24,12 +24,10 @@ from sretoolbox.utils import retry
 
 from reconcile.status import RunningState
 from reconcile.utils.config import get_config
-
 from reconcile.utils.requests import global_session_cache
 
-_gqlapi = None
-"""Using a thread local variable. This data structure ensures, data is not shared
- between caches. With the code below this creates one client instance per thread."""
+# Using a thread local variable. This data structure ensures, data is not shared
+# between caches. With the code below this creates one client instance per thread.
 _local_client = threading.local()
 
 INTEGRATIONS_QUERY = """
@@ -294,7 +292,7 @@ def get_git_commit_info(sha, server, token=None):
     git_commit_info_endpoint = server._replace(path=f"/git-commit-info/{sha}")
     headers = {"Authorization": token} if token else None
     response = requests.get(
-        git_commit_info_endpoint.geturl(), headers=headers, verify=False
+        git_commit_info_endpoint.geturl(), headers=headers, verify=False, timeout=60
     )
     response.raise_for_status()
     git_commit_info = response.json()

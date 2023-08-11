@@ -18,10 +18,13 @@ from reconcile.status import (
 )
 from reconcile.utils import gql
 from reconcile.utils.aggregated_list import RunnerException
-from reconcile.utils.binary import binary, binary_version
-from reconcile.utils.requests import global_session_cache
+from reconcile.utils.binary import (
+    binary,
+    binary_version,
+)
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
+from reconcile.utils.requests import global_session_cache
 from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
@@ -584,16 +587,16 @@ def integration(
 
 @integration.result_callback()
 def exit_integration(
-        ctx,
-        configfile,
-        dry_run,
-        early_exit_compare_sha,
-        check_only_affected_shards,
-        validate_schemas,
-        dump_schemas_file,
-        log_level,
-        gql_sha_url,
-        gql_url_print,
+    ctx,
+    configfile,
+    dry_run,
+    early_exit_compare_sha,
+    check_only_affected_shards,
+    validate_schemas,
+    dump_schemas_file,
+    log_level,
+    gql_sha_url,
+    gql_url_print,
 ):
     global_session_cache.close_all()
 
