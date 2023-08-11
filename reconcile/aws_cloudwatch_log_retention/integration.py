@@ -65,7 +65,7 @@ def check_cloudwatch_log_group_tag(
     return log_group_list
 
 
-def create_aws_log_client(aws_acct):
+def create_aws_log_client(aws_acct: dict):
     settings = queries.get_secret_reader_settings()
     accounts = queries.get_aws_accounts(uid=aws_acct.get("uid"))
     awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
@@ -119,9 +119,9 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                                     ),
                                 )
         else:
+            aws_act_name = aws_acct["name"]
             try:
                 log_group_list, awsapi = create_aws_log_client(aws_acct)
-                aws_act_name = aws_acct["name"]
             except ClientError as e:
                 if e.response["Error"]["Code"] == "AccessDeniedException":
                     logging.info(f" Access denied for {aws_act_name}. Skipping...")
