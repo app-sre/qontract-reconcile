@@ -77,9 +77,13 @@ def s3_state_builder() -> Callable[[Mapping], State]:
                     return args[0]
                 raise
 
+        def __getitem__(self, key: str) -> dict:
+            return get(key)
+
         state = create_autospec(spec=State)
         state.get = get
-        state.ls.side_effect = [data["ls"]]
+        state.__getitem__ = __getitem__
+        state.ls.side_effect = [data.get("ls", [])]
         return state
 
     return builder

@@ -165,12 +165,12 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         return groups
 
     def fetch_current_state(
-        self, client: InternalGroupsClient, group_names: Iterable[str]
+        self, internal_groups_client: InternalGroupsClient, group_names: Iterable[str]
     ) -> list[Group]:
         groups = []
         for group_name in group_names:
             try:
-                groups.append(client.group(group_name))
+                groups.append(internal_groups_client.group(group_name))
             except NotFound:
                 pass
         return groups
