@@ -1,12 +1,12 @@
 import logging
 import re
 from collections.abc import Callable
-from botocore.exceptions import ClientError
 from typing import (
     TYPE_CHECKING,
     Optional,
 )
 
+from botocore.exceptions import ClientError
 from pydantic import BaseModel
 
 from reconcile import queries
