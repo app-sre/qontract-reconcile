@@ -1,6 +1,7 @@
 import logging
 import re
 from collections.abc import Callable
+from botocore.exceptions import ClientError
 from typing import (
     TYPE_CHECKING,
     Optional,
@@ -64,6 +65,18 @@ def check_cloudwatch_log_group_tag(
     return log_group_list
 
 
+def create_aws_log_client(aws_acct):
+    settings = queries.get_secret_reader_settings()
+    accounts = queries.get_aws_accounts(uid=aws_acct.get("uid"))
+    awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
+    log_groups = awsapi.get_cloudwatch_logs(aws_acct)
+    session = awsapi.get_session(aws_acct["name"])
+    region = aws_acct["resourcesDefaultRegion"]
+    log_client = awsapi.get_session_client(session, "logs", region)
+    log_group_list = check_cloudwatch_log_group_tag(log_groups, log_client)
+    return log_group_list, awsapi
+
+
 def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) -> None:
     aws_accounts = get_aws_accounts(cleanup=True)
     for aws_acct in aws_accounts:
@@ -71,14 +84,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
             cloudwatch_cleanup_list = get_app_interface_cloudwatch_retention_period(
                 aws_acct
             )
-            settings = queries.get_secret_reader_settings()
-            accounts = queries.get_aws_accounts(uid=aws_acct.get("uid"))
-            awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
-            log_groups = awsapi.get_cloudwatch_logs(aws_acct)
-            session = awsapi.get_session(aws_acct["name"])
-            region = aws_acct["resourcesDefaultRegion"]
-            log_client = awsapi.get_session_client(session, "logs", region)
-            log_group_list = check_cloudwatch_log_group_tag(log_groups, log_client)
+            log_group_list, awsapi = create_aws_log_client(aws_acct)
 
             for cloudwatch_cleanup_entry in cloudwatch_cleanup_list:
                 for log_group in log_group_list:
@@ -112,3 +118,17 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                                         cloudwatch_cleanup_entry.log_retention_day_length
                                     ),
                                 )
+        else:
+            try:
+                log_group_list, awsapi = create_aws_log_client(aws_acct)
+                aws_act_name = aws_acct["name"]
+            except ClientError as e:
+                if e.response["Error"]["Code"] == "AccessDeniedException":
+                    logging.info(f" Access denied for {aws_act_name}. Skipping...")
+            for log_group in log_group_list:
+                group_name = log_group["logGroupName"]
+                retention_days = log_group.get("retentionInDays")
+                if retention_days is None:
+                    logging.info(f" Setting {group_name} retention days to 90")
+                    if not dry_run:
+                        awsapi.set_cloudwatch_log_retention(aws_acct, group_name, 90)
