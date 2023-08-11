@@ -1,5 +1,6 @@
 import logging
 import textwrap
+import threading
 from datetime import (
     datetime,
     timezone,
@@ -23,6 +24,13 @@ from sretoolbox.utils import retry
 
 from reconcile.status import RunningState
 from reconcile.utils.config import get_config
+
+from reconcile.utils.requests import global_session_cache
+
+_gqlapi = None
+"""Using a thread local variable. This data structure ensures, data is not shared
+ between caches. With the code below this creates one client instance per thread."""
+_local_client = threading.local()
 
 INTEGRATIONS_QUERY = """
 {
@@ -123,12 +131,6 @@ class GqlApi:
     def query(
         self, query: str, variables=None, skip_validation=False
     ) -> Optional[dict[str, Any]]:
-        # Here we are recreating client on purpose as some integrations such as `openshift-resource` require multiple
-        # queries in separate threads. With RequestsHTTPTransport that is currently not possible as it expects
-        # session to be reused and thus throws `Transport is already connected` error.
-        # Adding a synchronization mechanism would lead to increase wait time given some of our integrations are not
-        # sharded and thread pool capacity is also large for those.
-        # Hence, we are recreating client for every query.
         client = _init_gql_client(self.url, self.token)
         try:
             result = client.execute(
@@ -245,13 +247,36 @@ def get_resource(path: str) -> dict[str, Any]:
     return get_api().get_resource(path)
 
 
+class PersistentRequestsHTTPTransport(RequestsHTTPTransport):
+    def connect(self):
+        if self.session is None:
+            # Copied over from RequestsHTTPTransport
+            self.session = requests.Session()
+            global_session_cache.add_session(self.session)
+            # we did not implement this in our copy!
+            assert self.retries == 0
+
+    def close(self) -> None:
+        # Just pass, since we do not want the session to be disconnected.
+        # This allows us to benefit from TCP keep-alive and reduces SSL
+        # Handshake round trips
+        pass
+
+
 def _init_gql_client(url: str, token: Optional[str]) -> Client:
+    global _local_client
     req_headers = None
     if token:
         # The token stored in vault is already in the format 'Basic ...'
         req_headers = {"Authorization": token}
-    # Here we are explicitly using sync strategy
-    return Client(transport=RequestsHTTPTransport(url, headers=req_headers, timeout=30))
+    client = getattr(_local_client, "client", None)
+    if not client:
+        transport = PersistentRequestsHTTPTransport(
+            url, headers=req_headers, timeout=30, verify=False
+        )
+        # Here we are explicitly using sync strategy
+        _local_client.client = Client(transport=transport)
+    return _local_client.client
 
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
@@ -269,7 +294,7 @@ def get_git_commit_info(sha, server, token=None):
     git_commit_info_endpoint = server._replace(path=f"/git-commit-info/{sha}")
     headers = {"Authorization": token} if token else None
     response = requests.get(
-        git_commit_info_endpoint.geturl(), headers=headers, timeout=60
+        git_commit_info_endpoint.geturl(), headers=headers, verify=False
     )
     response.raise_for_status()
     git_commit_info = response.json()

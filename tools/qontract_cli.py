@@ -107,6 +107,8 @@ from reconcile.utils.secret_reader import (
     SecretReader,
     create_secret_reader,
 )
+from reconcile.utils.requests import global_session_cache
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
@@ -152,6 +154,11 @@ def root(ctx, configfile):
     ctx.ensure_object(dict)
     config.init_from_toml(configfile)
     gql.init_from_config()
+
+
+@root.result_callback()
+def exit_cli(ctx, confifile):
+    global_session_cache.close_all()
 
 
 @root.group()
