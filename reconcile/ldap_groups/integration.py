@@ -169,8 +169,10 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
     ) -> list[Group]:
         groups = []
         for group_name in group_names:
-            if group := client.group(group_name):
-                groups.append(group)
+            try:
+                groups.append(client.group(group_name))
+            except NotFound:
+                pass
         return groups
 
     def reconcile(

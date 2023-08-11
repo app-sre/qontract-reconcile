@@ -113,13 +113,10 @@ class InternalGroupsClient:
     ):
         self._api = api_class(api_url, issuer_url, client_id, client_secret)
 
-    def group(self, name: str) -> Optional[Group]:
+    def group(self, name: str) -> Group:
         """Get group by name."""
         with self._api as api:
-            try:
-                return Group(**api.group(name))
-            except NotFound:
-                return None
+            return Group(**api.group(name))
 
     def create_group(self, group: Group) -> Group:
         """Create group."""
