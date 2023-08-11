@@ -584,14 +584,16 @@ def integration(
 
 @integration.result_callback()
 def exit_integration(
-    ctx,
-    configfile,
-    dry_run,
-    validate_schemas,
-    dump_schemas_file,
-    log_level,
-    gql_sha_url,
-    gql_url_print,
+        ctx,
+        configfile,
+        dry_run,
+        early_exit_compare_sha,
+        check_only_affected_shards,
+        validate_schemas,
+        dump_schemas_file,
+        log_level,
+        gql_sha_url,
+        gql_url_print,
 ):
     global_session_cache.close_all()
 
