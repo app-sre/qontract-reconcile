@@ -65,7 +65,7 @@ def check_cloudwatch_log_group_tag(
     return log_group_list
 
 
-def create_aws_log_client(aws_acct: dict):
+def create_aws_log_client(aws_acct: dict) -> tuple[list, AWSApi]:
     settings = queries.get_secret_reader_settings()
     accounts = queries.get_aws_accounts(uid=aws_acct.get("uid"))
     awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
