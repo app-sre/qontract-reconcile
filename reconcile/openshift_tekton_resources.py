@@ -48,6 +48,7 @@ SAAS_FILES_QUERY = """
       name
       provider
     }
+    timeout
     deployResources {
       requests {
         cpu
@@ -280,6 +281,8 @@ def build_one_per_saas_file_pipeline(
         pipeline_template_config["name"], saas_file["name"]
     )
 
+    timeout = saas_file.get("timeout")
+
     for section in ["tasks", "finally"]:
         for task in pipeline["spec"].get(section, []):
             if task["name"] not in task_templates_types:
@@ -296,6 +299,9 @@ def build_one_per_saas_file_pipeline(
                 task["taskRef"]["name"] = build_one_per_saas_file_tkn_task_name(
                     task["name"], saas_file["name"]
                 )
+
+            if timeout:
+                task["timeout"] = timeout
 
     return pipeline
 
