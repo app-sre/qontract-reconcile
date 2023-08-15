@@ -24,6 +24,7 @@ from reconcile.utils.binary import (
 )
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
+from reconcile.utils.gql import GqlApiSingleton
 from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
@@ -582,6 +583,22 @@ def integration(
     ctx.obj["gql_sha_url"] = gql_sha_url
     ctx.obj["gql_url_print"] = not dry_run and bool(gql_url_print)
     ctx.obj["dump_schemas_file"] = dump_schemas_file
+
+
+@integration.result_callback()
+def exit_integration(
+    ctx,
+    configfile,
+    dry_run,
+    early_exit_compare_sha,
+    check_only_affected_shards,
+    validate_schemas,
+    dump_schemas_file,
+    log_level,
+    gql_sha_url,
+    gql_url_print,
+):
+    GqlApiSingleton.close()
 
 
 @integration.command(short_help="Manage AWS Route53 resources using Terraform.")
