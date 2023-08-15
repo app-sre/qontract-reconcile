@@ -65,16 +65,20 @@ def check_cloudwatch_log_group_tag(
     return log_group_list
 
 
-def create_aws_log_client(aws_acct: dict) -> tuple[list, AWSApi]:
+def create_awsapi_client(aws_acct: dict) -> AWSApi:
     settings = queries.get_secret_reader_settings()
     accounts = queries.get_aws_accounts(uid=aws_acct.get("uid"))
     awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
+    return awsapi
+    
+    
+def create_log_group_list(awsapi: AWSApi, aws_acct: dict) -> list:
     log_groups = awsapi.get_cloudwatch_logs(aws_acct)
     session = awsapi.get_session(aws_acct["name"])
     region = aws_acct["resourcesDefaultRegion"]
     log_client = awsapi.get_session_client(session, "logs", region)
     log_group_list = check_cloudwatch_log_group_tag(log_groups, log_client)
-    return log_group_list, awsapi
+    return log_group_list
 
 
 def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) -> None:
