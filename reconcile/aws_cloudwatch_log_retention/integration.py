@@ -84,6 +84,7 @@ def create_log_group_list(awsapi: AWSApi, aws_acct: dict) -> list:
 def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) -> None:
     aws_accounts = get_aws_accounts(cleanup=True)
     for aws_acct in aws_accounts:
+        aws_act_name = aws_acct["name"]
         if aws_acct.get("cleanup"):
             cloudwatch_cleanup_list = get_app_interface_cloudwatch_retention_period(
                 aws_acct
@@ -123,15 +124,14 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                                         cloudwatch_cleanup_entry.log_retention_day_length
                                     ),
                                 )
+        try:
+            awsapi = create_awsapi_client(aws_acct)
+            log_group_list= create_log_group_list(awsapi, aws_acct)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "AccessDeniedException":
+                logging.info(f" Access denied for {aws_act_name}. Skipping...")
+                continue
         else:
-            aws_act_name = aws_acct["name"]
-            try:
-                awsapi = create_awsapi_client(aws_acct)
-                log_group_list= create_log_group_list(awsapi, aws_acct)
-            except ClientError as e:
-                if e.response["Error"]["Code"] == "AccessDeniedException":
-                    logging.info(f" Access denied for {aws_act_name}. Skipping...")
-                    continue
             for log_group in log_group_list:
                 group_name = log_group["logGroupName"]
                 retention_days = log_group.get("retentionInDays")
