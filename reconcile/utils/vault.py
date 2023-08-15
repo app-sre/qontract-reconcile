@@ -96,12 +96,9 @@ class _VaultClient:
         self._get_mount_version = lru_cache(maxsize=128)(self.__get_mount_version)
         self._read_all_v2 = lru_cache(maxsize=2048)(self.__read_all_v2)
 
-        # This is a threaded world. Let's define a big
-        # connections pool to live in that world
-        # (this avoids the warning "Connection pool is
-        # full, discarding connection: vault.devshift.net")
         session = requests.Session()
-        adapter = HTTPAdapter(pool_connections=100, pool_maxsize=100)
+        # There are at most 10 working threads in reconcile, plus 1 daemon thread for auto refresh
+        adapter = HTTPAdapter(pool_maxsize=11)
         session.mount("https://", adapter)
         self._client = hvac.Client(url=server, session=session)
         self._close_lock = threading.Lock()

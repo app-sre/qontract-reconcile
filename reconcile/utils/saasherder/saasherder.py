@@ -1124,12 +1124,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         )
 
         base_url = os.environ.get("GITHUB_API", "https://api.github.com")
-        # This is a threaded world. Let's define a big
-        # connections pool to live in that world
-        # (this avoids the warning "Connection pool is
-        # full, discarding connection: api.github.com")
-        pool_size = 100
-        return Github(token, base_url=base_url, pool_size=pool_size)
+        return Github(token, base_url=base_url)
 
     def _initiate_image_auth(self, saas_file: SaasFile) -> ImageAuth:
         """
