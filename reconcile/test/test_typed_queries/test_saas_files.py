@@ -9,12 +9,14 @@ import pytest
 
 from reconcile.gql_definitions.common.saas_files import (
     SaasFileV2,
-    SaasResourceTemplateTargetNamespaceSelectorV1,
     SaasResourceTemplateTargetV2,
 )
 from reconcile.gql_definitions.common.saasherder_settings import AppInterfaceSettingsV1
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
+)
+from reconcile.gql_definitions.fragments.saas_target_namespace_selector import (
+    SaasTargetNamespaceSelector,
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.typed_queries.saas_files import (
@@ -245,9 +247,7 @@ def test_get_namespaces_by_selector(
 ) -> None:
     items = get_namespaces_by_selector(
         namespaces=namespaces,
-        namespace_selector=SaasResourceTemplateTargetNamespaceSelectorV1(
-            **json_path_selectors
-        ),
+        namespace_selector=SaasTargetNamespaceSelector(**json_path_selectors),
     )
     assert sorted([item.name for item in items]) == sorted(expected_namespaces)
 
@@ -264,7 +264,7 @@ def test_create_targets_for_namespace_selector(
             },
         ),
         namespaces=namespaces,
-        namespace_selector=SaasResourceTemplateTargetNamespaceSelectorV1(
+        namespace_selector=SaasTargetNamespaceSelector(
             **{
                 "jsonPathSelectors": {
                     "include": [

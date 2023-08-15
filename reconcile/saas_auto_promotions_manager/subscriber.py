@@ -38,6 +38,8 @@ class Subscriber:
         ref: str,
         target_file_path: str,
         namespace_file_path: str,
+        jsonpath_namespace_selectors_includes: Iterable[str],
+        jsonpath_namespace_selectors_excludes: Iterable[str],
         use_target_config_hash: bool,
     ):
         self.saas_name = saas_name
@@ -49,6 +51,12 @@ class Subscriber:
         self.desired_ref = ""
         self.desired_hashes: list[ConfigHash] = []
         self.namespace_file_path = namespace_file_path
+        self.jsonpath_namespace_selectors_includes = (
+            jsonpath_namespace_selectors_includes
+        )
+        self.jsonpath_namespace_selectors_excludes = (
+            jsonpath_namespace_selectors_excludes
+        )
         self._content_hash = ""
         self._use_target_config_hash = use_target_config_hash
 

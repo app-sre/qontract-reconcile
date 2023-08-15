@@ -122,10 +122,7 @@ query SaasFiles {
           ...SaasTargetNamespace
         }
         namespaceSelector {
-          jsonPathSelectors {
-            include
-            exclude
-          }
+          ...SaasTargetNamespaceSelector
         }
         provider
         ref

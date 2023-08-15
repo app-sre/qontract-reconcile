@@ -23,6 +23,9 @@ from reconcile.gql_definitions.fragments.oc_connection_cluster import (
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
+from reconcile.gql_definitions.fragments.saas_target_namespace_selector import (
+    SaasTargetNamespaceSelector,
+)
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -115,6 +118,13 @@ fragment SaasTargetNamespace on Namespace_v1 {
   skupperSite {
     delete
   }
+}
+
+fragment SaasTargetNamespaceSelector on SaasResourceTemplateTargetNamespaceSelector_v1 {
+    jsonPathSelectors {
+        include
+        exclude
+    }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
@@ -246,10 +256,7 @@ query SaasFiles {
           ...SaasTargetNamespace
         }
         namespaceSelector {
-          jsonPathSelectors {
-            include
-            exclude
-          }
+          ...SaasTargetNamespaceSelector
         }
         provider
         ref
@@ -444,15 +451,6 @@ class SaasResourceTemplateV2_SaasSecretParametersV1(ConfiguredBaseModel):
     secret: VaultSecret = Field(..., alias="secret")
 
 
-class JsonPathSelectorsV1(ConfiguredBaseModel):
-    include: list[str] = Field(..., alias="include")
-    exclude: Optional[list[str]] = Field(..., alias="exclude")
-
-
-class SaasResourceTemplateTargetNamespaceSelectorV1(ConfiguredBaseModel):
-    json_path_selectors: JsonPathSelectorsV1 = Field(..., alias="jsonPathSelectors")
-
-
 class PromotionChannelDataV1(ConfiguredBaseModel):
     q_type: str = Field(..., alias="type")
 
@@ -509,7 +507,7 @@ class SaasResourceTemplateTargetV2(ConfiguredBaseModel):
     path: Optional[str] = Field(..., alias="path")
     name: Optional[str] = Field(..., alias="name")
     namespace: Optional[SaasTargetNamespace] = Field(..., alias="namespace")
-    namespace_selector: Optional[SaasResourceTemplateTargetNamespaceSelectorV1] = Field(
+    namespace_selector: Optional[SaasTargetNamespaceSelector] = Field(
         ..., alias="namespaceSelector"
     )
     provider: Optional[str] = Field(..., alias="provider")

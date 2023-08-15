@@ -16,6 +16,8 @@ from .data_keys import (
     CONFIG_HASHES,
     NAMESPACE_PATH,
     REF,
+    SELECTOR_EXCLUDES,
+    SELECTOR_INCLUDES,
 )
 
 
@@ -48,6 +50,8 @@ def subscriber_builder() -> Callable[[Mapping], Subscriber]:
             target_file_path="",
             template_name="",
             use_target_config_hash=True,
+            jsonpath_namespace_selectors_excludes=data.get(SELECTOR_EXCLUDES, []),
+            jsonpath_namespace_selectors_includes=data.get(SELECTOR_INCLUDES, []),
         )
         subscriber.desired_ref = data[REF]
         subscriber.desired_hashes = data[CONFIG_HASHES]

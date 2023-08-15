@@ -26,7 +26,6 @@ from reconcile.gql_definitions.common.saas_files import (
     RoleV1,
     SaasFileAuthenticationV1,
     SaasResourceTemplateTargetImageV1,
-    SaasResourceTemplateTargetNamespaceSelectorV1,
     SaasResourceTemplateTargetPromotionV1,
     SaasResourceTemplateTargetUpstreamV1,
     SaasResourceTemplateTargetV2,
@@ -46,6 +45,9 @@ from reconcile.gql_definitions.common.saasherder_settings import (
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
+from reconcile.gql_definitions.fragments.saas_target_namespace_selector import (
+    SaasTargetNamespaceSelector,
+)
 from reconcile.utils import gql
 from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,
@@ -58,6 +60,9 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
     name: Optional[str] = Field(..., alias="name")
     # the namespace must be required to fulfill the saas file schema (utils.saasherder.interface.SaasFile)
     namespace: SaasTargetNamespace = Field(..., alias="namespace")
+    namespace_selector: Optional[SaasTargetNamespaceSelector] = Field(
+        ..., alias="namespace_selector"
+    )
     ref: str = Field(..., alias="ref")
     promotion: Optional[SaasResourceTemplateTargetPromotionV1] = Field(
         ..., alias="promotion"
@@ -83,7 +88,7 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
         ).hexdigest()
 
     class Config:
-        # ignore `namespaceSelector` and 'provider' fields from the GQL schema
+        # ignore 'provider' fields from the GQL schema
         extra = Extra.ignore
 
 
@@ -143,7 +148,7 @@ class SaasFile(ConfiguredBaseModel):
 
 def get_namespaces_by_selector(
     namespaces: list[SaasTargetNamespace],
-    namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
+    namespace_selector: SaasTargetNamespaceSelector,
 ) -> list[SaasTargetNamespace]:
     # json representation of all the namespaces to filter on
     # remove all the None values to simplify the jsonpath expressions
@@ -210,7 +215,7 @@ def export_model(model: BaseModel) -> dict[str, Any]:
 def create_targets_for_namespace_selector(
     target: SaasResourceTemplateTargetV2,
     namespaces: list[SaasTargetNamespace],
-    namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
+    namespace_selector: SaasTargetNamespaceSelector,
 ) -> list[SaasResourceTemplateTargetV2]:
     targets = []
     for namespace in get_namespaces_by_selector(namespaces, namespace_selector):

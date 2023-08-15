@@ -1,0 +1,8 @@
+# qenerate: plugin=pydantic_v1
+
+fragment SaasTargetNamespaceSelector on SaasResourceTemplateTargetNamespaceSelector_v1 {
+    jsonPathSelectors {
+        include
+        exclude
+    }
+}

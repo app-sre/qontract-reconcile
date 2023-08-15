@@ -77,12 +77,29 @@ class SaasFilesInventory:
                         continue
                     if not target.promotion.auto:
                         continue
+                    namespace_json_path_selectors = []
+                    if target.namespace_selector:
+                        for selector in target.namespace_selector.json_path_selectors:
+                            namespace_json_path_selectors.append(selector)
+                    json_path_includes = []
+                    json_path_excludes = []
+                    if target.namespace_selector:
+                        for (
+                            selector
+                        ) in target.namespace_selector.json_path_selectors.include:
+                            json_path_includes.append(selector)
+                        for (
+                            selector
+                        ) in target.namespace_selector.json_path_selectors.exclude:
+                            json_path_excludes.append(selector)
                     subscriber = Subscriber(
                         saas_name=saas_file.name,
                         template_name=resource_template.name,
                         target_file_path=file_path,
                         ref=target.ref,
                         namespace_file_path=target.namespace.path,
+                        jsonpath_namespace_selectors_includes=json_path_includes,
+                        jsonpath_namespace_selectors_excludes=json_path_excludes,
                         # Note: this will be refactored at a later point.
                         # https://issues.redhat.com/browse/APPSRE-7516
                         use_target_config_hash=bool(saas_file.publish_job_logs),

@@ -13,8 +13,26 @@ resourceTemplates:
   - namespaceSelector:
       jsonPathSelector:
         include:
-        - namespace[?(@.cluster.name=~"hive.*" & @.name=="cluster-scope" & @.environment.labels.type=="integration")]
+        - namespace[sth]
+        - namespace[sth-else]
     ref: new_sha
+    parameters:
+      SOME: parameter
+    promotion:
+      auto: true
+      subscribe:
+      - channel-a
+      promotion_data:
+      - channel: channel-a
+        data:
+        - parent_saas: parent_saas
+          target_config_hash: new_hash
+          type: parent_saas_config
+  - namespaceSelector:
+      jsonPathSelector:
+        include:
+        - namespace[completely-different]
+    ref: current_sha
     parameters:
       SOME: parameter
     promotion:

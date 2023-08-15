@@ -1,3 +1,6 @@
+from collections.abc import Mapping
+from typing import Any
+
 from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
 
@@ -29,6 +32,23 @@ class Renderer:
     This class makes testing for MergeRequestManager easier.
     """
 
+    def _is_wanted_target(
+        self, subscriber: Subscriber, target: Mapping[str, Any]
+    ) -> bool:
+        namespace_selector = target.get("namespaceSelector")
+        if namespace_selector:
+            selectors = namespace_selector.get("jsonPathSelector")
+            if not selectors:
+                return False
+            includes = set(selectors.get("include", []))
+            excludes = set(selectors.get("exclude", []))
+            return (
+                set(subscriber.jsonpath_namespace_selectors_excludes) == excludes
+                and set(subscriber.jsonpath_namespace_selectors_includes) == includes
+            )
+        else:
+            return target["namespace"]["$ref"] == subscriber.namespace_file_path
+
     def _find_saas_file_targets(
         self, subscriber: Subscriber, content: dict
     ) -> list[dict]:
@@ -38,7 +58,7 @@ class Renderer:
             return [content]
         for rt in content["resourceTemplates"]:
             for target in rt["targets"]:
-                if target["namespace"]["$ref"] != subscriber.namespace_file_path:
+                if not self._is_wanted_target(subscriber=subscriber, target=target):
                     continue
                 target_promotion = target.get("promotion")
                 if not target_promotion:
