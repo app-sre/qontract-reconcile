@@ -70,8 +70,8 @@ def create_awsapi_client(aws_acct: dict) -> AWSApi:
     accounts = queries.get_aws_accounts(uid=aws_acct.get("uid"))
     awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
     return awsapi
-    
-    
+
+
 def create_log_group_list(awsapi: AWSApi, aws_acct: dict) -> list:
     log_groups = awsapi.get_cloudwatch_logs(aws_acct)
     session = awsapi.get_session(aws_acct["name"])
@@ -90,7 +90,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                 aws_acct
             )
             awsapi = create_awsapi_client(aws_acct)
-            log_group_list= create_log_group_list(awsapi, aws_acct)
+            log_group_list = create_log_group_list(awsapi, aws_acct)
 
             for cloudwatch_cleanup_entry in cloudwatch_cleanup_list:
                 for log_group in log_group_list:
@@ -126,7 +126,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                                 )
         try:
             awsapi = create_awsapi_client(aws_acct)
-            log_group_list= create_log_group_list(awsapi, aws_acct)
+            log_group_list = create_log_group_list(awsapi, aws_acct)
         except ClientError as e:
             if e.response["Error"]["Code"] == "AccessDeniedException":
                 logging.info(f" Access denied for {aws_act_name}. Skipping...")
