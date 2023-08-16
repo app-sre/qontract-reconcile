@@ -191,7 +191,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
                 [
                     "create_ldap_group",
                     group_to_add.name,
-                    f"users={', '.join([u.id for u in group_to_add.members])}",
+                    f"users={', '.join(u.id for u in group_to_add.members)}",
                 ]
             )
             if not dry_run:
@@ -213,7 +213,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
                 [
                     "update_ldap_group",
                     group_to_update.name,
-                    f"users={', '.join([u.id for u in group_to_update.members])}",
+                    f"users={', '.join(u.id for u in group_to_update.members)}",
                 ]
             )
             if not dry_run:
