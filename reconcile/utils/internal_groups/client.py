@@ -30,6 +30,7 @@ class InternalGroupsApi:
         self.issuer_url = issuer_url
         self.client_id = client_id
         self.client_secret = client_secret
+        self._token: Optional[dict] = None
 
     def _check_response(self, resp: requests.Response) -> None:
         """Check response."""
@@ -42,7 +43,7 @@ class InternalGroupsApi:
 
     def __enter__(self) -> Self:
         """Fetch token."""
-        if not hasattr(self, "_token"):
+        if not self._token:
             client = BackendApplicationClient(client_id=self.client_id)
             oauth = OAuth2Session(client=client)
             self._token = oauth.fetch_token(
