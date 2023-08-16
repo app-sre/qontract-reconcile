@@ -1671,6 +1671,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
             if self.include_trigger_trace:
                 trigger_spec.reason = f"{self.repo_url}/commit/{RunningState().commit}"
+                promotion = trigger_spec.state_content.get("promotion")
+                if promotion and promotion.get("auto", False):
+                    trigger_spec.reason += " [auto-promotion]"
             trigger_specs.append(trigger_spec)
         return trigger_specs
 
