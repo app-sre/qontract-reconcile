@@ -237,10 +237,10 @@ class GqlApiSingleton:
     gqlapi_lock = threading.Lock()
 
     def __new__(cls, *args, **kwargs):
-        if cls.gql_api:
-            logging.debug("Resestting GqlApi instance")
-            cls.close()
         with cls.gqlapi_lock:
+            if cls.gql_api:
+                logging.debug("Resestting GqlApi instance")
+                cls.close()
             cls.gql_api = GqlApi(*args, **kwargs)
         return cls
 
