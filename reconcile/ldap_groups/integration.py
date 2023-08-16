@@ -141,28 +141,23 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
     def fetch_desired_state(
         self, roles: Iterable[RoleV1], owners: Iterable[Entity], contact_list: str
     ) -> list[Group]:
-        groups = []
-        for role in roles:
-            if not role.ldap_group:
-                # roles with empty ldap_group are already filtered out in get_roles; just make mypy happy
-                continue
-
-            groups.append(
-                Group(
-                    name=role.ldap_group,
-                    description="Persisted App-Interface role. Managed by qontract-reconcile",
-                    display_name=f"{role.ldap_group} (App-Interface))",
-                    members=[
-                        Entity(type=EntityType.USER, id=user.org_username)
-                        for user in role.users
-                    ],
-                    # only owners can modify the group (e.g. add/remove members)
-                    owners=owners,
-                    contact_list=contact_list,
-                )
+        return [
+            Group(
+                name=role.ldap_group,
+                description="Persisted App-Interface role. Managed by qontract-reconcile",
+                display_name=f"{role.ldap_group} (App-Interface))",
+                members=[
+                    Entity(type=EntityType.USER, id=user.org_username)
+                    for user in role.users
+                ],
+                # only owners can modify the group (e.g. add/remove members)
+                owners=owners,
+                contact_list=contact_list,
             )
-
-        return groups
+            for role in roles
+            # roles with empty ldap_group are already filtered out in get_roles; just make mypy happy
+            if role.ldap_group
+        ]
 
     def fetch_current_state(
         self, internal_groups_client: InternalGroupsClient, group_names: Iterable[str]
