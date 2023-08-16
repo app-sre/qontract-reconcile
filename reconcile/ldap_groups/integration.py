@@ -88,12 +88,12 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
                 )
             ],
         )
+
+        group_names = self.get_managed_groups(state_obj)
+        # take desired groups into account to support overtaking existing ones
+        group_names.update(g.name for g in desired_groups)
         current_groups = self.fetch_current_state(
-            internal_groups_client,
-            group_names=self.get_managed_groups(state_obj)
-            + [
-                g.name for g in desired_groups
-            ],  # take desired groups into account to support overtaking existing ones
+            internal_groups_client, group_names=group_names
         )
         try:
             self.reconcile(
@@ -105,14 +105,14 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         finally:
             self.set_managed_groups(state_obj)
 
-    def get_managed_groups(self, state_obj: State) -> list[str]:
+    def get_managed_groups(self, state_obj: State) -> set[str]:
         try:
-            return state_obj["managed_groups"]
+            return set(state_obj["managed_groups"])
         except KeyError:
-            return []
+            return set()
 
     def set_managed_groups(self, state_obj: State) -> None:
-        state_obj["managed_groups"] = self._managed_groups
+        state_obj["managed_groups"] = list(self._managed_groups)
 
     def get_integration_settings(self, query_func: Callable) -> LdapGroupsSettingsV1:
         data = settings_query(query_func)
@@ -184,7 +184,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         )
         # Internal Groups API does not support listing all managed groups, therefore
         # we need to keep track of them ourselves.
-        self._managed_groups = [g.name for g in current_groups]
+        self._managed_groups = {g.name for g in current_groups}
 
         for group_to_add in diff_result.add.values():
             logging.info(
@@ -196,7 +196,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
             )
             if not dry_run:
                 internal_groups_client.create_group(group_to_add)
-                self._managed_groups.append(group_to_add.name)
+                self._managed_groups.add(group_to_add.name)
 
         for group_to_remove in diff_result.delete.values():
             logging.info(["delete_ldap_group", group_to_remove.name])

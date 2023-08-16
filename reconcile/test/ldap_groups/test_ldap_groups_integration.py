@@ -22,18 +22,18 @@ def test_ldap_groups_integration_get_managed_groups(
     s3_state_builder: Callable[[Mapping], Mock], intg: LdapGroupsIntegration
 ) -> None:
     state = s3_state_builder({})
-    assert intg.get_managed_groups(state) == []
+    assert intg.get_managed_groups(state) == set()
     state = s3_state_builder({"get": {"managed_groups": ["group1", "group2"]}})
-    assert intg.get_managed_groups(state) == ["group1", "group2"]
+    assert intg.get_managed_groups(state) == {"group1", "group2"}
 
 
 def test_ldap_groups_integration_set_managed_groups(
     s3_state_builder: Callable[[Mapping], Mock], intg: LdapGroupsIntegration
 ) -> None:
     state = s3_state_builder({})
-    intg._managed_groups = ["group1", "group2"]
+    intg._managed_groups = {"group1", "group2"}
     intg.set_managed_groups(state)
-    state.__setitem__.assert_called_once_with("managed_groups", ["group1", "group2"])
+    state.__setitem__.assert_called_once_with("managed_groups", {"group1", "group2"})
 
 
 def test_ldap_groups_integration_get_roles(
