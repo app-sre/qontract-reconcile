@@ -29,15 +29,15 @@ fragment VaultSecret on VaultSecret_v1 {
 }
 
 query LdapGroupsAppInterfaceSettings {
-   settings: app_interface_settings_v1 {
-     ldapGroups {
-       contactList
-       credentials {
-         ... VaultSecret
-       }
-     }
-   }
- }
+  settings: app_interface_settings_v1 {
+    ldapGroups {
+      contactList
+      credentials {
+        ...VaultSecret
+      }
+    }
+  }
+}
 """
 
 
