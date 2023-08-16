@@ -1,5 +1,4 @@
 import logging
-from collections import Counter
 from collections.abc import (
     Callable,
     Iterable,
@@ -20,6 +19,7 @@ from reconcile.utils.exceptions import (
     AppInterfaceLdapGroupsSettingsError,
     AppInterfaceSettingsError,
 )
+from reconcile.utils.helpers import find_duplicates
 from reconcile.utils.internal_groups.client import (
     InternalGroupsClient,
     NotFound,
@@ -127,13 +127,10 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
     def get_roles(self, query_func: Callable) -> list[RoleV1]:
         data = roles_query(query_func, variables={})
         roles = [role for role in data.roles or [] if role.ldap_group]
-        error = False
-
-        for item, count in Counter([role.ldap_group for role in roles]).items():
-            if count > 1:
-                logging.error(f"{item} is already in use by another role.")
-                error = True
-        if error:
+        duplicates = find_duplicates(role.ldap_group for role in roles)
+        if duplicates:
+            for dup in duplicates:
+                logging.error(f"{dup} is already in use by another role.")
             raise ValueError("Duplicate ldapGroup value(s) found.")
         return roles
 

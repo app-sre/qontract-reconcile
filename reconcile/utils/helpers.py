@@ -1,7 +1,14 @@
 import logging
-from collections.abc import Mapping
+from collections import Counter
+from collections.abc import (
+    Iterable,
+    Mapping,
+)
 from contextlib import contextmanager
-from typing import Any
+from typing import (
+    Any,
+    TypeVar,
+)
 
 DEFAULT_TOGGLE_LEVEL = logging.ERROR
 
@@ -30,3 +37,10 @@ def flatten(
         else:
             items.append((new_key, str(v)))
     return dict(items)
+
+
+Item = TypeVar("Item")
+
+
+def find_duplicates(items: Iterable[Item]) -> list[Item]:
+    return [item for item, count in Counter(items).items() if count > 1]
