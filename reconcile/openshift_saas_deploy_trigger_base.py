@@ -397,7 +397,10 @@ def _construct_tekton_trigger_resource(
                 f"timeout {timeout} is smaller than 60 minutes"
             )
 
-        body["spec"]["timeout"] = timeout
+        body["spec"]["timeouts"] = {
+            "pipeline": "0",
+            "tasks": timeout,
+        }
 
     return (
         OR(body, integration, integration_version, error_details=name),
