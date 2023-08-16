@@ -67,14 +67,15 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
 
         # APIs
         state_obj = init_state(integration=self.name, secret_reader=self.secret_reader)
-        if defer:
-            defer(state_obj.cleanup)
         internal_groups_client = InternalGroupsClient(
             secret["api_url"],
             secret["issuer_url"],
             secret["client_id"],
             secret["client_secret"],
         )
+        if defer:
+            defer(state_obj.cleanup)
+            defer(internal_groups_client.close)
 
         # run
         desired_groups = self.fetch_desired_state(

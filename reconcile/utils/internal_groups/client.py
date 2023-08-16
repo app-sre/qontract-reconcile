@@ -30,7 +30,16 @@ class InternalGroupsApi:
         self.issuer_url = issuer_url
         self.client_id = client_id
         self.client_secret = client_secret
-        self._token: Optional[dict] = None
+        client = BackendApplicationClient(client_id=self.client_id)
+        self._client = OAuth2Session(self.client_id, client=client)
+
+    def _fetch_token(self) -> dict:
+        self._client.token = {}
+        return self._client.fetch_token(
+            token_url=f"{self.issuer_url}/protocol/openid-connect/token",
+            client_id=self.client_id,
+            client_secret=self.client_secret,
+        )
 
     def _check_response(self, resp: requests.Response) -> None:
         """Check response."""
@@ -43,20 +52,14 @@ class InternalGroupsApi:
 
     def __enter__(self) -> Self:
         """Fetch token."""
-        if not self._token:
-            client = BackendApplicationClient(client_id=self.client_id)
-            oauth = OAuth2Session(client=client)
-            self._token = oauth.fetch_token(
-                token_url=f"{self.issuer_url}/protocol/openid-connect/token",
-                client_id=self.client_id,
-                client_secret=self.client_secret,
-            )
-        self._client = OAuth2Session(self.client_id, token=self._token)
+        if not self._client.token:
+            self._client.token = self._fetch_token()
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
-        self._client.close()
+        pass
 
+    @retry(exceptions=(TokenExpiredError,), max_attempts=2)
     def _request(
         self, method: str, url: str, json: Optional[dict[Any, Any]] = None
     ) -> Response:
@@ -69,8 +72,12 @@ class InternalGroupsApi:
                 headers={"Content-Type": "application/json"},
             )
         except TokenExpiredError:
-            self._token = None
+            self._client.token = self._fetch_token()
             raise
+
+    def close(self) -> None:
+        """Close client session."""
+        self._client.close()
 
     def group(self, name: str) -> dict:
         """Get a group by name."""
@@ -113,13 +120,15 @@ class InternalGroupsClient:
     ):
         self._api = api_class(api_url, issuer_url, client_id, client_secret)
 
-    @retry(exceptions=(TokenExpiredError,), max_attempts=1)
+    def close(self) -> None:
+        """Close client session."""
+        self._api.close()
+
     def group(self, name: str) -> Group:
         """Get group by name."""
         with self._api as api:
             return Group(**api.group(name))
 
-    @retry(exceptions=(TokenExpiredError,), max_attempts=1)
     def create_group(self, group: Group) -> Group:
         """Create group."""
         with self._api as api:
@@ -129,13 +138,11 @@ class InternalGroupsClient:
                 )
             )
 
-    @retry(exceptions=(TokenExpiredError,), max_attempts=1)
     def delete_group(self, name: str) -> None:
         """Delete group."""
         with self._api as api:
             api.delete_group(name)
 
-    @retry(exceptions=(TokenExpiredError,), max_attempts=1)
     def update_group(self, group: Group) -> Group:
         """Update group."""
         with self._api as api:
