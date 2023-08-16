@@ -33,7 +33,9 @@ def test_ldap_groups_integration_set_managed_groups(
     state = s3_state_builder({})
     intg._managed_groups = {"group1", "group2"}
     intg.set_managed_groups(state)
-    state.__setitem__.assert_called_once_with("managed_groups", ["group1", "group2"])
+    state.__setitem__.assert_called_once_with(
+        "managed_groups", sorted(["group1", "group2"])
+    )
 
 
 def test_ldap_groups_integration_get_roles(

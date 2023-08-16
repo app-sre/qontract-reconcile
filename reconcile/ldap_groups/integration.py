@@ -112,7 +112,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
             return set()
 
     def set_managed_groups(self, state_obj: State) -> None:
-        state_obj["managed_groups"] = list(self._managed_groups)
+        state_obj["managed_groups"] = sorted(self._managed_groups)
 
     def get_integration_settings(self, query_func: Callable) -> LdapGroupsSettingsV1:
         data = settings_query(query_func)
