@@ -57,7 +57,6 @@ class InternalGroupsApi:
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self._client.close()
 
-    @retry(exceptions=(TokenExpiredError,), max_attempts=1)
     def _request(
         self, method: str, url: str, json: Optional[dict[Any, Any]] = None
     ) -> Response:
@@ -70,7 +69,7 @@ class InternalGroupsApi:
                 headers={"Content-Type": "application/json"},
             )
         except TokenExpiredError:
-            del self._token
+            self._token = None
             raise
 
     def group(self, name: str) -> dict:
@@ -114,11 +113,13 @@ class InternalGroupsClient:
     ):
         self._api = api_class(api_url, issuer_url, client_id, client_secret)
 
+    @retry(exceptions=(TokenExpiredError,), max_attempts=1)
     def group(self, name: str) -> Group:
         """Get group by name."""
         with self._api as api:
             return Group(**api.group(name))
 
+    @retry(exceptions=(TokenExpiredError,), max_attempts=1)
     def create_group(self, group: Group) -> Group:
         """Create group."""
         with self._api as api:
@@ -128,11 +129,13 @@ class InternalGroupsClient:
                 )
             )
 
+    @retry(exceptions=(TokenExpiredError,), max_attempts=1)
     def delete_group(self, name: str) -> None:
         """Delete group."""
         with self._api as api:
             api.delete_group(name)
 
+    @retry(exceptions=(TokenExpiredError,), max_attempts=1)
     def update_group(self, group: Group) -> Group:
         """Update group."""
         with self._api as api:
