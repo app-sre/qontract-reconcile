@@ -33,14 +33,21 @@ def intg() -> LdapGroupsIntegration:
 
 
 @pytest.fixture
+def raw_fixture_data(fx: Fixtures) -> dict[str, Any]:
+    return fx.get_anymarkup("roles.yml")
+
+
+@pytest.fixture
 def roles(
     fx: Fixtures,
     data_factory: Callable[[type[RoleV1], Mapping[str, Any]], Mapping[str, Any]],
     intg: LdapGroupsIntegration,
+    raw_fixture_data: dict[str, Any],
 ) -> list[RoleV1]:
     def q(*args: Any, **kwargs: Any) -> dict:
-        raw_data = fx.get_anymarkup("roles.yml")
-        return {"roles": [data_factory(RoleV1, item) for item in raw_data["roles"]]}
+        return {
+            "roles": [data_factory(RoleV1, item) for item in raw_fixture_data["roles"]]
+        }
 
     return intg.get_roles(q)
 

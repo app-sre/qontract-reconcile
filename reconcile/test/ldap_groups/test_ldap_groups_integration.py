@@ -3,6 +3,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -51,6 +52,23 @@ def test_ldap_groups_integration_get_roles(
             },
         )
     ]
+
+
+def test_ldap_groups_integration_get_roles_duplicates(
+    intg: LdapGroupsIntegration,
+    raw_fixture_data: dict[str, Any],
+    data_factory: Callable,
+) -> None:
+    def q(*args: Any, **kwargs: Any) -> dict:
+        roles = {
+            "roles": [data_factory(RoleV1, item) for item in raw_fixture_data["roles"]]
+        }
+        # add a duplicate
+        roles["roles"].append(roles["roles"][1])
+        return roles
+
+    with pytest.raises(ValueError):
+        intg.get_roles(q)
 
 
 def test_ldap_groups_integration_fetch_desired_state(
