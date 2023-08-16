@@ -234,15 +234,20 @@ class GqlApi:
 
 class GqlApiSingleton:
     gql_api: Optional[GqlApi] = None
-    gqlapi_lock = threading.RLock()
+    gqlapi_lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs):
+    @classmethod
+    def create(cls, *args, **kwargs) -> GqlApi:
         with cls.gqlapi_lock:
             if cls.gql_api:
                 logging.debug("Resestting GqlApi instance")
-                cls.close()
+                cls.close_gqlapi()
             cls.gql_api = GqlApi(*args, **kwargs)
-        return cls
+        return cls.gql_api
+
+    @classmethod
+    def close_gqlapi(cls):
+        cls.gql_api.close()
 
     @classmethod
     def instance(cls) -> GqlApi:
@@ -254,7 +259,7 @@ class GqlApiSingleton:
     def close(cls) -> None:
         with cls.gqlapi_lock:
             if cls.gql_api:
-                cls.gql_api.close()
+                cls.close_gqlapi()
                 cls.gql_api = None
 
 
@@ -266,7 +271,7 @@ def init(
     commit: Optional[str] = None,
     commit_timestamp: Optional[str] = None,
 ):
-    singleton = GqlApiSingleton(
+    return GqlApiSingleton.create(
         url,
         token,
         integration,
@@ -274,7 +279,6 @@ def init(
         commit=commit,
         commit_timestamp=commit_timestamp,
     )
-    return singleton.gql_api
 
 
 def get_resource(path: str) -> dict[str, Any]:
