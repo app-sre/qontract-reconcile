@@ -55,7 +55,7 @@ class InternalGroupsApi:
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
-        pass
+        self._client.close()
 
     @retry(exceptions=(TokenExpiredError,), max_attempts=1)
     def _request(
