@@ -1,12 +1,15 @@
 import logging
 import textwrap
+import threading
 from datetime import (
     datetime,
     timezone,
 )
 from typing import (
     Any,
+    Dict,
     Optional,
+    Union,
 )
 from urllib.parse import urlparse
 
@@ -18,6 +21,8 @@ from gql import (
 from gql.transport.exceptions import TransportQueryError
 from gql.transport.requests import RequestsHTTPTransport
 from gql.transport.requests import log as requests_logger
+from requests.auth import AuthBase
+from requests.cookies import RequestsCookieJar
 from sentry_sdk import capture_exception
 from sretoolbox.utils import retry
 
@@ -102,6 +107,7 @@ class GqlApi:
         self.validate_schemas = validate_schemas
         self.commit = commit
         self.commit_timestamp = commit_timestamp
+        self.client = self._init_gql_client()
 
         if validate_schemas and not int_name:
             raise Exception(
@@ -119,19 +125,27 @@ class GqlApi:
             if not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
+    def _init_gql_client(self) -> Client:
+        req_headers = None
+        if self.token:
+            # The token stored in vault is already in the format 'Basic ...'
+            req_headers = {"Authorization": self.token}
+        transport = PersistentRequestsHTTPTransport(
+            requests.Session(), self.url, headers=req_headers, timeout=30
+        )
+        return Client(transport=transport)
+
+    def close(self):
+        logging.debug("Closing GqlApi client")
+        if self.client.transport.session:
+            self.client.transport.session.close()
+
     @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_and_forget)
     def query(
         self, query: str, variables=None, skip_validation=False
     ) -> Optional[dict[str, Any]]:
-        # Here we are recreating client on purpose as some integrations such as `openshift-resource` require multiple
-        # queries in separate threads. With RequestsHTTPTransport that is currently not possible as it expects
-        # session to be reused and thus throws `Transport is already connected` error.
-        # Adding a synchronization mechanism would lead to increase wait time given some of our integrations are not
-        # sharded and thread pool capacity is also large for those.
-        # Hence, we are recreating client for every query.
-        client = _init_gql_client(self.url, self.token)
         try:
-            result = client.execute(
+            result = self.client.execute(
                 gql(query), variables, get_execution_result=True
             ).formatted
         except requests.exceptions.ConnectionError as e:
@@ -218,7 +232,35 @@ class GqlApi:
         return None
 
 
-_gqlapi: Optional[GqlApi] = None
+class GqlApiSingleton:
+    gql_api: Optional[GqlApi] = None
+    gqlapi_lock = threading.Lock()
+
+    @classmethod
+    def create(cls, *args, **kwargs) -> GqlApi:
+        with cls.gqlapi_lock:
+            if cls.gql_api:
+                logging.debug("Resestting GqlApi instance")
+                cls.close_gqlapi()
+            cls.gql_api = GqlApi(*args, **kwargs)
+        return cls.gql_api
+
+    @classmethod
+    def close_gqlapi(cls):
+        cls.gql_api.close()
+
+    @classmethod
+    def instance(cls) -> GqlApi:
+        if not cls.gql_api:
+            raise GqlApiError("gql module has not been initialized.")
+        return cls.gql_api
+
+    @classmethod
+    def close(cls) -> None:
+        with cls.gqlapi_lock:
+            if cls.gql_api:
+                cls.close_gqlapi()
+                cls.gql_api = None
 
 
 def init(
@@ -229,8 +271,7 @@ def init(
     commit: Optional[str] = None,
     commit_timestamp: Optional[str] = None,
 ):
-    global _gqlapi
-    _gqlapi = GqlApi(
+    return GqlApiSingleton.create(
         url,
         token,
         integration,
@@ -238,20 +279,53 @@ def init(
         commit=commit,
         commit_timestamp=commit_timestamp,
     )
-    return _gqlapi
 
 
 def get_resource(path: str) -> dict[str, Any]:
     return get_api().get_resource(path)
 
 
-def _init_gql_client(url: str, token: Optional[str]) -> Client:
-    req_headers = None
-    if token:
-        # The token stored in vault is already in the format 'Basic ...'
-        req_headers = {"Authorization": token}
-    # Here we are explicitly using sync strategy
-    return Client(transport=RequestsHTTPTransport(url, headers=req_headers, timeout=30))
+class PersistentRequestsHTTPTransport(RequestsHTTPTransport):
+    """A transport for the GQL Client that uses an existing.
+    Is a reduced version of the RequestsHTTPTransport class from gql library
+    with the connect and close methods removed, cause they are implemented
+    to disconnect after each query.
+    """
+
+    def __init__(
+        self,
+        session: requests.Session,
+        url: str,
+        headers: Optional[Dict[str, Any]] = None,
+        cookies: Optional[Union[Dict[str, Any], RequestsCookieJar]] = None,
+        auth: Optional[AuthBase] = None,
+        use_json: bool = True,
+        timeout: Optional[int] = None,
+        verify: Union[bool, str] = True,
+        retries: int = 0,
+        method: str = "POST",
+        **kwargs: Any,
+    ):
+        super().__init__(
+            url,
+            headers,
+            cookies,
+            auth,
+            use_json,
+            timeout,
+            verify,
+            retries,
+            method,
+            **kwargs,
+        )
+        # can't directly assign, due to mypy type checking
+        self.session = session  # type: ignore
+
+    def connect(self):
+        pass
+
+    def close(self) -> None:
+        pass
 
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
@@ -324,12 +398,7 @@ def _get_gql_server_and_token(
 
 
 def get_api() -> GqlApi:
-    global _gqlapi
-
-    if _gqlapi is None:
-        raise GqlApiError("gql module has not been initialized.")
-
-    return _gqlapi
+    return GqlApiSingleton.instance()
 
 
 def get_api_for_sha(

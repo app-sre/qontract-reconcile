@@ -89,6 +89,7 @@ from reconcile.utils.gitlab_api import (
     MRState,
     MRStatus,
 )
+from reconcile.utils.gql import GqlApiSingleton
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.mr.labels import (
     SAAS_FILE_UPDATE,
@@ -152,6 +153,11 @@ def root(ctx, configfile):
     ctx.ensure_object(dict)
     config.init_from_toml(configfile)
     gql.init_from_config()
+
+
+@root.result_callback()
+def exit_cli(ctx, confifile):
+    GqlApiSingleton.close()
 
 
 @root.group()
