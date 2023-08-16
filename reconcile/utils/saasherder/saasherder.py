@@ -1671,6 +1671,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
             if self.include_trigger_trace:
                 trigger_spec.reason = f"{self.repo_url}/commit/{RunningState().commit}"
+                # For now we count every saas config change as an auto-promotion
+                # if the auto promotion field is enabled in the saas target.
+                # Ideally, we check if there was an actual ref change in order
+                # to reduce false-positives.
                 promotion = trigger_spec.state_content.get("promotion")
                 if promotion and promotion.get("auto", False):
                     trigger_spec.reason += " [auto-promotion]"
