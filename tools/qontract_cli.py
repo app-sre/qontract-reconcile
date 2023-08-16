@@ -156,7 +156,7 @@ def root(ctx, configfile):
 
 
 @root.result_callback()
-def exit_cli(ctx, confifile):
+def exit_cli(ctx, configfile):
     GqlApiSingleton.close()
 
 
