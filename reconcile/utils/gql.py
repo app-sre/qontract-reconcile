@@ -234,7 +234,7 @@ class GqlApi:
 
 class GqlApiSingleton:
     gql_api: Optional[GqlApi] = None
-    gqlapi_lock = threading.Lock()
+    gqlapi_lock = threading.RLock()
 
     def __new__(cls, *args, **kwargs):
         with cls.gqlapi_lock:
