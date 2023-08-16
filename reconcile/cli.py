@@ -998,7 +998,7 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 
 
 @integration.command(short_help="Manages OpenShift Resources.")
-@threaded(default=20)
+@threaded()
 @binary(["oc", "ssh", "amtool"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @internal()
@@ -1574,7 +1574,7 @@ def terraform_repo(ctx, output_file):
 @integration.command(short_help="Manage AWS Resources using Terraform.")
 @print_to_file
 @vault_output_path
-@threaded(default=20)
+@threaded()
 @binary(["terraform", "oc", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
@@ -1623,7 +1623,7 @@ def terraform_resources(
 @integration.command(short_help="Manage Cloudflare Resources using Terraform.")
 @print_to_file
 @enable_deletion(default=False)
-@threaded(default=20)
+@threaded()
 @binary(["terraform"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @account_name
@@ -1659,7 +1659,7 @@ def terraform_cloudflare_resources(
 @integration.command(short_help="Manage Cloudflare DNS using Terraform.")
 @print_to_file
 @enable_deletion(default=False)
-@threaded(default=10)
+@threaded()
 @binary(["terraform"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @account_name
@@ -1687,7 +1687,7 @@ def terraform_cloudflare_dns(
 @integration.command(short_help="Manage Cloudflare Users using Terraform.")
 @print_to_file
 @binary(["terraform"])
-@threaded(default=20)
+@threaded()
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @account_name
 @enable_deletion(default=True)
@@ -1717,7 +1717,7 @@ def terraform_cloudflare_users(
     short_help="Manage Cloud Resources using Cloud Native Assets (CNA)."
 )
 @enable_deletion(default=False)
-@threaded(default=20)
+@threaded()
 @click.pass_context
 def cna_resources(
     ctx,
@@ -1735,7 +1735,7 @@ def cna_resources(
 
 
 @integration.command(short_help="Manage auto-promotions defined in SaaS files")
-@threaded(default=10)
+@threaded()
 @click.pass_context
 def saas_auto_promotions_manager(
     ctx,
@@ -1752,7 +1752,7 @@ def saas_auto_promotions_manager(
 
 @integration.command(short_help="Manage AWS users using Terraform.")
 @print_to_file
-@threaded(default=20)
+@threaded()
 @binary(["terraform", "gpg", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=True)
