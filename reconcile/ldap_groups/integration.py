@@ -104,7 +104,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
                 current_groups=current_groups,
             )
         finally:
-            self.set_managed_groups(state_obj)
+            self.set_managed_groups(dry_run=dry_run, state_obj=state_obj)
 
     def get_managed_groups(self, state_obj: State) -> set[str]:
         try:
@@ -112,8 +112,9 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         except KeyError:
             return set()
 
-    def set_managed_groups(self, state_obj: State) -> None:
-        state_obj["managed_groups"] = sorted(self._managed_groups)
+    def set_managed_groups(self, dry_run: bool, state_obj: State) -> None:
+        if not dry_run:
+            state_obj["managed_groups"] = sorted(self._managed_groups)
 
     def get_integration_settings(self, query_func: Callable) -> LdapGroupsSettingsV1:
         data = settings_query(query_func)
