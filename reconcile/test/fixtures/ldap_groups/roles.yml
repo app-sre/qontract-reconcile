@@ -1,0 +1,11 @@
+roles:
+- name: no-ldap-group-set
+  ldapGroup: null
+  users:
+  - org_username: jeanluc
+  - org_username: riker
+- name: test-group
+  ldapGroup: ai-dev-test-group
+  users:
+  - org_username: pike
+  - org_username: uhura

@@ -1,9 +1,11 @@
 import time
 from collections.abc import (
     Callable,
+    Iterable,
     Mapping,
     MutableMapping,
 )
+from pathlib import Path
 from typing import (
     Any,
     Optional,
@@ -16,6 +18,7 @@ from pydantic import BaseModel
 from pydantic.error_wrappers import ValidationError
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.models import data_default_none
 from reconcile.utils.state import State
@@ -74,9 +77,13 @@ def s3_state_builder() -> Callable[[Mapping], State]:
                     return args[0]
                 raise
 
+        def __getitem__(self, key: str) -> dict:
+            return get(key)
+
         state = create_autospec(spec=State)
         state.get = get
-        state.ls.side_effect = [data["ls"]]
+        state.__getitem__ = __getitem__
+        state.ls.side_effect = [data.get("ls", [])]
         return state
 
     return builder
@@ -143,3 +150,22 @@ def gql_api_builder() -> Callable[[Optional[Mapping]], GqlApi]:
         return gql_api
 
     return builder
+
+
+@pytest.fixture
+def set_httpretty_responses_based_on_fixture(httpretty: _httpretty) -> Callable:
+    """Create httpretty responses based fixture files."""
+
+    def _(url: str, fx: Fixtures, paths: Iterable[str]) -> None:
+        for path in paths:
+            for method in ["get", "post", "put", "patch", "delete"]:
+                method_file = Path(fx.path(path)) / f"{method}.json"
+                if method_file.exists():
+                    httpretty.register_uri(
+                        getattr(httpretty, method.upper()),
+                        f"{url}/{path}",
+                        body=method_file.read_text(),
+                        content_type="text/json",
+                    )
+
+    return _

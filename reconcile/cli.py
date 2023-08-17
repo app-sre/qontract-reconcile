@@ -1551,6 +1551,20 @@ def ldap_users(ctx, infra_project_id, app_interface_project_id):
     )
 
 
+@integration.command(short_help="Manages LDAP groups based on App-Interface roles.")
+@click.pass_context
+def ldap_groups(ctx):
+    from reconcile.ldap_groups.integration import (
+        LdapGroupsIntegration,
+        LdapGroupsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=LdapGroupsIntegration(LdapGroupsIntegrationParams()),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manages raw HCL Terraform from a separate repository.")
 @click.option(
     "-o",

@@ -1,7 +1,6 @@
-from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
-import httpretty as httpretty_module
 import pytest
 from pytest_mock import MockerFixture
 
@@ -43,67 +42,39 @@ def fx() -> Fixtures:
 
 @pytest.fixture
 def glitchtip_server_full_api_response(
-    httpretty: httpretty_module, glitchtip_url: str, fx: Fixtures
+    set_httpretty_responses_based_on_fixture: Callable, glitchtip_url: str, fx: Fixtures
 ) -> None:
     """Text fixture.
 
     See reconcile/glitchtip/README.md for more details.
     """
-    for path in [
-        "api/0/organizations/",
-        "api/0/organizations/esa/",
-        "api/0/organizations/esa/teams/",
-        "api/0/organizations/nasa/teams/",
-        "api/0/organizations/esa/projects/",
-        "api/0/organizations/nasa/projects/",
-        "api/0/organizations/esa/members/",
-        "api/0/organizations/nasa/members/",
-        "api/0/organizations/nasa/members/29/",
-        "api/0/organizations/nasa/members/29/teams/nasa-pilots/",
-        "api/0/projects/nasa/science-tools/teams/nasa-flight-control/",
-        "api/0/projects/nasa/science-tools/",
-        "api/0/teams/esa/esa-pilots/",
-        "api/0/teams/esa/esa-pilots/members/",
-        "api/0/teams/esa/esa-flight-control/members/",
-        "api/0/teams/nasa/nasa-pilots/members/",
-        "api/0/teams/nasa/nasa-pilots/projects/",
-        "api/0/teams/nasa/nasa-flight-control/members/",
-        # glitchtip-project-dsn
-        "api/0/projects/nasa/apollo-11-flight-control/keys/",
-        "api/0/organizations/empty-org/projects/",
-    ]:
-        get_file = Path(fx.path(path)) / "get.json"
-        if get_file.exists():
-            httpretty.register_uri(
-                httpretty.GET,
-                f"{glitchtip_url}/{path}",
-                body=get_file.read_text(),
-                content_type="text/json",
-            )
-        post_file = Path(fx.path(path)) / "post.json"
-        if post_file.exists():
-            httpretty.register_uri(
-                httpretty.POST,
-                f"{glitchtip_url}/{path}",
-                body=post_file.read_text(),
-                content_type="text/json",
-            )
-        put_file = Path(fx.path(path)) / "put.json"
-        if put_file.exists():
-            httpretty.register_uri(
-                httpretty.PUT,
-                f"{glitchtip_url}/{path}",
-                body=put_file.read_text(),
-                content_type="text/json",
-            )
-        delete_file = Path(fx.path(path)) / "delete.json"
-        if delete_file.exists():
-            httpretty.register_uri(
-                httpretty.DELETE,
-                f"{glitchtip_url}/{path}",
-                body=delete_file.read_text(),
-                content_type="text/json",
-            )
+    set_httpretty_responses_based_on_fixture(
+        url=glitchtip_url,
+        fx=fx,
+        paths=[
+            "api/0/organizations/",
+            "api/0/organizations/esa/",
+            "api/0/organizations/esa/teams/",
+            "api/0/organizations/nasa/teams/",
+            "api/0/organizations/esa/projects/",
+            "api/0/organizations/nasa/projects/",
+            "api/0/organizations/esa/members/",
+            "api/0/organizations/nasa/members/",
+            "api/0/organizations/nasa/members/29/",
+            "api/0/organizations/nasa/members/29/teams/nasa-pilots/",
+            "api/0/projects/nasa/science-tools/teams/nasa-flight-control/",
+            "api/0/projects/nasa/science-tools/",
+            "api/0/teams/esa/esa-pilots/",
+            "api/0/teams/esa/esa-pilots/members/",
+            "api/0/teams/esa/esa-flight-control/members/",
+            "api/0/teams/nasa/nasa-pilots/members/",
+            "api/0/teams/nasa/nasa-pilots/projects/",
+            "api/0/teams/nasa/nasa-flight-control/members/",
+            # glitchtip-project-dsn
+            "api/0/projects/nasa/apollo-11-flight-control/keys/",
+            "api/0/organizations/empty-org/projects/",
+        ],
+    )
 
 
 @pytest.fixture

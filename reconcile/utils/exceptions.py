@@ -16,6 +16,10 @@ class AppInterfaceSmtpSettingsError(AppInterfaceSettingsError):
     pass
 
 
+class AppInterfaceLdapGroupsSettingsError(AppInterfaceSettingsError):
+    pass
+
+
 class SecretIncompleteError(Exception):
     pass
 
