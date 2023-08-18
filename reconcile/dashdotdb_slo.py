@@ -98,14 +98,21 @@ class DashdotdbSLO(DashdotdbBase):
     def _get_service_slo(self, slo_document: SLODocumentV1) -> list[ServiceSLO]:
         LOG.debug("SLO: processing %s", slo_document.name)
         result: list[ServiceSLO] = []
-        for ns in slo_document.namespaces:
-            promurl = ns.cluster.prometheus_url
-            if not ns.cluster.automation_token:
-                LOG.error(
-                    "namespace does not have automation token set %s - skipping", ns
-                )
+        for pa in slo_document.namespaces:
+            ns = pa.namespace
+            if not ns:
                 continue
-            promtoken = self._get_automation_token(ns.cluster.automation_token)
+            if pa.external:
+                promurl = pa.external.url
+                promtoken = self._get_automation_token(pa.external.token)
+            else:
+                promurl = ns.cluster.prometheus_url
+                if not ns.cluster.automation_token:
+                    LOG.error(
+                        "namespace does not have automation token set %s - skipping", ns
+                    )
+                    continue
+                promtoken = self._get_automation_token(ns.cluster.automation_token)
             for slo in slo_document.slos or []:
                 unit = slo.slo_target_unit
                 expr = slo.expr
