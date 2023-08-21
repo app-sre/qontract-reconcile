@@ -100,8 +100,6 @@ class DashdotdbSLO(DashdotdbBase):
         result: list[ServiceSLO] = []
         for pa in slo_document.namespaces:
             ns = pa.namespace
-            if not ns:
-                continue
             if pa.external:
                 promurl = pa.external.url
                 promtoken = self._get_automation_token(pa.external.token)
