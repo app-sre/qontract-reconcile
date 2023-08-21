@@ -469,3 +469,16 @@ def test_hash_list_error():
 
     with pytest.raises(RuntimeError):
         hash_list(["a", {}])
+
+
+def test_cluster_params():
+    with pytest.raises(RuntimeError):
+        orb.run(dry_run=False, exclude_cluster=["test-cluster"])
+
+    with pytest.raises(RuntimeError):
+        orb.run(
+            dry_run=False, cluster_name=["cluster-1"], exclude_cluster=["cluster-2"]
+        )
+
+    with pytest.raises(RuntimeError):
+        orb.run(dry_run=False, cluster_name=["cluster-1", "cluster-2"])
