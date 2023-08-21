@@ -2270,14 +2270,30 @@ def rhidp_sso_client(
 
 
 @integration.command(
-    short_help= "Automatically provide dedicated Dynatrace tokens to management clusters"
+    short_help="Automatically provide dedicated Dynatrace tokens to management clusters"
+)
+@click.option(
+    "--ocm-org-ids",
+    help="A comma seperated list of OCM organization IDs DTP should operator on. If none is specified, all organizations are considered.",
+    required=False,
+    envvar="DTP_OCM_ORG_IDS",
 )
 @click.pass_context
-def dynatrace_token_provider(ctx):
+def dynatrace_token_provider(ctx, ocm_org_ids):
     from reconcile import dynatrace_token_provider
+    from reconcile.dynatrace_token_provider import (
+        DynatraceTokenProviderIntegrationParams,
+    )
 
+    parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     run_class_integration(
-        integration=dynatrace_token_provider.DynatraceTokenProviderIntegration(PydanticRunParams()),
+        integration=dynatrace_token_provider.DynatraceTokenProviderIntegration(
+            PydanticRunParams(
+                DynatraceTokenProviderIntegrationParams(
+                    ocm_organization_ids=parsed_ocm_org_ids
+                )
+            )
+        ),
         ctx=ctx.obj,
     )
 
