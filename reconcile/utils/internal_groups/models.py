@@ -18,13 +18,8 @@ class Entity(BaseModel):
     type: EntityType
     id: str
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Entity):
-            raise NotImplementedError("Cannot compare to non Entity objects.")
-        return self.type == other.type and self.id == other.id
-
-    def __lt__(self, other: Entity) -> bool:
-        return self.id < other.id
+    class Config:
+        frozen = True
 
 
 class Group(BaseModel):
@@ -56,7 +51,7 @@ class Group(BaseModel):
             and self.owners == other.owners
             and self.display_name == other.display_name
             and self.notes == other.notes
-            and sorted(self.members) == sorted(other.members)
+            and set(self.members) == set(other.members)
         )
 
     class Config:
