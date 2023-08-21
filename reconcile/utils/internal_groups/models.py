@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 from typing import Optional
 
@@ -20,6 +22,9 @@ class Entity(BaseModel):
         if not isinstance(other, Entity):
             raise NotImplementedError("Cannot compare to non Entity objects.")
         return self.type == other.type and self.id == other.id
+
+    def __lt__(self, other: Entity) -> bool:
+        return self.id < other.id
 
 
 class Group(BaseModel):
@@ -51,7 +56,7 @@ class Group(BaseModel):
             and self.owners == other.owners
             and self.display_name == other.display_name
             and self.notes == other.notes
-            and self.members == other.members
+            and sorted(self.members) == sorted(other.members)
         )
 
     class Config:
