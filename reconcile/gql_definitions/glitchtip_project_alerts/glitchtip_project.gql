@@ -1,0 +1,30 @@
+# qenerate: plugin=pydantic_v1
+
+query GlitchtipProjectsWithAlerts {
+  glitchtip_projects: glitchtip_projects_v1 {
+    name
+    projectId
+    organization {
+      name
+      instance {
+        name
+      }
+    }
+    alerts {
+      name
+      description
+      quantity
+      timespanMinutes
+      recipients {
+        provider
+        ... on GlitchtipProjectAlertRecipientWebhook_v1 {
+          url
+        }
+        ... on GlitchtipProjectAlertRecipientEmail_v1 {
+          provider
+        }
+
+      }
+    }
+  }
+}
