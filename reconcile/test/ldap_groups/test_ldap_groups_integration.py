@@ -185,3 +185,41 @@ def test_ldap_groups_integration_reconcile(
     assert sorted(intg._managed_groups) == sorted(
         ["officers", "medical-crew", "love-couples"]
     )
+
+
+def test_ldap_groups_integration_reconcile_sorted_members(
+    intg: LdapGroupsIntegration, internal_groups_client: Mock
+) -> None:
+    officers_current = Group(
+        name="officers",
+        description="Managed by qontract-reconcile",
+        contact_list="email@example.org",
+        owners=[Entity(type=EntityType.SERVICE_ACCOUNT, id="enterprise-lcars-1")],
+        display_name="Star Trek - New Strange Worlds: Officers",
+        members=[
+            Entity(type=EntityType.USER, id="chris-pike"),
+            Entity(type=EntityType.USER, id="una"),
+        ],
+    )
+    officers_desired = Group(
+        name="officers",
+        description="Managed by qontract-reconcile",
+        contact_list="email@example.org",
+        owners=[Entity(type=EntityType.SERVICE_ACCOUNT, id="enterprise-lcars-1")],
+        display_name="Star Trek - New Strange Worlds: Officers",
+        members=[
+            Entity(type=EntityType.USER, id="una"),
+            Entity(type=EntityType.USER, id="chris-pike"),
+        ],
+    )
+
+    intg.reconcile(
+        dry_run=False,
+        internal_groups_client=internal_groups_client,
+        desired_groups=[officers_desired],
+        current_groups=[officers_current],
+    )
+
+    internal_groups_client.create_group.assert_not_called()
+    internal_groups_client.update_group.assert_not_called()
+    internal_groups_client.delete_group.assert_not_called()
