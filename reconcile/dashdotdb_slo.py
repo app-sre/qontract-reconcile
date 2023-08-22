@@ -118,9 +118,7 @@ class DashdotdbSLO(DashdotdbBase):
                 window = slo.slo_parameters.window
                 promquery = template.render({"window": window})
                 prom_response = self._promget(
-                    url=promurl,
-                    params={"query": (f"{promquery}")},
-                    token=promtoken if promtoken else None,
+                    url=promurl, params={"query": (f"{promquery}")}, token=promtoken
                 )
                 prom_result = prom_response["data"]["result"]
                 if not prom_result:
