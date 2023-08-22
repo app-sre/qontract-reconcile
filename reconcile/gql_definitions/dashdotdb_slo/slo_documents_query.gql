@@ -4,23 +4,18 @@ query SLODocuments {
   slo_documents: slo_document_v1 {
     name
     namespaces {
-      prometheusAccess {
-         url
-      }
-      namespace {
+      name
+      app {
         name
-        app {
-          name
-        }
-        cluster {
-          name
-          automationToken {
+      }
+      cluster {
+        name
+        automationToken {
           ... VaultSecret
-          }
-          prometheusUrl
-          spec {
-            private
-          }
+        }
+        prometheusUrl
+        spec {
+          private
         }
       }
     }
