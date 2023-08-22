@@ -32,11 +32,8 @@ query SLODocuments {
   slo_documents: slo_document_v1 {
     name
     namespaces {
-      external {
+      prometheusAccess {
          url
-         token {
-         ... VaultSecret
-        }
       }
       namespace {
         name
@@ -78,7 +75,6 @@ class ConfiguredBaseModel(BaseModel):
 
 class SLOExternalPrometheusAccessV1(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
-    token: VaultSecret = Field(..., alias="token")
 
 
 class AppV1(ConfiguredBaseModel):
@@ -103,7 +99,9 @@ class NamespaceV1(ConfiguredBaseModel):
 
 
 class SLONamespacesV1(ConfiguredBaseModel):
-    external: Optional[SLOExternalPrometheusAccessV1] = Field(..., alias="external")
+    prometheus_access: Optional[SLOExternalPrometheusAccessV1] = Field(
+        ..., alias="prometheusAccess"
+    )
     namespace: NamespaceV1 = Field(..., alias="namespace")
 
 

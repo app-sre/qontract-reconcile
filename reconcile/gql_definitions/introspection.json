@@ -17834,7 +17834,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "external",
+                            "name": "prometheusAccess",
                             "description": null,
                             "args": [],
                             "type": {
@@ -17898,22 +17898,6 @@
                                 "ofType": {
                                     "kind": "SCALAR",
                                     "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "token",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "VaultSecret_v1",
                                     "ofType": null
                                 }
                             },
