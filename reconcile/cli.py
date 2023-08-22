@@ -2288,10 +2288,8 @@ def dynatrace_token_provider(ctx, ocm_org_ids):
     parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     run_class_integration(
         integration=dynatrace_token_provider.DynatraceTokenProviderIntegration(
-            PydanticRunParams(
-                DynatraceTokenProviderIntegrationParams(
-                    ocm_organization_ids=parsed_ocm_org_ids
-                )
+            DynatraceTokenProviderIntegrationParams(
+                ocm_organization_ids=parsed_ocm_org_ids
             )
         ),
         ctx=ctx.obj,
