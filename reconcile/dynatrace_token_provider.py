@@ -114,7 +114,7 @@ class DynatraceTokenProviderIntegration(
                         integration=self.name,
                         ocm_env=env.name,
                         org_id=cluster.organization_id,
-                    ):  
+                    ):
                         if self.params.ocm_organization_ids:
                             if (
                                 cluster.organization_id
