@@ -32,23 +32,18 @@ query SLODocuments {
   slo_documents: slo_document_v1 {
     name
     namespaces {
-      prometheusAccess {
-         url
-      }
-      namespace {
+      name
+      app {
         name
-        app {
-          name
-        }
-        cluster {
-          name
-          automationToken {
+      }
+      cluster {
+        name
+        automationToken {
           ... VaultSecret
-          }
-          prometheusUrl
-          spec {
-            private
-          }
+        }
+        prometheusUrl
+        spec {
+          private
         }
       }
     }
@@ -73,10 +68,6 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
-class SLOExternalPrometheusAccessV1(ConfiguredBaseModel):
-    url: str = Field(..., alias="url")
-
-
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
@@ -98,13 +89,6 @@ class NamespaceV1(ConfiguredBaseModel):
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 
-class SLONamespacesV1(ConfiguredBaseModel):
-    prometheus_access: Optional[SLOExternalPrometheusAccessV1] = Field(
-        ..., alias="prometheusAccess"
-    )
-    namespace: NamespaceV1 = Field(..., alias="namespace")
-
-
 class SLODocumentSLOSLOParametersV1(ConfiguredBaseModel):
     window: str = Field(..., alias="window")
 
@@ -120,7 +104,7 @@ class SLODocumentSLOV1(ConfiguredBaseModel):
 
 class SLODocumentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    namespaces: list[SLONamespacesV1] = Field(..., alias="namespaces")
+    namespaces: list[NamespaceV1] = Field(..., alias="namespaces")
     slos: Optional[list[SLODocumentSLOV1]] = Field(..., alias="slos")
 
 

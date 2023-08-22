@@ -98,19 +98,14 @@ class DashdotdbSLO(DashdotdbBase):
     def _get_service_slo(self, slo_document: SLODocumentV1) -> list[ServiceSLO]:
         LOG.debug("SLO: processing %s", slo_document.name)
         result: list[ServiceSLO] = []
-        for namespace_access in slo_document.namespaces:
-            ns = namespace_access.namespace
-            promtoken: Optional[str] = None
-            if namespace_access.prometheus_access:
-                promurl = namespace_access.prometheus_access.url
-            else:
-                promurl = ns.cluster.prometheus_url
-                if not ns.cluster.automation_token:
-                    LOG.error(
-                        "namespace does not have automation token set %s - skipping", ns
-                    )
-                    continue
-                promtoken = self._get_automation_token(ns.cluster.automation_token)
+        for ns in slo_document.namespaces:
+            promurl = ns.cluster.prometheus_url
+            if not ns.cluster.automation_token:
+                LOG.error(
+                    "namespace does not have automation token set %s - skipping", ns
+                )
+                continue
+            promtoken = self._get_automation_token(ns.cluster.automation_token)
             for slo in slo_document.slos or []:
                 unit = slo.slo_target_unit
                 expr = slo.expr
@@ -118,7 +113,9 @@ class DashdotdbSLO(DashdotdbBase):
                 window = slo.slo_parameters.window
                 promquery = template.render({"window": window})
                 prom_response = self._promget(
-                    url=promurl, params={"query": (f"{promquery}")}, token=promtoken
+                    url=promurl,
+                    params={"query": (f"{promquery}")},
+                    token=promtoken,
                 )
                 prom_result = prom_response["data"]["result"]
                 if not prom_result:
