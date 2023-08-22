@@ -16,6 +16,10 @@ from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.parse_dhms_duration import (
+    dhms_to_seconds,
+    seconds_to_hms,
+)
 from reconcile.utils.saasherder import Providers
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
@@ -282,6 +286,9 @@ def build_one_per_saas_file_pipeline(
     )
 
     timeout = saas_file.get("timeout")
+    if timeout:
+        timeout_seconds = dhms_to_seconds(timeout)
+        normalized_timeout = seconds_to_hms(timeout_seconds)
 
     for section in ["tasks", "finally"]:
         for task in pipeline["spec"].get(section, []):
@@ -301,7 +308,7 @@ def build_one_per_saas_file_pipeline(
                 )
 
             if timeout:
-                task["timeout"] = timeout
+                task["timeout"] = normalized_timeout
 
     return pipeline
 
