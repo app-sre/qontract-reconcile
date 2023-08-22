@@ -10,6 +10,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-integ
+    annotations:
+      ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
     name: qontract-reconcile-integ
   spec:
     schedule: "* * * * *"
@@ -62,7 +64,6 @@ objects:
                 mountPath: ${KUBE_SA_TOKEN_MOUNT_PATH}
               resources:
                 limits:
-                  cpu: ${INTEG_CPU_LIMIT}
                   memory: ${INTEG_MEMORY_LIMIT}
                 requests:
                   cpu: ${INTEG_CPU_REQUEST}
@@ -163,8 +164,6 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
-- name: INTEG_CPU_LIMIT
-  value: 678
 - name: INTEG_MEMORY_LIMIT
   value: 90Mi
 - name: INTEG_CPU_REQUEST
