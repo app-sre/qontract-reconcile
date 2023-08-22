@@ -67,6 +67,7 @@ setup(
         "dateparser~=1.1.7",
         "pyjwt~=2.7",
         "requests-oauthlib~=1.3",
+        "dt==1.1.61",
     ],
     test_suite="tests",
     classifiers=[
