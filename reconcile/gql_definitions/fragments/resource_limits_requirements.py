@@ -24,16 +24,6 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
-class ResourceRequestsRequirementsV1(ConfiguredBaseModel):
-    cpu: str = Field(..., alias="cpu")
-    memory: str = Field(..., alias="memory")
-
-
-class ResourceLimitsRequirementsV1(ConfiguredBaseModel):
+class ResourceLimitsRequirements(ConfiguredBaseModel):
     cpu: Optional[str] = Field(..., alias="cpu")
     memory: str = Field(..., alias="memory")
-
-
-class DeployResourcesFields(ConfiguredBaseModel):
-    requests: ResourceRequestsRequirementsV1 = Field(..., alias="requests")
-    limits: ResourceLimitsRequirementsV1 = Field(..., alias="limits")

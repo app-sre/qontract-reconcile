@@ -362,19 +362,19 @@ class PipelinesProviderTektonV1(PipelinesProviderV1):
     ] = Field(..., alias="pipelineTemplates")
 
 
-class ResourceRequirementsV1(ConfiguredBaseModel):
+class ResourceRequestsRequirementsV1(ConfiguredBaseModel):
     cpu: str = Field(..., alias="cpu")
     memory: str = Field(..., alias="memory")
 
 
-class DeployResourcesV1_ResourceRequirementsV1(ConfiguredBaseModel):
-    cpu: str = Field(..., alias="cpu")
+class ResourceLimitsRequirementsV1(ConfiguredBaseModel):
+    cpu: Optional[str] = Field(..., alias="cpu")
     memory: str = Field(..., alias="memory")
 
 
 class DeployResourcesV1(ConfiguredBaseModel):
-    requests: ResourceRequirementsV1 = Field(..., alias="requests")
-    limits: DeployResourcesV1_ResourceRequirementsV1 = Field(..., alias="limits")
+    requests: ResourceRequestsRequirementsV1 = Field(..., alias="requests")
+    limits: ResourceLimitsRequirementsV1 = Field(..., alias="limits")
 
 
 class SlackWorkspaceIntegrationV1(ConfiguredBaseModel):
