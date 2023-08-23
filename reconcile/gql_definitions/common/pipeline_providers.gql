@@ -28,10 +28,10 @@ query PipelineProviders {
         }
         deployResources {
           requests {
-            ... ResourceRequirements
+            ... ResourceRequestsRequirements
           }
           limits {
-            ... ResourceRequirements
+            ... ResourceLimitsRequirements
           }
         }
       }
@@ -79,10 +79,10 @@ query PipelineProviders {
       }
       deployResources {
         requests {
-          ... ResourceRequirements
+          ... ResourceRequestsRequirements
         }
         limits {
-          ... ResourceRequirements
+          ... ResourceLimitsRequirements
         }
       }
     }

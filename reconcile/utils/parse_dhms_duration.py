@@ -31,6 +31,18 @@ HANDLE_UNIT_MAP = {
 }
 
 
+def seconds_to_hms(seconds: int) -> str:
+    minutes, s = divmod(seconds, 60)
+    if minutes == 0:
+        return f"{s}s"
+
+    h, m = divmod(minutes, 60)
+    if h == 0:
+        return f"{m}m{s}s"
+
+    return f"{h}h{m}m{s}s"
+
+
 def dhms_to_seconds(time_str: str) -> int:
     """Parses durations and returns seconds. The format is a subset of Go's
     ParseDuration format, only allowing from days to seconds in resolution,

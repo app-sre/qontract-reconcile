@@ -135,18 +135,23 @@ class SaasPipelinesProviderTekton(Protocol):
         ...
 
 
-class SaasResourceRequirements(Protocol):
+class SaasResourceRequestsRequirements(Protocol):
     cpu: str
+    memory: str
+
+
+class SaasResourceLimitsRequirements(Protocol):
+    cpu: Optional[str]
     memory: str
 
 
 class SaasDeployResources(Protocol):
     @property
-    def requests(self) -> SaasResourceRequirements:
+    def requests(self) -> SaasResourceRequestsRequirements:
         ...
 
     @property
-    def limits(self) -> SaasResourceRequirements:
+    def limits(self) -> SaasResourceLimitsRequirements:
         ...
 
 

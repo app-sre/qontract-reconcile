@@ -7,7 +7,6 @@ integrations:
       cpu: 200m
     limits:
       memory: 600Mi
-      cpu: 400m
   environmentAware: true
   logs:
     slack: true
