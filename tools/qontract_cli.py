@@ -391,7 +391,7 @@ def get_upgrade_policies_data(
                 if not upgrade_spec.version_blocked(u)
             ]
 
-            current = [c for c in current_state if c.cluster == cluster.name]
+            current = [c for c in current_state if c.cluster.name == cluster.name]
             upgrade_policy = None
             if current and current[0].schedule_type == "manual":
                 upgrade_policy = current[0]
