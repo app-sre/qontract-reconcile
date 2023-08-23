@@ -973,7 +973,7 @@ def upgrade_cluster_addon(
             "cluster_id": ocm.cluster_ids[cluster],
             "upgrade_type": "ADDON",
         }
-        create_addon_upgrade_policy(ocm._ocm_client, cluster, spec)
+        create_addon_upgrade_policy(ocm._ocm_client, ocm.cluster_ids[cluster], spec)
 
 
 def has_cluster_account_access(cluster: dict[str, Any]):
