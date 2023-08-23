@@ -71,9 +71,18 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
             if isinstance(spec, ClusterAddonUpgradeSpec)
         }
         for addon_id in addons:
+            addon_org_upgrade_spec = OrganizationUpgradeSpec(
+                org=org_upgrade_spec.org,
+                specs=[
+                    spec
+                    for spec in org_upgrade_spec.specs
+                    if isinstance(spec, ClusterAddonUpgradeSpec)
+                    and spec.addon.id == addon_id
+                ],
+            )
             version_data = aus.get_version_data_map(
                 dry_run=dry_run,
-                org_upgrade_spec=org_upgrade_spec,
+                org_upgrade_spec=addon_org_upgrade_spec,
                 addon_id=addon_id,
                 integration=self.name,
             ).get(org_upgrade_spec.org.environment.name, org_upgrade_spec.org.org_id)
@@ -84,15 +93,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                     for s in current_state
                     if isinstance(s, AddonUpgradePolicy) and s.addon_id == addon_id
                 ],
-                org_upgrade_spec=OrganizationUpgradeSpec(
-                    org=org_upgrade_spec.org,
-                    specs=[
-                        spec
-                        for spec in org_upgrade_spec.specs
-                        if isinstance(spec, ClusterAddonUpgradeSpec)
-                        and spec.addon.id == addon_id
-                    ],
-                ),
+                org_upgrade_spec=addon_org_upgrade_spec,
                 ocm_api=ocm_api,
                 version_data=version_data,
                 addon_id=addon_id,
