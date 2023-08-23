@@ -1,7 +1,6 @@
 import json
 import tempfile
 from collections.abc import Mapping
-from pathlib import Path
 from subprocess import (
     CalledProcessError,
     run,
@@ -38,8 +37,7 @@ def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
                 "-f",
                 values_file.name,
             ]
-            cwd = Path(__file__).parent.parent.parent
-            result = run(cmd, capture_output=True, check=True, cwd=cwd)
+            result = run(cmd, capture_output=True, check=True)
     except CalledProcessError as e:
         msg = f'Error running helm template [{" ".join(cmd)}]'
         if e.stdout:
