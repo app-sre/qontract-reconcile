@@ -32,9 +32,7 @@ HANDLE_UNIT_MAP = {
 
 
 def seconds_to_hms(seconds: int) -> str:
-    s = seconds % 60
-
-    minutes = seconds // 60
+    minutes, s = divmod(seconds, 60)
     if minutes == 0:
         return f"{s}s"
 
