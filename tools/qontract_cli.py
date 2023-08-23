@@ -1007,8 +1007,14 @@ def clusters_network(ctx, name):
 
     for cluster in clusters:
         cluster_name = cluster["name"]
+        product = cluster.get("spec", {}).get("product", "")
         management_account = tfvpc._get_default_management_account(cluster)
-        if management_account is None:
+
+        # we shouldn't need to check if cluster product is ROSA, but currently to make
+        # accepter side work in a cluster-vpc peering we need to define the
+        # awsInfrastructureManagementAccounts, that make management_account not None
+        # See https://issues.redhat.com/browse/APPSRE-8224
+        if management_account is None or product == "rosa":
             # This is a CCS/ROSA cluster.
             # We can access the account directly, without assuming a network-mgmt role
             account = cluster["spec"]["account"]
