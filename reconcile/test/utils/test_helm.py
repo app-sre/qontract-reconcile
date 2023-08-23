@@ -36,7 +36,6 @@ def helm_integration_specs(
                     "memory": "45Mi",
                 },
                 "limits": {
-                    "cpu": "678",
                     "memory": "90Mi",
                 },
             },
@@ -197,7 +196,7 @@ def aws_shard_spec_override(
             "imageRef": "foobar",
             "resources": {
                 "requests": {"cpu": "200m", "memory": "200Mi"},
-                "limits": {"cpu": "300m", "memory": "300Mi"},
+                "limits": {"memory": "300Mi"},
             },
         },
     )
@@ -345,7 +344,6 @@ def helm_integration_specs_cron(
                     "memory": "45Mi",
                 },
                 "limits": {
-                    "cpu": "678",
                     "memory": "90Mi",
                 },
             },

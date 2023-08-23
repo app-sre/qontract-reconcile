@@ -1,6 +1,0 @@
-# qenerate: plugin=pydantic_v1
-
-fragment ResourceRequirements on ResourceRequirements_v1 {
-    cpu
-    memory
-}

@@ -20,6 +20,7 @@ objects:
       ignore-check.kube-linter.io/minimum-three-replicas: "qontract-reconcile integrations are sharded and not replicated"
       ignore-check.kube-linter.io/no-readiness-probe: "qontract-reconcile integrations are not getting traffic"
       ignore-check.kube-linter.io/no-liveness-probe: "qontract-reconcile integrations are monitored for being stuck"
+      ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
     name: qontract-reconcile-{{ $integration.name }}{{ $shard.shard_name_suffix }}
   spec:
     {{- if $integration.cache }}
@@ -67,7 +68,6 @@ objects:
               cpu: 15m
             limits:
               memory: 20Mi
-              cpu: 25m
         {{- end }}
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -78,7 +78,6 @@ objects:
               cpu: 15m
             limits:
               memory: 20Mi
-              cpu: 25m
           env:
           {{- if $logs.slack }}
           - name: SLACK_WEBHOOK_URL
@@ -459,7 +458,6 @@ objects:
               cpu: 15m
             limits:
               memory: 120Mi
-              cpu: 25m
           {{- end }}
           volumeMounts:
           - name: logs
@@ -500,6 +498,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-{{ $integration.name }}
+    annotations:
+      ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
     name: qontract-reconcile-{{ $integration.name }}
   spec:
     schedule: "{{ $integration.cron }}"

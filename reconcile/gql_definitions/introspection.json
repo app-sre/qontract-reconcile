@@ -1899,37 +1899,6 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "ocp_release_mirror_v1",
-                            "description": null,
-                            "args": [
-                                {
-                                    "name": "path",
-                                    "description": null,
-                                    "type": {
-                                        "kind": "SCALAR",
-                                        "name": "String",
-                                        "ofType": null
-                                    },
-                                    "defaultValue": null
-                                }
-                            ],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "OBJECT",
-                                        "name": "OcpReleaseMirror_v1",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
                             "name": "slo_document_v1",
                             "description": null,
                             "args": [
@@ -2431,6 +2400,37 @@
                                     "ofType": {
                                         "kind": "OBJECT",
                                         "name": "StatusBoard_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "dynatrace_environment_v1",
+                            "description": null,
+                            "args": [
+                                {
+                                    "name": "path",
+                                    "description": null,
+                                    "type": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    },
+                                    "defaultValue": null
+                                }
+                            ],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "DynatraceEnvironment_v1",
                                         "ofType": null
                                     }
                                 }
@@ -3849,6 +3849,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "dynatraceEnvironment",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "DynatraceEnvironment_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "spec",
                             "description": null,
                             "args": [],
@@ -4507,6 +4519,18 @@
                         },
                         {
                             "name": "delete",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "enableDynatraceLogging",
                             "description": null,
                             "args": [],
                             "type": {
@@ -14343,6 +14367,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "issueType",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "issueResolveState",
                             "description": null,
                             "args": [],
@@ -17426,7 +17462,7 @@
                                 "name": null,
                                 "ofType": {
                                     "kind": "OBJECT",
-                                    "name": "ResourceRequirements_v1",
+                                    "name": "ResourceRequestsRequirements_v1",
                                     "ofType": null
                                 }
                             },
@@ -17442,7 +17478,7 @@
                                 "name": null,
                                 "ofType": {
                                     "kind": "OBJECT",
-                                    "name": "ResourceRequirements_v1",
+                                    "name": "ResourceLimitsRequirements_v1",
                                     "ofType": null
                                 }
                             },
@@ -17457,7 +17493,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "ResourceRequirements_v1",
+                    "name": "ResourceRequestsRequirements_v1",
                     "description": null,
                     "fields": [
                         {
@@ -17472,6 +17508,45 @@
                                     "name": "String",
                                     "ofType": null
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "memory",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "ResourceLimitsRequirements_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "cpu",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -19625,6 +19700,97 @@
                                 "kind": "SCALAR",
                                 "name": "JSON",
                                 "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "DynatraceEnvironment_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "schema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "description",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "environmentUrl",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -22520,8 +22686,8 @@
                                 "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
+                                    "kind": "OBJECT",
+                                    "name": "VaultAuth_v1",
                                     "ofType": null
                                 }
                             },
@@ -25782,129 +25948,6 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "OcpReleaseMirror_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "hiveCluster",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "Cluster_v1",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "ecrResourcesNamespace",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "Namespace_v1",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "ocpReleaseEcrIdentifier",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "ocpArtDevEcrIdentifier",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "quayTargetOrgs",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "LIST",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "NON_NULL",
-                                        "name": null,
-                                        "ofType": {
-                                            "kind": "OBJECT",
-                                            "name": "QuayOrg_v1",
-                                            "ofType": null
-                                        }
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "mirrorChannels",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "LIST",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "NON_NULL",
-                                        "name": null,
-                                        "ofType": {
-                                            "kind": "SCALAR",
-                                            "name": "String",
-                                            "ofType": null
-                                        }
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
                     "name": "Scorecard_v2",
                     "description": null,
                     "fields": [
@@ -28053,8 +28096,8 @@
                                         "kind": "NON_NULL",
                                         "name": null,
                                         "ofType": {
-                                            "kind": "SCALAR",
-                                            "name": "String",
+                                            "kind": "OBJECT",
+                                            "name": "VaultPolicy_v1",
                                             "ofType": null
                                         }
                                     }
@@ -28077,8 +28120,8 @@
                                         "kind": "NON_NULL",
                                         "name": null,
                                         "ofType": {
-                                            "kind": "SCALAR",
-                                            "name": "String",
+                                            "kind": "OBJECT",
+                                            "name": "VaultPolicy_v1",
                                             "ofType": null
                                         }
                                     }
@@ -28450,8 +28493,8 @@
                                         "kind": "NON_NULL",
                                         "name": null,
                                         "ofType": {
-                                            "kind": "SCALAR",
-                                            "name": "String",
+                                            "kind": "OBJECT",
+                                            "name": "VaultPolicy_v1",
                                             "ofType": null
                                         }
                                     }
@@ -28747,8 +28790,8 @@
                                         "kind": "NON_NULL",
                                         "name": null,
                                         "ofType": {
-                                            "kind": "SCALAR",
-                                            "name": "String",
+                                            "kind": "OBJECT",
+                                            "name": "VaultPolicy_v1",
                                             "ofType": null
                                         }
                                     }

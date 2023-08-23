@@ -14,6 +14,7 @@ objects:
       ignore-check.kube-linter.io/minimum-three-replicas: "qontract-reconcile integrations are sharded and not replicated"
       ignore-check.kube-linter.io/no-readiness-probe: "qontract-reconcile integrations are not getting traffic"
       ignore-check.kube-linter.io/no-liveness-probe: "qontract-reconcile integrations are monitored for being stuck"
+      ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
     name: qontract-reconcile-integ
   spec:
     revisionHistoryLimit: 50
@@ -45,7 +46,6 @@ objects:
               cpu: 15m
             limits:
               memory: 20Mi
-              cpu: 25m
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -55,7 +55,6 @@ objects:
               cpu: 15m
             limits:
               memory: 20Mi
-              cpu: 25m
           env:
           - name: LOG_GROUP_NAME
             valueFrom:
@@ -158,7 +157,6 @@ objects:
             value: "${KUBE_SA_TOKEN_MOUNT_PATH}/${KUBE_SA_TOKEN_FILENAME}"
           resources:
             limits:
-              cpu: ${INTEG_CPU_LIMIT}
               memory: ${INTEG_MEMORY_LIMIT}
             requests:
               cpu: ${INTEG_CPU_REQUEST}
@@ -197,7 +195,6 @@ objects:
               cpu: 15m
             limits:
               memory: 120Mi
-              cpu: 25m
           volumeMounts:
           - name: logs
             mountPath: /fluentd/log/
@@ -304,8 +301,6 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
-- name: INTEG_CPU_LIMIT
-  value: 678
 - name: INTEG_MEMORY_LIMIT
   value: 90Mi
 - name: INTEG_CPU_REQUEST

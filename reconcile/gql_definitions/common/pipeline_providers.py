@@ -20,8 +20,11 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 from reconcile.gql_definitions.fragments.jumphost_common_fields import (
     CommonJumphostFields,
 )
-from reconcile.gql_definitions.fragments.resource_requirements import (
-    ResourceRequirements,
+from reconcile.gql_definitions.fragments.resource_limits_requirements import (
+    ResourceLimitsRequirements,
+)
+from reconcile.gql_definitions.fragments.resource_requests_requirements import (
+    ResourceRequestsRequirements,
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -38,7 +41,12 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   }
 }
 
-fragment ResourceRequirements on ResourceRequirements_v1 {
+fragment ResourceLimitsRequirements on ResourceLimitsRequirements_v1 {
+    cpu
+    memory
+}
+
+fragment ResourceRequestsRequirements on ResourceRequestsRequirements_v1 {
     cpu
     memory
 }
@@ -78,10 +86,10 @@ query PipelineProviders {
         }
         deployResources {
           requests {
-            ... ResourceRequirements
+            ... ResourceRequestsRequirements
           }
           limits {
-            ... ResourceRequirements
+            ... ResourceLimitsRequirements
           }
         }
       }
@@ -129,10 +137,10 @@ query PipelineProviders {
       }
       deployResources {
         requests {
-          ... ResourceRequirements
+          ... ResourceRequestsRequirements
         }
         limits {
-          ... ResourceRequirements
+          ... ResourceLimitsRequirements
         }
       }
     }
@@ -186,8 +194,8 @@ class PipelinesProviderPipelineTemplatesV1(ConfiguredBaseModel):
 
 
 class DeployResourcesV1(ConfiguredBaseModel):
-    requests: ResourceRequirements = Field(..., alias="requests")
-    limits: ResourceRequirements = Field(..., alias="limits")
+    requests: ResourceRequestsRequirements = Field(..., alias="requests")
+    limits: ResourceLimitsRequirements = Field(..., alias="limits")
 
 
 class PipelinesProviderTektonProviderDefaultsV1(ConfiguredBaseModel):
@@ -265,8 +273,8 @@ class PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1(
 
 
 class PipelinesProviderTektonV1_DeployResourcesV1(ConfiguredBaseModel):
-    requests: ResourceRequirements = Field(..., alias="requests")
-    limits: ResourceRequirements = Field(..., alias="limits")
+    requests: ResourceRequestsRequirements = Field(..., alias="requests")
+    limits: ResourceLimitsRequirements = Field(..., alias="limits")
 
 
 class PipelinesProviderTektonV1(PipelinesProviderV1):
