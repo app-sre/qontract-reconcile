@@ -7,6 +7,7 @@ import sys
 from collections.abc import (
     Iterable,
     Mapping,
+    Sequence,
 )
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -922,12 +923,21 @@ def fetch_data(
 
 
 def filter_namespaces_by_cluster_and_namespace(
-    namespaces, cluster_name, namespace_name
+    namespaces,
+    cluster_names: Optional[Iterable[str]],
+    exclude_clusters: Optional[Iterable[str]],
+    namespace_name: Optional[str],
 ):
-    if cluster_name:
-        namespaces = [n for n in namespaces if n["cluster"]["name"] == cluster_name]
+    if cluster_names:
+        namespaces = [n for n in namespaces if n["cluster"]["name"] in cluster_names]
+    elif exclude_clusters:
+        namespaces = [
+            n for n in namespaces if n["cluster"]["name"] not in exclude_clusters
+        ]
+
     if namespace_name:
         namespaces = [n for n in namespaces if n["name"] == namespace_name]
+
     return namespaces
 
 
@@ -968,7 +978,8 @@ def canonicalize_namespaces(
 
 def get_namespaces(
     providers: Optional[list[str]] = None,
-    cluster_name: Optional[str] = None,
+    cluster_names: Optional[Iterable[str]] = None,
+    exclude_clusters: Optional[Iterable[str]] = None,
     namespace_name: Optional[str] = None,
     resource_schema_filter: Optional[str] = None,
     filter_by_shard: Optional[bool] = True,
@@ -988,7 +999,7 @@ def get_namespaces(
         )
     ]
     namespaces = filter_namespaces_by_cluster_and_namespace(
-        namespaces, cluster_name, namespace_name
+        namespaces, cluster_names, exclude_clusters, namespace_name
     )
     return canonicalize_namespaces(namespaces, providers, resource_schema_filter)
 
@@ -1000,13 +1011,33 @@ def run(
     internal=None,
     use_jump_host=True,
     providers=None,
-    cluster_name=None,
+    cluster_name: Optional[Sequence[str]] = None,
+    exclude_cluster: Optional[Sequence[str]] = None,
     namespace_name=None,
     init_api_resources=False,
     defer=None,
 ):
+    # https://click.palletsprojects.com/en/8.1.x/options/#multiple-options
+    cluster_names = cluster_name
+    exclude_clusters = exclude_cluster
+
+    if exclude_cluster and not dry_run:
+        raise RuntimeError("--exclude-cluster is only supported in dry-run mode")
+
+    if exclude_cluster and cluster_name:
+        raise RuntimeError(
+            "--cluster-name and --exclude-cluster can not be used together"
+        )
+    if cluster_names and len(cluster_names) > 1 and not dry_run:
+        raise RuntimeError(
+            "Running with multiple clusters is only supported in dry-run mode"
+        )
+
     namespaces, overrides = get_namespaces(
-        providers=providers, cluster_name=cluster_name, namespace_name=namespace_name
+        providers=providers,
+        cluster_names=cluster_names,
+        exclude_clusters=exclude_clusters,
+        namespace_name=namespace_name,
     )
     if not namespaces:
         logging.info(
@@ -1050,7 +1081,7 @@ class CheckNamespaceResources(Protocol):
 class CheckClusterScopedResourceNames:
     oc_map: OC_Map
     ri: ResourceInventory
-    namespaces: list[Mapping[str, Any]]
+    namespaces: Iterable[Mapping[str, Any]]
 
     def check(self) -> list[Exception]:
         errors: list[Exception] = []
@@ -1099,7 +1130,7 @@ class CheckClusterScopedResourceNames:
 @dataclass
 class CheckClusterScopedResourceDuplicates:
     oc_map: OC_Map
-    all_namespaces: Optional[list[Mapping]] = None
+    all_namespaces: Optional[Iterable[Mapping]] = None
 
     def check(self) -> list[Exception]:
         errors: list[Exception] = []
@@ -1146,8 +1177,8 @@ class CheckClusterScopedResourceDuplicates:
 def check_cluster_scoped_resources(
     oc_map: OC_Map,
     ri: ResourceInventory,
-    namespaces: list[Mapping[str, Any]],
-    all_namespaces: Optional[list[Mapping[str, Any]]] = None,
+    namespaces: Iterable[Mapping[str, Any]],
+    all_namespaces: Optional[Iterable[Mapping[str, Any]]] = None,
 ) -> bool:
     checks = [
         CheckClusterScopedResourceNames(oc_map, ri, namespaces),
@@ -1325,6 +1356,7 @@ def _early_exit_monkey_patch_assign(
 def desired_state_shard_config() -> DesiredStateShardConfig:
     return DesiredStateShardConfig(
         shard_arg_name="cluster_name",
+        shard_arg_is_collection=True,
         shard_path_selectors={
             "namespaces[*].cluster.name",
             "resources[*].cluster",
