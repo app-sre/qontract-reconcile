@@ -1,7 +1,11 @@
 import logging
 import sys
 from datetime import timedelta
-from typing import Optional
+from typing import (
+    Mapping,
+    Optional,
+    Union,
+)
 
 from dynatrace import Dynatrace
 from dynatrace.environment_v2.tokens_api import ApiTokenCreated
@@ -23,10 +27,18 @@ from reconcile.utils.ocm.base import (
     OCMClusterServiceLogCreateModel,
     OCMServiceLogSeverity,
 )
-from reconcile.utils.ocm.clusters import discover_clusters_by_labels
+from reconcile.utils.ocm.clusters import (
+    ClusterDetails,
+    discover_clusters_by_labels,
+)
 from reconcile.utils.ocm.labels import subscription_label_filter
 from reconcile.utils.ocm.service_log import create_service_log
 from reconcile.utils.ocm.sre_capability_labels import sre_capability_label_key
+from reconcile.utils.ocm.syncsets import (
+    create_syncset,
+    get_syncset,
+    patch_syncset,
+)
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
     init_ocm_base_client,
@@ -35,9 +47,12 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "dynatrace-token-provider"
-SyncSet_ID = "ext-dynatrace-tokens"
+SYNCSET_ID = "ext-dynatrace-tokens"
+DYNATRACE_INGESTION_TOKEN_NAME = "dynatrace-ingestion-token"
+DYNATRACE_OPERATOR_TOKEN_NAME = "dynatrace-operator-token"
 
 
 class DynatraceTokenProviderIntegrationParams(PydanticRunParams):
@@ -108,181 +123,37 @@ class DynatraceTokenProviderIntegration(
                         "key", dtp_label_key("%")
                     ),
                 )
+                if not clusters:
+                    continue
+                if self.params.ocm_organization_ids:
+                    clusters = [
+                        cluster
+                        for cluster in clusters
+                        if cluster.organization_id in self.params.ocm_organization_ids
+                    ]
+                dt_clients = self.get_dynatrace_clients(self.secret_reader)
 
                 for cluster in clusters:
-                    with DTPOrganizationErrorRate(
-                        integration=self.name,
-                        ocm_env=env.name,
-                        org_id=cluster.organization_id,
-                    ):
-                        if self.params.ocm_organization_ids:
-                            if (
-                                cluster.organization_id
-                                not in self.params.ocm_organization_ids
-                            ):
-                                continue
-
-                        if cluster.labels:
-                            dt_tenant_id = cluster.labels.get_label_value(
-                                f"{dtp_label_key('')}.tenant"
+                    try:
+                        with DTPOrganizationErrorRate(
+                            integration=self.name,
+                            ocm_env=env.name,
+                            org_id=cluster.organization_id,
+                        ):
+                            tenant_id = cluster.labels.get_label_value(
+                                f"{dtp_label_key(None)}.tenant"
                             )
-                            dt_bootstrap_token = self.secret_reader.read(
-                                {
-                                    "path": f"app-sre/creds/dynatrace/redhat-aws/bootstrap-api-tokens/{dt_tenant_id}",
-                                    "field": "token",
-                                }
-                            )
-
-                            dt_client = Dynatrace(
-                                f"https://{dt_tenant_id}.live.dynatrace.com/",
-                                dt_bootstrap_token,
-                            )
-
-                            if cluster.ocm_cluster.external_configuration:
-                                syncset_path = (
-                                    cluster.ocm_cluster.external_configuration.syncsets[
-                                        "href"
-                                    ]
-                                )
-                            else:
-                                unhandled_exceptions.append(
-                                    f"{env}/{cluster.organization_id}: Failed to get cluster's external_configuration"
-                                )
-
-                            try:
-                                existing_syncsets = ocm_client.get(syncset_path)
-                            except Exception as e:
-                                _expose_errors_as_service_log(
+                            if tenant_id:
+                                self.process_cluster(
+                                    dry_run,
+                                    cluster,
+                                    dt_clients[tenant_id],
                                     ocm_client,
-                                    cluster.ocm_cluster.external_id,
-                                    str(e.args),
                                 )
-                                unhandled_exceptions.append(
-                                    f"{env}/{cluster.organization_id}: {e}"
-                                )
-
-                            ingestion_token = None
-                            operator_token = None
-
-                            if existing_syncsets["size"] == 0 or not [
-                                dt_token_syncset
-                                for dt_token_syncset in existing_syncsets["items"]
-                                if dt_token_syncset["id"] == "ext-dynatrace-tokens"
-                            ]:
-                                if not dry_run:
-                                    (
-                                        ingestion_token,
-                                        operator_token,
-                                    ) = self.create_dynatrace_tokens(
-                                        dt_client, cluster.ocm_cluster.external_id
-                                    )
-                                    logging.info(
-                                        f"Tokens: {ingestion_token.id},{operator_token.id} created in Dynatrace environment: {dt_tenant_id}"
-                                    )
-                                else:
-                                    logging.info(
-                                        f"Would have created ingestion and operation token in Dynatrace environment: {dt_tenant_id}"
-                                    )
-
-                            if existing_syncsets["size"] > 0:
-                                for existing_syncset in existing_syncsets["items"]:
-                                    if existing_syncset["id"] == SyncSet_ID:
-                                        for resource in existing_syncset["resources"]:
-                                            if resource["kind"] == "Secret":
-                                                token_id = resource["data"]["id"]
-                                                try:
-                                                    dt_client.tokens.get(token_id)
-                                                except Exception as e:
-                                                    if "does not exist" in e.args[0]:
-                                                        if (
-                                                            "ingestion"
-                                                            in resource["metadata"][
-                                                                "name"
-                                                            ]
-                                                        ):
-                                                            if not dry_run:
-                                                                ingestion_token = self.create_dynatrace_ingestion_token(
-                                                                    dt_client,
-                                                                    cluster.ocm_cluster.external_id,
-                                                                )
-                                                                logging.info(
-                                                                    f"Token: {ingestion_token.id} created in Dynatrace environment: {dt_tenant_id}"
-                                                                )
-                                                            else:
-                                                                logging.info(
-                                                                    "Would create ingestion token in Dynatrace"
-                                                                )
-                                                        elif (
-                                                            "operator"
-                                                            in resource["metadata"][
-                                                                "name"
-                                                            ]
-                                                        ):
-                                                            if not dry_run:
-                                                                operator_token = self.create_dynatrace_operator_token(
-                                                                    dt_client,
-                                                                    cluster.ocm_cluster.external_id,
-                                                                )
-                                                                logging.info(
-                                                                    f"Token: {operator_token.id} created in Dynatrace environment: {dt_tenant_id}"
-                                                                )
-                                                            else:
-                                                                logging.info(
-                                                                    "Would create operator token in Dynatrace"
-                                                                )
-                                                    unhandled_exceptions.append(
-                                                        f"{env}/{cluster.organization_id}: {e}"
-                                                    )
-                                        break
-
-                            if ingestion_token and operator_token:
-                                if not dry_run:
-                                    syncset_to_be_created = {
-                                        "kind": "SyncSet",
-                                        "id": "ext-dynatrace-tokens",
-                                        "resources": [
-                                            {
-                                                "apiVersion": "v1",
-                                                "kind": "Secret",
-                                                "metadata": {
-                                                    "name": "dynatrace-ingestion-token"
-                                                },
-                                                "data": {
-                                                    "id": f"{ingestion_token.id}",
-                                                    "token": "ingestion_token.token",
-                                                },
-                                            },
-                                            {
-                                                "apiVersion": "v1",
-                                                "kind": "Secret",
-                                                "namespace": "dynatrace",
-                                                "metadata": {
-                                                    "name": "dynatrace-operator-token"
-                                                },
-                                                "data": {
-                                                    "id": f"{operator_token.id}",
-                                                    "token": "operator_token.token",
-                                                },
-                                            },
-                                        ],
-                                    }
-                                else:
-                                    logging.info("Would have constructed SyncSet")
-                            if not dry_run:
-                                try:
-                                    ocm_client.post(syncset_path, syncset_to_be_created)
-                                    logging.info(f"Created SyncSet {SyncSet_ID}")
-                                except Exception as e:
-                                    _expose_errors_as_service_log(
-                                        ocm_client,
-                                        cluster.ocm_cluster.external_id,
-                                        str(e.args),
-                                    )
-                                    unhandled_exceptions.append(
-                                        f"{env}/{cluster.organization_id}: {e}"
-                                    )
-                            else:
-                                logging.info(f"Would have created SyncSet {SyncSet_ID}")
+                    except Exception as e:
+                        unhandled_exceptions.append(
+                            f"{env}/{cluster.organization_id}/{cluster.ocm_cluster.external_id}: {e}"
+                        )
 
         if unhandled_exceptions:
             raise ReconcileErrorSummary(unhandled_exceptions)
@@ -290,6 +161,135 @@ class DynatraceTokenProviderIntegration(
 
     def get_ocm_environments(self) -> list[OCMEnvironment]:
         return ocm_environment_query(gql.get_api().query).environments
+
+    def get_dynatrace_tenants(self) -> list[str]:
+        return ["ddl70254"]
+
+    def get_dynatrace_clients(
+        self, secret_reader: SecretReaderBase
+    ) -> Mapping[str, Dynatrace]:
+        tenant_ids = self.get_dynatrace_tenants()
+        dynatrace_clients = {}
+        for tenant_id in tenant_ids:
+            dt_bootstrap_token = secret_reader.read(
+                {
+                    "path": f"app-sre/creds/dynatrace/redhat-aws/bootstrap-api-tokens/{tenant_id}",
+                    "field": "token",
+                }
+            )
+            dt_client = Dynatrace(
+                f"https://{tenant_id}.live.dynatrace.com/",
+                dt_bootstrap_token,
+            )
+            dynatrace_clients[tenant_id] = dt_client
+        return dynatrace_clients
+
+    def process_cluster(
+        self,
+        dry_run: bool,
+        cluster: ClusterDetails,
+        dt_client: Dynatrace,
+        ocm_client: OCMBaseClient,
+    ) -> None:
+        existing_syncset = self.get_syncset(ocm_client, cluster)
+        if not existing_syncset:
+            if not dry_run:
+                (ingestion_token, operator_token) = self.create_dynatrace_tokens(
+                    dt_client, cluster.ocm_cluster.external_id
+                )
+                try:
+                    create_syncset(
+                        ocm_client,
+                        cluster.ocm_cluster.id,
+                        self.construct_syncset(ingestion_token, operator_token),
+                    )
+                except Exception as e:
+                    _expose_errors_as_service_log(
+                        ocm_client,
+                        cluster.ocm_cluster.external_id,
+                        f"DTP can't create Syncset {str(e.args)}",
+                    )
+            logging.info(
+                f"Ingestion and operator tokens created in Dynatrace for cluster {cluster.ocm_cluster.external_id}."
+            )
+            logging.info(
+                f"SyncSet {SYNCSET_ID} created in cluster {cluster.ocm_cluster.external_id}."
+            )
+        else:
+            tokens = self.get_tokens_from_cluster(existing_syncset)
+            for token_name, token_id in tokens.items():
+                if not self.token_exist_in_dynatrace(dt_client, token_id):
+                    if token_name == DYNATRACE_INGESTION_TOKEN_NAME:
+                        if not dry_run:
+                            ingestion_token = self.create_dynatrace_ingestion_token(
+                                dt_client, cluster.ocm_cluster.external_id
+                            )
+                        logging.info(
+                            f"Ingestion token created in Dynatrace for cluster {cluster.ocm_cluster.external_id}."
+                        )
+                    elif token_name == DYNATRACE_OPERATOR_TOKEN_NAME:
+                        if not dry_run:
+                            operator_token = self.create_dynatrace_operator_token(
+                                dt_client, cluster.ocm_cluster.external_id
+                            )
+                        logging.info(
+                            f"Operator token created in Dynatrace for cluster {cluster.ocm_cluster.external_id}."
+                        )
+                    # TODO: Figure out how ocm patch work, currently getting an error.
+
+    def get_syncset(sef, ocm_client: OCMBaseClient, cluster: ClusterDetails) -> Mapping:
+        try:
+            syncset = get_syncset(ocm_client, cluster.ocm_cluster.id, SYNCSET_ID)
+        except Exception as e:
+            if "Not Found" in e.args[0]:
+                syncset = None
+        return syncset
+
+    def token_exist_in_dynatrace(self, dt_client: Dynatrace, token_id: str) -> bool:
+        try:
+            result = dt_client.tokens.get(token_id)
+        except Exception as e:
+            if "does not exist" in e.args[0]:
+                result = None
+        return True if result else False
+
+    def get_tokens_from_cluster(self, syncset: Mapping) -> Mapping:
+        tokens = {}
+        for resource in syncset["resources"]:
+            if resource["kind"] == "Secret":
+                token_id = resource["data"]["id"]
+                token_name = resource["metadata"]["name"]
+                tokens[token_name] = token_id
+        return tokens
+
+    def construct_syncset(
+        self, ingestion_token: ApiTokenCreated, operator_token: ApiTokenCreated
+    ) -> Mapping:
+        return {
+            "kind": "SyncSet",
+            "id": SYNCSET_ID,
+            "resources": [
+                {
+                    "apiVersion": "v1",
+                    "kind": "Secret",
+                    "metadata": {"name": DYNATRACE_INGESTION_TOKEN_NAME},
+                    "data": {
+                        "id": f"{ingestion_token.id}",
+                        "token": "ingestion_token.token",
+                    },
+                },
+                {
+                    "apiVersion": "v1",
+                    "kind": "Secret",
+                    "namespace": "dynatrace",
+                    "metadata": {"name": DYNATRACE_OPERATOR_TOKEN_NAME},
+                    "data": {
+                        "id": f"{operator_token.id}",
+                        "token": "operator_token.token",
+                    },
+                },
+            ],
+        }
 
     def create_dynatrace_ingestion_token(
         self, dt_client: Dynatrace, cluster_uuid: str
@@ -322,7 +322,7 @@ class DynatraceTokenProviderIntegration(
         return (ingestion_token, operation_token)
 
 
-def dtp_label_key(config_atom: str) -> str:
+def dtp_label_key(config_atom: Union[str, None]) -> str:
     return sre_capability_label_key("dtp", config_atom)
 
 
