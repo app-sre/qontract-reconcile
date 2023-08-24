@@ -34,10 +34,9 @@ from reconcile.utils.ocm.clusters import (
 from reconcile.utils.ocm.labels import subscription_label_filter
 from reconcile.utils.ocm.service_log import create_service_log
 from reconcile.utils.ocm.sre_capability_labels import sre_capability_label_key
-from reconcile.utils.ocm.syncsets import (
+from reconcile.utils.ocm.syncsets import (  # patch_syncset,
     create_syncset,
     get_syncset,
-    patch_syncset,
 )
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
@@ -237,7 +236,7 @@ class DynatraceTokenProviderIntegration(
                         )
                     # TODO: Figure out how ocm patch work, currently getting an error.
 
-    def get_syncset(sef, ocm_client: OCMBaseClient, cluster: ClusterDetails) -> Mapping:
+    def get_syncset(self, ocm_client: OCMBaseClient, cluster: ClusterDetails) -> Mapping:
         try:
             syncset = get_syncset(ocm_client, cluster.ocm_cluster.id, SYNCSET_ID)
         except Exception as e:
