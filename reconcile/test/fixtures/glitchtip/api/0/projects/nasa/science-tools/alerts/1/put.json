@@ -1,0 +1,8 @@
+{
+  "pk": 1,
+  "name": "foobar",
+  "timespan_minutes": 1,
+  "quantity": 1,
+  "uptime": false,
+  "alertRecipients": []
+}

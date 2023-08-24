@@ -16,7 +16,12 @@ from reconcile.utils.glitchtip import (
     User,
 )
 from reconcile.utils.glitchtip.client import get_next_url
-from reconcile.utils.glitchtip.models import ProjectKey
+from reconcile.utils.glitchtip.models import (
+    ProjectAlert,
+    ProjectAlertRecipient,
+    ProjectKey,
+    RecipientType,
+)
 
 
 @pytest.mark.parametrize(
@@ -260,6 +265,60 @@ def test_glitchtip_update_project(glitchtip_client: GlitchtipClient) -> None:
 
 def test_glitchtip_delete_project(glitchtip_client: GlitchtipClient) -> None:
     glitchtip_client.delete_project(organization_slug="nasa", slug="science-tools")
+
+
+def test_glitchtip_project_alerts(glitchtip_client: GlitchtipClient) -> None:
+    assert glitchtip_client.project_alerts(
+        organization_slug="nasa", project_slug="science-tools"
+    ) == [
+        ProjectAlert(
+            pk=14,
+            name="alert-2",
+            timespan_minutes=2000,
+            quantity=1000,
+            recipients=[
+                ProjectAlertRecipient(
+                    pk=20,
+                    recipient_type=RecipientType.WEBHOOK,
+                    url="https://example.com",
+                )
+            ],
+        ),
+        ProjectAlert(
+            pk=7,
+            name="alert-1",
+            timespan_minutes=1000,
+            quantity=1000,
+            recipients=[
+                ProjectAlertRecipient(pk=8, recipient_type=RecipientType.EMAIL, url="")
+            ],
+        ),
+    ]
+
+
+def test_glitchtip_create_project_alert(glitchtip_client: GlitchtipClient) -> None:
+    alert = glitchtip_client.create_project_alert(
+        organization_slug="nasa",
+        project_slug="science-tools",
+        alert=ProjectAlert(name="test", timespan_minutes=1, quantity=1),
+    )
+    assert alert.pk == 1
+
+
+def test_glitchtip_update_project_alert(glitchtip_client: GlitchtipClient) -> None:
+    alert = glitchtip_client.update_project_alert(
+        organization_slug="nasa",
+        project_slug="science-tools",
+        alert=ProjectAlert(pk=1, name="foobar", timespan_minutes=1, quantity=1),
+    )
+    assert alert.pk == 1
+    assert alert.name == "foobar"
+
+
+def test_glitchtip_delete_project_alert(glitchtip_client: GlitchtipClient) -> None:
+    glitchtip_client.delete_project_alert(
+        organization_slug="nasa", project_slug="science-tools", alert_pk=1
+    )
 
 
 def test_glitchtip_add_project_to_team(glitchtip_client: GlitchtipClient) -> None:

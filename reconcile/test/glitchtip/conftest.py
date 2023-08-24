@@ -64,6 +64,8 @@ def glitchtip_server_full_api_response(
             "api/0/organizations/nasa/members/29/teams/nasa-pilots/",
             "api/0/projects/nasa/science-tools/teams/nasa-flight-control/",
             "api/0/projects/nasa/science-tools/",
+            "api/0/projects/nasa/science-tools/alerts/",
+            "api/0/projects/nasa/science-tools/alerts/1/",
             "api/0/teams/esa/esa-pilots/",
             "api/0/teams/esa/esa-pilots/members/",
             "api/0/teams/esa/esa-flight-control/members/",
