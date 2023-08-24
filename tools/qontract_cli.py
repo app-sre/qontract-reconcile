@@ -2416,7 +2416,7 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
 
     namespace_with_prom_rules, _ = orb.get_namespaces(
         ["prometheus-rule"],
-        cluster_names=[cluster] if cluster else [],
+        cluster_name=cluster,
         namespace_name=namespace,
     )
 

@@ -124,7 +124,7 @@ def get_rules_and_tests(
     """Iterates through all namespaces and returns a list of tests to run"""
     namespace_with_prom_rules, _ = orb.get_namespaces(
         PROVIDERS,
-        cluster_names=[cluster_name] if cluster_name else [],
+        cluster_name=cluster_name,
         namespace_name=NAMESPACE_NAME,
     )
 
