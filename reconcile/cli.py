@@ -1039,8 +1039,8 @@ def openshift_resources(
         thread_pool_size,
         internal,
         use_jump_host,
-        cluster_name,
-        exclude_cluster,
+        cluster_name=cluster_name,
+        exclude_cluster=exclude_cluster,
         namespace_name=namespace_name,
     )
 
