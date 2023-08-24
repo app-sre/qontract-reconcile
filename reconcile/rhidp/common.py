@@ -111,6 +111,9 @@ def get_clusters(
     clusters: list[ClusterV1] = []
 
     for c in data.clusters or []:
+        if not c.console_url:
+            # without a console url we can't calculate the redirect url ... skip it for a moment
+            continue
         if not integration_is_enabled(integration_name, c):
             # integration disabled for this particular cluster
             continue
