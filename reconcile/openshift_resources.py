@@ -16,6 +16,7 @@ def run(
     internal=None,
     use_jump_host=True,
     cluster_name=None,
+    exclude_cluster=None,
     namespace_name=None,
     defer=None,
 ):
@@ -29,6 +30,7 @@ def run(
         use_jump_host=use_jump_host,
         providers=PROVIDERS,
         cluster_name=cluster_name,
+        exclude_cluster=exclude_cluster,
         namespace_name=namespace_name,
         init_api_resources=True,
     )
