@@ -29,7 +29,7 @@ def get_next_url(links: dict[str, dict[str, str]]) -> Optional[str]:
     return None
 
 
-class GlitchtipClient:
+class GlitchtipClient:  # pylint: disable=too-many-public-methods
     def __init__(
         self, host: str, token: str, max_retries: int = 3, read_timeout: float = 30
     ) -> None:
