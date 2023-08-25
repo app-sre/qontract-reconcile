@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from collections.abc import (
     Callable,
     Iterable,
@@ -196,7 +197,13 @@ class GlitchtipProjectAlertsIntegration(
         glitchtip_instances = glitchtip_instance_query(
             query_func=gqlapi.query
         ).instances
-        glitchtip_projects = self.get_projects(query_func=gqlapi.query)
+        glitchtip_projects_by_instance: dict[
+            str, list[GlitchtipProjectsV1]
+        ] = defaultdict(list)
+        for glitchtip_project in self.get_projects(query_func=gqlapi.query):
+            glitchtip_projects_by_instance[
+                glitchtip_project.organization.instance.name
+            ].append(glitchtip_project)
 
         for glitchtip_instance in glitchtip_instances:
             if self.params.instance and glitchtip_instance.name != self.params.instance:
@@ -212,10 +219,8 @@ class GlitchtipProjectAlertsIntegration(
             )
             current_state = self.fetch_current_state(glitchtip_client=glitchtip_client)
             desired_state = self.fetch_desired_state(
-                glitchtip_projects=[
-                    p
-                    for p in glitchtip_projects
-                    if p.organization.instance.name == glitchtip_instance.name
+                glitchtip_projects=glitchtip_projects_by_instance[
+                    glitchtip_instance.name
                 ]
             )
             self.reconcile(
