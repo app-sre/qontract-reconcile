@@ -8,7 +8,10 @@ from reconcile.utils.glitchtip import (
     Project,
     Team,
 )
-from reconcile.utils.glitchtip.models import slugify
+from reconcile.utils.glitchtip.models import (
+    ProjectAlert,
+    slugify,
+)
 
 
 @pytest.mark.parametrize(
@@ -43,3 +46,8 @@ def test_model_team(team_kwargs: Mapping[str, str]) -> None:
     team = Team(**team_kwargs)
     assert team.name == slug
     assert team.slug == slug
+
+
+def test_model_project_alert_empty_name() -> None:
+    p = ProjectAlert(pk=1, name="", timespan_minutes=1, quantity=1)
+    assert p.name == "alert-1"

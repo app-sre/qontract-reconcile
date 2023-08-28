@@ -73,6 +73,13 @@ def glitchtip_server_full_api_response(
             # glitchtip-project-dsn
             "api/0/projects/nasa/apollo-11-flight-control/keys/",
             "api/0/organizations/empty-org/projects/",
+            # project-alerts
+            "api/0/projects/nasa/science-tools/alerts/",
+            "api/0/projects/nasa/science-tools/alerts/1/",
+            "api/0/projects/esa/rosetta-flight-control/alerts/",
+            "api/0/projects/esa/rosetta-spacecraft/alerts/",
+            "api/0/projects/nasa/apollo-11-flight-control/alerts/",
+            "api/0/projects/nasa/apollo-11-spacecraft/alerts/",
         ],
     )
 

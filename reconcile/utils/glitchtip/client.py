@@ -10,6 +10,7 @@ import requests
 from reconcile.utils.glitchtip.models import (
     Organization,
     Project,
+    ProjectAlert,
     ProjectKey,
     Team,
     User,
@@ -28,7 +29,7 @@ def get_next_url(links: dict[str, dict[str, str]]) -> Optional[str]:
     return None
 
 
-class GlitchtipClient:
+class GlitchtipClient:  # pylint: disable=too-many-public-methods
     def __init__(
         self, host: str, token: str, max_retries: int = 3, read_timeout: float = 30
     ) -> None:
@@ -94,7 +95,8 @@ class GlitchtipClient:
         return response.json()
 
     def _delete(self, url: str) -> None:
-        self._session.delete(urljoin(self.host, url), timeout=None)
+        response = self._session.delete(urljoin(self.host, url), timeout=None)
+        response.raise_for_status()
 
     def organizations(self) -> list[Organization]:
         """List organizations."""
@@ -171,6 +173,47 @@ class GlitchtipClient:
         # always return the first key
         return ProjectKey(
             dsn=keys[0]["dsn"]["public"], security_endpoint=keys[0]["dsn"]["security"]
+        )
+
+    def project_alerts(
+        self, organization_slug: str, project_slug: str
+    ) -> list[ProjectAlert]:
+        """Retrieve project alerts."""
+        return [
+            ProjectAlert(**r)
+            for r in self._list(
+                f"/api/0/projects/{organization_slug}/{project_slug}/alerts/"
+            )
+        ]
+
+    def create_project_alert(
+        self, organization_slug: str, project_slug: str, alert: ProjectAlert
+    ) -> ProjectAlert:
+        """Add an alert to a project."""
+        return ProjectAlert(
+            **self._post(
+                f"/api/0/projects/{organization_slug}/{project_slug}/alerts/",
+                data=alert.dict(by_alias=True, exclude_unset=True, exclude_none=True),
+            )
+        )
+
+    def delete_project_alert(
+        self, organization_slug: str, project_slug: str, alert_pk: int
+    ) -> None:
+        """Delete an alert from a project."""
+        self._delete(
+            f"/api/0/projects/{organization_slug}/{project_slug}/alerts/{alert_pk}/",
+        )
+
+    def update_project_alert(
+        self, organization_slug: str, project_slug: str, alert: ProjectAlert
+    ) -> ProjectAlert:
+        """Update an alert."""
+        return ProjectAlert(
+            **self._put(
+                f"/api/0/projects/{organization_slug}/{project_slug}/alerts/{alert.pk}/",
+                data=alert.dict(by_alias=True, exclude_unset=True, exclude_none=True),
+            )
         )
 
     def add_project_to_team(

@@ -1,0 +1,32 @@
+---
+glitchtip_projects:
+- name: example
+  projectId: null
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev
+  alerts:
+  - name: example-1
+    description: Example alert 1
+    quantity: 2
+    timespanMinutes: 2
+    recipients:
+    - provider: email-project-members
+    - provider: webhook
+      url: https://example.com
+  - name: example-2
+    description: Example alert 1
+    quantity: 2
+    timespanMinutes: 2
+    recipients:
+    - provider: webhook
+      url: https://example.com
+
+- name: no-alerts
+  projectId: null
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev
+  alerts: null

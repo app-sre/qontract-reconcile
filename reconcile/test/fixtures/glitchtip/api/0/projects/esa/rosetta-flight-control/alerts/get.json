@@ -1,0 +1,30 @@
+[
+  {
+    "pk": 14,
+    "name": "alert-2",
+    "timespan_minutes": 2000,
+    "quantity": 1000,
+    "uptime": false,
+    "alertRecipients": [
+      {
+        "pk": 20,
+        "recipientType": "webhook",
+        "url": "https://example.com"
+      }
+    ]
+  },
+  {
+    "pk": 7,
+    "name": "alert-1",
+    "timespan_minutes": 1000,
+    "quantity": 1000,
+    "uptime": false,
+    "alertRecipients": [
+      {
+        "pk": 8,
+        "recipientType": "email",
+        "url": ""
+      }
+    ]
+  }
+]
