@@ -40,6 +40,10 @@ query TerraformRepo {
         provider
         bucket
         region
+        integrations {
+          integration
+          key
+        }
       }
     }
     name
@@ -58,10 +62,18 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
+class AWSTerraformStateIntegrationsV1(ConfiguredBaseModel):
+    integration: str = Field(..., alias="integration")
+    key: str = Field(..., alias="key")
+
+
 class TerraformStateAWSV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
     bucket: str = Field(..., alias="bucket")
     region: str = Field(..., alias="region")
+    integrations: list[AWSTerraformStateIntegrationsV1] = Field(
+        ..., alias="integrations"
+    )
 
 
 class AWSAccountV1(ConfiguredBaseModel):

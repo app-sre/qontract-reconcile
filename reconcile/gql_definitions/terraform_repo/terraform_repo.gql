@@ -12,6 +12,10 @@ query TerraformRepo {
         provider
         bucket
         region
+        integrations {
+          integration
+          key
+        }
       }
     }
     name

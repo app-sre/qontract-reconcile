@@ -1,11 +1,17 @@
+from os import path
 from unittest.mock import MagicMock
 
 import pytest
+from tomlkit import key
+from reconcile.gql_definitions.fragments.terraform_state import (
+    AWSTerraformStateIntegrationsV1,
+)
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     AWSAccountV1,
     TerraformRepoV1,
+    TerraformStateAWSV1,
 )
 from reconcile.terraform_repo import (
     TerraformRepoIntegration,
@@ -51,12 +57,30 @@ def automation_token() -> VaultSecret:
     return VaultSecret(path=AUTOMATION_TOKEN_PATH, version=1, field="all", format=None)
 
 
+@pytest.fixture()
+def terraform_state(terraform_state_integrations) -> TerraformStateAWSV1:
+    return TerraformStateAWSV1(
+        provider="s3",
+        region="us-east-1",
+        bucket="app-sre",
+        integrations=terraform_state_integrations,
+    )
+
+
+@pytest.fixture()
+def terraform_state_integrations() -> list[AWSTerraformStateIntegrationsV1]:
+    return [
+        AWSTerraformStateIntegrationsV1(integration="terraform-repo", key="tf-repo")
+    ]
+
+
 @pytest.fixture
-def aws_account(automation_token) -> AWSAccountV1:
+def aws_account(automation_token, terraform_state) -> AWSAccountV1:
     return AWSAccountV1(
         name="foo",
         uid="000000000000",
         automationToken=automation_token,
+        terraformState=terraform_state,
     )
 
 
@@ -178,6 +202,17 @@ def test_get_repo_state(s3_state_builder, int_params, existing_repo):
                             "field": "all",
                             "version": 1,
                             "format": None,
+                        },
+                        "terraformState": {
+                            "provider": "s3",
+                            "region": "us-east-1",
+                            "bucket": "app-sre",
+                            "integrations": [
+                                {
+                                    "integration": "terraform-repo",
+                                    "key": "tf-repo",
+                                }
+                            ],
                         },
                     },
                 }
