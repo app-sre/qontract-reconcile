@@ -103,17 +103,17 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                 retention_days = aws_log_group.get("retentionInDays")
 
                 cloudwatch_cleanup_entry = next(
-                          (
-                              c
-                              for c in cloudwatch_cleanup_list
-                              if c.log_regex.match(group_name)
-                          ),
-                          None,
-                      )
+                    (
+                        c
+                        for c in cloudwatch_cleanup_list
+                        if c.log_regex.match(group_name)
+                    ),
+                    None,
+                )
                 if cloudwatch_cleanup_entry is None:
                     logging.info(
-                            f" Setting {group_name} retention days to a default of 90"
-                        )
+                        f" Setting {group_name} retention days to a default of 90"
+                    )
                     if not dry_run:
                         awsapi.set_cloudwatch_log_retention(
                             app_interface_aws_acct, group_name, 90
@@ -121,8 +121,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                 else:
                     log_group_tags = aws_log_group["tags"]
                     if not all(
-                        item in log_group_tags.items()
-                        for item in MANAGED_TAG.items()
+                        item in log_group_tags.items() for item in MANAGED_TAG.items()
                     ):
                         logging.info(
                             f"Setting tag {MANAGED_TAG} for group {group_name}"
@@ -141,7 +140,5 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                             awsapi.set_cloudwatch_log_retention(
                                 app_interface_aws_acct,
                                 group_name,
-                                int(
-                                    cloudwatch_cleanup_entry.log_retention_day_length
-                                ),
+                                int(cloudwatch_cleanup_entry.log_retention_day_length),
                             )
