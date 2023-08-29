@@ -47,6 +47,9 @@ class RepoOutput(BaseModel):
     project_path: str
     delete: bool
     secret: RepoSecret
+    bucket: Optional[str]
+    region: Optional[str]
+    bucket_path: Optional[str]
 
 
 class OutputFile(BaseModel):
@@ -101,19 +104,29 @@ class TerraformRepoIntegration(
             actions_list: list[RepoOutput] = []
 
             for repo in repo_diff_result:
-                actions_list.append(
-                    RepoOutput(
-                        repository=repo.repository,
-                        name=repo.name,
-                        ref=repo.ref,
-                        project_path=repo.project_path,
-                        delete=repo.delete or False,
-                        secret=RepoSecret(
-                            path=repo.account.automation_token.path,
-                            version=repo.account.automation_token.version,
-                        ),
-                    )
+                out_repo = RepoOutput(
+                    repository=repo.repository,
+                    name=repo.name,
+                    ref=repo.ref,
+                    project_path=repo.project_path,
+                    delete=repo.delete or False,
+                    secret=RepoSecret(
+                        path=repo.account.automation_token.path,
+                        version=repo.account.automation_token.version,
+                    ),
                 )
+                # terraform-repo will store its statefiles in a specified directory if there is a
+                # terraform-state yaml file associated with the AWS account and a configuration is
+                # listed for terraform-repo, otherwise it will default to loading this information
+                # from the automation_token secret in Vault
+                if repo.account.terraform_state:
+                    for integration in repo.account.terraform_state.integrations:
+                        if integration.integration == "terraform-repo":
+                            out_repo.bucket = repo.account.terraform_state.bucket
+                            out_repo.region = repo.account.terraform_state.region
+                            out_repo.bucket_path = integration.key
+
+                actions_list.append(out_repo)
 
             output = OutputFile(dry_run=dry_run, repos=actions_list)
 
