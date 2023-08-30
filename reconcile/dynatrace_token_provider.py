@@ -34,9 +34,10 @@ from reconcile.utils.ocm.clusters import (
 from reconcile.utils.ocm.labels import subscription_label_filter
 from reconcile.utils.ocm.service_log import create_service_log
 from reconcile.utils.ocm.sre_capability_labels import sre_capability_label_key
-from reconcile.utils.ocm.syncsets import (  # patch_syncset,
+from reconcile.utils.ocm.syncsets import (  
     create_syncset,
     get_syncset,
+    patch_syncset,
 )
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
@@ -193,10 +194,10 @@ class DynatraceTokenProviderIntegration(
         existing_syncset = self.get_syncset(ocm_client, cluster)
         if not existing_syncset:
             if not dry_run:
-                (ingestion_token, operator_token) = self.create_dynatrace_tokens(
-                    dt_client, cluster.ocm_cluster.external_id
-                )
                 try:
+                    (ingestion_token, operator_token) = self.create_dynatrace_tokens(
+                        dt_client, cluster.ocm_cluster.external_id
+                    )
                     create_syncset(
                         ocm_client,
                         cluster.ocm_cluster.id,
@@ -206,7 +207,7 @@ class DynatraceTokenProviderIntegration(
                     _expose_errors_as_service_log(
                         ocm_client,
                         cluster.ocm_cluster.external_id,
-                        f"DTP can't create Syncset {str(e.args)}",
+                        f"DTP can't create Syncset with the tokens {str(e.args)}",
                     )
             logging.info(
                 f"Ingestion and operator tokens created in Dynatrace for cluster {cluster.ocm_cluster.external_id}."
@@ -216,32 +217,46 @@ class DynatraceTokenProviderIntegration(
             )
         else:
             tokens = self.get_tokens_from_cluster(existing_syncset)
-            for token_name, token_id in tokens.items():
-                if not self.token_exist_in_dynatrace(dt_client, token_id):
+            for token_name, token in tokens.items():
+                if not self.token_exist_in_dynatrace(dt_client, token["id"]):
                     if token_name == DYNATRACE_INGESTION_TOKEN_NAME:
                         if not dry_run:
                             ingestion_token = self.create_dynatrace_ingestion_token(
                                 dt_client, cluster.ocm_cluster.external_id
                             )
+                            token['id'] = ingestion_token.id
+                            token['token'] = ingestion_token.token
                         logging.info(
-                            f"Ingestion token created in Dynatrace for cluster {cluster.ocm_cluster.external_id}."
+                        f"Ingestion token created in Dynatrace for cluster {cluster.ocm_cluster.external_id}."
                         )
                     elif token_name == DYNATRACE_OPERATOR_TOKEN_NAME:
                         if not dry_run:
                             operator_token = self.create_dynatrace_operator_token(
                                 dt_client, cluster.ocm_cluster.external_id
                             )
+                            token['id'] = operator_token.id
+                            token['token'] = operator_token.token
                         logging.info(
                             f"Operator token created in Dynatrace for cluster {cluster.ocm_cluster.external_id}."
                         )
+                else:
+                    if token_name == DYNATRACE_INGESTION_TOKEN_NAME:
+                        ingestion_token = ApiTokenCreated(raw_element=token)
+                    elif token_name == DYNATRACE_OPERATOR_TOKEN_NAME:
+                        operator_token = ApiTokenCreated(raw_element=token)
+            patch_syncset_payload = self.construct_base_syncset(ingestion_token=ingestion_token, operator_token=operator_token)
+            patch_syncset(ocm_client,cluster_id=cluster.ocm_cluster.id, syncset_id=SYNCSET_ID, syncset_map= patch_syncset_payload)
+            
                     # TODO: Figure out how ocm patch work, currently getting an error.
-
+                
     def get_syncset(self, ocm_client: OCMBaseClient, cluster: ClusterDetails) -> Mapping:
         try:
             syncset = get_syncset(ocm_client, cluster.ocm_cluster.id, SYNCSET_ID)
         except Exception as e:
             if "Not Found" in e.args[0]:
                 syncset = None
+            else:
+                raise e
         return syncset
 
     def token_exist_in_dynatrace(self, dt_client: Dynatrace, token_id: str) -> bool:
@@ -250,6 +265,8 @@ class DynatraceTokenProviderIntegration(
         except Exception as e:
             if "does not exist" in e.args[0]:
                 result = None
+            else:
+                raise e
         return True if result else False
 
     def get_tokens_from_cluster(self, syncset: Mapping) -> Mapping:
@@ -257,16 +274,15 @@ class DynatraceTokenProviderIntegration(
         for resource in syncset["resources"]:
             if resource["kind"] == "Secret":
                 token_id = resource["data"]["id"]
+                token_secret = resource["data"]["token"]
                 token_name = resource["metadata"]["name"]
-                tokens[token_name] = token_id
+                tokens[token_name] = {"id": token_id, "token":token_secret}
         return tokens
-
-    def construct_syncset(
-        self, ingestion_token: ApiTokenCreated, operator_token: ApiTokenCreated
+    
+    def construct_base_syncset(self, ingestion_token: ApiTokenCreated, operator_token: ApiTokenCreated
     ) -> Mapping:
         return {
             "kind": "SyncSet",
-            "id": SYNCSET_ID,
             "resources": [
                 {
                     "apiVersion": "v1",
@@ -288,7 +304,14 @@ class DynatraceTokenProviderIntegration(
                     },
                 },
             ],
-        }
+        } 
+
+    def construct_syncset(
+        self, ingestion_token: ApiTokenCreated, operator_token: ApiTokenCreated
+    ) -> Mapping:
+        syncset = self.construct_base_syncset(ingestion_token=ingestion_token, operator_token=operator_token)
+        syncset["id"] = SYNCSET_ID
+        return syncset
 
     def create_dynatrace_ingestion_token(
         self, dt_client: Dynatrace, cluster_uuid: str
