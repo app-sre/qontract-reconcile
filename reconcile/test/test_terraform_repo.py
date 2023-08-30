@@ -1,12 +1,10 @@
-from os import path
 from unittest.mock import MagicMock
 
 import pytest
-from tomlkit import key
+
 from reconcile.gql_definitions.fragments.terraform_state import (
     AWSTerraformStateIntegrationsV1,
 )
-
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     AWSAccountV1,
