@@ -8800,18 +8800,6 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "readReplicasWaiverPledge",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
                             "name": "signoffManagers",
                             "description": null,
                             "args": [],

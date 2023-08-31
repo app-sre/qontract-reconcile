@@ -71,18 +71,7 @@ def status_board(gql_class_factory: Callable[..., StatusBoardV1]) -> StatusBoard
                                     "onboardingStatus": "OnBoarded",
                                 }
                             },
-                            {
-                                "app": {
-                                    "name": "foo",
-                                    "onboardingStatus": "OnBoarded",
-                                    "childrenApps": [
-                                        {
-                                            "name": "bar",
-                                            "onboardingStatus": "OnBoarded",
-                                        },
-                                    ],
-                                }
-                            },
+                            {"app": {"name": "foo", "onboardingStatus": "OnBoarded"}},
                             {"app": {"name": "oof", "onboardingStatus": "BestEffort"}},
                         ],
                         "product": {
@@ -120,7 +109,7 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
 
 def test_get_product_apps(status_board: StatusBoardV1) -> None:
     p = StatusBoardExporterIntegration.get_product_apps(status_board)
-    assert p == {"foo": {"foo", "foo-bar"}}
+    assert p == {"foo": {"foo"}}
 
 
 def test_get_diff_create_app() -> None:
