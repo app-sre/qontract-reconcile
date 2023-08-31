@@ -600,47 +600,6 @@ def normalize_object(item: OR, deep_copy=True) -> OR:
     return n
 
 
-def three_way_merge_patch_diff(c_item: OR, d_item: OR) -> bool:
-    # If the current item does not have the last applied configuratiob annotation
-    # Apply it. This integration is based in client-side applies, so this annotation
-    # must be present
-    if not c_item.last_applied_configuration:
-        logging.debug(
-            "Current object does not have last applied configuration annotation"
-        )
-        return True
-
-    try:
-        original = OR(json.loads(c_item.last_applied_configuration), "", "")
-    except Exception:
-        logging.debug("Error parsing last applied configuration configuration")
-        return True
-
-    current = normalize_object(c_item)
-    original = normalize_object(original, deep_copy=False)
-    desired = normalize_object(d_item, deep_copy=False)
-
-    # If differences between original and desired object -> Apply
-    patch = jsonpatch.JsonPatch.from_diff(desired.body, original.body)
-    if len(patch.patch) > 0:
-        logging.debug("Original and Desired object differs -> Apply")
-        logging.debug(patch.patch)
-        return True
-
-    # If there are differences between current and desired -> Apply
-    # The patch only detects changes with attributes defined in the desired state.
-    # Values in the current state added by operators or other actors are not taken
-    # into account
-    patch = jsonpatch.JsonPatch.from_diff(current.body, desired.body)
-    for item in patch.patch:
-        if item["op"] == "add" or item["op"] == "replace":
-            logging.debug("Current and Desired object differs -> Apply")
-            logging.debug(patch.patch)
-            return True
-
-    return False
-
-
 def three_way_merge_patch_diff_using_hash(c_item: OR, d_item: OR) -> bool:
     # Get the ORIGINAL object hash
     # This needs to be improved in OR, by now is just a PoC
@@ -649,7 +608,7 @@ def three_way_merge_patch_diff_using_hash(c_item: OR, d_item: OR) -> bool:
         annotations = c_item.body["metadata"]["annotations"]
         c_item_sha256 = annotations["qontract.sha256sum"]
     except KeyError:
-        # IF no HASH -> Apply
+        logging.debug("Current object QR hash is missing -> Apply")
         return True
 
     # Original object does not match Desired -> Apply
@@ -657,7 +616,7 @@ def three_way_merge_patch_diff_using_hash(c_item: OR, d_item: OR) -> bool:
     # d_item_sha256 = OR.calculate_sha256sum(OR.serialize(d_item.body))
     # if c_item_sha256 != d_item_sha256:
     if c_item_sha256 != d_item.sha256sum():
-        logging.info("Original and Desired object differs -> Apply")
+        logging.debug("Original and Desired objects hash differs -> Apply")
         return True
 
     # If there are differences between current and desired -> Apply
@@ -671,8 +630,8 @@ def three_way_merge_patch_diff_using_hash(c_item: OR, d_item: OR) -> bool:
     for item in patch.patch:
         if item["op"] == "add" or item["op"] == "replace":
             # Add or Replace from DESIRED Over CURRENT
-            logging.info("Desired and Current objects differ -> Apply")
-            logging.info(patch.patch)
+            logging.debug("Desired and Current objects differ -> Apply")
+            logging.debug(patch.patch)
             return True
 
     return False
