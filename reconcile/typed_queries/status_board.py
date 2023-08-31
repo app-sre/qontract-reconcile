@@ -1,4 +1,5 @@
 from typing import (
+    Any,
     Callable,
     Iterable,
     Optional,
@@ -27,12 +28,12 @@ def get_selected_app_names(
     product: StatusBoardProductV1,
 ) -> set[str]:
     selected_app_names: set[str] = set()
-    apps: dict[str, any] = {"apps": []}
-    for namespace in product.product_environment.namespaces:
+    apps: dict[str, Any] = {"apps": []}
+    for namespace in product.product_environment.namespaces or []:
         selected_app_names.add(namespace.app.name)
         apps["apps"].append(namespace.app.dict(by_alias=True))
 
-        for child in namespace.app.children_apps:
+        for child in namespace.app.children_apps or []:
             selected_app_names.add(f"{namespace.app.name}-{child.name}")
             child_dict = child.dict(by_alias=True)
             child_dict["name"] = f"{namespace.app.name}-{child.name}"
