@@ -38,6 +38,7 @@ def get_selected_app_names(
             child_dict = child.dict(by_alias=True)
             child_dict["name"] = f"{namespace.app.name}-{child.name}"
             apps["apps"].append(child_dict)
+            print(child_dict)
 
     selectors = set(global_selectors)
     if product.app_selectors:
