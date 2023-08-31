@@ -10,6 +10,7 @@ from typing import (
     Optional,
     Union,
 )
+from reconcile.utils.unleash import get_feature_toggle_state
 
 import semver
 
@@ -561,6 +562,11 @@ class ResourceInventory:
         self._error_registered_clusters = {}
         self._lock = Lock()
 
+        # temporary logic to rollout new resources diff mechanism
+        self.clusters_3way_diff_strategy = {}
+        #
+
+
     def initialize_resource_type(
         self,
         cluster,
@@ -568,6 +574,15 @@ class ResourceInventory:
         resource_type,
         managed_names: Optional[list[str]] = None,
     ):
+        # temporary logic to rollout new resources diff mechanism
+        if cluster not in self.clusters_3way_diff_strategy:
+            toggle = "openshift-resources-3way-diff-strategy"
+            use_3way_diff = get_feature_toggle_state(
+                toggle, context={"cluster_name": cluster}, default=False
+            )
+            self.clusters_3way_diff_strategy[cluster] = use_3way_diff
+        #
+
         self._clusters.setdefault(cluster, {})
         self._clusters[cluster].setdefault(namespace, {})
         self._clusters[cluster][namespace].setdefault(
