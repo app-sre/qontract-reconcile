@@ -50,8 +50,8 @@ class DisableClusterStrategy(Strategy):
 
         return enable
 
-class EnableClusterStrategy(Strategy):
 
+class EnableClusterStrategy(Strategy):
     def load_provisioning(self) -> list:
         return [x.strip() for x in self.parameters["cluster_name"].split(",")]
 
@@ -63,7 +63,6 @@ class EnableClusterStrategy(Strategy):
             enable = context["cluster_name"] in self.parsed_provisioning
 
         return enable
-
 
 
 def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:

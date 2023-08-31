@@ -10,9 +10,10 @@ from typing import (
     Optional,
     Union,
 )
-from reconcile.utils.unleash import get_feature_toggle_state
 
 import semver
+
+from reconcile.utils.unleash import get_feature_toggle_state
 
 SECRET_MAX_KEY_LENGTH = 253
 LAC_ANNOTATION = "kubectl.kubernetes.io/last-applied-configuration"
@@ -56,6 +57,7 @@ CONTROLLER_MANAGED_LABELS: dict[str, set[Union[str, re.Pattern]]] = {
 }
 
 
+# pylint: disable=R0904
 class OpenshiftResource:
     def __init__(
         self,
@@ -565,7 +567,6 @@ class ResourceInventory:
         # temporary logic to rollout new resources diff mechanism
         self.clusters_3way_diff_strategy = {}
         #
-
 
     def initialize_resource_type(
         self,

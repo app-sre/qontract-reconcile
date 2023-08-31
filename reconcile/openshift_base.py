@@ -1,3 +1,5 @@
+import base64
+import copy
 import itertools
 import logging
 from collections.abc import (
@@ -17,12 +19,8 @@ from typing import (
     runtime_checkable,
 )
 
-import json
-import copy
-import base64
+import jsonpatch  # type: ignore
 import yaml
-import jsonpatch
-
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -652,13 +650,13 @@ def _realize_resource_data(
 ):
     args = locals()
 
-    cluster, _, _ ,_  = unpacked_ri_item
+    cluster, _, _, _ = unpacked_ri_item
     use_3way_diff = ri.clusters_3way_diff_strategy[cluster]
+
     if use_3way_diff:
         return _realize_resource_data_3way_diff(**args)
-    else:
-        return _realize_resource_data_old(**args)
 
+    return _realize_resource_data_old(**args)
 
 
 def _realize_resource_data_3way_diff(

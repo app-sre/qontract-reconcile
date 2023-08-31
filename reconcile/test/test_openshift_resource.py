@@ -1,15 +1,15 @@
 import pytest
 
+from reconcile.openshift_base import three_way_merge_patch_diff_using_hash
 from reconcile.utils.openshift_resource import ConstructResourceError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.openshift_base import three_way_merge_patch_diff_using_hash
-from reconcile.utils.semver_helper import make_semver
-
 from reconcile.utils.openshift_resource import (
     ResourceInventory,
     ResourceNotManagedError,
     build_secret,
 )
+from reconcile.utils.semver_helper import make_semver
+
 from .fixtures import Fixtures
 
 fxt = Fixtures("openshift_resource")
