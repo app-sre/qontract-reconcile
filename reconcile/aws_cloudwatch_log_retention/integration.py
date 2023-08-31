@@ -1,11 +1,10 @@
 import logging
-import re
+import typing
 from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
     Optional,
 )
-import typing
 
 from botocore.exceptions import ClientError
 from pydantic import BaseModel
