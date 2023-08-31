@@ -41,7 +41,6 @@ def get_app_interface_cloudwatch_retention_period(aws_acct: dict) -> list:
                         name=aws_acct_name,
                         acct_uid=acct_uid,
                         log_regex=aws_acct_field["regex"],
-                        # log_regex=re.compile(aws_acct_field["regex"]),
                         log_retention_day_length=aws_acct_field["retention_in_days"],
                     )
                 )
@@ -109,6 +108,15 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                     ),
                     None,
                 )
+                log_group_tags = aws_log_group["tags"]
+                if not all(
+                    item in log_group_tags.items() for item in MANAGED_TAG.items()
+                ):
+                    logging.info(f"Setting tag {MANAGED_TAG} for group {group_name}")
+                    if not dry_run:
+                        awsapi.create_cloudwatch_tag(
+                            app_interface_aws_acct, group_name, MANAGED_TAG
+                        )
                 if cloudwatch_cleanup_entry is None:
                     logging.info(
                         f" Setting {group_name} retention days to a default of 90"
@@ -117,27 +125,15 @@ def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) 
                         awsapi.set_cloudwatch_log_retention(
                             app_interface_aws_acct, group_name, 90
                         )
-                else:
-                    log_group_tags = aws_log_group["tags"]
-                    if not all(
-                        item in log_group_tags.items() for item in MANAGED_TAG.items()
-                    ):
-                        logging.info(
-                            f"Setting tag {MANAGED_TAG} for group {group_name}"
+                elif retention_days != int(
+                    cloudwatch_cleanup_entry.log_retention_day_length
+                ):
+                    logging.info(
+                        f" Setting {group_name} retention days to {cloudwatch_cleanup_entry.log_retention_day_length}"
+                    )
+                    if not dry_run:
+                        awsapi.set_cloudwatch_log_retention(
+                            app_interface_aws_acct,
+                            group_name,
+                            int(cloudwatch_cleanup_entry.log_retention_day_length),
                         )
-                        if not dry_run:
-                            awsapi.create_cloudwatch_tag(
-                                app_interface_aws_acct, group_name, MANAGED_TAG
-                            )
-                    if retention_days != int(
-                        cloudwatch_cleanup_entry.log_retention_day_length
-                    ):
-                        logging.info(
-                            f" Setting {group_name} retention days to {cloudwatch_cleanup_entry.log_retention_day_length}"
-                        )
-                        if not dry_run:
-                            awsapi.set_cloudwatch_log_retention(
-                                app_interface_aws_acct,
-                                group_name,
-                                int(cloudwatch_cleanup_entry.log_retention_day_length),
-                            )
