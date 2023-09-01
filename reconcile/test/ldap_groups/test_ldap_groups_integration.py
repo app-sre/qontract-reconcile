@@ -164,8 +164,32 @@ def test_ldap_groups_integration_reconcile(
             Entity(type=EntityType.USER, id="spock - christine"),
         ],
     )
-    desired_groups = [officers, medical_crew, love_couples_new]
-    current_groups = [officers, cerritos_crew, love_couples]
+    # must be a noop for DELETED_USERs
+    nx_01_crew = Group(
+        name="the-deleted-ones",
+        description="Managed by qontract-reconcile",
+        contact_list="email@example.org",
+        owners=[Entity(type=EntityType.SERVICE_ACCOUNT, id="enterprise-lcars-1")],
+        display_name="Star Trek - New Strange Worlds: Medical Crew",
+        members=[
+            Entity(type=EntityType.USER, id="archer"),
+            Entity(type=EntityType.USER, id="t'pol"),
+        ],
+    )
+    nx_01_crew_deleted = Group(
+        name="the-deleted-ones",
+        description="Managed by qontract-reconcile",
+        contact_list="email@example.org",
+        owners=[Entity(type=EntityType.SERVICE_ACCOUNT, id="enterprise-lcars-1")],
+        display_name="Star Trek - New Strange Worlds: Medical Crew",
+        members=[
+            Entity(type=EntityType.DELETED_USER, id="archer"),
+            Entity(type=EntityType.DELETED_USER, id="t'pol"),
+        ],
+    )
+
+    desired_groups = [officers, medical_crew, love_couples_new, nx_01_crew_deleted]
+    current_groups = [officers, cerritos_crew, love_couples, nx_01_crew]
     intg.reconcile(
         dry_run=dry_run,
         internal_groups_client=internal_groups_client,
@@ -183,7 +207,7 @@ def test_ldap_groups_integration_reconcile(
     internal_groups_client.update_group.assert_called_once_with(love_couples_new)
 
     assert sorted(intg._managed_groups) == sorted(
-        ["officers", "medical-crew", "love-couples"]
+        ["officers", "medical-crew", "love-couples", "the-deleted-ones"]
     )
 
 
