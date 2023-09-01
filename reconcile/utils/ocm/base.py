@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
@@ -16,10 +18,13 @@ ACTIVE_SUBSCRIPTION_STATES = {"Active", "Reserved"}
 CAPABILITY_MANAGE_CLUSTER_ADMIN = "capability.cluster.manage_cluster_admin"
 
 
-class OCMModelLink(BaseModel):
+class OCMModelLinkSimple(BaseModel):
     kind: Optional[str] = None
-    id: str
     href: Optional[str] = None
+
+
+class OCMModelLink(OCMModelLinkSimple):
+    id: str
 
 
 class OCMAddonVersion(BaseModel):
@@ -162,6 +167,7 @@ class OCMCluster(BaseModel):
     region: OCMModelLink
     cloud_provider: OCMModelLink
     product: OCMModelLink
+    identity_providers: OCMModelLinkSimple
 
     aws: Optional[OCMClusterAWSSettings]
 
@@ -427,6 +433,72 @@ class ClusterDetails(BaseModel):
     def is_capability_set(self, name: str, value: str) -> bool:
         capa = self.capabilities.get(name)
         return capa is not None and capa.value == value
+
+
+class OCMOIdentityProviderMappingMethod(str, Enum):
+    ADD = "add"
+    CLAIM = "claim"
+    LOOKUP = "lookup"
+    GENERATE = "generate"
+
+
+class OCMOIdentityProvider(BaseModel):
+    type: str
+    name: str
+    id: Optional[str] = None
+    href: Optional[str] = None
+
+
+class OCMOIdentityProviderGithub(OCMOIdentityProvider):
+    # just basic mapping for now
+    type: str = "GithubIdentityProvider"
+    mapping_method: OCMOIdentityProviderMappingMethod = (
+        OCMOIdentityProviderMappingMethod.ADD
+    )
+
+
+class OCMOIdentityProviderOidcOpenIdClaims(BaseModel):
+    email: list[str]
+    name: list[str]
+    preferred_username: list[str]
+    groups: list[str] = []
+
+    class Config:
+        frozen = True
+
+
+class OCMOIdentityProviderOidcOpenId(BaseModel):
+    client_id: str
+    client_secret: Optional[str] = None
+    issuer: str
+    claims: OCMOIdentityProviderOidcOpenIdClaims = OCMOIdentityProviderOidcOpenIdClaims(
+        email=["email"],
+        name=["name"],
+        preferred_username=["preferred_username"],
+        groups=[],
+    )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, OCMOIdentityProviderOidcOpenId):
+            return False
+        return (
+            self.client_id == other.client_id
+            and self.issuer == other.issuer
+            and self.claims == other.claims
+        )
+
+
+class OCMOIdentityProviderOidc(OCMOIdentityProvider):
+    type: str = "OpenIDIdentityProvider"
+    mapping_method: OCMOIdentityProviderMappingMethod = (
+        OCMOIdentityProviderMappingMethod.ADD
+    )
+    open_id: OCMOIdentityProviderOidcOpenId
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, OCMOIdentityProviderOidc):
+            return False
+        return self.name == other.name and self.open_id == other.open_id
 
 
 def build_label_container(

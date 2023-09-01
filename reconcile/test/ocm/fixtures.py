@@ -116,6 +116,7 @@ def build_ocm_cluster(
         region=OCMModelLink(id="us-east-1"),
         product=OCMModelLink(id=cluster_product),
         cloud_provider=OCMModelLink(id="aws"),
+        identity_providers=OCMModelLink(id="identity_providers"),
         state=OCMClusterState.READY,
         managed=True,
         aws=aws_config,
