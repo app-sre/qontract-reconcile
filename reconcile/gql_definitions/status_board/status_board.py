@@ -48,6 +48,10 @@ query StatusBoard {
           app {
             name
             onboardingStatus
+            childrenApps {
+              name
+              onboardingStatus
+            }
           }
         }
       }
@@ -90,9 +94,15 @@ class ProductV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
+class AppV1_AppV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    onboarding_status: str = Field(..., alias="onboardingStatus")
+
+
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     onboarding_status: str = Field(..., alias="onboardingStatus")
+    children_apps: Optional[list[AppV1_AppV1]] = Field(..., alias="childrenApps")
 
 
 class NamespaceV1(ConfiguredBaseModel):

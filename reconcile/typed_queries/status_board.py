@@ -1,4 +1,5 @@
 from typing import (
+    Any,
     Callable,
     Iterable,
     Optional,
@@ -27,19 +28,23 @@ def get_selected_app_names(
     product: StatusBoardProductV1,
 ) -> set[str]:
     selected_app_names: set[str] = {
-        a.app.name for a in product.product_environment.namespaces or []
+        namespace.app.name for namespace in product.product_environment.namespaces or []
     }
+
+    apps: dict[str, Any] = {"apps": []}
+    for namespace in product.product_environment.namespaces or []:
+        apps["apps"].append(namespace.app.dict(by_alias=True))
+
+        for child in namespace.app.children_apps or []:
+            if child.name not in selected_app_names:
+                selected_app_names.add(f"{namespace.app.name}-{child.name}")
+                child_dict = child.dict(by_alias=True)
+                child_dict["name"] = f"{namespace.app.name}-{child.name}"
+                apps["apps"].append(child_dict)
 
     selectors = set(global_selectors)
     if product.app_selectors:
         selectors.update(product.app_selectors.exclude or [])
-
-    apps = {
-        "apps": [
-            a.app.dict(by_alias=True)
-            for a in product.product_environment.namespaces or []
-        ],
-    }
 
     for selector in selectors:
         apps_to_remove: set[str] = set()

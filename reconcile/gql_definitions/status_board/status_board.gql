@@ -29,6 +29,10 @@ query StatusBoard {
           app {
             name
             onboardingStatus
+            childrenApps {
+              name
+              onboardingStatus
+            }
           }
         }
       }
