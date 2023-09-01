@@ -1,9 +1,7 @@
-import tempfile
 from unittest.mock import MagicMock
 
 import pytest
 import yaml
-from yaml import YAMLObject
 
 from reconcile.gql_definitions.fragments.terraform_state import (
     AWSTerraformStateIntegrationsV1,
@@ -64,15 +62,34 @@ def existing_repo_output() -> str:
 
 
 @pytest.fixture
-def new_repo(aws_account) -> TerraformRepoV1:
+def new_repo(aws_account_no_state) -> TerraformRepoV1:
     return TerraformRepoV1(
         name="b_repo",
         repository=B_REPO,
         ref=B_REPO_SHA,
-        account=aws_account,
+        account=aws_account_no_state,
         projectPath="tf",
         delete=False,
     )
+
+
+@pytest.fixture
+def new_repo_output() -> str:
+    return f"""
+        dry_run: true
+        repos:
+        - repository: {B_REPO}
+          name: b_repo
+          ref: {B_REPO_SHA}
+          project_path: tf
+          delete: false
+          secret:
+            path: {AUTOMATION_TOKEN_PATH}
+            version: 1
+          bucket: null
+          region: null
+          bucket_path: null
+    """
 
 
 @pytest.fixture()
@@ -104,6 +121,16 @@ def aws_account(automation_token, terraform_state) -> AWSAccountV1:
         uid="000000000000",
         automationToken=automation_token,
         terraformState=terraform_state,
+    )
+
+
+@pytest.fixture
+def aws_account_no_state(automation_token) -> AWSAccountV1:
+    return AWSAccountV1(
+        name="foo",
+        uid="000000000000",
+        automationToken=automation_token,
+        terraformState=None,
     )
 
 
@@ -274,6 +301,8 @@ def test_update_repo_state(int_params, existing_repo, state_mock):
     )
 
 
+# these two output tests are to ensure that there isn't a sudden change to outputs that throws
+# off tf-executor
 def test_output_correct_statefile(
     int_params_print_to_tmp, existing_repo, existing_repo_output, tmp_path, state_mock
 ):
@@ -291,12 +320,41 @@ def test_output_correct_statefile(
         state=state_mock,
     )
 
-    integration.print_output(diff, True)
+    assert diff
+    if diff:
+        integration.print_output(diff, True)
 
-    with open(f"{tmp_path}/tf-repo.yaml", "r") as output:
-        yaml_rep = yaml.safe_load(output)
+        with open(f"{tmp_path}/tf-repo.yaml", "r") as output:
+            yaml_rep = yaml.safe_load(output)
 
-        assert expected_output == yaml_rep
+            assert expected_output == yaml_rep
+
+
+def test_output_correct_no_statefile(
+    int_params_print_to_tmp, new_repo, new_repo_output, tmp_path, state_mock
+):
+    integration = TerraformRepoIntegration(params=int_params_print_to_tmp)
+
+    existing_state: list = []
+    desired_state = [new_repo]
+
+    expected_output = yaml.safe_load(new_repo_output)
+
+    diff = integration.calculate_diff(
+        existing_state=existing_state,
+        desired_state=desired_state,
+        dry_run=True,
+        state=state_mock,
+    )
+
+    assert diff
+    if diff:
+        integration.print_output(diff, True)
+
+        with open(f"{tmp_path}/tf-repo.yaml", "r") as output:
+            yaml_rep = yaml.safe_load(output)
+
+            assert expected_output == yaml_rep
 
 
 def test_fail_on_multiple_repos_dry_run(int_params, existing_repo, new_repo):
