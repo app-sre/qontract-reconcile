@@ -9,9 +9,9 @@ from reconcile.utils.internal_groups.models import (
 )
 
 USER_1 = Entity(id="user-1", type=EntityType.USER)
+USER_1_DELETED = Entity(id="user-1", type=EntityType.DELETED_USER)
 USER_2 = Entity(id="user-2", type=EntityType.USER)
-SERVICE_ACCOUNT_1 = Entity(id="user-1", type=EntityType.SERVICE_ACCOUNT)
-SERVICE_ACCOUNT_2 = Entity(id="service-account-2", type=EntityType.SERVICE_ACCOUNT)
+SERVICE_ACCOUNT_1 = Entity(id="service-account-1", type=EntityType.SERVICE_ACCOUNT)
 
 GROUP = Group(
     name="group",
@@ -99,9 +99,9 @@ GROUP_MEMBERS_CHANGED = Group(
     "a, b, expected",
     [
         (USER_1, USER_1, True),
+        (USER_1, USER_1_DELETED, True),
         (USER_1, USER_2, False),
         (USER_1, SERVICE_ACCOUNT_1, False),
-        (USER_1, SERVICE_ACCOUNT_2, False),
     ],
 )
 def test_internal_groups_models_entity_eq(a: Entity, b: Entity, expected: bool) -> None:

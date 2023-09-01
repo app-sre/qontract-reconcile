@@ -12,14 +12,20 @@ from pydantic import (
 class EntityType(str, Enum):
     USER = "user"
     SERVICE_ACCOUNT = "serviceaccount"
+    DELETED_USER = "deleteduser"
 
 
 class Entity(BaseModel):
     type: EntityType
     id: str
 
-    class Config:
-        frozen = True
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Entity):
+            raise NotImplementedError("Cannot compare to non Entity objects.")
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self.id)
 
 
 class Group(BaseModel):
