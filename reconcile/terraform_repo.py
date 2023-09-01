@@ -102,7 +102,7 @@ class TerraformRepoIntegration(
         if repo_diff_result:
             self.print_output(repo_diff_result, dry_run)
 
-    def print_output(self, diff: list[TerraformRepoV1], dry_run: bool):
+    def print_output(self, diff: list[TerraformRepoV1], dry_run: bool) -> None:
         """Parses and prints the output of a Terraform Repo diff for the executor
 
         :param diff: list of terraform repos to be acted on
