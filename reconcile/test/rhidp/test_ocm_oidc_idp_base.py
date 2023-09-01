@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Sequence
 from unittest.mock import Mock
 
 import pytest
@@ -45,7 +45,7 @@ def get_identity_providers_mock(mocker: MockerFixture) -> Mock:
 def test_ocm_oidc_idp_fetch_current_state(
     ocm_base_client: OCMBaseClient,
     get_identity_providers_mock: Mock,
-    clusters: Iterable[Cluster],
+    clusters: Sequence[Cluster],
 ) -> None:
     current_state = fetch_current_state(ocm_base_client, [clusters[0]])
     assert current_state == [
@@ -61,7 +61,7 @@ def test_ocm_oidc_idp_fetch_current_state(
 
 
 def test_ocm_oidc_idp_fetch_desired_state(
-    secret_reader: Mock, clusters: Iterable[Cluster]
+    secret_reader: Mock, clusters: Sequence[Cluster]
 ) -> None:
     idp = OCMOIdentityProviderOidc(
         name="oidc-auth",
@@ -107,7 +107,7 @@ def test_ocm_oidc_idp_fetch_desired_state(
 def test_ocm_oidc_idp_act(
     mocker: MockerFixture,
     ocm_base_client: OCMBaseClient,
-    clusters: Iterable[Cluster],
+    clusters: Sequence[Cluster],
     dry_run: bool,
 ) -> None:
     MANAGED_OIDC_NAME = "oidc-auth"
