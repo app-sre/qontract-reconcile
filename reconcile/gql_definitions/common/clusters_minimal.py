@@ -82,13 +82,6 @@ query ClustersMinimal($name: String) {
       }
       ... on ClusterAuthOIDC_v1 {
         name
-        issuer
-        claims {
-          email
-          name
-          username
-          groups
-        }
       }
     }
   }
@@ -127,17 +120,8 @@ class ClusterAuthGithubOrgTeamV1(ClusterAuthV1):
     team: str = Field(..., alias="team")
 
 
-class ClusterAuthOIDCClaimsV1(ConfiguredBaseModel):
-    email: Optional[list[str]] = Field(..., alias="email")
-    name: Optional[list[str]] = Field(..., alias="name")
-    username: Optional[list[str]] = Field(..., alias="username")
-    groups: Optional[list[str]] = Field(..., alias="groups")
-
-
 class ClusterAuthOIDCV1(ClusterAuthV1):
     name: str = Field(..., alias="name")
-    issuer: Optional[str] = Field(..., alias="issuer")
-    claims: Optional[ClusterAuthOIDCClaimsV1] = Field(..., alias="claims")
 
 
 class ClusterV1(ConfiguredBaseModel):
@@ -160,9 +144,9 @@ class ClusterV1(ConfiguredBaseModel):
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
     auth: list[
         Union[
-            ClusterAuthOIDCV1,
             ClusterAuthGithubOrgTeamV1,
             ClusterAuthGithubOrgV1,
+            ClusterAuthOIDCV1,
             ClusterAuthV1,
         ]
     ] = Field(..., alias="auth")

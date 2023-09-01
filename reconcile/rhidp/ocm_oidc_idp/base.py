@@ -1,18 +1,13 @@
 import logging
-import sys
 from collections.abc import (
     Iterable,
     Sequence,
 )
-from typing import Optional
 
-from reconcile import queries
-from reconcile.gql_definitions.rhidp.clusters import (
-    ClusterAuthOIDCV1,
-    ClusterV1,
-)
-from reconcile.ocm.types import OCMOidcIdp
+from pydantic import BaseModel
+
 from reconcile.rhidp.common import (
+    Cluster,
     cluster_vault_secret,
     expose_base_metrics,
 )
@@ -21,24 +16,43 @@ from reconcile.rhidp.ocm_oidc_idp.metrics import (
     RhIdpOCMOidcIdpReconcileErrorCounter,
 )
 from reconcile.utils import metrics
+from reconcile.utils.differ import diff_iterables
 from reconcile.utils.keycloak import SSOClient
-from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm.base import (
+    OCMOIdentityProvider,
+    OCMOIdentityProviderGithub,
+    OCMOIdentityProviderOidc,
+    OCMOIdentityProviderOidcOpenId,
+)
+from reconcile.utils.ocm.identity_providers import (
+    add_identity_provider,
+    delete_identity_provider,
+    get_identity_providers,
+    update_identity_provider,
+)
+from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.secret_reader import SecretReaderBase
 
-DEFAULT_EMAIL_CLAIMS: list[str] = ["email"]
-DEFAULT_NAME_CLAIMS: list[str] = ["name"]
-DEFAULT_USERNAME_CLAIMS: list[str] = ["preferred_username"]
-DEFAULT_GROUPS_CLAIMS: list[str] = []
+
+class IDPState(BaseModel):
+    cluster: Cluster
+    idp: OCMOIdentityProvider | OCMOIdentityProviderOidc | OCMOIdentityProviderGithub
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, IDPState):
+            raise NotImplementedError("Cannot compare to non IDPState objects.")
+        return self.idp == __value.idp
 
 
 def run(
     integration_name: str,
     ocm_environment: str,
-    clusters: Iterable[ClusterV1],
+    clusters: Iterable[Cluster],
     secret_reader: SecretReaderBase,
+    ocm_api: OCMBaseClient,
     vault_input_path: str,
     dry_run: bool,
-    managed_idps: Optional[list[str]] = None,
+    managed_idps: list[str] | None = None,
 ) -> None:
     with metrics.transactional_metrics(ocm_environment) as metrics_container:
         # metrics
@@ -46,23 +60,15 @@ def run(
             metrics_container, integration_name, ocm_environment, clusters
         )
 
-        # APIs
-        settings = queries.get_app_interface_settings()
-        ocm_map = OCMMap(
-            clusters=[cluster.dict(by_alias=True) for cluster in clusters],
-            integration=integration_name,
-            settings=settings,
-        )
-
         try:
             # run
-            current_state = fetch_current_state(ocm_map, clusters)
+            current_state = fetch_current_state(ocm_api, clusters)
             desired_state = fetch_desired_state(
                 secret_reader, clusters, vault_input_path
             )
             act(
                 dry_run,
-                ocm_map,
+                ocm_api,
                 current_state,
                 desired_state,
                 managed_idps=managed_idps or [],
@@ -82,138 +88,134 @@ def run(
 
 
 def fetch_current_state(
-    ocm_map: OCMMap, clusters: Iterable[ClusterV1]
-) -> list[OCMOidcIdp]:
+    ocm_api: OCMBaseClient, clusters: Iterable[Cluster]
+) -> list[IDPState]:
     """Fetch all current configured OIDC identity providers."""
-    current_state = []
-
+    current_state: list[IDPState] = []
     for cluster in clusters:
-        ocm = ocm_map.get(cluster.name)
-        current_state += ocm.get_oidc_idps(cluster.name)
+        for idp in get_identity_providers(
+            ocm_api=ocm_api, ocm_cluster=cluster.ocm_cluster
+        ):
+            current_state.append(
+                IDPState(
+                    cluster=cluster,
+                    idp=idp,
+                ),
+            )
 
     return current_state
 
 
 def fetch_desired_state(
     secret_reader: SecretReaderBase,
-    clusters: Iterable[ClusterV1],
+    clusters: Iterable[Cluster],
     vault_input_path: str,
-) -> list[OCMOidcIdp]:
+) -> list[IDPState]:
     """Compile a list of desired OIDC identity providers from app-interface."""
-    desired_state = []
+    desired_state: list[IDPState] = []
     for cluster in clusters:
-        for auth in cluster.auth:
-            if (
-                not isinstance(auth, ClusterAuthOIDCV1)
-                or not auth.issuer
-                or not cluster.ocm
-            ):
-                # this cannot happen, this attribute is set via cluster retrieval method - just make mypy happy
-                continue
+        if not cluster.auth.oidc_enabled:
+            continue
 
-            secret = cluster_vault_secret(
-                org_id=cluster.ocm.org_id,
-                cluster_name=cluster.name,
-                auth_name=auth.name,
-                vault_input_path=vault_input_path,
+        secret = cluster_vault_secret(
+            org_id=cluster.organization_id,
+            cluster_name=cluster.name,
+            auth_name=cluster.auth.name,
+            issuer_url=cluster.auth.issuer,
+            vault_input_path=vault_input_path,
+        )
+        try:
+            oauth_data = secret_reader.read_all_secret(secret)
+        except Exception:
+            logging.warning(
+                f"Unable to read secret in path {secret.path}. "
+                f"Maybe not created yet? Skipping OIDC config for cluster {cluster.name}"
             )
-            try:
-                oauth_data = secret_reader.read_all_secret(secret)
-            except Exception:
-                logging.warning(
-                    f"Unable to read secret in path {secret.path}. "
-                    f"Maybe not created yet? Skipping OIDC config for cluster {cluster.name}"
-                )
-                continue
+            continue
 
-            sso_client = SSOClient(**oauth_data)
-            ec = (
-                auth.claims.email
-                if auth.claims and auth.claims.email
-                else DEFAULT_EMAIL_CLAIMS
+        sso_client = SSOClient(**oauth_data)
+        if sso_client.issuer != cluster.auth.issuer:
+            # this can only happen if someone manually change the secret or copied it
+            logging.error(
+                f"SSO client issuer {sso_client.issuer} does not match configured cluster issuer "
+                f"{cluster.auth.issuer}. Skipping OIDC config for cluster {cluster.name}"
             )
-            nc = (
-                auth.claims.name
-                if auth.claims and auth.claims.name
-                else DEFAULT_NAME_CLAIMS
+            continue
+        desired_state.append(
+            IDPState(
+                cluster=cluster,
+                idp=OCMOIdentityProviderOidc(
+                    name=cluster.auth.name,
+                    open_id=OCMOIdentityProviderOidcOpenId(
+                        client_id=sso_client.client_id,
+                        client_secret=sso_client.client_secret,
+                        issuer=cluster.auth.issuer,
+                    ),
+                ),
             )
-            uc = (
-                auth.claims.username
-                if auth.claims and auth.claims.username
-                else DEFAULT_USERNAME_CLAIMS
-            )
-            gc = (
-                auth.claims.groups
-                if auth.claims and auth.claims.groups
-                else DEFAULT_GROUPS_CLAIMS
-            )
-            desired_state.append(
-                OCMOidcIdp(
-                    cluster=cluster.name,
-                    name=auth.name,
-                    client_id=sso_client.client_id,
-                    client_secret=sso_client.client_secret,
-                    issuer=auth.issuer,
-                    email_claims=ec,
-                    name_claims=nc,
-                    username_claims=uc,
-                    groups_claims=gc,
-                )
-            )
+        )
 
     return desired_state
 
 
 def act(
     dry_run: bool,
-    ocm_map: OCMMap,
-    current_state: Sequence[OCMOidcIdp],
-    desired_state: Sequence[OCMOidcIdp],
+    ocm_api: OCMBaseClient,
+    current_state: Sequence[IDPState],
+    desired_state: Sequence[IDPState],
     managed_idps: list[str],
 ) -> None:
     """Compare current and desired OIDC identity providers and add, remove, or update them."""
-    to_add = set(desired_state) - set(current_state)
-    to_remove = set(current_state) - set(desired_state)
-    to_compare = set(current_state) & set(desired_state)
+    diff_result = diff_iterables(
+        current_state,
+        desired_state,
+        key=lambda idp_state: hash(
+            (
+                idp_state.cluster.organization_id,
+                idp_state.cluster.name,
+                idp_state.idp.type,
+                idp_state.idp.name,
+            )
+        ),
+        equal=lambda idp1, idp2: idp1 == idp2,
+    )
 
-    for idp in to_remove:
-        if managed_idps and idp.name not in managed_idps:
-            logging.debug(f"Skipping removal of unmanged '{idp.name}' IDP.")
+    for idp_state in diff_result.delete.values():
+        if (
+            managed_idps
+            and idp_state.idp.name not in managed_idps
+            and not idp_state.cluster.auth.enforced
+        ):
+            logging.debug(f"Skipping removal of unmanged '{idp_state.idp.name}' IDP.")
             continue
-        logging.info(["remove_oidc_idp", idp.cluster, idp.name])
-        if not idp.id:
+        logging.info(["remove_oidc_idp", idp_state.cluster.name, idp_state.idp.name])
+        if not dry_run:
+            delete_identity_provider(ocm_api, idp_state.idp)
+
+    for idp_state in diff_result.add.values():
+        if not isinstance(idp_state.idp, OCMOIdentityProviderOidc):
             logging.error(
-                "No identity provider id was given. This should never ever happen!"
+                f"Identity provider {idp_state.idp.name} is not an OIDC identity provider."
             )
-            sys.exit(1)
-        if not dry_run:
-            ocm = ocm_map.get(idp.cluster)
-            ocm.delete_idp(idp.cluster, idp.id)
-
-    for idp in to_add:
-        logging.info(["create_oidc_idp", idp.cluster, idp.name])
-        if not dry_run:
-            ocm = ocm_map.get(idp.cluster)
-            ocm.create_oidc_idp(idp)
-
-    for idp in to_compare:
-        current_idp = current_state[current_state.index(idp)]
-        desired_idp = desired_state[desired_state.index(idp)]
-        if not current_idp.differ(desired_idp):
-            # no changes detected
             continue
-
-        if desired_idp.issuer != current_idp.issuer:
-            raise ValueError(
-                "Cannot change issuer of an identity provider. Please remove and re-add it."
-            )
-
-        logging.info(["update_oidc_idp", desired_idp.cluster, desired_idp.name])
-        if not current_idp.id:
-            logging.error(
-                "No identity provider id was given. This should never ever happen!"
-            )
-            sys.exit(1)
+        logging.info(["create_oidc_idp", idp_state.cluster.name, idp_state.idp.name])
         if not dry_run:
-            ocm = ocm_map.get(desired_idp.cluster)
-            ocm.update_oidc_idp(current_idp.id, desired_idp)
+            add_identity_provider(ocm_api, idp_state.cluster.ocm_cluster, idp_state.idp)
+
+    for diff_pair in diff_result.change.values():
+        current_idp_state = diff_pair.current
+        desired_idp_state = diff_pair.desired
+        current_idp = current_idp_state.idp
+        desired_idp = desired_idp_state.idp
+        desired_idp.href = current_idp.href
+
+        if not isinstance(desired_idp, OCMOIdentityProviderOidc):
+            logging.error(
+                f"Identity provider {desired_idp.name} is not an OIDC identity provider."
+            )
+            continue
+        logging.info(
+            ["update_oidc_idp", desired_idp_state.cluster.name, desired_idp.name]
+        )
+        if not dry_run:
+            update_identity_provider(ocm_api, desired_idp)

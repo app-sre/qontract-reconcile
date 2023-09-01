@@ -1,16 +1,10 @@
-import logging
-import sys
-from collections.abc import Callable
-from typing import (
-    Any,
-    Optional,
+from reconcile.rhidp.common import (
+    build_cluster_objects,
+    discover_clusters,
+    get_ocm_environments,
 )
-
-from reconcile.gql_definitions.rhidp.clusters import ClusterV1
-from reconcile.rhidp.common import get_clusters
 from reconcile.rhidp.ocm_oidc_idp.base import run
-from reconcile.status import ExitCodes
-from reconcile.utils import gql
+from reconcile.utils.ocm_base_client import init_ocm_base_client
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -19,42 +13,41 @@ from reconcile.utils.runtime.integration import (
 QONTRACT_INTEGRATION = "ocm-oidc-idp"
 
 
-class OCMOidcIdpIntegrationParams(PydanticRunParams):
+class OCMOidcIdpParams(PydanticRunParams):
     vault_input_path: str
+    ocm_environment: str | None = None
+    ocm_organization_ids: set[str] | None = None
+    default_auth_name: str
     default_auth_issuer_url: str
 
 
-class OCMOidcIdpIntegration(
-    QontractReconcileIntegration[OCMOidcIdpIntegrationParams],
-):
-    """A flavour of the OCM OIDC IDP integration, that receives the list of
-    clusters from app-interface.
-    """
+class OCMOidcIdp(QontractReconcileIntegration[OCMOidcIdpParams]):
+    """The OCM OIDC IDP integration manages the cluster OIDC OCM configuration and uses OCM labels to discover clusters."""
 
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
     def run(self, dry_run: bool) -> None:
-        gqlapi = gql.get_api()
-        # data query
-        clusters = self.get_clusters(gqlapi.query)
-        if not clusters:
-            logging.debug("No clusters with oidc-idp definitions found.")
-            sys.exit(ExitCodes.SUCCESS)
+        for ocm_env in get_ocm_environments(self.params.ocm_environment):
+            ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
+            # data query
+            cluster_details = discover_clusters(
+                ocm_api=ocm_api, org_ids=self.params.ocm_organization_ids
+            )
+            clusters = build_cluster_objects(
+                cluster_details=cluster_details,
+                default_auth_name=self.params.default_auth_name,
+                default_issuer_url=self.params.default_auth_issuer_url,
+            )
 
-        run(
-            integration_name=self.name,
-            ocm_environment="all",
-            clusters=clusters,
-            secret_reader=self.secret_reader,
-            vault_input_path=self.params.vault_input_path,
-            dry_run=dry_run,
-        )
-
-    def get_clusters(self, query_func: Callable) -> list[ClusterV1]:
-        return get_clusters(self.name, query_func, self.params.default_auth_issuer_url)
-
-    def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
-        gqlapi = gql.get_api()
-        return {"clusters": [c.dict() for c in self.get_clusters(gqlapi.query)]}
+            run(
+                integration_name=self.name,
+                ocm_environment=ocm_env.name,
+                clusters=clusters,
+                secret_reader=self.secret_reader,
+                ocm_api=ocm_api,
+                vault_input_path=f"{self.params.vault_input_path}/{ocm_env.name}",
+                dry_run=dry_run,
+                managed_idps=[self.params.default_auth_name],
+            )
