@@ -198,14 +198,6 @@ class OpenshiftResource:
         return val1 == val2
 
     @property
-    def last_applied_configuration(self):
-        try:
-            lac = self.body["metadata"]["annotations"][LAC_ANNOTATION]
-            return lac
-        except KeyError:
-            return None
-
-    @property
     def name(self):
         return self.body["metadata"]["name"]
 
