@@ -169,7 +169,7 @@ def act(
     diff_result = diff_iterables(
         current_state,
         desired_state,
-        key=lambda idp_state: hash(
+        key=lambda idp_state: (
             (
                 idp_state.cluster.organization_id,
                 idp_state.cluster.name,

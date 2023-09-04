@@ -18,12 +18,12 @@ ACTIVE_SUBSCRIPTION_STATES = {"Active", "Reserved"}
 CAPABILITY_MANAGE_CLUSTER_ADMIN = "capability.cluster.manage_cluster_admin"
 
 
-class OCMModelLinkSimple(BaseModel):
+class OCMCollectionLink(BaseModel):
     kind: Optional[str] = None
     href: Optional[str] = None
 
 
-class OCMModelLink(OCMModelLinkSimple):
+class OCMModelLink(OCMCollectionLink):
     id: str
 
 
@@ -167,7 +167,7 @@ class OCMCluster(BaseModel):
     region: OCMModelLink
     cloud_provider: OCMModelLink
     product: OCMModelLink
-    identity_providers: OCMModelLinkSimple
+    identity_providers: OCMCollectionLink
 
     aws: Optional[OCMClusterAWSSettings]
 
