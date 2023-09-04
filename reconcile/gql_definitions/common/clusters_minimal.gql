@@ -40,13 +40,6 @@ query ClustersMinimal($name: String) {
       }
       ... on ClusterAuthOIDC_v1 {
         name
-        issuer
-        claims {
-          email
-          name
-          username
-          groups
-        }
       }
     }
   }

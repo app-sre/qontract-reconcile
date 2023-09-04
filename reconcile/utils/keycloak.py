@@ -24,7 +24,7 @@ class SSOClient(BaseModel):
     subject_type: str
     tls_client_certificate_bound_access_tokens: bool
     token_endpoint_auth_method: str
-    # these attributes are added by the reconcile code
+    # attribute added by the reconcile code and not part of the SSO client data
     issuer: str
 
 

@@ -11,11 +11,8 @@ from urllib.parse import (
 
 import jwt
 
-from reconcile.gql_definitions.rhidp.clusters import (
-    ClusterAuthOIDCV1,
-    ClusterV1,
-)
 from reconcile.rhidp.common import (
+    Cluster,
     cluster_vault_secret,
     cluster_vault_secret_id,
     expose_base_metrics,
@@ -34,7 +31,7 @@ from reconcile.utils.keycloak import (
 )
 from reconcile.utils.secret_reader import VaultSecretReader
 
-DesiredSSOClients = dict[str, tuple[ClusterV1, ClusterAuthOIDCV1]]
+DesiredSSOClients = dict[str, Cluster]
 
 
 def console_url_to_oauth_url(console_url: str, auth_name: str) -> str:
@@ -61,7 +58,7 @@ def console_url_to_oauth_url(console_url: str, auth_name: str) -> str:
 def run(
     integration_name: str,
     ocm_environment: str,
-    clusters: Iterable[ClusterV1],
+    clusters: Iterable[Cluster],
     secret_reader: VaultSecretReader,
     keycloak_vault_paths: Iterable[str],
     vault_input_path: str,
@@ -145,21 +142,21 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    clusters: Iterable[ClusterV1],
+    clusters: Iterable[Cluster],
 ) -> DesiredSSOClients:
     """Compile all desired SSO clients from the given clusters."""
     desired_sso_clients = {}
     for cluster in clusters:
-        for auth in cluster.auth:
-            if not isinstance(auth, ClusterAuthOIDCV1) or not auth.issuer:
-                # this cannot happen, these attributes are set via cluster retrieval method - just make mypy happy
-                continue
-            cid = cluster_vault_secret_id(
-                org_id=cluster.ocm.org_id if cluster.ocm else "unknown",
-                cluster_name=cluster.name,
-                auth_name=auth.name,
-            )
-            desired_sso_clients[cid] = (cluster, auth)
+        if not cluster.auth.rhidp_enabled:
+            continue
+
+        cid = cluster_vault_secret_id(
+            org_id=cluster.organization_id,
+            cluster_name=cluster.name,
+            auth_name=cluster.auth.name,
+            issuer_url=cluster.auth.issuer,
+        )
+        desired_sso_clients[cid] = cluster
     return desired_sso_clients
 
 
@@ -187,15 +184,15 @@ def act(
             )
 
     for sso_client_id in sso_client_ids_to_add:
-        cluster = desired_sso_clients[sso_client_id][0]
-        auth = desired_sso_clients[sso_client_id][1]
-        logging.info(["create_sso_client", cluster.name, auth.name, sso_client_id])
+        cluster = desired_sso_clients[sso_client_id]
+        logging.info(
+            ["create_sso_client", cluster.name, cluster.auth.name, sso_client_id]
+        )
         if not dry_run:
             create_sso_client(
                 keycloak_map=keycloak_map,
                 sso_client_id=sso_client_id,
                 cluster=cluster,
-                auth=auth,
                 contacts=contacts,
                 secret_reader=secret_reader,
                 vault_input_path=vault_input_path,
@@ -205,25 +202,24 @@ def act(
 def create_sso_client(
     keycloak_map: KeycloakMap,
     sso_client_id: str,
-    cluster: ClusterV1,
-    auth: ClusterAuthOIDCV1,
+    cluster: Cluster,
     contacts: Sequence[str],
     secret_reader: VaultSecretReader,
     vault_input_path: str,
 ) -> None:
     """Create an SSO client and store SSO client data in Vault."""
-    if not auth.issuer:
-        # this cannot happen, these attributes are set via cluster retrieval method - just make mypy happy
+    if not cluster.console_url:
+        logging.error(
+            f"Cluster {cluster.name} does not have a console URL; maybe not ready yet. Skipping for now."
+        )
         return
-
-    keycloak_api = keycloak_map.get(auth.issuer)
-
+    keycloak_api = keycloak_map.get(cluster.auth.issuer)
     sso_client = keycloak_api.register_client(
         client_name=sso_client_id,
         redirect_uris=[
             console_url_to_oauth_url(
                 console_url=cluster.console_url,
-                auth_name=auth.name,
+                auth_name=cluster.auth.name,
             )
         ],
         initiate_login_uri=cluster.console_url,

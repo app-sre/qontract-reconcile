@@ -2125,36 +2125,6 @@ def ocm_github_idp(ctx, vault_input_path):
     run_integration(reconcile.ocm_github_idp, ctx.obj, vault_input_path)
 
 
-@integration.command(short_help="Manage OIDC Identity Providers in OCM. Part of RHIDP.")
-@click.option(
-    "--vault-input-path",
-    help="path in Vault to find input resources.",
-    required=True,
-)
-@click.option(
-    "--default-auth-issuer-url",
-    default="https://auth.redhat.com/auth/realms/EmployeeIDP",
-    help="Use this Issuer (SSO server) URL if nothing else is specified in the cluster.auth config.",
-    required=True,
-)
-@click.pass_context
-def ocm_oidc_idp(ctx, vault_input_path, default_auth_issuer_url):
-    from reconcile.rhidp.ocm_oidc_idp.integration import (
-        OCMOidcIdpIntegration,
-        OCMOidcIdpIntegrationParams,
-    )
-
-    run_class_integration(
-        integration=OCMOidcIdpIntegration(
-            OCMOidcIdpIntegrationParams(
-                vault_input_path=vault_input_path,
-                default_auth_issuer_url=default_auth_issuer_url,
-            )
-        ),
-        ctx=ctx.obj,
-    )
-
-
 @integration.command(
     short_help="Manage OIDC cluster configuration in OCM organizations based on OCM labels. Part of RHIDP."
 )
@@ -2171,66 +2141,18 @@ def ocm_oidc_idp(ctx, vault_input_path, default_auth_issuer_url):
     envvar="RHIDP_OCM_ORG_IDS",
 )
 @click.option(
-    "--auth-name",
-    default="redhat-app-sre-auth",
+    "--default-auth-name",
+    default="redhat-sso",
     help="The authentication name must match that one used in the redirect URL.",
     required=True,
-    envvar="RHIDP_AUTH_NAME",
-)
-@click.option(
-    "--auth-issuer-url",
-    default="https://auth.redhat.com/auth/realms/EmployeeIDP",
-    help="The Issuer (SSO server) URL.",
-    required=True,
-    envvar="RHIDP_AUTH_ISSUER_URL",
-)
-@click.option(
-    "--vault-input-path",
-    help="path in Vault to find input resources.",
-    required=True,
-)
-@click.pass_context
-def ocm_oidc_idp_standalone(
-    ctx, ocm_env, ocm_org_ids, auth_name, auth_issuer_url, vault_input_path
-):
-    from reconcile.rhidp.ocm_oidc_idp.standalone import (
-        OCMOidcIdpStandalone,
-        OCMOidcIdpStandaloneParams,
-    )
-
-    parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
-    run_class_integration(
-        integration=OCMOidcIdpStandalone(
-            OCMOidcIdpStandaloneParams(
-                vault_input_path=vault_input_path,
-                ocm_environment=ocm_env,
-                ocm_organization_ids=parsed_ocm_org_ids,
-                auth_name=auth_name,
-                auth_issuer_url=auth_issuer_url,
-            )
-        ),
-        ctx=ctx.obj,
-    )
-
-
-@integration.command(short_help="Manage Keycloak SSO clients. Part of RHIDP.")
-@click.option(
-    "--keycloak-instance-vault-paths",
-    help="A comma seperated list of vault paths to keycloak instance secrets.",
-    required=True,
-)
-@click.option(
-    "--contact-emails",
-    default="sd-app-sre+auth@redhat.com",
-    help="A comma seperated list of contact email addresses.",
-    required=True,
+    envvar="RHIDP_DEFAULT_AUTH_NAME",
 )
 @click.option(
     "--default-auth-issuer-url",
     default="https://auth.redhat.com/auth/realms/EmployeeIDP",
-    help="The Issuer (SSO server) URL.",
+    help="Use this Issuer (SSO server) URL if nothing else is specified for a cluster in the OCM cluster labels.",
     required=True,
-    envvar="RHIDP_AUTH_ISSUER_URL",
+    envvar="RHIDP_DEFAULT_AUTH_ISSUER_URL",
 )
 @click.option(
     "--vault-input-path",
@@ -2238,27 +2160,28 @@ def ocm_oidc_idp_standalone(
     required=True,
 )
 @click.pass_context
-def rhidp_sso_client(
+def ocm_oidc_idp(
     ctx,
-    keycloak_instance_vault_paths,
-    contact_emails,
+    ocm_env,
+    ocm_org_ids,
+    default_auth_name,
     default_auth_issuer_url,
     vault_input_path,
 ):
-    from reconcile.rhidp.sso_client.integration import (
-        SSOClientIntegration,
-        SSOClientIntegrationParams,
+    from reconcile.rhidp.ocm_oidc_idp.integration import (
+        OCMOidcIdp,
+        OCMOidcIdpParams,
     )
 
+    parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     run_class_integration(
-        integration=SSOClientIntegration(
-            SSOClientIntegrationParams(
-                keycloak_vault_paths=list(
-                    set(keycloak_instance_vault_paths.split(","))
-                ),
+        integration=OCMOidcIdp(
+            OCMOidcIdpParams(
                 vault_input_path=vault_input_path,
+                ocm_environment=ocm_env,
+                ocm_organization_ids=parsed_ocm_org_ids,
+                default_auth_name=default_auth_name,
                 default_auth_issuer_url=default_auth_issuer_url,
-                contacts=list(set(contact_emails.split(","))),
             )
         ),
         ctx=ctx.obj,
@@ -2297,38 +2220,38 @@ def rhidp_sso_client(
     envvar="RHIDP_OCM_ORG_IDS",
 )
 @click.option(
-    "--auth-name",
-    default="redhat-app-sre-auth",
+    "--default-auth-name",
+    default="redhat-sso",
     help="The authentication name must match that one used in the redirect URL.",
     required=True,
-    envvar="RHIDP_AUTH_NAME",
+    envvar="RHIDP_DEFAULT_AUTH_NAME",
 )
 @click.option(
-    "--auth-issuer-url",
+    "--default-auth-issuer-url",
     default="https://auth.redhat.com/auth/realms/EmployeeIDP",
-    help="The Issuer (SSO server) URL.",
+    help="Use this Issuer (SSO server) URL if nothing else is specified for a cluster in the OCM cluster labels.",
     required=True,
-    envvar="RHIDP_AUTH_ISSUER_URL",
+    envvar="RHIDP_DEFAULT_AUTH_ISSUER_URL",
 )
 @click.pass_context
-def rhidp_sso_client_standalone(
+def rhidp_sso_client(
     ctx,
     keycloak_instance_vault_paths,
     contact_emails,
     vault_input_path,
     ocm_env,
     ocm_org_ids,
-    auth_name,
-    auth_issuer_url,
+    default_auth_name,
+    default_auth_issuer_url,
 ):
-    from reconcile.rhidp.sso_client.standalone import (
-        SSOClientStandalone,
-        SSOClientStandaloneParams,
+    from reconcile.rhidp.sso_client.integration import (
+        SSOClient,
+        SSOClientParams,
     )
 
     run_class_integration(
-        integration=SSOClientStandalone(
-            SSOClientStandaloneParams(
+        integration=SSOClient(
+            SSOClientParams(
                 keycloak_vault_paths=list(
                     set(keycloak_instance_vault_paths.split(","))
                 ),
@@ -2337,8 +2260,8 @@ def rhidp_sso_client_standalone(
                 ocm_organization_ids=set(ocm_org_ids.split(","))
                 if ocm_org_ids
                 else None,
-                auth_name=auth_name,
-                auth_issuer_url=auth_issuer_url,
+                default_auth_name=default_auth_name,
+                default_auth_issuer_url=default_auth_issuer_url,
                 contacts=list(set(contact_emails.split(","))),
             )
         ),

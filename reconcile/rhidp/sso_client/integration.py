@@ -1,16 +1,10 @@
-import logging
-import sys
-from collections.abc import Callable
-from typing import (
-    Any,
-    Optional,
+from reconcile.rhidp.common import (
+    build_cluster_objects,
+    discover_clusters,
+    get_ocm_environments,
 )
-
-from reconcile.gql_definitions.rhidp.clusters import ClusterV1
-from reconcile.rhidp.common import get_clusters
 from reconcile.rhidp.sso_client.base import run
-from reconcile.status import ExitCodes
-from reconcile.utils import gql
+from reconcile.utils.ocm_base_client import init_ocm_base_client
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -20,51 +14,44 @@ from reconcile.utils.secret_reader import VaultSecretReader
 QONTRACT_INTEGRATION = "rhidp-sso-client"
 
 
-class SSOClientIntegrationParams(PydanticRunParams):
+class SSOClientParams(PydanticRunParams):
     keycloak_vault_paths: list[str]
     vault_input_path: str
+    ocm_environment: str | None = None
+    ocm_organization_ids: set[str] | None = None
+    default_auth_name: str
     default_auth_issuer_url: str
     contacts: list[str]
 
 
-class SSOClientIntegration(
-    QontractReconcileIntegration[SSOClientIntegrationParams],
-):
-    """A flavour of the RHIDP SSO Client integration, that receives the list of
-    clusters from app-interface.
-    """
+class SSOClient(QontractReconcileIntegration[SSOClientParams]):
+    """The RHIDP SSO Client integration manages SSO clients and uses OCM labels to discover clusters."""
 
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
     def run(self, dry_run: bool) -> None:
-        gqlapi = gql.get_api()
-        clusters = self.get_clusters(gqlapi.query)
-        # data query
-        if not clusters:
-            logging.debug("No clusters with oidc-idp definitions found.")
-            sys.exit(ExitCodes.SUCCESS)
-
-        run(
-            integration_name=self.name,
-            ocm_environment="all",
-            clusters=clusters,
-            secret_reader=VaultSecretReader(),
-            keycloak_vault_paths=self.params.keycloak_vault_paths,
-            vault_input_path=self.params.vault_input_path,
-            contacts=self.params.contacts,
-            dry_run=dry_run,
-        )
-
-    def get_clusters(self, query_func: Callable) -> list[ClusterV1]:
-        return get_clusters(
-            self.name,
-            query_func,
-            self.params.default_auth_issuer_url,
-            exclude_clusters_without_ocm=False,
-        )
-
-    def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
-        gqlapi = gql.get_api()
-        return {"clusters": [c.dict() for c in self.get_clusters(gqlapi.query)]}
+        secret_reader = VaultSecretReader()
+        for ocm_env in get_ocm_environments(self.params.ocm_environment):
+            ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
+            cluster_details = discover_clusters(
+                ocm_api=ocm_api, org_ids=self.params.ocm_organization_ids
+            )
+            clusters = build_cluster_objects(
+                cluster_details=cluster_details,
+                default_auth_name=self.params.default_auth_name,
+                default_issuer_url=self.params.default_auth_issuer_url,
+            )
+            run(
+                integration_name=self.name,
+                ocm_environment=ocm_env.name,
+                clusters=clusters,
+                secret_reader=secret_reader,
+                keycloak_vault_paths=self.params.keycloak_vault_paths,
+                # put secrets in a subpath per OCM environment to avoid deleting
+                # clusters from other environments
+                vault_input_path=f"{self.params.vault_input_path}/{ocm_env.name}",
+                contacts=self.params.contacts,
+                dry_run=dry_run,
+            )

@@ -1,26 +1,26 @@
-from collections import (
-    Counter,
-    defaultdict,
-)
-from collections.abc import Callable
-from enum import Enum
-from typing import (
+from collections import Counter
+from collections.abc import (
     Iterable,
-    Optional,
-    Sequence,
+    MutableMapping,
+)
+from enum import Enum
+from typing import Any
+from urllib.parse import urlparse
+
+from pydantic import (
+    BaseModel,
+    root_validator,
 )
 
+from reconcile.gql_definitions.common.ocm_environments import (
+    query as ocm_environment_query,
+)
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.gql_definitions.rhidp.clusters import (
-    ClusterAuthOIDCV1,
-    ClusterV1,
-    OpenShiftClusterManagerV1,
-)
-from reconcile.gql_definitions.rhidp.clusters import query as cluster_query
 from reconcile.rhidp.metrics import RhIdpClusterCounter
-from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils import gql
 from reconcile.utils.metrics import MetricsContainer
+from reconcile.utils.ocm.base import OCMCluster
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
     discover_clusters_by_labels,
@@ -31,125 +31,131 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 
 # Generates label keys for rhidp, compliant with the naming schema defined in
 # https://service.pages.redhat.com/dev-guidelines/docs/sre-capabilities/framework/ocm-labels/
-RHIDP_LABEL_KEY = sre_capability_label_key("rhidp")
+RHIDP_NAMESPACE_LABEL_KEY = sre_capability_label_key("rhidp")
+STATUS_LABEL_KEY = sre_capability_label_key("rhidp", "status")
+ISSUER_LABEL_KEY = sre_capability_label_key("rhidp", "issuer")
+AUTH_NAME_LABEL_KEY = sre_capability_label_key("rhidp", "name")
 
 
-class RhidpLabelValue(Enum):
+class StatusValue(str, Enum):
+    # rhidp and oidc are enabled
     ENABLED = "enabled"
+    # rhidp and oidc are disabled
     DISABLED = "disabled"
+    # rhidp is enabled and oidc will delete all other configured idps
+    ENFORCED = "enforced"
+    # rhidp is enabled and oidc is skipped
+    RHIDP_ONLY = "sso-client-only"
+
+
+class ClusterAuth(BaseModel):
+    name: str
+    issuer: str
+    status: str
+
+    @root_validator
+    def name_no_spaces(  # pylint: disable=no-self-argument
+        cls, values: MutableMapping[str, Any]
+    ) -> MutableMapping[str, Any]:
+        values["name"] = values["name"].replace(" ", "-")
+        return values
+
+    @property
+    def rhidp_enabled(self) -> bool:
+        return self.status != StatusValue.DISABLED.value
+
+    @property
+    def oidc_enabled(self) -> bool:
+        return self.status not in (
+            StatusValue.DISABLED.value,
+            StatusValue.RHIDP_ONLY.value,
+        )
+
+    @property
+    def enforced(self) -> bool:
+        return self.status == StatusValue.ENFORCED.value
+
+
+class Cluster(BaseModel):
+    ocm_cluster: OCMCluster
+    auth: ClusterAuth
+    organization_id: str
+
+    @property
+    def name(self) -> str:
+        return self.ocm_cluster.name
+
+    @property
+    def console_url(self) -> str | None:
+        return self.ocm_cluster.console.url if self.ocm_cluster.console else None
 
 
 def discover_clusters(
-    ocm_api: OCMBaseClient,
-    org_ids: Optional[set[str]] = None,
-    label_value: RhidpLabelValue = RhidpLabelValue.ENABLED,
-) -> dict[str, list[ClusterDetails]]:
+    ocm_api: OCMBaseClient, org_ids: set[str] | None
+) -> list[ClusterDetails]:
     """Discover all clusters that are part of the RHIDP service."""
     clusters = discover_clusters_by_labels(
         ocm_api=ocm_api,
-        label_filter=subscription_label_filter()
-        .eq("key", RHIDP_LABEL_KEY)
-        .eq("value", label_value.value),
+        label_filter=subscription_label_filter().like(
+            "key", f"{RHIDP_NAMESPACE_LABEL_KEY}%"
+        ),
     )
 
-    # group by org and filter if org_id is specified
-    clusters_by_org: dict[str, list[ClusterDetails]] = defaultdict(list)
-    for c in clusters:
-        passed_ocm_filters = org_ids is None or c.organization_id in org_ids
-        if passed_ocm_filters:
-            clusters_by_org[c.organization_id].append(c)
-
-    return clusters_by_org
+    # filter by org if org_id is specified
+    return [c for c in clusters if org_ids is None or c.organization_id in org_ids]
 
 
-def build_cluster_auths(name: str, issuer_url: str) -> list[ClusterAuthOIDCV1]:
+def build_cluster_objects(
+    cluster_details: Iterable[ClusterDetails],
+    default_auth_name: str,
+    default_issuer_url: str,
+) -> list[Cluster]:
     return [
-        ClusterAuthOIDCV1(
-            service="oidc",
-            name=name,
-            issuer=issuer_url,
-            # stick with the defaults
-            claims=None,
+        Cluster(
+            ocm_cluster=cluster.ocm_cluster,
+            auth=ClusterAuth(
+                name=cluster.labels.get_label_value(AUTH_NAME_LABEL_KEY)
+                or default_auth_name,
+                issuer=cluster.labels.get_label_value(ISSUER_LABEL_KEY)
+                or default_issuer_url,
+                # "rhidp" label is deprecated, but we still need to support it
+                # "rhidp.status" is the new label
+                status=cluster.labels.get_label_value(RHIDP_NAMESPACE_LABEL_KEY)
+                or cluster.labels.get_label_value(STATUS_LABEL_KEY)
+                or StatusValue.DISABLED.value,
+            ),
+            organization_id=cluster.organization_id,
         )
+        for cluster in cluster_details
+        # we can't calculate the redirect url w/o a console url
+        if cluster.ocm_cluster.console
     ]
 
 
-def build_cluster_obj(
-    ocm_env: OCMEnvironment, cluster: ClusterDetails, auth: Sequence[ClusterAuthOIDCV1]
-) -> ClusterV1:
-    return ClusterV1(
-        name=cluster.ocm_cluster.name,
-        consoleUrl=cluster.ocm_cluster.console.url
-        if cluster.ocm_cluster.console
-        else "",
-        ocm=OpenShiftClusterManagerV1(
-            name=cluster.organization_id,
-            environment=ocm_env,
-            orgId=cluster.organization_id,
-            # unused values
-            accessTokenClientId=None,
-            accessTokenClientSecret=None,
-            accessTokenUrl=None,
-            blockedVersions=None,
-            sectors=None,
-        ),
-        auth=auth,
-        # unused values
-        upgradePolicy=None,
-        disable=None,
-    )
-
-
-def get_clusters(
-    integration_name: str,
-    query_func: Callable,
-    default_issuer_url: str,
-    exclude_clusters_without_ocm: bool = True,
-) -> list[ClusterV1]:
-    """Get all clusters from AppInterface."""
-    data = cluster_query(query_func, variables={})
-    clusters: list[ClusterV1] = []
-
-    for c in data.clusters or []:
-        if not c.console_url:
-            # without a console url we can't calculate the redirect url ... skip it for a moment
-            continue
-        if not integration_is_enabled(integration_name, c):
-            # integration disabled for this particular cluster
-            continue
-        if c.ocm is None and exclude_clusters_without_ocm:
-            # no ocm relation
-            continue
-        if not [auth for auth in c.auth if isinstance(auth, ClusterAuthOIDCV1)]:
-            # no OIDC auth
-            continue
-        for auth in c.auth:
-            if isinstance(auth, ClusterAuthOIDCV1) and not auth.issuer:
-                auth.issuer = default_issuer_url
-        clusters.append(c)
-    return clusters
-
-
-def cluster_vault_secret_id(org_id: str, cluster_name: str, auth_name: str) -> str:
+def cluster_vault_secret_id(
+    org_id: str, cluster_name: str, auth_name: str, issuer_url: str
+) -> str:
     """Returns the vault secret id for the given cluster."""
-    return f"{cluster_name}-{org_id}-{auth_name}"
+    url = urlparse(issuer_url)
+    return f"{cluster_name}-{org_id}-{auth_name}-{url.hostname}"
 
 
 def cluster_vault_secret(
     vault_input_path: str,
-    org_id: Optional[str] = None,
-    cluster_name: Optional[str] = None,
-    auth_name: Optional[str] = None,
-    vault_secret_id: Optional[str] = None,
+    org_id: str | None = None,
+    cluster_name: str | None = None,
+    auth_name: str | None = None,
+    issuer_url: str | None = None,
+    vault_secret_id: str | None = None,
 ) -> VaultSecret:
     """Returns the vault secret path for the given cluster."""
-    if not vault_secret_id and (org_id and cluster_name and auth_name):
-        cid = cluster_vault_secret_id(org_id, cluster_name, auth_name)
+    if not vault_secret_id and (org_id and cluster_name and auth_name and issuer_url):
+        cid = cluster_vault_secret_id(org_id, cluster_name, auth_name, issuer_url)
     elif vault_secret_id:
         cid = vault_secret_id
     else:
         raise ValueError(
-            "vault_secret_id or org_id, cluster_name and auth_name must be provided"
+            "vault_secret_id or org_id, cluster_name, auth_name, and issuer_url must be provided"
         )
     return VaultSecret(
         path=f"{vault_input_path.rstrip('/')}/{cid}",
@@ -163,14 +169,11 @@ def expose_base_metrics(
     metrics_container: MetricsContainer,
     integration_name: str,
     ocm_environment: str,
-    clusters: Iterable[ClusterV1],
+    clusters: Iterable[Cluster],
 ) -> None:
     clusters_per_org: Counter[str] = Counter()
     for cluster in clusters:
-        if cluster.ocm:
-            clusters_per_org[cluster.ocm.org_id] += 1
-        else:
-            clusters_per_org["unknown-org-id"] += 1
+        clusters_per_org[cluster.organization_id] += 1
 
     # clusters per org counter
     for org_id, count in clusters_per_org.items():
@@ -182,3 +185,10 @@ def expose_base_metrics(
             ),
             value=count,
         )
+
+
+def get_ocm_environments(env_name: str | None) -> list[OCMEnvironment]:
+    return ocm_environment_query(
+        gql.get_api().query,
+        variables={"name": env_name} if env_name else None,
+    ).environments

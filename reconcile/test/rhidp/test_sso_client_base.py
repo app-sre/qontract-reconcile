@@ -5,10 +5,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.gql_definitions.rhidp.clusters import (
-    ClusterAuthOIDCV1,
-    ClusterV1,
-)
+from reconcile.rhidp.common import Cluster
 from reconcile.rhidp.sso_client.base import (
     act,
     console_url_to_oauth_url,
@@ -68,16 +65,14 @@ def test_sso_client_fetch_current_state(secret_reader: Mock) -> None:
     secret_reader.vault_client.list.assert_called_once_with("vault-input-path")
 
 
-def test_sso_client_fetch_desired_state(clusters: Sequence[ClusterV1]) -> None:
+def test_sso_client_fetch_desired_state(clusters: Sequence[Cluster]) -> None:
     assert fetch_desired_state(clusters) == {
-        "cluster-1-org-id-oidc-auth": (clusters[0], clusters[0].auth[0]),
-        "cluster-2-org-id-oidc-auth": (clusters[1], clusters[1].auth[0]),
-        "cluster-3-org-id-oidc-auth-1": (clusters[2], clusters[2].auth[0]),
-        "cluster-3-org-id-oidc-auth-2": (clusters[2], clusters[2].auth[1]),
+        "cluster-1-org-id-1-oidc-auth-issuer.com": clusters[0],
+        "cluster-2-org-id-2-oidc-auth-issuer.com": clusters[1],
     }
 
 
-def test_sso_client_act(mocker: MockerFixture, clusters: Sequence[ClusterV1]) -> None:
+def test_sso_client_act(mocker: MockerFixture, clusters: Sequence[Cluster]) -> None:
     delete_sso_client_mock = mocker.patch(
         "reconcile.rhidp.sso_client.base.delete_sso_client"
     )
@@ -86,8 +81,8 @@ def test_sso_client_act(mocker: MockerFixture, clusters: Sequence[ClusterV1]) ->
     )
     existing_sso_client_ids = ["to-be-removed", "to-be-kept"]
     desired_sso_clients = {
-        "to-be-kept": (clusters[0], clusters[0].auth[0]),
-        "new-one": (clusters[1], clusters[1].auth[0]),
+        "to-be-kept": clusters[0],
+        "new-one": clusters[1],
     }
     contacts = ["contact-1", "contact-2"]
 
@@ -97,7 +92,7 @@ def test_sso_client_act(mocker: MockerFixture, clusters: Sequence[ClusterV1]) ->
         secret_reader=None,  # type: ignore
         vault_input_path="vault-input-path",
         existing_sso_client_ids=existing_sso_client_ids,
-        desired_sso_clients=desired_sso_clients,  # type: ignore
+        desired_sso_clients=desired_sso_clients,
         contacts=contacts,
         dry_run=True,
     )
@@ -110,7 +105,7 @@ def test_sso_client_act(mocker: MockerFixture, clusters: Sequence[ClusterV1]) ->
         secret_reader=None,  # type: ignore
         vault_input_path="vault-input-path",
         existing_sso_client_ids=existing_sso_client_ids,
-        desired_sso_clients=desired_sso_clients,  # type: ignore
+        desired_sso_clients=desired_sso_clients,
         contacts=contacts,
         dry_run=False,
     )
@@ -124,7 +119,6 @@ def test_sso_client_act(mocker: MockerFixture, clusters: Sequence[ClusterV1]) ->
         keycloak_map=None,
         sso_client_id="new-one",
         cluster=clusters[1],
-        auth=clusters[1].auth[0],
         contacts=contacts,
         secret_reader=None,
         vault_input_path="vault-input-path",
@@ -132,16 +126,12 @@ def test_sso_client_act(mocker: MockerFixture, clusters: Sequence[ClusterV1]) ->
 
 
 def test_sso_client_create_sso_client(
-    mocker: MockerFixture, secret_reader: Mock, clusters: Sequence[ClusterV1]
+    mocker: MockerFixture, secret_reader: Mock, clusters: Sequence[Cluster]
 ) -> None:
     cluster = clusters[0]
-    auth = cluster.auth[0]
-    if not isinstance(auth, ClusterAuthOIDCV1):
-        # just macke mypy happy
-        raise ValueError("auth is not OIDCAuthentication")
 
     SSO_CLIENT_ID = "new-one-foo-bar-org-id-what-ever"
-    REDIRECT_URIS = ["https://console.url.com/oauth2callback/oidc-auth"]
+    REDIRECT_URIS = ["https://console.foobar.com/oauth2callback/oidc-auth"]
     REQUEST_URIS = [cluster.console_url]
     CONTACTS = ["contact-1", "contact-2"]
     VAULT_INPUT_PATH = "vault-input-path"
@@ -166,7 +156,7 @@ def test_sso_client_create_sso_client(
         subject_type="foobar",
         tls_client_certificate_bound_access_tokens=False,
         token_endpoint_auth_method="foobar",
-        issuer=auth.issuer,
+        issuer=cluster.auth.issuer,
     )
     keycloak_map_mock = mocker.create_autospec(KeycloakMap)
     keycloak_api_mock = mocker.create_autospec(KeycloakAPI)
@@ -177,7 +167,6 @@ def test_sso_client_create_sso_client(
         keycloak_map=keycloak_map_mock,
         sso_client_id=SSO_CLIENT_ID,
         cluster=cluster,
-        auth=auth,
         contacts=CONTACTS,
         secret_reader=secret_reader,
         vault_input_path=VAULT_INPUT_PATH,
