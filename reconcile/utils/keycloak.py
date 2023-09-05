@@ -44,14 +44,12 @@ class KeycloakAPI:
         self.url = url
         self.initial_access_token = initial_access_token
         self.timeout = timeout
-        self._openid_configuration: dict[str, Any] | None = None
-        if self.url:
-            self._init_openid_configuration()
+        self._openid_configuration = self._init_openid_configuration()
 
-    def _init_openid_configuration(self) -> None:
+    def _init_openid_configuration(self) -> dict[str, Any] | None:
         if not self.url:
-            raise ValueError("url is required")
-        self._openid_configuration = requests.get(
+            return None
+        return requests.get(
             f"{self.url}/.well-known/openid-configuration",
             timeout=self.timeout,
         ).json()
