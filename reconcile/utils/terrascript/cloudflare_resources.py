@@ -310,7 +310,9 @@ class CloudflareLogpushJob(TerrascriptResource):
 
         if zone:
             resources.append(
-                self.cloudflare_zone(safe_resource_id(zone), name=zone, account_id="${var.account_id}")
+                self.cloudflare_zone(
+                    safe_resource_id(zone), name=zone, account_id="${var.account_id}"
+                )
             )
             values["zone_id"] = f"${{data.cloudflare_zone.{safe_resource_id(zone)}.id}}"
         else:
@@ -337,7 +339,9 @@ class CloudflareLogpushOwnershipChallengeResource(TerrascriptResource):
         zone = values.get("zone_name")
         if zone:
             resources.append(
-                self.cloudflare_zone(safe_resource_id(zone), name=zone, account_id="${var.account_id}")
+                self.cloudflare_zone(
+                    safe_resource_id(zone), name=zone, account_id="${var.account_id}"
+                )
             )
             resources.append(
                 cloudflare_logpush_ownership_challenge(
@@ -372,13 +376,15 @@ class CloudflareLogpullRetention(TerrascriptResource):
         values = ResourceValueResolver(self._spec).resolve()
 
         zone = values.get("zone")
-        
+
         # this is to appease mypy
         if not zone:
             return []
 
         resources.append(
-            self.cloudflare_zone(safe_resource_id(zone), name=zone, account_id="${var.account_id}")
+            self.cloudflare_zone(
+                safe_resource_id(zone), name=zone, account_id="${var.account_id}"
+            )
         )
         cf_logpull_retention = cloudflare_logpull_retention(
             self._spec.identifier,
