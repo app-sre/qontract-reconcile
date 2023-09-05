@@ -310,9 +310,11 @@ class CloudflareLogpushJob(TerrascriptResource):
 
         if zone:
             resources.append(
-                self.cloudflare_zone(zone, name=zone, account_id="${var.account_id}")
+                self.cloudflare_zone(
+                    safe_resource_id(zone), name=zone, account_id="${var.account_id}"
+                )
             )
-            values["zone_id"] = f"${{data.cloudflare_zone.{zone}.id}}"
+            values["zone_id"] = f"${{data.cloudflare_zone.{safe_resource_id(zone)}.id}}"
         else:
             values["account_id"] = "${var.account_id}"
 
@@ -337,12 +339,14 @@ class CloudflareLogpushOwnershipChallengeResource(TerrascriptResource):
         zone = values.get("zone_name")
         if zone:
             resources.append(
-                self.cloudflare_zone(zone, name=zone, account_id="${var.account_id}")
+                self.cloudflare_zone(
+                    safe_resource_id(zone), name=zone, account_id="${var.account_id}"
+                )
             )
             resources.append(
                 cloudflare_logpush_ownership_challenge(
                     self._spec.identifier,
-                    zone_id=f"${{data.cloudflare_zone.{zone}.id}}",
+                    zone_id=f"${{data.cloudflare_zone.{safe_resource_id(zone)}.id}}",
                     destination_conf=destination_conf,
                 )
             )
@@ -372,12 +376,19 @@ class CloudflareLogpullRetention(TerrascriptResource):
         values = ResourceValueResolver(self._spec).resolve()
 
         zone = values.get("zone")
+
+        # this is to appease mypy
+        if not zone:
+            return []
+
         resources.append(
-            self.cloudflare_zone(zone, name=zone, account_id="${var.account_id}")
+            self.cloudflare_zone(
+                safe_resource_id(zone), name=zone, account_id="${var.account_id}"
+            )
         )
         cf_logpull_retention = cloudflare_logpull_retention(
             self._spec.identifier,
-            zone_id=f"${{data.cloudflare_zone.{zone}.id}}",
+            zone_id=f"${{data.cloudflare_zone.{safe_resource_id(zone)}.id}}",
             enabled=values.get("enabled_flag"),
         )
         resources.append(cf_logpull_retention)
