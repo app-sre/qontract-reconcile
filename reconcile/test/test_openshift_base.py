@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Optional, Mapping
 from unittest.mock import patch
 
 import pytest
@@ -13,6 +13,7 @@ import reconcile.utils.openshift_resource as resource
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.differ import DiffResult, DiffPair
 
 fxt = Fixtures("namespaces")
 
@@ -723,3 +724,264 @@ def test_user_has_cluster_access(mocker: MockerFixture):
     )
     assert sut.user_has_cluster_access(user, cluster, ["user_org"])
     assert not sut.user_has_cluster_access(user, cluster, ["another_user"])
+
+
+@pytest.fixture
+def apply_options() -> sut.ApplyOptions:
+    options = sut.ApplyOptions(
+        dry_run=True,
+        no_dry_run_skip_compare=False,
+        wait_for_namespace=True,
+        recycle_pods=True,
+        take_over=False,
+        override_enable_deletion=False,
+        caller=None,
+        all_callers=None,
+        privileged=False,
+        enable_deletion=False,
+    )
+    return options
+
+
+def build_openshift_resource(
+    kind: str,
+    api_version: str,
+    name: str,
+    extra_body: Optional[dict[str, Any]],
+    integration: str = "",
+    integration_version: str = "",
+    error_details: str = "",
+    caller_name: str = "",
+) -> resource.OpenshiftResource:
+    body = {
+        "kind": kind,
+        "apiVersion": api_version,
+        "metadata": {
+            "name": name,
+        },
+    }
+    if extra_body:
+        body = body | extra_body
+
+    return resource.OpenshiftResource(
+        body=body,
+        integration=integration,
+        integration_version=integration_version,
+        error_details=error_details,
+        caller_name=caller_name,
+        validate_k8s_object=False,
+    )
+
+
+def build_openshift_resource_1() -> resource.OpenshiftResource:
+    spec = {"spec": {"test-attr": "test-value-1"}}
+    return build_openshift_resource(
+        kind="test-kind", api_version="v1", name="test-resource", extra_body=spec
+    )
+
+
+def build_openshift_resource_2() -> resource.OpenshiftResource:
+    spec = {"spec": {"test-attr": "test-value-1"}}
+    return build_openshift_resource(
+        kind="test-kind", api_version="v1", name="test-resource", extra_body=spec
+    )
+
+
+@pytest.fixture
+def diff_result() -> DiffResult:
+    r1 = build_openshift_resource_1()
+    r2 = build_openshift_resource_2()
+    return DiffResult(
+        add={"test-resource": r1},
+        change={"test-resource": DiffPair(r1, r2)},
+        delete={"test-resource": r1},
+        identical={},
+    )
+
+
+def test_handle_new_resources(
+    mocker: MockerFixture,
+    oc_map: oc.OC_Map,
+    resource_inventory: resource.ResourceInventory,
+    diff_result: DiffResult,
+    apply_options: sut.ApplyOptions,
+):
+    apply_mock = mocker.patch.object(sut, "apply", autospec=True)
+    cluster = "test-cluster"
+    namespace = "test-namespace"
+    resource_type = "test-Kind"
+    data = {"use_admin_token": {"test-resource": False}}
+
+    actions = sut.handle_new_resources(
+        oc_map=oc_map,
+        ri=resource_inventory,
+        new_resources=diff_result.add,
+        cluster=cluster,
+        namespace=namespace,
+        resource_type=resource_type,
+        data=data,
+        options=apply_options,
+    )
+
+    assert len(actions) == 1
+    apply_expected_args = {
+        "dry_run": True,
+        "oc_map": oc_map,
+        "cluster": "test-cluster",
+        "namespace": "test-namespace",
+        "resource_type": "test-Kind",
+        "resource": diff_result.add["test-resource"],
+        "wait_for_namespace": True,
+        "recycle_pods": True,
+        "privileged": False,
+    }
+    apply_mock.assert_called_with(**apply_expected_args)
+
+
+def test_handle_modified_resources(
+    mocker: MockerFixture,
+    oc_map: oc.OC_Map,
+    resource_inventory: resource.ResourceInventory,
+    diff_result: DiffResult,
+    apply_options: sut.ApplyOptions,
+):
+    apply_mock = mocker.patch.object(sut, "apply", autospec=True)
+    cluster = "test-cluster"
+    namespace = "test-namespace"
+    resource_type = "test-Kind"
+    data = {"use_admin_token": {"test-resource": False}}
+
+    modified_resources = diff_result.change
+
+    actions = sut.handle_modified_resources(
+        oc_map=oc_map,
+        ri=resource_inventory,
+        modified_resources=modified_resources,
+        cluster=cluster,
+        namespace=namespace,
+        resource_type=resource_type,
+        data=data,
+        options=apply_options,
+    )
+
+    assert len(actions) == 1
+    apply_expected_args = {
+        "dry_run": True,
+        "oc_map": oc_map,
+        "cluster": "test-cluster",
+        "namespace": "test-namespace",
+        "resource_type": "test-Kind",
+        "resource": diff_result.change["test-resource"].desired,
+        "wait_for_namespace": True,
+        "recycle_pods": True,
+        "privileged": False,
+    }
+    apply_mock.assert_called_with(**apply_expected_args)
+
+
+def test_handle_deleted_resources(
+    mocker: MockerFixture,
+    oc_map: oc.OC_Map,
+    resource_inventory: resource.ResourceInventory,
+    diff_result: DiffResult,
+    apply_options: sut.ApplyOptions,
+):
+    delete_mock = mocker.patch.object(sut, "delete", autospec=True)
+
+    # mock has_qontract_annotations to own the resource
+    hqa = mocker.patch.object(
+        resource.OpenshiftResource, "has_qontract_annotations", autospec=True
+    )
+    hqa.return_value = True
+
+    cluster = "test-cluster"
+    namespace = "test-namespace"
+    resource_type = "test-Kind"
+    data = {"use_admin_token": {"test-resource": False}}
+
+    actions = sut.handle_deleted_resources(
+        oc_map=oc_map,
+        ri=resource_inventory,
+        deleted_resources=diff_result.delete,
+        cluster=cluster,
+        namespace=namespace,
+        resource_type=resource_type,
+        data=data,
+        options=apply_options,
+    )
+
+    assert len(actions) == 1
+    delete_expected_args = {
+        "dry_run": True,
+        "oc_map": oc_map,
+        "cluster": "test-cluster",
+        "namespace": "test-namespace",
+        "resource_type": "test-Kind",
+        "name": "test-resource",
+        "enable_deletion": False,
+        "privileged": False,
+    }
+    delete_mock.assert_called_with(**delete_expected_args)
+
+
+# Fixtures does not work with parametrize
+# functions are used to build resources instead
+@pytest.mark.parametrize(
+    "data, len_actions, apply_calls, delete_calls",
+    [
+        (
+            {
+                "current": {},
+                "desired": {"test-resource": build_openshift_resource_1()},
+                "use_admin_token": {},
+            },
+            1,
+            1,
+            0,
+        ),
+        (
+            {
+                "current": {"test-resource": build_openshift_resource_1()},
+                "desired": {"test-resource": build_openshift_resource_2()},
+                "use_admin_token": {},
+            },
+            1,
+            1,
+            0,
+        ),
+        (
+            {
+                "current": {"test-resource": build_openshift_resource_1()},
+                "desired": {},
+                "use_admin_token": {},
+            },
+            1,
+            0,
+            1,
+        ),
+    ],
+)
+def test_realize_resource_data_3way_diff(
+    mocker: MockerFixture,
+    oc_map: oc.OC_Map,
+    resource_inventory: resource.ResourceInventory,
+    apply_options: sut.ApplyOptions,
+    data: Mapping[str, Any],
+    len_actions: int,
+    apply_calls: int,
+    delete_calls: int,
+):
+    apply_mock = mocker.patch.object(sut, "apply", autospec=True)
+    delete_mock = mocker.patch.object(sut, "delete", autospec=True)
+    # Patch has_qontract_annotations to own the resource
+    mocker.patch.object(
+        resource.OpenshiftResource, "has_qontract_annotations", autospec=True
+    ).return_value = True
+
+    ri_item = ("test-cluster", "test-namespace", "test-kind", data)
+    actions = sut._realize_resource_data_3way_diff(
+        ri_item=ri_item, oc_map=oc_map, ri=resource_inventory, options=apply_options
+    )
+    assert len(actions) == len_actions
+    assert apply_mock.call_count == apply_calls
+    assert delete_mock.call_count == delete_calls
