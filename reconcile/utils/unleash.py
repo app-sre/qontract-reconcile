@@ -37,10 +37,12 @@ class CacheDict(BaseCache):
         self.cache = {}
 
 
-class DisableClusterStrategy(Strategy):
+class ClusterStrategy(Strategy):
     def load_provisioning(self) -> list:
         return [x.strip() for x in self.parameters["cluster_name"].split(",")]
 
+
+class DisableClusterStrategy(ClusterStrategy):
     def apply(self, context: Optional[dict] = None) -> bool:
         enable = True
 
@@ -51,10 +53,7 @@ class DisableClusterStrategy(Strategy):
         return enable
 
 
-class EnableClusterStrategy(Strategy):
-    def load_provisioning(self) -> list:
-        return [x.strip() for x in self.parameters["cluster_name"].split(",")]
-
+class EnableClusterStrategy(ClusterStrategy):
     def apply(self, context: Optional[dict] = None) -> bool:
         enable = False
 

@@ -84,7 +84,7 @@ def test_get_feature_toggles(mocker, monkeypatch):
     assert toggles["bar"] == "enabled"
 
 
-def setup_unleash_httpretty(enabled: bool):
+def setup_unleash_disable_cluster_strategy_httpretty(enabled: bool):
     features = {
         "version": 2,
         "features": [
@@ -94,7 +94,7 @@ def setup_unleash_httpretty(enabled: bool):
                         "name": "disableCluster",
                         "constraints": [],
                         "parameters": {"cluster_name": "foo"},
-                    }
+                    },
                 ],
                 "impressionData": False,
                 "enabled": enabled,
@@ -119,7 +119,7 @@ def setup_unleash_httpretty(enabled: bool):
 def test_get_feature_toggle_state_with_strategy(reset_client):
     os.environ["UNLEASH_API_URL"] = "http://unleash/api"
     os.environ["UNLEASH_CLIENT_ACCESS_TOKEN"] = "bar"
-    setup_unleash_httpretty(True)
+    setup_unleash_disable_cluster_strategy_httpretty(True)
     assert not get_feature_toggle_state(
         "test-strategies", context={"cluster_name": "foo"}
     )
@@ -131,8 +131,50 @@ def test_get_feature_toggle_state_with_strategy(reset_client):
 def test_get_feature_toggle_state_disabled_with_strategy(reset_client):
     os.environ["UNLEASH_API_URL"] = "http://unleash/api"
     os.environ["UNLEASH_CLIENT_ACCESS_TOKEN"] = "bar"
-    setup_unleash_httpretty(False)
+    setup_unleash_disable_cluster_strategy_httpretty(False)
     assert not get_feature_toggle_state(
         "test-strategies", context={"cluster_name": "bar"}
+    )
+    _shutdown_client()
+
+
+def setup_unleash_enable_cluster_strategy_httpretty(enabled: bool):
+    features = {
+        "version": 2,
+        "features": [
+            {
+                "strategies": [
+                    {
+                        "name": "enableCluster",
+                        "constraints": [],
+                        "parameters": {"cluster_name": "enabled-cluster"},
+                    },
+                ],
+                "impressionData": False,
+                "enabled": enabled,
+                "name": "test-strategies",
+                "description": "",
+                "project": "default",
+                "stale": False,
+                "type": "release",
+                "variants": [],
+            }
+        ],
+    }
+
+    feature_param = (httpretty.GET, "http://unleash/api/client/features")
+    httpretty.register_uri(*feature_param, body=json.dumps(features), status=200)
+
+    register_param = (httpretty.POST, "http://unleash/api/client/register")
+    httpretty.register_uri(*register_param, status=202)
+
+
+@httpretty.activate(allow_net_connect=False)
+def test_get_feature_toggle_state_with_enable_cluster_strategy(reset_client):
+    os.environ["UNLEASH_API_URL"] = "http://unleash/api"
+    os.environ["UNLEASH_CLIENT_ACCESS_TOKEN"] = "bar"
+    setup_unleash_enable_cluster_strategy_httpretty(True)
+    assert get_feature_toggle_state(
+        "test-strategies", context={"cluster_name": "enabled-cluster"}
     )
     _shutdown_client()
