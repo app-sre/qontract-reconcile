@@ -1,5 +1,9 @@
 import logging
-from typing import Any, Optional, Mapping
+from typing import (
+    Any,
+    Mapping,
+    Optional,
+)
 from unittest.mock import patch
 
 import pytest
@@ -12,8 +16,11 @@ import reconcile.openshift_base as sut
 import reconcile.utils.openshift_resource as resource
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
+from reconcile.utils.differ import (
+    DiffPair,
+    DiffResult,
+)
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.differ import DiffResult, DiffPair
 
 fxt = Fixtures("namespaces")
 
