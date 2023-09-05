@@ -372,6 +372,11 @@ class CloudflareLogpullRetention(TerrascriptResource):
         values = ResourceValueResolver(self._spec).resolve()
 
         zone = values.get("zone")
+        
+        # this is to appease mypy
+        if not zone:
+            return []
+
         resources.append(
             self.cloudflare_zone(safe_resource_id(zone), name=zone, account_id="${var.account_id}")
         )
