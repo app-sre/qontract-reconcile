@@ -2868,7 +2868,6 @@ def test_change_type(change_type_name: str, role_name: str, app_interface_path: 
 @click.pass_context
 def sso_client(ctx):
     """SSO client commands"""
-    pass
 
 
 @sso_client.command()
