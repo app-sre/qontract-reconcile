@@ -890,8 +890,6 @@ def _realize_resource_data(
     override_enable_deletion: bool,
     recycle_pods: bool,
 ) -> list[dict[str, Any]]:
-    args = locals()
-
     cluster, _, _, _ = ri_item
 
     options = ApplyOptions(
@@ -914,7 +912,19 @@ def _realize_resource_data(
             ri_item=ri_item, oc_map=oc_map, ri=ri, options=options
         )
 
-    return _realize_resource_data_qr(**args)
+    return _realize_resource_data_qr(
+        unpacked_ri_item=ri_item,
+        dry_run=dry_run,
+        oc_map=oc_map,
+        ri=ri,
+        take_over=take_over,
+        caller=caller,
+        all_callers=all_callers,
+        wait_for_namespace=wait_for_namespace,
+        no_dry_run_skip_compare=no_dry_run_skip_compare,
+        override_enable_deletion=override_enable_deletion,
+        recycle_pods=recycle_pods,
+    )
 
 
 def _realize_resource_data_3way_diff(
