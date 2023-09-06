@@ -6,5 +6,5 @@ query DynatraceEnvironment {
       ... VaultSecret
     }
     environmentUrl
-  }  
+  }
 }

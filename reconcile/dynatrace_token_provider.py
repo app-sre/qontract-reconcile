@@ -359,7 +359,7 @@ class DynatraceTokenProviderIntegration(
         self, dt_client: Dynatrace, cluster_uuid: str
     ) -> ApiTokenCreated:
         return dt_client.tokens.create(
-            name=f"ingestion-token-{cluster_uuid}",
+            name=f"dtp-ingestion-token-{cluster_uuid}",
             scopes=["metrics.ingest", "logs.ingest", "events.ingest"],
         )
 
@@ -367,7 +367,7 @@ class DynatraceTokenProviderIntegration(
         self, dt_client: Dynatrace, cluster_uuid: str
     ) -> ApiTokenCreated:
         return dt_client.tokens.create(
-            name=f"operator-token-{cluster_uuid}",
+            name=f"dtp-operator-token-{cluster_uuid}",
             scopes=[
                 "activeGateTokenManagement.create",
                 "entities.read",
