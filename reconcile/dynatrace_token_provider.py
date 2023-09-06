@@ -15,6 +15,12 @@ from pydantic import BaseModel
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
+from reconcile.gql_definitions.dynatrace_token_provider import (
+    dynatrace_bootstrap_tokens,
+)
+from reconcile.gql_definitions.dynatrace_token_provider.dynatrace_bootstrap_tokens import (
+    DynatraceEnvironmentQueryData,
+)
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.utils import (
     gql,
@@ -132,7 +138,7 @@ class DynatraceTokenProviderIntegration(
                         for cluster in clusters
                         if cluster.organization_id in self.params.ocm_organization_ids
                     ]
-                dt_clients = self.get_dynatrace_clients(self.secret_reader)
+                dt_clients = self.get_all_dynatrace_clients(self.secret_reader)
                 dtp_tenant_label_key = f"{dtp_label_key(None)}.tenant"
 
                 for cluster in clusters:
@@ -152,7 +158,7 @@ class DynatraceTokenProviderIntegration(
                                     error=f"Missing label {dtp_tenant_label_key}",
                                 )
                                 continue
-                            if tenant_id not in self.get_all_dynatrace_tenant_ids():
+                            if tenant_id not in dt_clients:
                                 _expose_errors_as_service_log(
                                     ocm_client,
                                     cluster_uuid=cluster.ocm_cluster.external_id,
@@ -177,28 +183,24 @@ class DynatraceTokenProviderIntegration(
     def get_ocm_environments(self) -> list[OCMEnvironment]:
         return ocm_environment_query(gql.get_api().query).environments
 
-    def get_all_dynatrace_tenant_ids(self) -> list[str]:
-        # TODO: This is pending on the schema changes that register all the dynatrace bootstrap token with App Interface:
-        # https://github.com/app-sre/qontract-schemas/pull/495/files is merged, need to update here to graphQL query
-        return ["ddl70254"]
+    def get_all_dynatrace_tenants(self) -> DynatraceEnvironmentQueryData:
+        dt_tenants = dynatrace_bootstrap_tokens.query(query_func=gql.get_api().query)
+        return dt_tenants
 
-    def get_dynatrace_clients(
+    def get_all_dynatrace_clients(
         self, secret_reader: SecretReaderBase
     ) -> Mapping[str, Dynatrace]:
-        tenant_ids = self.get_all_dynatrace_tenant_ids()
+        dt_tenants = self.get_all_dynatrace_tenants()
         dynatrace_clients = {}
-        for tenant_id in tenant_ids:
-            # TODO: Below should be replaced by the query mentioned above
-            dt_bootstrap_token = secret_reader.read(
-                {
-                    "path": f"app-sre/creds/dynatrace/redhat-aws/bootstrap-api-tokens/{tenant_id}",
-                    "field": "token",
-                }
-            )
+        if not dt_tenants.environments:
+            raise RuntimeError("No Dynatrace environment defined.")
+        for tenant in dt_tenants.environments:
+            dt_bootstrap_token = secret_reader.read_secret(tenant.bootstrap_token)
             dt_client = Dynatrace(
-                f"https://{tenant_id}.live.dynatrace.com/",
+                tenant.environment_url,
                 dt_bootstrap_token,
             )
+            tenant_id = tenant.environment_url.split(".")[0].removeprefix("https://")
             dynatrace_clients[tenant_id] = dt_client
         return dynatrace_clients
 
