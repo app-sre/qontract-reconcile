@@ -588,8 +588,15 @@ NORMALIZERS = {"Secret": _normalize_secret}
 
 
 def normalize_object(item: OR) -> OR:
+    # Remove K8s managed attributes not neede to compare objects
+    metadata = {
+        k: v
+        for k, v in item.body["metadata"].items()
+        if k not in NORMALIZE_COMPARE_EXCLUDED_ATTRS
+    }
+
     n = OR(
-        body=item.body,
+        body=item.body | {"metadata": metadata},
         integration=item.integration,
         integration_version=item.integration_version,
         error_details=item.error_details,
@@ -599,14 +606,6 @@ def normalize_object(item: OR) -> OR:
 
     n.body["metadata"].setdefault("annotations", {})
     n.remove_qontract_annotations()
-
-    # Remove K8s managed attributes not neede to compare objects
-    metadata = {
-        k: v
-        for k, v in n.body["metadata"].items()
-        if k not in NORMALIZE_COMPARE_EXCLUDED_ATTRS
-    }
-    n.body["metadata"] = metadata
 
     # Run normalizers on Kinds with special needs
     NORMALIZERS.get(n.body["kind"], _normalize_noop)(n)
