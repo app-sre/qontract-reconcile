@@ -588,7 +588,7 @@ NORMALIZERS = {"Secret": _normalize_secret}
 
 
 def normalize_object(item: OR) -> OR:
-    # Remove K8s managed attributes not neede to compare objects
+    # Remove K8s managed attributes not needed to compare objects
     metadata = {
         k: v
         for k, v in item.body["metadata"].items()
