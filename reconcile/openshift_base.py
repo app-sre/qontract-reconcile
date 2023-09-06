@@ -721,7 +721,7 @@ def should_delete(
 
 
 def handle_new_resources(
-    oc_map: OC_Map,
+    oc_map: ClusterMap,
     ri: ResourceInventory,
     new_resources: Mapping[Any, Any],
     cluster: str,
@@ -757,7 +757,7 @@ def handle_new_resources(
 
 
 def handle_modified_resources(
-    oc_map: OC_Map,
+    oc_map: ClusterMap,
     ri: ResourceInventory,
     modified_resources: Mapping[Any, Any],
     cluster: str,
@@ -801,7 +801,7 @@ def handle_modified_resources(
 
 
 def handle_deleted_resources(
-    oc_map: OC_Map,
+    oc_map: ClusterMap,
     ri: ResourceInventory,
     deleted_resources: Mapping[Any, Any],
     cluster: str,
@@ -845,7 +845,7 @@ def handle_deleted_resources(
 
 
 def apply_action(
-    oc_map: OC_Map,
+    oc_map: ClusterMap,
     ri: ResourceInventory,
     cluster: str,
     namespace: str,
@@ -881,7 +881,7 @@ def apply_action(
 
 
 def delete_action(
-    oc_map: OC_Map,
+    oc_map: ClusterMap,
     ri: ResourceInventory,
     cluster: str,
     namespace: str,
@@ -909,7 +909,7 @@ def delete_action(
 def _realize_resource_data(
     ri_item: tuple[str, str, str, Mapping[str, Any]],
     dry_run: bool,
-    oc_map: OC_Map,
+    oc_map: ClusterMap,
     ri: ResourceInventory,
     take_over: bool,
     caller: str,
@@ -958,7 +958,7 @@ def _realize_resource_data(
 
 def _realize_resource_data_3way_diff(
     ri_item: tuple[str, str, str, Mapping[str, Any]],
-    oc_map: OC_Map,
+    oc_map: ClusterMap,
     ri: ResourceInventory,
     options: ApplyOptions,
 ) -> list[dict[str, Any]]:
