@@ -11,9 +11,11 @@ Additional tools that use the libraries created by the reconciliations are also 
 ### qontract-reconcile
 
 ```
-  aus-upgrade-scheduler-org       Manage Cluster Upgrade Policy schedules in
+  advanced-upgrade-scheduler      Manage Cluster Upgrade Policy schedules in
                                   OCM organizations based on OCM labels.
+  aws-ami-cleanup                 Cleanup old and unused AMIs.
   aws-ami-share                   Share AMI and AMI tags between accounts.
+  aws-cloudwatch-log-retention    Set up retention period for Cloudwatch logs.
   aws-ecr-image-pull-secrets      Generate AWS ECR image pull secrets and
                                   store them in Vault.
   aws-garbage-collector           Delete orphan AWS resources.
@@ -66,6 +68,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   gitlab-projects                 Create GitLab projects.
   glitchtip                       Configure and enforce glitchtip instance
                                   configuration.
+  glitchtip-project-alerts        Configure Glitchtip project alerts.
   glitchtip-project-dsn           Glitchtip project dsn as openshift secret.
   integrations-manager            Manages Qontract Reconcile integrations.
   jenkins-job-builder             Manage Jenkins jobs configurations using
@@ -79,8 +82,11 @@ Additional tools that use the libraries created by the reconciliations are also 
   jenkins-webhooks-cleaner        Remove webhooks to previous Jenkins
                                   instances.
   jenkins-worker-fleets           Manage Jenkins worker fleets via JCasC.
+  jira-permissions-validator      Validate permissions in Jira.
   jira-watcher                    Watch for changes in Jira boards and notify
                                   on Slack.
+  ldap-groups                     Manages LDAP groups based on App-Interface
+                                  roles.
   ldap-users                      Removes users which are not found in LDAP
                                   search.
   ocm-additional-routers          Manage additional routers in OCM.
@@ -100,7 +106,12 @@ Additional tools that use the libraries created by the reconciliations are also 
   ocm-groups                      Manage membership in OpenShift groups via
                                   OCM.
   ocm-machine-pools               Manage Machine Pools in OCM.
-  ocm-oidc-idp                    Manage OIDC Identity Providers in OCM.
+  ocm-oidc-idp                    Manage OIDC cluster configuration in OCM
+                                  organizations based on OCM labels. Part of
+                                  RHIDP.
+  ocm-standalone-user-management  Manages OCM cluster usergroups and
+                                  notifications via OCM labels.
+  ocm-subscription-labels         Manage cluster OCM subscription labels.
   ocm-update-recommended-version  Update recommended version for OCM orgs
   ocm-upgrade-scheduler           Manage Upgrade Policy schedules in OCM.
   ocm-upgrade-scheduler-org       Manage Upgrade Policy schedules in OCM
@@ -147,7 +158,6 @@ Additional tools that use the libraries created by the reconciliations are also 
   openshift-users                 Deletion of users from OpenShift clusters.
   openshift-vault-secrets         Manages OpenShift Secrets from Vault.
   prometheus-rules-tester         Tests prometheus rules using promtool.
-  prometheus-rules-tester-old     Tests prometheus rules using promtool.
   quay-membership                 Configures the teams and members in Quay.
   quay-mirror                     Mirrors external images into Quay.
   quay-mirror-org                 Mirrors entire Quay orgs.
@@ -159,6 +169,8 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   submitted to app-interface.
   resource-scraper                Get resources from clusters and store in
                                   Vault.
+  rhidp-sso-client                Manage Keycloak SSO clients for OCM
+                                  clusters. Part of RHIDP.
   saas-auto-promotions-manager    Manage auto-promotions defined in SaaS files
   saas-file-validator             Validates Saas files.
   sendgrid-teammates              Manages SendGrid teammates for a given
@@ -173,6 +185,8 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   users).
   sql-query                       Runs SQL Queries against app-interface RDS
                                   resources.
+  status-board-exporter           Export Product and Application informnation
+                                  to Status Board.
   status-page-components          Manages components on statuspage.io hosted
                                   status pages.
   template-tester                 Tests templating of resources.
@@ -181,6 +195,8 @@ Additional tools that use the libraries created by the reconciliations are also 
   terraform-cloudflare-dns        Manage Cloudflare DNS using Terraform.
   terraform-cloudflare-resources  Manage Cloudflare Resources using Terraform.
   terraform-cloudflare-users      Manage Cloudflare Users using Terraform.
+  terraform-repo                  Manages raw HCL Terraform from a separate
+                                  repository.
   terraform-resources             Manage AWS Resources using Terraform.
   terraform-tgw-attachments       Manages Transit Gateway attachments.
   terraform-users                 Manage AWS users using Terraform.
