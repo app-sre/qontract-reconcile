@@ -321,13 +321,12 @@ def test_output_correct_statefile(
     )
 
     assert diff
-    if diff:
-        integration.print_output(diff, True)
+    integration.print_output(diff, True)
 
-        with open(f"{tmp_path}/tf-repo.yaml", "r") as output:
-            yaml_rep = yaml.safe_load(output)
+    with open(f"{tmp_path}/tf-repo.yaml", "r") as output:
+        yaml_rep = yaml.safe_load(output)
 
-            assert expected_output == yaml_rep
+        assert expected_output == yaml_rep
 
 
 def test_output_correct_no_statefile(
@@ -348,13 +347,12 @@ def test_output_correct_no_statefile(
     )
 
     assert diff
-    if diff:
-        integration.print_output(diff, True)
+    integration.print_output(diff, True)
 
-        with open(f"{tmp_path}/tf-repo.yaml", "r") as output:
-            yaml_rep = yaml.safe_load(output)
+    with open(f"{tmp_path}/tf-repo.yaml", "r") as output:
+        yaml_rep = yaml.safe_load(output)
 
-            assert expected_output == yaml_rep
+        assert expected_output == yaml_rep
 
 
 def test_fail_on_multiple_repos_dry_run(int_params, existing_repo, new_repo):
