@@ -665,6 +665,62 @@ class ApplyOptions:
     enable_deletion: Optional[bool]
 
 
+def should_apply(
+    current: OR,
+    ri: ResourceInventory,
+    options: ApplyOptions,
+    cluster: str,
+    name: str,
+    namespace: str,
+    resource_type: str,
+) -> bool:
+    if not options.dry_run and options.no_dry_run_skip_compare:
+        msg = (
+            f"[{cluster}/{namespace}] skipping compare of resource"
+            f"'{resource_type}/{name}'"
+        )
+        logging.debug(msg)
+        return True
+    if (
+        not options.take_over
+        and options.caller
+        and current.caller != options.caller
+        and options.all_callers
+        and current.caller in options.all_callers
+    ):
+        ri.register_error()
+        logging.error(
+            f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present and managed by another caller: {current.caller}"
+        )
+        return False
+
+    logging.debug("CURRENT: " + OR.serialize(OR.canonicalize(current.body)))
+    return True
+
+
+def should_delete(
+    current: OR,
+    cluster: str,
+    name: str,
+    namespace: str,
+    resource_type: str,
+    options: ApplyOptions,
+) -> bool:
+    if current.has_qontract_annotations():
+        if options.caller and current.caller != options.caller:
+            return False
+    elif not options.take_over:
+        # this is reached when the current resources:
+        # - does not have qontract annotations (not managed)
+        # - not taking over all resources of the current kind
+        msg = f"[{cluster}/{namespace}] skipping " + f"{resource_type}/{name}"
+        logging.debug(msg)
+        return False
+    elif current.has_owner_reference():
+        return False
+    return True
+
+
 def handle_new_resources(
     oc_map: OC_Map,
     ri: ResourceInventory,
@@ -714,33 +770,15 @@ def handle_modified_resources(
     actions: list[dict[str, Any]] = []
 
     for name, dp in modified_resources.items():
-        b_apply = True
-        current: OR = dp.current
-        desired: OR = dp.desired
-
-        if not options.dry_run and options.no_dry_run_skip_compare:
-            msg = (
-                f"[{cluster}/{namespace}] skipping compare of resource"
-                f"'{resource_type}/{name}'"
-            )
-            logging.debug(msg)
-        else:
-            if (
-                not options.take_over
-                and options.caller
-                and current.caller != options.caller
-                and options.all_callers
-                and current.caller in options.all_callers
-            ):
-                ri.register_error()
-                logging.error(
-                    f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present and managed by another caller: {current.caller}"
-                )
-                b_apply = False
-            else:
-                logging.debug("CURRENT: " + OR.serialize(OR.canonicalize(current.body)))
-
-        if b_apply:
+        if should_apply(
+            current=dp.current,
+            ri=ri,
+            cluster=cluster,
+            name=name,
+            namespace=namespace,
+            resource_type=resource_type,
+            options=options,
+        ):
             options.privileged = data["use_admin_token"].get(name, False)
             action = {
                 "action": ACTION_APPLIED,
@@ -757,7 +795,7 @@ def handle_modified_resources(
                 cluster=cluster,
                 namespace=namespace,
                 resource_type=resource_type,
-                resource=desired,
+                resource=dp.desired,
                 options=options,
             )
     return actions
@@ -776,22 +814,14 @@ def handle_deleted_resources(
     actions: list[dict[str, Any]] = []
 
     for name, current in deleted_resources.items():
-        b_delete = True
-
-        if current.has_qontract_annotations():
-            if options.caller and current.caller != options.caller:
-                b_delete = False
-        elif not options.take_over:
-            # this is reached when the current resources:
-            # - does not have qontract annotations (not managed)
-            # - not taking over all resources of the current kind
-            msg = f"[{cluster}/{namespace}] skipping " + f"{resource_type}/{name}"
-            logging.debug(msg)
-            b_delete = False
-        elif current.has_owner_reference():
-            b_delete = False
-
-        if b_delete:
+        if should_delete(
+            current=current,
+            cluster=cluster,
+            name=name,
+            namespace=namespace,
+            resource_type=resource_type,
+            options=options,
+        ):
             privileged = data["use_admin_token"].get(name, False)
             action = {
                 "action": ACTION_DELETED,
