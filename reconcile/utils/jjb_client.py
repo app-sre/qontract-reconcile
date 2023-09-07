@@ -347,9 +347,7 @@ class JJB:  # pylint: disable=too-many-public-methods
     def get_ref(job: dict) -> str:
         return job["scm"][0]["git"]["branches"][0]
 
-    def get_all_jobs(
-        self, job_types=None, instance_name=None, include_test=False
-    ) -> dict[str, list[dict]]:
+    def get_all_jobs(self, job_types=None, instance_name=None) -> dict[str, list[dict]]:
         if job_types is None:
             job_types = []
         all_jobs: dict[str, list[dict]] = {}
@@ -362,11 +360,6 @@ class JJB:  # pylint: disable=too-many-public-methods
             for job in jobs:
                 job_name = job["name"]
                 if not any(job_type in job_name for job_type in job_types):
-                    continue
-                if not include_test and "test" in job_name:
-                    continue
-                # temporarily ignore openshift-saas-deploy jobs
-                if job_name.startswith("openshift-saas-deploy"):
                     continue
                 all_jobs[name].append(job)
 
