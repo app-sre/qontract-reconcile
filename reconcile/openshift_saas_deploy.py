@@ -64,6 +64,7 @@ def slack_notify(
     ri: ResourceInventory,
     console_url: str,
     in_progress: bool,
+    trigger_integration: Optional[str] = None,
     trigger_reason: Optional[str] = None,
 ) -> None:
     success = not ri.has_error_registered()
@@ -83,6 +84,8 @@ def slack_notify(
     )
     if trigger_reason:
         message += f". Reason: {trigger_reason}"
+    if trigger_integration:
+        message += f" triggered by _{trigger_integration}_"
     slack.chat_post_message(message)
 
 
@@ -94,7 +97,7 @@ def run(
     use_jump_host: bool = True,
     saas_file_name: Optional[str] = None,
     env_name: Optional[str] = None,
-    gitlab_project_id: Optional[str] = None,
+    trigger_integration: Optional[str] = None,
     trigger_reason: Optional[str] = None,
     defer: Optional[Callable] = None,
 ) -> None:
@@ -141,6 +144,7 @@ def run(
                         ri,
                         console_url,
                         in_progress=False,
+                        trigger_integration=trigger_integration,
                         trigger_reason=trigger_reason,
                     )
                 )
@@ -153,6 +157,7 @@ def run(
                     ri,
                     console_url,
                     in_progress=True,
+                    trigger_integration=trigger_integration,
                     trigger_reason=trigger_reason,
                 )
 
