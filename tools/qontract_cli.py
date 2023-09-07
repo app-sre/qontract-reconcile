@@ -91,6 +91,10 @@ from reconcile.utils.gitlab_api import (
 )
 from reconcile.utils.gql import GqlApiSingleton
 from reconcile.utils.jjb_client import JJB
+from reconcile.utils.keycloak import (
+    KeycloakAPI,
+    SSOClient,
+)
 from reconcile.utils.mr.labels import (
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
@@ -2858,6 +2862,98 @@ def test_change_type(change_type_name: str, role_name: str, app_interface_path: 
 
     # tester.test_change_type(change_type_name, datafile_path)
     tester.test_change_type_in_context(change_type_name, role_name, app_interface_path)
+
+
+@root.group()
+@click.pass_context
+def sso_client(ctx):
+    """SSO client commands"""
+
+
+@sso_client.command()
+@click.argument("client-name", required=True)
+@click.option(
+    "--contact-email",
+    default="sd-app-sre+auth@redhat.com",
+    help="Specify the contact email address",
+    required=True,
+    show_default=True,
+)
+@click.option(
+    "--keycloak-instance-vault-path",
+    help="Path to the keycloak secret in vault",
+    default="app-sre/creds/rhidp/auth.redhat.com",
+    required=True,
+    show_default=True,
+)
+@click.option(
+    "--request-uri",
+    help="Specify an allowed request URL; first one will be used as the initial one URL. Can be specified multiple times",
+    multiple=True,
+    required=True,
+    prompt=True,
+)
+@click.option(
+    "--redirect-uri",
+    help="Specify an allowed redirect URL. Can be specified multiple times",
+    multiple=True,
+    required=True,
+    prompt=True,
+)
+@click.pass_context
+def create(
+    ctx,
+    client_name: str,
+    contact_email: str,
+    keycloak_instance_vault_path: str,
+    request_uri: tuple[str],
+    redirect_uri: tuple[str],
+) -> None:
+    """Create a new SSO client"""
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+
+    keycloak_secret = secret_reader.read_all({"path": keycloak_instance_vault_path})
+    keycloak_api = KeycloakAPI(
+        url=keycloak_secret["url"],
+        initial_access_token=keycloak_secret["initial-access-token"],
+    )
+    sso_client = keycloak_api.register_client(
+        client_name=client_name,
+        redirect_uris=redirect_uri,
+        initiate_login_uri=request_uri[0],
+        request_uris=request_uri,
+        contacts=[contact_email],
+    )
+    click.secho(
+        "SSO client created successfully. Please save the following JSON in Vault!",
+        bg="red",
+        fg="white",
+    )
+    print(sso_client.json(by_alias=True, indent=2))
+
+
+@sso_client.command()
+@click.argument("sso-client-vault-secret-path", required=True)
+@click.pass_context
+def remove(ctx, sso_client_vault_secret_path: str):
+    """Remove an existing SSO client"""
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+
+    sso_client = SSOClient(
+        **secret_reader.read_all({"path": sso_client_vault_secret_path})
+    )
+    keycloak_api = KeycloakAPI()
+    keycloak_api.delete_client(
+        registration_client_uri=sso_client.registration_client_uri,
+        registration_access_token=sso_client.registration_access_token,
+    )
+    click.secho(
+        "SSO client removed successfully. Please remove the secret from Vault!",
+        bg="red",
+        fg="white",
+    )
 
 
 if __name__ == "__main__":

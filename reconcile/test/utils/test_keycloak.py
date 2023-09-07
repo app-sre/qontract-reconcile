@@ -53,7 +53,7 @@ def test_keycloak_register_client(
 ) -> None:
     httpretty.register_uri(
         httpretty.POST,
-        f"{keycloak_api._openid_configuration['registration_endpoint']}",
+        f"{keycloak_api._openid_configuration['registration_endpoint']}",  # type: ignore[index]
         body=json.dumps(
             {
                 "client_id": "test-client",
