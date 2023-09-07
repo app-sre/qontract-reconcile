@@ -20,9 +20,7 @@ def get_managed_job_names(job_names, managed_projects):
 
 def get_desired_job_names(instance_name: str, secret_reader: SecretReader):
     jjb = init_jjb(secret_reader)
-    desired_jobs = jjb.get_all_jobs(instance_name=instance_name, include_test=True)[
-        instance_name
-    ]
+    desired_jobs = jjb.get_all_jobs(instance_name=instance_name)[instance_name]
     return [j["name"] for j in desired_jobs]
 
 
