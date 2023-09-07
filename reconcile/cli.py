@@ -472,6 +472,16 @@ def trigger_reason(function):
     return function
 
 
+def trigger_integration(function):
+    function = click.option(
+        "--trigger-integration",
+        help="integration deployment was triggered.",
+        default=None,
+    )(function)
+
+    return function
+
+
 def register_faulthandler(fileobj=sys.__stderr__):
     if fileobj:
         if not faulthandler.is_enabled():
@@ -1046,7 +1056,6 @@ def openshift_resources(
 
 
 @integration.command(short_help="Manage OpenShift resources defined in Saas files.")
-@gitlab_project_id
 @threaded()
 @throughput
 @use_jump_host()
@@ -1054,6 +1063,7 @@ def openshift_resources(
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
 @click.option("--env-name", default=None, help="environment to deploy to.")
+@trigger_integration
 @trigger_reason
 @click.pass_context
 def openshift_saas_deploy(
@@ -1063,7 +1073,7 @@ def openshift_saas_deploy(
     use_jump_host,
     saas_file_name,
     env_name,
-    gitlab_project_id,
+    trigger_integration,
     trigger_reason,
 ):
     import reconcile.openshift_saas_deploy
@@ -1076,7 +1086,7 @@ def openshift_saas_deploy(
         use_jump_host=use_jump_host,
         saas_file_name=saas_file_name,
         env_name=env_name,
-        gitlab_project_id=gitlab_project_id,
+        trigger_integration=trigger_integration,
         trigger_reason=trigger_reason,
     )
 
