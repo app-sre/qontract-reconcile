@@ -881,11 +881,16 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             environment_parameters = self._collect_parameters(
                 target.namespace.environment
             )
-            environment_secret_parameters = self._collect_secret_parameters(
-                target.namespace.environment
-            )
             target_parameters = self._collect_parameters(target)
-            target_secret_parameters = self._collect_secret_parameters(target)
+
+            try:
+                environment_secret_parameters = self._collect_secret_parameters(
+                    target.namespace.environment
+                )
+                target_secret_parameters = self._collect_secret_parameters(target)
+            except Exception as e:
+                logging.error(f"Error collecting secrets: {e}")
+                raise
 
             consolidated_parameters = {}
             consolidated_parameters.update(environment_parameters)
@@ -1267,8 +1272,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 github=spec.github,
                 target_config_hash=spec.target_config_hash,
             )
-        except Exception:
-            # log message send in _process_template
+        except Exception as e:
+            # error log message send in _process_template. We log here debug to have a
+            # safeguard in case something breaks there unexpectedly. We cannot just
+            # register an error without logging as inventory errors don't have details.
+            logging.debug(f"Error in populate_desired_state_saas_file: {e}")
             ri.register_error()
             return None
 
