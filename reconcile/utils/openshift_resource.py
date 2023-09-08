@@ -56,6 +56,20 @@ CONTROLLER_MANAGED_LABELS: dict[str, set[Union[str, re.Pattern]]] = {
     }
 }
 
+QONTRACT_ANNOTATION_INTEGRATION = "qontract.integration"
+QONTRACT_ANNOTATION_INTEGRATION_VERSION = "qontract.integration_version"
+QONTRACT_ANNOTATION_SHA256SUM = "qontract.sha256sum"
+QONTRACT_ANNOTATION_UPDATE = "qontract.update"
+QONTRACT_ANNOTATION_CALLER_NAME = "qontrat.caller_name"
+
+QONTRACT_ANNOTATIONS = {
+    QONTRACT_ANNOTATION_INTEGRATION,
+    QONTRACT_ANNOTATION_INTEGRATION_VERSION,
+    QONTRACT_ANNOTATION_SHA256SUM,
+    QONTRACT_ANNOTATION_UPDATE,
+    QONTRACT_ANNOTATION_CALLER_NAME,
+}
+
 
 # pylint: disable=R0904
 class OpenshiftResource:
@@ -281,11 +295,8 @@ class OpenshiftResource:
     def remove_qontract_annotations(self):
         try:
             annotations = self.body["metadata"]["annotations"]
-            annotations.pop("qontract.integration", None)
-            annotations.pop("qontract.integration_version", None)
-            annotations.pop("qontract.sha256sum", None)
-            annotations.pop("qontract.update", None)
-            annotations.pop("qontract.caller_name", None)
+            for a in QONTRACT_ANNOTATIONS:
+                annotations.pop(a, None)
         except KeyError:
             pass
 
@@ -302,15 +313,15 @@ class OpenshiftResource:
         try:
             annotations = self.body["metadata"]["annotations"]
 
-            assert annotations["qontract.integration"] == self.integration
+            assert annotations[QONTRACT_ANNOTATION_INTEGRATION] == self.integration
 
-            integration_version = annotations["qontract.integration_version"]
+            integration_version = annotations[QONTRACT_ANNOTATION_INTEGRATION_VERSION]
             assert (
                 semver.VersionInfo.parse(integration_version).major
                 == semver.VersionInfo.parse(self.integration_version).major
             )
 
-            assert annotations["qontract.sha256sum"] is not None
+            assert annotations[QONTRACT_ANNOTATION_SHA256SUM] is not None
         except KeyError:
             return False
         except AssertionError:
@@ -360,13 +371,13 @@ class OpenshiftResource:
         annotations = body["metadata"]["annotations"]
 
         # add qontract annotations
-        annotations["qontract.integration"] = self.integration
-        annotations["qontract.integration_version"] = self.integration_version
-        annotations["qontract.sha256sum"] = sha256sum
+        annotations[QONTRACT_ANNOTATION_INTEGRATION] = self.integration
+        annotations[QONTRACT_ANNOTATION_INTEGRATION_VERSION] = self.integration_version
+        annotations[QONTRACT_ANNOTATION_SHA256SUM] = sha256sum
         now = datetime.datetime.utcnow().replace(microsecond=0).isoformat()
-        annotations["qontract.update"] = now
+        annotations[QONTRACT_ANNOTATION_UPDATE] = now
         if self.caller_name:
-            annotations["qontract.caller_name"] = self.caller_name
+            annotations[QONTRACT_ANNOTATION_CALLER_NAME] = self.caller_name
 
         return OpenshiftResource(body, self.integration, self.integration_version)
 
@@ -523,12 +534,8 @@ class OpenshiftResource:
                 spec.pop("clusterIP", None)
 
         # remove qontract specific params
-        annotations.pop("qontract.integration", None)
-        annotations.pop("qontract.integration_version", None)
-        annotations.pop("qontract.sha256sum", None)
-        annotations.pop("qontract.update", None)
-        annotations.pop("qontract.caller_name", None)
-
+        for a in QONTRACT_ANNOTATIONS:
+            annotations.pop(a, None)
         return body
 
     @staticmethod

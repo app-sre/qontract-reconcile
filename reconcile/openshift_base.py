@@ -1,4 +1,5 @@
 import base64
+
 import itertools
 import logging
 from collections.abc import (
@@ -44,6 +45,7 @@ from reconcile.utils.oc import (
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.openshift_resource import QONTRACT_ANNOTATIONS
 
 ACTION_APPLIED = "applied"
 ACTION_DELETED = "deleted"
@@ -572,12 +574,15 @@ def check_unused_resource_types(ri):
 
 def _normalize_secret(secret: OR) -> None:
     body = secret.body
-    string_data = body.pop("stringData", None)
+    string_data = body.get("stringData")
+
     if string_data:
-        body.setdefault("data", {})
-        for k, v in string_data.items():
-            v = base64.b64encode(str(v).encode()).decode("utf-8")
-            body["data"][k] = v
+        data = body.get("data") or {}
+        body["data"] = data | {
+            k: base64.b64encode(str(v).encode()).decode("utf-8")
+            for k, v in string_data.items()
+        }
+        secret.body = {k: v for k, v in body.items() if k != "stringData"}
 
 
 def _normalize_noop(item: OR) -> None:
@@ -604,8 +609,10 @@ def normalize_object(item: OR) -> OR:
         validate_k8s_object=False,
     )
 
-    n.body["metadata"].setdefault("annotations", {})
-    n.remove_qontract_annotations()
+    annotations = n.body.get("annotations", {})
+    metadata["annotations"] = {
+        k: v for k, v in annotations.items() if k not in QONTRACT_ANNOTATIONS
+    }
 
     # Run normalizers on Kinds with special needs
     NORMALIZERS.get(n.body["kind"], _normalize_noop)(n)
