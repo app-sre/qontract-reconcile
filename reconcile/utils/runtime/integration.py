@@ -1,3 +1,4 @@
+import time
 from abc import (
     ABC,
     abstractmethod,
@@ -303,10 +304,14 @@ class ModuleBasedQontractReconcileIntegration(
         raise NotImplementedError("Integration missing QONTRACT_INTEGRATION.")
 
     def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
+        # measure how long the block takes
         if self._integration_supports(EARLY_EXIT_DESIRED_STATE_FUNCTION):
-            return self.params.module.early_exit_desired_state(
+            now = time.time()
+            bla = self.params.module.early_exit_desired_state(
                 *self.params.args, **self.params.kwargs
             )
+            print(f"early_exit_desired_state took {time.time() - now} seconds")
+            return bla
         return None
 
     def get_desired_state_shard_config(self) -> Optional["DesiredStateShardConfig"]:

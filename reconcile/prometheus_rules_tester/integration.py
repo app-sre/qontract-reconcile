@@ -1,6 +1,7 @@
 import json
 import logging
 import sys
+from collections import defaultdict
 from collections.abc import (
     Iterable,
     Mapping,
@@ -266,14 +267,21 @@ def run(
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     # early_exit doesn't support dataclasses or BaseModels yet, hence we have to store dicts
     with orb.early_exit_monkey_patch():
+        state_for_clusters = defaultdict(list)
+        tests = get_rules_and_tests(
+            vault_settings=get_app_interface_vault_settings(),
+            thread_pool_size=10,
+        )
+        for t in tests:
+            state_for_clusters[t.cluster_name].append(t)
+
+        from deepdiff import DeepHash
+
         state = {
-            "tests": [
-                t.dict()
-                for t in get_rules_and_tests(
-                    vault_settings=get_app_interface_vault_settings(),
-                    thread_pool_size=10,
-                )
-            ]
+            "state": {
+                cluster: {"shard": cluster, "hash": DeepHash(state).get(state)}
+                for cluster, state in state_for_clusters.items()
+            }
         }
 
     return state
@@ -282,6 +290,6 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
 def desired_state_shard_config() -> DesiredStateShardConfig:
     return DesiredStateShardConfig(
         shard_arg_name="cluster_name",
-        shard_path_selectors={"tests[*].cluster_name"},
+        shard_path_selectors={"state.*.shard"},
         sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 4,
     )

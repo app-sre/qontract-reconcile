@@ -4,6 +4,7 @@ import itertools
 import json
 import logging
 import sys
+from collections import defaultdict
 from collections.abc import (
     Iterable,
     Mapping,
@@ -1278,15 +1279,26 @@ def early_exit_desired_state(
         )
 
     def post_process_ns(ns):
-        ns[IDENTIFIER_FIELD_NAME] = f"{ns['cluster']['name']}/{ns['name']}"
+        ns[IDENTIFIER_FIELD_NAME] = ns["name"]
         # the sharedResources have been aggreated into the openshiftResources
         # and are no longer needed - speeds up diffing process
         del ns["sharedResources"]
         return ns
 
+    # assemble all namespaces and resources file under a cluster
+    state_for_clusters = defaultdict(list)
+    for ns in namespaces:
+        state_for_clusters[ns["cluster"]["name"]].append(post_process_ns(ns))
+    for res in resources:
+        state_for_clusters[res["cluster"]].append(res)
+
+    from deepdiff import DeepHash
+
     return {
-        "namespaces": [post_process_ns(ns) for ns in namespaces],
-        "resources": resources,
+        "state": {
+            cluster: {"shard": cluster, "hash": DeepHash(state).get(state)}
+            for cluster, state in state_for_clusters.items()
+        }
     }
 
 
@@ -1357,9 +1369,6 @@ def desired_state_shard_config() -> DesiredStateShardConfig:
     return DesiredStateShardConfig(
         shard_arg_name="cluster_name",
         shard_arg_is_collection=True,
-        shard_path_selectors={
-            "namespaces[*].cluster.name",
-            "resources[*].cluster",
-        },
+        shard_path_selectors={"state.*.shard"},
         sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 2,
     )
