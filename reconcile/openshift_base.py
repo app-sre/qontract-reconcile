@@ -1,5 +1,4 @@
 import base64
-
 import itertools
 import logging
 from collections.abc import (
@@ -43,9 +42,9 @@ from reconcile.utils.oc import (
     StatusCodeError,
     UnsupportedMediaTypeError,
 )
+from reconcile.utils.openshift_resource import QONTRACT_ANNOTATIONS
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
-from reconcile.utils.openshift_resource import QONTRACT_ANNOTATIONS
 
 ACTION_APPLIED = "applied"
 ACTION_DELETED = "deleted"
