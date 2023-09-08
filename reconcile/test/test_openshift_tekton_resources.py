@@ -67,7 +67,7 @@ class TestOpenshiftTektonResources:
                 task = dr["value"].body
                 for step in task["spec"]["steps"]:
                     if step["name"] == otr.DEFAULT_DEPLOY_RESOURCES_STEP_NAME:
-                        assert step["resources"] == deploy_resources
+                        assert step["computeResources"] == deploy_resources
                 break
 
     def mock_gql_get_resource(self, path: str) -> dict[str, str]:

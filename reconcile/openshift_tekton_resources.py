@@ -255,7 +255,7 @@ def build_one_per_saas_file_task(
     resources_configured = False
     for step in task["spec"]["steps"]:
         if step["name"] == step_name:
-            step["resources"] = saas_file.get("deployResources") or deploy_resources
+            step["computeResources"] = saas_file.get("deployResources") or deploy_resources
             resources_configured = True
             break
 

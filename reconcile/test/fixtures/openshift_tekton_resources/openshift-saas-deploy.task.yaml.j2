@@ -1,4 +1,4 @@
-apiVersion: tekton.dev/v1beta1
+apiVersion: tekton.dev/v1
 kind: Task
 metadata:
   name: openshift-saas-deploy
@@ -13,7 +13,7 @@ spec:
     image: quay.io/app-sre/qontract-reconcile:{{ qontract_reconcile_image_tag }}
     command: ["/bin/sh", "-c"]
     args: ['mkdir artifacts']
-    resources:
+    computeResources:
       requests:
         cpu: 10m
         memory: 20Mi
@@ -24,7 +24,7 @@ spec:
     image: quay.io/app-sre/qontract-reconcile:{{ qontract_reconcile_image_tag }}
     command: ["/bin/sh", "-c"]
     args: ['echo "$(CONFIG_TOML)" | base64 -d > config.toml']
-    resources:
+    computeResources:
       requests:
         cpu: 10m
         memory: 20Mi
@@ -66,7 +66,7 @@ spec:
     image: quay.io/app-sre/qontract-reconcile:{{ qontract_reconcile_image_tag }}
     command: ["/bin/sh", "-c"]
     args: ['for f in $(find artifacts/ -type f); do echo $f; cat $f; done']
-    resources:
+    computeResources:
       requests:
         cpu: 10m
         memory: 20Mi

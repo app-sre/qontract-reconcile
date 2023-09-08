@@ -1,4 +1,4 @@
-apiVersion: tekton.dev/v1beta1
+apiVersion: tekton.dev/v1
 kind: Task
 metadata:
   name: push-gateway-task-status-metric
@@ -29,7 +29,7 @@ spec:
   steps:
   - name: push-gateway-task-status-metric
     image: quay.io/app-sre/ubi8-ubi-minimal:{{ ubi8_ubi_minimal_image_tag }}
-    resources:
+    computeResources:
       requests:
         cpu: 10m
         memory: 20Mi
