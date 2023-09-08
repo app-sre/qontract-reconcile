@@ -1,4 +1,4 @@
-apiVersion: tekton.dev/v1beta1
+apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
   name: saas-deploy
@@ -15,6 +15,7 @@ spec:
   tasks:
   - name: this-is-an-unknown-task
     taskRef:
+      kind: Task
       name: openshift-saas-deploy
     params:
     - name: saas_file_name
@@ -25,6 +26,7 @@ spec:
   - name: push-gateway-openshift-saas-deploy-task-status-metric
     retries: 10
     taskRef:
+      kind: Task
       name: push-gateway-openshift-saas-deploy-task-status-metric
     params:
     - name: saas_file_name
