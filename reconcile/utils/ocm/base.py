@@ -145,6 +145,11 @@ class OCMClusterDns(BaseModel):
     base_domain: str
 
 
+class OCMExternalConfiguration(BaseModel):
+    kind: str
+    syncsets: dict
+
+
 PRODUCT_ID_OSD = "osd"
 PRODUCT_ID_ROSA = "rosa"
 
@@ -180,6 +185,8 @@ class OCMCluster(BaseModel):
     api: Optional[OCMClusterAPI]
 
     dns: Optional[OCMClusterDns]
+
+    external_configuration: Optional[OCMExternalConfiguration]
 
     def available_upgrades(self) -> list[str]:
         return self.version.available_upgrades

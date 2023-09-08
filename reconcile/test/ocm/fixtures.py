@@ -65,6 +65,21 @@ class OcmUrl(BaseModel):
         )
         return self
 
+    def add_get_response(
+        self,
+        id: str,
+        resources: list[Any],
+        kind: Optional[str] = None,
+    ) -> "OcmUrl":
+        self.responses.append(
+            {
+                "kind": f"{kind}",
+                "id": f"{id}",
+                "resources": resources,
+            }
+        )
+        return self
+
 
 def build_label(key: str, value: str) -> OCMLabel:
     return OCMLabel(
