@@ -12,6 +12,7 @@ from typing import (
 )
 
 import yaml
+from deepdiff import DeepHash
 from pydantic import BaseModel
 from sretoolbox.utils import threaded
 
@@ -274,8 +275,6 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
         )
         for t in tests:
             state_for_clusters[t.cluster_name].append(t)
-
-        from deepdiff import DeepHash
 
         state = {
             "state": {

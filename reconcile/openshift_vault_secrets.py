@@ -1,6 +1,8 @@
 from collections import defaultdict
 from typing import Any
 
+from deepdiff import DeepHash
+
 import reconcile.openshift_resources_base as orb
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
@@ -39,8 +41,6 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     state_for_clusters = defaultdict(list)
     for ns in namespaces:
         state_for_clusters[ns["cluster"]["name"]].append(ns)
-
-    from deepdiff import DeepHash
 
     return {
         "state": {

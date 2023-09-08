@@ -26,6 +26,7 @@ from urllib import parse
 import anymarkup
 import jinja2
 import jinja2.sandbox
+from deepdiff import DeepHash
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -1279,7 +1280,6 @@ def early_exit_desired_state(
         )
 
     def post_process_ns(ns):
-        ns[IDENTIFIER_FIELD_NAME] = ns["name"]
         # the sharedResources have been aggreated into the openshiftResources
         # and are no longer needed - speeds up diffing process
         del ns["sharedResources"]
@@ -1291,8 +1291,6 @@ def early_exit_desired_state(
         state_for_clusters[ns["cluster"]["name"]].append(post_process_ns(ns))
     for res in resources:
         state_for_clusters[res["cluster"]].append(res)
-
-    from deepdiff import DeepHash
 
     return {
         "state": {
