@@ -140,6 +140,7 @@ class DynatraceTokenProviderIntegration(
                     ]
                 dt_clients = self.get_all_dynatrace_clients(self.secret_reader)
                 dtp_tenant_label_key = f"{dtp_label_key(None)}.tenant"
+                existing_dtp_tokens = {}
 
                 for cluster in clusters:
                     try:
@@ -165,11 +166,18 @@ class DynatraceTokenProviderIntegration(
                                     error=f"Dynatrace tenant {tenant_id} does not exist",
                                 )
                                 continue
+
+                            if tenant_id not in existing_dtp_tokens:
+                                existing_dtp_tokens[
+                                    tenant_id
+                                ] = self.get_all_dtp_tokens(dt_clients[tenant_id])
+
                             self.process_cluster(
                                 dry_run,
                                 cluster,
                                 dt_clients[tenant_id],
                                 ocm_client,
+                                existing_dtp_tokens[tenant_id],
                             )
                     except Exception as e:
                         unhandled_exceptions.append(
@@ -204,12 +212,21 @@ class DynatraceTokenProviderIntegration(
             dynatrace_clients[tenant_id] = dt_client
         return dynatrace_clients
 
+    def get_all_dtp_tokens(self, dt_client: Dynatrace) -> list[str]:
+        try:
+            dt_tokens = dt_client.tokens.list()
+        except Exception as e:
+            logging.error("Failed to retrieve all dtp tokens")
+            raise e
+        return [token.id for token in dt_tokens if token.name.startswith("dtp-")]
+
     def process_cluster(
         self,
         dry_run: bool,
         cluster: ClusterDetails,
         dt_client: Dynatrace,
         ocm_client: OCMBaseClient,
+        existing_dtp_tokens: list[str],
     ) -> None:
         existing_syncset = self.get_syncset(ocm_client, cluster)
         if not existing_syncset:
@@ -236,10 +253,10 @@ class DynatraceTokenProviderIntegration(
                 f"SyncSet {SYNCSET_ID} created in cluster {cluster.ocm_cluster.external_id}."
             )
         else:
-            tokens = self.get_tokens_from_cluster(existing_syncset)
+            tokens = self.get_tokens_from_syncset(existing_syncset)
             need_patching = False
             for token_name, token in tokens.items():
-                if not self.token_exist_in_dynatrace(dt_client, token["id"]):
+                if token["id"] not in existing_dtp_tokens:
                     need_patching = True
                     logging.info(f"{token_name} missing in Dynatrace.")
                     if token_name == DYNATRACE_INGESTION_TOKEN_NAME:
@@ -268,23 +285,25 @@ class DynatraceTokenProviderIntegration(
                     elif token_name == DYNATRACE_OPERATOR_TOKEN_NAME:
                         operator_token = ApiTokenCreated(raw_element=token)
             if need_patching:
-                patch_syncset_payload = self.construct_base_syncset(
-                    ingestion_token=ingestion_token, operator_token=operator_token
-                )
-                try:
-                    patch_syncset(
-                        ocm_client,
-                        cluster_id=cluster.ocm_cluster.id,
-                        syncset_id=SYNCSET_ID,
-                        syncset_map=patch_syncset_payload,
+                if not dry_run:
+                    patch_syncset_payload = self.construct_base_syncset(
+                        ingestion_token=ingestion_token, operator_token=operator_token
                     )
-                    logging.info("Successfully patched syncset.")
-                except Exception as e:
-                    _expose_errors_as_service_log(
-                        ocm_client,
-                        cluster.ocm_cluster.external_id,
-                        f"DTP can't patch Syncset {SYNCSET_ID} due to {str(e.args)}",
-                    )
+                    try:
+                        logging.info(f"Patching syncset {SYNCSET_ID}.")
+                        patch_syncset(
+                            ocm_client,
+                            cluster_id=cluster.ocm_cluster.id,
+                            syncset_id=SYNCSET_ID,
+                            syncset_map=patch_syncset_payload,
+                        )
+                    except Exception as e:
+                        _expose_errors_as_service_log(
+                            ocm_client,
+                            cluster.ocm_cluster.external_id,
+                            f"DTP can't patch Syncset {SYNCSET_ID} due to {str(e.args)}",
+                        )
+                logging.info(f"Syncset {SYNCSET_ID} patched.")
 
     def get_syncset(
         self, ocm_client: OCMBaseClient, cluster: ClusterDetails
@@ -298,17 +317,7 @@ class DynatraceTokenProviderIntegration(
                 raise e
         return syncset
 
-    def token_exist_in_dynatrace(self, dt_client: Dynatrace, token_id: str) -> bool:
-        try:
-            result = dt_client.tokens.get(token_id)
-        except Exception as e:
-            if "does not exist" in e.args[0]:
-                result = None
-            else:
-                raise e
-        return True if result else False
-
-    def get_tokens_from_cluster(self, syncset: Mapping) -> Mapping:
+    def get_tokens_from_syncset(self, syncset: Mapping) -> Mapping:
         tokens = {}
         for resource in syncset["resources"]:
             if resource["kind"] == "Secret":
