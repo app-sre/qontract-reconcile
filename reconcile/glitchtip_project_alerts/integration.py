@@ -14,6 +14,7 @@ from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
 )
 from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import (
     GlitchtipProjectAlertRecipientEmailV1,
+    GlitchtipProjectAlertRecipientV1,
     GlitchtipProjectAlertRecipientWebhookV1,
     GlitchtipProjectsV1,
 )
@@ -60,6 +61,23 @@ class GlitchtipProjectAlertsIntegration(
     def get_projects(self, query_func: Callable) -> list[GlitchtipProjectsV1]:
         return glitchtip_project_query(query_func=query_func).glitchtip_projects or []
 
+    def _build_project_alert_recipient(
+        self,
+        recipient: GlitchtipProjectAlertRecipientEmailV1
+        | GlitchtipProjectAlertRecipientWebhookV1
+        | GlitchtipProjectAlertRecipientV1,
+    ) -> ProjectAlertRecipient:
+        if isinstance(recipient, GlitchtipProjectAlertRecipientEmailV1):
+            return ProjectAlertRecipient(recipient_type=RecipientType.EMAIL)
+        if isinstance(recipient, GlitchtipProjectAlertRecipientWebhookV1):
+            url = recipient.url
+            if not url and recipient.url_secret:
+                url = self.secret_reader.read_secret(recipient.url_secret)
+            if not url:
+                raise ValueError("url or urlSecret must be set for webhook recipient")
+            return ProjectAlertRecipient(recipient_type=RecipientType.WEBHOOK, url=url)
+        raise TypeError("Unsupported type")
+
     def fetch_desired_state(
         self, glitchtip_projects: Iterable[GlitchtipProjectsV1]
     ) -> list[Organization]:
@@ -69,44 +87,24 @@ class GlitchtipProjectAlertsIntegration(
                 glitchtip_project.organization.name,
                 Organization(name=glitchtip_project.organization.name),
             )
-            alerts = []
-            for alert in glitchtip_project.alerts or []:
-                project_alert_recipients: list[ProjectAlertRecipient] = []
-                for recp in alert.recipients:
-                    if isinstance(recp, GlitchtipProjectAlertRecipientEmailV1):
-                        project_alert_recipients.append(
-                            ProjectAlertRecipient(recipient_type=RecipientType.EMAIL)
-                        )
-                    elif isinstance(recp, GlitchtipProjectAlertRecipientWebhookV1):
-                        url = recp.url
-                        if not url and recp.url_secret:
-                            url = self.secret_reader.read_secret(recp.url_secret)
-                        if not url:
-                            raise ValueError(
-                                "url or urlSecret must be set for webhook recipient"
-                            )
-                        project_alert_recipients.append(
-                            ProjectAlertRecipient(
-                                recipient_type=RecipientType.WEBHOOK,
-                                url=url,
-                            )
-                        )
-                alerts.append(
-                    ProjectAlert(
-                        name=alert.name,
-                        timespan_minutes=alert.timespan_minutes,
-                        quantity=alert.quantity,
-                        recipients=project_alert_recipients,
-                    )
-                )
-
             project = Project(
                 name=glitchtip_project.name,
                 platform=None,
                 slug=glitchtip_project.project_id
                 if glitchtip_project.project_id
                 else "",
-                alerts=alerts,
+                alerts=[
+                    ProjectAlert(
+                        name=alert.name,
+                        timespan_minutes=alert.timespan_minutes,
+                        quantity=alert.quantity,
+                        recipients=[
+                            self._build_project_alert_recipient(recp)
+                            for recp in alert.recipients
+                        ],
+                    )
+                    for alert in glitchtip_project.alerts or []
+                ],
             )
 
             organization.projects.append(project)
