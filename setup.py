@@ -59,7 +59,7 @@ setup(
         # this is really needed only in lint and type validations.
         # Is there any better place to put this in?
         "packaging~=23.1",
-        "deepdiff6==6.2.0",
+        "deepdiff==6.4.1",
         "jsonpath-ng~=1.5",
         "networkx~=2.8",
         "mypy-boto3-s3~=1.24.94",
