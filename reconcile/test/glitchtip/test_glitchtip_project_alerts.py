@@ -9,6 +9,7 @@ from reconcile.glitchtip_project_alerts.integration import (
     GlitchtipProjectAlertsIntegration,
     GlitchtipProjectAlertsIntegrationParams,
 )
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import (
     GlitchtipInstanceV1,
     GlitchtipOrganizationV1,
@@ -26,6 +27,7 @@ from reconcile.utils.glitchtip.models import (
     ProjectAlertRecipient,
     RecipientType,
 )
+from reconcile.utils.secret_reader import SecretReader
 
 
 @pytest.fixture
@@ -34,7 +36,12 @@ def glitchtip_client_mock(mocker: MockerFixture) -> Mock:
 
 
 @pytest.fixture
-def intg() -> GlitchtipProjectAlertsIntegration:
+def intg(
+    secret_reader: SecretReader, mocker: MockerFixture
+) -> GlitchtipProjectAlertsIntegration:
+    mocker.patch.object(
+        GlitchtipProjectAlertsIntegration, "secret_reader", secret_reader
+    )
     return GlitchtipProjectAlertsIntegration(GlitchtipProjectAlertsIntegrationParams())
 
 
@@ -69,7 +76,9 @@ def test_glitchtip_project_alerts_get_projects(
                             provider="email-project-members"
                         ),
                         GlitchtipProjectAlertRecipientWebhookV1(
-                            provider="webhook", url="https://example.com"
+                            provider="webhook",
+                            url="https://example.com",
+                            urlSecret=None,
                         ),
                     ],
                 ),
@@ -80,7 +89,14 @@ def test_glitchtip_project_alerts_get_projects(
                     timespanMinutes=2,
                     recipients=[
                         GlitchtipProjectAlertRecipientWebhookV1(
-                            provider="webhook", url="https://example.com"
+                            provider="webhook",
+                            url=None,
+                            urlSecret=VaultSecret(
+                                path="ecret/glitchtip/webhook-url",
+                                field="url",
+                                version=1,
+                                format=None,
+                            ),
                         )
                     ],
                 ),
@@ -131,7 +147,7 @@ def test_glitchtip_project_alerts_fetch_desire_state(
                 ProjectAlertRecipient(
                     pk=None,
                     recipient_type=RecipientType.WEBHOOK,
-                    url="https://example.com",
+                    url="secret",
                 )
             ],
         ),

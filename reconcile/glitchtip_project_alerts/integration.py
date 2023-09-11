@@ -69,35 +69,44 @@ class GlitchtipProjectAlertsIntegration(
                 glitchtip_project.organization.name,
                 Organization(name=glitchtip_project.organization.name),
             )
+            alerts = []
+            for alert in glitchtip_project.alerts or []:
+                project_alert_recipients: list[ProjectAlertRecipient] = []
+                for recp in alert.recipients:
+                    if isinstance(recp, GlitchtipProjectAlertRecipientEmailV1):
+                        project_alert_recipients.append(
+                            ProjectAlertRecipient(recipient_type=RecipientType.EMAIL)
+                        )
+                    elif isinstance(recp, GlitchtipProjectAlertRecipientWebhookV1):
+                        url = recp.url
+                        if not url and recp.url_secret:
+                            url = self.secret_reader.read_secret(recp.url_secret)
+                        if not url:
+                            raise ValueError(
+                                "url or urlSecret must be set for webhook recipient"
+                            )
+                        project_alert_recipients.append(
+                            ProjectAlertRecipient(
+                                recipient_type=RecipientType.WEBHOOK,
+                                url=url,
+                            )
+                        )
+                alerts.append(
+                    ProjectAlert(
+                        name=alert.name,
+                        timespan_minutes=alert.timespan_minutes,
+                        quantity=alert.quantity,
+                        recipients=project_alert_recipients,
+                    )
+                )
+
             project = Project(
                 name=glitchtip_project.name,
                 platform=None,
                 slug=glitchtip_project.project_id
                 if glitchtip_project.project_id
                 else "",
-                alerts=[
-                    ProjectAlert(
-                        name=alert.name,
-                        timespan_minutes=alert.timespan_minutes,
-                        quantity=alert.quantity,
-                        recipients=[
-                            ProjectAlertRecipient(
-                                recipient_type=RecipientType.EMAIL
-                                if isinstance(
-                                    recp, GlitchtipProjectAlertRecipientEmailV1
-                                )
-                                else RecipientType.WEBHOOK,
-                                url=recp.url
-                                if isinstance(
-                                    recp, GlitchtipProjectAlertRecipientWebhookV1
-                                )
-                                else "",
-                            )
-                            for recp in alert.recipients
-                        ],
-                    )
-                    for alert in glitchtip_project.alerts or []
-                ],
+                alerts=alerts,
             )
 
             organization.projects.append(project)

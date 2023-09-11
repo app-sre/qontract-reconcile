@@ -19,11 +19,13 @@ query GlitchtipProjectsWithAlerts {
         provider
         ... on GlitchtipProjectAlertRecipientWebhook_v1 {
           url
+          urlSecret {
+            ...VaultSecret
+          }
         }
         ... on GlitchtipProjectAlertRecipientEmail_v1 {
           provider
         }
-
       }
     }
   }
