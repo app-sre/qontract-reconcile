@@ -66,7 +66,7 @@ class JenkinsApi:
 
     @retry()
     def get_jobs_state(self):
-        url = f"{self.url}/api/json?tree=jobs[name,builds[number,result,changeSet[items[commitId]]]]"
+        url = f"{self.url}/api/json?tree=jobs[name,builds[number,result,actions[lastBuiltRevision[SHA1]]]]"
         res = requests.get(
             url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
         )
@@ -77,9 +77,11 @@ class JenkinsApi:
             job_name = r["name"]
             builds = r.get("builds", [])
             for b in builds:
-                change_set_items = b.get("changeSet", {}).get("items")
-                if change_set_items:
-                    b["commit_sha"] = change_set_items[0]["commitId"]
+                actions = b.get("actions", [])
+                for a in actions:
+                    revision = a.get("lastBuiltRevision")
+                    if revision:
+                        b["commit_sha"] = revision["SHA1"]
             jobs_state[job_name] = builds
 
         return jobs_state
