@@ -47,6 +47,9 @@ class RepoOutput(BaseModel):
     project_path: str
     delete: bool
     secret: RepoSecret
+    bucket: Optional[str]
+    region: Optional[str]
+    bucket_path: Optional[str]
 
 
 class OutputFile(BaseModel):
@@ -97,40 +100,57 @@ class TerraformRepoIntegration(
         )
 
         if repo_diff_result:
-            # put together output to pass to executor
-            actions_list: list[RepoOutput] = []
+            self.print_output(repo_diff_result, dry_run)
 
-            for repo in repo_diff_result:
-                actions_list.append(
-                    RepoOutput(
-                        repository=repo.repository,
-                        name=repo.name,
-                        ref=repo.ref,
-                        project_path=repo.project_path,
-                        delete=repo.delete or False,
-                        secret=RepoSecret(
-                            path=repo.account.automation_token.path,
-                            version=repo.account.automation_token.version,
-                        ),
+    def print_output(self, diff: list[TerraformRepoV1], dry_run: bool) -> None:
+        """Parses and prints the output of a Terraform Repo diff for the executor
+
+        :param diff: list of terraform repos to be acted on
+        :type diff: list[TerraformRepoV1]
+        :param dry_run: whether the executor should perform a tf apply
+        :type dry_run: bool
+        """
+        actions_list: list[RepoOutput] = []
+
+        for repo in diff:
+            out_repo = RepoOutput(
+                repository=repo.repository,
+                name=repo.name,
+                ref=repo.ref,
+                project_path=repo.project_path,
+                delete=repo.delete or False,
+                secret=RepoSecret(
+                    path=repo.account.automation_token.path,
+                    version=repo.account.automation_token.version,
+                ),
+            )
+            # terraform-repo will store its statefiles in a specified directory if there is a
+            # terraform-state yaml file associated with the AWS account and a configuration is
+            # listed for terraform-repo, otherwise it will default to loading this information
+            # from the automation_token secret in Vault
+            if repo.account.terraform_state:
+                for integration in repo.account.terraform_state.integrations:
+                    if integration.integration == "terraform-repo":
+                        out_repo.bucket = repo.account.terraform_state.bucket
+                        out_repo.region = repo.account.terraform_state.region
+                        out_repo.bucket_path = integration.key
+
+            actions_list.append(out_repo)
+
+        output = OutputFile(dry_run=dry_run, repos=actions_list)
+
+        if self.params.output_file:
+            try:
+                with open(self.params.output_file, "w") as output_file:
+                    yaml.safe_dump(
+                        data=output.dict(),
+                        stream=output_file,
+                        explicit_start=True,
                     )
-                )
-
-            output = OutputFile(dry_run=dry_run, repos=actions_list)
-
-            if self.params.output_file:
-                try:
-                    with open(self.params.output_file, "w") as output_file:
-                        yaml.safe_dump(
-                            data=output.dict(),
-                            stream=output_file,
-                            explicit_start=True,
-                        )
-                except FileNotFoundError:
-                    raise ParameterError(
-                        f"Unable to write to '{self.params.output_file}'"
-                    )
-            else:
-                print(yaml.safe_dump(data=output.dict(), explicit_start=True))
+            except FileNotFoundError:
+                raise ParameterError(f"Unable to write to '{self.params.output_file}'")
+        else:
+            print(yaml.safe_dump(data=output.dict(), explicit_start=True))
 
     def get_repos(self, query_func: Callable) -> list[TerraformRepoV1]:
         """Gets a list of terraform repos defined in App Interface

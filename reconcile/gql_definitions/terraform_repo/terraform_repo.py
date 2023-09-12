@@ -36,6 +36,15 @@ query TerraformRepo {
       automationToken {
         ...VaultSecret
       }
+      terraformState {
+        provider
+        bucket
+        region
+        integrations {
+          integration
+          key
+        }
+      }
     }
     name
     repository
@@ -53,10 +62,25 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
+class AWSTerraformStateIntegrationsV1(ConfiguredBaseModel):
+    integration: str = Field(..., alias="integration")
+    key: str = Field(..., alias="key")
+
+
+class TerraformStateAWSV1(ConfiguredBaseModel):
+    provider: str = Field(..., alias="provider")
+    bucket: str = Field(..., alias="bucket")
+    region: str = Field(..., alias="region")
+    integrations: list[AWSTerraformStateIntegrationsV1] = Field(
+        ..., alias="integrations"
+    )
+
+
 class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
     automation_token: VaultSecret = Field(..., alias="automationToken")
+    terraform_state: Optional[TerraformStateAWSV1] = Field(..., alias="terraformState")
 
 
 class TerraformRepoV1(ConfiguredBaseModel):

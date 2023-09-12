@@ -8,6 +8,15 @@ query TerraformRepo {
       automationToken {
         ...VaultSecret
       }
+      terraformState {
+        provider
+        bucket
+        region
+        integrations {
+          integration
+          key
+        }
+      }
     }
     name
     repository
