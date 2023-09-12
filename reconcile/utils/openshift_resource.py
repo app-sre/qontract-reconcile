@@ -292,14 +292,6 @@ class OpenshiftResource:
         except KeyError:
             pass
 
-    def remove_qontract_annotations(self):
-        try:
-            annotations = self.body["metadata"]["annotations"]
-            for a in QONTRACT_ANNOTATIONS:
-                annotations.pop(a, None)
-        except KeyError:
-            pass
-
     @staticmethod
     def is_controller_managed_label(kind, label) -> bool:
         for il in CONTROLLER_MANAGED_LABELS.get(kind, []):
