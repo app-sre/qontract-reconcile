@@ -58,7 +58,6 @@ def osd_run_wrapper(
     dry_run: bool,
     available_thread_pool_size: int,
     use_jump_host: bool,
-    gitlab_project_id: str,
 ) -> int:
     saas_file_name, env_name = spec
     exit_code = 0
@@ -69,7 +68,6 @@ def osd_run_wrapper(
             use_jump_host=use_jump_host,
             saas_file_name=saas_file_name,
             env_name=env_name,
-            gitlab_project_id=gitlab_project_id,
         )
     except SystemExit as e:
         exit_code = e.code if isinstance(e.code, int) else 1
@@ -248,7 +246,6 @@ def run(
         dry_run=dry_run,
         available_thread_pool_size=available_thread_pool_size,
         use_jump_host=use_jump_host,
-        gitlab_project_id=gitlab_project_id,
     )
 
     if [ec for ec in exit_codes if ec]:
