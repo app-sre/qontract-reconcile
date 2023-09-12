@@ -29,8 +29,8 @@ def test_gabi_authorized_users_apply(mocker: MockerFixture) -> None:
         gabi_u.QONTRACT_INTEGRATION,
         gabi_u.QONTRACT_INTEGRATION_VERSION,
     )
-    args, _ = mock_apply.call_args
-    assert args[5] == expected
+    _, kwargs = mock_apply.call_args
+    assert kwargs["resource"] == expected
 
 
 def test_gabi_authorized_users_exist(mocker: MockerFixture) -> None:

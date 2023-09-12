@@ -37,16 +37,29 @@ class CacheDict(BaseCache):
         self.cache = {}
 
 
-class DisableClusterStrategy(Strategy):
+class ClusterStrategy(Strategy):
     def load_provisioning(self) -> list:
         return [x.strip() for x in self.parameters["cluster_name"].split(",")]
 
+
+class DisableClusterStrategy(ClusterStrategy):
     def apply(self, context: Optional[dict] = None) -> bool:
         enable = True
 
         if context and "cluster_name" in context.keys():
             # if cluster in context is in clusters sent from server, disable
             enable = context["cluster_name"] not in self.parsed_provisioning
+
+        return enable
+
+
+class EnableClusterStrategy(ClusterStrategy):
+    def apply(self, context: Optional[dict] = None) -> bool:
+        enable = False
+
+        if context and "cluster_name" in context.keys():
+            # if cluster in context is in clusters sent from server, enable
+            enable = context["cluster_name"] in self.parsed_provisioning
 
         return enable
 
@@ -63,7 +76,10 @@ def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
                 app_name="qontract-reconcile",
                 custom_headers=headers,
                 cache=CacheDict(),
-                custom_strategies={"disableCluster": DisableClusterStrategy},
+                custom_strategies={
+                    "enableCluster": EnableClusterStrategy,
+                    "disableCluster": DisableClusterStrategy,
+                },
             )
             client.initialize_client()
     return client

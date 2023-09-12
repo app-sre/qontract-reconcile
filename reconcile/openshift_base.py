@@ -1,3 +1,4 @@
+import base64
 import itertools
 import logging
 from collections.abc import (
@@ -17,6 +18,7 @@ from typing import (
     runtime_checkable,
 )
 
+import jsonpatch  # type: ignore
 import yaml
 from sretoolbox.utils import (
     retry,
@@ -24,6 +26,7 @@ from sretoolbox.utils import (
 )
 
 from reconcile import queries
+from reconcile.utils import differ
 from reconcile.utils.oc import (
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
@@ -39,11 +42,23 @@ from reconcile.utils.oc import (
     StatusCodeError,
     UnsupportedMediaTypeError,
 )
+from reconcile.utils.openshift_resource import QONTRACT_ANNOTATIONS
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 
 ACTION_APPLIED = "applied"
 ACTION_DELETED = "deleted"
+
+NORMALIZE_COMPARE_EXCLUDED_ATTRS = {
+    "creationTimestamp",
+    "resourceVersion",
+    "generation",
+    "selfLink",
+    "uid",
+    "fieldRef",
+    "managedFields",
+    "namespace",
+}
 
 
 class ValidationError(Exception):
@@ -556,18 +571,475 @@ def check_unused_resource_types(ri):
             logging.warning(msg)
 
 
-def _realize_resource_data(
-    unpacked_ri_item,
-    dry_run,
+def _normalize_secret(secret: OR) -> None:
+    body = secret.body
+    string_data = body.get("stringData")
+
+    if string_data:
+        data = body.get("data") or {}
+        body["data"] = data | {
+            k: base64.b64encode(str(v).encode()).decode("utf-8")
+            for k, v in string_data.items()
+        }
+        secret.body = {k: v for k, v in body.items() if k != "stringData"}
+
+
+def _normalize_noop(item: OR) -> None:
+    pass
+
+
+NORMALIZERS = {"Secret": _normalize_secret}
+
+
+def normalize_object(item: OR) -> OR:
+    # Remove K8s managed attributes not needed to compare objects
+    metadata = {
+        k: v
+        for k, v in item.body["metadata"].items()
+        if k not in NORMALIZE_COMPARE_EXCLUDED_ATTRS
+    }
+
+    n = OR(
+        body=item.body | {"metadata": metadata},
+        integration=item.integration,
+        integration_version=item.integration_version,
+        error_details=item.error_details,
+        caller_name=item.caller_name,
+        validate_k8s_object=False,
+    )
+
+    annotations = n.body.get("annotations", {})
+    metadata["annotations"] = {
+        k: v for k, v in annotations.items() if k not in QONTRACT_ANNOTATIONS
+    }
+
+    # Run normalizers on Kinds with special needs
+    NORMALIZERS.get(n.body["kind"], _normalize_noop)(n)
+    return n
+
+
+def three_way_merge_patch_diff_using_hash(c_item: OR, d_item: OR) -> bool:
+    # Get the ORIGINAL object hash
+    # This needs to be improved in OR, by now is just a PoC
+    c_item_sha256 = ""
+    try:
+        annotations = c_item.body["metadata"]["annotations"]
+        c_item_sha256 = annotations["qontract.sha256sum"]
+    except KeyError:
+        logging.info("Current object QR hash is missing -> Apply")
+        return False
+
+    # Original object does not match Desired -> Apply
+    # Current object is not recalculated!
+    # d_item_sha256 = OR.calculate_sha256sum(OR.serialize(d_item.body))
+    # if c_item_sha256 != d_item_sha256:
+    if c_item_sha256 != d_item.sha256sum():
+        logging.info("Original and Desired objects hash differs -> Apply")
+        return False
+
+    # If there are differences between current and desired -> Apply
+    # The patch only detects changes with attributes defined in the desired state.
+    # Values in the current state added by operators or other actors are not taken
+    # into account
+
+    current = normalize_object(c_item)
+    desired = normalize_object(d_item)
+
+    patch = jsonpatch.JsonPatch.from_diff(current.body, desired.body)
+    for item in patch.patch:
+        if item["op"] == "add" or item["op"] == "replace":
+            # Add or Replace from DESIRED Over CURRENT
+            logging.info("Desired and Current objects differ -> Apply")
+            logging.info(patch.patch)
+            return False
+
+    return True
+
+
+@dataclass
+class ApplyOptions:
+    dry_run: bool
+    no_dry_run_skip_compare: bool
+    wait_for_namespace: bool
+    recycle_pods: bool
+    take_over: bool
+    override_enable_deletion: Optional[bool]
+    caller: Optional[str]
+    all_callers: Optional[Sequence[str]]
+    privileged: Optional[bool]
+    enable_deletion: Optional[bool]
+
+
+def should_apply(
+    current: OR,
+    ri: ResourceInventory,
+    options: ApplyOptions,
+    cluster: str,
+    name: str,
+    namespace: str,
+    resource_type: str,
+) -> bool:
+    if not options.dry_run and options.no_dry_run_skip_compare:
+        msg = (
+            f"[{cluster}/{namespace}] skipping compare of resource"
+            f"'{resource_type}/{name}'"
+        )
+        logging.debug(msg)
+        return True
+    if (
+        not options.take_over
+        and options.caller
+        and current.caller != options.caller
+        and options.all_callers
+        and current.caller in options.all_callers
+    ):
+        ri.register_error()
+        logging.error(
+            f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present and managed by another caller: {current.caller}"
+        )
+        return False
+
+    logging.debug("CURRENT: " + OR.serialize(OR.canonicalize(current.body)))
+    return True
+
+
+def should_delete(
+    current: OR,
+    cluster: str,
+    name: str,
+    namespace: str,
+    resource_type: str,
+    options: ApplyOptions,
+) -> bool:
+    if current.has_qontract_annotations():
+        if options.caller and current.caller != options.caller:
+            return False
+    elif not options.take_over:
+        # this is reached when the current resources:
+        # - does not have qontract annotations (not managed)
+        # - not taking over all resources of the current kind
+        msg = f"[{cluster}/{namespace}] skipping " + f"{resource_type}/{name}"
+        logging.debug(msg)
+        return False
+    elif current.has_owner_reference():
+        return False
+    return True
+
+
+def handle_new_resources(
     oc_map: ClusterMap,
     ri: ResourceInventory,
-    take_over,
-    caller,
-    all_callers,
-    wait_for_namespace,
-    no_dry_run_skip_compare,
-    override_enable_deletion,
-    recycle_pods,
+    new_resources: Mapping[Any, Any],
+    cluster: str,
+    namespace: str,
+    resource_type: str,
+    data: Mapping[Any, Any],
+    options: ApplyOptions,
+) -> list[dict[str, Any]]:
+    actions: list[dict[str, Any]] = []
+
+    for name, desired in new_resources.items():
+        options.privileged = data["use_admin_token"].get(name, False)
+        action = {
+            "action": ACTION_APPLIED,
+            "cluster": cluster,
+            "namespace": namespace,
+            "kind": resource_type,
+            "name": name,
+            "privileged": options.privileged,
+        }
+        actions.append(action)
+        apply_action(
+            oc_map=oc_map,
+            ri=ri,
+            cluster=cluster,
+            namespace=namespace,
+            resource_type=resource_type,
+            resource=desired,
+            options=options,
+        )
+
+    return actions
+
+
+def handle_modified_resources(
+    oc_map: ClusterMap,
+    ri: ResourceInventory,
+    modified_resources: Mapping[Any, Any],
+    cluster: str,
+    namespace: str,
+    resource_type: str,
+    data: Mapping[Any, Any],
+    options: ApplyOptions,
+) -> list[dict[str, Any]]:
+    actions: list[dict[str, Any]] = []
+
+    for name, dp in modified_resources.items():
+        if should_apply(
+            current=dp.current,
+            ri=ri,
+            cluster=cluster,
+            name=name,
+            namespace=namespace,
+            resource_type=resource_type,
+            options=options,
+        ):
+            options.privileged = data["use_admin_token"].get(name, False)
+            action = {
+                "action": ACTION_APPLIED,
+                "cluster": cluster,
+                "namespace": namespace,
+                "kind": resource_type,
+                "name": name,
+                "privileged": options.privileged,
+            }
+            actions.append(action)
+            apply_action(
+                oc_map=oc_map,
+                ri=ri,
+                cluster=cluster,
+                namespace=namespace,
+                resource_type=resource_type,
+                resource=dp.desired,
+                options=options,
+            )
+    return actions
+
+
+def handle_deleted_resources(
+    oc_map: ClusterMap,
+    ri: ResourceInventory,
+    deleted_resources: Mapping[Any, Any],
+    cluster: str,
+    namespace: str,
+    resource_type: str,
+    data: Mapping[Any, Any],
+    options: ApplyOptions,
+) -> list[dict[str, Any]]:
+    actions: list[dict[str, Any]] = []
+
+    for name, current in deleted_resources.items():
+        if should_delete(
+            current=current,
+            cluster=cluster,
+            name=name,
+            namespace=namespace,
+            resource_type=resource_type,
+            options=options,
+        ):
+            privileged = data["use_admin_token"].get(name, False)
+            action = {
+                "action": ACTION_DELETED,
+                "cluster": cluster,
+                "namespace": namespace,
+                "kind": resource_type,
+                "name": name,
+                "privileged": True if privileged else False,
+            }
+            actions.append(action)
+            delete_action(
+                oc_map=oc_map,
+                ri=ri,
+                cluster=cluster,
+                namespace=namespace,
+                resource_type=resource_type,
+                resource_name=name,
+                options=options,
+            )
+
+    return actions
+
+
+def apply_action(
+    oc_map: ClusterMap,
+    ri: ResourceInventory,
+    cluster: str,
+    namespace: str,
+    resource_type: str,
+    resource: OR,
+    options: ApplyOptions,
+) -> None:
+    try:
+        apply(
+            dry_run=options.dry_run,
+            oc_map=oc_map,
+            cluster=cluster,
+            namespace=namespace,
+            resource_type=resource_type,
+            resource=resource,
+            wait_for_namespace=options.wait_for_namespace,
+            recycle_pods=options.recycle_pods,
+            privileged=True if options.privileged else False,
+        )
+
+    except StatusCodeError as e:
+        ri.register_error()
+        err = (
+            str(e)
+            if resource_type != "Secret"
+            else f"error applying Secret {resource.name}: REDACTED"
+        )
+        msg = (
+            f"[{cluster}/{namespace}] {err} "
+            f"(error details: {resource.error_details})"
+        )
+        logging.error(msg)
+
+
+def delete_action(
+    oc_map: ClusterMap,
+    ri: ResourceInventory,
+    cluster: str,
+    namespace: str,
+    resource_type: str,
+    resource_name: str,
+    options: ApplyOptions,
+) -> None:
+    try:
+        delete(
+            dry_run=options.dry_run,
+            oc_map=oc_map,
+            cluster=cluster,
+            namespace=namespace,
+            resource_type=resource_type,
+            name=resource_name,
+            enable_deletion=True if options.enable_deletion else False,
+            privileged=True if options.privileged else False,
+        )
+    except StatusCodeError as e:
+        ri.register_error()
+        msg = "[{}/{}] {}".format(cluster, namespace, str(e))
+        logging.error(msg)
+
+
+def _realize_resource_data(
+    ri_item: tuple[str, str, str, Mapping[str, Any]],
+    dry_run: bool,
+    oc_map: ClusterMap,
+    ri: ResourceInventory,
+    take_over: bool,
+    caller: str,
+    all_callers: Sequence[str],
+    wait_for_namespace: bool,
+    no_dry_run_skip_compare: bool,
+    override_enable_deletion: bool,
+    recycle_pods: bool,
+) -> list[dict[str, Any]]:
+    cluster, _, _, _ = ri_item
+
+    options = ApplyOptions(
+        dry_run=dry_run,
+        no_dry_run_skip_compare=no_dry_run_skip_compare,
+        wait_for_namespace=wait_for_namespace,
+        override_enable_deletion=override_enable_deletion,
+        take_over=take_over,
+        caller=caller,
+        all_callers=all_callers,
+        recycle_pods=recycle_pods,
+        privileged=False,
+        enable_deletion=False,
+    )
+
+    use_3way_diff = ri.clusters_3way_diff_strategy[cluster]
+
+    if use_3way_diff:
+        return _realize_resource_data_3way_diff(
+            ri_item=ri_item, oc_map=oc_map, ri=ri, options=options
+        )
+
+    return _realize_resource_data_qr(
+        unpacked_ri_item=ri_item,
+        dry_run=dry_run,
+        oc_map=oc_map,
+        ri=ri,
+        take_over=take_over,
+        caller=caller,
+        all_callers=all_callers,
+        wait_for_namespace=wait_for_namespace,
+        no_dry_run_skip_compare=no_dry_run_skip_compare,
+        override_enable_deletion=override_enable_deletion,
+        recycle_pods=recycle_pods,
+    )
+
+
+def _realize_resource_data_3way_diff(
+    ri_item: tuple[str, str, str, Mapping[str, Any]],
+    oc_map: ClusterMap,
+    ri: ResourceInventory,
+    options: ApplyOptions,
+) -> list[dict[str, Any]]:
+    cluster, namespace, resource_type, data = ri_item
+
+    actions: list[dict] = []
+
+    if ri.has_error_registered(cluster=cluster):
+        msg = ("[{}] skipping realize_data for " "cluster with errors").format(cluster)
+        logging.error(msg)
+        return actions
+
+    options.enable_deletion = False if ri.has_error_registered() else True
+    # only allow to override enable_deletion if no errors were found
+    if options.enable_deletion is True and options.override_enable_deletion is False:
+        options.enable_deletion = False
+
+    diff_result = differ.diff_mappings(
+        data["current"], data["desired"], equal=three_way_merge_patch_diff_using_hash
+    )
+
+    actions.extend(
+        handle_new_resources(
+            oc_map=oc_map,
+            ri=ri,
+            new_resources=diff_result.add,
+            cluster=cluster,
+            namespace=namespace,
+            resource_type=resource_type,
+            data=data,
+            options=options,
+        )
+    )
+
+    actions.extend(
+        handle_modified_resources(
+            oc_map=oc_map,
+            ri=ri,
+            modified_resources=diff_result.change,
+            cluster=cluster,
+            namespace=namespace,
+            resource_type=resource_type,
+            data=data,
+            options=options,
+        )
+    )
+
+    actions.extend(
+        handle_deleted_resources(
+            oc_map=oc_map,
+            ri=ri,
+            deleted_resources=diff_result.delete,
+            cluster=cluster,
+            namespace=namespace,
+            resource_type=resource_type,
+            data=data,
+            options=options,
+        )
+    )
+
+    return actions
+
+
+def _realize_resource_data_qr(
+    unpacked_ri_item: tuple[str, str, str, Mapping[str, Any]],
+    dry_run: bool,
+    oc_map: ClusterMap,
+    ri: ResourceInventory,
+    take_over: bool,
+    caller: str,
+    all_callers: Sequence[str],
+    wait_for_namespace: bool,
+    no_dry_run_skip_compare: bool,
+    override_enable_deletion: bool,
+    recycle_pods: bool,
 ):
     cluster, namespace, resource_type, data = unpacked_ri_item
     actions: list[dict] = []

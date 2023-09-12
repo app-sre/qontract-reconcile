@@ -13,7 +13,10 @@ from typing import (
 
 import semver
 
+from reconcile.utils.unleash import get_feature_toggle_state
+
 SECRET_MAX_KEY_LENGTH = 253
+LAC_ANNOTATION = "kubectl.kubernetes.io/last-applied-configuration"
 
 
 class ResourceKeyExistsError(Exception):
@@ -53,7 +56,22 @@ CONTROLLER_MANAGED_LABELS: dict[str, set[Union[str, re.Pattern]]] = {
     }
 }
 
+QONTRACT_ANNOTATION_INTEGRATION = "qontract.integration"
+QONTRACT_ANNOTATION_INTEGRATION_VERSION = "qontract.integration_version"
+QONTRACT_ANNOTATION_SHA256SUM = "qontract.sha256sum"
+QONTRACT_ANNOTATION_UPDATE = "qontract.update"
+QONTRACT_ANNOTATION_CALLER_NAME = "qontrat.caller_name"
 
+QONTRACT_ANNOTATIONS = {
+    QONTRACT_ANNOTATION_INTEGRATION,
+    QONTRACT_ANNOTATION_INTEGRATION_VERSION,
+    QONTRACT_ANNOTATION_SHA256SUM,
+    QONTRACT_ANNOTATION_UPDATE,
+    QONTRACT_ANNOTATION_CALLER_NAME,
+}
+
+
+# pylint: disable=R0904
 class OpenshiftResource:
     def __init__(
         self,
@@ -287,15 +305,15 @@ class OpenshiftResource:
         try:
             annotations = self.body["metadata"]["annotations"]
 
-            assert annotations["qontract.integration"] == self.integration
+            assert annotations[QONTRACT_ANNOTATION_INTEGRATION] == self.integration
 
-            integration_version = annotations["qontract.integration_version"]
+            integration_version = annotations[QONTRACT_ANNOTATION_INTEGRATION_VERSION]
             assert (
                 semver.VersionInfo.parse(integration_version).major
                 == semver.VersionInfo.parse(self.integration_version).major
             )
 
-            assert annotations["qontract.sha256sum"] is not None
+            assert annotations[QONTRACT_ANNOTATION_SHA256SUM] is not None
         except KeyError:
             return False
         except AssertionError:
@@ -318,7 +336,7 @@ class OpenshiftResource:
         except KeyError:
             return False
 
-    def annotate(self):
+    def annotate(self, canonicalize=True):
         """
         Creates a OpenshiftResource with the qontract annotations, and removes
         unneeded Openshift fields.
@@ -327,10 +345,12 @@ class OpenshiftResource:
             openshift_resource: new OpenshiftResource object with
                 annotations.
         """
+        if canonicalize:
+            body = self.canonicalize(self.body)
+        else:
+            body = self.body
 
-        # calculate sha256sum of canonical body
-        canonical_body = self.canonicalize(self.body)
-        sha256sum = self.calculate_sha256sum(self.serialize(canonical_body))
+        sha256sum = self.calculate_sha256sum(self.serialize(body))
 
         # create new body object
         body = copy.deepcopy(self.body)
@@ -343,13 +363,13 @@ class OpenshiftResource:
         annotations = body["metadata"]["annotations"]
 
         # add qontract annotations
-        annotations["qontract.integration"] = self.integration
-        annotations["qontract.integration_version"] = self.integration_version
-        annotations["qontract.sha256sum"] = sha256sum
+        annotations[QONTRACT_ANNOTATION_INTEGRATION] = self.integration
+        annotations[QONTRACT_ANNOTATION_INTEGRATION_VERSION] = self.integration_version
+        annotations[QONTRACT_ANNOTATION_SHA256SUM] = sha256sum
         now = datetime.datetime.utcnow().replace(microsecond=0).isoformat()
-        annotations["qontract.update"] = now
+        annotations[QONTRACT_ANNOTATION_UPDATE] = now
         if self.caller_name:
-            annotations["qontract.caller_name"] = self.caller_name
+            annotations[QONTRACT_ANNOTATION_CALLER_NAME] = self.caller_name
 
         return OpenshiftResource(body, self.integration, self.integration_version)
 
@@ -506,12 +526,8 @@ class OpenshiftResource:
                 spec.pop("clusterIP", None)
 
         # remove qontract specific params
-        annotations.pop("qontract.integration", None)
-        annotations.pop("qontract.integration_version", None)
-        annotations.pop("qontract.sha256sum", None)
-        annotations.pop("qontract.update", None)
-        annotations.pop("qontract.caller_name", None)
-
+        for a in QONTRACT_ANNOTATIONS:
+            annotations.pop(a, None)
         return body
 
     @staticmethod
@@ -539,6 +555,10 @@ class ResourceInventory:
         self._error_registered_clusters = {}
         self._lock = Lock()
 
+        # temporary logic to rollout new resources diff mechanism
+        self.clusters_3way_diff_strategy = {}
+        #
+
     def initialize_resource_type(
         self,
         cluster,
@@ -546,6 +566,15 @@ class ResourceInventory:
         resource_type,
         managed_names: Optional[list[str]] = None,
     ):
+        # temporary logic to rollout new resources diff mechanism
+        if cluster not in self.clusters_3way_diff_strategy:
+            toggle = "openshift-resources-3way-diff-strategy"
+            use_3way_diff = get_feature_toggle_state(
+                toggle, context={"cluster_name": cluster}, default=False
+            )
+            self.clusters_3way_diff_strategy[cluster] = use_3way_diff
+        #
+
         self._clusters.setdefault(cluster, {})
         self._clusters[cluster].setdefault(namespace, {})
         self._clusters[cluster][namespace].setdefault(
