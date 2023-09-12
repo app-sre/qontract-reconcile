@@ -17,8 +17,17 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
 query GlitchtipProjectsWithAlerts {
   glitchtip_projects: glitchtip_projects_v1 {
     name
@@ -38,11 +47,13 @@ query GlitchtipProjectsWithAlerts {
         provider
         ... on GlitchtipProjectAlertRecipientWebhook_v1 {
           url
+          urlSecret {
+            ...VaultSecret
+          }
         }
         ... on GlitchtipProjectAlertRecipientEmail_v1 {
           provider
         }
-
       }
     }
   }
@@ -70,7 +81,8 @@ class GlitchtipProjectAlertRecipientV1(ConfiguredBaseModel):
 
 
 class GlitchtipProjectAlertRecipientWebhookV1(GlitchtipProjectAlertRecipientV1):
-    url: str = Field(..., alias="url")
+    url: Optional[str] = Field(..., alias="url")
+    url_secret: Optional[VaultSecret] = Field(..., alias="urlSecret")
 
 
 class GlitchtipProjectAlertRecipientEmailV1(GlitchtipProjectAlertRecipientV1):

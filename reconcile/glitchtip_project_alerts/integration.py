@@ -14,6 +14,7 @@ from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
 )
 from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import (
     GlitchtipProjectAlertRecipientEmailV1,
+    GlitchtipProjectAlertRecipientV1,
     GlitchtipProjectAlertRecipientWebhookV1,
     GlitchtipProjectsV1,
 )
@@ -60,6 +61,23 @@ class GlitchtipProjectAlertsIntegration(
     def get_projects(self, query_func: Callable) -> list[GlitchtipProjectsV1]:
         return glitchtip_project_query(query_func=query_func).glitchtip_projects or []
 
+    def _build_project_alert_recipient(
+        self,
+        recipient: GlitchtipProjectAlertRecipientEmailV1
+        | GlitchtipProjectAlertRecipientWebhookV1
+        | GlitchtipProjectAlertRecipientV1,
+    ) -> ProjectAlertRecipient:
+        if isinstance(recipient, GlitchtipProjectAlertRecipientEmailV1):
+            return ProjectAlertRecipient(recipient_type=RecipientType.EMAIL)
+        if isinstance(recipient, GlitchtipProjectAlertRecipientWebhookV1):
+            url = recipient.url
+            if not url and recipient.url_secret:
+                url = self.secret_reader.read_secret(recipient.url_secret)
+            if not url:
+                raise ValueError("url or urlSecret must be set for webhook recipient")
+            return ProjectAlertRecipient(recipient_type=RecipientType.WEBHOOK, url=url)
+        raise TypeError("Unsupported type")
+
     def fetch_desired_state(
         self, glitchtip_projects: Iterable[GlitchtipProjectsV1]
     ) -> list[Organization]:
@@ -81,18 +99,7 @@ class GlitchtipProjectAlertsIntegration(
                         timespan_minutes=alert.timespan_minutes,
                         quantity=alert.quantity,
                         recipients=[
-                            ProjectAlertRecipient(
-                                recipient_type=RecipientType.EMAIL
-                                if isinstance(
-                                    recp, GlitchtipProjectAlertRecipientEmailV1
-                                )
-                                else RecipientType.WEBHOOK,
-                                url=recp.url
-                                if isinstance(
-                                    recp, GlitchtipProjectAlertRecipientWebhookV1
-                                )
-                                else "",
-                            )
+                            self._build_project_alert_recipient(recp)
                             for recp in alert.recipients
                         ],
                     )

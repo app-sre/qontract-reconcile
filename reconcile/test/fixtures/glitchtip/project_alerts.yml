@@ -15,13 +15,19 @@ glitchtip_projects:
     - provider: email-project-members
     - provider: webhook
       url: https://example.com
+      urlSecret: null
   - name: example-2
     description: Example alert 1
     quantity: 2
     timespanMinutes: 2
     recipients:
     - provider: webhook
-      url: https://example.com
+      url: null
+      urlSecret:
+        path: ecret/glitchtip/webhook-url
+        field: url
+        version: 1
+        format: null
 
 - name: no-alerts
   projectId: null
