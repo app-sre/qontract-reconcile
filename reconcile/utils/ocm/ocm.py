@@ -459,7 +459,7 @@ class OCMProductRosa(OCMProduct):
     @staticmethod
     def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
         operator_roles_prefix = "".join(
-            "".join(random.choices(string.ascii_lowercase + string.digits, k=4))
+            random.choices(string.ascii_lowercase + string.digits, k=4)
         )
 
         ocm_spec: dict[str, Any] = {
