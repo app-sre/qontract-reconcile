@@ -201,16 +201,20 @@ def setup(
     include_accounts: Optional[Collection[str]],
     exclude_accounts: Optional[Collection[str]],
 ) -> tuple[
-    ResourceInventory, Optional[OCMap], Terraform, ExternalResourceSpecInventory
+    ResourceInventory,
+    Optional[OCMap],
+    Terraform,
+    ExternalResourceSpecInventory,
+    Iterable[str],
 ]:
     accounts = queries.get_aws_accounts(terraform_state=True)
+    all_accounts = tuple(a["name"] for a in accounts)
     if not include_accounts and exclude_accounts:
         excluding = filter_accounts_by_name(accounts, exclude_accounts)
         validate_account_names(excluding, exclude_accounts)
         accounts = exclude_accounts_by_name(accounts, exclude_accounts)
         if len(accounts) == 0:
             raise ValueError("You have excluded all aws accounts, verify your input")
-        account_names = tuple(ac["name"] for ac in accounts)
     elif include_accounts:
         accounts = filter_accounts_by_name(accounts, include_accounts)
         validate_account_names(accounts, include_accounts)
@@ -259,7 +263,7 @@ def setup(
     ts.populate_resources(ocm_map=ocm_map)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
-    return ri, oc_map, tf, ts.resource_spec_inventory
+    return ri, oc_map, tf, ts.resource_spec_inventory, all_accounts
 
 
 def filter_tf_namespaces(
@@ -390,7 +394,7 @@ def run(
         logging.error(message)
         raise MultipleAccountNamesInDryRunException(message)
 
-    ri, oc_map, tf, resource_specs = setup(
+    ri, oc_map, tf, resource_specs, all_accounts = setup(
         dry_run,
         print_to_file,
         thread_pool_size,
@@ -443,7 +447,12 @@ def run(
     actions = []
     if oc_map:
         actions = ob.realize_data(
-            dry_run, oc_map, ri, thread_pool_size, caller=acc_name
+            dry_run,
+            oc_map,
+            ri,
+            thread_pool_size,
+            caller=acc_name,
+            all_callers=all_accounts,
         )
 
     if actions and vault_output_path:
