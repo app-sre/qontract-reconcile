@@ -41,6 +41,11 @@ def ocm_osd_cluster_ai_spec():
 
 
 @pytest.fixture
+def ocm_osd_cluster_post_spec():
+    return fxt.get_anymarkup("osd_spec_post.json")
+
+
+@pytest.fixture
 def ocm_rosa_cluster_raw_spec():
     return fxt.get_anymarkup("rosa_spec.json")
 
@@ -48,6 +53,11 @@ def ocm_rosa_cluster_raw_spec():
 @pytest.fixture
 def ocm_rosa_cluster_ai_spec():
     return fxt.get_anymarkup("rosa_spec_ai.yml")
+
+
+@pytest.fixture
+def ocm_rosa_cluster_post_spec():
+    return fxt.get_anymarkup("rosa_spec_post.json")
 
 
 @pytest.fixture
@@ -313,7 +323,7 @@ def ocm_secrets_reader():
 
 @pytest.fixture
 def ocm_mock(ocm_secrets_reader):
-    with patch.object(OCM, "_post", autospec=True) as _post:
+    with patch.object(OCM, "_post") as _post:
         with patch.object(OCM, "_patch", autospec=True) as _patch:
             with patch.object(OCM, "whoami", autospec=True):
                 with patch.object(ocm, "init_ocm_base_client"):
@@ -460,18 +470,23 @@ def test_ocm_osd_create_cluster(
     queries_mock,
     ocm_mock,
     cluster_updates_mr_mock,
-    ocm_osd_cluster_raw_spec,
     ocm_osd_cluster_ai_spec,
+    ocm_osd_cluster_post_spec,
 ):
-    ocm_osd_cluster_ai_spec["name"] = "a-new-cluster"
-    get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    get_json_mock.return_value = {"items": []}
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
+
     with pytest.raises(SystemExit):
         occ.run(dry_run=False)
+
     _post, _patch = ocm_mock
-    assert _post.call_count == 1
-    assert _patch.call_count == 0
-    assert cluster_updates_mr_mock.call_count == 0
+    _post.assert_called_once_with(
+        "/api/clusters_mgmt/v1/clusters",
+        ocm_osd_cluster_post_spec,
+        {},
+    )
+    _patch.assert_not_called()
+    cluster_updates_mr_mock.assert_not_called()
 
 
 def test_ocm_rosa_create_cluster(
@@ -479,18 +494,25 @@ def test_ocm_rosa_create_cluster(
     queries_mock,
     ocm_mock,
     cluster_updates_mr_mock,
-    ocm_rosa_cluster_raw_spec,
     ocm_rosa_cluster_ai_spec,
+    ocm_rosa_cluster_post_spec,
 ):
-    ocm_rosa_cluster_ai_spec["name"] = "a-new-cluster"
-    get_json_mock.return_value = {"items": [ocm_rosa_cluster_raw_spec]}
+    get_json_mock.return_value = {"items": []}
     queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
-    with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
+
+    with patch("reconcile.utils.ocm.random.choices", return_value=["c", "n", "z", "y"]):
+        with pytest.raises(SystemExit):
+            occ.run(dry_run=False)
+
     _post, _patch = ocm_mock
-    assert _post.call_count == 1
-    assert _patch.call_count == 0
-    assert cluster_updates_mr_mock.call_count == 0
+
+    _post.assert_called_once_with(
+        "/api/clusters_mgmt/v1/clusters",
+        ocm_rosa_cluster_post_spec,
+        {},
+    )
+    _patch.assert_not_called()
+    cluster_updates_mr_mock.assert_not_called()
 
 
 def test_ocm_rosa_update_cluster(

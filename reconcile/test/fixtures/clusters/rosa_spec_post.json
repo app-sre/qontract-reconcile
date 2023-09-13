@@ -1,0 +1,59 @@
+{
+  "api": {
+    "listening": "external"
+  },
+  "aws": {
+    "account_id": "249118421612",
+    "sts": {
+      "auto_mode": true,
+      "enabled": true,
+      "instance_iam_roles": {
+        "master_role_arn": "arn:aws:iam::249118421612:role/ManagedOpenShift-ControlPlane-Role",
+        "worker_role_arn": "arn:aws:iam::249118421612:role/ManagedOpenShift-Worker-Role"
+      },
+      "operator_role_prefix": "tst-jpr-rosa-cnzy",
+      "role_arn": "arn:aws:iam::249118421612:role/ManagedOpenShift-Installer-Role",
+      "support_role_arn": "arn:aws:iam::249118421612:role/ManagedOpenShift-Support-Role"
+    }
+  },
+  "ccs": {
+    "enabled": true
+  },
+  "cloud_provider": {
+    "id": "aws"
+  },
+  "disable_user_workload_monitoring": true,
+  "hypershift": {
+    "enabled": null
+  },
+  "multi_az": false,
+  "name": "tst-jpr-rosa",
+  "network": {
+    "machine_cidr": "10.0.0.0/16",
+    "pod_cidr": "10.128.0.0/14",
+    "service_cidr": "172.30.0.0/16",
+    "type": "OpenShiftSDN"
+  },
+  "nodes": {
+    "autoscale_compute": {
+      "max_replicas": 30,
+      "min_replicas": 21
+    },
+    "compute_machine_type": {
+      "id": "m5.xlarge"
+    }
+  },
+  "product": {
+    "id": "rosa"
+  },
+  "properties": {
+    "provision_shard_id": "provision_shard_id",
+    "rosa_creator_arn": "arn:aws:iam::249118421612:role/ManagedOpenShift-OCM-Role-12147054"
+  },
+  "region": {
+    "id": "us-east-1"
+  },
+  "version": {
+    "channel_group": "2", "id": "openshift-v4.8.10"
+  }
+}

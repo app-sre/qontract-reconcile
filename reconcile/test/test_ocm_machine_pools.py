@@ -1,24 +1,30 @@
+from collections.abc import Callable
 from typing import (
     Mapping,
     Optional,
 )
+from unittest.mock import create_autospec
 
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
     ClusterMachinePoolV1_ClusterSpecAutoScaleV1,
+    ClusterV1,
 )
 from reconcile.ocm_machine_pools import (
     AbstractPool,
     AWSNodePool,
     DesiredMachinePool,
     DesiredStateList,
+    InvalidUpdateError,
     MachinePool,
     MachinePoolAutoscaling,
     NodePool,
     PoolHandler,
     calculate_diff,
+    run,
 )
 from reconcile.utils.ocm import OCM
 
@@ -113,8 +119,8 @@ def cluster_machine_pool() -> ClusterMachinePoolV1:
 
 
 @pytest.fixture
-def ocm_mock(mocker):
-    return mocker.patch("reconcile.utils.ocm.OCM")
+def ocm_mock():
+    return create_autospec(OCM)
 
 
 def test_diff__has_diff_autoscale(cluster_machine_pool: ClusterMachinePoolV1):
@@ -317,19 +323,17 @@ def test_pool_machine_pool_invalid_diff_instance_type(
     assert machine_pool.invalid_diff(cluster_machine_pool)
 
 
-def test_machine_pool_update(machine_pool, mocker):
-    ocm = mocker.patch("reconcile.utils.ocm.OCM")
-    machine_pool.update(ocm=ocm)
+def test_machine_pool_update(machine_pool, ocm_mock):
+    machine_pool.update(ocm=ocm_mock)
 
-    assert ocm.update_machine_pool.call_count == 1
-    ocm.update_machine_pool.assert_called_with(
+    ocm_mock.update_machine_pool.assert_called_once_with(
         "cluster1",
         {"id": "pool1", "replicas": 2, "cluster": "cluster1", "autoscaling": None},
     )
 
     machine_pool.labels = {"foo": "bar"}
-    machine_pool.update(ocm=ocm)
-    ocm.update_machine_pool.assert_called_with(
+    machine_pool.update(ocm=ocm_mock)
+    ocm_mock.update_machine_pool.assert_called_with(
         "cluster1",
         {
             "id": "pool1",
@@ -344,8 +348,7 @@ def test_machine_pool_update(machine_pool, mocker):
 def test_node_pool_update(node_pool, ocm_mock):
     node_pool.update(ocm=ocm_mock)
 
-    assert ocm_mock.update_node_pool.call_count == 1
-    ocm_mock.update_node_pool.assert_called_with(
+    ocm_mock.update_node_pool.assert_called_once_with(
         "cluster1",
         {"id": "pool1", "replicas": 2, "cluster": "cluster1", "autoscaling": None},
     )
@@ -361,4 +364,359 @@ def test_node_pool_update(node_pool, ocm_mock):
             "labels": {"foo": "bar"},
             "autoscaling": None,
         },
+    )
+
+
+def setup_mocks(
+    mocker: MockerFixture,
+    clusters: list[ClusterV1] | None = None,
+    machine_pools: list[dict] | None = None,
+    node_pools: list[dict] | None = None,
+) -> dict:
+    mocked_get_clusters = mocker.patch(
+        "reconcile.ocm_machine_pools.get_clusters", return_value=clusters or []
+    )
+    mocked_ocm_map = mocker.patch("reconcile.ocm_machine_pools.OCMMap", autospec=True)
+    mocked_ocm = mocked_ocm_map.return_value.get.return_value
+    mocked_ocm.get_machine_pools.return_value = machine_pools or []
+    mocked_ocm.get_node_pools.return_value = node_pools or []
+
+    mocked_queries = mocker.patch("reconcile.ocm_machine_pools.queries")
+
+    return {
+        "get_clusters": mocked_get_clusters,
+        "queries": mocked_queries,
+        "OCMMap": mocked_ocm_map,
+        "OCM": mocked_ocm,
+    }
+
+
+def test_run_no_action(mocker: MockerFixture) -> None:
+    mocks = setup_mocks(mocker, clusters=[])
+
+    run(False)
+
+    mocks["get_clusters"].assert_called_once_with()
+    mocks["OCMMap"].assert_not_called()
+
+
+@pytest.fixture
+def ocm_cluster(
+    gql_class_factory: Callable[..., ClusterV1],
+) -> ClusterV1:
+    return gql_class_factory(
+        ClusterV1,
+        {
+            "name": "ocm-cluster",
+            "auth": [],
+            "ocm": {
+                "name": "ocm-name",
+                "environment": {
+                    "accessTokenClientSecret": {},
+                },
+            },
+            "machinePools": [
+                {
+                    "id": "workers",
+                    "instance_type": "m5.xlarge",
+                    "replicas": 2,
+                }
+            ],
+        },
+    )
+
+
+@pytest.fixture
+def expected_ocm_machine_pool_create_payload() -> dict:
+    return {
+        "autoscaling": None,
+        "cluster": "ocm-cluster",
+        "id": "workers",
+        "instance_type": "m5.xlarge",
+        "labels": None,
+        "replicas": 2,
+        "taints": [],
+    }
+
+
+def test_run_create_machine_pool(
+    mocker: MockerFixture,
+    ocm_cluster: ClusterV1,
+    expected_ocm_machine_pool_create_payload: dict,
+) -> None:
+    mocks = setup_mocks(mocker, clusters=[ocm_cluster])
+
+    run(False)
+
+    mocks["OCM"].create_machine_pool.assert_called_once_with(
+        ocm_cluster.name,
+        expected_ocm_machine_pool_create_payload,
+    )
+
+
+@pytest.fixture
+def existing_updated_ocm_machine_pools() -> list[dict]:
+    return [
+        {
+            "id": "workers",
+            "instance_type": "m5.xlarge",
+            "replicas": 3,
+        }
+    ]
+
+
+@pytest.fixture
+def expected_ocm_machine_pool_update_payload() -> dict:
+    return {
+        "autoscaling": None,
+        "cluster": "ocm-cluster",
+        "id": "workers",
+        "replicas": 2,
+    }
+
+
+def test_run_update_machine_pool(
+    mocker: MockerFixture,
+    ocm_cluster: ClusterV1,
+    existing_updated_ocm_machine_pools: list[dict],
+    expected_ocm_machine_pool_update_payload: dict,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        clusters=[ocm_cluster],
+        machine_pools=existing_updated_ocm_machine_pools,
+    )
+
+    run(False)
+
+    mocks["OCM"].update_machine_pool.assert_called_once_with(
+        ocm_cluster.name,
+        expected_ocm_machine_pool_update_payload,
+    )
+
+
+@pytest.fixture
+def existing_ocm_machine_pools_with_different_instance_type() -> list[dict]:
+    return [
+        {
+            "id": "workers",
+            "instance_type": "m5.2xlarge",
+            "replicas": 2,
+        }
+    ]
+
+
+def test_run_update_machine_pool_error(
+    mocker: MockerFixture,
+    ocm_cluster: ClusterV1,
+    existing_ocm_machine_pools_with_different_instance_type: list[dict],
+) -> None:
+    setup_mocks(
+        mocker,
+        clusters=[ocm_cluster],
+        machine_pools=existing_ocm_machine_pools_with_different_instance_type,
+    )
+
+    with pytest.raises(ExceptionGroup) as eg:
+        run(False)
+
+    assert len(eg.value.exceptions) == 1
+    assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
+
+
+@pytest.fixture
+def existing_multiple_ocm_machine_pools() -> list[dict]:
+    return [
+        {
+            "id": "workers",
+            "instance_type": "m5.xlarge",
+            "replicas": 3,
+        },
+        {
+            "id": "new-workers",
+            "instance_type": "m5.xlarge",
+            "replicas": 3,
+        },
+    ]
+
+
+@pytest.fixture
+def expected_ocm_machine_pool_delete_payload() -> dict:
+    return {
+        "autoscaling": None,
+        "cluster": "ocm-cluster",
+        "id": "new-workers",
+        "instance_type": "m5.xlarge",
+        "labels": None,
+        "replicas": 3,
+        "taints": None,
+    }
+
+
+def test_run_delete_machine_pool(
+    mocker: MockerFixture,
+    ocm_cluster: ClusterV1,
+    existing_multiple_ocm_machine_pools: list[dict],
+    expected_ocm_machine_pool_delete_payload: dict,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        clusters=[ocm_cluster],
+        machine_pools=existing_multiple_ocm_machine_pools,
+    )
+
+    run(False)
+
+    mocks["OCM"].delete_machine_pool.assert_called_once_with(
+        ocm_cluster.name,
+        expected_ocm_machine_pool_delete_payload,
+    )
+
+
+@pytest.fixture
+def hypershift_cluster(
+    gql_class_factory: Callable[..., ClusterV1],
+) -> ClusterV1:
+    return gql_class_factory(
+        ClusterV1,
+        {
+            "name": "hypershift-cluster",
+            "auth": [],
+            "ocm": {
+                "name": "hypershift",
+                "environment": {
+                    "accessTokenClientSecret": {},
+                },
+            },
+            "spec": {
+                "hypershift": True,
+            },
+            "machinePools": [
+                {
+                    "id": "workers",
+                    "instance_type": "m5.xlarge",
+                    "replicas": 2,
+                }
+            ],
+        },
+    )
+
+
+@pytest.fixture
+def expected_node_pool_create_payload() -> dict:
+    return {
+        "autoscaling": None,
+        "aws_node_pool": {"instance_type": "m5.xlarge"},
+        "cluster": "hypershift-cluster",
+        "id": "workers",
+        "labels": None,
+        "replicas": 2,
+        "subnet": None,
+        "taints": [],
+    }
+
+
+def test_run_create_node_pool(
+    mocker: MockerFixture,
+    hypershift_cluster: ClusterV1,
+    expected_node_pool_create_payload: dict,
+) -> None:
+    mocks = setup_mocks(mocker, clusters=[hypershift_cluster])
+
+    run(False)
+
+    mocks["OCM"].create_node_pool.assert_called_once_with(
+        hypershift_cluster.name,
+        expected_node_pool_create_payload,
+    )
+
+
+@pytest.fixture
+def existing_updated_hypershift_node_pools() -> list[dict]:
+    return [
+        {
+            "id": "workers",
+            "aws_node_pool": {"instance_type": "m5.xlarge"},
+            "replicas": 3,
+        }
+    ]
+
+
+@pytest.fixture
+def expected_hypershift_node_pool_update_payload() -> dict:
+    return {
+        "autoscaling": None,
+        "cluster": "hypershift-cluster",
+        "id": "workers",
+        "replicas": 2,
+    }
+
+
+def test_run_update_node_pool(
+    mocker: MockerFixture,
+    hypershift_cluster: ClusterV1,
+    existing_updated_hypershift_node_pools: list[dict],
+    expected_hypershift_node_pool_update_payload: dict,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        clusters=[hypershift_cluster],
+        node_pools=existing_updated_hypershift_node_pools,
+    )
+
+    run(False)
+
+    mocks["OCM"].update_node_pool.assert_called_once_with(
+        hypershift_cluster.name,
+        expected_hypershift_node_pool_update_payload,
+    )
+
+
+@pytest.fixture
+def existing_multiple_hypershift_node_pools() -> list[dict]:
+    return [
+        {
+            "id": "workers",
+            "aws_node_pool": {"instance_type": "m5.xlarge"},
+            "replicas": 3,
+        },
+        {
+            "id": "new-workers",
+            "aws_node_pool": {"instance_type": "m5.xlarge"},
+            "replicas": 3,
+        },
+    ]
+
+
+@pytest.fixture
+def expected_hypershift_node_pool_delete_payload() -> dict:
+    return {
+        "autoscaling": None,
+        "cluster": "hypershift-cluster",
+        "id": "new-workers",
+        "aws_node_pool": {"instance_type": "m5.xlarge"},
+        "labels": None,
+        "replicas": 3,
+        "subnet": None,
+        "taints": None,
+    }
+
+
+def test_run_delete_node_pool(
+    mocker: MockerFixture,
+    hypershift_cluster: ClusterV1,
+    existing_multiple_hypershift_node_pools: list[dict],
+    expected_hypershift_node_pool_delete_payload: dict,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        clusters=[hypershift_cluster],
+        node_pools=existing_multiple_hypershift_node_pools,
+    )
+
+    run(False)
+
+    mocks["OCM"].delete_node_pool.assert_called_once_with(
+        hypershift_cluster.name,
+        expected_hypershift_node_pool_delete_payload,
     )

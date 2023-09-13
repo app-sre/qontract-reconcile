@@ -1,5 +1,4 @@
 import logging
-import sys
 from abc import (
     ABC,
     abstractmethod,
@@ -21,8 +20,7 @@ from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1_ClusterSpecAutoScaleV1,
     ClusterV1,
 )
-from reconcile.gql_definitions.common.clusters import query as clusters_query
-from reconcile.utils import gql
+from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
     OCM,
@@ -471,7 +469,7 @@ def _cluster_is_compatible(cluster: ClusterV1) -> bool:
 
 
 def run(dry_run: bool):
-    clusters = clusters_query(query_func=gql.get_api().query).clusters or []
+    clusters = get_clusters()
 
     filtered_clusters = [
         c
@@ -480,7 +478,7 @@ def run(dry_run: bool):
     ]
     if not filtered_clusters:
         logging.debug("No machinePools definitions found in app-interface")
-        sys.exit(0)
+        return
 
     settings = queries.get_app_interface_settings()
     cluster_like_objects = [
@@ -501,4 +499,4 @@ def run(dry_run: bool):
     if errors:
         for err in errors:
             logging.error(err)
-        sys.exit(1)
+        raise ExceptionGroup("InvalidUpdateErrors", errors)
