@@ -147,6 +147,17 @@ def fetch_desired_resources(
         cluster = tknp["namespace"]["cluster"]["name"]
         deploy_resources = tknp.get("deployResources") or DEFAULT_DEPLOY_RESOURCES
 
+        # Remove None values
+        deploy_resources = {
+            item: {
+                k: v
+                for k, v in (deploy_resources.get(item) or {}).items()
+                if v is not None
+            }
+            for item, values in deploy_resources.items()
+            if values is not None
+        }
+
         # a dict with task template names as keys and types as values
         # we'll use it when building the pipeline object to make sure
         # that all tasks referenced exist and to be able to set the
