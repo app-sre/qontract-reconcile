@@ -28,6 +28,7 @@ from reconcile.ocm.types import (
     ROSAOcmAwsStsAttrs,
 )
 from reconcile.utils.exceptions import ParameterError
+from reconcile.utils.ocm.clusters import get_node_pools
 from reconcile.utils.ocm_base_client import (
     OCMAPIClientConfiguration,
     OCMBaseClient,
@@ -49,16 +50,6 @@ MACHINE_POOL_DESIRED_KEYS = {
     "autoscaling",
     "labels",
     "taints",
-}
-NODE_POOL_DESIRED_KEYS = {
-    "id",
-    "instance_type",
-    "replicas",
-    "autoscaling",
-    "labels",
-    "taints",
-    "aws_node_pool",
-    "subnet",
 }
 UPGRADE_CHANNELS = {"stable", "fast", "candidate"}
 UPGRADE_POLICY_DESIRED_KEYS = {
@@ -1172,16 +1163,8 @@ class OCM:  # pylint: disable=too-many-public-methods
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools"
-        items = self._get_json(api).get("items")
-        if not items:
-            return results
 
-        for item in items:
-            result = {k: v for k, v in item.items() if k in NODE_POOL_DESIRED_KEYS}
-            results.append(result)
-
-        return results
+        return get_node_pools(self._ocm_client, cluster_id)
 
     def delete_node_pool(self, cluster, spec):
         """Deletes an existing Node Pool
