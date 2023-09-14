@@ -649,8 +649,11 @@ def three_way_merge_patch_diff_using_hash(c_item: OR, d_item: OR) -> bool:
     for item in patch.patch:
         if item["op"] == "add" or item["op"] == "replace":
             # Add or Replace from DESIRED Over CURRENT
+            log_items = [
+                item for item in patch.patch if item["op"] in ["add", "replace"]
+            ]
             logging.info("Desired and Current objects differ -> Apply")
-            logging.info(patch.patch)
+            logging.info(log_items)
             return False
 
     return True
