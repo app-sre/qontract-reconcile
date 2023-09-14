@@ -22,6 +22,7 @@ DEFINITION = """
 query SelfServiceRolesQuery($name: String) {
   roles: roles_v1(name: $name) {
     name
+    labels
     path
     self_service {
       change_type {
@@ -107,6 +108,7 @@ class PermissionGitlabGroupMembershipV1(PermissionV1):
 
 class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     path: str = Field(..., alias="path")
     self_service: Optional[list[SelfServiceConfigV1]] = Field(..., alias="self_service")
     users: list[UserV1] = Field(..., alias="users")

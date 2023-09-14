@@ -196,6 +196,17 @@ class BundleFileChange:
             coverages.extend(dc.fine_grained_diff_coverages().values())
         return coverages
 
+    @property
+    def change_owner_labels(self) -> set[str]:
+        """
+        returns the set of change owner labels that are attached to the
+        BundleFileChanges DiffCoverage
+        """
+        labels = set()
+        for dc in self.diff_coverage:
+            labels.update(dc.change_owner_labels)
+        return labels
+
     def involved_change_types(self) -> list[ChangeTypeProcessor]:
         """
         returns all the change-types that are involved in the coverage

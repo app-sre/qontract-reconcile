@@ -9,6 +9,7 @@ from typing import (
 
 import jsonpath_ng
 import jsonpath_ng.ext
+from pydantic import Json
 from pydantic.dataclasses import dataclass
 
 from reconcile.change_owners.bundle import (
@@ -286,6 +287,7 @@ def build_role(
     slack_groups: Optional[list[str]] = None,
     slack_workspace: Optional[str] = "workspace",
     gitlab_groups: Optional[list[str]] = None,
+    labels: Optional[Json] = None,
 ) -> self_service_roles.RoleV1:
     permissions: list[PermissionV1] = [
         PermissionSlackUsergroupV1(
@@ -310,6 +312,7 @@ def build_role(
         ],
         bots=[BotV1(org_username=b) for b in bots or []],
         permissions=permissions,
+        labels=labels,
     )
 
 

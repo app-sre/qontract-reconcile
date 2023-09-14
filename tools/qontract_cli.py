@@ -98,6 +98,7 @@ from reconcile.utils.keycloak import (
 from reconcile.utils.mr.labels import (
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
+    change_owner_label,
 )
 from reconcile.utils.oc import (
     OC_Map,
@@ -1847,7 +1848,11 @@ def app_interface_review_queue(ctx) -> None:
                 continue
             if SAAS_FILE_UPDATE in labels:
                 continue
-            if SELF_SERVICEABLE in labels:
+            if (
+                SELF_SERVICEABLE in labels
+                and change_owner_label("show-self-serviceable-in-review-queue")
+                not in labels
+            ):
                 continue
 
             pipelines = mr.pipelines()
