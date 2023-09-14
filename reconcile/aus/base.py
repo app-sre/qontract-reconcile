@@ -739,6 +739,26 @@ def verify_lock_should_skip(
     return False
 
 
+def _create_upgrade_policy(
+    next_schedule: str, spec: ClusterUpgradeSpec, version: str
+) -> AbstractUpgradePolicy:
+    if spec.cluster.is_rosa_hypershift():
+        return ControlPlaneUpgradePolicy(
+            action="create",
+            cluster=spec.cluster,
+            version=version,
+            schedule_type="manual",
+            next_run=next_schedule,
+        )
+    return ClusterUpgradePolicy(
+        action="create",
+        cluster=spec.cluster,
+        version=version,
+        schedule_type="manual",
+        next_run=next_schedule,
+    )
+
+
 def calculate_diff(
     current_state: list[AbstractUpgradePolicy],
     desired_state: OrganizationUpgradeSpec,
@@ -807,39 +827,11 @@ def calculate_diff(
                         ),
                     )
                 )
-            elif spec.cluster.is_rosa_hypershift():
-                diffs.append(
-                    UpgradePolicyHandler(
-                        action="create",
-                        policy=ControlPlaneUpgradePolicy(
-                            action="create",
-                            cluster=spec.cluster,
-                            version=version,
-                            schedule_type="manual",
-                            next_run=next_schedule,
-                        ),
-                        gates_to_agree=[
-                            GateAgreement(gate=g)
-                            for g in gates_to_agree(
-                                gates,
-                                get_version_prefix(version),
-                                spec.cluster,
-                                ocm_api,
-                            )
-                        ],
-                    )
-                )
             else:
                 diffs.append(
                     UpgradePolicyHandler(
                         action="create",
-                        policy=ClusterUpgradePolicy(
-                            action="create",
-                            cluster=spec.cluster,
-                            version=version,
-                            schedule_type="manual",
-                            next_run=next_schedule,
-                        ),
+                        policy=_create_upgrade_policy(next_schedule, spec, version),
                         gates_to_agree=[
                             GateAgreement(gate=g)
                             for g in gates_to_agree(
