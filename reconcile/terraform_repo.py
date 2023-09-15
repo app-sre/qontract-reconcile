@@ -65,6 +65,7 @@ class OutputFile(BaseModel):
 class TerraformRepoIntegrationParams(PydanticRunParams):
     output_file: Optional[str]
     validate_git: bool
+    ignore_state_errors: bool
 
 
 class TerraformRepoIntegration(
@@ -182,8 +183,10 @@ class TerraformRepoIntegration(
                     repo_list.append(repo)
                 except ValidationError as err:
                     logging.error(
-                        f"{err}\nUnable to parse existing state for repo: '{key}', skipping"
+                        f"{err}\nUnable to parse existing state for repo: '{key}'"
                     )
+                    if self.params.ignore_state_errors:
+                        logging.info("Ignoring state load error")
 
         return repo_list
 
@@ -297,7 +300,7 @@ class TerraformRepoIntegration(
 
         # validate that only one repo is being modified in each MR
         # this lets us fail early and avoid multiple GL requests we don't need to make
-        if dry_run and len(merged) > 1:
+        if dry_run and len(merged) > 1 and not self.params.ignore_state_errors:
             raise Exception(
                 "Only one repository can be modified per merge request, please split your change out into multiple MRs. Hint: try rebasing your merge request"
             )

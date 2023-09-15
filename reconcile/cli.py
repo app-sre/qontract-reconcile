@@ -1604,14 +1604,21 @@ def ldap_groups(ctx):
     "--output-file",
     help="Specify where to place the output of the integration",
 )
+@click.option(
+    "--ignore-state-errors",
+    is_flag=True,
+    help="Instructs terraform-repo to ignore state load errors and re-create repo states",
+)
 @click.pass_context
-def terraform_repo(ctx, output_file):
+def terraform_repo(ctx, output_file, ignore_state_errors):
     from reconcile import terraform_repo
 
     run_class_integration(
         integration=terraform_repo.TerraformRepoIntegration(
             terraform_repo.TerraformRepoIntegrationParams(
-                output_file=output_file, validate_git=True
+                output_file=output_file,
+                validate_git=True,
+                ignore_state_errors=ignore_state_errors,
             )
         ),
         ctx=ctx.obj,
