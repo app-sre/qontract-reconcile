@@ -1,4 +1,3 @@
-import base64
 import itertools
 import logging
 from collections.abc import (
@@ -18,7 +17,6 @@ from typing import (
     runtime_checkable,
 )
 
-import jsonpatch  # type: ignore
 import yaml
 from sretoolbox.utils import (
     retry,
@@ -42,23 +40,12 @@ from reconcile.utils.oc import (
     StatusCodeError,
     UnsupportedMediaTypeError,
 )
-from reconcile.utils.openshift_resource import QONTRACT_ANNOTATIONS
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 
 ACTION_APPLIED = "applied"
 ACTION_DELETED = "deleted"
-
-NORMALIZE_COMPARE_EXCLUDED_ATTRS = {
-    "creationTimestamp",
-    "resourceVersion",
-    "generation",
-    "selfLink",
-    "uid",
-    "fieldRef",
-    "managedFields",
-    "namespace",
-}
 
 
 class ValidationError(Exception):
@@ -571,94 +558,6 @@ def check_unused_resource_types(ri):
             logging.warning(msg)
 
 
-def _normalize_secret(secret: OR) -> None:
-    body = secret.body
-    string_data = body.get("stringData")
-
-    if string_data:
-        data = body.get("data") or {}
-        body["data"] = data | {
-            k: base64.b64encode(str(v).encode()).decode("utf-8")
-            for k, v in string_data.items()
-        }
-        secret.body = {k: v for k, v in body.items() if k != "stringData"}
-
-
-def _normalize_noop(item: OR) -> None:
-    pass
-
-
-NORMALIZERS = {"Secret": _normalize_secret}
-
-
-def normalize_object(item: OR) -> OR:
-    # Remove K8s managed attributes not needed to compare objects
-    metadata = {
-        k: v
-        for k, v in item.body["metadata"].items()
-        if k not in NORMALIZE_COMPARE_EXCLUDED_ATTRS
-    }
-
-    n = OR(
-        body=item.body | {"metadata": metadata},
-        integration=item.integration,
-        integration_version=item.integration_version,
-        error_details=item.error_details,
-        caller_name=item.caller_name,
-        validate_k8s_object=False,
-    )
-
-    annotations = n.body.get("annotations", {})
-    metadata["annotations"] = {
-        k: v for k, v in annotations.items() if k not in QONTRACT_ANNOTATIONS
-    }
-
-    # Run normalizers on Kinds with special needs
-    NORMALIZERS.get(n.body["kind"], _normalize_noop)(n)
-    return n
-
-
-def three_way_merge_patch_diff_using_hash(c_item: OR, d_item: OR) -> bool:
-    # Get the ORIGINAL object hash
-    # This needs to be improved in OR, by now is just a PoC
-    c_item_sha256 = ""
-    try:
-        annotations = c_item.body["metadata"]["annotations"]
-        c_item_sha256 = annotations["qontract.sha256sum"]
-    except KeyError:
-        logging.info("Current object QR hash is missing -> Apply")
-        return False
-
-    # Original object does not match Desired -> Apply
-    # Current object is not recalculated!
-    # d_item_sha256 = OR.calculate_sha256sum(OR.serialize(d_item.body))
-    # if c_item_sha256 != d_item_sha256:
-    if c_item_sha256 != d_item.sha256sum():
-        logging.info("Original and Desired objects hash differs -> Apply")
-        return False
-
-    # If there are differences between current and desired -> Apply
-    # The patch only detects changes with attributes defined in the desired state.
-    # Values in the current state added by operators or other actors are not taken
-    # into account
-
-    current = normalize_object(c_item)
-    desired = normalize_object(d_item)
-
-    patch = jsonpatch.JsonPatch.from_diff(current.body, desired.body)
-    for item in patch.patch:
-        if item["op"] == "add" or item["op"] == "replace":
-            # Add or Replace from DESIRED Over CURRENT
-            log_items = [
-                item for item in patch.patch if item["op"] in ["add", "replace"]
-            ]
-            logging.info("Desired and Current objects differ -> Apply")
-            logging.info(log_items)
-            return False
-
-    return True
-
-
 @dataclass
 class ApplyOptions:
     dry_run: bool
@@ -986,7 +885,7 @@ def _realize_resource_data_3way_diff(
         options.enable_deletion = False
 
     diff_result = differ.diff_mappings(
-        data["current"], data["desired"], equal=three_way_merge_patch_diff_using_hash
+        data["current"], data["desired"], equal=three_way_diff_using_hash
     )
 
     actions.extend(
