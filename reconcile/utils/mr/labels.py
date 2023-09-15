@@ -15,3 +15,7 @@ NOT_SELF_SERVICEABLE = "not-self-serviceable"
 
 def prioritized_approval_label(priority: str) -> str:
     return f"{APPROVED}: {priority}"
+
+
+def change_owner_label(label: str) -> str:
+    return f"change-owner/{label}"

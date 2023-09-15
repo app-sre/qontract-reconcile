@@ -18,11 +18,11 @@ from reconcile.change_owners.changes import parse_resource_file_content
 
 
 def test_label_management_add() -> None:
-    assert [
+    assert {
         "existing-label",
         "true-label",
         "another-true-label",
-    ] == manage_conditional_label(
+    } == manage_conditional_label(
         current_labels=["existing-label"],
         conditional_labels={
             "true-label": True,
@@ -33,7 +33,7 @@ def test_label_management_add() -> None:
     )
 
     # dry-run
-    assert ["existing-label"] == manage_conditional_label(
+    assert {"existing-label"} == manage_conditional_label(
         current_labels=["existing-label"],
         conditional_labels={
             "true-label": True,
@@ -45,7 +45,7 @@ def test_label_management_add() -> None:
 
 
 def test_label_management_remove() -> None:
-    assert ["existing-label"] == manage_conditional_label(
+    assert {"existing-label"} == manage_conditional_label(
         current_labels=["existing-label", "false-label"],
         conditional_labels={
             "false-label": False,
@@ -54,7 +54,7 @@ def test_label_management_remove() -> None:
     )
 
     # dry-run
-    assert ["existing-label", "false-label"] == manage_conditional_label(
+    assert {"existing-label", "false-label"} == manage_conditional_label(
         current_labels=["existing-label", "false-label"],
         conditional_labels={
             "false-label": False,
@@ -64,7 +64,7 @@ def test_label_management_remove() -> None:
 
 
 def test_label_management_add_and_remove() -> None:
-    assert ["existing-label", "true-label"] == manage_conditional_label(
+    assert {"existing-label", "true-label"} == manage_conditional_label(
         current_labels=["existing-label", "false-label"],
         conditional_labels={
             "true-label": True,

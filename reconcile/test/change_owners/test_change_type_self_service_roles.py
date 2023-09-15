@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from reconcile.change_owners.approver import (
@@ -5,9 +7,11 @@ from reconcile.change_owners.approver import (
     SlackGroupApproverReachability,
 )
 from reconcile.change_owners.self_service_roles import (
+    CHANGE_OWNERS_LABELS_LABEL,
     DatafileIncompatibleWithChangeTypeError,
     NoApproversInSelfServiceRoleError,
     approver_reachability_from_role,
+    change_type_labels_from_role,
     cover_changes_with_self_service_roles,
     validate_self_service_role,
 )
@@ -51,6 +55,7 @@ def test_valid_self_service_role() -> None:
         users=[UserV1(org_username="u", tag_on_merge_requests=False)],
         bots=[],
         permissions=[],
+        labels=None,
     )
     validate_self_service_role(role)
 
@@ -77,6 +82,7 @@ def test_invalid_self_service_role_schema_mismatch() -> None:
         users=[UserV1(org_username="u", tag_on_merge_requests=False)],
         bots=[],
         permissions=[],
+        labels=None,
     )
     with pytest.raises(DatafileIncompatibleWithChangeTypeError):
         validate_self_service_role(role)
@@ -117,6 +123,7 @@ def test_change_type_contexts_for_self_service_roles_schema() -> None:
         users=[UserV1(org_username="u", tag_on_merge_requests=False)],
         bots=[],
         permissions=[],
+        labels=None,
     )
     ctp = build_change_type(
         name="schema-admin",
@@ -187,3 +194,18 @@ def test_self_service_role_gitlab_user_group_approver_reachability() -> None:
     assert reachability == [
         GitlabGroupApproverReachability(gitlab_group=g) for g in gitlab_groups
     ]
+
+
+#
+# test self-service role change-owner labels
+#
+
+
+def test_self_service_role_change_owner_labels() -> None:
+    role = build_role(
+        name="role",
+        datafiles=None,
+        change_type_name="change-type-name",
+        labels=json.dumps({CHANGE_OWNERS_LABELS_LABEL: "label1,label2, label3"}),
+    )
+    assert {"label1", "label2", "label3"} == change_type_labels_from_role(role)

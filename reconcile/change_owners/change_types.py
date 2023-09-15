@@ -79,6 +79,16 @@ class DiffCoverage:
 
     parent: Optional["DiffCoverage"] = None
 
+    @property
+    def change_owner_labels(self) -> set[str]:
+        """
+        Returns a list of change-owner labels of all involved change-type contexts.
+        """
+        labels = {label for c in self.coverage for label in c.change_owner_labels or {}}
+        for _split in self._split_into:
+            labels.update(_split.change_owner_labels)
+        return labels
+
     def relative_path(self) -> jsonpath_ng.JSONPath:
         if self.parent:
             path = remove_prefix_from_path(self.diff.path, self.parent.diff.path)
@@ -831,6 +841,7 @@ class ChangeTypeContext:
     context_file: FileRef
     approvers: list[Approver]
     approver_reachability: Optional[list[ApproverReachability]] = None
+    change_owner_labels: Optional[set[str]] = None
 
     @property
     def disabled(self) -> bool:

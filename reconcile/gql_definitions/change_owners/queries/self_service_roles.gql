@@ -3,6 +3,7 @@
 query SelfServiceRolesQuery($name: String) {
   roles: roles_v1(name: $name) {
     name
+    labels
     path
     self_service {
       change_type {
