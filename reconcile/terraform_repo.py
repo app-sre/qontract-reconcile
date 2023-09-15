@@ -181,8 +181,8 @@ class TerraformRepoIntegration(
                     repo = TerraformRepoV1.parse_obj(value)
                     repo_list.append(repo)
                 except ValidationError as err:
-                    logging.error(
-                        f"{err}\nUnable to parse existing state for repo: '{key}', skipping"
+                    logging.warning(
+                        f"{err}\nUnable to parse existing state for repo: '{key}', terraform apply will be re-run on this and new version of state will be saved"
                     )
 
         return repo_list
@@ -294,13 +294,6 @@ class TerraformRepoIntegration(
         diff = diff_iterables(existing_state, desired_state, lambda x: x.name)
 
         merged = self.merge_results(diff)
-
-        # validate that only one repo is being modified in each MR
-        # this lets us fail early and avoid multiple GL requests we don't need to make
-        if dry_run and len(merged) > 1:
-            raise Exception(
-                "Only one repository can be modified per merge request, please split your change out into multiple MRs. Hint: try rebasing your merge request"
-            )
 
         # added repos: do standard validation that SHA is valid
         if self.params.validate_git:
