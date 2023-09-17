@@ -15,6 +15,10 @@ class AUSBaseMetric(BaseModel):
     ocm_env: str
 
 
+UPGRADE_SCHEDULED_METRIC_VALUE = -1.0
+UPGRADE_STARTED_METRIC_VALUE = -2.0
+
+
 class AUSClusterVersionRemainingSoakDaysGauge(AUSBaseMetric, GaugeMetric):
     "Remaining days a version needs to soak for a cluster"
 
@@ -32,6 +36,7 @@ class AUSClusterUpgradePolicyInfoMetric(AUSBaseMetric, InfoMetric):
     cluster_uuid: str
     org_id: str
     org_name: str
+    channel: str
     current_version: str
     cluster_name: str
     schedule: str

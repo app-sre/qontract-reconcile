@@ -249,7 +249,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "label_join(aus_cluster_version_remaining_soak_days * on (cluster_uuid, soaking_version) (clamp_max(changes(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]), 1) > 0) * on (cluster_uuid) group_left(cluster_name, current_version, workloads, schedule, sector, soak_days) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\")",
+              "expr": "label_join((aus_cluster_version_remaining_soak_days >= 0) * on (cluster_uuid, soaking_version) (clamp_max(changes(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]), 1) > 0) * on (cluster_uuid) group_left(cluster_name, current_version, workloads, schedule, sector, soak_days) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\")",
               "format": "table",
               "instant": true,
               "interval": "5m",
@@ -264,7 +264,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "label_join(delta(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]) * -24 * on (cluster_uuid) group_left aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\") > 0",
+              "expr": "label_join(delta(min((aus_cluster_version_remaining_soak_days >= 0)) by(cluster_uuid, soaking_version)[1h:1m]) * -24 * on (cluster_uuid) group_left aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\") > 0",
               "format": "table",
               "hide": false,
               "instant": true,
@@ -366,7 +366,25 @@ data:
                 "filterable": false,
                 "inspect": false
               },
-              "mappings": [],
+              "mappings": [
+                {
+                  "options": {
+                    "0": {
+                      "index": 0,
+                      "text": "🎉"
+                    },
+                    "-1": {
+                      "index": 1,
+                      "text": "⏰"
+                    },
+                    "-2": {
+                      "index": 2,
+                      "text": "💫"
+                    }
+                  },
+                  "type": "value"
+                }
+              ],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
