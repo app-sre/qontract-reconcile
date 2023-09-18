@@ -11,6 +11,7 @@ from reconcile import (
     queries,
 )
 from reconcile.ocm.types import (
+    ClusterMachinePool,
     OCMClusterNetwork,
     OCMSpec,
     OSDClusterSpec,
@@ -86,8 +87,16 @@ def ocm_osd_cluster_spec():
         storage=1100,
         provider="aws",
     )
+    machine_pools = [
+        ClusterMachinePool(
+            id="worker",
+            instance_type="m5.xlarge",
+            replicas=5,
+        )
+    ]
     obj = OCMSpec(
         spec=spec,
+        machine_pools=machine_pools,
         network=n,
         domain="devshift.net",
         server_url="https://api.test-cluster.0000.p1.openshiftapps.com:6443",
@@ -111,12 +120,17 @@ def osd_cluster_fxt():
             "version": "4.10.0",
             "initial_version": "4.9.0-candidate",
             "multi_az": False,
-            "nodes": 5,
-            "instance_type": "m5.xlarge",
             "private": False,
             "provision_shard_id": "the-cluster-provision_shard_id",
             "disable_user_workload_monitoring": True,
         },
+        "machinePools": [
+            {
+                "id": "worker",
+                "instance_type": "m5.xlarge",
+                "replicas": 5,
+            }
+        ],
         "network": {
             "type": None,
             "vpc": "10.112.0.0/16",
@@ -184,12 +198,17 @@ def rosa_cluster_fxt():
             "version": "4.10.0",
             "initial_version": "4.9.0-candidate",
             "multi_az": False,
-            "nodes": 5,
-            "instance_type": "m5.xlarge",
             "private": False,
             "provision_shard_id": "the-cluster-provision_shard_id",
             "disable_user_workload_monitoring": True,
         },
+        "machinePools": [
+            {
+                "id": "worker",
+                "instance_type": "m5.xlarge",
+                "replicas": 5,
+            },
+        ],
         "network": {
             "type": None,
             "vpc": "10.112.0.0/16",

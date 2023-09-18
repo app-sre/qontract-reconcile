@@ -17,6 +17,7 @@ from sretoolbox.utils import retry
 import reconcile.utils.aws_helper as awsh
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.ocm.types import (
+    ClusterMachinePool,
     OCMClusterAutoscale,
     OCMClusterNetwork,
     OCMClusterSpec,
@@ -116,6 +117,8 @@ OCM_PRODUCT_OSD = "osd"
 OCM_PRODUCT_ROSA = "rosa"
 OCM_PRODUCT_HYPERSHIFT = "hypershift"
 
+DEFAULT_OCM_MACHINE_POOL_ID = "worker"
+
 
 class OCMProduct:
     ALLOWED_SPEC_UPDATE_FIELDS: set[str]
@@ -192,16 +195,6 @@ class OCMProductOsd(OCMProduct):
         else:
             provision_shard_id = None
 
-        autoscale = cluster["nodes"].get("autoscale_compute")
-        autoscale_spec = (
-            OCMClusterAutoscale(
-                max_replicas=autoscale.get("max_replicas"),
-                min_replicas=autoscale.get("min_replicas"),
-            )
-            if autoscale
-            else None
-        )
-
         spec = OCMClusterSpec(
             product=cluster["product"]["id"],
             id=cluster["id"],
@@ -211,14 +204,11 @@ class OCMProductOsd(OCMProduct):
             channel=cluster["version"]["channel_group"],
             version=cluster["version"]["raw_id"],
             multi_az=cluster["multi_az"],
-            instance_type=cluster["nodes"]["compute_machine_type"]["id"],
             private=cluster["api"]["listening"] == "internal",
             disable_user_workload_monitoring=cluster[
                 "disable_user_workload_monitoring"
             ],
             provision_shard_id=provision_shard_id,
-            nodes=cluster["nodes"].get("compute"),
-            autoscale=autoscale_spec,
             hypershift=cluster["hypershift"]["enabled"],
         )
 
@@ -229,6 +219,10 @@ class OCMProductOsd(OCMProduct):
             )
             cluster_spec_data["load_balancers"] = cluster["load_balancer_quota"]
             spec = OSDClusterSpec(**cluster_spec_data)
+
+        machine_pools = [
+            ClusterMachinePool(**p) for p in cluster.get("machinePools") or []
+        ]
 
         network = OCMClusterNetwork(
             type=cluster["network"].get("type") or "OVNKubernetes",
@@ -242,10 +236,33 @@ class OCMProductOsd(OCMProduct):
             server_url=cluster["api"]["url"],
             domain=cluster["dns"]["base_domain"],
             spec=spec,
+            machine_pools=machine_pools,
             network=network,
         )
 
         return ocm_spec
+
+    @staticmethod
+    def _get_nodes_spec(cluster: OCMSpec) -> dict[str, Any] | None:
+        default_machine_pool = next(
+            (
+                mp
+                for mp in cluster.machine_pools
+                if mp.id == DEFAULT_OCM_MACHINE_POOL_ID
+            ),
+            None,
+        )
+        if default_machine_pool is None:
+            return None
+
+        spec = {
+            "compute_machine_type": {"id": default_machine_pool.instance_type},
+        }
+        if default_machine_pool.autoscale is not None:
+            spec["autoscale_compute"] = default_machine_pool.autoscale.dict()
+        else:
+            spec["compute"] = default_machine_pool.replicas
+        return spec
 
     @staticmethod
     def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
@@ -258,7 +275,7 @@ class OCMProductOsd(OCMProduct):
                 "channel_group": cluster.spec.channel,
             },
             "multi_az": cluster.spec.multi_az,
-            "nodes": {"compute_machine_type": {"id": cluster.spec.instance_type}},
+            "nodes": OCMProductOsd._get_nodes_spec(cluster),
             "network": {
                 "type": cluster.network.type or "OVNKubernetes",
                 "machine_cidr": cluster.network.vpc,
@@ -285,12 +302,6 @@ class OCMProductOsd(OCMProduct):
         if provision_shard_id:
             ocm_spec.setdefault("properties", {})
             ocm_spec["properties"]["provision_shard_id"] = provision_shard_id
-
-        autoscale = cluster.spec.autoscale
-        if autoscale is not None:
-            ocm_spec["nodes"]["autoscale_compute"] = autoscale.dict()
-        else:
-            ocm_spec["nodes"]["compute"] = cluster.spec.nodes
         return ocm_spec
 
     @staticmethod
@@ -384,16 +395,6 @@ class OCMProductRosa(OCMProduct):
         else:
             provision_shard_id = None
 
-        autoscale = cluster["nodes"].get("autoscale_compute")
-        autoscale_spec = (
-            OCMClusterAutoscale(
-                max_replicas=autoscale.get("max_replicas"),
-                min_replicas=autoscale.get("min_replicas"),
-            )
-            if autoscale
-            else None
-        )
-
         sts = None
         if cluster["aws"].get("sts", None):
             sts = ROSAOcmAwsStsAttrs(
@@ -424,18 +425,19 @@ class OCMProductRosa(OCMProduct):
             channel=cluster["version"]["channel_group"],
             version=cluster["version"]["raw_id"],
             multi_az=cluster["multi_az"],
-            instance_type=cluster["nodes"]["compute_machine_type"]["id"],
             private=cluster["api"]["listening"] == "internal",
             disable_user_workload_monitoring=cluster[
                 "disable_user_workload_monitoring"
             ],
             provision_shard_id=provision_shard_id,
-            nodes=cluster["nodes"].get("compute"),
-            autoscale=autoscale_spec,
             hypershift=cluster["hypershift"]["enabled"],
             subnet_ids=cluster["aws"].get("subnet_ids"),
             availability_zones=cluster["nodes"].get("availability_zones"),
         )
+
+        machine_pools = [
+            ClusterMachinePool(**p) for p in cluster.get("machinePools") or []
+        ]
 
         network = OCMClusterNetwork(
             type=cluster["network"].get("type") or "OVNKubernetes",
@@ -451,10 +453,33 @@ class OCMProductRosa(OCMProduct):
             server_url=cluster["api"]["url"],
             domain=cluster["dns"]["base_domain"],
             spec=spec,
+            machine_pools=machine_pools,
             network=network,
         )
 
         return ocm_spec
+
+    @staticmethod
+    def _get_nodes_spec(cluster: OCMSpec) -> dict[str, Any] | None:
+        default_machine_pool = next(
+            (
+                mp
+                for mp in cluster.machine_pools
+                if mp.id == DEFAULT_OCM_MACHINE_POOL_ID
+            ),
+            None,
+        )
+        if default_machine_pool is None:
+            return None
+
+        spec = {
+            "compute_machine_type": {"id": default_machine_pool.instance_type},
+        }
+        if default_machine_pool.autoscale is not None:
+            spec["autoscale_compute"] = default_machine_pool.autoscale.dict()
+        else:
+            spec["compute"] = default_machine_pool.replicas
+        return spec
 
     @staticmethod
     def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
@@ -473,7 +498,7 @@ class OCMProductRosa(OCMProduct):
             },
             "hypershift": {"enabled": cluster.spec.hypershift},
             "multi_az": cluster.spec.multi_az,
-            "nodes": {"compute_machine_type": {"id": cluster.spec.instance_type}},
+            "nodes": OCMProductRosa._get_nodes_spec(cluster),
             "network": {
                 "type": cluster.network.type or "OVNKubernetes",
                 "machine_cidr": cluster.network.vpc,
@@ -488,12 +513,6 @@ class OCMProductRosa(OCMProduct):
         if provision_shard_id:
             ocm_spec.setdefault("properties", {})
             ocm_spec["properties"]["provision_shard_id"] = provision_shard_id
-
-        autoscale = cluster.spec.autoscale
-        if autoscale is not None:
-            ocm_spec["nodes"]["autoscale_compute"] = autoscale.dict()
-        else:
-            ocm_spec["nodes"]["compute"] = cluster.spec.nodes
 
         if isinstance(cluster.spec, ROSAClusterSpec):
             ocm_spec.setdefault("properties", {})
