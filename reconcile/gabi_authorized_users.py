@@ -29,7 +29,7 @@ from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "gabi-authorized-users"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
-EXPIRATION_DAYS_MAX = 90
+EXPIRATION_DAYS_MAX = 365
 
 
 def construct_gabi_oc_resource(
