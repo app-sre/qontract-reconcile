@@ -143,9 +143,11 @@ class OCMClusterUpgradeSchedulerIntegration(
                 current_version_upgrade = current_cluster_version_upgrade_policies.get(
                     (spec.cluster.external_id, version)
                 )
-                # the metric value encodes the days remaining for the soak while the cluster is soaking the version
+                # the metric value encodes the days remaining for the soak while the cluster is soaking the version.
                 # once an upgrade is scheduled or started for the specific version, negative values will be used
-                # to catch that state in the metric
+                # to catch that state in the metric.
+                # there are other states than `scheduled` and `started` but the `UpgradePolicy` vanishes too quickly
+                # to observe them reliably, when such states are reached.
                 if (
                     current_version_upgrade
                     and current_version_upgrade.state == "scheduled"
