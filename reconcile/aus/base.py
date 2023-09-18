@@ -202,6 +202,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                     cluster_uuid=cluster_upgrade_spec.cluster_uuid,
                     org_id=cluster_upgrade_spec.org.org_id,
                     org_name=org_upgrade_spec.org.name,
+                    channel=cluster_upgrade_spec.cluster.version.channel_group,
                     current_version=cluster_upgrade_spec.current_version,
                     cluster_name=cluster_upgrade_spec.name,
                     schedule=cluster_upgrade_spec.upgrade_policy.schedule,
@@ -241,6 +242,7 @@ class AbstractUpgradePolicy(ABC, BaseModel):
     schedule: Optional[str]
     schedule_type: str
     version: str
+    state: Optional[str]
 
     @abstractmethod
     def create(self, ocm_api: OCMBaseClient) -> None:

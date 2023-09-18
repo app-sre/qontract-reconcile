@@ -3,7 +3,11 @@ from typing import Optional
 
 from reconcile.aus import base as aus
 from reconcile.aus.cluster_version_data import VersionData
-from reconcile.aus.metrics import AUSClusterVersionRemainingSoakDaysGauge
+from reconcile.aus.metrics import (
+    UPGRADE_SCHEDULED_METRIC_VALUE,
+    UPGRADE_STARTED_METRIC_VALUE,
+    AUSClusterVersionRemainingSoakDaysGauge,
+)
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
@@ -61,6 +65,7 @@ class OCMClusterUpgradeSchedulerIntegration(
             version_data=version_data_map.get(
                 org_upgrade_spec.org.environment.name, org_upgrade_spec.org.org_id
             ),
+            current_state=current_state,
         )
 
         diffs = aus.calculate_diff(
@@ -119,7 +124,11 @@ class OCMClusterUpgradeSchedulerIntegration(
         ocm_env: str,
         org_upgrade_spec: OrganizationUpgradeSpec,
         version_data: VersionData,
+        current_state: list[aus.AbstractUpgradePolicy],
     ) -> None:
+        current_cluster_version_upgrade_policies = {
+            (p.cluster.external_id, p.version): p for p in current_state
+        }
         for spec in org_upgrade_spec.specs:
             upgrades = spec.cluster.version.available_upgrades or []
             if not upgrades:
@@ -131,6 +140,30 @@ class OCMClusterUpgradeSchedulerIntegration(
             ]
             for version in upgrades or []:
                 soaks = [s.get(version, 0) for s in workload_soaking_upgrades]
+                current_version_upgrade = current_cluster_version_upgrade_policies.get(
+                    (spec.cluster.external_id, version)
+                )
+                # the metric value encodes the days remaining for the soak while the cluster is soaking the version.
+                # once an upgrade is scheduled or started for the specific version, negative values will be used
+                # to catch that state in the metric.
+                # there are other states than `scheduled` and `started` but the `UpgradePolicy` vanishes too quickly
+                # to observe them reliably, when such states are reached.
+                if (
+                    current_version_upgrade
+                    and current_version_upgrade.state == "scheduled"
+                ):
+                    metric_value = UPGRADE_SCHEDULED_METRIC_VALUE
+                elif (
+                    current_version_upgrade
+                    and current_version_upgrade.state == "started"
+                ):
+                    metric_value = UPGRADE_STARTED_METRIC_VALUE
+                else:
+                    metric_value = max(
+                        (spec.upgrade_policy.conditions.soak_days or 0)
+                        - (min(soaks) or 0),
+                        0,
+                    )
                 metrics.set_gauge(
                     AUSClusterVersionRemainingSoakDaysGauge(
                         integration=self.name,
@@ -138,9 +171,5 @@ class OCMClusterUpgradeSchedulerIntegration(
                         cluster_uuid=spec.cluster.external_id,
                         soaking_version=version,
                     ),
-                    max(
-                        (spec.upgrade_policy.conditions.soak_days or 0)
-                        - (min(soaks) or 0),
-                        0,
-                    ),
+                    metric_value,
                 )
