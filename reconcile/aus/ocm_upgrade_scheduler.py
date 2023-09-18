@@ -1,9 +1,11 @@
 from collections import defaultdict
+from datetime import datetime
 from typing import Optional
 
 from reconcile.aus import base as aus
 from reconcile.aus.cluster_version_data import VersionData
 from reconcile.aus.metrics import (
+    UPGRADE_LONG_RUNNING,
     UPGRADE_SCHEDULED_METRIC_VALUE,
     UPGRADE_STARTED_METRIC_VALUE,
     AUSClusterVersionRemainingSoakDaysGauge,
@@ -158,6 +160,14 @@ class OCMClusterUpgradeSchedulerIntegration(
                     and current_version_upgrade.state == "started"
                 ):
                     metric_value = UPGRADE_STARTED_METRIC_VALUE
+                    if current_version_upgrade.next_run:
+                        next_run = datetime.strptime(
+                            current_version_upgrade.next_run, "%Y-%m-%dT%H:%M:%SZ"
+                        )
+                        now = datetime.utcnow()
+                        hours_ago = (now - next_run).total_seconds() / 3600
+                        if hours_ago >= 6:
+                            metric_value = UPGRADE_LONG_RUNNING
                 else:
                     metric_value = max(
                         (spec.upgrade_policy.conditions.soak_days or 0)
