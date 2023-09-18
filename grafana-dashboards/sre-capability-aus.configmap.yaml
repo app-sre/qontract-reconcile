@@ -355,6 +355,7 @@ data:
             "type": "prometheus",
             "uid": "P2C3F6ECC774D80E6"
           },
+          "description": "A numeric value represents the remaining soak days per version and cluster.\nA 🎉 is displayed for versions which have soaked enough and are ready to be\nupgraded to.\nA ⏰ is displayed for versions scheduled to be upgraded to.\nA 💫 is displayed for versions which are being upgraded to. Upgrades taking\nmore than 6 hours will be highlighted.",
           "fieldConfig": {
             "defaults": {
               "color": {
