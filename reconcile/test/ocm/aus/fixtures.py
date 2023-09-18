@@ -1,5 +1,7 @@
+from datetime import datetime
 from typing import Optional
 
+from reconcile.aus.base import ClusterUpgradePolicy
 from reconcile.aus.models import (
     ClusterAddonUpgradeSpec,
     ClusterUpgradeSpec,
@@ -126,6 +128,7 @@ def build_cluster_upgrade_spec(
     org: Optional[AUSOCMOrganization] = None,
     available_upgrades: Optional[list[str]] = None,
     mutexes: Optional[list[str]] = None,
+    blocked_versions: Optional[list[str]] = None,
 ) -> ClusterUpgradeSpec:
     return ClusterUpgradeSpec(
         org=org or build_organization(),
@@ -133,7 +136,10 @@ def build_cluster_upgrade_spec(
             name=name, version=current_version, available_upgrades=available_upgrades
         ),
         upgradePolicy=build_upgrade_policy(
-            workloads=workloads, soak_days=soak_days, mutexes=mutexes
+            workloads=workloads,
+            soak_days=soak_days,
+            mutexes=mutexes,
+            blocked_versions=blocked_versions,
         ),
     )
 
@@ -171,4 +177,19 @@ def build_addon_upgrade_spec(
             ),
             state=addon_state,
         ),
+    )
+
+
+def build_cluster_upgrade_policy(
+    cluster: OCMCluster, version: str, state: str, next_run: Optional[datetime] = None
+) -> ClusterUpgradePolicy:
+    next_run_str = (next_run or datetime.utcnow()).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return ClusterUpgradePolicy(
+        cluster=cluster,
+        id="1",
+        version=version,
+        state=state,
+        next_run=next_run_str,
+        schedule_type="manual",
+        schedule=None,
     )
