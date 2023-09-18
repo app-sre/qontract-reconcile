@@ -17,6 +17,7 @@ class AUSBaseMetric(BaseModel):
 
 UPGRADE_SCHEDULED_METRIC_VALUE = -1.0
 UPGRADE_STARTED_METRIC_VALUE = -2.0
+UPGRADE_LONG_RUNNING = -3.0
 
 
 class AUSClusterVersionRemainingSoakDaysGauge(AUSBaseMetric, GaugeMetric):
