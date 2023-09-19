@@ -7,8 +7,7 @@ query PipelineProviders {
     ...on PipelinesProviderTekton_v1 {
       defaults {
         retention {
-          days
-          minimum
+          ... PipelineProviderRetention
         }
         taskTemplates {
           ...on PipelinesProviderTektonObjectTemplate_v1 {
@@ -58,8 +57,7 @@ query PipelineProviders {
         }
       }
       retention {
-        days
-        minimum
+        ... PipelineProviderRetention
       }
       taskTemplates {
         ...on PipelinesProviderTektonObjectTemplate_v1 {

@@ -65,7 +65,7 @@ def run(
 
     for pp in pipeline_providers:
         if not pp.retention:
-            continue
+            pp.retention = pp.defaults.retention
 
         oc = oc_map.get(pp.namespace.cluster.name)
         if isinstance(oc, OCLogMsg):
