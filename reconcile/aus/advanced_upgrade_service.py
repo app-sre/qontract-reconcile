@@ -548,6 +548,7 @@ def _signal_validation_issues_for_org(
                     description=org_error_msg,
                     service_name=QONTRACT_INTEGRATION,
                 ),
+                dedup_interval=timedelta(days=1),
             )
 
 
