@@ -206,7 +206,7 @@
   },
   "etcd_encryption": false,
   "billing_model": "standard",
-  "disable_user_workload_monitoring": false,
+  "disable_user_workload_monitoring": true,
   "managed_service": {
     "enabled": false
   },

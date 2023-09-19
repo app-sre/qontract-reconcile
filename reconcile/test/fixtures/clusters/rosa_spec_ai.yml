@@ -47,7 +47,7 @@ spec:
   external_id: "external-id"
   provider: aws
   region: us-east-1
-  channel: 2
+  channel: stable
   version: 4.10.16
   initial_version: 4.8.10
   multi_az: false

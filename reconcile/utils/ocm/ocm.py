@@ -154,8 +154,6 @@ class OCMProductOsd(OCMProduct):
         SPEC_ATTR_LOAD_BALANCERS,
         SPEC_ATTR_PRIVATE,
         SPEC_ATTR_CHANNEL,
-        SPEC_ATTR_AUTOSCALE,
-        SPEC_ATTR_NODES,
         SPEC_ATTR_DISABLE_UWM,
     }
 
@@ -330,14 +328,6 @@ class OCMProductOsd(OCMProduct):
         if channel is not None:
             ocm_spec["version"] = {"channel_group": channel}
 
-        autoscale = update_spec.get("autoscale")
-        if autoscale is not None:
-            ocm_spec["nodes"] = {"autoscale_compute": autoscale}
-
-        nodes = update_spec.get("nodes")
-        if nodes:
-            ocm_spec["nodes"] = {"compute": update_spec["nodes"]}
-
         disable_uwm = update_spec.get("disable_user_workload_monitoring")
         if disable_uwm is not None:
             ocm_spec["disable_user_workload_monitoring"] = disable_uwm
@@ -348,8 +338,6 @@ class OCMProductOsd(OCMProduct):
 class OCMProductRosa(OCMProduct):
     ALLOWED_SPEC_UPDATE_FIELDS = {
         SPEC_ATTR_CHANNEL,
-        SPEC_ATTR_AUTOSCALE,
-        SPEC_ATTR_NODES,
         SPEC_ATTR_DISABLE_UWM,
     }
 
@@ -570,14 +558,6 @@ class OCMProductRosa(OCMProduct):
         channel = update_spec.get(SPEC_ATTR_CHANNEL)
         if channel is not None:
             ocm_spec["version"] = {"channel_group": channel}
-
-        autoscale = update_spec.get(SPEC_ATTR_AUTOSCALE)
-        if autoscale is not None:
-            ocm_spec["nodes"] = {"autoscale_compute": autoscale}
-
-        nodes = update_spec.get(SPEC_ATTR_NODES)
-        if nodes:
-            ocm_spec["nodes"] = {"compute": update_spec["nodes"]}
 
         disable_uwm = update_spec.get(SPEC_ATTR_DISABLE_UWM)
         if disable_uwm is not None:
