@@ -37,7 +37,7 @@ spec:
   load_balancers: 4
   private: false
   provision_shard_id: provision_shard_id
-  disable_user_workload_monitoring: true
+  disable_user_workload_monitoring: false
   hypershift: null
 machinePools:
 - id: worker

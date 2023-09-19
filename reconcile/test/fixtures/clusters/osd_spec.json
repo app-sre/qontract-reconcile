@@ -148,7 +148,7 @@
   },
   "etcd_encryption": false,
   "billing_model": "standard",
-  "disable_user_workload_monitoring": true,
+  "disable_user_workload_monitoring": false,
   "managed_service": {
     "enabled": false
   },

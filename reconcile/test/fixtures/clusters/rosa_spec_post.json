@@ -22,7 +22,7 @@
   "cloud_provider": {
     "id": "aws"
   },
-  "disable_user_workload_monitoring": true,
+  "disable_user_workload_monitoring": false,
   "hypershift": {
     "enabled": null
   },

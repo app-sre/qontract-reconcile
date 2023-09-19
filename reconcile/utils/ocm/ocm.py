@@ -287,8 +287,11 @@ class OCMProductOsd(OCMProduct):
                 "pod_cidr": cluster.network.pod,
             },
             "api": {"listening": "internal" if cluster.spec.private else "external"},
-            "disable_user_workload_monitoring": cluster.spec.disable_user_workload_monitoring
-            or True,
+            "disable_user_workload_monitoring": (
+                duwm
+                if (duwm := cluster.spec.disable_user_workload_monitoring) is not None
+                else True
+            ),
         }
 
         # Workaround to enable type checks.
@@ -501,8 +504,11 @@ class OCMProductRosa(OCMProduct):
                 "service_cidr": cluster.network.service,
                 "pod_cidr": cluster.network.pod,
             },
-            "disable_user_workload_monitoring": cluster.spec.disable_user_workload_monitoring
-            or True,
+            "disable_user_workload_monitoring": (
+                duwm
+                if (duwm := cluster.spec.disable_user_workload_monitoring) is not None
+                else True
+            ),
         }
 
         provision_shard_id = cluster.spec.provision_shard_id
