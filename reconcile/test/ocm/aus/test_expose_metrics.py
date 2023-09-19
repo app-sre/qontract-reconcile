@@ -4,8 +4,8 @@ from datetime import (
 )
 
 from reconcile.aus.metrics import (
-    UPGRADE_BLOCKED,
-    UPGRADE_LONG_RUNNING,
+    UPGRADE_BLOCKED_METRIC_VALUE,
+    UPGRADE_LONG_RUNNING_METRIC_VALUE,
     UPGRADE_SCHEDULED_METRIC_VALUE,
     UPGRADE_STARTED_METRIC_VALUE,
 )
@@ -74,7 +74,7 @@ def test_remaining_soak_day_metric_values_for_cluster_blocked_versions() -> None
     Test that blocked versions are reported as blocked
     """
     assert {
-        "4.14.0-rc.1": UPGRADE_BLOCKED,
+        "4.14.0-rc.1": UPGRADE_BLOCKED_METRIC_VALUE,
         "4.14.0": 0.0,
     } == remaining_soak_day_metric_values_for_cluster(
         spec=build_cluster_upgrade_spec(
@@ -97,7 +97,7 @@ def test_remaining_soak_day_metric_values_for_cluster_blocked_versions_and_skip_
     skipping ready early versions.
     """
     assert {
-        "4.14.0-rc.1": UPGRADE_BLOCKED,
+        "4.14.0-rc.1": UPGRADE_BLOCKED_METRIC_VALUE,
         "4.14.0": 0.0,
     } == remaining_soak_day_metric_values_for_cluster(
         spec=build_cluster_upgrade_spec(
@@ -253,7 +253,7 @@ def test_remaining_soak_day_metric_values_for_cluster_long_running_upgrade() -> 
         soak_days=0,
     )
     assert {
-        "4.13.11": UPGRADE_LONG_RUNNING
+        "4.13.11": UPGRADE_LONG_RUNNING_METRIC_VALUE
     } == remaining_soak_day_metric_values_for_cluster(
         spec=spec,
         soaked_versions={},
@@ -277,7 +277,7 @@ def test_remaining_soak_day_metric_values_for_cluster_not_filtering() -> None:
     assert {
         "4.13.11": 0.0,
         "4.13.12": 2.0,
-        "4.14.1": UPGRADE_BLOCKED,
+        "4.14.1": UPGRADE_BLOCKED_METRIC_VALUE,
     } == remaining_soak_day_metric_values_for_cluster(
         spec=spec,
         soaked_versions={"4.13.11": 2.0},

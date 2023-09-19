@@ -5,8 +5,8 @@ from typing import Optional
 from reconcile.aus import base as aus
 from reconcile.aus.cluster_version_data import VersionData
 from reconcile.aus.metrics import (
-    UPGRADE_BLOCKED,
-    UPGRADE_LONG_RUNNING,
+    UPGRADE_BLOCKED_METRIC_VALUE,
+    UPGRADE_LONG_RUNNING_METRIC_VALUE,
     UPGRADE_SCHEDULED_METRIC_VALUE,
     UPGRADE_STARTED_METRIC_VALUE,
     AUSClusterVersionRemainingSoakDaysGauge,
@@ -212,10 +212,10 @@ def remaining_soak_day_metric_values_for_cluster(
                     now = datetime.utcnow()
                     hours_ago = (now - next_run).total_seconds() / 3600
                     if hours_ago >= 6:
-                        remaining_soakdays[idx] = UPGRADE_LONG_RUNNING
+                        remaining_soakdays[idx] = UPGRADE_LONG_RUNNING_METRIC_VALUE
         elif spec.version_blocked(version):
             # if a version is blocked, we will still report it but with a dedicated negative marker value
-            remaining_soakdays[idx] = UPGRADE_BLOCKED
+            remaining_soakdays[idx] = UPGRADE_BLOCKED_METRIC_VALUE
 
     # now we optimize the actual version we want to report. not every upgrade path is interesting or
     # meaningful to report.
@@ -230,7 +230,7 @@ def remaining_soak_day_metric_values_for_cluster(
                 0,
                 UPGRADE_SCHEDULED_METRIC_VALUE,
                 UPGRADE_STARTED_METRIC_VALUE,
-                UPGRADE_LONG_RUNNING,
+                UPGRADE_LONG_RUNNING_METRIC_VALUE,
             )
             for later_version_remaining_soak_days in remaining_soakdays[idx + 1 :]
         ):
