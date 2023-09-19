@@ -1335,7 +1335,7 @@ def validate_planned_data(ri: ResourceInventory, oc_map: ClusterMap) -> None:
                 )
 
 
-@retry(exceptions=(ValidationError), max_attempts=100)
+@retry(exceptions=(ValidationError), max_attempts=200)
 def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: ClusterMap):
     """
     Validate the realized desired state.
