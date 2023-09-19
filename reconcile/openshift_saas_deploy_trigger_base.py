@@ -381,7 +381,7 @@ def _construct_tekton_trigger_resource(
             ]
         )
     body: dict[str, Any] = {
-        "apiVersion": "tekton.dev/v1beta1",
+        "apiVersion": "tekton.dev/v1",
         "kind": "PipelineRun",
         "metadata": {"name": name},
         "spec": {
