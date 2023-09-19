@@ -194,7 +194,8 @@ def remaining_soak_day_metric_values_for_cluster(
 
     # under certain conditions, the remaining soak day value for a version needs to be
     # replaced with special marker values
-    for idx, version in enumerate(upgrades):
+    version_metrics: dict[str, float] = {}
+    for idx, version in reversed(list(enumerate(upgrades))):
         # if an upgrade is `scheduled` or `started`` for the specific version, their respective negative
         # marker values will be used instead of their actual soak days. there are other states than `scheduled`
         # and `started` but the `UpgradePolicy` vanishes too quickly to observe them reliably, when such
@@ -217,10 +218,6 @@ def remaining_soak_day_metric_values_for_cluster(
             # if a version is blocked, we will still report it but with a dedicated negative marker value
             remaining_soakdays[idx] = UPGRADE_BLOCKED_METRIC_VALUE
 
-    # now we optimize the actual version we want to report. not every upgrade path is interesting or
-    # meaningful to report.
-    version_metrics: dict[str, float] = {}
-    for idx, version in enumerate(upgrades):
         # we are intentionally not reporting versions that still soak or soaked enough when
         # there is a later version that also soaked enough. the later one will be picked
         # for an upgrade over the older one anyways.
