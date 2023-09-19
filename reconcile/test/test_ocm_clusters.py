@@ -495,15 +495,38 @@ def test_ocm_osd_create_cluster(
     get_json_mock.return_value = {"items": []}
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as sys_exit:
         occ.run(dry_run=False)
 
+    assert sys_exit.value.code == 0
     _post, _patch = ocm_mock
     _post.assert_called_once_with(
         "/api/clusters_mgmt/v1/clusters",
         ocm_osd_cluster_post_spec,
         {},
     )
+    _patch.assert_not_called()
+    cluster_updates_mr_mock.assert_not_called()
+
+
+def test_ocm_osd_create_cluster_without_machine_pools(
+    get_json_mock,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_osd_cluster_ai_spec,
+    ocm_osd_cluster_post_spec,
+):
+    get_json_mock.return_value = {"items": []}
+    bad_spec = ocm_osd_cluster_ai_spec | {"machinePools": []}
+    queries_mock[1].return_value = [bad_spec]
+
+    with pytest.raises(SystemExit) as sys_exit:
+        occ.run(dry_run=False)
+
+    assert sys_exit.value.code == 1
+    _post, _patch = ocm_mock
+    _post.assert_not_called()
     _patch.assert_not_called()
     cluster_updates_mr_mock.assert_not_called()
 
@@ -520,16 +543,39 @@ def test_ocm_rosa_create_cluster(
     queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
 
     with patch("reconcile.utils.ocm.random.choices", return_value=["c", "n", "z", "y"]):
-        with pytest.raises(SystemExit):
+        with pytest.raises(SystemExit) as sys_exit:
             occ.run(dry_run=False)
 
+    assert sys_exit.value.code == 0
     _post, _patch = ocm_mock
-
     _post.assert_called_once_with(
         "/api/clusters_mgmt/v1/clusters",
         ocm_rosa_cluster_post_spec,
         {},
     )
+    _patch.assert_not_called()
+    cluster_updates_mr_mock.assert_not_called()
+
+
+def test_ocm_rosa_create_cluster_without_machine_pools(
+    get_json_mock,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_rosa_cluster_ai_spec,
+    ocm_rosa_cluster_post_spec,
+):
+    get_json_mock.return_value = {"items": []}
+    bad_spec = ocm_rosa_cluster_ai_spec | {"machinePools": []}
+    queries_mock[1].return_value = [bad_spec]
+
+    with patch("reconcile.utils.ocm.random.choices", return_value=["c", "n", "z", "y"]):
+        with pytest.raises(SystemExit) as sys_exit:
+            occ.run(dry_run=False)
+
+    assert sys_exit.value.code == 1
+    _post, _patch = ocm_mock
+    _post.assert_not_called()
     _patch.assert_not_called()
     cluster_updates_mr_mock.assert_not_called()
 

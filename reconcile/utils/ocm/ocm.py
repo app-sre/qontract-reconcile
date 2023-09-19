@@ -120,6 +120,10 @@ OCM_PRODUCT_HYPERSHIFT = "hypershift"
 DEFAULT_OCM_MACHINE_POOL_ID = "worker"
 
 
+class OCMValidationException(Exception):
+    pass
+
+
 class OCMProduct:
     ALLOWED_SPEC_UPDATE_FIELDS: set[str]
     EXCLUDED_SPEC_FIELDS: set[str]
@@ -243,7 +247,7 @@ class OCMProductOsd(OCMProduct):
         return ocm_spec
 
     @staticmethod
-    def _get_nodes_spec(cluster: OCMSpec) -> dict[str, Any] | None:
+    def _get_nodes_spec(cluster: OCMSpec) -> dict[str, Any]:
         default_machine_pool = next(
             (
                 mp
@@ -253,7 +257,9 @@ class OCMProductOsd(OCMProduct):
             None,
         )
         if default_machine_pool is None:
-            return None
+            raise OCMValidationException(
+                f"No default machine pool found, id: {DEFAULT_OCM_MACHINE_POOL_ID}"
+            )
 
         spec = {
             "compute_machine_type": {"id": default_machine_pool.instance_type},
@@ -460,7 +466,7 @@ class OCMProductRosa(OCMProduct):
         return ocm_spec
 
     @staticmethod
-    def _get_nodes_spec(cluster: OCMSpec) -> dict[str, Any] | None:
+    def _get_nodes_spec(cluster: OCMSpec) -> dict[str, Any]:
         default_machine_pool = next(
             (
                 mp
@@ -470,7 +476,9 @@ class OCMProductRosa(OCMProduct):
             None,
         )
         if default_machine_pool is None:
-            return None
+            raise OCMValidationException(
+                f"No default machine pool found, id: {DEFAULT_OCM_MACHINE_POOL_ID}"
+            )
 
         spec = {
             "compute_machine_type": {"id": default_machine_pool.instance_type},
