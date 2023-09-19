@@ -9,10 +9,6 @@ import yaml
 from tabulate import tabulate
 
 
-def md_escape(text: str) -> str:
-    return text.replace("|", "\\|")
-
-
 def print_output(
     options: Mapping[str, Union[str, bool]],
     content: list[dict],
@@ -57,7 +53,7 @@ def format_table(content, columns, table_format="simple") -> str:
                     cell = "<br />".join(cell)
                 else:
                     cell = "\n".join(cell)
-            row_data.append(md_escape(cell))
+            row_data.append(cell)
         table_data.append(row_data)
     return tabulate(table_data, headers=headers, tablefmt=table_format)
 
