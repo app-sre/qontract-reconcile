@@ -91,7 +91,9 @@ def run(dry_run: bool, thread_pool_size: int) -> None:
                 aws_log_group_list = get_log_group_list(awsapi, app_interface_aws_acct)
             except ClientError as e:
                 if e.response["Error"]["Code"] == "AccessDeniedException":
-                    logging.info(f" Access denied for {aws_act_name}. Skipping...")
+                    logging.info(
+                        f" Access denied for aws account {aws_act_name}. Skipping..."
+                    )
                     continue
             for aws_log_group in aws_log_group_list:
                 group_name = aws_log_group["logGroupName"]
@@ -107,7 +109,9 @@ def run(dry_run: bool, thread_pool_size: int) -> None:
                 )
                 log_group_tags = aws_log_group["tags"]
                 if log_group_tags.get("managed_by_integration") != QONTRACT_INTEGRATION:
-                    logging.info(f"Setting tag {MANAGED_TAG} for group {group_name}")
+                    logging.info(
+                        f"Setting tag {MANAGED_TAG} for log group {group_name}"
+                    )
                     if not dry_run:
                         awsapi.create_cloudwatch_tag(
                             app_interface_aws_acct, group_name, MANAGED_TAG
