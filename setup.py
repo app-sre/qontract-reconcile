@@ -69,6 +69,7 @@ setup(
         "requests-oauthlib~=1.3",
         "dt==1.1.61",
         "jsonpatch~=1.33",
+        "jsonpointer~=2.4",
     ],
     test_suite="tests",
     classifiers=[
