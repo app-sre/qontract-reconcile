@@ -322,6 +322,7 @@ PIPELINE_PROVIDER = {
                     "app": {"name": "app-01", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
+                    "managedResourceNames": None,
                     "imagePatterns": [],
                     "parameters": '{ "SAAS_PARAM": "foobar" }',
                     "resourceTemplates": [
@@ -374,6 +375,7 @@ PIPELINE_PROVIDER = {
                     "app": {"name": "app-02", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
+                    "managedResourceNames": None,
                     "imagePatterns": [],
                     "resourceTemplates": [
                         {
@@ -420,6 +422,7 @@ PIPELINE_PROVIDER = {
                     "app": {"name": "app-02", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
+                    "managedResourceNames": None,
                     "imagePatterns": [],
                     "resourceTemplates": [
                         {
@@ -455,6 +458,7 @@ PIPELINE_PROVIDER = {
                     "app": {"name": "app-01", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
+                    "managedResourceNames": None,
                     "imagePatterns": [],
                     "parameters": '{ "SAAS_PARAM": "foobar" }',
                     "resourceTemplates": [
@@ -488,6 +492,7 @@ PIPELINE_PROVIDER = {
                     "app": {"name": "app-02", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
+                    "managedResourceNames": None,
                     "imagePatterns": [],
                     "resourceTemplates": [
                         {
@@ -524,6 +529,7 @@ PIPELINE_PROVIDER = {
                     "app": {"name": "example", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
+                    "managedResourceNames": None,
                     "imagePatterns": [],
                     "resourceTemplates": [
                         {
@@ -646,6 +652,7 @@ def test_export_model(
             "deployResources": None,
             "slack": None,
             "managedResourceTypes": [],
+            "managedResourceNames": None,
             "takeover": None,
             "deprecated": None,
             "compare": None,
@@ -808,6 +815,7 @@ def test_export_model(
             "deployResources": None,
             "slack": None,
             "managedResourceTypes": [],
+            "managedResourceNames": None,
             "takeover": None,
             "deprecated": None,
             "compare": None,
@@ -970,6 +978,7 @@ def test_export_model(
             "deployResources": None,
             "slack": None,
             "managedResourceTypes": [],
+            "managedResourceNames": None,
             "takeover": None,
             "deprecated": None,
             "compare": None,
