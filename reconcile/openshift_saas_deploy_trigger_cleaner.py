@@ -36,7 +36,7 @@ def within_retention_days(resource: dict[str, Any], days: int) -> bool:
     now_date = datetime.now(timezone.utc)
     interval = now_date.timestamp() - creation_date.timestamp()
 
-    return interval < timedelta(days=days).seconds
+    return interval < timedelta(days=days).total_seconds()
 
 
 @defer
