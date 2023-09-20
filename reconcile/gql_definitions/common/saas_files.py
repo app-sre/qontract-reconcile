@@ -188,6 +188,10 @@ query SaasFiles {
       }
     }
     managedResourceTypes
+    managedResourceNames {
+      resource
+      resourceNames
+    }
     takeover
     deprecated
     compare
@@ -405,6 +409,11 @@ class SlackOutputV1(ConfiguredBaseModel):
     )
 
 
+class ManagedResourceNamesV1(ConfiguredBaseModel):
+    resource: str = Field(..., alias="resource")
+    resource_names: list[str] = Field(..., alias="resourceNames")
+
+
 class SaasFileAuthenticationV1(ConfiguredBaseModel):
     code: Optional[VaultSecret] = Field(..., alias="code")
     image: Optional[VaultSecret] = Field(..., alias="image")
@@ -532,6 +541,9 @@ class SaasFileV2(ConfiguredBaseModel):
     deploy_resources: Optional[DeployResourcesV1] = Field(..., alias="deployResources")
     slack: Optional[SlackOutputV1] = Field(..., alias="slack")
     managed_resource_types: list[str] = Field(..., alias="managedResourceTypes")
+    managed_resource_names: Optional[list[ManagedResourceNamesV1]] = Field(
+        ..., alias="managedResourceNames"
+    )
     takeover: Optional[bool] = Field(..., alias="takeover")
     deprecated: Optional[bool] = Field(..., alias="deprecated")
     compare: Optional[bool] = Field(..., alias="compare")

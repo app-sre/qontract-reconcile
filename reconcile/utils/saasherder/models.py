@@ -4,6 +4,7 @@ from enum import Enum
 from typing import (
     Any,
     Optional,
+    Sequence,
     Union,
 )
 
@@ -15,6 +16,7 @@ from pydantic import (
 
 from reconcile.utils.oc_connection_parameters import Cluster
 from reconcile.utils.saasherder.interfaces import (
+    ManagedResourceName,
     SaasApp,
     SaasEnvironment,
     SaasPipelinesProviders,
@@ -134,6 +136,9 @@ class Namespace(BaseModel):
     app: SaasApp
     cluster: Cluster
     managed_resource_types: list[str] = Field(..., alias="managedResourceTypes")
+    managed_resource_names: Optional[Sequence[ManagedResourceName]] = Field(
+        ..., alias="managedResourceNames"
+    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -191,6 +196,7 @@ class TargetSpec:
     cluster: str
     namespace: str
     managed_resource_types: Iterable[str]
+    managed_resource_names: Optional[Sequence[ManagedResourceName]]
     delete: bool
     privileged: bool
     image_auth: ImageAuth

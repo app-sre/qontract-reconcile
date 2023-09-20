@@ -20,6 +20,7 @@ from reconcile.gql_definitions.common.saas_files import (
     AppV1,
     ConfiguredBaseModel,
     DeployResourcesV1,
+    ManagedResourceNamesV1,
     PipelinesProviderTektonV1,
     PipelinesProviderV1,
     RoleV1,
@@ -130,6 +131,9 @@ class SaasFile(ConfiguredBaseModel):
         ..., alias="secretParameters"
     )
     validate_targets_in_app: Optional[bool] = Field(..., alias="validateTargetsInApp")
+    managed_resource_names: Optional[list[ManagedResourceNamesV1]] = Field(
+        ..., alias="managedResourceNames"
+    )
     resource_templates: list[SaasResourceTemplate] = Field(
         ..., alias="resourceTemplates"
     )
