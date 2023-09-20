@@ -95,7 +95,7 @@ query TerraformResourcesNamespaces {
                 overrides
                 sqs_identifier
                 s3_events
-                event_notifications {
+                sns_event_notifications: event_notifications {
                     destination_type
                     destination
                     event_type
@@ -560,8 +560,8 @@ class NamespaceTerraformResourceS3V1(NamespaceTerraformResourceAWSV1):
     overrides: Optional[str] = Field(..., alias="overrides")
     sqs_identifier: Optional[str] = Field(..., alias="sqs_identifier")
     s3_events: Optional[list[str]] = Field(..., alias="s3_events")
-    event_notifications: Optional[list[AWSS3EventNotificationV1]] = Field(
-        ..., alias="event_notifications"
+    sns_event_notifications: Optional[list[AWSS3EventNotificationV1]] = Field(
+        ..., alias="sns_event_notifications"
     )
     bucket_policy: Optional[str] = Field(..., alias="bucket_policy")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
