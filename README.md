@@ -32,6 +32,7 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   Assets (CNA).
   dashdotdb-cso                   Collects the ImageManifestVuln CRs from all
                                   the clusters and posts them to Dashdotdb.
+  dashdotdb-dora                  Collects dora metrics.
   dashdotdb-dvo                   Collects the DeploymentValidations from all
                                   the clusters and posts them to Dashdotdb.
   dashdotdb-slo                   Collects the ServiceSloMetrics from all the
