@@ -58,6 +58,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "dynatrace-token-provider"
 SYNCSET_ID = "ext-dynatrace-tokens"
+SECRET_NAME = "dynatrace-token-dtp"
 DYNATRACE_INGESTION_TOKEN_NAME = "dynatrace-ingestion-token"
 DYNATRACE_OPERATOR_TOKEN_NAME = "dynatrace-operator-token"
 
@@ -178,6 +179,7 @@ class DynatraceTokenProviderIntegration(
                                 dt_clients[tenant_id],
                                 ocm_client,
                                 existing_dtp_tokens[tenant_id],
+                                tenant_id,
                             )
                     except Exception as e:
                         unhandled_exceptions.append(
@@ -227,8 +229,10 @@ class DynatraceTokenProviderIntegration(
         dt_client: Dynatrace,
         ocm_client: OCMBaseClient,
         existing_dtp_tokens: list[str],
+        tenant_id: str,
     ) -> None:
         existing_syncset = self.get_syncset(ocm_client, cluster)
+        dt_env_url = f"https://{tenant_id}.live.dynatrace.com"
         if not existing_syncset:
             if not dry_run:
                 try:
@@ -238,7 +242,9 @@ class DynatraceTokenProviderIntegration(
                     create_syncset(
                         ocm_client,
                         cluster.ocm_cluster.id,
-                        self.construct_syncset(ingestion_token, operator_token),
+                        self.construct_syncset(
+                            ingestion_token, operator_token, dt_env_url
+                        ),
                     )
                 except Exception as e:
                     _expose_errors_as_service_log(
@@ -287,7 +293,9 @@ class DynatraceTokenProviderIntegration(
             if need_patching:
                 if not dry_run:
                     patch_syncset_payload = self.construct_base_syncset(
-                        ingestion_token=ingestion_token, operator_token=operator_token
+                        ingestion_token=ingestion_token,
+                        operator_token=operator_token,
+                        dt_api_url=dt_env_url,
                     )
                     try:
                         logging.info(f"Patching syncset {SYNCSET_ID}.")
@@ -321,14 +329,25 @@ class DynatraceTokenProviderIntegration(
         tokens = {}
         for resource in syncset["resources"]:
             if resource["kind"] == "Secret":
-                token_id = resource["data"]["id"]
-                token_secret = resource["data"]["token"]
-                token_name = resource["metadata"]["name"]
-                tokens[token_name] = {"id": token_id, "token": token_secret}
+                operator_token_id = resource["data"]["apiTokenId"]
+                operator_token = resource["data"]["apiToken"]
+                ingest_token_id = resource["data"]["dataIngestTokenId"]
+                ingest_token = resource["data"]["dataIngestToken"]
+        tokens[DYNATRACE_INGESTION_TOKEN_NAME] = {
+            "id": ingest_token_id,
+            "token": ingest_token,
+        }
+        tokens[DYNATRACE_OPERATOR_TOKEN_NAME] = {
+            "id": operator_token_id,
+            "token": operator_token,
+        }
         return tokens
 
     def construct_base_syncset(
-        self, ingestion_token: ApiTokenCreated, operator_token: ApiTokenCreated
+        self,
+        ingestion_token: ApiTokenCreated,
+        operator_token: ApiTokenCreated,
+        dt_api_url: str,
     ) -> dict[str, Any]:
         return {
             "kind": "SyncSet",
@@ -336,30 +355,28 @@ class DynatraceTokenProviderIntegration(
                 {
                     "apiVersion": "v1",
                     "kind": "Secret",
-                    "metadata": {"name": DYNATRACE_INGESTION_TOKEN_NAME},
+                    "metadata": {"name": SECRET_NAME},
                     "data": {
-                        "id": f"{ingestion_token.id}",
-                        "token": f"{ingestion_token.token}",
-                    },
-                },
-                {
-                    "apiVersion": "v1",
-                    "kind": "Secret",
-                    "namespace": "dynatrace",
-                    "metadata": {"name": DYNATRACE_OPERATOR_TOKEN_NAME},
-                    "data": {
-                        "id": f"{operator_token.id}",
-                        "token": f"{operator_token.token}",
+                        "apiUrl": f"{dt_api_url}",
+                        "dataIngestTokenId": f"{ingestion_token.id}",
+                        "dataIngestToken": f"{ingestion_token.token}",
+                        "apiTokenId": f"{operator_token.id}",
+                        "apiToken": f"{operator_token.token}",
                     },
                 },
             ],
         }
 
     def construct_syncset(
-        self, ingestion_token: ApiTokenCreated, operator_token: ApiTokenCreated
+        self,
+        ingestion_token: ApiTokenCreated,
+        operator_token: ApiTokenCreated,
+        dt_api_url: str,
     ) -> dict[str, Any]:
         syncset = self.construct_base_syncset(
-            ingestion_token=ingestion_token, operator_token=operator_token
+            ingestion_token=ingestion_token,
+            operator_token=operator_token,
+            dt_api_url=dt_api_url,
         )
         syncset["id"] = SYNCSET_ID
         return syncset
