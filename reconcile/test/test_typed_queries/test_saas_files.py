@@ -319,6 +319,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path1",
                     "name": "saas-file-01",
+                    "labels": None,
                     "app": {"name": "app-01", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
@@ -372,6 +373,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path2",
                     "name": "saas-file-02",
+                    "labels": None,
                     "app": {"name": "app-02", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
@@ -419,6 +421,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path2",
                     "name": "saas-file-02",
+                    "labels": None,
                     "app": {"name": "app-02", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
@@ -455,6 +458,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path1",
                     "name": "saas-file-01",
+                    "labels": None,
                     "app": {"name": "app-01", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
@@ -489,6 +493,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path2",
                     "name": "saas-file-02",
+                    "labels": None,
                     "app": {"name": "app-02", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
@@ -526,6 +531,7 @@ PIPELINE_PROVIDER = {
                 {
                     "path": "path3",
                     "name": "saas-file-03",
+                    "labels": None,
                     "app": {"name": "example", "parentApp": None},
                     "pipelinesProvider": PIPELINE_PROVIDER,
                     "managedResourceTypes": [],
@@ -619,6 +625,7 @@ def test_export_model(
         {
             "path": "path1",
             "name": "saas-file-01",
+            "labels": None,
             "app": {"name": "app-01", "parentApp": None, "selfServiceRoles": None},
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
@@ -782,6 +789,7 @@ def test_export_model(
         {
             "path": "path2",
             "name": "saas-file-02",
+            "labels": None,
             "app": {"name": "app-02", "parentApp": None, "selfServiceRoles": None},
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
@@ -945,6 +953,7 @@ def test_export_model(
         {
             "path": "path3",
             "name": "saas-file-03",
+            "labels": None,
             "app": {"name": "example", "parentApp": None, "selfServiceRoles": None},
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",

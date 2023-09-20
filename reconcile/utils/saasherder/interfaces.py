@@ -11,6 +11,8 @@ from typing import (
     runtime_checkable,
 )
 
+from pydantic import Json
+
 from reconcile.utils import oc_connection_parameters
 from reconcile.utils.secret_reader import HasSecret
 
@@ -389,6 +391,7 @@ class ManagedResourceName(Protocol):
 class SaasFile(HasParameters, HasSecretParameters, Protocol):
     path: str
     name: str
+    labels: Optional[Json]
     managed_resource_types: list[str]
     takeover: Optional[bool]
     deprecated: Optional[bool]
