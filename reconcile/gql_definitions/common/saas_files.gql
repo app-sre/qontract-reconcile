@@ -68,6 +68,10 @@ query SaasFiles {
       }
     }
     managedResourceTypes
+    managedResourceNames {
+      resource
+      resourceNames
+    }
     takeover
     deprecated
     compare

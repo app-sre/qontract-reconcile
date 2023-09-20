@@ -380,6 +380,12 @@ class SaasRole(Protocol):
 SaasPipelinesProviders = Union[SaasPipelinesProviderTekton, SaasPipelinesProvider]
 
 
+@runtime_checkable
+class ManagedResourceName(Protocol):
+    resource: str
+    resource_names: list[str]
+
+
 class SaasFile(HasParameters, HasSecretParameters, Protocol):
     path: str
     name: str
@@ -421,4 +427,8 @@ class SaasFile(HasParameters, HasSecretParameters, Protocol):
 
     @property
     def self_service_roles(self) -> Optional[Sequence[SaasRole]]:
+        ...
+
+    @property
+    def managed_resource_names(self) -> Optional[Sequence[ManagedResourceName]]:
         ...

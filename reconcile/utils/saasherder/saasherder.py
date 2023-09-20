@@ -51,6 +51,7 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import (
     ResourceInventory,
     ResourceKeyExistsError,
+    ResourceNotManagedError,
     fully_qualified_kind,
 )
 from reconcile.utils.promotion_state import (
@@ -688,9 +689,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             environment=target.namespace.environment,
                             app=target.namespace.app,
                             cluster=target.namespace.cluster,
-                            # managedResourceTypes is defined per saas_file
-                            # add it to each namespace in the current saas_file
+                            # managedResourceTypes and managedResourceNames are defined per saas_file
+                            # add them to each namespace in the current saas_file
                             managed_resource_types=saas_file.managed_resource_types,
+                            managed_resource_names=saas_file.managed_resource_names,
                         )
                     )
         return namespaces
@@ -1231,6 +1233,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         cluster=target.namespace.cluster.name,
                         namespace=target.namespace.name,
                         managed_resource_types=saas_file.managed_resource_types,
+                        managed_resource_names=saas_file.managed_resource_names,
                         delete=bool(target.delete),
                         privileged=bool(saas_file.cluster_admin),
                         # process_template options
@@ -1342,6 +1345,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     + f"{spec.resource_template_name}."
                 )
                 logging.error(msg)
+            except ResourceNotManagedError:
+                msg = (
+                    f"[{spec.cluster}/{spec.namespace}] desired item "
+                    + f"not managed, skipping: {oc_resource.kind}/{oc_resource.name}. "
+                    + f"saas file name: {spec.saas_file_name}, "
+                    + "resource template name: "
+                    + f"{spec.resource_template_name}."
+                )
+                logging.info(msg)
 
         return promotion
 

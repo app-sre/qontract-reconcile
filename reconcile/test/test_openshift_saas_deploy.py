@@ -31,6 +31,7 @@ def saas_file_builder(
                     },
                 },
                 "managedResourceTypes": [],
+                "managedResourceNames": None,
                 "imagePatterns": [],
                 "resourceTemplates": [],
             },
