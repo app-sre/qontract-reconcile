@@ -380,6 +380,11 @@ def run(
             )
 
             # change-owner labels
+            labels = {
+                co_label
+                for co_label in labels
+                if not co_label.startswith("change-owner/")
+            }
             for bc in changes:
                 for label in bc.change_owner_labels:
                     labels.add(change_owner_label(label))
