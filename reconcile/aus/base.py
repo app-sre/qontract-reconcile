@@ -811,10 +811,9 @@ def _calulate_node_pool_diffs(
             pool_version_id = pool.get("version", {}).get("id")
             pool_version = get_version(ocm_api, pool_version_id)["raw_id"]
             if semver.match(pool_version, f"<{spec.current_version}"):
-                next_schedule = verify_schedule_should_skip(spec, now)
-                if not next_schedule:
-                    continue
-
+                next_schedule = (now + timedelta(minutes=6)).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                )
                 return UpgradePolicyHandler(
                     action="create",
                     policy=NodePoolUpgradePolicy(
