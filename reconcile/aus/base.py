@@ -15,6 +15,7 @@ from typing import (
     cast,
 )
 
+import semver
 from croniter import croniter
 from pydantic import BaseModel
 from semver import VersionInfo
@@ -47,11 +48,16 @@ from reconcile.utils import (
 )
 from reconcile.utils.defer import defer
 from reconcile.utils.filtering import remove_none_values_from_dict
-from reconcile.utils.ocm.clusters import OCMCluster
+from reconcile.utils.ocm.clusters import (
+    OCMCluster,
+    get_node_pools,
+    get_version,
+)
 from reconcile.utils.ocm.upgrades import (
     OCMVersionGate,
     create_addon_upgrade_policy,
     create_control_plane_upgrade_policy,
+    create_node_pool_upgrade_policy,
     create_upgrade_policy,
     create_version_agreement,
     delete_addon_upgrade_policy,
@@ -59,6 +65,7 @@ from reconcile.utils.ocm.upgrades import (
     delete_upgrade_policy,
     get_addon_upgrade_policies,
     get_control_plane_upgrade_policies,
+    get_node_pool_upgrade_policies,
     get_upgrade_policies,
     get_version_agreement,
     get_version_gates,
@@ -346,6 +353,36 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
         return f"cluster upgrade policy - {remove_none_values_from_dict(details)}"
 
 
+class NodePoolUpgradePolicy(AbstractUpgradePolicy):
+    node_pool: str
+    """Class to create and delete NodePoolUpgradePolicies in OCM"""
+
+    def create(self, ocm_api: OCMBaseClient) -> None:
+        policy = {
+            "version": self.version,
+            "schedule_type": "manual",
+            "upgrade_type": "NodePool",
+            "cluster_id": self.cluster.id,
+            "next_run": self.next_run,
+        }
+        create_node_pool_upgrade_policy(
+            ocm_api, self.cluster.id, self.node_pool, policy
+        )
+
+    def delete(self, ocm_api: OCMBaseClient) -> None:
+        raise NotImplementedError("NodePoolUpgradePolicy.delete() not implemented")
+
+    def summarize(self) -> str:
+        details = {
+            "cluster": self.cluster.name,
+            "cluster_id": self.cluster.id,
+            "node_pool": self.node_pool,
+            "version": self.version,
+            "next_run": self.next_run,
+        }
+        return f"node pool upgrade policy - {remove_none_values_from_dict(details)}"
+
+
 class UpgradePolicyHandler(BaseModel):
     """Class to handle upgrade policy actions"""
 
@@ -394,6 +431,14 @@ def fetch_current_state(
             for upgrade_policy in upgrade_policies:
                 upgrade_policy["cluster"] = spec.cluster
                 current_state.append(ControlPlaneUpgradePolicy(**upgrade_policy))
+            for node_pool in get_node_pools(ocm_api, spec.cluster.id):
+                node_upgrade_policies = get_node_pool_upgrade_policies(
+                    ocm_api, spec.cluster.id, node_pool["id"]
+                )
+                for upgrade_policy in node_upgrade_policies:
+                    upgrade_policy["cluster"] = spec.cluster
+                    upgrade_policy["node_pool"] = node_pool["id"]
+                    current_state.append(NodePoolUpgradePolicy(**upgrade_policy))
         else:
             upgrade_policies = get_upgrade_policies(ocm_api, spec.cluster.id)
             for upgrade_policy in upgrade_policies:
@@ -744,19 +789,43 @@ def _create_upgrade_policy(
 ) -> AbstractUpgradePolicy:
     if spec.cluster.is_rosa_hypershift():
         return ControlPlaneUpgradePolicy(
-            action="create",
             cluster=spec.cluster,
             version=version,
             schedule_type="manual",
             next_run=next_schedule,
         )
     return ClusterUpgradePolicy(
-        action="create",
         cluster=spec.cluster,
         version=version,
         schedule_type="manual",
         next_run=next_schedule,
     )
+
+
+def _calulate_node_pool_diffs(
+    ocm_api: OCMBaseClient, spec: ClusterUpgradeSpec, now: datetime
+) -> Optional[UpgradePolicyHandler]:
+    node_pools = get_node_pools(ocm_api, spec.cluster.id)
+    if node_pools:
+        for pool in sorted(node_pools, key=lambda x: x["id"]):
+            pool_version_id = pool.get("version", {}).get("id")
+            pool_version = get_version(ocm_api, pool_version_id)["raw_id"]
+            if semver.match(pool_version, f"<{spec.current_version}"):
+                next_schedule = verify_schedule_should_skip(spec, now)
+                if not next_schedule:
+                    continue
+
+                return UpgradePolicyHandler(
+                    action="create",
+                    policy=NodePoolUpgradePolicy(
+                        cluster=spec.cluster,
+                        version=spec.current_version,
+                        schedule_type="manual",
+                        next_run=next_schedule,
+                        node_pool=pool["id"],
+                    ),
+                )
+    return None
 
 
 def calculate_diff(
@@ -771,7 +840,7 @@ def calculate_diff(
 
     Args:
         current_state (list): currently existing upgrade policies
-        org_upgrade_spec (OrganizationUpgradeSpec): organization upgrade spec
+        desired_state (OrganizationUpgradeSpec): organization upgrade spec
         ocm_api (OCMBaseClient): OCM API client
         version_data (VersionData): version data history of the org
         addon_id (str): optional addonid to calculate diffs for
@@ -779,6 +848,13 @@ def calculate_diff(
     Returns:
         list: upgrade policies to be applied
     """
+
+    def set_mutex(
+        locked: dict[str, str], cluster_id: str, mutexes: Optional[list[str]] = None
+    ) -> None:
+        for mutex in mutexes or []:
+            locked[mutex] = cluster_id
+
     diffs: list[UpgradePolicyHandler] = []
 
     # all clusters IDs with a current upgradePolicy are considered locked
@@ -791,6 +867,20 @@ def calculate_diff(
     now = datetime.utcnow()
     gates = get_version_gates(ocm_api)
     for spec in desired_state.specs:
+        # Upgrading node pools, only required for Hypershift clusters
+        # do this in the same loop, to skip cluster on node pool upgrade
+        if spec.cluster.is_rosa_hypershift():
+            if verify_lock_should_skip(spec, locked):
+                continue
+
+            node_pool_update = _calulate_node_pool_diffs(ocm_api, spec, now)
+            if node_pool_update:  # node pool update policy not yet created
+                diffs.append(node_pool_update)
+                set_mutex(
+                    locked, spec.cluster.id, spec.upgrade_policy.conditions.mutexes
+                )
+                continue
+
         # ignore clusters with an existing upgrade policy
         skip, delete_policy = verify_current_should_skip(
             current_state, spec, now, addon_id
@@ -843,9 +933,7 @@ def calculate_diff(
                         ],
                     )
                 )
-
-            for mutex in spec.upgrade_policy.conditions.mutexes or []:
-                locked[mutex] = spec.cluster.id
+            set_mutex(locked, spec.cluster.id, spec.upgrade_policy.conditions.mutexes)
 
     return diffs
 
