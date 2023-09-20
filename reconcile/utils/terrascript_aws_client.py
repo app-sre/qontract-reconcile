@@ -2067,6 +2067,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "policy": bucket_policy,
                 "depends_on": self.get_dependencies([bucket_tf_resource]),
             }
+            if self._multiregion_account(account):
+                values["provider"] = "aws." + region
             bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
             tf_resources.append(bucket_policy_tf_resource)
 
