@@ -209,3 +209,23 @@ def test_self_service_role_change_owner_labels() -> None:
         labels=json.dumps({CHANGE_OWNERS_LABELS_LABEL: "label1,label2, label3"}),
     )
     assert {"label1", "label2", "label3"} == change_type_labels_from_role(role)
+
+
+def test_self_service_role_no_change_owner_labels() -> None:
+    role = build_role(
+        name="role",
+        datafiles=None,
+        change_type_name="change-type-name",
+        labels=json.dumps({}),
+    )
+    assert not change_type_labels_from_role(role)
+
+
+def test_self_service_role_empty_change_owner_labels() -> None:
+    role = build_role(
+        name="role",
+        datafiles=None,
+        change_type_name="change-type-name",
+        labels=json.dumps({CHANGE_OWNERS_LABELS_LABEL: ""}),
+    )
+    assert not change_type_labels_from_role(role)

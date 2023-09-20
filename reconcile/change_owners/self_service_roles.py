@@ -213,9 +213,13 @@ def change_type_contexts_for_self_service_roles(
 
 def change_type_labels_from_role(role: RoleV1) -> set[str]:
     change_owner_labels = (
-        role.labels.get(CHANGE_OWNERS_LABELS_LABEL, "") if role.labels else ""
+        role.labels[CHANGE_OWNERS_LABELS_LABEL]
+        if role.labels and CHANGE_OWNERS_LABELS_LABEL in role.labels
+        else None
     )
-    return {label.strip() for label in change_owner_labels.split(",")}
+    if change_owner_labels:
+        return {label.strip() for label in change_owner_labels.split(",")}
+    return set()
 
 
 def approver_reachability_from_role(role: RoleV1) -> list[ApproverReachability]:
