@@ -2,12 +2,14 @@ import os
 from pathlib import Path
 from types import TracebackType
 from typing import (
+    List,
     Optional,
     Type,
 )
 from urllib.parse import urlparse
 
 from github import (
+    Commit,
     Github,
     UnknownObjectException,
 )
@@ -81,3 +83,7 @@ class GithubRepositoryApi:
     @retry()
     def get_commit_sha(self, ref: str) -> str:
         return self._repo.get_commit(sha=ref).sha
+
+    @retry()
+    def compare(self, commit_from: str, commit_to: str) -> List[Commit.Commit]:
+        return self._repo.compare(commit_from, commit_to).commits
