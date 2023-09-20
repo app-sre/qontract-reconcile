@@ -90,3 +90,22 @@ def test_3wpd_change_valid_mutation_not_apply(deployment):
     ] = "1"
 
     assert three_way_diff_using_hash(c_item, d_item) is True
+
+
+def test_3wpd_change_empty_env_value_should_not_apply(deployment):
+    d_item = OR(deployment, "", "")
+    d_item.body["spec"]["template"]["spec"]["containers"][0]["env"] = [
+        {
+            "name": "test_env",
+            "value": "",
+        }
+    ]
+
+    c_item = d_item.annotate(canonicalize=False)
+    c_item.body["spec"]["template"]["spec"]["containers"][0]["env"] = [
+        {
+            "name": "test_env",
+        }
+    ]
+
+    assert three_way_diff_using_hash(c_item, d_item) is True

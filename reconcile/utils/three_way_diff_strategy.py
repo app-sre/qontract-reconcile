@@ -70,6 +70,7 @@ def normalize_object(item: OR) -> OR:
 
 
 CPU_REGEX = re.compile(r"/.*/(requests|limits)/cpu$")
+EMPTY_ENV_VALUE = re.compile(r"/.*/env/[0-9]+/value$")
 
 
 def is_cpu_mutation(current: OR, desired: OR, patch: Mapping[str, Any]) -> bool:
@@ -82,6 +83,26 @@ def is_cpu_mutation(current: OR, desired: OR, patch: Mapping[str, Any]) -> bool:
     return False
 
 
+def is_empty_env_value(current: OR, desired: OR, patch: Mapping[str, Any]) -> bool:
+    """Check if the patch is an empty env value. Empty values are removed in the
+    current object
+
+    :param current: Current object
+    :param desired: Desired object
+    :param patch: JSON patch
+    :return: True if the change is not needed, False otherwise
+    """
+    pointer = patch["path"]
+    if (
+        patch["op"] == "add"
+        and patch["value"] == ""
+        and re.match(EMPTY_ENV_VALUE, pointer)
+    ):
+        return True
+
+    return False
+
+
 def is_valid_change(current: OR, desired: OR, patch: Mapping[str, Any]) -> bool:
     # Only consider added or replaced values on the Desired object
     if patch["op"] not in ["add", "replace"]:
@@ -90,6 +111,10 @@ def is_valid_change(current: OR, desired: OR, patch: Mapping[str, Any]) -> bool:
     # Check known mutations. Replaced values can happen if values have been
     # mutated by the API server
     if is_cpu_mutation(current, desired, patch):
+        return False
+
+    # Other cases
+    if is_empty_env_value(current, desired, patch):
         return False
 
     return True
