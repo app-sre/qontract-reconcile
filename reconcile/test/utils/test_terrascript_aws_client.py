@@ -2,6 +2,7 @@ import pytest
 from pytest_mock import MockerFixture
 from terrascript.resource import (
     aws_s3_bucket,
+    aws_s3_bucket_notification,
     aws_s3_bucket_policy,
 )
 
@@ -468,3 +469,54 @@ def test_populate_tf_resource_s3_with_bucket_policy_and_different_region(
     identifier, tf_resources = mocked_add_resources.call_args.args
     assert identifier == "a"
     assert expected_s3_bucket_policy_with_region in tf_resources
+
+
+@pytest.fixture()
+def s3_spec_with_event_notifications() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "s3-bucket",
+        "provider": "s3",
+        "event_notifications": [
+            {
+                "destination_type": "sqs",
+                "destination": "test-sqs",
+                "event_type": ["s3:ObjectCreated:*"],
+            }
+        ],
+        "region": "us-west-2",
+    }
+    return build_s3_spec(resource)
+
+
+@pytest.fixture()
+def expected_s3_bucket_notification() -> aws_s3_bucket_notification:
+    return aws_s3_bucket_notification(
+        "s3-bucket-event-notifications",
+        **{
+            "bucket": "${aws_s3_bucket.s3-bucket.id}",
+            "queue": [
+                {
+                    "id": "test-sqs",
+                    "queue_arn": "${data.aws_sqs_queue.test-sqs.arn}",
+                    "events": ["s3:ObjectCreated:*"],
+                }
+            ],
+        },
+    )
+
+
+def test_s3_bucket_event_notifications(
+    mocker: MockerFixture,
+    ts: tsclient.TerrascriptClient,
+    s3_spec_with_event_notifications: ExternalResourceSpec,
+    expected_s3_bucket_notification: aws_s3_bucket_notification,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(ts, "_multiregion_account", return_value=True)
+
+    ts.populate_tf_resource_s3(s3_spec_with_event_notifications)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+    assert expected_s3_bucket_notification in tf_resources
