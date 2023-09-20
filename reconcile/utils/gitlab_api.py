@@ -735,3 +735,10 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         project = self.get_project(repo_url)
         commits = project.commits.list(ref_name=ref, per_page=1)
         return commits[0].id
+
+    def repository_compare(
+        self, repo_url: str, ref_from: str, ref_to: str
+    ) -> list[dict[str, Any]]:
+        project = self.get_project(repo_url)
+        response = project.repository_compare(ref_from, ref_to)
+        return response.get("commits", [])
