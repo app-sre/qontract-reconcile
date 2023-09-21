@@ -4,6 +4,7 @@ query SaasFiles {
   saas_files: saas_files_v2 {
     path
     name
+    labels
     app {
       name
       parentApp {

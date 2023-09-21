@@ -124,6 +124,7 @@ query SaasFiles {
   saas_files: saas_files_v2 {
     path
     name
+    labels
     app {
       name
       parentApp {
@@ -534,6 +535,7 @@ class SaasFileV2_RoleV1(ConfiguredBaseModel):
 class SaasFileV2(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     app: AppV1 = Field(..., alias="app")
     pipelines_provider: Union[PipelinesProviderTektonV1, PipelinesProviderV1] = Field(
         ..., alias="pipelinesProvider"

@@ -389,6 +389,7 @@ class ManagedResourceName(Protocol):
 class SaasFile(HasParameters, HasSecretParameters, Protocol):
     path: str
     name: str
+    labels: Optional[dict[str, Any]]
     managed_resource_types: list[str]
     takeover: Optional[bool]
     deprecated: Optional[bool]

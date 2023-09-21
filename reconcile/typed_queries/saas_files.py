@@ -103,6 +103,7 @@ class SaasResourceTemplate(ConfiguredBaseModel):
 class SaasFile(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     app: AppV1 = Field(..., alias="app")
     pipelines_provider: Union[PipelinesProviderTektonV1, PipelinesProviderV1] = Field(
         ..., alias="pipelinesProvider"
