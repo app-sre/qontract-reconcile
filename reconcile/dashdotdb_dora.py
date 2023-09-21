@@ -102,7 +102,7 @@ class DeploymentDB:
         password: str,
     ):
         self.conn = connect(
-            f"host={host} port={port} dbname={name} user={user} password={password}"
+            host=host, port=port, dbname=name, user=user, password=password
         )
         LOG.info("Connected to DeploymentDB")
 
