@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 from types import TracebackType
 from typing import (
-    List,
     Optional,
     Type,
 )
@@ -85,5 +84,5 @@ class GithubRepositoryApi:
         return self._repo.get_commit(sha=ref).sha
 
     @retry()
-    def compare(self, commit_from: str, commit_to: str) -> List[Commit.Commit]:
+    def compare(self, commit_from: str, commit_to: str) -> list[Commit.Commit]:
         return self._repo.compare(commit_from, commit_to).commits

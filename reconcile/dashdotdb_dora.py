@@ -9,7 +9,10 @@ from datetime import (
 )
 from typing import (
     Any,
+    Iterable,
+    Mapping,
     Optional,
+    Self,
 )
 
 import requests
@@ -99,16 +102,14 @@ class DeploymentDB:
         password: str,
     ):
         self.conn = connect(
-            "host={} port={} dbname={} user={} password={}".format(
-                host, port, name, user, password
-            ),
+            f"host={host} port={port} dbname={name} user={user} password={password}"
         )
         LOG.info("Connected to DeploymentDB")
 
     def deployments(
         self,
         trigger_reason_pattern: str,
-        app_env_since_list: list[tuple[AppEnv, datetime]],
+        app_env_since_list: Iterable[tuple[AppEnv, datetime]],
     ) -> list[tuple[AppEnv, Deployment]]:
         deployments = []
         with self.conn.cursor() as cur:
@@ -253,7 +254,7 @@ class DashdotdbDORA(DashdotdbBase):
         self.gh_token = secret_reader.read(gh_instance["token"])
         self._gh_apis: dict[str, GithubRepositoryApi] = {}
 
-    def __enter__(self) -> "DashdotdbDORA":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
@@ -471,7 +472,7 @@ class DashdotdbDORA(DashdotdbBase):
             for commit in self.gh_api(repo).compare(rc.ref_from, rc.ref_to)
         ]
 
-    def post(self, data: dict[str, Any]) -> None:
+    def post(self, data: Mapping[str, Any]) -> None:
         endpoint = f"{self.dashdotdb_url}/api/v1/dora"
         response = self._do_post(endpoint, data)
         try:
@@ -488,24 +489,6 @@ class DashdotdbDORA(DashdotdbBase):
                 "Successfully posted to DashdotDB %s deployments.",
                 len(data["deployments"]),
             )
-
-    @staticmethod
-    def get_saas_file_summary(
-        saas_file: dict[str, Any]
-    ) -> dict[SummaryKey, SummaryEntry]:
-        summary: dict[SummaryKey, SummaryEntry] = {}
-
-        for rt in saas_file["resourceTemplates"]:
-            repo_url = rt["url"]
-            for target in rt["targets"]:
-                rt_name = rt["name"]
-                target_ns = target["namespace"]["$ref"]
-                target_ref = target["ref"]
-
-                summary[SummaryKey(rt_name, target_ns)] = SummaryEntry(
-                    repo_url, target_ref
-                )
-        return summary
 
     @staticmethod
     def build_deployment_post(

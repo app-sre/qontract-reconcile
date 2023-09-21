@@ -11,8 +11,6 @@ from reconcile.dashdotdb_dora import (
     Deployment,
     RepoChanges,
     SaasTarget,
-    SummaryEntry,
-    SummaryKey,
 )
 
 
@@ -90,47 +88,6 @@ def test_get_repo_ref_for_sha_none(mocker: MockerFixture):
     info = d.get_repo_ref_for_sha(saastarget, "sha")
 
     assert info == (None, None)
-
-
-def test_get_saas_file_summary():
-    saas_file = {
-        "resourceTemplates": [
-            {
-                "name": "rt10",
-                "url": "url0",
-                "ref": "ref0",
-                "targets": [
-                    {"namespace": {"$ref": "ns0"}, "ref": "ref0"},
-                    {"namespace": {"$ref": "ns3"}, "ref": "ref3"},
-                ],
-            },
-            {
-                "name": "rt11",
-                "url": "url1",
-                "ref": "ref1",
-                "targets": [
-                    {"namespace": {"$ref": "ns0"}, "ref": "ref0"},
-                    {"namespace": {"$ref": "ns1"}, "ref": "ref1"},
-                ],
-            },
-        ]
-    }
-    summary = DashdotdbDORA.get_saas_file_summary(saas_file)
-
-    assert summary == {
-        SummaryKey(rt_name="rt10", target_ns="ns0"): SummaryEntry(
-            repo_url="url0", target_ref="ref0"
-        ),
-        SummaryKey(rt_name="rt10", target_ns="ns3"): SummaryEntry(
-            repo_url="url0", target_ref="ref3"
-        ),
-        SummaryKey(rt_name="rt11", target_ns="ns0"): SummaryEntry(
-            repo_url="url1", target_ref="ref0"
-        ),
-        SummaryKey(rt_name="rt11", target_ns="ns1"): SummaryEntry(
-            repo_url="url1", target_ref="ref1"
-        ),
-    }
 
 
 def test_compare_gh(mocker: MockerFixture):
