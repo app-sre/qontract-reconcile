@@ -1116,10 +1116,6 @@ class OCM:  # pylint: disable=too-many-public-methods
             return results
 
         for item in items:
-            # API changed and now returns worker pool, but we do not want to manage that here
-            # APPSRE-8258
-            if item["id"] == "worker":
-                continue
             result = {k: v for k, v in item.items() if k in MACHINE_POOL_DESIRED_KEYS}
             results.append(result)
 
