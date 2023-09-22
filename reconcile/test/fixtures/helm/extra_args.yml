@@ -241,6 +241,8 @@ parameters:
   value: app-interface-sqs
 - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
   value: app-sre
+- name: AWS_CREDENTIALS_SECRET_NAME
+  value: app-interface-aws-credentials
 - name: APP_INTERFACE_PROJECT_ID
   value: "0"
 - name: USER_ID
@@ -248,6 +250,10 @@ parameters:
 - name: KUBE_SA_TOKEN_MOUNT_PATH
   value: '/var/run/secrets/kubernetes.io/serviceaccount'
 - name: KUBE_SA_TOKEN_FILENAME
+  value: 'token'
+- name: BOUND_KUBE_SA_TOKEN_MOUNT_PATH
+  value: '/var/run/secrets/openshift/serviceaccount'
+- name: BOUND_KUBE_SA_TOKEN_FILENAME
   value: 'token'
 - name: LOG_FILE
   value: "/fluentd/log/integration.log"

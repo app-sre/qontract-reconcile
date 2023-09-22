@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import time
 from collections.abc import (
@@ -1527,3 +1528,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         if versions := response["DBEngineVersions"]:
             return versions[0]["ValidUpgradeTarget"]
         return []
+
+
+def aws_config_file_path() -> str:
+    config_file_path = os.path.expanduser(
+        os.environ.get("AWS_CONFIG_FILE", "~/.aws/config")
+    )
+    if not os.path.isfile(config_file_path):
+        config_file_path = os.path.expanduser(
+            os.environ.get("AWS_SHARED_CREDENTIALS_FILE", "~/.aws/credentials")
+        )
+    return config_file_path
