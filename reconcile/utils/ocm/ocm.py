@@ -164,6 +164,10 @@ class OCMProductOsd(OCMProduct):
         SPEC_ATTR_VERSION,
         SPEC_ATTR_INITIAL_VERSION,
         SPEC_ATTR_HYPERSHIFT,
+        # TODO: Remove below fields after schema cleanup
+        SPEC_ATTR_INSTANCE_TYPE,
+        SPEC_ATTR_AUTOSCALE,
+        SPEC_ATTR_NODES,
     }
 
     @staticmethod
@@ -354,6 +358,10 @@ class OCMProductRosa(OCMProduct):
         SPEC_ATTR_HYPERSHIFT,
         SPEC_ATTR_SUBNET_IDS,
         SPEC_ATTR_AVAILABILITY_ZONES,
+        # TODO: Remove below fields after schema cleanup
+        SPEC_ATTR_INSTANCE_TYPE,
+        SPEC_ATTR_AUTOSCALE,
+        SPEC_ATTR_NODES,
     }
 
     @staticmethod

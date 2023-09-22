@@ -617,7 +617,7 @@ def test_ocm_rosa_update_cluster_with_machine_pools_change(
         ]
     }
     get_json_mock.return_value = {"items": [ocm_rosa_cluster_raw_spec]}
-    queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
+    queries_mock[1].return_value = [new_spec]
 
     with pytest.raises(SystemExit):
         occ.run(dry_run=False)

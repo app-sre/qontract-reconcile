@@ -99,7 +99,9 @@ class ClusterMachinePool(BaseModel):
 class OCMSpec(BaseModel):
     path: Optional[str]
     spec: Union[OSDClusterSpec, ROSAClusterSpec, OCMClusterSpec]
-    machine_pools: list[ClusterMachinePool] = Field(..., alias="machinePools")
+    machine_pools: list[ClusterMachinePool] = Field(
+        default_factory=list, alias="machinePools"
+    )
     network: OCMClusterNetwork
     domain: Optional[str]
     server_url: str = Field("", alias="serverUrl")
