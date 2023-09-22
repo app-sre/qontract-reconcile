@@ -18,7 +18,6 @@ import reconcile.utils.aws_helper as awsh
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.ocm.types import (
     ClusterMachinePool,
-    OCMClusterAutoscale,
     OCMClusterNetwork,
     OCMClusterSpec,
     OCMSpec,
@@ -263,7 +262,7 @@ class OCMProductOsd(OCMProduct):
                 f"No default machine pool found, id: {DEFAULT_OCM_MACHINE_POOL_ID}"
             )
 
-        spec = {
+        spec: dict[str, Any] = {
             "compute_machine_type": {"id": default_machine_pool.instance_type},
         }
         if default_machine_pool.autoscale is not None:
@@ -479,7 +478,7 @@ class OCMProductRosa(OCMProduct):
                 f"No default machine pool found, id: {DEFAULT_OCM_MACHINE_POOL_ID}"
             )
 
-        spec = {
+        spec: dict[str, Any] = {
             "compute_machine_type": {"id": default_machine_pool.instance_type},
         }
         if default_machine_pool.autoscale is not None:

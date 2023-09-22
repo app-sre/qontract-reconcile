@@ -311,10 +311,12 @@ class DesiredMachinePool(BaseModel):
         action: str,
         pool: ClusterMachinePoolV1,
     ) -> PoolHandler:
-        pool_class = NodePool if self.hypershift else MachinePool
+        pool_builder = (
+            NodePool.create_from_gql if self.hypershift else MachinePool.create_from_gql
+        )
         return PoolHandler(
             action=action,
-            pool=pool_class.create_from_gql(pool, self.cluster_name),
+            pool=pool_builder(pool, self.cluster_name),
         )
 
 
