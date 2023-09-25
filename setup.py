@@ -56,6 +56,7 @@ setup(
         "pydantic~=1.10.6",
         "MarkupSafe==2.1.1",
         "filetype~=1.2.0",
+        "psycopg2~=2.9",
         # this is really needed only in lint and type validations.
         # Is there any better place to put this in?
         "packaging~=23.1",

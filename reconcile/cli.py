@@ -2424,6 +2424,18 @@ def dashdotdb_slo(ctx, thread_pool_size):
     run_integration(reconcile.dashdotdb_slo, ctx.obj, thread_pool_size)
 
 
+@integration.command(short_help="Collects dora metrics.")
+@gitlab_project_id
+@threaded(default=5)
+@click.pass_context
+def dashdotdb_dora(ctx, gitlab_project_id, thread_pool_size):
+    import reconcile.dashdotdb_dora
+
+    run_integration(
+        reconcile.dashdotdb_dora, ctx.obj, gitlab_project_id, thread_pool_size
+    )
+
+
 @integration.command(short_help="Tests prometheus rules using promtool.")
 @threaded(default=5)
 @binary(["promtool"])
