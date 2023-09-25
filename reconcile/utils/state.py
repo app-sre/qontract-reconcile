@@ -101,7 +101,7 @@ class S3ProfileBasedStateConfiguration(S3StateConfiguration):
 
 def aquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfiguration:
     """
-    Find the settings for the app-interface state provider as follows:
+    Finds the settings for the app-interface state provider in the following order:
 
     * env variables pointing to a bucket and an AWS profile
     * env variables pointing to static credentials
@@ -215,12 +215,12 @@ def aquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurati
         )
 
     raise StateInaccessibleException(
-        "app-interface state must be configured in order to use stateful integrations. "
+        "app-interface state must be configured to use stateful integrations. "
         "use one of the following options to provide state config: "
-        "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_AWS_PROFILE and an AWS config or creds file is available \n"
+        "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_AWS_PROFILE and AWS_CONFIG (hosting the requested profile) \n"
         "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_VAULT_SECRET (and optionally APP_INTERFACE_STATE_VAULT_SECRET_VERSION) \n"
         "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_BUCKET_ACCESS_KEY_ID, APP_INTERFACE_STATE_BUCKET_ACCESS_KEY_ID \n"
-        "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION and APP_INTERFACE_STATE_BUCKET_ACCOUNT if the mentioned AWS account is present in app-interface"
+        "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION and APP_INTERFACE_STATE_BUCKET_ACCOUNT if the mentioned AWS account is present in app-interface \n"
         "* state settings in app-interface-settings-1.yml"
     )
 

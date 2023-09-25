@@ -296,7 +296,7 @@ objects:
                 key: aws.region
                 optional: true
           - name: AWS_CONFIG_FILE
-            value: /aws/credentials
+            value: /aws/config
           - name: APP_INTERFACE_STATE_AWS_PROFILE
             valueFrom:
               secretKeyRef:
@@ -427,7 +427,7 @@ objects:
           - name: qontract-reconcile-sa-token
             mountPath: ${KUBE_SA_TOKEN_MOUNT_PATH}
           {{- if $integration.state }}
-          - name: aws-credentials
+          - name: aws-config
             mountPath: /aws
           - name: bound-qontract-reconcile-sa-token
             mountPath: ${BOUND_KUBE_SA_TOKEN_MOUNT_PATH}
@@ -505,9 +505,9 @@ objects:
                 audience: openshift
                 expirationSeconds: 1800
                 path: ${BOUND_KUBE_SA_TOKEN_FILENAME}
-        - name: aws-credentials
+        - name: aws-config
           secret:
-            secretName: ${AWS_CREDENTIALS_SECRET_NAME}
+            secretName: ${AWS_CONFIG_SECRET_NAME}
             optional: true
         {{- end }}
         - name: qontract-reconcile-toml
@@ -709,8 +709,8 @@ parameters:
   value: app-interface-sqs
 - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
   value: app-sre
-- name: AWS_CREDENTIALS_SECRET_NAME
-  value: app-interface-aws-credentials
+- name: AWS_CONFIG_SECRET_NAME
+  value: app-interface-aws-config
 - name: APP_INTERFACE_PROJECT_ID
   value: "0"
 - name: USER_ID
