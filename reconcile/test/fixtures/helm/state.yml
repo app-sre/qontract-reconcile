@@ -176,7 +176,7 @@ objects:
           - name: aws-config
             mountPath: /aws
           - name: bound-qontract-reconcile-sa-token
-            mountPath: ${BOUND_KUBE_SA_TOKEN_MOUNT_PATH}
+            mountPath: /var/run/secrets/openshift/serviceaccount
             readOnly: true
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
@@ -222,7 +222,7 @@ objects:
             - serviceAccountToken:
                 audience: openshift
                 expirationSeconds: 1800
-                path: ${BOUND_KUBE_SA_TOKEN_FILENAME}
+                path: token
         - name: aws-config
           secret:
             secretName: ${AWS_CONFIG_SECRET_NAME}
@@ -286,10 +286,6 @@ parameters:
 - name: KUBE_SA_TOKEN_MOUNT_PATH
   value: '/var/run/secrets/kubernetes.io/serviceaccount'
 - name: KUBE_SA_TOKEN_FILENAME
-  value: 'token'
-- name: BOUND_KUBE_SA_TOKEN_MOUNT_PATH
-  value: '/var/run/secrets/openshift/serviceaccount'
-- name: BOUND_KUBE_SA_TOKEN_FILENAME
   value: 'token'
 - name: LOG_FILE
   value: "/fluentd/log/integration.log"
