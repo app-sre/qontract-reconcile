@@ -487,7 +487,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         if resource_names:
             items = []
             try:
-                resource_cmd = cmd + ' '.join(resource_names)
+                resource_cmd = cmd + resource_names
                 items_list = self._run_json(resource_cmd, allow_not_found=True)
             except ForbiddenError:
                 for resource_name in resource_names:
