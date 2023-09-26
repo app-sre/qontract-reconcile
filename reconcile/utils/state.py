@@ -134,7 +134,7 @@ def aquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurati
         and aws_config_file_path()
         and state_bucket_aws_profile
     ):
-        logging.info(f"access state via AWS profile {state_bucket_aws_profile}")
+        logging.debug(f"access state via AWS profile {state_bucket_aws_profile}")
         return S3ProfileBasedStateConfiguration(
             bucket=state_bucket_name,
             region=state_bucket_region,
