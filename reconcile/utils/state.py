@@ -95,7 +95,7 @@ class S3ProfileBasedStateConfiguration(S3StateConfiguration):
     profile: str
 
     def build_client(self) -> S3Client:
-        session = (boto3.Session(profile_name=self.profile, region_name=self.region),)
+        session = boto3.Session(profile_name=self.profile, region_name=self.region)
         return session.client("s3")
 
 
