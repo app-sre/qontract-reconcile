@@ -4,6 +4,7 @@ from collections.abc import (
     Callable,
     Iterable,
     Mapping,
+    Sequence,
 )
 from typing import (
     Any,
@@ -145,16 +146,16 @@ def run(
     thread_pool_size: int = 10,
     internal: Optional[bool] = None,
     use_jump_host: bool = True,
-    cluster_name: Optional[str] = None,
-    namespace_name: Optional[str] = None,
+    cluster_name: Optional[Sequence[str]] = None,
+    namespace_name: Optional[Sequence[str]] = None,
     defer: Optional[Callable] = None,
 ) -> None:
     all_namespaces = get_namespaces_minimal()
     shard_namespaces, duplicates = get_shard_namespaces(all_namespaces)
     namespaces = filter_namespaces_by_cluster_and_namespace(
         namespaces=shard_namespaces,
-        cluster_name=cluster_name,
-        namespace_name=namespace_name,
+        cluster_names=cluster_name,
+        namespace_names=namespace_name,
     )
 
     desired_state = get_desired_state(namespaces)
