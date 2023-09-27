@@ -105,7 +105,8 @@ def run(
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
-    all_saas_files = get_saas_files()
+    if not all_saas_files:
+        all_saas_files = get_saas_files()
     saas_files = get_saas_files(saas_file_name, env_name)
     if not saas_files:
         logging.error("no saas files found")
