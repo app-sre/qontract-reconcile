@@ -93,3 +93,62 @@ jenkins:
       region: "us-east-1"
       restrictUsage: true
       scaleExecutorsByWeight: false
+  - eC2Fleet:
+      addNodeOnlyIfRunning: true
+      alwaysReconnect: true
+      cloudStatusIntervalSec: 10
+      computerConnector:
+        sSHConnector:
+          credentialsId: "jenkins"
+          launchTimeoutSeconds: 60
+          maxNumRetries: 10
+          port: 22
+          retryWaitTime: 15
+          sshHostKeyVerificationStrategy: "nonVerifyingKeyVerificationStrategy"
+      disableTaskResubmit: false
+      fleet: "test-remove-sshConnector-attrs"
+      fsRoot: "/var/lib/jenkins"
+      idleMinutes: 30
+      initOnlineCheckIntervalSec: 15
+      initOnlineTimeoutSec: 180
+      labelString: "rhel7"
+      maxSize: 1
+      maxTotalUses: -1
+      minSize: 1
+      minSpareSize: 0
+      name: "test-remove-sshConnector-attrs"
+      noDelayProvision: false
+      numExecutors: 3
+      oldId: "a7833fe6-f643-4d5f-8178-a7109fecc9b7"
+      privateIpUsed: true
+      region: "us-east-1"
+      restrictUsage: true
+      scaleExecutorsByWeight: false
+  - eC2Fleet:
+      addNodeOnlyIfRunning: true
+      alwaysReconnect: true
+      cloudStatusIntervalSec: 10
+      computerConnector:
+        sSHConnector:
+          credentialsId: "jenkins"
+          port: 22
+          sshHostKeyVerificationStrategy: "nonVerifyingKeyVerificationStrategy"
+      disableTaskResubmit: false
+      fleet: "test-add-sshConnector-JVMOpts"
+      fsRoot: "/var/lib/jenkins"
+      idleMinutes: 30
+      initOnlineCheckIntervalSec: 15
+      initOnlineTimeoutSec: 180
+      labelString: "rhel7"
+      maxSize: 1
+      maxTotalUses: -1
+      minSize: 1
+      minSpareSize: 0
+      name: "test-add-sshConnector-JVMOpts"
+      noDelayProvision: false
+      numExecutors: 3
+      oldId: "a7833fe6-f643-4d5f-8178-a7109fecc9b7"
+      privateIpUsed: true
+      region: "us-east-1"
+      restrictUsage: true
+      scaleExecutorsByWeight: false
