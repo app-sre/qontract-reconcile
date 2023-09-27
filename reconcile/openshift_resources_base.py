@@ -581,7 +581,8 @@ def fetch_provider_vault_secret(
         if k.lower().endswith(QONTRACT_BASE64_SUFFIX):
             k = k[: -len(QONTRACT_BASE64_SUFFIX)]
             v = v.replace("\n", "")
-        v = base64_encode_secret_field_value(v)
+        else:
+            v = base64_encode_secret_field_value(v)
         body.setdefault("data", {})[k] = v
 
     try:
