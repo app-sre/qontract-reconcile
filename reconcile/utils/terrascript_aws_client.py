@@ -255,6 +255,12 @@ SUPPORTED_ALB_LISTENER_RULE_CONDITION_TYPE_MAPPING = {
     "source-ip": "source_ip",
 }
 
+DEFAULT_TAGS = {
+    "tags": {
+        "app": "app-sre-infra",
+    },
+}
+
 
 class StateInaccessibleException(Exception):
     pass
@@ -382,6 +388,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         region=region,
                         alias=region,
                         skip_region_validation=True,
+                        default_tags=DEFAULT_TAGS,
                     )
 
             # Add default region, which will be in resourcesDefaultRegion
@@ -391,6 +398,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 version=self.versions.get(name),
                 region=config["resourcesDefaultRegion"],
                 skip_region_validation=True,
+                default_tags=DEFAULT_TAGS,
             )
 
             # the time provider can be removed if all AWS accounts
@@ -875,6 +883,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     alias=alias,
                     assume_role={"role_arn": assume_role},
                     skip_region_validation=True,
+                    default_tags=DEFAULT_TAGS,
                 )
 
     def populate_route53(
