@@ -99,6 +99,7 @@ def run(
     env_name: Optional[str] = None,
     trigger_integration: Optional[str] = None,
     trigger_reason: Optional[str] = None,
+    all_saas_files: Optional[list[SaasFile]] = None,
     defer: Optional[Callable] = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()

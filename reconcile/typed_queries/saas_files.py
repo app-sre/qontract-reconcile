@@ -234,8 +234,11 @@ def get_saas_files(
     if not namespaces:
         namespaces = namespaces_query(query_func).namespaces or []
 
+    data_saas_files = list(data.saas_files or [])
+    if name:
+        data_saas_files = [sf for sf in data_saas_files if sf.name == name]
     # resolve namespaceSelectors to real namespaces
-    for saas_file_gql in list(data.saas_files or []):
+    for saas_file_gql in data_saas_files:
         for rt_gql in saas_file_gql.resource_templates:
             for target_gql in rt_gql.targets[:]:
                 # either namespace or namespaceSelector must be set
