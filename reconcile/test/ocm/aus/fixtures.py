@@ -11,7 +11,9 @@ from reconcile.gql_definitions.fragments.aus_organization import (
     AUSOCMOrganization,
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1,
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1,
-    OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1,
+)
+from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
+    MinimalOCMOrganization,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.upgrade_policy import (
@@ -80,17 +82,14 @@ def build_organization(
                 ),
                 orgId=other_org_id,
                 name=other_org_id,
-                publishVersionData=[
-                    OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(
-                        orgId=org_id
-                    )
-                ]
+                publishVersionData=[MinimalOCMOrganization(orgId=org_id, name=org_name)]
                 if valid_peering
                 else None,
             )
             for other_env, other_org_id, valid_peering in inherit_version_data_from_org_ids
             or []
         ],
+        publishVersionData=[],
         accessTokenClientId=None,
         accessTokenUrl=None,
         accessTokenClientSecret=None,

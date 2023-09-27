@@ -41,6 +41,9 @@ fragment VaultSecret on VaultSecret_v1 {
 query OcmSubscriptionLabel {
   clusters: clusters_v1 {
     name
+    spec {
+      id
+    }
     ocm {
       environment {
         ...OCMEnvironment
@@ -63,6 +66,10 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
+class ClusterSpecV1(ConfiguredBaseModel):
+    q_id: Optional[str] = Field(..., alias="id")
+
+
 class OpenShiftClusterManagerV1(ConfiguredBaseModel):
     environment: OCMEnvironment = Field(..., alias="environment")
     org_id: str = Field(..., alias="orgId")
@@ -74,6 +81,7 @@ class DisableClusterAutomationsV1(ConfiguredBaseModel):
 
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
     ocm_subscription_labels: Optional[Json] = Field(..., alias="ocmSubscriptionLabels")

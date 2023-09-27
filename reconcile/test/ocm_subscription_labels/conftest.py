@@ -11,17 +11,22 @@ from typing import (
 import pytest
 from pytest_mock import MockerFixture
 
+from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.ocm_subscription_labels.clusters import ClusterV1
 from reconcile.ocm_subscription_labels.integration import (
-    ClusterLabelState,
-    ClusterStates,
-    EnvWithClusters,
+    ClusterSubscriptionLabelSource,
     OcmLabelsIntegration,
     OcmLabelsIntegrationParams,
+    init_cluster_subscription_label_source,
+)
+from reconcile.ocm_subscription_labels.label_sources import (
+    ClusterRef,
+    LabelOwnerRef,
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.test.ocm.fixtures import build_ocm_cluster
 from reconcile.test.ocm.test_utils_ocm_labels import build_subscription_label
+from reconcile.utils.helpers import flatten
 from reconcile.utils.ocm.base import (
     ClusterDetails,
     OCMCapability,
@@ -82,38 +87,26 @@ def ocm_base_client(mocker: MockerFixture) -> OCMBaseClient:
 
 
 @pytest.fixture
-def envs(
-    clusters: Sequence[ClusterV1],
-    gql_class_factory: Callable,
-    ocm_base_client: OCMBaseClient,
-) -> list[ClusterV1]:
+def envs(gql_class_factory: Callable) -> list[OCMEnvironment]:
     return [
         gql_class_factory(
-            EnvWithClusters,
+            OCMEnvironment,
             {
-                "env": {
-                    "name": "ocm-prod",
-                    "accessTokenClientSecret": {
-                        "field": "client_secret",
-                        "path": "path/to/client_secret",
-                    },
+                "name": "ocm-prod",
+                "accessTokenClientSecret": {
+                    "field": "client_secret",
+                    "path": "path/to/client_secret",
                 },
-                "ocm_api": ocm_base_client,
-                "clusters": clusters[0:1],
             },
         ),
         gql_class_factory(
-            EnvWithClusters,
+            OCMEnvironment,
             {
-                "env": {
-                    "name": "ocm-stage",
-                    "accessTokenClientSecret": {
-                        "field": "client_secret",
-                        "path": "path/to/client_secret",
-                    },
+                "name": "ocm-stage",
+                "accessTokenClientSecret": {
+                    "field": "client_secret",
+                    "path": "path/to/client_secret",
                 },
-                "ocm_api": ocm_base_client,
-                "clusters": clusters[1:],
             },
         ),
     ]
@@ -126,7 +119,7 @@ def build_cluster_details() -> Callable:
         org_id: str = "org_id",
         subs_labels: Optional[list[tuple[str, str]]] = None,
     ) -> ClusterDetails:
-        ocm_cluster = build_ocm_cluster(name)
+        ocm_cluster = build_ocm_cluster(name, subs_id=f"{name}-sub-id")
         return ClusterDetails(
             ocm_cluster=ocm_cluster,
             organization_id=org_id,
@@ -175,120 +168,64 @@ def ocm_clusters(build_cluster_details: Callable) -> list[ClusterDetails]:
 
 
 @pytest.fixture
-def current_state(
-    gql_class_factory: Callable,
+def subscription_label_current_state(
     ocm_clusters: Sequence[ClusterDetails],
-    ocm_base_client: OCMBaseClient,
-) -> ClusterStates:
+) -> dict[LabelOwnerRef, dict[str, str]]:
     return {
-        "cluster-1": gql_class_factory(
-            ClusterLabelState,
-            {
-                "env": {
-                    "name": "ocm-prod",
-                    "accessTokenClientSecret": {
-                        "field": "client_secret",
-                        "path": "path/to/client_secret",
-                    },
-                },
-                "ocm_api": ocm_base_client,
-                "cluster_details": ocm_clusters[0],
-                "labels": {
-                    "my-label-prefix.to-be-changed": "disabled",
-                    "my-label-prefix.to-be-removed": "enabled",
-                },
-            },
-        ),
-        "cluster-2": gql_class_factory(
-            ClusterLabelState,
-            {
-                "env": {
-                    "name": "ocm-stage",
-                    "accessTokenClientSecret": {
-                        "field": "client_secret",
-                        "path": "path/to/client_secret",
-                    },
-                },
-                "ocm_api": ocm_base_client,
-                "cluster_details": ocm_clusters[1],
-                "labels": {},
-            },
-        ),
-        "cluster-3": gql_class_factory(
-            ClusterLabelState,
-            {
-                "env": {
-                    "name": "ocm-stage",
-                    "accessTokenClientSecret": {
-                        "field": "client_secret",
-                        "path": "path/to/client_secret",
-                    },
-                },
-                "ocm_api": ocm_base_client,
-                "cluster_details": ocm_clusters[2],
-                "labels": {
-                    "my-label-prefix.to-be-removed": "enabled",
-                },
-            },
-        ),
+        ClusterRef(
+            cluster_id=ocm_clusters[0].ocm_cluster.id,
+            org_id=ocm_clusters[0].organization_id,
+            ocm_env="ocm-prod",
+            name=ocm_clusters[0].ocm_cluster.name,
+            label_container_href=f"{ocm_clusters[0].ocm_cluster.subscription.href}/labels",
+        ): {
+            "my-label-prefix.to-be-changed": "disabled",
+            "my-label-prefix.to-be-removed": "enabled",
+        },
+        ClusterRef(
+            cluster_id=ocm_clusters[1].ocm_cluster.id,
+            org_id=ocm_clusters[1].organization_id,
+            ocm_env="ocm-stage",
+            name=ocm_clusters[1].ocm_cluster.name,
+            label_container_href=f"{ocm_clusters[1].ocm_cluster.subscription.href}/labels",
+        ): {},
+        ClusterRef(
+            cluster_id=ocm_clusters[2].ocm_cluster.id,
+            org_id=ocm_clusters[2].organization_id,
+            ocm_env="ocm-stage",
+            name=ocm_clusters[2].ocm_cluster.name,
+            label_container_href=f"{ocm_clusters[2].ocm_cluster.subscription.href}/labels",
+        ): {
+            "my-label-prefix.to-be-removed": "enabled",
+        },
     }
 
 
 @pytest.fixture
-def desired_state(
-    gql_class_factory: Callable,
-    ocm_clusters: Sequence[ClusterDetails],
-    ocm_base_client: OCMBaseClient,
-) -> ClusterStates:
-    return {
-        "cluster-1": gql_class_factory(
-            ClusterLabelState,
-            {
-                "env": {
-                    "name": "ocm-prod",
-                    "accessTokenClientSecret": {
-                        "field": "client_secret",
-                        "path": "path/to/client_secret",
-                    },
-                },
-                "ocm_api": ocm_base_client,
-                "cluster_details": ocm_clusters[0],
-                "labels": {
-                    "my-label-prefix.to-be-changed": "enabled",
-                    "my-label-prefix.to-be-added": "enabled",
-                },
-            },
-        ),
-        "cluster-2": gql_class_factory(
-            ClusterLabelState,
-            {
-                "env": {
-                    "name": "ocm-stage",
-                    "accessTokenClientSecret": {
-                        "field": "client_secret",
-                        "path": "path/to/client_secret",
-                    },
-                },
-                "ocm_api": ocm_base_client,
-                "cluster_details": ocm_clusters[1],
-                "labels": {},
-            },
-        ),
-        "cluster-3": gql_class_factory(
-            ClusterLabelState,
-            {
-                "env": {
-                    "name": "ocm-stage",
-                    "accessTokenClientSecret": {
-                        "field": "client_secret",
-                        "path": "path/to/client_secret",
-                    },
-                },
-                "ocm_api": ocm_base_client,
-                "cluster_details": ocm_clusters[2],
-                "labels": {
-                    "my-label-prefix.to-be-added": "enabled",
-                },
-            },
-        ),
+def cluster_file_subscription_label_source(
+    clusters: list[ClusterV1],
+    ocm_subscription_labels: OcmLabelsIntegration,
+) -> ClusterSubscriptionLabelSource:
+    return init_cluster_subscription_label_source(
+        clusters, ocm_subscription_labels.params.managed_label_prefixes
+    )
+
+
+@pytest.fixture
+def subscription_label_desired_state(
+    clusters: Sequence[ClusterV1],
+) -> dict[LabelOwnerRef, dict[str, str]]:
+    desired: dict[LabelOwnerRef, dict[str, str]] = {
+        ClusterRef(
+            cluster_id=cluster.spec.q_id,
+            org_id=cluster.ocm.org_id,
+            ocm_env=cluster.ocm.environment.name,
+            name=cluster.name,
+            label_container_href=None,
+        ): flatten(cluster.ocm_subscription_labels or {})
+        for cluster in clusters
+        if cluster.spec and cluster.spec.q_id and cluster.ocm  # mypy again :(
     }
+    if len(clusters) != len(desired):
+        raise RuntimeError("not all clusers had spec and ocm. should not happen")
+    return desired

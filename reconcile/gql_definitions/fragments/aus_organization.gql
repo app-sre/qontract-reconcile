@@ -32,8 +32,11 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
       name
     }
     publishVersionData {
-      orgId
+      ... MinimalOCMOrganization
     }
+  }
+  publishVersionData {
+    ... MinimalOCMOrganization
   }
   sectors {
     name

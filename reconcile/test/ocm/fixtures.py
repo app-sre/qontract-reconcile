@@ -127,7 +127,9 @@ def build_ocm_cluster(
         external_id=f"{name}_external_id",
         name=name,
         display_name=f"{name}_display_name",
-        subscription=OCMModelLink(id=subs_id),
+        subscription=OCMModelLink(
+            id=subs_id, href=f"/api/accounts_mgmt/v1/subscriptions/{subs_id}"
+        ),
         region=OCMModelLink(id="us-east-1"),
         product=OCMModelLink(id=cluster_product),
         cloud_provider=OCMModelLink(id="aws"),
