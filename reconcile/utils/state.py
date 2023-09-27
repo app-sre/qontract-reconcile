@@ -60,7 +60,7 @@ def init_state(
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
-    s3_settings = aquire_state_settings(secret_reader)
+    s3_settings = acquire_state_settings(secret_reader)
 
     return State(
         integration=integration,
@@ -99,14 +99,14 @@ class S3ProfileBasedStateConfiguration(S3StateConfiguration):
         return session.client("s3")
 
 
-def aquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfiguration:
+def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfiguration:
     """
     Finds the settings for the app-interface state provider in the following order:
 
     * env variables pointing to a bucket and an AWS profile
     * env variables pointing to static credentials
     * env variables pointing to a bucket and a vault secret for creds
-    * env variables pointing to a bucket and an AWS account from app-interface for creds
+    * env variables pointing to a bucket and ann AWS account from app-interface for creds
     * state settings in app-interface-settings-1.yml
 
     If no settings can be found, a StateInaccessibleException is raised.
@@ -127,7 +127,7 @@ def aquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurati
 
     state_bucket_aws_profile = os.environ.get("APP_INTERFACE_STATE_AWS_PROFILE")
 
-    # if an AWS config file can be found an a profile for state usage is set ...
+    # if an AWS config file can be found and a profile for state usage is set ...
     if (
         state_bucket_name
         and state_bucket_region
@@ -219,7 +219,7 @@ def aquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurati
         "use one of the following options to provide state config: "
         "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_AWS_PROFILE and AWS_CONFIG (hosting the requested profile) \n"
         "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_VAULT_SECRET (and optionally APP_INTERFACE_STATE_VAULT_SECRET_VERSION) \n"
-        "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_BUCKET_ACCESS_KEY_ID, APP_INTERFACE_STATE_BUCKET_ACCESS_KEY_ID \n"
+        "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_BUCKET_ACCESS_KEY_ID, APP_INTERFACE_STATE_BUCKET_SECRET_ACCESS_KEY \n"
         "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION and APP_INTERFACE_STATE_BUCKET_ACCOUNT if the mentioned AWS account is present in app-interface \n"
         "* state settings in app-interface-settings-1.yml"
     )

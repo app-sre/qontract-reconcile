@@ -21,7 +21,7 @@ from reconcile.utils.state import (
     S3ProfileBasedStateConfiguration,
     State,
     StateInaccessibleException,
-    aquire_state_settings,
+    acquire_state_settings,
 )
 
 BUCKET = "some-bucket"
@@ -192,12 +192,12 @@ def test_exists_for_missing_bucket(s3_client: S3Client) -> None:
 #
 
 
-def test_aquire_state_settings_env_vault(monkeypatch: MonkeyPatch) -> None:
+def test_acquire_state_settings_env_vault(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", BUCKET)
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_REGION", REGION)
     monkeypatch.setenv("APP_INTERFACE_STATE_VAULT_SECRET", VAULT_SECRET_PATH)
 
-    state_settings = aquire_state_settings(secret_reader=MockAWSCredsSecretReader())
+    state_settings = acquire_state_settings(secret_reader=MockAWSCredsSecretReader())
     assert state_settings.bucket == BUCKET
     assert state_settings.region == REGION
     assert isinstance(state_settings, S3CredsBasedStateConfiguration)
@@ -205,7 +205,7 @@ def test_aquire_state_settings_env_vault(monkeypatch: MonkeyPatch) -> None:
     assert state_settings.secret_access_key == AWS_SECRET_ACCESS_KEY
 
 
-def test_aquire_state_settings_env_account(
+def test_acquire_state_settings_env_account(
     mocker: MockerFixture, monkeypatch: MonkeyPatch
 ) -> None:
     get_aws_account_by_name_mock = mocker.patch.object(
@@ -225,7 +225,7 @@ def test_aquire_state_settings_env_account(
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", BUCKET)
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", ACCOUNT)
 
-    state_settings = aquire_state_settings(secret_reader=MockAWSCredsSecretReader())
+    state_settings = acquire_state_settings(secret_reader=MockAWSCredsSecretReader())
     assert state_settings.bucket == BUCKET
     assert state_settings.region == REGION
     assert isinstance(state_settings, S3CredsBasedStateConfiguration)
@@ -233,7 +233,7 @@ def test_aquire_state_settings_env_account(
     assert state_settings.secret_access_key == AWS_SECRET_ACCESS_KEY
 
 
-def test_aquire_state_settings_env_missing_account(
+def test_acquire_state_settings_env_missing_account(
     mocker: MockerFixture, monkeypatch: MonkeyPatch
 ) -> None:
     get_aws_account_by_name_mock = mocker.patch.object(
@@ -245,10 +245,10 @@ def test_aquire_state_settings_env_missing_account(
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", ACCOUNT)
 
     with pytest.raises(StateInaccessibleException):
-        aquire_state_settings(secret_reader=ConfigSecretReader())
+        acquire_state_settings(secret_reader=ConfigSecretReader())
 
 
-def test_aquire_state_settings_env_creds(monkeypatch: MonkeyPatch) -> None:
+def test_acquire_state_settings_env_creds(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", BUCKET)
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_REGION", REGION)
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCESS_KEY_ID", AWS_ACCESS_KEY_ID)
@@ -256,7 +256,7 @@ def test_aquire_state_settings_env_creds(monkeypatch: MonkeyPatch) -> None:
         "APP_INTERFACE_STATE_BUCKET_SECRET_ACCESS_KEY", AWS_SECRET_ACCESS_KEY
     )
 
-    state_settings = aquire_state_settings(secret_reader=MockAWSCredsSecretReader())
+    state_settings = acquire_state_settings(secret_reader=MockAWSCredsSecretReader())
     assert state_settings.bucket == BUCKET
     assert state_settings.region == REGION
     assert isinstance(state_settings, S3CredsBasedStateConfiguration)
@@ -264,7 +264,7 @@ def test_aquire_state_settings_env_creds(monkeypatch: MonkeyPatch) -> None:
     assert state_settings.secret_access_key == AWS_SECRET_ACCESS_KEY
 
 
-def test_aquire_state_settings_env_profile(
+def test_acquire_state_settings_env_profile(
     mocker: MockerFixture, monkeypatch: MonkeyPatch
 ) -> None:
     get_aws_account_by_name_mock = mocker.patch.object(
@@ -277,14 +277,14 @@ def test_aquire_state_settings_env_profile(
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_REGION", REGION)
     monkeypatch.setenv("APP_INTERFACE_STATE_AWS_PROFILE", "profile")
 
-    state_settings = aquire_state_settings(secret_reader=MockAWSCredsSecretReader())
+    state_settings = acquire_state_settings(secret_reader=MockAWSCredsSecretReader())
     assert state_settings.bucket == BUCKET
     assert state_settings.region == REGION
     assert isinstance(state_settings, S3ProfileBasedStateConfiguration)
     assert state_settings.profile == profile
 
 
-def test_aquire_state_settings_ai_settings(mocker: MockerFixture) -> None:
+def test_acquire_state_settings_ai_settings(mocker: MockerFixture) -> None:
     get_aws_account_by_name_mock = mocker.patch.object(
         state, "get_app_interface_state_settings", autospec=True
     )
@@ -300,7 +300,7 @@ def test_aquire_state_settings_ai_settings(mocker: MockerFixture) -> None:
         ),
     )
 
-    state_settings = aquire_state_settings(secret_reader=MockAWSCredsSecretReader())
+    state_settings = acquire_state_settings(secret_reader=MockAWSCredsSecretReader())
     assert state_settings.bucket == BUCKET
     assert state_settings.region == REGION
     assert isinstance(state_settings, S3CredsBasedStateConfiguration)
@@ -308,11 +308,11 @@ def test_aquire_state_settings_ai_settings(mocker: MockerFixture) -> None:
     assert state_settings.secret_access_key == AWS_SECRET_ACCESS_KEY
 
 
-def test_aquire_state_settings_no_settings(mocker: MockerFixture) -> None:
+def test_acquire_state_settings_no_settings(mocker: MockerFixture) -> None:
     get_aws_account_by_name_mock = mocker.patch.object(
         state, "get_app_interface_state_settings", autospec=True
     )
     get_aws_account_by_name_mock.return_value = None
 
     with pytest.raises(StateInaccessibleException):
-        aquire_state_settings(secret_reader=MockAWSCredsSecretReader())
+        acquire_state_settings(secret_reader=MockAWSCredsSecretReader())
