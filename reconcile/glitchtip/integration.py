@@ -129,6 +129,8 @@ def fetch_desired_state(
                         )
                     )
 
+            # remove duplicate users
+            users = list({user.email: user for user in users}.values())
             team = Team(name=glitchtip_team.name, users=users)
             project.teams.append(team)
             if team not in organization.teams:
