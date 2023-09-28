@@ -236,13 +236,13 @@
             "slug": "externals",
             "users": [
               {
-                "email": "pike@nasa.com",
+                "email": "uhura@nasa.com",
                 "pending": false,
                 "pk": null,
-                "role": "member"
+                "role": "admin"
               },
               {
-                "email": "uhura@nasa.com",
+                "email": "pike@nasa.com",
                 "pending": false,
                 "pk": null,
                 "role": "member"
@@ -298,13 +298,13 @@
         "slug": "externals",
         "users": [
           {
-            "email": "pike@nasa.com",
+            "email": "uhura@nasa.com",
             "pending": false,
             "pk": null,
-            "role": "member"
+            "role": "admin"
           },
           {
-            "email": "uhura@nasa.com",
+            "email": "pike@nasa.com",
             "pending": false,
             "pk": null,
             "role": "member"
@@ -338,13 +338,13 @@
         "role": "member"
       },
       {
-        "email": "pike@nasa.com",
+        "email": "uhura@nasa.com",
         "pending": false,
         "pk": null,
-        "role": "member"
+        "role": "admin"
       },
       {
-        "email": "uhura@nasa.com",
+        "email": "pike@nasa.com",
         "pending": false,
         "pk": null,
         "role": "member"

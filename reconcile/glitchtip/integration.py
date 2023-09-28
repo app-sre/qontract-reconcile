@@ -121,16 +121,14 @@ def fetch_desired_state(
             # Get users via ldap
             for ldap_group in glitchtip_team.ldap_groups or []:
                 for member in internal_groups_client.group(ldap_group).members:
-                    users.append(
-                        User(
-                            email=f"{member.id}@{mail_domain}",
-                            role=glitchtip_team.members_organization_role
-                            or DEFAULT_MEMBER_ROLE,
-                        )
+                    user = User(
+                        email=f"{member.id}@{mail_domain}",
+                        role=glitchtip_team.members_organization_role
+                        or DEFAULT_MEMBER_ROLE,
                     )
+                    if user not in users:
+                        users.append(user)
 
-            # remove duplicate users
-            users = list({user.email: user for user in users}.values())
             team = Team(name=glitchtip_team.name, users=users)
             project.teams.append(team)
             if team not in organization.teams:

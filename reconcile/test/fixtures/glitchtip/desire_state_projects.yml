@@ -141,7 +141,14 @@
       ldapGroups:
         - from-emea
       membersOrganizationRole: member
-      roles: []
+      roles:
+        - glitchtip_roles:
+            - organization:
+                name: NASA
+              role: admin
+          users:
+            - org_username: uhura
+              name: uhura
   organization:
     name: NASA
     instance:
