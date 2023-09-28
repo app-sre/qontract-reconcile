@@ -45,6 +45,7 @@ from reconcile.utils.mr.labels import (
     HOLD,
     LGTM,
     NEEDS_REBASE,
+    ONBOARDING,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     prioritized_approval_label,
@@ -74,7 +75,7 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 merged_merge_requests = Counter(
     name="qontract_reconcile_merged_merge_requests",
     documentation="Number of merge requests that have been successfully merged in a repository",
-    labelnames=["project_id", "self_service", "auto_merge", "app_sre"],
+    labelnames=["project_id", "self_service", "auto_merge", "app_sre", "onboarding"],
 )
 
 rebased_merge_requests = Counter(
@@ -529,6 +530,7 @@ def merge_merge_requests(
                     self_service=SELF_SERVICEABLE in labels,
                     auto_merge=AUTO_MERGE in labels,
                     app_sre=mr.author["username"] in app_sre_usernames,
+                    onboarding=ONBOARDING in labels,
                 ).inc()
                 time_to_merge.labels(
                     project_id=mr.target_project_id, priority=merge_request["priority"]

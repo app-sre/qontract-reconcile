@@ -11,6 +11,7 @@ SAAS_FILE_UPDATE = "saas-file-update"
 NEEDS_REBASE = "needs-rebase"
 SELF_SERVICEABLE = "self-serviceable"
 NOT_SELF_SERVICEABLE = "not-self-serviceable"
+ONBOARDING = "onboarding"
 
 
 def prioritized_approval_label(priority: str) -> str:
