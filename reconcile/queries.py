@@ -323,7 +323,15 @@ JENKINS_INSTANCES_QUERY = """
     workerFleets {
       account
       identifier
-      credentialsId
+      sshConnector {
+        credentialsId
+        JVMOptions
+        launchTimeoutSeconds
+        maxNumRetries
+        port
+        retryWaitTime
+        sshHostKeyVerificationStrategy
+      }
       fsRoot
       labelString
       numExecutors

@@ -123,7 +123,7 @@ def build_entry_point_func(command_name: str) -> click.Command:
     find the function to invoke for a command.
     """
     console_script_entry_points = {
-        ep.name: ep for ep in metadata.entry_points()["console_scripts"]
+        ep.name: ep for ep in metadata.entry_points().select(group="console_scripts")
     }
     entry_point: Optional[metadata.EntryPoint] = console_script_entry_points.get(
         command_name, None
