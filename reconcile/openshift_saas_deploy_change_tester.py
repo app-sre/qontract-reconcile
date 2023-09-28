@@ -58,6 +58,7 @@ def osd_run_wrapper(
     dry_run: bool,
     available_thread_pool_size: int,
     use_jump_host: bool,
+    all_saas_files: Optional[list[SaasFile]],
 ) -> int:
     saas_file_name, env_name = spec
     exit_code = 0
@@ -68,6 +69,7 @@ def osd_run_wrapper(
             use_jump_host=use_jump_host,
             saas_file_name=saas_file_name,
             env_name=env_name,
+            all_saas_files=all_saas_files,
         )
     except SystemExit as e:
         exit_code = e.code if isinstance(e.code, int) else 1
@@ -214,7 +216,8 @@ def run(
     comparison_saas_file_state = collect_state(
         get_saas_files(query_func=comparison_gql_api.query)
     )
-    desired_saas_file_state = collect_state(get_saas_files())
+    all_saas_files = get_saas_files()
+    desired_saas_file_state = collect_state(all_saas_files)
     # compare dicts against dicts which is much faster than comparing BaseModel objects
     comparison_saas_file_state_dicts = [s.dict() for s in comparison_saas_file_state]
     saas_file_state_diffs = [
@@ -246,6 +249,7 @@ def run(
         dry_run=dry_run,
         available_thread_pool_size=available_thread_pool_size,
         use_jump_host=use_jump_host,
+        all_saas_files=all_saas_files,
     )
 
     if [ec for ec in exit_codes if ec]:

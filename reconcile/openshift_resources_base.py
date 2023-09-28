@@ -60,6 +60,7 @@ from reconcile.utils.openshift_resource import (
     ResourceInventory,
     ResourceKeyExistsError,
     ResourceNotManagedError,
+    base64_encode_secret_field_value,
 )
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReader
@@ -577,13 +578,11 @@ def fetch_provider_vault_secret(
 
     # populate data
     for k, v in raw_data.items():
-        if v == "":
-            continue
         if k.lower().endswith(QONTRACT_BASE64_SUFFIX):
             k = k[: -len(QONTRACT_BASE64_SUFFIX)]
             v = v.replace("\n", "")
-        elif v is not None:
-            v = base64.b64encode(v.encode()).decode("utf-8")
+        else:
+            v = base64_encode_secret_field_value(v)
         body.setdefault("data", {})[k] = v
 
     try:

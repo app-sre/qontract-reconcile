@@ -421,7 +421,7 @@ class OpenshiftResource:
             if string_data:
                 body.setdefault("data", {})
                 for k, v in string_data.items():
-                    v = base64.b64encode(str(v).encode()).decode("utf-8")
+                    v = base64_encode_secret_field_value(str(v))
                     body["data"][k] = v
 
         if body["kind"] == "Deployment":
@@ -706,7 +706,7 @@ def build_secret(
     )
 
 
-def base64_encode_secret_field_value(value: str) -> Optional[str]:
+def base64_encode_secret_field_value(value: str) -> str:
     if value == "":
-        return None
+        return ""
     return base64.b64encode(str(value).encode()).decode("utf-8")

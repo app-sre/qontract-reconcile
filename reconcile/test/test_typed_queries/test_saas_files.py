@@ -571,7 +571,7 @@ PIPELINE_PROVIDER = {
         ),
         # missing provider
         pytest.param(
-            "saas-file-04",
+            "saas-file-04-missing-provider",
             None,
             None,
             "saas_files-missing-provider.yml",
