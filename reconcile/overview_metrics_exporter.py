@@ -24,7 +24,7 @@ class OverviewClustersGauge(OverviewBaseMetric, GaugeMetric):
 QONTRACT_INTEGRATION = "overview-metrics-exporter"
 
 
-def run(dry_run: Optional[bool]):
+def run(dry_run: Optional[bool]) -> None:
     clusters = get_clusters()
     metrics.set_gauge(
         OverviewClustersGauge(
