@@ -1,0 +1,19 @@
+# qenerate: plugin=pydantic_v1
+
+query DynatraceLogMetrics {
+	clusters: clusters_v1 {
+    name
+    dynatraceEnvironment {
+      environmentUrl
+      apiToken {
+        ... VaultSecret
+      }
+    }
+    dynatraceLogMetrics {
+      name
+      query
+      measure
+      dimensions
+    }
+  }
+}

@@ -1804,6 +1804,22 @@ def saas_auto_promotions_manager(
     )
 
 
+@integration.command(short_help="Manage Dynatrace Log Metrics")
+@threaded()
+@click.pass_context
+def dynatrace_log_metrics(
+    ctx,
+    thread_pool_size,
+):
+    import reconcile.dynatrace_log_metrics.integration
+
+    run_integration(
+        reconcile.dynatrace_log_metrics.integration,
+        ctx.obj,
+        thread_pool_size,
+    )
+
+
 @integration.command(short_help="Manage AWS users using Terraform.")
 @print_to_file
 @threaded()
