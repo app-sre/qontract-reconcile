@@ -4,7 +4,12 @@ gql_response:
     workerFleets:
     - account: app-sre
       identifier: ci-int-jenkins-worker-app-interface
-      credentialsId: jenkins
+      sshConnector:
+        credentialsId: jenkins
+        launchTimeoutSeconds: 60
+        maxNumRetries: 10
+        port: 22
+        retryWaitTime: 15
       fsRoot: "/var/lib/jenkins"
       labelString: app-interface
       numExecutors: 3
@@ -26,7 +31,12 @@ gql_response:
             overrides: '{"min_size":0,"max_size":10}'
     - account: app-sre
       identifier: ci-int-jenkins-worker-app-sre
-      credentialsId: jenkins
+      sshConnector:
+        credentialsId: jenkins
+        launchTimeoutSeconds: 60
+        maxNumRetries: 10
+        port: 22
+        retryWaitTime: 15
       fsRoot: "/var/lib/jenkins"
       labelString: app-sre app-interface-long-running
       numExecutors: 3
@@ -45,7 +55,12 @@ gql_response:
             defaults: "/terraform/resources/asg-1.yml"
     - account: app-sre
       identifier: ci-int-jenkins-worker-rhel7
-      credentialsId: jenkins
+      sshConnector:
+        credentialsId: jenkins
+        launchTimeoutSeconds: 60
+        maxNumRetries: 10
+        port: 22
+        retryWaitTime: 15
       fsRoot: "/var/lib/jenkins"
       labelString: rhel7
       numExecutors: 3
@@ -62,11 +77,54 @@ gql_response:
           - provider: asg
             identifier: ci-int-jenkins-worker-rhel7
             defaults: "/terraform/resources/asg-1.yml"
+    - account: app-sre
+      identifier: test-remove-sshConnector-attrs
+      sshConnector:
+        credentialsId: jenkins
+      fsRoot: "/var/lib/jenkins"
+      labelString: rhel7
+      numExecutors: 3
+      namespace:
+        name: app-sre
+        managedExternalResources: true
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+            resourcesDefaultRegion: us-east-1
+          resources:
+          - provider: aws-iam-service-account
+          - provider: asg
+            identifier: test-remove-sshConnector-attrs
+            defaults: "/terraform/resources/asg-1.yml"
+    - account: app-sre
+      identifier: test-add-sshConnector-JVMOpts
+      sshConnector:
+        credentialsId: jenkins
+        JVMOptions: "-djava.jenkinsci.iloveyou=false"
+      fsRoot: "/var/lib/jenkins"
+      labelString: rhel7
+      numExecutors: 3
+      namespace:
+        name: app-sre
+        managedExternalResources: true
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+            resourcesDefaultRegion: us-east-1
+          resources:
+          - provider: aws-iam-service-account
+          - provider: asg
+            identifier: test-add-sshConnector-JVMOpts
+            defaults: "/terraform/resources/asg-1.yml"
+
   - name: ci-ext
     workerFleets:
     - account: app-sre
       identifier: ci-int-jenkins-worker-app-interface
-      credentialsId: jenkins
+      sshConnector:
+        credentialsId: jenkins
       fsRoot: "/var/lib/jenkins"
       labelString: app-interface
       numExecutors: 2
