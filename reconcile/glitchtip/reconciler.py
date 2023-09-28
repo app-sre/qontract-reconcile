@@ -228,9 +228,7 @@ class GlitchtipReconciler:
                     continue
                 self.client.delete_user(organization_slug=organization_slug, pk=user.pk)
         for user in set(desired_users).difference(current_users):
-            logging.info(
-                ["invite_user", organization_slug, user.email, self.client.host]
-            )
+            logging.info(["add_user", organization_slug, user.email, self.client.host])
             if not self.dry_run:
                 new_user = self.client.invite_user(
                     organization_slug=organization_slug,

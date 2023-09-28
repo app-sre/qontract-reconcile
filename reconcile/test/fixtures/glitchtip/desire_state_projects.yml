@@ -137,6 +137,11 @@
           users:
             - org_username: MichaelCollins
               name: Michael Collins
+    - name: externals
+      ldapGroups:
+        - from-emea
+      membersOrganizationRole: member
+      roles: []
   organization:
     name: NASA
     instance:
