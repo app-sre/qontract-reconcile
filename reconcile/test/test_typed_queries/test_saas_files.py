@@ -626,7 +626,12 @@ def test_export_model(
             "path": "path1",
             "name": "saas-file-01",
             "labels": None,
-            "app": {"name": "app-01", "parentApp": None, "selfServiceRoles": None},
+            "app": {
+                "name": "app-01",
+                "parentApp": None,
+                "selfServiceRoles": None,
+                "serviceOwners": None,
+            },
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -702,6 +707,7 @@ def test_export_model(
                                     "labels": None,
                                     "parentApp": None,
                                     "selfServiceRoles": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -751,6 +757,7 @@ def test_export_model(
                                     "labels": None,
                                     "parentApp": None,
                                     "selfServiceRoles": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -790,7 +797,12 @@ def test_export_model(
             "path": "path2",
             "name": "saas-file-02",
             "labels": None,
-            "app": {"name": "app-02", "parentApp": None, "selfServiceRoles": None},
+            "app": {
+                "name": "app-02",
+                "parentApp": None,
+                "selfServiceRoles": None,
+                "serviceOwners": None,
+            },
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -866,6 +878,7 @@ def test_export_model(
                                     "labels": None,
                                     "parentApp": None,
                                     "selfServiceRoles": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -915,6 +928,7 @@ def test_export_model(
                                     "labels": None,
                                     "parentApp": None,
                                     "selfServiceRoles": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -954,7 +968,12 @@ def test_export_model(
             "path": "path3",
             "name": "saas-file-03",
             "labels": None,
-            "app": {"name": "example", "parentApp": None, "selfServiceRoles": None},
+            "app": {
+                "name": "example",
+                "parentApp": None,
+                "selfServiceRoles": None,
+                "serviceOwners": None,
+            },
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -1030,6 +1049,7 @@ def test_export_model(
                                     "parentApp": None,
                                     "selfServiceRoles": None,
                                     "labels": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -1079,6 +1099,7 @@ def test_export_model(
                                     "parentApp": None,
                                     "selfServiceRoles": None,
                                     "labels": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",

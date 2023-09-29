@@ -13,6 +13,10 @@ query SaasFiles {
       selfServiceRoles {
         name
       }
+      serviceOwners {
+        name
+        email
+      }
     }
     pipelinesProvider {
       name

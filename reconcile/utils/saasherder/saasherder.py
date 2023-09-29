@@ -22,6 +22,7 @@ from typing import (
     Type,
     Union,
 )
+from urllib.parse import urlparse
 
 import yaml
 from github import (
@@ -746,6 +747,27 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return ""
 
     @retry(max_attempts=20)
+    def get_archive_info(
+        self,
+        saas_file: SaasFile,
+        trigger_reason: str,
+    ) -> tuple[str, str]:
+        [url, sha] = trigger_reason.split(" ")[0].split("/commit/")
+        repo_name = urlparse(url).path.strip("/")
+        file_name = f"{repo_name.replace('/','-')}-{sha}.tar.gz"
+        if "github" in url:
+            github = self._initiate_github(saas_file, base_url="https://api.github.com")
+            repo = github.get_repo(repo_name)
+            # get_archive_link get redirect url form header, it does not work with github-mirror
+            archive_url = repo.get_archive_link("tarball", ref=sha)
+        elif "gitlab" in url:
+            archive_url = f"{url}/-/archive/{sha}/{file_name}"
+        else:
+            raise Exception(f"Only GitHub and GitLab are supported: {url}")
+
+        return file_name, archive_url
+
+    @retry(max_attempts=20)
     def _get_file_contents(
         self, url: str, path: str, ref: str, github: Github
     ) -> tuple[Any, str, str]:
@@ -1123,14 +1145,16 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         )
         return any(errors)
 
-    def _initiate_github(self, saas_file: SaasFile) -> Github:
+    def _initiate_github(
+        self, saas_file: SaasFile, base_url: Optional[str] = None
+    ) -> Github:
         token = (
             self.secret_reader.read_secret(saas_file.authentication.code)
             if saas_file.authentication and saas_file.authentication.code
             else get_default_config()["token"]
         )
-
-        base_url = os.environ.get("GITHUB_API", "https://api.github.com")
+        if not base_url:
+            base_url = os.environ.get("GITHUB_API", "https://api.github.com")
         return Github(token, base_url=base_url)
 
     def _initiate_image_auth(self, saas_file: SaasFile) -> ImageAuth:

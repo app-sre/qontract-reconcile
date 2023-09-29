@@ -65,6 +65,10 @@ class SaasApp(Protocol):
     def self_service_roles(self) -> Optional[Sequence[SaasRole]]:
         ...
 
+    @property
+    def service_owners(self) -> Optional[Sequence[SaasServiceOwner]]:
+        ...
+
 
 class SaasPipelinesProvider(Protocol):
     name: str
@@ -375,6 +379,11 @@ class SaasResourceTemplate(HasParameters, HasSecretParameters, Protocol):
 
 class SaasRole(Protocol):
     name: str
+
+
+class SaasServiceOwner(Protocol):
+    name: str
+    email: str
 
 
 SaasPipelinesProviders = Union[SaasPipelinesProviderTekton, SaasPipelinesProvider]
