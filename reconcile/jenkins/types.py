@@ -26,7 +26,7 @@ class SSHConnector(BaseModel):
     max_num_retries: Optional[int] = Field(None, alias="maxNumRetries")
     retry_wait_time: Optional[int] = Field(None, alias="retryWaitTime")
     port: Optional[int] = 22
-    jvm_options: Optional[str] = Field(None, alias="JVMOptions")
+    jvm_options: Optional[str] = Field(None, alias="jvmOptions")
     ssh_host_key_verification_strategy: SSHHostKeyVerificationStrategy = Field(
         SSHHostKeyVerificationStrategy.NON_VERIFYING_KEY_VERIFICATION_STRATEGY,
         alias="sshHostKeyVerificationStrategy",
