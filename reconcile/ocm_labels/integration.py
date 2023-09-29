@@ -19,17 +19,13 @@ from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.gql_definitions.ocm_subscription_labels.clusters import ClusterV1
-from reconcile.gql_definitions.ocm_subscription_labels.clusters import (
-    query as cluster_query,
-)
-from reconcile.gql_definitions.ocm_subscription_labels.organizations import (
-    OpenShiftClusterManagerV1,
-)
-from reconcile.gql_definitions.ocm_subscription_labels.organizations import (
+from reconcile.gql_definitions.ocm_labels.clusters import ClusterV1
+from reconcile.gql_definitions.ocm_labels.clusters import query as cluster_query
+from reconcile.gql_definitions.ocm_labels.organizations import OpenShiftClusterManagerV1
+from reconcile.gql_definitions.ocm_labels.organizations import (
     query as organization_query,
 )
-from reconcile.ocm_subscription_labels.label_sources import (
+from reconcile.ocm_labels.label_sources import (
     ClusterRef,
     LabelOwnerRef,
     LabelSource,

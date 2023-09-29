@@ -82,7 +82,9 @@ def build_organization(
                 ),
                 orgId=other_org_id,
                 name=other_org_id,
-                publishVersionData=[MinimalOCMOrganization(orgId=org_id, name=org_name)]
+                publishVersionData=[
+                    MinimalOCMOrganization(name=org_name or org_id, orgId=org_id)
+                ]
                 if valid_peering
                 else None,
             )

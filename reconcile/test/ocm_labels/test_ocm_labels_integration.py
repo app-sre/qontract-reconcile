@@ -9,13 +9,13 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.gql_definitions.ocm_subscription_labels.clusters import ClusterV1
-from reconcile.ocm_subscription_labels.integration import (
+from reconcile.gql_definitions.ocm_labels.clusters import ClusterV1
+from reconcile.ocm_labels.integration import (
     ManagedLabelPrefixConflictError,
     OcmLabelsIntegration,
     init_cluster_subscription_label_source,
 )
-from reconcile.ocm_subscription_labels.label_sources import (
+from reconcile.ocm_labels.label_sources import (
     LabelOwnerRef,
     LabelSource,
 )
@@ -35,7 +35,7 @@ class StaticLabelSource(LabelSource):
         return self.labels
 
 
-def test_ocm_subscription_labels_get_clusters(
+def test_ocm_labels_get_clusters(
     clusters: Iterable[ClusterV1], gql_class_factory: Callable
 ) -> None:
     assert clusters == [
@@ -95,29 +95,29 @@ def test_ocm_subscription_labels_get_clusters(
     ]
 
 
-def test_ocm_subscription_labels_init_ocm_apis(
-    ocm_subscription_labels: OcmLabelsIntegration,
+def test_ocm_labels_init_ocm_apis(
+    ocm_labels: OcmLabelsIntegration,
     envs: Iterable[OCMEnvironment],
     ocm_base_client: OCMBaseClient,
 ) -> None:
     def init_ocm_base_client_fake(*args, **kwargs) -> OCMBaseClient:
         return ocm_base_client
 
-    ocm_apis = ocm_subscription_labels.init_ocm_apis(
+    ocm_apis = ocm_labels.init_ocm_apis(
         envs, init_ocm_base_client=init_ocm_base_client_fake
     )
     assert len(ocm_apis) == 2
 
 
-def test_ocm_subscription_labels_fetch_current_state(
-    ocm_subscription_labels: OcmLabelsIntegration,
+def test_ocm_labels_fetch_current_state(
+    ocm_labels: OcmLabelsIntegration,
     clusters: Iterable[ClusterV1],
     ocm_clusters: Sequence[ClusterDetails],
     mocker: MockerFixture,
     subscription_label_current_state: dict[LabelOwnerRef, dict[str, str]],
 ) -> None:
     mocker.patch(
-        "reconcile.ocm_subscription_labels.integration.discover_clusters_for_organizations",
+        "reconcile.ocm_labels.integration.discover_clusters_for_organizations",
         autospec=True,
         side_effect=[
             # ocm-prod
@@ -128,17 +128,17 @@ def test_ocm_subscription_labels_fetch_current_state(
     )
 
     assert (
-        ocm_subscription_labels.fetch_subscription_label_current_state(
+        ocm_labels.fetch_subscription_label_current_state(
             clusters, managed_label_prefixes=["my-label-prefix"]
         )
         == subscription_label_current_state
     )
 
 
-def test_ocm_subscription_labels_manged_label_prefixes_from_sources(
-    ocm_subscription_labels: OcmLabelsIntegration,
+def test_ocm_labels_manged_label_prefixes_from_sources(
+    ocm_labels: OcmLabelsIntegration,
 ) -> None:
-    assert {"a.b", "a.c"} == ocm_subscription_labels.manged_label_prefixes_from_sources(
+    assert {"a.b", "a.c"} == ocm_labels.manged_label_prefixes_from_sources(
         [
             StaticLabelSource(prefixes={"a.b"}, labels={}),
             StaticLabelSource(prefixes={"a.c"}, labels={}),
@@ -158,8 +158,8 @@ def test_ocm_subscription_labels_manged_label_prefixes_from_sources(
         ({"a.b.c"}, {"a.b.c.d"}),
     ],
 )
-def test_ocm_subscription_labels_competing_label_sources_managed_prefixes(
-    ocm_subscription_labels: OcmLabelsIntegration,
+def test_ocm_labels_competing_label_sources_managed_prefixes(
+    ocm_labels: OcmLabelsIntegration,
     source_1_prefixes: set[str],
     source_2_prefixes: set[str],
 ) -> None:
@@ -168,7 +168,7 @@ def test_ocm_subscription_labels_competing_label_sources_managed_prefixes(
     don't compete with each other.
     """
     with pytest.raises(ManagedLabelPrefixConflictError):
-        ocm_subscription_labels.manged_label_prefixes_from_sources(
+        ocm_labels.manged_label_prefixes_from_sources(
             [
                 StaticLabelSource(prefixes=source_1_prefixes, labels={}),
                 StaticLabelSource(prefixes=source_2_prefixes, labels={}),
@@ -176,15 +176,15 @@ def test_ocm_subscription_labels_competing_label_sources_managed_prefixes(
         )
 
 
-def test_ocm_subscription_labels_fetch_desired_state(
-    ocm_subscription_labels: OcmLabelsIntegration,
+def test_ocm_labels_fetch_desired_state(
+    ocm_labels: OcmLabelsIntegration,
     clusters: list[ClusterV1],
     subscription_label_desired_state: dict[LabelOwnerRef, dict[str, str]],
 ) -> None:
-    desired_state = ocm_subscription_labels.fetch_desired_state(
+    desired_state = ocm_labels.fetch_desired_state(
         [
             init_cluster_subscription_label_source(
-                clusters, ocm_subscription_labels.params.managed_label_prefixes
+                clusters, ocm_labels.params.managed_label_prefixes
             )
         ]
     )
@@ -192,8 +192,8 @@ def test_ocm_subscription_labels_fetch_desired_state(
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
-def test_ocm_subscription_labels_reconcile(
-    ocm_subscription_labels: OcmLabelsIntegration,
+def test_ocm_labels_reconcile(
+    ocm_labels: OcmLabelsIntegration,
     mocker: MockerFixture,
     subscription_label_current_state: dict[LabelOwnerRef, dict[str, str]],
     subscription_label_desired_state: dict[LabelOwnerRef, dict[str, str]],
@@ -201,18 +201,18 @@ def test_ocm_subscription_labels_reconcile(
     dry_run: bool,
 ) -> None:
     add_label_mock = mocker.patch(
-        "reconcile.ocm_subscription_labels.integration.add_label",
+        "reconcile.ocm_labels.integration.add_label",
         autospec=True,
     )
     update_label_mock = mocker.patch(
-        "reconcile.ocm_subscription_labels.integration.update_label",
+        "reconcile.ocm_labels.integration.update_label",
         autospec=True,
     )
     delete_label_mock = mocker.patch(
-        "reconcile.ocm_subscription_labels.integration.delete_label",
+        "reconcile.ocm_labels.integration.delete_label",
         autospec=True,
     )
-    ocm_subscription_labels.reconcile(
+    ocm_labels.reconcile(
         dry_run,
         "scope",
         subscription_label_current_state,

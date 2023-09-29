@@ -1,8 +1,8 @@
-from reconcile.ocm_subscription_labels.integration import ClusterSubscriptionLabelSource
-from reconcile.ocm_subscription_labels.label_sources import LabelOwnerRef
+from reconcile.ocm_labels.integration import ClusterSubscriptionLabelSource
+from reconcile.ocm_labels.label_sources import LabelOwnerRef
 
 
-def test_cluster_subscription_label_source_managed_label_discovery(
+def test_cluster_label_source_managed_label_discovery(
     cluster_file_subscription_label_source: ClusterSubscriptionLabelSource,
 ) -> None:
     """
@@ -16,7 +16,7 @@ def test_cluster_subscription_label_source_managed_label_discovery(
     }
 
 
-def test_cluster_subscription_label_source_get_labels(
+def test_cluster_label_source_get_labels(
     cluster_file_subscription_label_source: ClusterSubscriptionLabelSource,
     subscription_label_desired_state: dict[LabelOwnerRef, dict[str, str]],
 ) -> None:

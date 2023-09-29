@@ -2803,17 +2803,17 @@ def skupper_network(ctx, thread_pool_size, internal, use_jump_host):
     )
 
 
-@integration.command(short_help="Manage cluster OCM subscription labels.")
+@integration.command(short_help="Manage cluster OCM labels.")
 @click.option(
-    "--managed-label-prefixes",
-    help="A comma list of label prefixes that are managed.",
+    "--managed-cluster-subscription-label-prefixes",
+    help="A comma list of subscriptions label prefixes from cluster-1.yml files that are managed.",
     required=True,
-    envvar="OSL_MANAGED_LABEL_PREFIXES",
+    envvar="OL_MANAGED_CLUSTER_SUBS_LABEL_PREFIXES",
     default="sre-capabilities",
 )
 @click.pass_context
-def ocm_subscription_labels(ctx, managed_label_prefixes):
-    from reconcile.ocm_subscription_labels.integration import (
+def ocm_labels(ctx, managed_label_prefixes):
+    from reconcile.ocm_labels.integration import (
         OcmLabelsIntegration,
         OcmLabelsIntegrationParams,
     )

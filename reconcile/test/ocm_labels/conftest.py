@@ -12,14 +12,14 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.gql_definitions.ocm_subscription_labels.clusters import ClusterV1
-from reconcile.ocm_subscription_labels.integration import (
+from reconcile.gql_definitions.ocm_labels.clusters import ClusterV1
+from reconcile.ocm_labels.integration import (
     ClusterSubscriptionLabelSource,
     OcmLabelsIntegration,
     OcmLabelsIntegrationParams,
     init_cluster_subscription_label_source,
 )
-from reconcile.ocm_subscription_labels.label_sources import (
+from reconcile.ocm_labels.label_sources import (
     ClusterRef,
     LabelOwnerRef,
 )
@@ -38,11 +38,11 @@ from reconcile.utils.secret_reader import SecretReader
 
 @pytest.fixture
 def fx() -> Fixtures:
-    return Fixtures("ocm_subscription_labels")
+    return Fixtures("ocm_labels")
 
 
 @pytest.fixture
-def ocm_subscription_labels(
+def ocm_labels(
     secret_reader: SecretReader,
     mocker: MockerFixture,
     ocm_base_client: OCMBaseClient,
@@ -76,9 +76,9 @@ def cluster_query_func(
 
 @pytest.fixture
 def clusters(
-    ocm_subscription_labels: OcmLabelsIntegration, cluster_query_func: Callable
+    ocm_labels: OcmLabelsIntegration, cluster_query_func: Callable
 ) -> list[ClusterV1]:
-    return ocm_subscription_labels.get_clusters(cluster_query_func)
+    return ocm_labels.get_clusters(cluster_query_func)
 
 
 @pytest.fixture
@@ -204,10 +204,10 @@ def subscription_label_current_state(
 @pytest.fixture
 def cluster_file_subscription_label_source(
     clusters: list[ClusterV1],
-    ocm_subscription_labels: OcmLabelsIntegration,
+    ocm_labels: OcmLabelsIntegration,
 ) -> ClusterSubscriptionLabelSource:
     return init_cluster_subscription_label_source(
-        clusters, ocm_subscription_labels.params.managed_label_prefixes
+        clusters, ocm_labels.params.managed_label_prefixes
     )
 
 
