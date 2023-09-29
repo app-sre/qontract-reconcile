@@ -62,7 +62,7 @@ class OcmLabelsIntegrationParams(PydanticRunParams):
     managed_label_prefixes: list[str] = []
 
 
-class ManagedLabelPrefixConflictError(Exception):
+class ManagedLabelConflictError(Exception):
     pass
 
 
@@ -174,7 +174,15 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         Only labels with a prefix in managed_label_prefixes are returned. Not every label
         on an organizations is this integrations business.
         """
-        states: dict[LabelOwnerRef, dict[str, str]] = {}
+        states: dict[LabelOwnerRef, dict[str, str]] = {
+            OrgRef(
+                org_id=org.org_id,
+                ocm_env=org.environment.name,
+                label_container_href=build_organization_labels_href(org.org_id),
+                name=org.name,
+            ): {}
+            for org in organizations
+        }
 
         # prepare search filters
         managed_label_filter = Filter()
@@ -279,8 +287,13 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
     ) -> dict[LabelOwnerRef, dict[str, str]]:
         states: dict[LabelOwnerRef, dict[str, str]] = defaultdict(dict)
         for s in sources:
-            for cluster_ref, labels in s.get_labels().items():
-                states[cluster_ref].update(labels)
+            for owner_ref, labels in s.get_labels().items():
+                for label, value in labels.items():
+                    if label in states[owner_ref]:
+                        raise ManagedLabelConflictError(
+                            f"The label {label} on {owner_ref.identity_labels()} is already managed by another label source"
+                        )
+                    states[owner_ref][label] = value
 
         return dict(states)
 
@@ -291,13 +304,13 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         for source in label_sources:
             for s in source.managed_label_prefixes():
                 if s in prefixes:
-                    raise ManagedLabelPrefixConflictError(
+                    raise ManagedLabelConflictError(
                         f"Label prefix '{s}' from {type(s)} is already managed by another label source"
                     )
                 for i in range(1, len(s)):
                     prefix = s[:i]
                     if prefix in prefixes:
-                        raise ManagedLabelPrefixConflictError(
+                        raise ManagedLabelConflictError(
                             f"Label prefix '{s}' from {type(s)} is already managed by another label source"
                         )
                 prefixes.add(s)

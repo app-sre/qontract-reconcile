@@ -421,7 +421,9 @@ def build_cluster_upgrade_policy_label_set(
             aus_label_key("soak-days"): soak_days,
             aus_label_key("mutexes"): ",".join(mutexes) if mutexes else None,
             aus_label_key("sector"): sector,
-            aus_label_key("blocked-versions"): blocked_versions,
+            aus_label_key("blocked-versions"): ",".join(blocked_versions)
+            if blocked_versions
+            else None,
         }
     )
 

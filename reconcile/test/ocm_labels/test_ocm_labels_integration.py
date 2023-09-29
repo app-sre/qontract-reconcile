@@ -11,7 +11,7 @@ from pytest_mock import MockerFixture
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.ocm_labels.clusters import ClusterV1
 from reconcile.ocm_labels.integration import (
-    ManagedLabelPrefixConflictError,
+    ManagedLabelConflictError,
     OcmLabelsIntegration,
     init_cluster_subscription_label_source,
 )
@@ -167,7 +167,7 @@ def test_ocm_labels_competing_label_sources_managed_prefixes(
     Test that the label source managed label prefixes are unique and
     don't compete with each other.
     """
-    with pytest.raises(ManagedLabelPrefixConflictError):
+    with pytest.raises(ManagedLabelConflictError):
         ocm_labels.manged_label_prefixes_from_sources(
             [
                 StaticLabelSource(prefixes=source_1_prefixes, labels={}),
