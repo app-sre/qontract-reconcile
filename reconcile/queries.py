@@ -325,7 +325,7 @@ JENKINS_INSTANCES_QUERY = """
       identifier
       sshConnector {
         credentialsId
-        JVMOptions
+        jvmOptions
         launchTimeoutSeconds
         maxNumRetries
         port

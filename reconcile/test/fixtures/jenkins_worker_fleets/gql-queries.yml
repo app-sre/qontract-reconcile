@@ -101,7 +101,7 @@ gql_response:
       identifier: test-add-sshConnector-JVMOpts
       sshConnector:
         credentialsId: jenkins
-        JVMOptions: "-djava.jenkinsci.iloveyou=false"
+        jvmOptions: "-djava.jenkinsci.iloveyou=false"
       fsRoot: "/var/lib/jenkins"
       labelString: rhel7
       numExecutors: 3
@@ -117,6 +117,27 @@ gql_response:
           - provider: aws-iam-service-account
           - provider: asg
             identifier: test-add-sshConnector-JVMOpts
+            defaults: "/terraform/resources/asg-1.yml"
+    - account: app-sre
+      identifier: test-same-sshConnector-JVMOpts
+      sshConnector:
+        credentialsId: jenkins
+        jvmOptions: "-djava.jenkinsci.iloveyou=false"
+      fsRoot: "/var/lib/jenkins"
+      labelString: rhel7
+      numExecutors: 3
+      namespace:
+        name: app-sre
+        managedExternalResources: true
+        externalResources:
+        - provider: aws
+          provisioner:
+            name: app-sre
+            resourcesDefaultRegion: us-east-1
+          resources:
+          - provider: aws-iam-service-account
+          - provider: asg
+            identifier: test-same-sshConnector-JVMOpts
             defaults: "/terraform/resources/asg-1.yml"
 
   - name: ci-ext
