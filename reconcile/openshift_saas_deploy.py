@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from collections.abc import Callable
 from typing import Optional
@@ -275,3 +276,26 @@ def run(
                 + f"{action['kind']} {action['name']} {action['action']}"
             )
             slack.chat_post_message(message)
+
+    # get upstream repo info for sast scan
+    # we only do this if:
+    # - this is not a dry run
+    # - there is a single saas file deployed
+    # - saas-deploy triggered by upstream-job
+    sast = (
+        not dry_run
+        and len(saas_files) == 1
+        and trigger_integration
+        and trigger_integration == "openshift-saas-deploy-trigger-upstream-jobs"
+        and trigger_reason
+    )
+    if sast:
+        saas_file = saas_files[0]
+        owners = saas_file.app.service_owners or []
+        emails = ",".join([o.email for o in owners])
+        file, url = saasherder.get_archive_info(saas_file, trigger_reason)
+        sast_file = os.path.join(io_dir, "sast")
+        with open(sast_file, "w") as f:
+            f.write(file + "\n")
+            f.write(url + "\n")
+            f.write(emails + "\n")

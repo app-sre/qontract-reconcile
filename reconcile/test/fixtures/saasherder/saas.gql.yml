@@ -5,6 +5,11 @@ app:
   name: app-interface
   selfServiceRoles:
   - name: test
+  serviceOwners:
+  - name: AppSRE
+    email: owners@example.com
+  - name: AppSRE-1
+    email: owners-1@example.com
 
 pipelinesProvider:
   name: tekton-app-sre-pipelines-appsres03ue1
