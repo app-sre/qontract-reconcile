@@ -11,7 +11,7 @@ from pytest_mock import MockerFixture
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.ocm_labels.clusters import ClusterV1
 from reconcile.ocm_labels.integration import (
-    ManagedLabelConflictError,
+    ClusterSubscriptionLabelSource,
     OcmLabelsIntegration,
     init_cluster_subscription_label_source,
 )
@@ -135,58 +135,13 @@ def test_ocm_labels_fetch_current_state(
     )
 
 
-def test_ocm_labels_manged_label_prefixes_from_sources(
-    ocm_labels: OcmLabelsIntegration,
-) -> None:
-    assert {"a.b", "a.c"} == ocm_labels.manged_label_prefixes_from_sources(
-        [
-            StaticLabelSource(prefixes={"a.b"}, labels={}),
-            StaticLabelSource(prefixes={"a.c"}, labels={}),
-        ]
-    )
-
-
-@pytest.mark.parametrize(
-    "source_1_prefixes,source_2_prefixes",
-    [
-        ({"a"}, {"a"}),
-        ({"a", "b"}, {"b"}),
-        ({"a"}, {"a", "b"}),
-        ({"a"}, {"a.b"}),
-        ({"a"}, {"ab"}),
-        ({"a", "b"}, {"ab", "c"}),
-        ({"a.b.c"}, {"a.b.c.d"}),
-    ],
-)
-def test_ocm_labels_competing_label_sources_managed_prefixes(
-    ocm_labels: OcmLabelsIntegration,
-    source_1_prefixes: set[str],
-    source_2_prefixes: set[str],
-) -> None:
-    """
-    Test that the label source managed label prefixes are unique and
-    don't compete with each other.
-    """
-    with pytest.raises(ManagedLabelConflictError):
-        ocm_labels.manged_label_prefixes_from_sources(
-            [
-                StaticLabelSource(prefixes=source_1_prefixes, labels={}),
-                StaticLabelSource(prefixes=source_2_prefixes, labels={}),
-            ]
-        )
-
-
 def test_ocm_labels_fetch_desired_state(
     ocm_labels: OcmLabelsIntegration,
     clusters: list[ClusterV1],
     subscription_label_desired_state: dict[LabelOwnerRef, dict[str, str]],
 ) -> None:
     desired_state = ocm_labels.fetch_desired_state(
-        [
-            init_cluster_subscription_label_source(
-                clusters, ocm_labels.params.managed_label_prefixes
-            )
-        ]
+        [init_cluster_subscription_label_source(clusters)]
     )
     assert desired_state == subscription_label_desired_state
 
@@ -265,3 +220,13 @@ def test_ocm_labels_reconcile(
         ]
         delete_label_mock.assert_has_calls(delete_calls)
         assert delete_label_mock.call_count == len(delete_calls)
+
+
+def test_cluster_label_source_get_labels(
+    cluster_file_subscription_label_source: ClusterSubscriptionLabelSource,
+    subscription_label_desired_state: dict[LabelOwnerRef, dict[str, str]],
+) -> None:
+    assert (
+        cluster_file_subscription_label_source.get_labels()
+        == subscription_label_desired_state
+    )

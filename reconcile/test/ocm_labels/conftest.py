@@ -206,9 +206,7 @@ def cluster_file_subscription_label_source(
     clusters: list[ClusterV1],
     ocm_labels: OcmLabelsIntegration,
 ) -> ClusterSubscriptionLabelSource:
-    return init_cluster_subscription_label_source(
-        clusters, ocm_labels.params.managed_label_prefixes
-    )
+    return init_cluster_subscription_label_source(clusters)
 
 
 @pytest.fixture

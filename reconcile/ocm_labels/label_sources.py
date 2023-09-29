@@ -69,9 +69,5 @@ class ClusterRef(LabelOwnerRef):
 
 class LabelSource(ABC):
     @abstractmethod
-    def managed_label_prefixes(self) -> set[str]:
-        pass
-
-    @abstractmethod
     def get_labels(self) -> dict[LabelOwnerRef, dict[str, str]]:
         pass

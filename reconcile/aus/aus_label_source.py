@@ -28,9 +28,6 @@ class AUSClusterUpgradePolicyLabelSource(LabelSource):
     def __init__(self, clusters: Iterable[ClusterV1]) -> None:
         self.clusters = clusters
 
-    def managed_label_prefixes(self) -> set[str]:
-        return {aus_label_key("")}
-
     def get_labels(self) -> dict[LabelOwnerRef, dict[str, str]]:
         return {
             ClusterRef(
@@ -68,9 +65,6 @@ def init_aus_cluster_label_source(
 class AUSOrganizationLabelSource(LabelSource):
     def __init__(self, organizations: Iterable[AUSOCMOrganization]) -> None:
         self.organizations = organizations
-
-    def managed_label_prefixes(self) -> set[str]:
-        return {aus_label_key("")}
 
     def get_labels(self) -> dict[LabelOwnerRef, dict[str, str]]:
         return {

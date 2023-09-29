@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
 from collections.abc import (
     Callable,
     Iterable,
@@ -10,6 +9,8 @@ from typing import (
     Any,
     Optional,
 )
+
+from pydantic import validator
 
 from reconcile.aus.aus_label_source import (
     init_aus_cluster_label_source,
@@ -61,13 +62,19 @@ QONTRACT_INTEGRATION = "ocm-subscription-labels"
 class OcmLabelsIntegrationParams(PydanticRunParams):
     managed_label_prefixes: list[str] = []
 
+    @validator("managed_label_prefixes")
+    def must_end_with_dot(  # pylint: disable=no-self-argument
+        cls, v: list[str]
+    ) -> list[str]:
+        return [prefix + "." if not prefix.endswith(".") else prefix for prefix in v]
+
 
 class ManagedLabelConflictError(Exception):
     pass
 
 
 class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationParams]):
-    """Sync cluster.ocm-labels to OCM."""
+    """Sync labels to subscription and organizations."""
 
     @property
     def name(self) -> str:
@@ -151,12 +158,8 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         label_sources: list[LabelSource] = [
             init_aus_org_label_source(gql.get_api().query),
         ]
-        managed_label_prefixes = (
-            managed_label_prefixes
-        ) = self.manged_label_prefixes_from_sources(label_sources)
-
         current_state = self.fetch_organization_label_current_state(
-            organizations, list(managed_label_prefixes)
+            organizations, self.params.managed_label_prefixes
         )
         desired_state = self.fetch_desired_state(label_sources)
         return current_state, desired_state
@@ -225,15 +228,12 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         e.g. if a cluster can't be found in OCM or is not considered ready yet.
         """
         label_sources: list[LabelSource] = [
-            init_cluster_subscription_label_source(
-                clusters, self.params.managed_label_prefixes
-            ),
+            init_cluster_subscription_label_source(clusters),
             init_aus_cluster_label_source(gql.get_api().query),
         ]
-        managed_label_prefixes = self.manged_label_prefixes_from_sources(label_sources)
 
         current_state = self.fetch_subscription_label_current_state(
-            clusters, list(managed_label_prefixes)
+            clusters, self.params.managed_label_prefixes
         )
         desired_state = self.fetch_desired_state(label_sources)
         return current_state, desired_state
@@ -285,9 +285,11 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
     def fetch_desired_state(
         self, sources: list[LabelSource]
     ) -> dict[LabelOwnerRef, dict[str, str]]:
-        states: dict[LabelOwnerRef, dict[str, str]] = defaultdict(dict)
+        states: dict[LabelOwnerRef, dict[str, str]] = {}
         for s in sources:
             for owner_ref, labels in s.get_labels().items():
+                if owner_ref not in states:
+                    states[owner_ref] = {}
                 for label, value in labels.items():
                     if label in states[owner_ref]:
                         raise ManagedLabelConflictError(
@@ -295,26 +297,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
                         )
                     states[owner_ref][label] = value
 
-        return dict(states)
-
-    def manged_label_prefixes_from_sources(
-        self, label_sources: list[LabelSource]
-    ) -> set[str]:
-        prefixes = set()
-        for source in label_sources:
-            for s in source.managed_label_prefixes():
-                if s in prefixes:
-                    raise ManagedLabelConflictError(
-                        f"Label prefix '{s}' from {type(s)} is already managed by another label source"
-                    )
-                for i in range(1, len(s)):
-                    prefix = s[:i]
-                    if prefix in prefixes:
-                        raise ManagedLabelConflictError(
-                            f"Label prefix '{s}' from {type(s)} is already managed by another label source"
-                        )
-                prefixes.add(s)
-        return prefixes
+        return states
 
     def reconcile(
         self,
@@ -380,41 +363,20 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
 
 
 def init_cluster_subscription_label_source(
-    clusters: list[ClusterV1], parent_prefixes: Iterable[str]
+    clusters: list[ClusterV1],
 ) -> ClusterSubscriptionLabelSource:
-    # find the managed prefixes based on current label data in clusters
-    def next_segment(prefix: str, label: str) -> Optional[str]:
-        if label.startswith(prefix):
-            return label[len(prefix) + 1 :].split(".")[0]
-        return None
-
-    managed_prefixes = set()
-    for parent_prefix in parent_prefixes:
-        for cluster in clusters:
-            for label in flatten(cluster.ocm_subscription_labels or {}):
-                segment = next_segment(parent_prefix, label)
-                if segment:
-                    managed_prefixes.add(f"{parent_prefix}.{segment}")
-
     return ClusterSubscriptionLabelSource(
         clusters=[
             c
             for c in clusters or []
             if c.ocm is not None and integration_is_enabled(QONTRACT_INTEGRATION, c)
         ],
-        managed_prefixes=managed_prefixes,
     )
 
 
 class ClusterSubscriptionLabelSource(LabelSource):
-    def __init__(
-        self, clusters: Iterable[ClusterV1], managed_prefixes: set[str]
-    ) -> None:
+    def __init__(self, clusters: Iterable[ClusterV1]) -> None:
         self.clusters = clusters
-        self.managed_prefixes = managed_prefixes
-
-    def managed_label_prefixes(self) -> set[str]:
-        return self.managed_prefixes
 
     def get_labels(self) -> dict[LabelOwnerRef, dict[str, str]]:
         return {
