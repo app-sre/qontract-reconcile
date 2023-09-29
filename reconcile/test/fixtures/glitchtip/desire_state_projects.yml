@@ -24,7 +24,7 @@
               role: owner
           users:
             - org_username: GlobalFlightDirector
-              name: Global  Fligh t Director
+              name: Global  Flight Director
         - glitchtip_roles:
             - organization:
                 name: ESA

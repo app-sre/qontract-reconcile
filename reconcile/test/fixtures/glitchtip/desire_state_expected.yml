@@ -1,0 +1,224 @@
+- name: ESA
+  pk: null
+  projects:
+  - alerts: []
+    name: rosetta-spacecraft
+    pk: null
+    platform: python
+    slug: rosetta-spacecraft
+    teams:
+    - name: esa-pilots
+      pk: null
+      slug: esa-pilots
+      users:
+      - email: SamanthaCristoforetti@nasa.com
+        pending: false
+        pk: null
+        role: member
+    - name: esa-flight-control
+      pk: null
+      slug: esa-flight-control
+      users:
+      - email: GlobalFlightDirector@nasa.com
+        pending: false
+        pk: null
+        role: owner
+      - email: MatthiasMaurer@nasa.com
+        pending: false
+        pk: null
+        role: member
+      - email: TimPeake@nasa.com
+        pending: false
+        pk: null
+        role: member
+  - alerts: []
+    name: rosetta-flight-control
+    pk: null
+    platform: python
+    slug: rosetta-flight-control
+    teams:
+    - name: esa-flight-control
+      pk: null
+      slug: esa-flight-control
+      users:
+      - email: GlobalFlightDirector@nasa.com
+        pending: false
+        pk: null
+        role: owner
+      - email: MatthiasMaurer@nasa.com
+        pending: false
+        pk: null
+        role: member
+      - email: TimPeake@nasa.com
+        pending: false
+        pk: null
+        role: member
+  slug: esa
+  teams:
+  - name: esa-pilots
+    pk: null
+    slug: esa-pilots
+    users:
+    - email: SamanthaCristoforetti@nasa.com
+      pending: false
+      pk: null
+      role: member
+  - name: esa-flight-control
+    pk: null
+    slug: esa-flight-control
+    users:
+    - email: GlobalFlightDirector@nasa.com
+      pending: false
+      pk: null
+      role: owner
+    - email: MatthiasMaurer@nasa.com
+      pending: false
+      pk: null
+      role: member
+    - email: TimPeake@nasa.com
+      pending: false
+      pk: null
+      role: member
+  users:
+  - email: SamanthaCristoforetti@nasa.com
+    pending: false
+    pk: null
+    role: member
+  - email: GlobalFlightDirector@nasa.com
+    pending: false
+    pk: null
+    role: owner
+  - email: MatthiasMaurer@nasa.com
+    pending: false
+    pk: null
+    role: member
+  - email: TimPeake@nasa.com
+    pending: false
+    pk: null
+    role: member
+- name: NASA
+  pk: null
+  projects:
+  - alerts: []
+    name: apollo-11-spacecraft
+    pk: null
+    platform: python
+    slug: apollo-11-spacecraft
+    teams:
+    - name: nasa-pilots
+      pk: null
+      slug: nasa-pilots
+      users:
+      - email: NeilArmstrong@nasa.com
+        pending: false
+        pk: null
+        role: member
+      - email: BuzzAldrin@nasa.com
+        pending: false
+        pk: null
+        role: member
+    - name: nasa-flight-control
+      pk: null
+      slug: nasa-flight-control
+      users:
+      - email: GlobalFlightDirector@nasa.com
+        pending: false
+        pk: null
+        role: owner
+      - email: MichaelCollins@nasa.com
+        pending: false
+        pk: null
+        role: member
+  - alerts: []
+    name: apollo-11-flight-control
+    pk: null
+    platform: python
+    slug: apollo-11-flight-control
+    teams:
+    - name: nasa-flight-control
+      pk: null
+      slug: nasa-flight-control
+      users:
+      - email: GlobalFlightDirector@nasa.com
+        pending: false
+        pk: null
+        role: owner
+      - email: MichaelCollins@nasa.com
+        pending: false
+        pk: null
+        role: member
+    - name: externals
+      pk: null
+      slug: externals
+      users:
+      - email: uhura@nasa.com
+        pending: false
+        pk: null
+        role: admin
+      - email: pike@nasa.com
+        pending: false
+        pk: null
+        role: member
+  slug: nasa
+  teams:
+  - name: nasa-pilots
+    pk: null
+    slug: nasa-pilots
+    users:
+    - email: NeilArmstrong@nasa.com
+      pending: false
+      pk: null
+      role: member
+    - email: BuzzAldrin@nasa.com
+      pending: false
+      pk: null
+      role: member
+  - name: nasa-flight-control
+    pk: null
+    slug: nasa-flight-control
+    users:
+    - email: GlobalFlightDirector@nasa.com
+      pending: false
+      pk: null
+      role: owner
+    - email: MichaelCollins@nasa.com
+      pending: false
+      pk: null
+      role: member
+  - name: externals
+    pk: null
+    slug: externals
+    users:
+    - email: uhura@nasa.com
+      pending: false
+      pk: null
+      role: admin
+    - email: pike@nasa.com
+      pending: false
+      pk: null
+      role: member
+  users:
+  - email: NeilArmstrong@nasa.com
+    pending: false
+    pk: null
+    role: member
+  - email: BuzzAldrin@nasa.com
+    pending: false
+    pk: null
+    role: member
+  - email: GlobalFlightDirector@nasa.com
+    pending: false
+    pk: null
+    role: owner
+  - email: MichaelCollins@nasa.com
+    pending: false
+    pk: null
+    role: member
+  - email: uhura@nasa.com
+    pending: false
+    pk: null
+    role: admin
+  - email: pike@nasa.com
+    pending: false
+    pk: null
+    role: member

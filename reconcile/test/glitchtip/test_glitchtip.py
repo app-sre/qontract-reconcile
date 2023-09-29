@@ -1,6 +1,7 @@
-import json
 from collections.abc import Callable
 from unittest.mock import Mock
+
+from deepdiff import DeepDiff
 
 from reconcile.glitchtip.integration import (
     fetch_current_state,
@@ -25,9 +26,14 @@ def test_fetch_current_state(
         glitchtip_client, ignore_users=["sd-app-sre+glitchtip@nasa.com"]
     )
 
-    assert json.dumps(
-        [s.dict() for s in current_state], indent=2, sort_keys=True
-    ) == fx.get("current_state_expected.json")
+    assert (
+        DeepDiff(
+            [s.dict() for s in current_state],
+            fx.get_anymarkup("current_state_expected.yml"),
+            ignore_order=True,
+        )
+        == {}
+    )
 
 
 def test_desire_state(
@@ -64,6 +70,11 @@ def test_desire_state(
         internal_groups_client=internal_groups_client,
     )
 
-    assert json.dumps(
-        [s.dict() for s in desired_state], indent=2, sort_keys=True
-    ) == fx.get("desire_state_expected.json")
+    assert (
+        DeepDiff(
+            [s.dict() for s in desired_state],
+            fx.get_anymarkup("desire_state_expected.yml"),
+            ignore_order=True,
+        )
+        == {}
+    )
