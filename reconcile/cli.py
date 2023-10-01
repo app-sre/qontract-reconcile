@@ -2845,14 +2845,3 @@ def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
             short_help=integration_cmd.short_help,  # type: ignore
         )
     return integration_meta
-
-
-@integration.command(short_help="Custom metrics exporter.")
-@click.pass_context
-def overview_metrics_exporter(ctx):
-    import reconcile.overview_metrics_exporter
-
-    run_integration(
-        reconcile.overview_metrics_exporter,
-        ctx.obj,
-    )
