@@ -6,18 +6,19 @@ from collections.abc import (
 
 import pytest
 
+from reconcile.gql_definitions.fragments.saas_target_namespace import (
+    SaasTargetNamespace,
+)
 from reconcile.saas_auto_promotions_manager.subscriber import (
     Channel,
     Subscriber,
 )
-from reconcile.typed_queries.saas_files import SaasTargetNamespace
 
 from .data_keys import (
     CHANNELS,
     CONFIG_HASHES,
-    NAMESPACE_PATH,
-    REF,
     NAMESPACE,
+    REF,
 )
 
 
@@ -41,10 +42,11 @@ def file_contents() -> Callable[[str], tuple[str, str]]:
 
 
 @pytest.fixture
-def subscriber_builder(saas_target_namespace_builder: Callable[..., SaasTargetNamespace]) -> Callable[[Mapping], Subscriber]:
+def subscriber_builder(
+    saas_target_namespace_builder: Callable[..., SaasTargetNamespace]
+) -> Callable[[Mapping], Subscriber]:
     def builder(data: Mapping) -> Subscriber:
         subscriber = Subscriber(
-            namespace_file_path=data[NAMESPACE_PATH],
             target_namespace=saas_target_namespace_builder(data.get(NAMESPACE, {})),
             ref="",
             saas_name="",

@@ -18,9 +18,8 @@ from .data_keys import (
     SUBSCRIBER_CONTENT_HASH,
     SUBSCRIBER_DESIRED_CONFIG_HASHES,
     SUBSCRIBER_DESIRED_REF,
-    SUBSCRIBER_NAMESPACE_REF,
-    SUBSCRIBER_TARGET_PATH,
     SUBSCRIBER_TARGET_NAMESPACE,
+    SUBSCRIBER_TARGET_PATH,
 )
 
 
@@ -32,7 +31,7 @@ def test_close_old_content(
     subscribers = [
         subscriber_builder(
             {
-                SUBSCRIBER_NAMESPACE_REF: "namespace1",
+                SUBSCRIBER_TARGET_NAMESPACE: {"path": "namespace1"},
                 SUBSCRIBER_TARGET_PATH: "target1",
                 SUBSCRIBER_DESIRED_REF: "new_sha",
                 SUBSCRIBER_DESIRED_CONFIG_HASHES: [],
@@ -74,7 +73,7 @@ def test_merge_request_already_opened(
     subscribers = [
         subscriber_builder(
             {
-                SUBSCRIBER_NAMESPACE_REF: "namespace1",
+                SUBSCRIBER_TARGET_NAMESPACE: {"path": "namespace1"},
                 SUBSCRIBER_TARGET_PATH: "target1",
                 SUBSCRIBER_DESIRED_REF: "new_sha",
                 SUBSCRIBER_DESIRED_CONFIG_HASHES: [],
@@ -117,7 +116,7 @@ def test_ignore_unrelated_channels(
     subscribers = [
         subscriber_builder(
             {
-                SUBSCRIBER_NAMESPACE_REF: "namespace1",
+                SUBSCRIBER_TARGET_NAMESPACE: {"path": "namespace1"},
                 SUBSCRIBER_TARGET_PATH: "target1",
                 SUBSCRIBER_DESIRED_REF: "new_sha",
                 SUBSCRIBER_DESIRED_CONFIG_HASHES: [],

@@ -11,8 +11,11 @@ from unittest.mock import (
 
 import pytest
 
+from reconcile.gql_definitions.fragments.saas_target_namespace import (
+    SaasTargetNamespace,
+)
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
-from reconcile.typed_queries.saas_files import SaasFile, SaasTargetNamespace
+from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.gitlab_api import GitLabApi
 
 
@@ -70,14 +73,16 @@ def gql_client_builder() -> Callable[..., GitLabApi]:
 
 
 @pytest.fixture
-def saas_target_namespace_builder(gql_class_factory: Callable[..., SaasTargetNamespace]) -> Callable[..., SaasTargetNamespace]:
-    def builder(data: Mapping) -> SaasTargetNamespace:
-        namespace_data = data
-        if "environment" not in namespace_data:
-            namespace_data["environment"] = {}
-        if "app" not in namespace_data:
-            namespace_data["app"] = {}
-        if "cluster" not in namespace_data:
-            namespace_data["cluster"] = {}
-        return gql_class_factory(SaasTargetNamespace, namespace_data)
+def saas_target_namespace_builder(
+    gql_class_factory: Callable[..., SaasTargetNamespace]
+) -> Callable[..., SaasTargetNamespace]:
+    def builder(data: MutableMapping) -> SaasTargetNamespace:
+        if "environment" not in data:
+            data["environment"] = {}
+        if "app" not in data:
+            data["app"] = {}
+        if "cluster" not in data:
+            data["cluster"] = {}
+        return gql_class_factory(SaasTargetNamespace, data)
+
     return builder
