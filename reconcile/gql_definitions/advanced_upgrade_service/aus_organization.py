@@ -53,8 +53,11 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
       name
     }
     publishVersionData {
-      orgId
+      ... MinimalOCMOrganization
     }
+  }
+  publishVersionData {
+    ... MinimalOCMOrganization
   }
   sectors {
     name
@@ -83,6 +86,11 @@ fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
     sector
     blockedVersions
   }
+}
+
+fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {
+  name
+  orgId
 }
 
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {

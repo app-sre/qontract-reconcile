@@ -8,9 +8,11 @@ clusters:
         field: client_secret
         path: path/to/client_secret
     orgId: org-id-1
+  spec:
+    id: cluster-disabled_id
   disable:
     integrations:
-    - ocm-subscription-labels
+    - ocm-labels
 - name: cluster-1
   ocm:
     environment:
@@ -19,6 +21,8 @@ clusters:
         field: client_secret
         path: path/to/client_secret
     orgId: org-id-1
+  spec:
+    id: cluster-1_id
   ocmSubscriptionLabels: '{"my-label-prefix":{"to-be-added":"enabled","to-be-changed":"enabled"}}'
 - name: cluster-2
   ocm:
@@ -28,6 +32,8 @@ clusters:
         field: client_secret
         path: path/to/client_secret
     orgId: org-id-2
+  spec:
+    id: cluster-2_id
 - name: cluster-3
   ocm:
     environment:
@@ -36,4 +42,6 @@ clusters:
         field: client_secret
         path: path/to/client_secret
     orgId: org-id-2
+  spec:
+    id: cluster-3_id
   ocmSubscriptionLabels: '{"my-label-prefix":{"to-be-added":"enabled"}}'

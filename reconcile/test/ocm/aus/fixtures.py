@@ -9,9 +9,13 @@ from reconcile.aus.models import (
 )
 from reconcile.gql_definitions.fragments.aus_organization import (
     AUSOCMOrganization,
+    OpenShiftClusterManagerSectorDependenciesV1,
+    OpenShiftClusterManagerSectorV1,
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1,
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1,
-    OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1,
+)
+from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
+    MinimalOCMOrganization,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.upgrade_policy import (
@@ -65,7 +69,9 @@ def build_organization(
     org_name: Optional[str] = None,
     env_name: Optional[str] = None,
     inherit_version_data_from_org_ids: Optional[list[tuple[str, str, bool]]] = None,
+    publish_version_data_from_org_ids: Optional[list[str]] = None,
     blocked_versions: Optional[list[str]] = None,
+    sector_dependencies: Optional[dict[str, Optional[list[str]]]] = None,
 ) -> AUSOCMOrganization:
     org_id = org_id or "org-1-id"
     return AUSOCMOrganization(
@@ -81,15 +87,17 @@ def build_organization(
                 orgId=other_org_id,
                 name=other_org_id,
                 publishVersionData=[
-                    OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(
-                        orgId=org_id
-                    )
+                    MinimalOCMOrganization(name=org_name or org_id, orgId=org_id)
                 ]
                 if valid_peering
                 else None,
             )
             for other_env, other_org_id, valid_peering in inherit_version_data_from_org_ids
             or []
+        ],
+        publishVersionData=[
+            MinimalOCMOrganization(name=org_id or org_id, orgId=org_id)
+            for org_id in publish_version_data_from_org_ids or []
         ],
         accessTokenClientId=None,
         accessTokenUrl=None,
@@ -98,7 +106,23 @@ def build_organization(
         upgradePolicyAllowedWorkloads=None,
         addonManagedUpgrades=False,
         addonUpgradeTests=None,
-        sectors=None,
+        sectors=[
+            OpenShiftClusterManagerSectorV1(
+                name=sector,
+                dependencies=[
+                    OpenShiftClusterManagerSectorDependenciesV1(
+                        name=dep,
+                        ocm=None,
+                    )
+                    for dep in dependencies
+                ]
+                if dependencies
+                else None,
+            )
+            for sector, dependencies in sector_dependencies.items()
+        ]
+        if sector_dependencies
+        else None,
     )
 
 
