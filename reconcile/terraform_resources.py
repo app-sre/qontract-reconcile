@@ -41,6 +41,7 @@ from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
     managed_external_resources,
+    publish_metrics,
 )
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.oc_map import (
@@ -399,6 +400,7 @@ def run(
         account_names,
         exclude_accounts,
     )
+    publish_metrics(resource_specs)
 
     if not dry_run and oc_map and defer:
         defer(oc_map.cleanup)

@@ -12,7 +12,10 @@ import anymarkup
 
 from reconcile.utils import gql
 from reconcile.utils.exceptions import FetchResourceError
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.external_resource_spec import (
+    ExternalResourceSpec,
+    ExternalResourceSpecInventory,
+)
 
 PROVIDER_AWS = "aws"
 PROVIDER_CLOUDFLARE = "cloudflare"
@@ -59,6 +62,10 @@ def managed_external_resources(namespace_info: Mapping[str, Any]) -> bool:
         return True
 
     return False
+
+
+def publish_metrics(inventory: ExternalResourceSpecInventory):
+    raise NotImplementedError()
 
 
 class ResourceValueResolver:
