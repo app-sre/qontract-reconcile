@@ -8,7 +8,6 @@ from typing import (
 )
 
 from jsonpath_ng.exceptions import JsonPathParserError
-from jsonpath_ng.ext import parser
 from pydantic import (
     BaseModel,
     Extra,
@@ -51,6 +50,7 @@ from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,
     ParameterError,
 )
+from reconcile.utils.jsonpath import parse_jsonpath
 
 
 class SaasResourceTemplateTarget(ConfiguredBaseModel):
@@ -164,7 +164,7 @@ def get_namespaces_by_selector(
 
     try:
         for include in namespace_selector.json_path_selectors.include:
-            for match in parser.parse(include).find(namespaces_as_dict):
+            for match in parse_jsonpath(include).find(namespaces_as_dict):
                 cluster_name = match.value["cluster"]["name"]
                 ns_name = match.value["name"]
                 filtered_namespaces[
@@ -177,7 +177,7 @@ def get_namespaces_by_selector(
 
     try:
         for exclude in namespace_selector.json_path_selectors.exclude or []:
-            for match in parser.parse(exclude).find(namespaces_as_dict):
+            for match in parse_jsonpath(exclude).find(namespaces_as_dict):
                 cluster_name = match.value["cluster"]["name"]
                 ns_name = match.value["name"]
                 filtered_namespaces.pop(f"{cluster_name}-{ns_name}", None)
