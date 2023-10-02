@@ -61,7 +61,7 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
     # the namespace must be required to fulfill the saas file schema (utils.saasherder.interface.SaasFile)
     namespace: SaasTargetNamespace = Field(..., alias="namespace")
     namespace_selector: Optional[SaasTargetNamespaceSelector] = Field(
-        ..., alias="namespace_selector"
+        ..., alias="namespaceSelector"
     )
     ref: str = Field(..., alias="ref")
     promotion: Optional[SaasResourceTemplateTargetPromotionV1] = Field(

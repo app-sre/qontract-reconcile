@@ -551,6 +551,13 @@ PIPELINE_PROVIDER = {
                                         "app": {"name": "example", "parentApp": None},
                                         "cluster": CLUSTER,
                                     },
+                                    "namespaceSelector": {
+                                        "jsonPathSelectors": {
+                                            "include": [
+                                                'namespace[?@.app.name="example"]'
+                                            ]
+                                        }
+                                    },
                                     "ref": "1234567890123456789012345678901234567890",
                                 },
                                 {
@@ -560,6 +567,13 @@ PIPELINE_PROVIDER = {
                                         "environment": {"name": "stage"},
                                         "app": {"name": "example", "parentApp": None},
                                         "cluster": CLUSTER,
+                                    },
+                                    "namespaceSelector": {
+                                        "jsonPathSelectors": {
+                                            "include": [
+                                                'namespace[?@.app.name="example"]'
+                                            ]
+                                        }
                                     },
                                     "ref": "1234567890123456789012345678901234567890",
                                 },
@@ -597,7 +611,8 @@ def test_get_saas_files(
         app_name=app_name,
         namespaces=namespaces,
     )
-    assert items == [gql_class_factory(SaasFile, item) for item in expected_saas_files]
+    expected = [gql_class_factory(SaasFile, item) for item in expected_saas_files]
+    assert items == expected
 
 
 def test_get_saasherder_settings(
@@ -691,6 +706,7 @@ def test_export_model(
                         {
                             "path": None,
                             "name": None,
+                            "namespaceSelector": None,
                             "namespace": {
                                 "name": "namespace-test",
                                 "labels": None,
@@ -741,6 +757,7 @@ def test_export_model(
                         {
                             "path": None,
                             "name": None,
+                            "namespaceSelector": None,
                             "namespace": {
                                 "name": "namespace-prod",
                                 "labels": None,
@@ -862,6 +879,7 @@ def test_export_model(
                         {
                             "path": None,
                             "name": None,
+                            "namespaceSelector": None,
                             "namespace": {
                                 "name": "namespace-test",
                                 "labels": None,
@@ -912,6 +930,7 @@ def test_export_model(
                         {
                             "path": None,
                             "name": None,
+                            "namespaceSelector": None,
                             "namespace": {
                                 "name": "namespace-prod",
                                 "labels": None,
@@ -1033,6 +1052,12 @@ def test_export_model(
                         {
                             "path": None,
                             "name": None,
+                            "namespaceSelector": {
+                                "jsonPathSelectors": {
+                                    "exclude": None,
+                                    "include": ['namespace[?@.app.name="example"]'],
+                                }
+                            },
                             "namespace": {
                                 "name": "example-01",
                                 "labels": None,
@@ -1083,6 +1108,12 @@ def test_export_model(
                         {
                             "path": None,
                             "name": None,
+                            "namespaceSelector": {
+                                "jsonPathSelectors": {
+                                    "exclude": None,
+                                    "include": ['namespace[?@.app.name="example"]'],
+                                }
+                            },
                             "namespace": {
                                 "name": "example-02",
                                 "labels": None,
