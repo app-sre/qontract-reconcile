@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from collections.abc import (
     Mapping,
     MutableMapping,
@@ -10,9 +11,16 @@ from typing import (
 
 import anymarkup
 
-from reconcile.utils import gql
+from reconcile.utils import (
+    gql,
+    metrics,
+)
 from reconcile.utils.exceptions import FetchResourceError
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.external_resource_spec import (
+    ExternalResourceInventoryGauge,
+    ExternalResourceSpec,
+    ExternalResourceSpecInventory,
+)
 
 PROVIDER_AWS = "aws"
 PROVIDER_CLOUDFLARE = "cloudflare"
@@ -59,6 +67,29 @@ def managed_external_resources(namespace_info: Mapping[str, Any]) -> bool:
         return True
 
     return False
+
+
+def get_inventory_count_combinations(
+    inventory: ExternalResourceSpecInventory,
+) -> Counter[tuple]:
+    return Counter(
+        (k.provision_provider, k.provisioner_name, k.provider) for k in inventory
+    )
+
+
+def publish_metrics(inventory: ExternalResourceSpecInventory, integration: str) -> None:
+    count_combinations = get_inventory_count_combinations(inventory)
+    for combination, count in count_combinations.items():
+        provision_provider, provisioner_name, provider = combination
+        metrics.set_gauge(
+            ExternalResourceInventoryGauge(
+                integration=integration,
+                provision_provider=provision_provider,
+                provisioner_name=provisioner_name,
+                provider=provider,
+            ),
+            count,
+        )
 
 
 class ResourceValueResolver:
