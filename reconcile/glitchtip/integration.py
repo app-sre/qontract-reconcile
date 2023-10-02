@@ -129,6 +129,7 @@ def fetch_desired_state(
                         )
                     )
 
+            # set(users) will take the first occurrence of a user, so the users from roles will be preferred
             team = Team(name=glitchtip_team.name, users=set(users))
             project.teams.append(team)
             if team not in organization.teams:
