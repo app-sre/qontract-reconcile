@@ -10,6 +10,7 @@ from typing import (
     Optional,
 )
 
+from deepdiff import DeepHash
 from pydantic import validator
 
 from reconcile.aus.aus_label_source import (
@@ -108,13 +109,38 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
             for env in environments
         }
 
+    def org_label_sources(self, query_func: Callable) -> list[LabelSource]:
+        return [
+            init_aus_org_label_source(query_func),
+        ]
+
+    def subscription_label_sources(
+        self, clusters: list[ClusterV1], query_func: Callable
+    ) -> list[LabelSource]:
+        return [
+            init_cluster_subscription_label_source(clusters),
+            init_aus_cluster_label_source(query_func),
+        ]
+
     def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
-        # gqlapi = gql.get_api()
-        # return {"clusters": [c.dict() for c in self.get_clusters(gqlapi.query)]}
-        return {}
+        gqlapi = gql.get_api()
+        desired = {
+            "org_labels": self.fetch_desired_state(
+                self.org_label_sources(gqlapi.query)
+            ),
+            "subs_labels": self.fetch_desired_state(
+                self.subscription_label_sources(
+                    self.get_clusters(gqlapi.query), gqlapi.query
+                )
+            ),
+        }
+        # to figure out wheter to run a PR check of to exit early, a hash value
+        # of the desired state is sufficient
+        return {"hash": DeepHash(desired).get(desired)}
 
     def run(self, dry_run: bool) -> None:
         gqlapi = gql.get_api()
+        self.get_early_exit_desired_state()
         clusters = self.get_clusters(gqlapi.query)
         organizations = self.get_organizations(gqlapi.query)
         environments = self.get_environments(gqlapi.query)
@@ -153,13 +179,10 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         Please note that the current state might not contain all requested organizations,
         e.g. if a organization can't be found in OCM.
         """
-        label_sources: list[LabelSource] = [
-            init_aus_org_label_source(query_func),
-        ]
         current_state = self.fetch_organization_label_current_state(
             organizations, self.params.managed_label_prefixes
         )
-        desired_state = self.fetch_desired_state(label_sources)
+        desired_state = self.fetch_desired_state(self.org_label_sources(query_func))
         return current_state, desired_state
 
     def fetch_organization_label_current_state(
@@ -223,15 +246,12 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         Please note that the current state might not contain all requested clusters,
         e.g. if a cluster can't be found in OCM or is not considered ready yet.
         """
-        label_sources: list[LabelSource] = [
-            init_cluster_subscription_label_source(clusters),
-            init_aus_cluster_label_source(query_func),
-        ]
-
         current_state = self.fetch_subscription_label_current_state(
             clusters, self.params.managed_label_prefixes
         )
-        desired_state = self.fetch_desired_state(label_sources)
+        desired_state = self.fetch_desired_state(
+            self.subscription_label_sources(clusters, query_func)
+        )
         return current_state, desired_state
 
     def fetch_subscription_label_current_state(
