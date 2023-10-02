@@ -1035,8 +1035,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         cloudwatch_logs = self._account_cloudwatch_client(account["name"])
         paginator = cloudwatch_logs.get_paginator("describe_log_groups")
         for page in paginator.paginate():
-            for log_group in page["logGroups"]:
-                log_group_list.append(log_group)
+            log_group_list.extend(page["logGroups"])
         return log_group_list
 
     def set_cloudwatch_log_retention(self, account, group_name, retention_days):
