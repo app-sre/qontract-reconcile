@@ -67,7 +67,10 @@ class ClusterRef(LabelOwnerRef):
         ]
 
 
+LabelState = dict[LabelOwnerRef, dict[str, str]]
+
+
 class LabelSource(ABC):
     @abstractmethod
-    def get_labels(self) -> dict[LabelOwnerRef, dict[str, str]]:
+    def get_labels(self) -> LabelState:
         pass

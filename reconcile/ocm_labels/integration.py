@@ -30,6 +30,7 @@ from reconcile.ocm_labels.label_sources import (
     ClusterRef,
     LabelOwnerRef,
     LabelSource,
+    LabelState,
     OrgRef,
 )
 from reconcile.utils import gql
@@ -123,7 +124,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
 
         # organization labels
         orgs_current_state, orgs_desired_state = self.fetch_organization_label_states(
-            organizations
+            organizations, gqlapi.query
         )
         self.reconcile(
             dry_run=dry_run,
@@ -134,7 +135,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
 
         # subscription labels
         subs_current_state, subs_desired_state = self.fetch_subscription_label_states(
-            clusters
+            clusters, gqlapi.query
         )
         self.reconcile(
             dry_run=dry_run,
@@ -144,10 +145,8 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         )
 
     def fetch_organization_label_states(
-        self, organizations: Iterable[OpenShiftClusterManagerV1]
-    ) -> tuple[
-        dict[LabelOwnerRef, dict[str, str]], dict[LabelOwnerRef, dict[str, str]]
-    ]:
+        self, organizations: Iterable[OpenShiftClusterManagerV1], query_func: Callable
+    ) -> tuple[LabelState, LabelState]:
         """
         Returns the current and desired state of the organizations labels for
         the given organizations.
@@ -156,7 +155,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         e.g. if a organization can't be found in OCM.
         """
         label_sources: list[LabelSource] = [
-            init_aus_org_label_source(gql.get_api().query),
+            init_aus_org_label_source(query_func),
         ]
         current_state = self.fetch_organization_label_current_state(
             organizations, self.params.managed_label_prefixes
@@ -168,7 +167,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         self,
         organizations: Iterable[OpenShiftClusterManagerV1],
         managed_label_prefixes: list[str],
-    ) -> dict[LabelOwnerRef, dict[str, str]]:
+    ) -> LabelState:
         """
         Fetches the current state of organizations labels for the given organizations.
         If an organization can't be found in OCM, the resulting dict will not contain a
@@ -177,7 +176,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         Only labels with a prefix in managed_label_prefixes are returned. Not every label
         on an organizations is this integrations business.
         """
-        states: dict[LabelOwnerRef, dict[str, str]] = {
+        states: LabelState = {
             OrgRef(
                 org_id=org.org_id,
                 ocm_env=org.environment.name,
@@ -216,10 +215,8 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         return states
 
     def fetch_subscription_label_states(
-        self, clusters: list[ClusterV1]
-    ) -> tuple[
-        dict[LabelOwnerRef, dict[str, str]], dict[LabelOwnerRef, dict[str, str]]
-    ]:
+        self, clusters: list[ClusterV1], query_func: Callable
+    ) -> tuple[LabelState, LabelState]:
         """
         Returns the current and desired state of the subscription labels for
         the given clusters.
@@ -229,7 +226,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         """
         label_sources: list[LabelSource] = [
             init_cluster_subscription_label_source(clusters),
-            init_aus_cluster_label_source(gql.get_api().query),
+            init_aus_cluster_label_source(query_func),
         ]
 
         current_state = self.fetch_subscription_label_current_state(
@@ -240,7 +237,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
 
     def fetch_subscription_label_current_state(
         self, clusters: Iterable[ClusterV1], managed_label_prefixes: list[str]
-    ) -> dict[LabelOwnerRef, dict[str, str]]:
+    ) -> LabelState:
         """
         Fetches the current state of subscription labels for the given clusters.
         If a cluster can't be found in OCM, the resulting dict will not contain a
@@ -250,7 +247,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         on a subscription is this integrations business.
         """
         cluster_ids = {c.spec.q_id for c in clusters if c.spec and c.spec.q_id}
-        states: dict[LabelOwnerRef, dict[str, str]] = {}
+        states: LabelState = {}
         for env_name, ocm_api in self.ocm_apis.items():
             for cluster_details in discover_clusters_for_organizations(
                 ocm_api=ocm_api,
@@ -282,10 +279,8 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
                 ] = filtered_labels
         return states
 
-    def fetch_desired_state(
-        self, sources: list[LabelSource]
-    ) -> dict[LabelOwnerRef, dict[str, str]]:
-        states: dict[LabelOwnerRef, dict[str, str]] = {}
+    def fetch_desired_state(self, sources: list[LabelSource]) -> LabelState:
+        states: LabelState = {}
         for s in sources:
             for owner_ref, labels in s.get_labels().items():
                 if owner_ref not in states:
@@ -303,8 +298,8 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         self,
         dry_run: bool,
         scope: str,
-        current_state: dict[LabelOwnerRef, dict[str, str]],
-        desired_state: dict[LabelOwnerRef, dict[str, str]],
+        current_state: LabelState,
+        desired_state: LabelState,
     ) -> None:
         # we iterate via the current state because it refers to the clusters we can act on
         for label_owner_ref, current_labels in current_state.items():
@@ -378,7 +373,7 @@ class ClusterSubscriptionLabelSource(LabelSource):
     def __init__(self, clusters: Iterable[ClusterV1]) -> None:
         self.clusters = clusters
 
-    def get_labels(self) -> dict[LabelOwnerRef, dict[str, str]]:
+    def get_labels(self) -> LabelState:
         return {
             ClusterRef(
                 cluster_id=cluster.spec.q_id,

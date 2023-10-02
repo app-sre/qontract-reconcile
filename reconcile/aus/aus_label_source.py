@@ -20,6 +20,7 @@ from reconcile.ocm_labels.label_sources import (
     ClusterRef,
     LabelOwnerRef,
     LabelSource,
+    LabelState,
     OrgRef,
 )
 
@@ -28,7 +29,7 @@ class AUSClusterUpgradePolicyLabelSource(LabelSource):
     def __init__(self, clusters: Iterable[ClusterV1]) -> None:
         self.clusters = clusters
 
-    def get_labels(self) -> dict[LabelOwnerRef, dict[str, str]]:
+    def get_labels(self) -> LabelState:
         return {
             ClusterRef(
                 cluster_id=cluster.spec.q_id,
@@ -66,7 +67,7 @@ class AUSOrganizationLabelSource(LabelSource):
     def __init__(self, organizations: Iterable[AUSOCMOrganization]) -> None:
         self.organizations = organizations
 
-    def get_labels(self) -> dict[LabelOwnerRef, dict[str, str]]:
+    def get_labels(self) -> LabelState:
         return {
             OrgRef(
                 org_id=organization.org_id,

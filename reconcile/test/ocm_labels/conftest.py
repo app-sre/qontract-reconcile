@@ -22,6 +22,7 @@ from reconcile.ocm_labels.integration import (
 from reconcile.ocm_labels.label_sources import (
     ClusterRef,
     LabelOwnerRef,
+    LabelState,
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.test.ocm.fixtures import build_ocm_cluster
@@ -170,7 +171,7 @@ def ocm_clusters(build_cluster_details: Callable) -> list[ClusterDetails]:
 @pytest.fixture
 def subscription_label_current_state(
     ocm_clusters: Sequence[ClusterDetails],
-) -> dict[LabelOwnerRef, dict[str, str]]:
+) -> LabelState:
     return {
         ClusterRef(
             cluster_id=ocm_clusters[0].ocm_cluster.id,
@@ -212,8 +213,8 @@ def cluster_file_subscription_label_source(
 @pytest.fixture
 def subscription_label_desired_state(
     clusters: Sequence[ClusterV1],
-) -> dict[LabelOwnerRef, dict[str, str]]:
-    desired: dict[LabelOwnerRef, dict[str, str]] = {
+) -> LabelState:
+    desired: LabelState = {
         ClusterRef(
             cluster_id=cluster.spec.q_id,
             org_id=cluster.ocm.org_id,

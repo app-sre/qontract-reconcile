@@ -18,20 +18,21 @@ from reconcile.ocm_labels.integration import (
 from reconcile.ocm_labels.label_sources import (
     LabelOwnerRef,
     LabelSource,
+    LabelState,
 )
 from reconcile.utils.ocm.base import ClusterDetails
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 class StaticLabelSource(LabelSource):
-    def __init__(self, prefixes: set[str], labels: dict[LabelOwnerRef, dict[str, str]]):
+    def __init__(self, prefixes: set[str], labels: LabelState):
         self.prefixes = prefixes
         self.labels = labels
 
     def managed_label_prefixes(self) -> set[str]:
         return self.prefixes
 
-    def get_labels(self) -> dict[LabelOwnerRef, dict[str, str]]:
+    def get_labels(self) -> LabelState:
         return self.labels
 
 
@@ -114,7 +115,7 @@ def test_ocm_labels_fetch_current_state(
     clusters: Iterable[ClusterV1],
     ocm_clusters: Sequence[ClusterDetails],
     mocker: MockerFixture,
-    subscription_label_current_state: dict[LabelOwnerRef, dict[str, str]],
+    subscription_label_current_state: LabelState,
 ) -> None:
     mocker.patch(
         "reconcile.ocm_labels.integration.discover_clusters_for_organizations",
@@ -138,7 +139,7 @@ def test_ocm_labels_fetch_current_state(
 def test_ocm_labels_fetch_desired_state(
     ocm_labels: OcmLabelsIntegration,
     clusters: list[ClusterV1],
-    subscription_label_desired_state: dict[LabelOwnerRef, dict[str, str]],
+    subscription_label_desired_state: LabelState,
 ) -> None:
     desired_state = ocm_labels.fetch_desired_state(
         [init_cluster_subscription_label_source(clusters)]
@@ -150,8 +151,8 @@ def test_ocm_labels_fetch_desired_state(
 def test_ocm_labels_reconcile(
     ocm_labels: OcmLabelsIntegration,
     mocker: MockerFixture,
-    subscription_label_current_state: dict[LabelOwnerRef, dict[str, str]],
-    subscription_label_desired_state: dict[LabelOwnerRef, dict[str, str]],
+    subscription_label_current_state: LabelState,
+    subscription_label_desired_state: LabelState,
     ocm_base_client: OCMBaseClient,
     dry_run: bool,
 ) -> None:
@@ -224,7 +225,7 @@ def test_ocm_labels_reconcile(
 
 def test_cluster_label_source_get_labels(
     cluster_file_subscription_label_source: ClusterSubscriptionLabelSource,
-    subscription_label_desired_state: dict[LabelOwnerRef, dict[str, str]],
+    subscription_label_desired_state: LabelState,
 ) -> None:
     assert (
         cluster_file_subscription_label_source.get_labels()
