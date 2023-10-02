@@ -16,6 +16,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     ConfigHash,
     Subscriber,
 )
+from reconcile.typed_queries.saas_files import SaasTargetNamespace
 
 from .data_keys import (
     CHANNELS,
@@ -29,11 +30,12 @@ from .data_keys import (
     SUCCESSFUL_DEPLOYMENT,
     TARGET_FILE_PATH,
     USE_TARGET_CONFIG_HASH,
+    NAMESPACE,
 )
 
 
 @pytest.fixture
-def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
+def subscriber_builder(saas_target_namespace_builder: Callable[..., SaasTargetNamespace]) -> Callable[[Mapping[str, Any]], Subscriber]:
     def builder(data: Mapping[str, Any]) -> Subscriber:
         channels: list[Channel] = []
         for channel_name, channel_data in data.get(CHANNELS, {}).items():
@@ -60,6 +62,7 @@ def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
             )
         subscriber = Subscriber(
             namespace_file_path=data.get(NAMESPACE_REF, ""),
+            target_namespace=saas_target_namespace_builder(data.get(NAMESPACE, {})),
             ref=data.get(CUR_SUBSCRIBER_REF, ""),
             saas_name="",
             target_file_path=data.get(TARGET_FILE_PATH, ""),

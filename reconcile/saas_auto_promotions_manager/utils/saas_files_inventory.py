@@ -83,6 +83,7 @@ class SaasFilesInventory:
                         target_file_path=file_path,
                         ref=target.ref,
                         namespace_file_path=target.namespace.path,
+                        target_namespace=target.namespace,
                         # Note: this will be refactored at a later point.
                         # https://issues.redhat.com/browse/APPSRE-7516
                         use_target_config_hash=bool(saas_file.publish_job_logs),

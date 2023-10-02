@@ -8,6 +8,7 @@ from reconcile.saas_auto_promotions_manager.publisher import (
     DeploymentInfo,
     Publisher,
 )
+from reconcile.typed_queries.saas_files import SaasTargetNamespace
 
 CONTENT_HASH_LENGTH = 32
 
@@ -38,6 +39,7 @@ class Subscriber:
         ref: str,
         target_file_path: str,
         namespace_file_path: str,
+        target_namespace: SaasTargetNamespace,
         use_target_config_hash: bool,
     ):
         self.saas_name = saas_name
@@ -49,6 +51,7 @@ class Subscriber:
         self.desired_ref = ""
         self.desired_hashes: list[ConfigHash] = []
         self.namespace_file_path = namespace_file_path
+        self.target_namespace = target_namespace
         self._content_hash = ""
         self._use_target_config_hash = use_target_config_hash
 

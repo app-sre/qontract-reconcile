@@ -21,6 +21,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     Subscriber,
 )
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
+from reconcile.typed_queries.saas_files import SaasTargetNamespace
 
 from .data_keys import (
     DESCRIPTION,
@@ -33,6 +34,7 @@ from .data_keys import (
     SUBSCRIBER_DESIRED_REF,
     SUBSCRIBER_NAMESPACE_REF,
     SUBSCRIBER_TARGET_PATH,
+    SUBSCRIBER_TARGET_NAMESPACE,
 )
 
 
@@ -81,12 +83,13 @@ def vcs_builder(
 
 
 @pytest.fixture
-def subscriber_builder() -> Callable[[Mapping], Subscriber]:
+def subscriber_builder(saas_target_namespace_builder: Callable[..., SaasTargetNamespace]):
     def builder(data: Mapping) -> Subscriber:
         subscriber = Subscriber(
             saas_name="",
             template_name="",
             namespace_file_path=data.get(SUBSCRIBER_NAMESPACE_REF, ""),
+            target_namespace=saas_target_namespace_builder(data.get(SUBSCRIBER_TARGET_NAMESPACE, {})),
             ref="",
             target_file_path=data.get(SUBSCRIBER_TARGET_PATH, ""),
             use_target_config_hash=True,
