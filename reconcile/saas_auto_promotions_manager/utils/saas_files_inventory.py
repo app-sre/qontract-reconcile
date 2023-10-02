@@ -77,20 +77,16 @@ class SaasFilesInventory:
                         continue
                     if not target.promotion.auto:
                         continue
-                    namespace_json_path_selectors = []
-                    if target.namespace_selector:
-                        for selector in target.namespace_selector.json_path_selectors:
-                            namespace_json_path_selectors.append(selector)
-                    json_path_includes = []
-                    json_path_excludes = []
+                    json_path_includes: list[str] = []
+                    json_path_excludes: list[str] = []
                     if target.namespace_selector:
                         for (
                             selector
                         ) in target.namespace_selector.json_path_selectors.include:
                             json_path_includes.append(selector)
-                        for (
-                            selector
-                        ) in target.namespace_selector.json_path_selectors.exclude:
+                        for selector in (
+                            target.namespace_selector.json_path_selectors.exclude or []
+                        ):
                             json_path_excludes.append(selector)
                     subscriber = Subscriber(
                         saas_name=saas_file.name,

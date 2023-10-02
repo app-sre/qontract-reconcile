@@ -46,8 +46,7 @@ class Renderer:
                 set(subscriber.jsonpath_namespace_selectors_excludes) == excludes
                 and set(subscriber.jsonpath_namespace_selectors_includes) == includes
             )
-        else:
-            return target["namespace"]["$ref"] == subscriber.namespace_file_path
+        return target["namespace"]["$ref"] == subscriber.namespace_file_path
 
     def _find_saas_file_targets(
         self, subscriber: Subscriber, content: dict
