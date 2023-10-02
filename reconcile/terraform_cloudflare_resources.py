@@ -363,7 +363,9 @@ def run(
 
     cf_clients.populate_resources()
 
-    publish_metrics(cf_clients.resource_spec_inventory, QONTRACT_INTEGRATION.replace("_", "-"))
+    publish_metrics(
+        cf_clients.resource_spec_inventory, QONTRACT_INTEGRATION.replace("_", "-")
+    )
 
     ri, oc_map = _build_oc_resources(
         cloudflare_namespaces,
