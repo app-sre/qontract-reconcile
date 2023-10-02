@@ -2828,6 +2828,19 @@ def ocm_subscription_labels(ctx, managed_label_prefixes):
     )
 
 
+@integration.command(short_help="Generate SLO based Alerts using slo-documents.")
+@threaded()
+@click.pass_context
+def slo_document_alerts(ctx, thread_pool_size):
+    import reconcile.slo_document_alerts
+
+    run_integration(
+        reconcile.slo_document_alerts,
+        ctx.obj,
+        thread_pool_size,
+    )
+
+
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
     """
     returns all integrations known to cli.py via click introspection
