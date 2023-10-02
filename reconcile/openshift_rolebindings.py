@@ -179,7 +179,9 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         namespace_info
         for namespace_info in queries.get_namespaces()
         if namespace_info.get("managedRoles")
-        and namespace_info["cluster"]["name"] == "appsrep05ue1"
+        and is_in_shard(
+            f"{namespace_info['cluster']['name']}/" + f"{namespace_info['name']}"
+        )
         and not ob.is_namespace_deleted(namespace_info)
     ]
     ri, oc_map = ob.fetch_current_state(
