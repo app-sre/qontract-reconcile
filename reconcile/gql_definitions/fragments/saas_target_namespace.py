@@ -61,7 +61,7 @@ class AppV1(ConfiguredBaseModel):
     parent_app: Optional[AppV1_AppV1] = Field(..., alias="parentApp")
     labels: Optional[Json] = Field(..., alias="labels")
     self_service_roles: Optional[list[RoleV1]] = Field(..., alias="selfServiceRoles")
-    service_owners: Optional[list[OwnerV1]] = Field(..., alias="serviceOwners")
+    service_owners: list[OwnerV1] = Field(..., alias="serviceOwners")
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):

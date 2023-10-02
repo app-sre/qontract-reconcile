@@ -2,15 +2,23 @@
 
 query SLODocuments {
   slo_documents: slo_document_v1 {
+    path
     name
     namespaces {
       prometheusAccess {
          url
       }
       namespace {
+        path
         name
         app {
           name
+        }
+        environment {
+          name
+          product {
+            name
+          }
         }
         cluster {
           name
@@ -28,11 +36,14 @@ query SLODocuments {
       name
       expr
       SLIType
+      SLISpecification
       SLOParameters {
         window
       }
       SLOTarget
       SLOTargetUnit
+      SLODetails
+      prometheusRules
     }
   }
 }

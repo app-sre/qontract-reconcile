@@ -171,7 +171,7 @@ class OwnerV1(ConfiguredBaseModel):
 
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    service_owners: Optional[list[OwnerV1]] = Field(..., alias="serviceOwners")
+    service_owners: list[OwnerV1] = Field(..., alias="serviceOwners")
 
 
 class ExternalResourcesProvisionerV1(ConfiguredBaseModel):

@@ -30,15 +30,23 @@ fragment VaultSecret on VaultSecret_v1 {
 
 query SLODocuments {
   slo_documents: slo_document_v1 {
+    path
     name
     namespaces {
       prometheusAccess {
          url
       }
       namespace {
+        path
         name
         app {
           name
+        }
+        environment {
+          name
+          product {
+            name
+          }
         }
         cluster {
           name
@@ -56,11 +64,14 @@ query SLODocuments {
       name
       expr
       SLIType
+      SLISpecification
       SLOParameters {
         window
       }
       SLOTarget
       SLOTargetUnit
+      SLODetails
+      prometheusRules
     }
   }
 }
@@ -81,6 +92,15 @@ class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
+class ProductV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
+class EnvironmentV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    product: ProductV1 = Field(..., alias="product")
+
+
 class ClusterSpecV1(ConfiguredBaseModel):
     private: bool = Field(..., alias="private")
 
@@ -93,8 +113,10 @@ class ClusterV1(ConfiguredBaseModel):
 
 
 class NamespaceV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     app: AppV1 = Field(..., alias="app")
+    environment: EnvironmentV1 = Field(..., alias="environment")
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 
@@ -113,12 +135,16 @@ class SLODocumentSLOV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     expr: str = Field(..., alias="expr")
     sli_type: str = Field(..., alias="SLIType")
+    sli_specification: str = Field(..., alias="SLISpecification")
     slo_parameters: SLODocumentSLOSLOParametersV1 = Field(..., alias="SLOParameters")
     slo_target: float = Field(..., alias="SLOTarget")
     slo_target_unit: str = Field(..., alias="SLOTargetUnit")
+    slo_details: str = Field(..., alias="SLODetails")
+    prometheus_rules: str = Field(..., alias="prometheusRules")
 
 
 class SLODocumentV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     namespaces: list[SLONamespacesV1] = Field(..., alias="namespaces")
     slos: Optional[list[SLODocumentSLOV1]] = Field(..., alias="slos")
