@@ -113,8 +113,7 @@ class GqlApi:
             raise Exception(
                 "Cannot validate schemas if integration name is not supplied"
             )
-
-        if int_name:
+        if self.validate_schemas and int_name:
             integrations = self.query(INTEGRATIONS_QUERY, skip_validation=True)
 
             for integration in integrations["integrations"]:

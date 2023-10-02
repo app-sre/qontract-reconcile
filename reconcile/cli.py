@@ -540,7 +540,7 @@ def run_class_integration(
         run_integration_cfg(
             IntegrationRunConfiguration(
                 integration=integration,
-                valdiate_schemas=ctx["validate_schemas"],
+                validate_schemas=ctx["validate_schemas"],
                 dry_run=ctx.get("dry_run", False),
                 early_exit_compare_sha=ctx.get("early_exit_compare_sha"),
                 check_only_affected_shards=check_only_affected_shards,

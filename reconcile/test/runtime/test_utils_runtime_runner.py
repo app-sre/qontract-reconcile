@@ -53,7 +53,7 @@ def dry_run_test_integration_cfg(
 ) -> IntegrationRunConfiguration:
     return MockIntegrationRunConfiguration(
         integration=simple_test_integration,
-        valdiate_schemas=False,
+        validate_schemas=False,
         dry_run=True,
         early_exit_compare_sha="abc",
         check_only_affected_shards=True,
@@ -70,7 +70,7 @@ def wet_run_test_integration_cfg(
 ) -> IntegrationRunConfiguration:
     return MockIntegrationRunConfiguration(
         integration=simple_test_integration,
-        valdiate_schemas=False,
+        validate_schemas=False,
         dry_run=False,
         early_exit_compare_sha="abc",
         check_only_affected_shards=True,
@@ -88,7 +88,7 @@ def test_run_configuration_switch_to_main_bundle(
     gql_init_from_config = mocker.patch.object(gql, "init_from_config")
     cfg = IntegrationRunConfiguration(
         integration=simple_test_integration,
-        valdiate_schemas=False,
+        validate_schemas=False,
         dry_run=True,
         early_exit_compare_sha="abc",
         check_only_affected_shards=False,
@@ -112,7 +112,7 @@ def test_run_configuration_switch_to_comparison_bundle(
     gql_init_from_config.return_value = "a"
     cfg = IntegrationRunConfiguration(
         integration=simple_test_integration,
-        valdiate_schemas=False,
+        validate_schemas=False,
         dry_run=True,
         early_exit_compare_sha="abc",
         check_only_affected_shards=False,
@@ -174,7 +174,7 @@ def test_get_desired_state_diff(
 ):
     cfg = MockIntegrationRunConfiguration(
         integration=shardable_test_integration,
-        valdiate_schemas=False,
+        validate_schemas=False,
         dry_run=True,
         early_exit_compare_sha=early_exit_sha,
         check_only_affected_shards=check_only_affected_shards,
@@ -199,7 +199,7 @@ def test_run_configuration_dispatch_dry_run(
     """
     cfg = MockIntegrationRunConfiguration(
         integration=simple_test_integration,
-        valdiate_schemas=False,
+        validate_schemas=False,
         dry_run=True,
         early_exit_compare_sha="abc",
         check_only_affected_shards=False,
@@ -226,7 +226,7 @@ def test_run_configuration_dispatch_wet_run(
     """
     cfg = MockIntegrationRunConfiguration(
         integration=simple_test_integration,
-        valdiate_schemas=False,
+        validate_schemas=False,
         dry_run=False,
         early_exit_compare_sha="abc",
         check_only_affected_shards=False,

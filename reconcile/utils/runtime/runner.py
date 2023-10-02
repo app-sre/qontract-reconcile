@@ -30,7 +30,7 @@ class IntegrationRunConfiguration:
     """
 
     integration: QontractReconcileIntegration
-    valdiate_schemas: bool
+    validate_schemas: bool
     """
     Whether to fail an integration if it queries schemas it is not allowed to.
     Allowed schemas are listed in the `/app-sre/integration-1.yml` files.
@@ -80,7 +80,7 @@ class IntegrationRunConfiguration:
 
     def switch_to_main_bundle(self, validate_schemas: Optional[bool] = None) -> None:
         final_validate_schemas = (
-            validate_schemas if validate_schemas is not None else self.valdiate_schemas
+            validate_schemas if validate_schemas is not None else self.validate_schemas
         )
         gql.init_from_config(
             autodetect_sha=self.gql_sha_url,
@@ -93,7 +93,7 @@ class IntegrationRunConfiguration:
         self, validate_schemas: Optional[bool] = None
     ) -> None:
         final_validate_schemas = (
-            validate_schemas if validate_schemas is not None else self.valdiate_schemas
+            validate_schemas if validate_schemas is not None else self.validate_schemas
         )
         gql.init_from_config(
             sha=self.early_exit_compare_sha,
