@@ -56,7 +56,7 @@ from reconcile.utils.runtime.integration import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase
 
-QONTRACT_INTEGRATION = "ocm-subscription-labels"
+QONTRACT_INTEGRATION = "ocm-labels"
 
 
 class OcmLabelsIntegrationParams(PydanticRunParams):
