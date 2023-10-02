@@ -153,15 +153,18 @@ class SaasFileList:
             query_func = gql.get_api().query
         if not namespaces:
             namespaces = namespaces_query(query_func).namespaces or []
+        self.namespaces = namespaces
+        self.cluster_namespaces = {
+            (ns.cluster.name, ns.name): ns for ns in self.namespaces
+        }
+        self._namespaces_as_dict: Optional[dict[str, list[Any]]] = None
 
         self.saas_files_v2 = saas_files_query(query_func).saas_files or []
         if name:
             self.saas_files_v2 = [sf for sf in self.saas_files_v2 if sf.name == name]
-        self.saas_files = self._resolve_namespace_selectors(namespaces)
+        self.saas_files = self._resolve_namespace_selectors()
 
-    def _resolve_namespace_selectors(
-        self, namespaces: list[SaasTargetNamespace]
-    ) -> list[SaasFile]:
+    def _resolve_namespace_selectors(self) -> list[SaasFile]:
         saas_files: list[SaasFile] = []
         # resolve namespaceSelectors to real namespaces
         for sfv2 in self.saas_files_v2:
@@ -187,13 +190,68 @@ class SaasFileList:
                         and target_gql.provider == "dynamic"
                     ):
                         rt_gql.targets.remove(target_gql)
-                        rt_gql.targets += create_targets_for_namespace_selector(
-                            target_gql, namespaces, target_gql.namespace_selector
+                        rt_gql.targets += self.create_targets_for_namespace_selector(
+                            target_gql, target_gql.namespace_selector
                         )
             # convert SaasFileV2 (with optional resource_templates.targets.namespace field)
             # to SaasFile (with required resource_templates.targets.namespace field)
             saas_files.append(SaasFile(**export_model(sfv2)))
         return saas_files
+
+    def create_targets_for_namespace_selector(
+        self,
+        target: SaasResourceTemplateTargetV2,
+        namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
+    ) -> list[SaasResourceTemplateTargetV2]:
+        targets = []
+        for namespace in self.get_namespaces_by_selector(namespace_selector):
+            target_dict = export_model(target)
+            target_dict["namespace"] = export_model(namespace)
+            targets.append(SaasResourceTemplateTargetV2(**target_dict))
+        return targets
+
+    def _get_namespaces_as_dict(self) -> dict[str, list[Any]]:
+        # json representation of all the namespaces to filter on
+        # remove all the None values to simplify the jsonpath expressions
+        if self._namespaces_as_dict is None:
+            self._namespaces_as_dict = {
+                "namespace": [
+                    ns.dict(by_alias=True, exclude_none=True) for ns in self.namespaces
+                ]
+            }
+        return self._namespaces_as_dict
+
+    def get_namespaces_by_selector(
+        self, namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1
+    ) -> list[SaasTargetNamespace]:
+        namespaces_as_dict = self._get_namespaces_as_dict()
+
+        filtered_namespaces: dict[tuple[str, str], Any] = {}
+
+        try:
+            for include in namespace_selector.json_path_selectors.include:
+                for match in parse_jsonpath(include).find(namespaces_as_dict):
+                    cluster_name = match.value["cluster"]["name"]
+                    ns_name = match.value["name"]
+                    filtered_namespaces[
+                        (cluster_name, ns_name)
+                    ] = self.cluster_namespaces[(cluster_name, ns_name)]
+        except JsonPathParserError as e:
+            raise ParameterError(
+                f"Invalid jsonpath expression in namespaceSelector '{include}' :{e}"
+            )
+
+        try:
+            for exclude in namespace_selector.json_path_selectors.exclude or []:
+                for match in parse_jsonpath(exclude).find(namespaces_as_dict):
+                    cluster_name = match.value["cluster"]["name"]
+                    ns_name = match.value["name"]
+                    filtered_namespaces.pop((cluster_name, ns_name), None)
+        except JsonPathParserError as e:
+            raise ParameterError(
+                f"Invalid jsonpath expression in namespaceSelector '{exclude}' :{e}"
+            )
+        return list(filtered_namespaces.values())
 
     def where(
         self,
@@ -230,53 +288,6 @@ class SaasFileList:
         return filtered
 
 
-def get_namespaces_by_selector(
-    namespaces: list[SaasTargetNamespace],
-    namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
-) -> list[SaasTargetNamespace]:
-    # json representation of all the namespaces to filter on
-    # remove all the None values to simplify the jsonpath expressions
-    namespaces_as_dict = {
-        "namespace": [ns.dict(by_alias=True, exclude_none=True) for ns in namespaces]
-    }
-
-    def _get_namespace_by_cluster_and_name(
-        cluster_name: str, name: str
-    ) -> SaasTargetNamespace:
-        for ns in namespaces:
-            if ns.cluster.name == cluster_name and ns.name == name:
-                return ns
-        # this should never ever happen - just make mypy happy
-        raise RuntimeError(f"namespace '{name}' not found in cluster '{cluster_name}'")
-
-    filtered_namespaces: dict[str, Any] = {}
-
-    try:
-        for include in namespace_selector.json_path_selectors.include:
-            for match in parse_jsonpath(include).find(namespaces_as_dict):
-                cluster_name = match.value["cluster"]["name"]
-                ns_name = match.value["name"]
-                filtered_namespaces[
-                    f"{cluster_name}-{ns_name}"
-                ] = _get_namespace_by_cluster_and_name(cluster_name, ns_name)
-    except JsonPathParserError as e:
-        raise ParameterError(
-            f"Invalid jsonpath expression in namespaceSelector '{include}' :{e}"
-        )
-
-    try:
-        for exclude in namespace_selector.json_path_selectors.exclude or []:
-            for match in parse_jsonpath(exclude).find(namespaces_as_dict):
-                cluster_name = match.value["cluster"]["name"]
-                ns_name = match.value["name"]
-                filtered_namespaces.pop(f"{cluster_name}-{ns_name}", None)
-    except JsonPathParserError as e:
-        raise ParameterError(
-            f"Invalid jsonpath expression in namespaceSelector '{exclude}' :{e}"
-        )
-    return list(filtered_namespaces.values())
-
-
 def convert_parameters_to_json_string(root: dict[str, Any]) -> dict[str, Any]:
     """Find all parameter occurrences and convert them to a json string."""
     for key, value in root.items():
@@ -294,19 +305,6 @@ def convert_parameters_to_json_string(root: dict[str, Any]) -> dict[str, Any]:
 
 def export_model(model: BaseModel) -> dict[str, Any]:
     return convert_parameters_to_json_string(model.dict(by_alias=True))
-
-
-def create_targets_for_namespace_selector(
-    target: SaasResourceTemplateTargetV2,
-    namespaces: list[SaasTargetNamespace],
-    namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
-) -> list[SaasResourceTemplateTargetV2]:
-    targets = []
-    for namespace in get_namespaces_by_selector(namespaces, namespace_selector):
-        target_dict = export_model(target)
-        target_dict["namespace"] = export_model(namespace)
-        targets.append(SaasResourceTemplateTargetV2(**target_dict))
-    return targets
 
 
 def get_saas_files(
