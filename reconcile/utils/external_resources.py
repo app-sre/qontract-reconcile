@@ -69,10 +69,16 @@ def managed_external_resources(namespace_info: Mapping[str, Any]) -> bool:
     return False
 
 
-def publish_metrics(inventory: ExternalResourceSpecInventory, integration: str) -> None:
-    count_combinations = Counter(
+def get_inventory_count_combinations(
+    inventory: ExternalResourceSpecInventory,
+) -> Counter[tuple]:
+    return Counter(
         (k.provision_provider, k.provisioner_name, k.provider) for k in inventory
     )
+
+
+def publish_metrics(inventory: ExternalResourceSpecInventory, integration: str) -> None:
+    count_combinations = get_inventory_count_combinations(inventory)
     for combination, count in count_combinations.items():
         provision_provider, provisioner_name, provider = combination
         metrics.set_gauge(
