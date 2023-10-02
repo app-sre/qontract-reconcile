@@ -115,8 +115,6 @@ def run(
         logging.error("no saas files found")
         raise RuntimeError("no saas files found")
 
-    #sys.exit(0)
-
     # notify different outputs (publish results, slack notifications)
     # we only do this if:
     # - this is not a dry run
