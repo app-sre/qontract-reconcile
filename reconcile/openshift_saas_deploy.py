@@ -20,7 +20,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.saas_files import (
     SaasFile,
-    get_saas_files,
+    SaasFileList,
     get_saasherder_settings,
 )
 from reconcile.utils.defer import defer
@@ -100,18 +100,22 @@ def run(
     env_name: Optional[str] = None,
     trigger_integration: Optional[str] = None,
     trigger_reason: Optional[str] = None,
-    all_saas_files: Optional[list[SaasFile]] = None,
+    saas_file_list: Optional[SaasFileList] = None,
     defer: Optional[Callable] = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
-    if not all_saas_files:
-        all_saas_files = get_saas_files()
-    saas_files = get_saas_files(saas_file_name, env_name)
+    if not saas_file_list:
+        saas_file_list = SaasFileList()
+    all_saas_files = saas_file_list.saas_files
+    saas_files = saas_file_list.where(name=saas_file_name, env_name=env_name)
+
     if not saas_files:
         logging.error("no saas files found")
         raise RuntimeError("no saas files found")
+
+    #sys.exit(0)
 
     # notify different outputs (publish results, slack notifications)
     # we only do this if:
