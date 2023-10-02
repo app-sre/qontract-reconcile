@@ -1,6 +1,7 @@
 import hashlib
 import json
 from collections.abc import Callable
+from threading import Lock
 from typing import (
     Any,
     Optional,
@@ -157,13 +158,19 @@ class SaasFileList:
         self.cluster_namespaces = {
             (ns.cluster.name, ns.name): ns for ns in self.namespaces
         }
-        self._namespaces_as_dict_cache: Optional[dict[str, list[Any]]] = None
-        self._matching_namespaces_cache: dict[str, Any] = {}
+
+        self._init_caches()
 
         self.saas_files_v2 = saas_files_query(query_func).saas_files or []
         if name:
             self.saas_files_v2 = [sf for sf in self.saas_files_v2 if sf.name == name]
         self.saas_files = self._resolve_namespace_selectors()
+
+    def _init_caches(self) -> None:
+        self._namespaces_as_dict_cache: Optional[dict[str, list[Any]]] = None
+        self._namespaces_as_dict_lock = Lock()
+        self._matching_namespaces_cache: dict[str, Any] = {}
+        self._matching_namespaces_lock = Lock()
 
     def _resolve_namespace_selectors(self) -> list[SaasFile]:
         saas_files: list[SaasFile] = []
@@ -215,24 +222,27 @@ class SaasFileList:
         # json representation of all the namespaces to filter on
         # remove all the None values to simplify the jsonpath expressions
         if self._namespaces_as_dict_cache is None:
-            self._namespaces_as_dict_cache = {
-                "namespace": [
-                    ns.dict(by_alias=True, exclude_none=True) for ns in self.namespaces
-                ]
-            }
+            with self._namespaces_as_dict_lock:
+                self._namespaces_as_dict_cache = {
+                    "namespace": [
+                        ns.dict(by_alias=True, exclude_none=True)
+                        for ns in self.namespaces
+                    ]
+                }
         return self._namespaces_as_dict_cache
 
     def _matching_namespaces(self, selector: str) -> Any:
         if selector not in self._matching_namespaces_cache:
-            namespaces_as_dict = self._get_namespaces_as_dict()
-            try:
-                self._matching_namespaces_cache[selector] = parse_jsonpath(
-                    selector
-                ).find(namespaces_as_dict)
-            except JsonPathParserError as e:
-                raise ParameterError(
-                    f"Invalid jsonpath expression in namespaceSelector '{selector}' :{e}"
-                )
+            with self._matching_namespaces_lock:
+                namespaces_as_dict = self._get_namespaces_as_dict()
+                try:
+                    self._matching_namespaces_cache[selector] = parse_jsonpath(
+                        selector
+                    ).find(namespaces_as_dict)
+                except JsonPathParserError as e:
+                    raise ParameterError(
+                        f"Invalid jsonpath expression in namespaceSelector '{selector}' :{e}"
+                    )
 
         return self._matching_namespaces_cache[selector]
 
