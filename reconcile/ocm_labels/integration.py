@@ -28,7 +28,6 @@ from reconcile.gql_definitions.ocm_labels.organizations import (
 )
 from reconcile.ocm_labels.label_sources import (
     ClusterRef,
-    LabelOwnerRef,
     LabelSource,
     LabelState,
     OrgRef,

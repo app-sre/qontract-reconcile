@@ -21,7 +21,6 @@ from reconcile.ocm_labels.integration import (
 )
 from reconcile.ocm_labels.label_sources import (
     ClusterRef,
-    LabelOwnerRef,
     LabelState,
 )
 from reconcile.test.fixtures import Fixtures

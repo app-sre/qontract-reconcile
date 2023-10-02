@@ -12,7 +12,7 @@ clusters:
     id: cluster-disabled_id
   disable:
     integrations:
-    - ocm-subscription-labels
+    - ocm-labels
 - name: cluster-1
   ocm:
     environment:

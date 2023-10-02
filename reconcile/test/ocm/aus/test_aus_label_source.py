@@ -1,5 +1,7 @@
 from typing import Optional
 
+import pytest
+
 from reconcile.aus.aus_label_source import (
     AUSClusterUpgradePolicyLabelSource,
     AUSOrganizationLabelSource,
@@ -50,108 +52,83 @@ def build_cluster(
 # test sourcing labels from cluster upgrade policies
 #
 
+org = build_organization(
+    org_id="org-1",
+    org_name="org-1",
+    env_name="ocm-prod",
+)
 
-def test_cluster_upgrade_policy_label_source() -> None:
-    org = build_organization(
-        org_id="org-1",
-        org_name="org-1",
-        env_name="ocm-prod",
-    )
+
+@pytest.mark.parametrize(
+    "cluster,expected_labels",
+    [
+        # soak-days
+        (
+            build_cluster("cluster-1", org, soak_days=7, workloads=["workload-1"]),
+            {
+                "sre-capabilities.aus.soak-days": "7",
+                "sre-capabilities.aus.workloads": "workload-1",
+                "sre-capabilities.aus.schedule": "* * * * *",
+            },
+        ),
+        # workloads
+        (
+            build_cluster("cluster-1", org, workloads=["workload-2,workload-1"]),
+            {
+                "sre-capabilities.aus.soak-days": "0",
+                "sre-capabilities.aus.workloads": "workload-1,workload-2",
+                "sre-capabilities.aus.schedule": "* * * * *",
+            },
+        ),
+        # sector
+        (
+            build_cluster("cluster-1", org, workloads=["workload-1"], sector="sector-1"),
+            {
+                "sre-capabilities.aus.soak-days": "0",
+                "sre-capabilities.aus.workloads": "workload-1",
+                "sre-capabilities.aus.schedule": "* * * * *",
+                "sre-capabilities.aus.sector": "sector-1",
+            },
+        ),
+        # mutexes
+        (
+            build_cluster("cluster-1", org, workloads=["workload-1"], mutexes=["mutex-2,mutex-1"]),
+            {
+                "sre-capabilities.aus.soak-days": "0",
+                "sre-capabilities.aus.workloads": "workload-1",
+                "sre-capabilities.aus.schedule": "* * * * *",
+                "sre-capabilities.aus.mutexes": "mutex-1,mutex-2",
+            },
+        ),
+        # blocked versions
+        (
+            build_cluster("cluster-1", org, workloads=["workload-1"], blocked_versions=["4.12.2", "4.12.1"]),
+            {
+                "sre-capabilities.aus.soak-days": "0",
+                "sre-capabilities.aus.workloads": "workload-1",
+                "sre-capabilities.aus.schedule": "* * * * *",
+                "sre-capabilities.aus.blocked-versions": "4.12.1,4.12.2",
+            },
+        ),
+    ],
+    ids=[
+        "soak-days",
+        "workloads",
+        "sector",
+        "mutexes",
+        "blocked versions",
+    ]
+)
+def test_cluster_upgrade_policy_label_source(
+    cluster: ClusterV1, expected_labels: dict[str, str]
+) -> None:
     source = AUSClusterUpgradePolicyLabelSource(
-        clusters=[
-            build_cluster("cluster-1", org, workloads=["workload-1"]),
-        ]
+        clusters=[cluster]
     )
-
     sourced_labels = source.get_labels()
     assert len(sourced_labels) == 1
     label_owner = next(iter(sourced_labels))
-    assert sourced_labels[label_owner] == {
-        "sre-capabilities.aus.soak-days": "0",
-        "sre-capabilities.aus.workloads": "workload-1",
-        "sre-capabilities.aus.schedule": "* * * * *",
-    }
-
-
-def test_cluster_upgrade_policy_label_source_sector() -> None:
-    org = build_organization(
-        org_id="org-1",
-        org_name="org-1",
-        env_name="ocm-prod",
-    )
-    source = AUSClusterUpgradePolicyLabelSource(
-        clusters=[
-            build_cluster(
-                "cluster-1", org, workloads=["workload-1"], sector="sector-1"
-            ),
-        ]
-    )
-
-    sourced_labels = source.get_labels()
-    assert len(sourced_labels) == 1
-    label_owner = next(iter(sourced_labels))
-    assert sourced_labels[label_owner] == {
-        "sre-capabilities.aus.soak-days": "0",
-        "sre-capabilities.aus.workloads": "workload-1",
-        "sre-capabilities.aus.schedule": "* * * * *",
-        "sre-capabilities.aus.sector": "sector-1",
-    }
-
-
-def test_cluster_upgrade_policy_label_source_mutexes() -> None:
-    org = build_organization(
-        org_id="org-1",
-        org_name="org-1",
-        env_name="ocm-prod",
-    )
-    source = AUSClusterUpgradePolicyLabelSource(
-        clusters=[
-            build_cluster(
-                "cluster-1",
-                org,
-                workloads=["workload-1"],
-                mutexes=["mutex-1", "mutex-2"],
-            ),
-        ]
-    )
-
-    sourced_labels = source.get_labels()
-    assert len(sourced_labels) == 1
-    label_owner = next(iter(sourced_labels))
-    assert sourced_labels[label_owner] == {
-        "sre-capabilities.aus.soak-days": "0",
-        "sre-capabilities.aus.workloads": "workload-1",
-        "sre-capabilities.aus.schedule": "* * * * *",
-        "sre-capabilities.aus.mutexes": "mutex-1,mutex-2",
-    }
-
-
-def test_cluster_upgrade_policy_label_source_blocked_versions() -> None:
-    org = build_organization(
-        org_id="org-1",
-        org_name="org-1",
-        env_name="ocm-prod",
-    )
-    source = AUSClusterUpgradePolicyLabelSource(
-        clusters=[
-            build_cluster(
-                "cluster-1",
-                org,
-                workloads=["workload-1"],
-                blocked_versions=["4.12.1", "4.12.2"],
-            ),
-        ]
-    )
-
-    sourced_labels = source.get_labels()
-    assert len(sourced_labels) == 1
-    label_owner = next(iter(sourced_labels))
-    assert sourced_labels[label_owner] == {
-        "sre-capabilities.aus.soak-days": "0",
-        "sre-capabilities.aus.workloads": "workload-1",
-        "sre-capabilities.aus.schedule": "* * * * *",
-        "sre-capabilities.aus.blocked-versions": "4.12.1,4.12.2",
-    }
+    assert sourced_labels[label_owner] == expected_labels
 
 
 #
