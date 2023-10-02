@@ -82,7 +82,9 @@ org = build_organization(
         ),
         # sector
         (
-            build_cluster("cluster-1", org, workloads=["workload-1"], sector="sector-1"),
+            build_cluster(
+                "cluster-1", org, workloads=["workload-1"], sector="sector-1"
+            ),
             {
                 "sre-capabilities.aus.soak-days": "0",
                 "sre-capabilities.aus.workloads": "workload-1",
@@ -92,7 +94,9 @@ org = build_organization(
         ),
         # mutexes
         (
-            build_cluster("cluster-1", org, workloads=["workload-1"], mutexes=["mutex-2,mutex-1"]),
+            build_cluster(
+                "cluster-1", org, workloads=["workload-1"], mutexes=["mutex-2,mutex-1"]
+            ),
             {
                 "sre-capabilities.aus.soak-days": "0",
                 "sre-capabilities.aus.workloads": "workload-1",
@@ -102,7 +106,12 @@ org = build_organization(
         ),
         # blocked versions
         (
-            build_cluster("cluster-1", org, workloads=["workload-1"], blocked_versions=["4.12.2", "4.12.1"]),
+            build_cluster(
+                "cluster-1",
+                org,
+                workloads=["workload-1"],
+                blocked_versions=["4.12.2", "4.12.1"],
+            ),
             {
                 "sre-capabilities.aus.soak-days": "0",
                 "sre-capabilities.aus.workloads": "workload-1",
@@ -117,14 +126,12 @@ org = build_organization(
         "sector",
         "mutexes",
         "blocked versions",
-    ]
+    ],
 )
 def test_cluster_upgrade_policy_label_source(
     cluster: ClusterV1, expected_labels: dict[str, str]
 ) -> None:
-    source = AUSClusterUpgradePolicyLabelSource(
-        clusters=[cluster]
-    )
+    source = AUSClusterUpgradePolicyLabelSource(clusters=[cluster])
     sourced_labels = source.get_labels()
     assert len(sourced_labels) == 1
     label_owner = next(iter(sourced_labels))
@@ -136,49 +143,35 @@ def test_cluster_upgrade_policy_label_source(
 #
 
 
-def test_aus_organization_label_source_blocked_versions() -> None:
-    source = AUSOrganizationLabelSource(
-        organizations=[
+@pytest.mark.parametrize(
+    "org,expected_labels",
+    [
+        # blocked versions
+        (
             build_organization(
                 org_id="org-1",
                 org_name="org-1",
                 env_name="ocm-prod",
                 blocked_versions=["4.12.1", "4.12.2"],
-            )
-        ]
-    )
-
-    sourced_labels = source.get_labels()
-    assert len(sourced_labels) == 1
-    label_owner = next(iter(sourced_labels))
-    assert sourced_labels[label_owner] == {
-        "sre-capabilities.aus.blocked-versions": "4.12.1,4.12.2",
-    }
-
-
-def test_aus_organization_label_source_sector_dependencies() -> None:
-    source = AUSOrganizationLabelSource(
-        organizations=[
+            ),
+            {
+                "sre-capabilities.aus.blocked-versions": "4.12.1,4.12.2",
+            },
+        ),
+        # sector dependencies
+        (
             build_organization(
                 org_id="org-1",
                 org_name="org-1",
                 env_name="ocm-prod",
                 sector_dependencies={"prod": ["stage-1", "stage-2"], "stage-1": None},
-            )
-        ]
-    )
-
-    sourced_labels = source.get_labels()
-    assert len(sourced_labels) == 1
-    label_owner = next(iter(sourced_labels))
-    assert sourced_labels[label_owner] == {
-        "sre-capabilities.aus.sectors.prod": "stage-1,stage-2",
-    }
-
-
-def test_aus_organization_label_source_inherit() -> None:
-    source = AUSOrganizationLabelSource(
-        organizations=[
+            ),
+            {
+                "sre-capabilities.aus.sectors.prod": "stage-1,stage-2",
+            },
+        ),
+        # inherit
+        (
             build_organization(
                 org_id="org-1",
                 org_name="org-1",
@@ -187,33 +180,36 @@ def test_aus_organization_label_source_inherit() -> None:
                     ("ocm-stage", "org-2", True),
                     ("ocm-stage", "org-3", True),
                 ],
-            )
-        ]
-    )
-
-    sourced_labels = source.get_labels()
-    assert len(sourced_labels) == 1
-    label_owner = next(iter(sourced_labels))
-    assert sourced_labels[label_owner] == {
-        "sre-capabilities.aus.version-data.inherit": "org-2,org-3",
-    }
-
-
-def test_aus_organization_label_source_publish() -> None:
-    source = AUSOrganizationLabelSource(
-        organizations=[
+            ),
+            {
+                "sre-capabilities.aus.version-data.inherit": "org-2,org-3",
+            },
+        ),
+        # publish
+        (
             build_organization(
                 org_id="org-1",
                 org_name="org-1",
                 env_name="ocm-prod",
                 publish_version_data_from_org_ids=["org-2", "org-3"],
-            )
-        ]
-    )
-
+            ),
+            {
+                "sre-capabilities.aus.version-data.publish": "org-2,org-3",
+            },
+        ),
+    ],
+    ids=[
+        "blocked versions",
+        "sector dependencies",
+        "inherit",
+        "publish",
+    ],
+)
+def test_aus_organization_label_source(
+    org: AUSOCMOrganization, expected_labels: dict[str, str]
+) -> None:
+    source = AUSOrganizationLabelSource(organizations=[org])
     sourced_labels = source.get_labels()
     assert len(sourced_labels) == 1
     label_owner = next(iter(sourced_labels))
-    assert sourced_labels[label_owner] == {
-        "sre-capabilities.aus.version-data.publish": "org-2,org-3",
-    }
+    assert sourced_labels[label_owner] == expected_labels

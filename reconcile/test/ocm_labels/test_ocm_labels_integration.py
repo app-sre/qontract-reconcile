@@ -16,7 +16,6 @@ from reconcile.ocm_labels.integration import (
     init_cluster_subscription_label_source,
 )
 from reconcile.ocm_labels.label_sources import (
-    LabelOwnerRef,
     LabelSource,
     LabelState,
 )
