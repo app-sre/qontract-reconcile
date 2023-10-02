@@ -1033,7 +1033,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def get_cloudwatch_logs(self, account):
         log_group_list = []
         cloudwatch_logs = self._account_cloudwatch_client(account["name"])
-        paginator = cloudwatch_logs.get_paginator('describe_log_groups')
+        paginator = cloudwatch_logs.get_paginator("describe_log_groups")
         for page in paginator.paginate():
             for log_group in page["logGroups"]:
                 log_group_list.append(log_group)
