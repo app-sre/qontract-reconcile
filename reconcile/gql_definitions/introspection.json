@@ -11642,6 +11642,38 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "ldapGroups",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "membersOrganizationRole",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "roles",
                             "description": null,
                             "args": [],
@@ -11790,6 +11822,26 @@
                                     "kind": "OBJECT",
                                     "name": "GlitchtipInstance_v1",
                                     "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "owners",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
                                 }
                             },
                             "isDeprecated": false,
@@ -18357,13 +18409,9 @@
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "App_v1",
-                                    "ofType": null
-                                }
+                                "kind": "OBJECT",
+                                "name": "App_v1",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -18440,6 +18488,18 @@
                                         "ofType": null
                                     }
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "acceptEvents",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
