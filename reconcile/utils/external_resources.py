@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from collections.abc import (
     Mapping,
     MutableMapping,
@@ -10,9 +11,13 @@ from typing import (
 
 import anymarkup
 
-from reconcile.utils import gql
+from reconcile.utils import (
+    gql,
+    metrics,
+)
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.external_resource_spec import (
+    ExternalResourceInventoryGauge,
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
 )
@@ -64,8 +69,21 @@ def managed_external_resources(namespace_info: Mapping[str, Any]) -> bool:
     return False
 
 
-def publish_metrics(inventory: ExternalResourceSpecInventory):
-    raise NotImplementedError()
+def publish_metrics(inventory: ExternalResourceSpecInventory, integration: str) -> None:
+    count_combinations = Counter(
+        (k.provision_provider, k.provisioner_name, k.provider) for k in inventory
+    )
+    for combination, count in count_combinations.items():
+        provision_provider, provisioner_name, provider = combination
+        metrics.set_gauge(
+            ExternalResourceInventoryGauge(
+                integration=integration,
+                provision_provider=provision_provider,
+                provisioner_name=provisioner_name,
+                provider=provider,
+            ),
+            count,
+        )
 
 
 class ResourceValueResolver:

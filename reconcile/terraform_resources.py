@@ -400,7 +400,7 @@ def run(
         account_names,
         exclude_accounts,
     )
-    publish_metrics(resource_specs)
+    publish_metrics(resource_specs, QONTRACT_INTEGRATION.replace("_", "-"))
 
     if not dry_run and oc_map and defer:
         defer(oc_map.cleanup)
