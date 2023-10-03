@@ -329,6 +329,19 @@ def hash_list(input: Iterable) -> str:
     return m.hexdigest()
 
 
+def eval_filter(input, **kwargs) -> str:
+    """Jinja2 filter be used when the string
+    is in itself a jinja2 template that must be
+    evaluated with kwargs. For example in the case
+    of the slo-document expression fields.
+    :param input: template string
+    :kwargs: variables that will be used to evaluate the
+             input string
+    :return: rendered string
+    """
+    return jinja2.Template(input).render(**kwargs)
+
+
 def json_to_dict(input):
     """Jinja2 filter to parse JSON strings into dictionaries.
        This becomes useful to access Graphql queries data (labels)
@@ -401,6 +414,7 @@ def compile_jinja2_template(body, extra_curly: bool = False):
             "json_to_dict": json_to_dict,
             "urlescape": urlescape,
             "urlunescape": urlunescape,
+            "eval": eval_filter,
         }
     )
 
