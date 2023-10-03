@@ -95,16 +95,17 @@ def get_feature_toggle_state(
 ) -> bool:
     api_url = os.environ.get("UNLEASH_API_URL")
     client_access_token = os.environ.get("UNLEASH_CLIENT_ACCESS_TOKEN")
+
+    fallback_func = (
+        get_feature_toggle_default if default else get_feature_toggle_default_false
+    )
+
     if not (api_url and client_access_token):
-        return get_feature_toggle_default("", {})
+        return fallback_func("", {})
 
     c = _get_unleash_api_client(
         api_url,
         client_access_token,
-    )
-
-    fallback_func = (
-        get_feature_toggle_default if default else get_feature_toggle_default_false
     )
 
     return c.is_enabled(
