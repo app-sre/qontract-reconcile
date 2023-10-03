@@ -1521,7 +1521,7 @@ def get_namespace_resource_names(
 
 def publish_metrics(ri: ResourceInventory, integration: str) -> None:
     for cluster, namespace, kind, data in ri:
-        for state in {"current", "desired"}:
+        for state in ("current", "desired"):
             metrics.set_gauge(
                 OpenshiftResourceInventoryGauge(
                     integration=integration,

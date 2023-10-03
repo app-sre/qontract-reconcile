@@ -275,7 +275,7 @@ def publish_metrics(
     current_state: Iterable[Mapping[str, str]],
     desired_state: Iterable[Mapping[str, str]],
 ) -> None:
-    for state, state_type in {(current_state, "current"), (desired_state, "desired")}:
+    for state, state_type in ((current_state, "current"), (desired_state, "desired")):
         for cluster, count in get_state_count_combinations(state).items():
             metrics.set_gauge(
                 OpenshiftResourceInventoryGauge(
