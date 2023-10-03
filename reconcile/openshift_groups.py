@@ -267,7 +267,7 @@ def act(diff: Mapping[str, Optional[str]], oc_map: ClusterMap) -> None:
         raise Exception("invalid action: {}".format(action))
 
 
-def get_state_count_combinations(state: Iterable[Mapping[str, str]]) -> Counter[tuple]:
+def get_state_count_combinations(state: Iterable[Mapping[str, str]]) -> Counter[str]:
     return Counter(s["cluster"] for s in state)
 
 
