@@ -1482,14 +1482,27 @@ def gcr_mirror(ctx):
     default=86400,
 )
 @click.option(
-    "-i",
-    "--image",
-    help="Only considers this image to mirror. It can be specified multiple times.",
+    "-r",
+    "--repository-url",
+    help="Only considers this repository to mirror. It can be specified multiple times.",
+    multiple=True,
+)
+@click.option(
+    "-e",
+    "--exclude-repository-url",
+    help="excludes this repository  to mirror. It can be specified multiple times.",
     multiple=True,
 )
 @click.pass_context
 @binary(["skopeo"])
-def quay_mirror(ctx, control_file_dir, compare_tags, compare_tags_interval, image):
+def quay_mirror(
+    ctx,
+    control_file_dir,
+    compare_tags,
+    compare_tags_interval,
+    repository_url,
+    exclude_repository_url,
+):
     import reconcile.quay_mirror
 
     run_integration(
@@ -1498,7 +1511,8 @@ def quay_mirror(ctx, control_file_dir, compare_tags, compare_tags_interval, imag
         control_file_dir,
         compare_tags,
         compare_tags_interval,
-        image,
+        repository_url,
+        exclude_repository_url,
     )
 
 
