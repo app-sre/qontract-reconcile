@@ -12,7 +12,9 @@ from typing import (
 )
 
 import semver
+from pydantic import BaseModel
 
+from reconcile.utils.metrics import GaugeMetric
 from reconcile.utils.unleash import get_feature_toggle_state
 
 SECRET_MAX_KEY_LENGTH = 253
@@ -546,6 +548,25 @@ def fully_qualified_kind(kind: str, api_version: str) -> str:
         group = api_version.split("/")[0]
         return f"{kind}.{group}"
     return kind
+
+
+class OpenshiftResourceBaseMetric(BaseModel):
+    "Base class Openshift Resource metrics"
+
+    integration: str
+
+
+class OpenshiftResourceInventoryGauge(OpenshiftResourceBaseMetric, GaugeMetric):
+    "Inventory Gauge"
+
+    cluster: str
+    namespace: str
+    kind: str
+    state: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "qontract_reconcile_openshift_resource_inventory"
 
 
 class ResourceInventory:
