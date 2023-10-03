@@ -129,7 +129,7 @@ def get_labels(
     """
     for label_dict in ocm_api.get_paginated(
         api_path="/api/accounts_mgmt/v1/labels",
-        params={"search": filter.render()},
+        params={"search": filter.render(), "orderBy": "created_at"},
     ):
         yield build_label_from_dict(label_dict)
 
