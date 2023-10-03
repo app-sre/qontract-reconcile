@@ -205,7 +205,7 @@ class ExternalResourceInventoryGauge(ExternalResourceBaseMetric, GaugeMetric):
 
     @classmethod
     def name(cls) -> str:
-        return "external_resource_inventory"
+        return "qontract_reconcile_external_resource_inventory"
 
 
 ExternalResourceSpecInventory = MutableMapping[
