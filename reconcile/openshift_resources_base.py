@@ -329,6 +329,10 @@ def hash_list(input: Iterable) -> str:
     return m.hexdigest()
 
 
+def eval_filter(input, **kwargs) -> str:
+    return jinja2.Template(input).render(**kwargs)
+
+
 def json_to_dict(input):
     """Jinja2 filter to parse JSON strings into dictionaries.
        This becomes useful to access Graphql queries data (labels)
@@ -401,6 +405,7 @@ def compile_jinja2_template(body, extra_curly: bool = False):
             "json_to_dict": json_to_dict,
             "urlescape": urlescape,
             "urlunescape": urlunescape,
+            "eval": eval_filter,
         }
     )
 
