@@ -15,6 +15,145 @@ from reconcile.utils.external_resource_spec import (
 
 
 @pytest.fixture
+def default_account():
+    return {
+        "automationToken": "token",
+        "name": "account1",
+        "providerVersion": "1.0.0",
+        "resourcesDefaultRegion": "us-east-1",
+        "supportedDeploymentRegions": ["us-east-1"],
+        "terraformState": {
+            "provider": "s3",
+            "bucket": "some-bucket",
+            "region": "us-east-1",
+            "integrations": [
+                {
+                    "integration": "a-integration",
+                    "key": "some-key",
+                }
+            ],
+        },
+        "uid": "12345",
+    }
+
+
+@pytest.fixture
+def expected_supported_region_aws_provider():
+    return {
+        "access_key": "some-key-id",
+        "secret_key": "some-secret-key",
+        "version": "1.0.0",
+        "region": "us-east-1",
+        "alias": "us-east-1",
+        "skip_region_validation": True,
+        "default_tags": {
+            "tags": {
+                "app": "app-sre-infra",
+            }
+        },
+    }
+
+
+@pytest.fixture
+def expected_default_region_aws_provider():
+    return {
+        "access_key": "some-key-id",
+        "secret_key": "some-secret-key",
+        "version": "1.0.0",
+        "region": "us-east-1",
+        "skip_region_validation": True,
+        "default_tags": {
+            "tags": {
+                "app": "app-sre-infra",
+            }
+        },
+    }
+
+
+def test_init_with_default_tags(
+    mocker,
+    default_account,
+    expected_supported_region_aws_provider,
+    expected_default_region_aws_provider,
+):
+    mocked_secret_reader = mocker.patch(
+        "reconcile.utils.terrascript_aws_client.SecretReader",
+        autospec=True,
+    )
+    mocked_secret_reader.return_value.read_all.return_value = {
+        "aws_access_key_id": "some-key-id",
+        "aws_secret_access_key": "some-secret-key",
+    }
+
+    ts = tsclient.TerrascriptClient(
+        "a_integration",
+        "prefix",
+        1,
+        [default_account],
+    )
+
+    assert ts.tss["account1"]["provider"]["aws"] == [
+        expected_supported_region_aws_provider,
+        expected_default_region_aws_provider,
+    ]
+
+
+@pytest.fixture
+def account_with_assume_role(default_account):
+    return {
+        **default_account,
+        "assume_role": "arn:aws:iam::12345:role/1",
+        "assume_region": "us-east-1",
+    }
+
+
+@pytest.fixture
+def expected_additional_aws_provider():
+    return {
+        "access_key": "some-key-id",
+        "alias": "account-12345-1",
+        "assume_role": {"role_arn": "arn:aws:iam::12345:role/1"},
+        "default_tags": {"tags": {"app": "app-sre-infra"}},
+        "region": "us-east-1",
+        "secret_key": "some-secret-key",
+        "skip_region_validation": True,
+        "version": "1.0.0",
+    }
+
+
+def test_populate_additional_providers(
+    mocker,
+    default_account,
+    account_with_assume_role,
+    expected_supported_region_aws_provider,
+    expected_default_region_aws_provider,
+    expected_additional_aws_provider,
+):
+    mocked_secret_reader = mocker.patch(
+        "reconcile.utils.terrascript_aws_client.SecretReader",
+        autospec=True,
+    )
+    mocked_secret_reader.return_value.read_all.return_value = {
+        "aws_access_key_id": "some-key-id",
+        "aws_secret_access_key": "some-secret-key",
+    }
+
+    ts = tsclient.TerrascriptClient(
+        "a_integration",
+        "prefix",
+        1,
+        [default_account],
+    )
+    ts.populate_additional_providers([account_with_assume_role])
+
+    assert ts.tss["account1"]["provider"]["aws"] == [
+        expected_supported_region_aws_provider,
+        expected_default_region_aws_provider,
+        expected_additional_aws_provider,
+    ]
+
+
+@pytest.fixture
 def ts():
     return tsclient.TerrascriptClient("", "", 1, [])
 
