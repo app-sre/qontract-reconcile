@@ -18,7 +18,7 @@ from reconcile.gql_definitions.common.saas_files import (
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.typed_queries.saas_files import (
     SaasFile,
-    get_saas_files,
+    SaasFileList,
 )
 from reconcile.utils import gql
 from reconcile.utils.gitlab_api import GitLabApi
@@ -58,7 +58,7 @@ def osd_run_wrapper(
     dry_run: bool,
     available_thread_pool_size: int,
     use_jump_host: bool,
-    all_saas_files: Optional[list[SaasFile]],
+    saas_file_list: Optional[SaasFileList],
 ) -> int:
     saas_file_name, env_name = spec
     exit_code = 0
@@ -69,7 +69,7 @@ def osd_run_wrapper(
             use_jump_host=use_jump_host,
             saas_file_name=saas_file_name,
             env_name=env_name,
-            all_saas_files=all_saas_files,
+            saas_file_list=saas_file_list,
         )
     except SystemExit as e:
         exit_code = e.code if isinstance(e.code, int) else 1
@@ -214,10 +214,10 @@ def run(
     )
     # find the differences in saas-file state
     comparison_saas_file_state = collect_state(
-        get_saas_files(query_func=comparison_gql_api.query)
+        SaasFileList(query_func=comparison_gql_api.query).saas_files
     )
-    all_saas_files = get_saas_files()
-    desired_saas_file_state = collect_state(all_saas_files)
+    saas_file_list = SaasFileList()
+    desired_saas_file_state = collect_state(saas_file_list.saas_files)
     # compare dicts against dicts which is much faster than comparing BaseModel objects
     comparison_saas_file_state_dicts = [s.dict() for s in comparison_saas_file_state]
     saas_file_state_diffs = [
@@ -249,7 +249,7 @@ def run(
         dry_run=dry_run,
         available_thread_pool_size=available_thread_pool_size,
         use_jump_host=use_jump_host,
-        all_saas_files=all_saas_files,
+        saas_file_list=saas_file_list,
     )
 
     if [ec for ec in exit_codes if ec]:
