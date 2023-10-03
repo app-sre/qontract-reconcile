@@ -1,5 +1,6 @@
 import itertools
 import logging
+from collections import Counter
 from collections.abc import (
     Callable,
     Iterable,
@@ -27,6 +28,7 @@ from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils import (
     expiration,
     gql,
+    metrics,
 )
 from reconcile.utils.defer import defer
 from reconcile.utils.oc_map import (
@@ -34,6 +36,7 @@ from reconcile.utils.oc_map import (
     OCMap,
     init_oc_map_from_clusters,
 )
+from reconcile.utils.openshift_resource import OpenshiftResourceInventoryGauge
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
 
@@ -264,6 +267,28 @@ def act(diff: Mapping[str, Optional[str]], oc_map: ClusterMap) -> None:
         raise Exception("invalid action: {}".format(action))
 
 
+def get_state_count_combinations(state: Iterable[Mapping[str, str]]) -> Counter[tuple]:
+    return Counter(s["cluster"] for s in state)
+
+
+def publish_metrics(
+    current_state: Iterable[Mapping[str, str]],
+    desired_state: Iterable[Mapping[str, str]],
+) -> None:
+    for state, state_type in {(current_state, "current"), (desired_state, "desired")}:
+        for cluster, count in get_state_count_combinations(state).items():
+            metrics.set_gauge(
+                OpenshiftResourceInventoryGauge(
+                    integration=QONTRACT_INTEGRATION,
+                    cluster=cluster,
+                    namespace="cluster",
+                    kind="GroupBinding",
+                    state=state_type,
+                ),
+                count,
+            )
+
+
 @defer
 def run(
     dry_run: bool,
@@ -291,6 +316,7 @@ def run(
         if not (s["cluster"] in ocm_clusters and s["group"] == "dedicated-admins")
     ]
 
+    publish_metrics(current_state, desired_state)
     diffs = calculate_diff(current_state, desired_state)
     validate_diffs(diffs)
     diffs.sort(key=sort_diffs)
