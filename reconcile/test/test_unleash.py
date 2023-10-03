@@ -46,6 +46,10 @@ def test_get_feature_toggle_state_env_missing():
     assert get_feature_toggle_state("foo")
 
 
+def test_get_feature_toggle_state_env_missing_default_false():
+    assert not get_feature_toggle_state("foo", default=False)
+
+
 def test_get_feature_toggle_state(mocker, monkeypatch):
     def enabled_func(feature, context, fallback_function):
         return feature == "enabled"

@@ -18,6 +18,9 @@ fixture = Fixtures("gabi_authorized_users").get_anymarkup("api.yml")
 
 def test_gabi_authorized_users_apply(mocker: MockerFixture) -> None:
     ri = ResourceInventory()
+    # This can be removed once the three_way_diff strategy is the default
+    # mechanism. Without the feature flag.
+    ri.clusters_3way_diff_strategy = {"server": True}
     ri.initialize_resource_type("server", "gabi-db", "ConfigMap")
     gabi_instance = fixture["gql_response"][0]
     gabi_u.fetch_desired_state([gabi_instance], ri)
