@@ -330,6 +330,15 @@ def hash_list(input: Iterable) -> str:
 
 
 def eval_filter(input, **kwargs) -> str:
+    """Jinja2 filter be used when the string
+    is in itself a jinja2 template that must be
+    evaluated with kwargs. For example in the case
+    of the slo-document expression fields.
+    :param input: template string
+    :kwargs: variables that will be used to evaluate the
+             input string
+    :return: rendered string
+    """
     return jinja2.Template(input).render(**kwargs)
 
 
