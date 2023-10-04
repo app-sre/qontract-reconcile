@@ -40,6 +40,7 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpecInventory
 from reconcile.utils.external_resources import (
     PROVIDER_CLOUDFLARE,
     get_external_resource_specs,
+    publish_metrics,
 )
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.oc_map import (
@@ -361,6 +362,10 @@ def run(
     cf_clients.add_specs(cf_specs)
 
     cf_clients.populate_resources()
+
+    publish_metrics(
+        cf_clients.resource_spec_inventory, QONTRACT_INTEGRATION.replace("_", "-")
+    )
 
     ri, oc_map = _build_oc_resources(
         cloudflare_namespaces,
