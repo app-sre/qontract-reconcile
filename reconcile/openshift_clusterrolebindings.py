@@ -171,6 +171,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
     )
     defer(oc_map.cleanup)
     fetch_desired_state(ri, oc_map)
+    ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
