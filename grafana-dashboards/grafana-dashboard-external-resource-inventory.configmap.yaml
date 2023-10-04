@@ -166,9 +166,9 @@ data:
         ]
       },
       "timezone": "",
-      "title": "Extermal Resources Inventory",
+      "title": "External Resource Inventory",
       "uid": "tf8Xe6WIz",
-      "version": 2,
+      "version": 3,
       "weekStart": ""
     }
 kind: ConfigMap
