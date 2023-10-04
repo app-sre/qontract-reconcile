@@ -1,0 +1,28 @@
+- quayRepos:
+  - items:
+    - mirror: null
+      name: cloud-connector
+      public: true
+    - mirror:
+        pullCredentials:
+          field: all
+          format: null
+          path: app-sre/creds/mirror-images/docker.io-sdappsre
+          version: null
+        tags:
+        - latest
+        tagsExclude: null
+        url: docker.io/library/eclipse-mosquitto
+      name: eclipse-mosquitto
+      public: true
+    - mirror: null
+      name: tenant-utils
+      public: true
+    - mirror: null
+      name: cloud-connector-frontend
+      public: true
+    org:
+      instance:
+        name: quay.io
+        url: quay.io
+      name: cloudservices
