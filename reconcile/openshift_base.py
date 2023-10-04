@@ -24,7 +24,10 @@ from sretoolbox.utils import (
 )
 
 from reconcile import queries
-from reconcile.utils import differ
+from reconcile.utils import (
+    differ,
+    metrics,
+)
 from reconcile.utils.oc import (
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
@@ -41,7 +44,10 @@ from reconcile.utils.oc import (
     UnsupportedMediaTypeError,
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.openshift_resource import (
+    OpenshiftResourceInventoryGauge,
+    ResourceInventory,
+)
 from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 
 ACTION_APPLIED = "applied"
@@ -1511,3 +1517,18 @@ def get_namespace_resource_names(
         ref += item["resourceNames"]
 
     return rnames
+
+
+def publish_metrics(ri: ResourceInventory, integration: str) -> None:
+    for cluster, namespace, kind, data in ri:
+        for state in ("current", "desired"):
+            metrics.set_gauge(
+                OpenshiftResourceInventoryGauge(
+                    integration=integration,
+                    cluster=cluster,
+                    namespace=namespace,
+                    kind=kind,
+                    state=state,
+                ),
+                len(data[state]),
+            )
