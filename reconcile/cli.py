@@ -2559,11 +2559,12 @@ def ocm_standalone_user_management(ctx, ocm_env, ocm_org_ids, group_provider):
     from reconcile.oum.base import OCMUserManagementIntegrationParams
     from reconcile.oum.standalone import OCMStandaloneUserManagementIntegration
 
+    ocm_organization_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     run_class_integration(
         OCMStandaloneUserManagementIntegration(
             OCMUserManagementIntegrationParams(
                 ocm_environment=ocm_env,
-                ocm_org_ids=ocm_org_ids,
+                ocm_organization_ids=ocm_organization_ids,
                 group_provider_specs=group_provider,
             ),
         ),
