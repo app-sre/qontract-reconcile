@@ -442,6 +442,7 @@ def run(
     # populate the resource inventory with latest output data
     populate_desired_state(ri, resource_specs)
 
+    ob.publish_metrics(ri, QONTRACT_INTEGRATION.replace("_", "-"))
     actions = []
     if oc_map:
         actions = ob.realize_data(

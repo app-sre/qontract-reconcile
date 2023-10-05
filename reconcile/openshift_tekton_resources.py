@@ -459,6 +459,8 @@ def run(
     for desired_resource in desired_resources:
         ri.add_desired(**desired_resource)
 
+    LOG.debug("Publishing metrics")
+    ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     LOG.debug("Realizing data")
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 

@@ -76,6 +76,7 @@ def run(
     )
     defer(oc_map.cleanup)
     fetch_desired_state(namespaces, ri, oc_map)
+    ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():

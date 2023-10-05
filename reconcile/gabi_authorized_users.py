@@ -127,6 +127,7 @@ def run(
     if defer:
         defer(oc_map.cleanup)
     fetch_desired_state(gabi_instances, ri)
+    ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
