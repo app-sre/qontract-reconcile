@@ -362,6 +362,9 @@ def run(dry_run: bool, gitlab_project_id=None, thread_pool_size=10):
                     "its manifest to app-interface"
                 )
                 error = True
+            except ocmmod.OCMValidationException as e:
+                logging.error("[%s] Error creating cluster: %s", cluster_name, e)
+                error = True
 
     _app_interface_updates_mr(clusters_updates, gitlab_project_id, dry_run)
     sys.exit(int(error))

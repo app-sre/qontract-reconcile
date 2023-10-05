@@ -5,7 +5,7 @@
   "cloud_provider": {
     "id": "aws"
   },
-  "disable_user_workload_monitoring": true,
+  "disable_user_workload_monitoring": false,
   "load_balancer_quota": 4,
   "multi_az": true,
   "name": "test-cluster",
