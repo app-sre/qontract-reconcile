@@ -14,11 +14,13 @@ from typing import (
 from sretoolbox.utils import threaded
 
 from reconcile.gql_definitions.common.namespaces_minimal import NamespaceV1
+from reconcile.openshift_groups import get_state_count_combinations
 from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.namespaces_minimal import get_namespaces_minimal
+from reconcile.utils import metrics
 from reconcile.utils.defer import defer
 from reconcile.utils.oc_filters import filter_namespaces_by_cluster_and_namespace
 from reconcile.utils.oc_map import (
@@ -26,6 +28,7 @@ from reconcile.utils.oc_map import (
     OCMap,
     init_oc_map_from_namespaces,
 )
+from reconcile.utils.openshift_resource import OpenshiftResourceInventoryGauge
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
 
@@ -140,6 +143,20 @@ def check_results(
     return err
 
 
+def publish_metrics(state: Iterable[Mapping[str, str]]) -> None:
+    for cluster, count in get_state_count_combinations(state).items():
+        metrics.set_gauge(
+            OpenshiftResourceInventoryGauge(
+                integration=QONTRACT_INTEGRATION,
+                cluster=cluster,
+                namespace="cluster",
+                kind="Namespace",
+                state="desired",
+            ),
+            count,
+        )
+
+
 @defer
 def run(
     dry_run: bool,
@@ -175,6 +192,8 @@ def run(
 
     if defer:
         defer(oc_map.cleanup)
+
+    publish_metrics(desired_state)
 
     results = threaded.run(
         manage_namespaces,
