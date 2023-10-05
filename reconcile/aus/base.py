@@ -807,7 +807,7 @@ def _calulate_node_pool_diffs(
 ) -> Optional[UpgradePolicyHandler]:
     node_pools = get_node_pools(ocm_api, spec.cluster.id)
     if node_pools:
-        for pool in sorted(node_pools, key=lambda x: x["id"]):
+        for pool in node_pools:
             pool_version_id = pool.get("version", {}).get("id")
             pool_version = get_version(ocm_api, pool_version_id)["raw_id"]
             if semver.match(pool_version, f"<{spec.current_version}"):
