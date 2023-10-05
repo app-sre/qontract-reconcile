@@ -13,8 +13,8 @@ from typing import (
 
 from sretoolbox.utils import threaded
 
+import reconcile.openshift_base as ob
 from reconcile.gql_definitions.common.namespaces_minimal import NamespaceV1
-from reconcile.openshift_groups import get_state_count_combinations
 from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -143,20 +143,6 @@ def check_results(
     return err
 
 
-def publish_metrics(state: Iterable[Mapping[str, str]]) -> None:
-    for cluster, count in get_state_count_combinations(state).items():
-        metrics.set_gauge(
-            OpenshiftResourceInventoryGauge(
-                integration=QONTRACT_INTEGRATION,
-                cluster=cluster,
-                namespace="cluster",
-                kind="Namespace",
-                state="desired",
-            ),
-            count,
-        )
-
-
 @defer
 def run(
     dry_run: bool,
@@ -193,7 +179,9 @@ def run(
     if defer:
         defer(oc_map.cleanup)
 
-    publish_metrics(desired_state)
+    ob.publish_cluster_desired_metrics_from_state(
+        desired_state, QONTRACT_INTEGRATION, "Namespace"
+    )
 
     results = threaded.run(
         manage_namespaces,
