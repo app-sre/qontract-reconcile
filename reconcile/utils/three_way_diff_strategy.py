@@ -128,7 +128,7 @@ def three_way_diff_using_hash(c_item: OR, d_item: OR) -> bool:
         annotations = c_item.body["metadata"]["annotations"]
         c_item_sha256 = annotations["qontract.sha256sum"]
     except KeyError:
-        logging.info("Current object QR hash is missing -> Apply")
+        logging.debug("Current object QR hash is missing -> Apply")
         return False
 
     # Original object does not match Desired -> Apply
@@ -136,7 +136,7 @@ def three_way_diff_using_hash(c_item: OR, d_item: OR) -> bool:
     # d_item_sha256 = OR.calculate_sha256sum(OR.serialize(d_item.body))
     # if c_item_sha256 != d_item_sha256:
     if c_item_sha256 != d_item.sha256sum():
-        logging.info("Original and Desired objects hash differs -> Apply")
+        logging.debug("Original and Desired objects hash differs -> Apply")
         return False
 
     # If there are differences between current and desired -> Apply
@@ -152,7 +152,7 @@ def three_way_diff_using_hash(c_item: OR, d_item: OR) -> bool:
         item for item in patch.patch if is_valid_change(current, desired, item)
     ]
     if len(valid_changes) > 0:
-        logging.info("Desired and Current objects differ -> Apply")
+        logging.debug("Desired and Current objects differ -> Apply")
         logging.info(valid_changes)
         return False
 
