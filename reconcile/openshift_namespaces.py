@@ -13,6 +13,7 @@ from typing import (
 
 from sretoolbox.utils import threaded
 
+import reconcile.openshift_base as ob
 from reconcile.gql_definitions.common.namespaces_minimal import NamespaceV1
 from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -175,6 +176,10 @@ def run(
 
     if defer:
         defer(oc_map.cleanup)
+
+    ob.publish_cluster_desired_metrics_from_state(
+        desired_state, QONTRACT_INTEGRATION, "Namespace"
+    )
 
     results = threaded.run(
         manage_namespaces,

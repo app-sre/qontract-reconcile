@@ -288,6 +288,7 @@ def run(
         integration_environments, ri, upstream, image, image_tag_from_ref
     )
 
+    ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     if use_upstream:
         ob.realize_data(dry_run, oc_map, ri, thread_pool_size, caller=upstream)
     else:

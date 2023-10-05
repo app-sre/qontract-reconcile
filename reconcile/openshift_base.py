@@ -1,5 +1,6 @@
 import itertools
 import logging
+from collections import Counter
 from collections.abc import (
     Iterable,
     Mapping,
@@ -1524,7 +1525,7 @@ def publish_metrics(ri: ResourceInventory, integration: str) -> None:
         for state in ("current", "desired"):
             metrics.set_gauge(
                 OpenshiftResourceInventoryGauge(
-                    integration=integration,
+                    integration=integration.replace("_", "-"),
                     cluster=cluster,
                     namespace=namespace,
                     kind=kind,
@@ -1532,3 +1533,23 @@ def publish_metrics(ri: ResourceInventory, integration: str) -> None:
                 ),
                 len(data[state]),
             )
+
+
+def get_state_count_combinations(state: Iterable[Mapping[str, str]]) -> Counter[str]:
+    return Counter(s["cluster"] for s in state)
+
+
+def publish_cluster_desired_metrics_from_state(
+    state: Iterable[Mapping[str, str]], integration: str, kind: str
+) -> None:
+    for cluster, count in get_state_count_combinations(state).items():
+        metrics.set_gauge(
+            OpenshiftResourceInventoryGauge(
+                integration=integration,
+                cluster=cluster,
+                namespace="cluster",
+                kind=kind,
+                state="desired",
+            ),
+            count,
+        )
