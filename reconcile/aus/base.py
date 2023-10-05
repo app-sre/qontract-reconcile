@@ -81,6 +81,8 @@ from reconcile.utils.semver_helper import (
 )
 from reconcile.utils.state import init_state
 
+MIN_DELTA_MINUTES = 5
+
 
 class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
     ocm_environment: Optional[str] = None
@@ -749,7 +751,7 @@ def verify_schedule_should_skip(
     # Let's find the next schedule that is at least 5m ahead.
     # We do not need that much delay for addon upgrades since they run
     # immediately
-    delay_minutes = 1 if addon_id else 5
+    delay_minutes = 1 if addon_id else MIN_DELTA_MINUTES
     next_schedule = iter.get_next(
         dt.datetime, start_time=now + timedelta(minutes=delay_minutes)
     )
@@ -811,7 +813,7 @@ def _calulate_node_pool_diffs(
             pool_version_id = pool.get("version", {}).get("id")
             pool_version = get_version(ocm_api, pool_version_id)["raw_id"]
             if semver.match(pool_version, f"<{spec.current_version}"):
-                next_schedule = (now + timedelta(minutes=6)).strftime(
+                next_schedule = (now + timedelta(minutes=MIN_DELTA_MINUTES)).strftime(
                     "%Y-%m-%dT%H:%M:%SZ"
                 )
                 return UpgradePolicyHandler(
