@@ -226,6 +226,44 @@ def test_calculate_diff_not_soaked(
     assert not diffs
 
 
+def test_calculate_diff_mutex_set(
+    ocm_api: OCMBaseClient,
+    cluster: OCMCluster,
+    now: datetime,
+) -> None:
+    workload = "wl"
+    org_upgrade_spec = build_organization_upgrade_spec(
+        specs=[
+            (
+                cluster,
+                build_upgrade_policy(
+                    workloads=[workload], soak_days=1, mutexes=["foo"]
+                ),
+            ),
+        ],
+    )
+    diffs = base.calculate_diff(
+        [
+            NodePoolUpgradePolicy(
+                cluster=cluster,
+                schedule_type="manual",
+                next_run="2021-08-30T18:06:00Z",
+                version="4.12.19",
+                node_pool="foo",
+            )
+        ],
+        org_upgrade_spec,
+        ocm_api,
+        build_version_data(
+            check_in=now,
+            version=cluster.available_upgrades()[0],
+            workload=workload,
+            soak_days=11,
+        ),
+    )
+    assert not diffs
+
+
 @pytest.fixture
 def node_pool_mocks(mocker: MockerFixture) -> Tuple[Mock, Mock, Mock]:
     return (
@@ -273,4 +311,4 @@ def test__calulate_node_pool_diffs_multiple(
     created = _calulate_node_pool_diffs(ocm_api, cluster_upgrade_spec, now)
     assert created is not None
     assert isinstance(created.policy, NodePoolUpgradePolicy)
-    assert created.policy.node_pool == "foo"
+    assert created.policy.node_pool == "oof"
