@@ -1,6 +1,18 @@
+from collections.abc import Mapping
+from copy import deepcopy
+from typing import Any
+
+from jsonpath_ng.exceptions import JsonPathParserError
+from jsonpath_ng.ext import parser
 from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
 
+from reconcile.gql_definitions.common.saas_files import (
+    SaasResourceTemplateTargetNamespaceSelectorV1,
+)
+from reconcile.gql_definitions.fragments.saas_target_namespace import (
+    SaasTargetNamespace,
+)
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 
 PROMOTION_DATA_SEPARATOR = (
@@ -27,7 +39,33 @@ class Renderer:
     This class is only concerned with rendering text for MRs.
     Most logic evolves around ruamel yaml modification.
     This class makes testing for MergeRequestManager easier.
+
+    Note, that this class is very susceptible to schema changes
+    as it mainly works on raw dicts.
     """
+
+    def _is_wanted_target(
+        self, subscriber: Subscriber, target: Mapping[str, Any]
+    ) -> bool:
+        namespace_selector = deepcopy(target.get("namespaceSelector"))
+        if namespace_selector:
+            # We want to fail hard here on missing key - this should not happen
+            if "exclude" not in namespace_selector["jsonPathSelectors"]:
+                namespace_selector["jsonPathSelectors"]["exclude"] = []
+            selector = SaasResourceTemplateTargetNamespaceSelectorV1(
+                **namespace_selector
+            )
+            # Check if the target namespace is addressed by the selector
+            return (
+                len(
+                    get_namespaces_by_selector(
+                        namespaces=[subscriber.target_namespace],
+                        namespace_selector=selector,
+                    )
+                )
+                == 1
+            )
+        return target["namespace"]["$ref"] == subscriber.target_namespace.path
 
     def _find_saas_file_targets(
         self, subscriber: Subscriber, content: dict
@@ -38,7 +76,7 @@ class Renderer:
             return [content]
         for rt in content["resourceTemplates"]:
             for target in rt["targets"]:
-                if target["namespace"]["$ref"] != subscriber.namespace_file_path:
+                if not self._is_wanted_target(subscriber=subscriber, target=target):
                     continue
                 target_promotion = target.get("promotion")
                 if not target_promotion:
@@ -118,3 +156,58 @@ class Renderer:
 
     def render_title(self, channels: str) -> str:
         return f"[auto-promotion] event for channel(s) {channels}"
+
+
+def get_namespaces_by_selector(
+    namespaces: list[SaasTargetNamespace],
+    namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
+) -> list[SaasTargetNamespace]:
+    """
+    # TODO: for whatever reason tox fails to import this from saas_files.
+    Interestingly it works outside of tox, but to get going we simply
+    copy the function here - very bad style but works for now
+
+    Copy of reconcile.typed_queries.saas_files.get_namespaces_by_selector
+    """
+
+    # json representation of all the namespaces to filter on
+    # remove all the None values to simplify the jsonpath expressions
+    namespaces_as_dict = {
+        "namespace": [ns.dict(by_alias=True, exclude_none=True) for ns in namespaces]
+    }
+
+    def _get_namespace_by_cluster_and_name(
+        cluster_name: str, name: str
+    ) -> SaasTargetNamespace:
+        for ns in namespaces:
+            if ns.cluster.name == cluster_name and ns.name == name:
+                return ns
+        # this should never ever happen - just make mypy happy
+        raise RuntimeError(f"namespace '{name}' not found in cluster '{cluster_name}'")
+
+    filtered_namespaces: dict[str, Any] = {}
+
+    try:
+        for include in namespace_selector.json_path_selectors.include:
+            for match in parser.parse(include).find(namespaces_as_dict):
+                cluster_name = match.value["cluster"]["name"]
+                ns_name = match.value["name"]
+                filtered_namespaces[
+                    f"{cluster_name}-{ns_name}"
+                ] = _get_namespace_by_cluster_and_name(cluster_name, ns_name)
+    except JsonPathParserError as e:
+        raise RuntimeError(
+            f"Invalid jsonpath expression in namespaceSelector '{include}' :{e}"
+        )
+
+    try:
+        for exclude in namespace_selector.json_path_selectors.exclude or []:
+            for match in parser.parse(exclude).find(namespaces_as_dict):
+                cluster_name = match.value["cluster"]["name"]
+                ns_name = match.value["name"]
+                filtered_namespaces.pop(f"{cluster_name}-{ns_name}", None)
+    except JsonPathParserError as e:
+        raise RuntimeError(
+            f"Invalid jsonpath expression in namespaceSelector '{exclude}' :{e}"
+        )
+    return list(filtered_namespaces.values())

@@ -4,6 +4,9 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Optional
 
+from reconcile.gql_definitions.fragments.saas_target_namespace import (
+    SaasTargetNamespace,
+)
 from reconcile.saas_auto_promotions_manager.publisher import (
     DeploymentInfo,
     Publisher,
@@ -37,7 +40,7 @@ class Subscriber:
         template_name: str,
         ref: str,
         target_file_path: str,
-        namespace_file_path: str,
+        target_namespace: SaasTargetNamespace,
         use_target_config_hash: bool,
     ):
         self.saas_name = saas_name
@@ -48,7 +51,7 @@ class Subscriber:
         self.channels: list[Channel] = []
         self.desired_ref = ""
         self.desired_hashes: list[ConfigHash] = []
-        self.namespace_file_path = namespace_file_path
+        self.target_namespace = target_namespace
         self._content_hash = ""
         self._use_target_config_hash = use_target_config_hash
 
@@ -176,7 +179,11 @@ class Subscriber:
         """
         sorted_subs = sorted(
             subscribers,
-            key=lambda s: (s.target_file_path, s.template_name, s.namespace_file_path),
+            key=lambda s: (
+                s.target_file_path,
+                s.template_name,
+                s.target_namespace.path,
+            ),
         )
         m = hashlib.sha256()
         msg = ""
@@ -187,7 +194,7 @@ class Subscriber:
             )
             msg += f"""
             target_file_path: {sub.target_file_path}
-            namespace_file_path: {sub.namespace_file_path}
+            namespace_file_path: {sub.target_namespace.path}
             desired_ref: {sub.desired_ref}
             desired_hashes: {[(h.channel, h.parent_saas, h.target_config_hash) for h in sorted_hashes]}
             """
