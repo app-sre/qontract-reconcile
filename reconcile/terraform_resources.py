@@ -400,7 +400,7 @@ def run(
         account_names,
         exclude_accounts,
     )
-    publish_metrics(resource_specs, QONTRACT_INTEGRATION.replace("_", "-"))
+    publish_metrics(resource_specs, QONTRACT_INTEGRATION)
 
     if not dry_run and oc_map and defer:
         defer(oc_map.cleanup)
@@ -442,7 +442,7 @@ def run(
     # populate the resource inventory with latest output data
     populate_desired_state(ri, resource_specs)
 
-    ob.publish_metrics(ri, QONTRACT_INTEGRATION.replace("_", "-"))
+    ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     actions = []
     if oc_map:
         actions = ob.realize_data(

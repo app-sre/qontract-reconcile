@@ -1525,7 +1525,7 @@ def publish_metrics(ri: ResourceInventory, integration: str) -> None:
         for state in ("current", "desired"):
             metrics.set_gauge(
                 OpenshiftResourceInventoryGauge(
-                    integration=integration,
+                    integration=integration.replace("_", "-"),
                     cluster=cluster,
                     namespace=namespace,
                     kind=kind,

@@ -83,7 +83,7 @@ def publish_metrics(inventory: ExternalResourceSpecInventory, integration: str) 
         provision_provider, provisioner_name, provider = combination
         metrics.set_gauge(
             ExternalResourceInventoryGauge(
-                integration=integration,
+                integration=integration.replace("_", "-"),
                 provision_provider=provision_provider,
                 provisioner_name=provisioner_name,
                 provider=provider,
