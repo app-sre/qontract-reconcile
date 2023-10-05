@@ -20,7 +20,6 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.namespaces_minimal import get_namespaces_minimal
-from reconcile.utils import metrics
 from reconcile.utils.defer import defer
 from reconcile.utils.oc_filters import filter_namespaces_by_cluster_and_namespace
 from reconcile.utils.oc_map import (
@@ -28,7 +27,6 @@ from reconcile.utils.oc_map import (
     OCMap,
     init_oc_map_from_namespaces,
 )
-from reconcile.utils.openshift_resource import OpenshiftResourceInventoryGauge
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
 

@@ -1,6 +1,5 @@
 import itertools
 import logging
-from collections import Counter
 from collections.abc import (
     Callable,
     Iterable,
