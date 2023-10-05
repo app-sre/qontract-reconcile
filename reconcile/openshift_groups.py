@@ -88,7 +88,7 @@ def create_groups_list(
 
 def fetch_current_state(
     thread_pool_size: int, internal: Optional[bool], use_jump_host: bool
-) -> tuple[OCMap, list[dict[str, str]], list[str]]:
+) -> tuple[OCMap, list[dict[str, str]], list[str], list[dict[str, str]]]:
     clusters = [c for c in get_clusters() if is_in_shard(c.name)]
     ocm_clusters = [c.name for c in clusters if c.ocm is not None]
     vault_settings = get_app_interface_vault_settings()
@@ -109,7 +109,7 @@ def fetch_current_state(
     )
 
     current_state = list(itertools.chain.from_iterable(results))
-    return oc_map, current_state, ocm_clusters
+    return oc_map, current_state, ocm_clusters, groups_list
 
 
 def fetch_desired_state(
@@ -271,22 +271,18 @@ def get_state_count_combinations(state: Iterable[Mapping[str, str]]) -> Counter[
     return Counter(s["cluster"] for s in state)
 
 
-def publish_metrics(
-    current_state: Iterable[Mapping[str, str]],
-    desired_state: Iterable[Mapping[str, str]],
-) -> None:
-    for state, state_type in ((current_state, "current"), (desired_state, "desired")):
-        for cluster, count in get_state_count_combinations(state).items():
-            metrics.set_gauge(
-                OpenshiftResourceInventoryGauge(
-                    integration=QONTRACT_INTEGRATION,
-                    cluster=cluster,
-                    namespace="cluster",
-                    kind="GroupBinding",
-                    state=state_type,
-                ),
-                count,
-            )
+def publish_metrics(state: Iterable[Mapping[str, str]]) -> None:
+    for cluster, count in get_state_count_combinations(state).items():
+        metrics.set_gauge(
+            OpenshiftResourceInventoryGauge(
+                integration=QONTRACT_INTEGRATION,
+                cluster=cluster,
+                namespace="cluster",
+                kind="Group",
+                state="desired",
+            ),
+            count,
+        )
 
 
 @defer
@@ -297,7 +293,7 @@ def run(
     use_jump_host: bool = True,
     defer: Optional[Callable] = None,
 ) -> None:
-    oc_map, current_state, ocm_clusters = fetch_current_state(
+    oc_map, current_state, ocm_clusters, groups_list = fetch_current_state(
         thread_pool_size, internal, use_jump_host
     )
     if defer:
@@ -316,7 +312,7 @@ def run(
         if not (s["cluster"] in ocm_clusters and s["group"] == "dedicated-admins")
     ]
 
-    publish_metrics(current_state, desired_state)
+    publish_metrics(groups_list)
     diffs = calculate_diff(current_state, desired_state)
     validate_diffs(diffs)
     diffs.sort(key=sort_diffs)
