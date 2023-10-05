@@ -19,40 +19,19 @@ from .data_keys import (
 )
 
 
-def test_content_single_namespace(
+def test_json_path_selector_include(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
     subscriber = subscriber_builder(
         {
-            NAMESPACE: {"path": "/some/namespace.yml"},
-            REF: "new_sha",
-            CONFIG_HASHES: [
-                ConfigHash(
-                    channel="channel-a",
-                    target_config_hash="current_hash",
-                    parent_saas="parent_saas",
-                )
-            ],
-            CHANNELS: ["channel-a"],
-        }
-    )
-    saas_content, expected = file_contents("single_namespace")
-    renderer = Renderer()
-    result = renderer.render_merge_request_content(
-        subscriber=subscriber,
-        current_content=saas_content,
-    )
-    assert result.strip() == expected.strip()
-
-
-def test_content_single_namespace_no_previous_hash(
-    file_contents: Callable[[str], tuple[str, str]],
-    subscriber_builder: Callable[[Mapping], Subscriber],
-):
-    subscriber = subscriber_builder(
-        {
-            NAMESPACE: {"path": "/some/namespace.yml"},
+            NAMESPACE: {
+                "path": "/some/namespace.yml",
+                "name": "test-namespace",
+                "cluster": {
+                    "name": "test-cluster",
+                },
+            },
             REF: "new_sha",
             CONFIG_HASHES: [
                 ConfigHash(
@@ -64,7 +43,7 @@ def test_content_single_namespace_no_previous_hash(
             CHANNELS: ["channel-a"],
         }
     )
-    saas_content, expected = file_contents("single_namespace_no_hash")
+    saas_content, expected = file_contents("json_path_selector_includes")
     renderer = Renderer()
     result = renderer.render_merge_request_content(
         subscriber=subscriber,
@@ -73,19 +52,31 @@ def test_content_single_namespace_no_previous_hash(
     assert result.strip() == expected.strip()
 
 
-def test_content_single_namespace_no_desired_hash(
+def test_json_path_selector_exclude(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
     subscriber = subscriber_builder(
         {
-            NAMESPACE: {"path": "/some/namespace.yml"},
-            REF: "new_sha",
-            CONFIG_HASHES: [],
+            NAMESPACE: {
+                "path": "/some/namespace.yml",
+                "name": "test-namespace",
+                "cluster": {
+                    "name": "test-cluster",
+                },
+            },
+            REF: "hyper_sha",
+            CONFIG_HASHES: [
+                ConfigHash(
+                    channel="channel-a",
+                    target_config_hash="hyper_hash",
+                    parent_saas="parent_saas",
+                )
+            ],
             CHANNELS: ["channel-a"],
         }
     )
-    saas_content, expected = file_contents("single_namespace_ignore_hash")
+    saas_content, expected = file_contents("json_path_selector_excludes")
     renderer = Renderer()
     result = renderer.render_merge_request_content(
         subscriber=subscriber,

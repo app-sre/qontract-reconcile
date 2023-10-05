@@ -13,7 +13,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 
 from .data_keys import (
     CONFIG_HASHES,
-    NAMESPACE_PATH,
+    NAMESPACE,
     REF,
 )
 
@@ -24,7 +24,7 @@ def test_content_single_target(
 ):
     subscriber = subscriber_builder(
         {
-            NAMESPACE_PATH: "/some/namespace.yml",
+            NAMESPACE: {"path": "/some/namespace.yml"},
             REF: "new_sha",
             CONFIG_HASHES: [
                 ConfigHash(
@@ -51,7 +51,7 @@ def test_must_not_line_wrap(
     namespace_name = "/services/sosososolong/namespaces/loooooooooooooooooooooooooooooooooooooooooooooooooooooooooong.yml"
     subscriber = subscriber_builder(
         {
-            NAMESPACE_PATH: namespace_name,
+            NAMESPACE: {"path": namespace_name},
             REF: "new_sha",
             CONFIG_HASHES: [
                 ConfigHash(
