@@ -188,6 +188,38 @@ def delete_control_plane_upgrade_policy(
 
 
 #
+# NODE POOLUPGRADE POLICIES
+#
+
+
+def get_node_pool_upgrade_policies(
+    ocm_api: OCMBaseClient, cluster_id: str, node_pool: str
+) -> list[dict[str, Any]]:
+    """
+    Returns a list of details of Upgrade Policies
+    """
+    results: list[dict[str, Any]] = []
+    for policy in ocm_api.get_paginated(
+        f"{build_cluster_url(cluster_id)}/node_pools/{node_pool}/upgrade_policies"
+    ):
+        results.append(
+            {k: v for k, v in policy.items() if k in UPGRADE_POLICY_DESIRED_KEYS}
+        )
+    return results
+
+
+def create_node_pool_upgrade_policy(
+    ocm_api: OCMBaseClient, cluster_id: str, node_pool: str, spec: dict
+) -> None:
+    """
+    Creates a new Upgrade Policy for the node pool plane
+    """
+    ocm_api.post(
+        f"{build_cluster_url(cluster_id)}/node_pools/{node_pool}/upgrade_policies", spec
+    )
+
+
+#
 # VERSION AGREEMENTS
 #
 
