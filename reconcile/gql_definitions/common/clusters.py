@@ -20,6 +20,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 from reconcile.gql_definitions.fragments.aws_infra_management_account import (
     AWSInfrastructureManagementAccount,
 )
+from reconcile.gql_definitions.fragments.aws_vpc import AWSVPC
 from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
 from reconcile.gql_definitions.fragments.jumphost_common_fields import (
     CommonJumphostFields,
@@ -41,6 +42,25 @@ fragment AWSInfrastructureManagementAccount on AWSInfrastructureManagementAccoun
   }
   accessLevel
   default
+}
+
+fragment AWSVPC on AWSVPC_v1 {
+  name
+  description
+  account {
+    name
+    uid
+    terraformUsername
+    automationToken {
+      ... VaultSecret
+    }
+  }
+  region
+  vpc_id
+  cidr_block
+  subnets {
+    id
+  }
 }
 
 fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
@@ -242,17 +262,7 @@ query Clusters($name: String) {
         delete
         ... on ClusterPeeringConnectionAccount_v1 {
           vpc {
-            account {
-              name
-              uid
-              terraformUsername
-              automationToken {
-                ... VaultSecret
-              }
-            }
-            vpc_id
-            cidr_block
-            region
+            ... AWSVPC
           }
           assumeRole
         }
@@ -558,22 +568,8 @@ class ClusterPeeringConnectionV1(ConfiguredBaseModel):
     delete: Optional[bool] = Field(..., alias="delete")
 
 
-class AWSVPCV1_AWSAccountV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    uid: str = Field(..., alias="uid")
-    terraform_username: Optional[str] = Field(..., alias="terraformUsername")
-    automation_token: VaultSecret = Field(..., alias="automationToken")
-
-
-class AWSVPCV1(ConfiguredBaseModel):
-    account: AWSVPCV1_AWSAccountV1 = Field(..., alias="account")
-    vpc_id: str = Field(..., alias="vpc_id")
-    cidr_block: str = Field(..., alias="cidr_block")
-    region: str = Field(..., alias="region")
-
-
 class ClusterPeeringConnectionAccountV1(ClusterPeeringConnectionV1):
-    vpc: AWSVPCV1 = Field(..., alias="vpc")
+    vpc: AWSVPC = Field(..., alias="vpc")
     assume_role: Optional[str] = Field(..., alias="assumeRole")
 
 
