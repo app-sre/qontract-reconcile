@@ -121,25 +121,20 @@ def is_valid_change(current: OR, desired: OR, patch: Mapping[str, Any]) -> bool:
 
 
 def three_way_diff_using_hash(c_item: OR, d_item: OR) -> bool:
-    # Get the ORIGINAL object hash
-    # This needs to be improved in OR, by now is just a PoC
     c_item_sha256 = ""
     try:
         annotations = c_item.body["metadata"]["annotations"]
         c_item_sha256 = annotations["qontract.sha256sum"]
     except KeyError:
-        logging.info("Current object QR hash is missing -> Apply")
+        logging.debug("Current object QR hash is missing -> Apply")
         return False
 
     # Original object does not match Desired -> Apply
-    # Current object is not recalculated!
-    # d_item_sha256 = OR.calculate_sha256sum(OR.serialize(d_item.body))
-    # if c_item_sha256 != d_item_sha256:
+    # Current object hash is not recalculated!
     if c_item_sha256 != d_item.sha256sum():
-        logging.info("Original and Desired objects hash differs -> Apply")
+        logging.debug("Original and Desired objects hash differs -> Apply")
         return False
 
-    # If there are differences between current and desired -> Apply
     # The patch only detects changes with attributes defined in the desired state.
     # Values in the current state added by operators or other actors are not taken
     # into account
@@ -152,8 +147,7 @@ def three_way_diff_using_hash(c_item: OR, d_item: OR) -> bool:
         item for item in patch.patch if is_valid_change(current, desired, item)
     ]
     if len(valid_changes) > 0:
-        logging.info("Desired and Current objects differ -> Apply")
-        logging.info(valid_changes)
+        logging.debug("Desired and Current objects differ -> Apply: %s", valid_changes)
         return False
 
     return True
