@@ -27,10 +27,24 @@ fragment AWSVPC on AWSVPC_v1 {
   account {
     name
     uid
+    terraformUsername
+    automationToken {
+      ... VaultSecret
+    }
   }
   region
   vpc_id
   cidr_block
+  subnets {
+    id
+  }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
 }
 
 query AWSVPCs {

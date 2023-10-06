@@ -9,7 +9,6 @@ from reconcile.utils.gql import GqlApi
 
 
 def get_aws_vpcs(gql_api: Optional[GqlApi] = None) -> list[AWSVPC]:
-    variables = {}
     api = gql_api if gql_api else gql.get_api()
-    data = query(query_func=api.query, variables=variables)
+    data = query(query_func=api.query)
     return list(data.vpcs or [])

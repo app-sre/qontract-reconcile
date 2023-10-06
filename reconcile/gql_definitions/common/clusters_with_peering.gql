@@ -36,17 +36,7 @@ query ClustersWithPeering {
         delete
         ... on ClusterPeeringConnectionAccount_v1 {
           vpc {
-            account {
-              name
-              uid
-              terraformUsername
-              automationToken {
-                ... VaultSecret
-              }
-            }
-            vpc_id
-            cidr_block
-            region
+            ... AWSVPC
           }
           assumeRole
           manageAccountRoutes

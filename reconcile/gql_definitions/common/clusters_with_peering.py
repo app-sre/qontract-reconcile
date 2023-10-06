@@ -20,6 +20,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 from reconcile.gql_definitions.fragments.aws_infra_management_account import (
     AWSInfrastructureManagementAccount,
 )
+from reconcile.gql_definitions.fragments.aws_vpc import AWSVPC
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -37,6 +38,25 @@ fragment AWSInfrastructureManagementAccount on AWSInfrastructureManagementAccoun
   }
   accessLevel
   default
+}
+
+fragment AWSVPC on AWSVPC_v1 {
+  name
+  description
+  account {
+    name
+    uid
+    terraformUsername
+    automationToken {
+      ... VaultSecret
+    }
+  }
+  region
+  vpc_id
+  cidr_block
+  subnets {
+    id
+  }
 }
 
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
@@ -92,17 +112,7 @@ query ClustersWithPeering {
         delete
         ... on ClusterPeeringConnectionAccount_v1 {
           vpc {
-            account {
-              name
-              uid
-              terraformUsername
-              automationToken {
-                ... VaultSecret
-              }
-            }
-            vpc_id
-            cidr_block
-            region
+            ... AWSVPC
           }
           assumeRole
           manageAccountRoutes
@@ -211,6 +221,12 @@ class ClusterPeeringConnectionV1(ConfiguredBaseModel):
     delete: Optional[bool] = Field(..., alias="delete")
 
 
+class ClusterPeeringConnectionAccountV1(ClusterPeeringConnectionV1):
+    vpc: AWSVPC = Field(..., alias="vpc")
+    assume_role: Optional[str] = Field(..., alias="assumeRole")
+    manage_account_routes: Optional[bool] = Field(..., alias="manageAccountRoutes")
+
+
 class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
@@ -218,30 +234,8 @@ class AWSAccountV1(ConfiguredBaseModel):
     automation_token: VaultSecret = Field(..., alias="automationToken")
 
 
-class AWSVPCV1(ConfiguredBaseModel):
-    account: AWSAccountV1 = Field(..., alias="account")
-    vpc_id: str = Field(..., alias="vpc_id")
-    cidr_block: str = Field(..., alias="cidr_block")
-    region: str = Field(..., alias="region")
-
-
-class ClusterPeeringConnectionAccountV1(ClusterPeeringConnectionV1):
-    vpc: AWSVPCV1 = Field(..., alias="vpc")
-    assume_role: Optional[str] = Field(..., alias="assumeRole")
-    manage_account_routes: Optional[bool] = Field(..., alias="manageAccountRoutes")
-
-
-class ClusterPeeringConnectionAccountVPCMeshV1_AWSAccountV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    uid: str = Field(..., alias="uid")
-    terraform_username: Optional[str] = Field(..., alias="terraformUsername")
-    automation_token: VaultSecret = Field(..., alias="automationToken")
-
-
 class ClusterPeeringConnectionAccountVPCMeshV1(ClusterPeeringConnectionV1):
-    account: ClusterPeeringConnectionAccountVPCMeshV1_AWSAccountV1 = Field(
-        ..., alias="account"
-    )
+    account: AWSAccountV1 = Field(..., alias="account")
     tags: Optional[Json] = Field(..., alias="tags")
 
 

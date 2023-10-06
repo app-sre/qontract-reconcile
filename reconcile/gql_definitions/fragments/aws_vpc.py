@@ -17,6 +17,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
@@ -27,6 +29,12 @@ class ConfiguredBaseModel(BaseModel):
 class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
+    terraform_username: Optional[str] = Field(..., alias="terraformUsername")
+    automation_token: VaultSecret = Field(..., alias="automationToken")
+
+
+class AWSSubnetV1(ConfiguredBaseModel):
+    q_id: str = Field(..., alias="id")
 
 
 class AWSVPC(ConfiguredBaseModel):
@@ -36,3 +44,4 @@ class AWSVPC(ConfiguredBaseModel):
     region: str = Field(..., alias="region")
     vpc_id: str = Field(..., alias="vpc_id")
     cidr_block: str = Field(..., alias="cidr_block")
+    subnets: Optional[list[AWSSubnetV1]] = Field(..., alias="subnets")

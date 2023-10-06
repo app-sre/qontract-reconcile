@@ -17,6 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.aws_vpc import AWSVPC
 from reconcile.gql_definitions.fragments.jumphost_common_fields import (
     CommonJumphostFields,
 )
@@ -24,6 +25,25 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
+fragment AWSVPC on AWSVPC_v1 {
+  name
+  description
+  account {
+    name
+    uid
+    terraformUsername
+    automationToken {
+      ... VaultSecret
+    }
+  }
+  region
+  vpc_id
+  cidr_block
+  subnets {
+    id
+  }
+}
+
 fragment CommonJumphostFields on ClusterJumpHost_v1 {
   hostname
   knownHosts
@@ -273,11 +293,7 @@ query TerraformResourcesNamespaces {
                 region
                 identifier
                 vpc {
-                    vpc_id
-                    cidr_block
-                    subnets {
-                        id
-                    }
+                    ... AWSVPC
                 }
                 certificate_arn
                 ingress_cidr_blocks
@@ -770,16 +786,6 @@ class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(
     annotations: Optional[str] = Field(..., alias="annotations")
 
 
-class AWSSubnetV1(ConfiguredBaseModel):
-    q_id: str = Field(..., alias="id")
-
-
-class AWSVPCV1(ConfiguredBaseModel):
-    vpc_id: str = Field(..., alias="vpc_id")
-    cidr_block: str = Field(..., alias="cidr_block")
-    subnets: Optional[list[AWSSubnetV1]] = Field(..., alias="subnets")
-
-
 class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     default: bool = Field(..., alias="default")
@@ -874,7 +880,7 @@ class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
 class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
-    vpc: AWSVPCV1 = Field(..., alias="vpc")
+    vpc: AWSVPC = Field(..., alias="vpc")
     certificate_arn: str = Field(..., alias="certificate_arn")
     ingress_cidr_blocks: list[str] = Field(..., alias="ingress_cidr_blocks")
     idle_timeout: Optional[int] = Field(..., alias="idle_timeout")
