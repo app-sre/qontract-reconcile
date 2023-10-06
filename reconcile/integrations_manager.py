@@ -56,6 +56,8 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 IMAGE_DEFAULT = "quay.io/app-sre/qontract-reconcile"
 UPSTREAM_DEFAULT = "https://github.com/app-sre/qontract-reconcile"
 
+INTEGRATION_UPSTREAM_REPOS_PARAM = "INTEGRATION_UPSTREAM_REPOS"
+
 
 def get_image_tag_from_ref(ref: str, upstream: str) -> str:
     gh_prefix = "https://github.com/"
@@ -87,6 +89,17 @@ def collect_parameters(
             if p["name"] in os.environ
         }
         parameters.update(tp_env_vars)
+
+    # overwrite image and imtage tag from environment parameter
+    for upstream_config in (environment.parameters or {}).get(
+        INTEGRATION_UPSTREAM_REPOS_PARAM, []
+    ):
+        if upstream_config.get("repo") == upstream:
+            parameters["IMAGE_TAG"] = get_image_tag_from_ref(
+                upstream_config.get("ref"), upstream
+            )
+
+    # overwrite image tag from cli parameters
     if image_tag_from_ref:
         for e, r in image_tag_from_ref.items():
             if environment.name == e:
