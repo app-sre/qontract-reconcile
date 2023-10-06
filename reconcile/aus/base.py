@@ -81,7 +81,7 @@ from reconcile.utils.semver_helper import (
 )
 from reconcile.utils.state import init_state
 
-MIN_DELTA_MINUTES = 5
+MIN_DELTA_MINUTES = 6
 
 
 class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
