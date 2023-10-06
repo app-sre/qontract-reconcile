@@ -2,6 +2,7 @@
 
 import base64
 import json
+import logging
 import os
 import re
 import sys
@@ -2258,6 +2259,12 @@ def ec2_jenkins_workers(ctx, aws_access_key_id, aws_secret_access_key, aws_regio
     for a in auto_scaling_groups:
         for i in a["Instances"]:
             instance = ec2.Instance(i["InstanceId"])
+            lifecycle_state = i["LifecycleState"]
+            if lifecycle_state != "InService":
+                logging.info(
+                    f"instance is in lifecycle state {lifecycle_state} - ignoring instance"
+                )
+                continue
             state = instance.state["Name"]
             if state != "running":
                 continue
