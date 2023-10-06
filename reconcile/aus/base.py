@@ -804,7 +804,7 @@ def _create_upgrade_policy(
     )
 
 
-def _calulate_node_pool_diffs(
+def _calculate_node_pool_diffs(
     ocm_api: OCMBaseClient, spec: ClusterUpgradeSpec, now: datetime
 ) -> Optional[UpgradePolicyHandler]:
     node_pools = get_node_pools(ocm_api, spec.cluster.id)
@@ -874,7 +874,7 @@ def calculate_diff(
             if verify_lock_should_skip(spec, locked):
                 continue
 
-            node_pool_update = _calulate_node_pool_diffs(ocm_api, spec, now)
+            node_pool_update = _calculate_node_pool_diffs(ocm_api, spec, now)
             if node_pool_update:  # node pool update policy not yet created
                 diffs.append(node_pool_update)
                 set_mutex(

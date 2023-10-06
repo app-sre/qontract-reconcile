@@ -15,7 +15,7 @@ from reconcile.aus.base import (
     ControlPlaneUpgradePolicy,
     NodePoolUpgradePolicy,
     UpgradePolicyHandler,
-    _calulate_node_pool_diffs,
+    _calculate_node_pool_diffs,
 )
 from reconcile.aus.cluster_version_data import (
     VersionData,
@@ -122,7 +122,7 @@ def test_calculate_diff_create_cluster_upgrade_no_gate(
 def test_calculate_diff_create_control_plane_upgrade_no_gate(
     ocm_api: OCMBaseClient, cluster: OCMCluster, now: datetime, mocker: MockerFixture
 ) -> None:
-    cnpd = mocker.patch("reconcile.aus.base._calulate_node_pool_diffs")
+    cnpd = mocker.patch("reconcile.aus.base._calculate_node_pool_diffs")
     cnpd.return_value = None
     workload = "wl"
     cluster.hypershift.enabled = True
@@ -172,7 +172,7 @@ def test_calculate_diff_create_control_plane_node_pool_only(
             node_pool="foo",
         ),
     )
-    cnpd = mocker.patch("reconcile.aus.base._calulate_node_pool_diffs")
+    cnpd = mocker.patch("reconcile.aus.base._calculate_node_pool_diffs")
     cnpd.return_value = expected
     workload = "wl"
     cluster.hypershift.enabled = True
@@ -273,7 +273,7 @@ def node_pool_mocks(mocker: MockerFixture) -> Tuple[Mock, Mock, Mock]:
     )
 
 
-def test__calulate_node_pool_diffs(
+def test__calculate_node_pool_diffs(
     ocm_api: OCMBaseClient,
     cluster: OCMCluster,
     now: datetime,
@@ -286,7 +286,7 @@ def test__calulate_node_pool_diffs(
     node_pool_mocks[2].return_value = []
 
     cluster_upgrade_spec = build_cluster_upgrade_spec(name="cluster")
-    created = _calulate_node_pool_diffs(ocm_api, cluster_upgrade_spec, now)
+    created = _calculate_node_pool_diffs(ocm_api, cluster_upgrade_spec, now)
     assert created is not None
     assert isinstance(created.policy, NodePoolUpgradePolicy)
     assert created.policy.node_pool == "foo"
@@ -294,7 +294,7 @@ def test__calulate_node_pool_diffs(
     assert created.policy.version == "4.13.0"
 
 
-def test__calulate_node_pool_diffs_multiple(
+def test__calculate_node_pool_diffs_multiple(
     ocm_api: OCMBaseClient,
     cluster: OCMCluster,
     now: datetime,
@@ -308,7 +308,7 @@ def test__calulate_node_pool_diffs_multiple(
     node_pool_mocks[2].return_value = []
 
     cluster_upgrade_spec = build_cluster_upgrade_spec(name="cluster")
-    created = _calulate_node_pool_diffs(ocm_api, cluster_upgrade_spec, now)
+    created = _calculate_node_pool_diffs(ocm_api, cluster_upgrade_spec, now)
     assert created is not None
     assert isinstance(created.policy, NodePoolUpgradePolicy)
     assert created.policy.node_pool == "oof"
