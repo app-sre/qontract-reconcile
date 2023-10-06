@@ -1,5 +1,6 @@
 import itertools
 import logging
+from collections import Counter
 from collections.abc import (
     Iterable,
     Mapping,
@@ -24,7 +25,10 @@ from sretoolbox.utils import (
 )
 
 from reconcile import queries
-from reconcile.utils import differ
+from reconcile.utils import (
+    differ,
+    metrics,
+)
 from reconcile.utils.oc import (
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
@@ -41,7 +45,10 @@ from reconcile.utils.oc import (
     UnsupportedMediaTypeError,
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.openshift_resource import (
+    OpenshiftResourceInventoryGauge,
+    ResourceInventory,
+)
 from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 
 ACTION_APPLIED = "applied"
@@ -1511,3 +1518,38 @@ def get_namespace_resource_names(
         ref += item["resourceNames"]
 
     return rnames
+
+
+def publish_metrics(ri: ResourceInventory, integration: str) -> None:
+    for cluster, namespace, kind, data in ri:
+        for state in ("current", "desired"):
+            metrics.set_gauge(
+                OpenshiftResourceInventoryGauge(
+                    integration=integration.replace("_", "-"),
+                    cluster=cluster,
+                    namespace=namespace,
+                    kind=kind,
+                    state=state,
+                ),
+                len(data[state]),
+            )
+
+
+def get_state_count_combinations(state: Iterable[Mapping[str, str]]) -> Counter[str]:
+    return Counter(s["cluster"] for s in state)
+
+
+def publish_cluster_desired_metrics_from_state(
+    state: Iterable[Mapping[str, str]], integration: str, kind: str
+) -> None:
+    for cluster, count in get_state_count_combinations(state).items():
+        metrics.set_gauge(
+            OpenshiftResourceInventoryGauge(
+                integration=integration,
+                cluster=cluster,
+                namespace="cluster",
+                kind=kind,
+                state="desired",
+            ),
+            count,
+        )

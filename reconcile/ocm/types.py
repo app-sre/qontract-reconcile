@@ -89,9 +89,19 @@ class ROSAClusterSpec(OCMClusterSpec):
         extra = Extra.forbid
 
 
+class ClusterMachinePool(BaseModel):
+    id: str
+    instance_type: str
+    replicas: Optional[int]
+    autoscale: Optional[OCMClusterAutoscale]
+
+
 class OCMSpec(BaseModel):
     path: Optional[str]
     spec: Union[OSDClusterSpec, ROSAClusterSpec, OCMClusterSpec]
+    machine_pools: list[ClusterMachinePool] = Field(
+        default_factory=list, alias="machinePools"
+    )
     network: OCMClusterNetwork
     domain: Optional[str]
     server_url: str = Field("", alias="serverUrl")

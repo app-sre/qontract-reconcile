@@ -14,7 +14,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 from .data_keys import (
     CHANNELS,
     CONFIG_HASHES,
-    NAMESPACE_PATH,
+    NAMESPACE,
     REF,
 )
 
@@ -25,7 +25,7 @@ def test_content_multiple_namespaces(
 ):
     subscriber = subscriber_builder(
         {
-            NAMESPACE_PATH: "/some/namespace.yml",
+            NAMESPACE: {"path": "/some/namespace.yml"},
             REF: "new_sha",
             CONFIG_HASHES: [
                 ConfigHash(

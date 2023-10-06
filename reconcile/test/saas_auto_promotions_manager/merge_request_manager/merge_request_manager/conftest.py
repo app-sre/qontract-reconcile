@@ -7,6 +7,9 @@ from unittest.mock import create_autospec
 import pytest
 from gitlab.v4.objects import ProjectMergeRequest
 
+from reconcile.gql_definitions.fragments.saas_target_namespace import (
+    SaasTargetNamespace,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     CHANNELS_REF,
     CONTENT_HASH,
@@ -31,7 +34,7 @@ from .data_keys import (
     SUBSCRIBER_CONTENT_HASH,
     SUBSCRIBER_DESIRED_CONFIG_HASHES,
     SUBSCRIBER_DESIRED_REF,
-    SUBSCRIBER_NAMESPACE_REF,
+    SUBSCRIBER_TARGET_NAMESPACE,
     SUBSCRIBER_TARGET_PATH,
 )
 
@@ -81,12 +84,16 @@ def vcs_builder(
 
 
 @pytest.fixture
-def subscriber_builder() -> Callable[[Mapping], Subscriber]:
+def subscriber_builder(
+    saas_target_namespace_builder: Callable[..., SaasTargetNamespace]
+):
     def builder(data: Mapping) -> Subscriber:
         subscriber = Subscriber(
             saas_name="",
             template_name="",
-            namespace_file_path=data.get(SUBSCRIBER_NAMESPACE_REF, ""),
+            target_namespace=saas_target_namespace_builder(
+                data.get(SUBSCRIBER_TARGET_NAMESPACE, {})
+            ),
             ref="",
             target_file_path=data.get(SUBSCRIBER_TARGET_PATH, ""),
             use_target_config_hash=True,

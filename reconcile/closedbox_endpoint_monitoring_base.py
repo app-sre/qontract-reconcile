@@ -162,6 +162,7 @@ def run_for_provider(
             probe = probe_builder(ep_mon_provider, endpoints)
             if probe:
                 fill_desired_state(ep_mon_provider, probe, ri)
+        ob.publish_metrics(ri, integration)
         ob.realize_data(dry_run, oc_map, ri, thread_pool_size, recycle_pods=False)
 
         if ri.has_error_registered():

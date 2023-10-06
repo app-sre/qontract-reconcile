@@ -1,0 +1,47 @@
+---
+$schema: /app-sre/saas-file-2.yml
+
+# Some comment
+imagePatterns:
+- some/pattern
+
+resourceTemplates:
+- name: template
+  url: http://localhost/repo
+  path: /template.yaml
+  targets:
+  - namespaceSelector:
+      jsonPathSelectors:
+        include:
+        - namespace[?(@.name=="test-namespace")]
+        - namespace[?(@.cluster.name=~"test-cluster")]
+    ref: new_sha
+    parameters:
+      SOME: parameter
+    promotion:
+      auto: true
+      subscribe:
+      - channel-a
+      promotion_data:
+      - channel: channel-a
+        data:
+        - parent_saas: parent_saas
+          target_config_hash: new_hash
+          type: parent_saas_config
+  - namespaceSelector:
+      jsonPathSelectors:
+        include:
+        - namespace[?(@.name=="other-namespace")]
+    ref: current_sha
+    parameters:
+      SOME: parameter
+    promotion:
+      auto: true
+      subscribe:
+      - channel-a
+      promotion_data:
+      - channel: channel-a
+        data:
+        - parent_saas: parent_saas
+          target_config_hash: current_hash
+          type: parent_saas_config
