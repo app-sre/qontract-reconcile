@@ -1078,19 +1078,17 @@ def cidr_blocks(ctx) -> None:
 
     vpcs = get_aws_vpcs()
     cidrs.extend(
-        [
-            {
-                "type": "vpc",
-                "name": vpc.name,
-                "account": vpc.account.name,
-                "cidr": vpc.cidr_block,
-                "from": str(ipaddress.ip_network(vpc.cidr_block)[0]),
-                "to": str(ipaddress.ip_network(vpc.cidr_block)[-1]),
-                "hosts": ipaddress.ip_network(vpc.cidr_block).num_addresses,
-                "description": vpc.description,
-            }
-            for vpc in vpcs
-        ]
+        {
+            "type": "vpc",
+            "name": vpc.name,
+            "account": vpc.account.name,
+            "cidr": vpc.cidr_block,
+            "from": str(ipaddress.ip_network(vpc.cidr_block)[0]),
+            "to": str(ipaddress.ip_network(vpc.cidr_block)[-1]),
+            "hosts": str(ipaddress.ip_network(vpc.cidr_block).num_addresses),
+            "description": vpc.description,
+        }
+        for vpc in vpcs
     )
 
     for index, cidr in enumerate(cidrs):
