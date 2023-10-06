@@ -93,7 +93,7 @@ def test_calculate_diff_no_lock(
                 cluster=cluster_1,
                 version="4.12.19",
                 schedule_type="manual",
-                next_run="2021-08-30T18:06:00Z",
+                next_run="2021-08-30T18:07:00Z",
             ),
             gates_to_agree=[],
         )
@@ -160,7 +160,7 @@ def test_calculate_diff_inter_lock(
                 cluster=cluster_1,
                 version="4.12.19",
                 schedule_type="manual",
-                next_run="2021-08-30T18:06:00Z",
+                next_run="2021-08-30T18:07:00Z",
             ),
             gates_to_agree=[],
         )
@@ -780,7 +780,7 @@ def test_verify_lock_should_skip_locked_by_another_cluster() -> None:
 def test_verify_schedule_should_skip_cluster_now() -> None:
     cluster_upgrade_spec = build_cluster_upgrade_spec(name="cluster")
     now = datetime.now()
-    expected = now + timedelta(minutes=6)
+    expected = now + timedelta(minutes=7)
     s = base.verify_schedule_should_skip(
         cluster_upgrade_spec,
         now,
