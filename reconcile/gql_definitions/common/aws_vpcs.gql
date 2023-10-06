@@ -1,0 +1,7 @@
+# qenerate: plugin=pydantic_v1
+
+query AWSVPCs {
+  vpcs: awsvpcs_v1 {
+    ... AWSVPC
+  }
+}

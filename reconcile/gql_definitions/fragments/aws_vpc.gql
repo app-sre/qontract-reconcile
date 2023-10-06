@@ -1,0 +1,13 @@
+# qenerate: plugin=pydantic_v1
+
+fragment AWSVPC on AWSVPC_v1 {
+  name
+  description
+  account {
+    name
+    uid
+  }
+  region
+  vpc_id
+  cidr_block
+}
