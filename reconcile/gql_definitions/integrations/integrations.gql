@@ -69,20 +69,34 @@ query Integrations {
 
         ... on OpenshiftClusterSharding_v1 {
             shardSpecOverrides {
-                shard {
-                    name
+              shard {
+                  name
+              }
+              imageRef
+              disabled
+              resources {
+                ... DeployResourcesFields
+              }
+              subSharding {
+                strategy
+                ... on StaticSubSharding_v1 {
+                  shards
                 }
-                imageRef
-                disabled
-                resources {
-                  ... DeployResourcesFields
-                }
-                subSharding {
-                  strategy
-                  ... on StaticSubSharding_v1 {
-                    shards
-                  }
-                }
+              }
+            }
+        }
+
+
+        ... on OCMOrganizationSharding_v1 {
+            shardSpecOverrides {
+              shard {
+                  ... MinimalOCMOrganization
+              }
+              imageRef
+              disabled
+              resources {
+                ... DeployResourcesFields
+              }
             }
         }
 

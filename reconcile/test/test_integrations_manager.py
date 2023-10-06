@@ -12,12 +12,17 @@ import pytest
 import reconcile.integrations_manager as intop
 from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
 from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
+    MinimalOCMOrganization,
+)
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.integrations.integrations import (
     AWSAccountShardSpecOverrideV1,
     EnvironmentV1,
     IntegrationSpecV1,
     IntegrationV1,
+    OCMOrganizationShardingV1,
+    OCMOrganizationShardSpecOverrideV1,
     OpenshiftClusterShardSpecOverrideV1,
     OpenshiftClusterShardSpecOverrideV1_ClusterV1,
     StaticSubShardingV1,
@@ -43,6 +48,7 @@ from reconcile.utils.runtime.sharding import (
     CloudflareDnsZoneShardingStrategy,
     CloudflareDNSZoneShardingV1,
     IntegrationShardManager,
+    OCMOrganizationShardingStrategy,
     OpenshiftClusterShardingStrategy,
     OpenshiftClusterShardingV1,
     ShardSpec,
@@ -53,9 +59,15 @@ from reconcile.utils.runtime.sharding import (
 AWS_INTEGRATION = "aws_integration"
 CLOUDFLARE_INTEGRATION = "cloudflare_integration"
 OPENSHIFT_INTEGRATION = "openshift_integration"
+OCM_INTEGRATION = "ocm_integration"
 
 
-def test_collect_parameters():
+#
+# collect_parameters test
+#
+
+
+def test_collect_parameters() -> None:
     template = {
         "parameters": [
             {
@@ -75,7 +87,7 @@ def test_collect_parameters():
     assert parameters == expected
 
 
-def test_collect_parameters_env_stronger():
+def test_collect_parameters_env_stronger() -> None:
     template = {
         "parameters": [
             {
@@ -92,7 +104,7 @@ def test_collect_parameters_env_stronger():
     assert parameters == expected
 
 
-def test_collect_parameters_os_env_strongest():
+def test_collect_parameters_os_env_strongest() -> None:
     template = {
         "parameters": [
             {
@@ -110,7 +122,7 @@ def test_collect_parameters_os_env_strongest():
     assert parameters == expected
 
 
-def test_collect_parameters_image_tag_from_ref(mocker):
+def test_collect_parameters_image_tag_from_ref(mocker) -> None:
     template = {
         "parameters": [
             {
@@ -134,7 +146,7 @@ def test_collect_parameters_image_tag_from_ref(mocker):
     assert parameters == expected
 
 
-def test_collect_parameters_namespace_environment_parameter(mocker):
+def test_collect_parameters_namespace_environment_parameter(mocker) -> None:
     upstream = "https://github.com/some-upstream-repo"
     template = {
         "parameters": [
@@ -251,7 +263,7 @@ def test_build_helm_values_empty():
 
 def test_build_helm_values(
     helm_integration_spec: HelmIntegrationSpec, resources: dict[str, Any]
-):
+) -> None:
     his1 = helm_integration_spec
     his2 = copy.deepcopy(his1)
 
@@ -282,7 +294,11 @@ def test_build_helm_values(
     assert values == expected
 
 
+#
 # Per-AWS-account Tests
+#
+
+
 @pytest.fixture
 def aws_accounts(
     gql_class_factory: Callable[..., sharding_aws_accounts.AWSAccountV1]
@@ -408,10 +424,35 @@ def openshift_cluster_sharding_strategy(
 
 
 @pytest.fixture
+def ocm_organizations(
+    gql_class_factory: Callable[..., MinimalOCMOrganization]
+) -> list[MinimalOCMOrganization]:
+    return [
+        gql_class_factory(
+            MinimalOCMOrganization, {"name": "org-1", "orgId": "org-id-1"}
+        ),
+        gql_class_factory(
+            MinimalOCMOrganization, {"name": "org-2", "orgId": "org-id-2"}
+        ),
+        gql_class_factory(
+            MinimalOCMOrganization, {"name": "org-3", "orgId": "org-id-3"}
+        ),
+    ]
+
+
+@pytest.fixture
+def ocm_organization_sharding_strategy(
+    ocm_organizations: list[MinimalOCMOrganization],
+) -> OCMOrganizationShardingStrategy:
+    return OCMOrganizationShardingStrategy(ocm_organizations=ocm_organizations)
+
+
+@pytest.fixture
 def shard_manager(
     aws_account_sharding_strategy: AWSAccountShardingStrategy,
     cloudflare_zone_sharding_strategy: CloudflareDnsZoneShardingStrategy,
     openshift_cluster_sharding_strategy: OpenshiftClusterShardingStrategy,
+    ocm_organization_sharding_strategy: OCMOrganizationShardingStrategy,
 ) -> IntegrationShardManager:
     return IntegrationShardManager(
         strategies={
@@ -419,6 +460,7 @@ def shard_manager(
             aws_account_sharding_strategy.IDENTIFIER: aws_account_sharding_strategy,
             openshift_cluster_sharding_strategy.IDENTIFIER: openshift_cluster_sharding_strategy,
             cloudflare_zone_sharding_strategy.IDENTIFIER: cloudflare_zone_sharding_strategy,
+            ocm_organization_sharding_strategy.IDENTIFIER: ocm_organization_sharding_strategy,
         },
         integration_runtime_meta={
             "basic-integration": IntegrationMeta(
@@ -437,13 +479,16 @@ def shard_manager(
                 short_help="",
                 args=["--arg", "--cluster-name"],
             ),
+            OCM_INTEGRATION: IntegrationMeta(
+                name=OCM_INTEGRATION, short_help="", args=["--org-id"]
+            ),
         },
     )
 
 
 def test_shard_manager_aws_account_filtering(
     aws_account_sharding_strategy: AWSAccountShardingStrategy,
-):
+) -> None:
     assert ["acc-1", "acc-2", "acc-3", "acc-4"] == [
         a.name
         for a in aws_account_sharding_strategy.filter_objects("another-integration")
@@ -452,18 +497,22 @@ def test_shard_manager_aws_account_filtering(
 
 def test_shard_manager_aws_account_filtering_disabled(
     aws_account_sharding_strategy: AWSAccountShardingStrategy,
-):
+) -> None:
     # acc-4 is disabled for AWS_INTEGRATION
     assert ["acc-1", "acc-2", "acc-3"] == [
         a.name for a in aws_account_sharding_strategy.filter_objects(AWS_INTEGRATION)
     ]
 
 
+#
 # Static Sharding Tests
+#
+
+
 def test_build_helm_integration_spec_no_shards(
     basic_integration: IntegrationV1,
     shard_manager: IntegrationShardManager,
-):
+) -> None:
     wr = intop.collect_integrations_environment(
         [basic_integration], "test", shard_manager
     )
@@ -486,7 +535,7 @@ def test_build_helm_integration_spec_no_shards(
 def test_initialize_shard_specs_two_shards_explicit(
     basic_integration: IntegrationV1,
     shard_manager: intop.IntegrationShardManager,
-):
+) -> None:
     static_sharding = StaticShardingV1(
         strategy=StaticShardingStrategy.IDENTIFIER, shards=2
     )
@@ -515,11 +564,15 @@ def test_initialize_shard_specs_two_shards_explicit(
     assert expected == shards
 
 
+#
 # Per-AWS-Account tests
+#
+
+
 def test_initialize_shard_specs_aws_account_shards(
     basic_integration: IntegrationV1,
     shard_manager: IntegrationShardManager,
-):
+) -> None:
     """
     this test shows how the per-aws-account strategy fills the shard_specs and ignores
     aws accounts where the integration is disabled
@@ -590,7 +643,7 @@ def test_initialize_shard_specs_aws_account_shards_with_overrides(
     basic_integration: IntegrationV1,
     aws_shard_overrides: list[AWSAccountShardSpecOverrideV1],
     shard_manager: IntegrationShardManager,
-):
+) -> None:
     aws_acc_sharding = AWSAccountShardingV1(
         strategy=AWSAccountShardingStrategy.IDENTIFIER,
         shardSpecOverrides=aws_shard_overrides,
@@ -632,7 +685,7 @@ def test_initialize_shard_specs_aws_account_shards_with_overrides(
 def test_initialize_shard_specs_aws_account_shards_extra_args_aggregation(
     basic_integration: IntegrationV1,
     shard_manager: IntegrationShardManager,
-):
+) -> None:
     """
     this test shows how the per-aws-account strategy fills the shard_specs and ignores
     aws accounts where the integration is disabled
@@ -672,7 +725,171 @@ def test_initialize_shard_specs_aws_account_shards_extra_args_aggregation(
     assert expected == shards
 
 
+#
+# per-ocm-organization tests
+#
+
+
+def test_initialize_shard_specs_ocm_organizations_shards(
+    basic_integration: IntegrationV1,
+    shard_manager: IntegrationShardManager,
+) -> None:
+    """
+    this test shows how the per-ocm-organization strategy fills the shard_specs and ignores
+    aws accounts where the integration is disabled
+    """
+    ocm_org_sharding = OCMOrganizationShardingV1(
+        strategy="per-ocm-organization", shardSpecOverrides=None
+    )
+
+    basic_integration.name = OCM_INTEGRATION
+    if basic_integration.managed:
+        basic_integration.managed[0].sharding = ocm_org_sharding
+
+    wr = intop.collect_integrations_environment(
+        [basic_integration], "test", shard_manager
+    )
+
+    expected = [
+        ShardSpec(
+            shard_name_suffix="-org-id-1",
+            shard_key="org-id-1",
+            extra_args="integ-extra-arg --org-id org-id-1",
+        ),
+        ShardSpec(
+            shard_name_suffix="-org-id-2",
+            shard_key="org-id-2",
+            extra_args="integ-extra-arg --org-id org-id-2",
+        ),
+        ShardSpec(
+            shard_name_suffix="-org-id-3",
+            shard_key="org-id-3",
+            extra_args="integ-extra-arg --org-id org-id-3",
+        ),
+    ]
+
+    shards = wr[0].integration_specs[0].shard_specs or []
+    assert expected == shards
+
+
+@pytest.fixture
+def ocm_organizations_shard_overrides(
+    gql_class_factory: Callable[..., DeployResourcesFields],
+    resources: dict[str, Any],
+    ocm_organizations: list[MinimalOCMOrganization],
+) -> list[OCMOrganizationShardSpecOverrideV1]:
+    o1 = OCMOrganizationShardSpecOverrideV1(
+        shard=ocm_organizations[0],
+        imageRef="org-1-image",
+        disabled=False,
+        resources=None,
+    )
+    resources["requests"]["cpu"] = "200m"
+    resources["requests"]["memory"] = "2Mi"
+    resources["limits"]["cpu"] = "300m"
+    resources["limits"]["memory"] = "3Mi"
+
+    deploy_resources = gql_class_factory(DeployResourcesFields, resources)
+    o2 = OCMOrganizationShardSpecOverrideV1(
+        shard=ocm_organizations[1],
+        imageRef=None,
+        resources=deploy_resources,
+        disabled=False,
+    )
+    o3 = OCMOrganizationShardSpecOverrideV1(
+        shard=ocm_organizations[2], resources=None, imageRef=None, disabled=True
+    )
+
+    return [o1, o2, o3]
+
+
+def test_initialize_shard_specs_ocm_organizations_shards_with_overrides(
+    basic_integration: IntegrationV1,
+    ocm_organizations_shard_overrides: list[OCMOrganizationShardSpecOverrideV1],
+    shard_manager: IntegrationShardManager,
+) -> None:
+    org_sharding = OCMOrganizationShardingV1(
+        strategy=OCMOrganizationShardingStrategy.IDENTIFIER,
+        shardSpecOverrides=ocm_organizations_shard_overrides,
+    )
+
+    basic_integration.name = OCM_INTEGRATION
+    if basic_integration.managed:
+        basic_integration.managed[0].sharding = org_sharding
+
+    wr = intop.collect_integrations_environment(
+        [basic_integration], "test", shard_manager
+    )
+
+    expected = [
+        ShardSpec(
+            shard_name_suffix="-org-id-1",
+            shard_key="org-id-1",
+            extra_args="integ-extra-arg --org-id org-id-1",
+            shard_spec_overrides=ocm_organizations_shard_overrides[0],
+        ),
+        ShardSpec(
+            shard_name_suffix="-org-id-2",
+            shard_key="org-id-2",
+            extra_args="integ-extra-arg --org-id org-id-2",
+            shard_spec_overrides=ocm_organizations_shard_overrides[1],
+        ),
+        ShardSpec(
+            shard_name_suffix="-org-id-3",
+            shard_key="org-id-3",
+            extra_args="integ-extra-arg --org-id org-id-3",
+            shard_spec_overrides=ocm_organizations_shard_overrides[2],
+        ),
+    ]
+
+    shards = wr[0].integration_specs[0].shard_specs or []
+    assert expected == shards
+
+
+def test_initialize_shard_specs_ocm_organizations_shards_extra_args_aggregation(
+    basic_integration: IntegrationV1,
+    shard_manager: IntegrationShardManager,
+) -> None:
+    ocm_org_sharding = OCMOrganizationShardingV1(
+        strategy="per-ocm-organization", shardSpecOverrides=None
+    )
+
+    basic_integration.name = OCM_INTEGRATION
+    if basic_integration.managed:
+        basic_integration.managed[0].sharding = ocm_org_sharding
+        basic_integration.managed[0].spec.extra_args = "--arg"
+
+    wr = intop.collect_integrations_environment(
+        [basic_integration], "test", shard_manager
+    )
+
+    expected = [
+        ShardSpec(
+            shard_name_suffix="-org-id-1",
+            shard_key="org-id-1",
+            extra_args="--arg --org-id org-id-1",
+        ),
+        ShardSpec(
+            shard_name_suffix="-org-id-2",
+            shard_key="org-id-2",
+            extra_args="--arg --org-id org-id-2",
+        ),
+        ShardSpec(
+            shard_name_suffix="-org-id-3",
+            shard_key="org-id-3",
+            extra_args="--arg --org-id org-id-3",
+        ),
+    ]
+
+    shards = wr[0].integration_specs[0].shard_specs or []
+    assert expected == shards
+
+
+#
 # Per-Cloudflare-Zone Tests
+#
+
+
 @pytest.fixture
 def cloudflarednszone_sharding() -> CloudflareDNSZoneShardingV1:
     return CloudflareDNSZoneShardingV1(
@@ -684,7 +901,7 @@ def test_initialize_shard_specs_cloudflare_zone_shards(
     basic_integration: IntegrationV1,
     cloudflarednszone_sharding: CloudflareDNSZoneShardingV1,
     shard_manager: intop.IntegrationShardManager,
-):
+) -> None:
     """
     The per-cloudflare-zone strategy would result in two shards when there is two zones.
     """
@@ -717,7 +934,7 @@ def test_initialize_shard_specs_cloudflare_zone_shards_raise_exception(
     basic_integration: IntegrationV1,
     cloudflarednszone_sharding: CloudflareDNSZoneShardingV1,
     shard_manager: intop.IntegrationShardManager,
-):
+) -> None:
     """
     The per-cloudflare-zone strategy will raise an exception when --zone-name is not set.
     """
@@ -735,7 +952,11 @@ def test_initialize_shard_specs_cloudflare_zone_shards_raise_exception(
     )
 
 
+#
 # Per-Openshift-Clusters tests
+#
+
+
 @pytest.fixture
 def openshift_clusters_sharding() -> OpenshiftClusterShardingV1:
     return OpenshiftClusterShardingV1(
@@ -762,7 +983,7 @@ def test_initialize_shard_specs_openshift_clusters(
     basic_integration: IntegrationV1,
     openshift_clusters_sharding: OpenshiftClusterShardingV1,
     shard_manager: IntegrationShardManager,
-):
+) -> None:
     if basic_integration.managed:
         basic_integration.name = OPENSHIFT_INTEGRATION
         basic_integration.managed[0].sharding = openshift_clusters_sharding
@@ -798,7 +1019,7 @@ def test_initialize_shard_specs_openshift_clusters_subsharding_w_overrides(
     openshift_clusters_shard_spec_override: OpenshiftClusterShardSpecOverrideV1,
     shard_manager: IntegrationShardManager,
     resources_2: dict[str, Any],
-):
+) -> None:
     openshift_clusters_shard_spec_override.sub_sharding = StaticSubShardingV1(
         strategy=StaticShardingStrategy.IDENTIFIER, shards=2
     )
@@ -863,7 +1084,7 @@ def test_initialize_shard_specs_openshift_clusters_disabled_shard(
     openshift_clusters_shard_spec_override: OpenshiftClusterShardSpecOverrideV1,
     shard_manager: IntegrationShardManager,
     resources_2: dict[str, Any],
-):
+) -> None:
     openshift_clusters_shard_spec_override.disabled = True
 
     if basic_integration.managed:
@@ -904,10 +1125,15 @@ def test_initialize_shard_specs_openshift_clusters_disabled_shard(
     assert shards == expected
 
 
+#
+# fetch_desired_state tests
+#
+
+
 def test_fetch_desired_state(
     basic_integration: IntegrationV1,
     shard_manager: intop.IntegrationShardManager,
-):
+) -> None:
     integrations_environments = intop.collect_integrations_environment(
         [basic_integration], "test", shard_manager
     )
@@ -941,7 +1167,7 @@ def test_fetch_desired_state(
 def test_fetch_desired_state_upstream(
     basic_integration: IntegrationV1,
     shard_manager: intop.IntegrationShardManager,
-):
+) -> None:
     upstream = "a"
     basic_integration.upstream = upstream
 
@@ -972,6 +1198,11 @@ def test_fetch_desired_state_upstream(
         for x in resources
         if x[3] == ["qontract-reconcile-basic-integration"]
     ] == [upstream]
+
+
+#
+# collect_integrations_environment tests
+#
 
 
 @pytest.fixture
