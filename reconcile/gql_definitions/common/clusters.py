@@ -212,14 +212,8 @@ query Clusters($name: String) {
       version
       initial_version
       multi_az
-      nodes
-      instance_type
       private
       provision_shard_id
-      autoscale {
-        min_replicas
-        max_replicas
-      }
       disable_user_workload_monitoring
     }
     externalConfiguration {
@@ -461,11 +455,6 @@ class AWSInfrastructureAccessV1(ConfiguredBaseModel):
     access_level: str = Field(..., alias="accessLevel")
 
 
-class ClusterSpecAutoScaleV1(ConfiguredBaseModel):
-    min_replicas: int = Field(..., alias="min_replicas")
-    max_replicas: int = Field(..., alias="max_replicas")
-
-
 class ClusterSpecV1(ConfiguredBaseModel):
     product: str = Field(..., alias="product")
     hypershift: Optional[bool] = Field(..., alias="hypershift")
@@ -477,11 +466,8 @@ class ClusterSpecV1(ConfiguredBaseModel):
     version: str = Field(..., alias="version")
     initial_version: str = Field(..., alias="initial_version")
     multi_az: bool = Field(..., alias="multi_az")
-    nodes: Optional[int] = Field(..., alias="nodes")
-    instance_type: str = Field(..., alias="instance_type")
     private: bool = Field(..., alias="private")
     provision_shard_id: Optional[str] = Field(..., alias="provision_shard_id")
-    autoscale: Optional[ClusterSpecAutoScaleV1] = Field(..., alias="autoscale")
     disable_user_workload_monitoring: Optional[bool] = Field(
         ..., alias="disable_user_workload_monitoring"
     )
@@ -538,7 +524,7 @@ class ClusterNetworkV1(ConfiguredBaseModel):
     pod: str = Field(..., alias="pod")
 
 
-class ClusterMachinePoolV1_ClusterSpecAutoScaleV1(ConfiguredBaseModel):
+class ClusterSpecAutoScaleV1(ConfiguredBaseModel):
     min_replicas: int = Field(..., alias="min_replicas")
     max_replicas: int = Field(..., alias="max_replicas")
 
@@ -553,9 +539,7 @@ class ClusterMachinePoolV1(ConfiguredBaseModel):
     q_id: str = Field(..., alias="id")
     instance_type: str = Field(..., alias="instance_type")
     replicas: Optional[int] = Field(..., alias="replicas")
-    autoscale: Optional[ClusterMachinePoolV1_ClusterSpecAutoScaleV1] = Field(
-        ..., alias="autoscale"
-    )
+    autoscale: Optional[ClusterSpecAutoScaleV1] = Field(..., alias="autoscale")
     labels: Optional[Json] = Field(..., alias="labels")
     subnet: Optional[str] = Field(..., alias="subnet")
     taints: Optional[list[TaintV1]] = Field(..., alias="taints")

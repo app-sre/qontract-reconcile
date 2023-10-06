@@ -25,7 +25,16 @@ insecureSkipTLSVerify: null
 internal: false
 jumpHost: null
 kibanaUrl: ''
-machinePools: null
+machinePools:
+- id: worker
+  instance_type: m5.xlarge
+  autoscale:
+    min_replicas: 2
+    max_replicas: 1
+  replicas: null
+  labels: null
+  subnet: null
+  taints: null
 managedClusterRoles: true
 managedGroups: []
 
@@ -62,19 +71,14 @@ peering:
 prometheusUrl: prom-url
 serverUrl: server-url
 spec:
-  autoscale:
-    max_replicas: 2
-    min_replicas: 1
   channel: candidate
   disable_user_workload_monitoring: true
   external_id: some-id
   hypershift: null
   id: some-other-id
   initial_version: 1.0.0
-  instance_type: m5.xlarge
   load_balancers: 0
   multi_az: true
-  nodes: null
   private: true
   product: osd
   provider: aws

@@ -781,14 +781,8 @@ CLUSTERS_QUERY = """
       version
       initial_version
       multi_az
-      nodes
-      instance_type
       private
       provision_shard_id
-      autoscale {
-        min_replicas
-        max_replicas
-      }
       disable_user_workload_monitoring
     }
     externalConfiguration {
@@ -817,6 +811,10 @@ CLUSTERS_QUERY = """
       id
       instance_type
       replicas
+      autoscale {
+        min_replicas
+        max_replicas
+      }
       labels
       taints {
         key
