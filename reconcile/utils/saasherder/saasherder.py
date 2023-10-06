@@ -1882,7 +1882,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         if not (deployment and deployment.success):
                             logging.error(
                                 f"Commit {promotion.commit_sha} was not "
-                                + f"published with success to channel {channel}"
+                                + f"published with success to channel {channel.name}"
                             )
                             return False
                         if deployment.target_config_hash:
@@ -1928,7 +1928,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         "configuration and the same commit (ref). "
                         "Check if other MR exists for this target, "
                         f"or update {parent_saas_config.target_config_hash} "
-                        f"to any in {config_hashes} for channel {channel}"
+                        f"to any in {config_hashes} for channel {channel.name}"
                     )
                     return False
         return True
