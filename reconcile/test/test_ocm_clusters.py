@@ -71,14 +71,11 @@ def ocm_osd_cluster_spec():
     )
     spec = OSDClusterSpec(
         product="osd",
-        autoscale=None,
         channel="stable",
         disable_user_workload_monitoring=True,
         external_id="the-cluster-external_id",
         id="the-cluster-id",
-        instance_type="m5.xlarge",
         multi_az=False,
-        nodes=5,
         private=False,
         provision_shard_id="the-cluster-provision_shard_id",
         region="us-east-1",

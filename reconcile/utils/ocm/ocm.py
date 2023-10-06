@@ -636,13 +636,11 @@ class OCMProductHypershift(OCMProduct):
             channel=cluster["version"]["channel_group"],
             version=cluster["version"]["raw_id"],
             multi_az=cluster["multi_az"],
-            instance_type=cluster["nodes"]["compute_machine_type"]["id"],
             private=cluster["api"]["listening"] == "internal",
             disable_user_workload_monitoring=cluster[
                 "disable_user_workload_monitoring"
             ],
             provision_shard_id=provision_shard_id,
-            nodes=cluster["nodes"].get("compute"),
             subnet_ids=cluster["aws"].get("subnet_ids"),
             availability_zones=cluster["nodes"].get("availability_zones"),
             hypershift=cluster["hypershift"]["enabled"],
