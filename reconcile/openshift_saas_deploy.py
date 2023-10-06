@@ -188,6 +188,7 @@ def run(
         gitlab=gl,
         jenkins_map=jenkins_map,
         state=init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader),
+        all_saas_files=saas_file_list.saas_files,
     )
     if defer:
         defer(saasherder.cleanup)

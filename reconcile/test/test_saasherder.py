@@ -911,6 +911,7 @@ class TestConfigHashPromotionsValidation(TestCase):
             hash_length=24,
             repo_url="https://repo-url.com",
         )
+        self.saasherder._all_saas_files = self.all_saas_files
 
         # IMPORTANT: Populating desired state modify self.saas_files within
         # saasherder object.
