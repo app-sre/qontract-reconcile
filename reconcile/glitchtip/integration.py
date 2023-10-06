@@ -1,4 +1,5 @@
 from collections.abc import (
+    Callable,
     Iterable,
     Sequence,
 )
@@ -24,11 +25,13 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     query as glitchtip_project_query,
 )
+from reconcile.ldap_groups.integration import LdapGroupsIntegration
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.glitchtip_settings import get_glitchtip_settings
 from reconcile.utils import gql
+from reconcile.utils.defer import defer
 from reconcile.utils.glitchtip import (
     GlitchtipClient,
     Organization,
@@ -36,9 +39,14 @@ from reconcile.utils.glitchtip import (
     Team,
     User,
 )
-from reconcile.utils.secret_reader import create_secret_reader
+from reconcile.utils.internal_groups.client import InternalGroupsClient
+from reconcile.utils.secret_reader import (
+    SecretReaderBase,
+    create_secret_reader,
+)
 
 QONTRACT_INTEGRATION = "glitchtip"
+DEFAULT_MEMBER_ROLE = "member"
 
 
 def filter_users(users: Iterable[User], ignore_users: Iterable[str]) -> list[User]:
@@ -50,7 +58,7 @@ def get_user_role(organization: Organization, roles: RoleV1) -> str:
         if role.organization.name == organization.name:
             return role.role
     # this can not be reached due to GQL but makes mypy happy
-    return "member"
+    return DEFAULT_MEMBER_ROLE
 
 
 class GlitchtipException(Exception):
@@ -79,7 +87,9 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    glitchtip_projects: Sequence[GlitchtipProjectsV1], mail_domain: str
+    glitchtip_projects: Sequence[GlitchtipProjectsV1],
+    mail_domain: str,
+    internal_groups_client: InternalGroupsClient,
 ) -> list[Organization]:
     organizations: dict[str, Organization] = {}
     for glitchtip_project in glitchtip_projects:
@@ -97,6 +107,8 @@ def fetch_desired_state(
             raise GlitchtipException(f'project name "{project.name}" already in use!')
         for glitchtip_team in glitchtip_project.teams:
             users: list[User] = []
+
+            # Get users via roles
             for role in glitchtip_team.roles:
                 for role_user in role.users:
                     users.append(
@@ -106,7 +118,19 @@ def fetch_desired_state(
                         )
                     )
 
-            team = Team(name=glitchtip_team.name, users=users)
+            # Get users via ldap
+            for ldap_group in glitchtip_team.ldap_groups or []:
+                for member in internal_groups_client.group(ldap_group).members:
+                    users.append(
+                        User(
+                            email=f"{member.id}@{mail_domain}",
+                            role=glitchtip_team.members_organization_role
+                            or DEFAULT_MEMBER_ROLE,
+                        )
+                    )
+
+            # set(users) will take the first occurrence of a user, so the users from roles will be preferred
+            team = Team(name=glitchtip_team.name, users=set(users))
             project.teams.append(team)
             if team not in organization.teams:
                 organization.teams.append(team)
@@ -118,16 +142,47 @@ def fetch_desired_state(
     return list(organizations.values())
 
 
-def run(dry_run: bool, instance: Optional[str] = None) -> None:
+def get_glitchtip_projects(query_func: Callable) -> list[GlitchtipProjectsV1]:
+    glitchtip_projects = (
+        glitchtip_project_query(query_func=query_func).glitchtip_projects or []
+    )
+    for project in glitchtip_projects:
+        # either org.owners or project.app must be set
+        if not project.organization.owners and not project.app:
+            raise ValueError(
+                f"Either owners in organization {project.organization.name} or app must be set for project {project.name}"
+            )
+
+    return glitchtip_projects
+
+
+def get_internal_groups_client(
+    query_func: Callable, secret_reader: SecretReaderBase
+) -> InternalGroupsClient:
+    ldap_groups_settings = LdapGroupsIntegration.get_integration_settings(query_func)
+    secret = secret_reader.read_all_secret(ldap_groups_settings.credentials)
+    return InternalGroupsClient(
+        secret["api_url"],
+        secret["issuer_url"],
+        secret["client_id"],
+        secret["client_secret"],
+    )
+
+
+@defer
+def run(
+    dry_run: bool, instance: Optional[str] = None, defer: Optional[Callable] = None
+) -> None:
     gqlapi = gql.get_api()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     read_timeout, max_retries, mail_domain = get_glitchtip_settings()
+    internal_groups_client = get_internal_groups_client(gqlapi.query, secret_reader)
+    if defer:
+        defer(internal_groups_client.close)
 
     glitchtip_instances = glitchtip_instance_query(query_func=gqlapi.query).instances
-    glitchtip_projects = (
-        glitchtip_project_query(query_func=gqlapi.query).glitchtip_projects or []
-    )
+    glitchtip_projects = get_glitchtip_projects(query_func=gqlapi.query)
 
     for glitchtip_instance in glitchtip_instances:
         if instance and glitchtip_instance.name != instance:
@@ -153,6 +208,7 @@ def run(dry_run: bool, instance: Optional[str] = None) -> None:
                 if p.organization.instance.name == glitchtip_instance.name
             ],
             mail_domain=mail_domain,
+            internal_groups_client=internal_groups_client,
         )
 
         reconciler = GlitchtipReconciler(glitchtip_client, dry_run)

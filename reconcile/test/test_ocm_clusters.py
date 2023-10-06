@@ -11,6 +11,7 @@ from reconcile import (
     queries,
 )
 from reconcile.ocm.types import (
+    ClusterMachinePool,
     OCMClusterNetwork,
     OCMSpec,
     OSDClusterSpec,
@@ -86,8 +87,16 @@ def ocm_osd_cluster_spec():
         storage=1100,
         provider="aws",
     )
+    machine_pools = [
+        ClusterMachinePool(
+            id="worker",
+            instance_type="m5.xlarge",
+            replicas=5,
+        )
+    ]
     obj = OCMSpec(
         spec=spec,
+        machine_pools=machine_pools,
         network=n,
         domain="devshift.net",
         server_url="https://api.test-cluster.0000.p1.openshiftapps.com:6443",
@@ -111,12 +120,17 @@ def osd_cluster_fxt():
             "version": "4.10.0",
             "initial_version": "4.9.0-candidate",
             "multi_az": False,
-            "nodes": 5,
-            "instance_type": "m5.xlarge",
             "private": False,
             "provision_shard_id": "the-cluster-provision_shard_id",
             "disable_user_workload_monitoring": True,
         },
+        "machinePools": [
+            {
+                "id": "worker",
+                "instance_type": "m5.xlarge",
+                "replicas": 5,
+            }
+        ],
         "network": {
             "type": None,
             "vpc": "10.112.0.0/16",
@@ -184,12 +198,17 @@ def rosa_cluster_fxt():
             "version": "4.10.0",
             "initial_version": "4.9.0-candidate",
             "multi_az": False,
-            "nodes": 5,
-            "instance_type": "m5.xlarge",
             "private": False,
             "provision_shard_id": "the-cluster-provision_shard_id",
             "disable_user_workload_monitoring": True,
         },
+        "machinePools": [
+            {
+                "id": "worker",
+                "instance_type": "m5.xlarge",
+                "replicas": 5,
+            },
+        ],
         "network": {
             "type": None,
             "vpc": "10.112.0.0/16",
@@ -476,15 +495,38 @@ def test_ocm_osd_create_cluster(
     get_json_mock.return_value = {"items": []}
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as sys_exit:
         occ.run(dry_run=False)
 
+    assert sys_exit.value.code == 0
     _post, _patch = ocm_mock
     _post.assert_called_once_with(
         "/api/clusters_mgmt/v1/clusters",
         ocm_osd_cluster_post_spec,
         {},
     )
+    _patch.assert_not_called()
+    cluster_updates_mr_mock.assert_not_called()
+
+
+def test_ocm_osd_create_cluster_without_machine_pools(
+    get_json_mock,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_osd_cluster_ai_spec,
+    ocm_osd_cluster_post_spec,
+):
+    get_json_mock.return_value = {"items": []}
+    bad_spec = ocm_osd_cluster_ai_spec | {"machinePools": []}
+    queries_mock[1].return_value = [bad_spec]
+
+    with pytest.raises(SystemExit) as sys_exit:
+        occ.run(dry_run=False)
+
+    assert sys_exit.value.code == 1
+    _post, _patch = ocm_mock
+    _post.assert_not_called()
     _patch.assert_not_called()
     cluster_updates_mr_mock.assert_not_called()
 
@@ -501,16 +543,39 @@ def test_ocm_rosa_create_cluster(
     queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
 
     with patch("reconcile.utils.ocm.random.choices", return_value=["c", "n", "z", "y"]):
-        with pytest.raises(SystemExit):
+        with pytest.raises(SystemExit) as sys_exit:
             occ.run(dry_run=False)
 
+    assert sys_exit.value.code == 0
     _post, _patch = ocm_mock
-
     _post.assert_called_once_with(
         "/api/clusters_mgmt/v1/clusters",
         ocm_rosa_cluster_post_spec,
         {},
     )
+    _patch.assert_not_called()
+    cluster_updates_mr_mock.assert_not_called()
+
+
+def test_ocm_rosa_create_cluster_without_machine_pools(
+    get_json_mock,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_rosa_cluster_ai_spec,
+    ocm_rosa_cluster_post_spec,
+):
+    get_json_mock.return_value = {"items": []}
+    bad_spec = ocm_rosa_cluster_ai_spec | {"machinePools": []}
+    queries_mock[1].return_value = [bad_spec]
+
+    with patch("reconcile.utils.ocm.random.choices", return_value=["c", "n", "z", "y"]):
+        with pytest.raises(SystemExit) as sys_exit:
+            occ.run(dry_run=False)
+
+    assert sys_exit.value.code == 1
+    _post, _patch = ocm_mock
+    _post.assert_not_called()
     _patch.assert_not_called()
     cluster_updates_mr_mock.assert_not_called()
 
@@ -534,6 +599,35 @@ def test_ocm_rosa_update_cluster(
     assert cluster_updates_mr_mock.call_count == 0
 
 
+def test_ocm_rosa_update_cluster_with_machine_pools_change(
+    get_json_mock,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_rosa_cluster_raw_spec,
+    ocm_rosa_cluster_ai_spec,
+):
+    new_spec = ocm_rosa_cluster_ai_spec | {
+        "machinePools": [
+            {
+                "id": "new",
+                "instance_type": "m5.xlarge",
+                "replicas": 1,
+            }
+        ]
+    }
+    get_json_mock.return_value = {"items": [ocm_rosa_cluster_raw_spec]}
+    queries_mock[1].return_value = [new_spec]
+
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+
+    _post, _patch = ocm_mock
+    _post.assert_not_called()
+    _patch.assert_not_called()
+    cluster_updates_mr_mock.assert_not_called()
+
+
 def test_ocm_osd_update_cluster(
     get_json_mock,
     queries_mock,
@@ -551,6 +645,35 @@ def test_ocm_osd_update_cluster(
     assert _post.call_count == 0
     assert _patch.call_count == 1
     assert cluster_updates_mr_mock.call_count == 0
+
+
+def test_ocm_osd_update_cluster_with_machine_pools_change(
+    get_json_mock,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_osd_cluster_raw_spec,
+    ocm_osd_cluster_ai_spec,
+):
+    new_spec = ocm_osd_cluster_ai_spec | {
+        "machinePools": [
+            {
+                "id": "new",
+                "instance_type": "m5.xlarge",
+                "replicas": 1,
+            }
+        ]
+    }
+    get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
+    queries_mock[1].return_value = [new_spec]
+
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+
+    _post, _patch = ocm_mock
+    _post.assert_not_called()
+    _patch.assert_not_called()
+    cluster_updates_mr_mock.assert_not_called()
 
 
 def test_ocm_returns_a_rosa_cluster(

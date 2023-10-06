@@ -4,6 +4,7 @@ query SaasFiles {
   saas_files: saas_files_v2 {
     path
     name
+    labels
     app {
       name
       parentApp {
@@ -11,6 +12,10 @@ query SaasFiles {
       }
       selfServiceRoles {
         name
+      }
+      serviceOwners {
+        name
+        email
       }
     }
     pipelinesProvider {
@@ -68,6 +73,10 @@ query SaasFiles {
       }
     }
     managedResourceTypes
+    managedResourceNames {
+      resource
+      resourceNames
+    }
     takeover
     deprecated
     compare

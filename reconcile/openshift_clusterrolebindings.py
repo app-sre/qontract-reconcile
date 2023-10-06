@@ -70,7 +70,6 @@ def construct_sa_oc_resource(role, namespace, sa_name):
         "subjects": [
             {"kind": "ServiceAccount", "name": sa_name, "namespace": namespace}
         ],
-        "userNames": [f"system:serviceaccount:{namespace}:{sa_name}"],
     }
     return (
         OR(
@@ -123,7 +122,7 @@ def fetch_desired_state(ri, oc_map):
                         ri.add_desired(
                             cluster,
                             namespace_cluster_scope,
-                            "ClusterRoleBinding",
+                            "ClusterRoleBinding.rbac.authorization.k8s.io",
                             resource_name,
                             oc_resource,
                         )
@@ -142,7 +141,7 @@ def fetch_desired_state(ri, oc_map):
                     ri.add_desired(
                         cluster,
                         namespace_cluster_scope,
-                        "ClusterRoleBinding",
+                        "ClusterRoleBinding.rbac.authorization.k8s.io",
                         resource_name,
                         oc_resource,
                     )
@@ -166,12 +165,13 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
-        override_managed_types=["ClusterRoleBinding"],
+        override_managed_types=["ClusterRoleBinding.rbac.authorization.k8s.io"],
         internal=internal,
         use_jump_host=use_jump_host,
     )
     defer(oc_map.cleanup)
     fetch_desired_state(ri, oc_map)
+    ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():

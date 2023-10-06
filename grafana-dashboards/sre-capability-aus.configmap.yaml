@@ -249,7 +249,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "label_join(aus_cluster_version_remaining_soak_days * on (cluster_uuid, soaking_version) (clamp_max(changes(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]), 1) > 0) * on (cluster_uuid) group_left(cluster_name, current_version, workloads, schedule, sector, soak_days) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\")",
+              "expr": "label_join((aus_cluster_version_remaining_soak_days >= 0) * on (cluster_uuid, soaking_version) (clamp_max(changes(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]), 1) > 0) * on (cluster_uuid) group_left(cluster_name, current_version, workloads, schedule, sector, soak_days) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\")",
               "format": "table",
               "instant": true,
               "interval": "5m",
@@ -264,7 +264,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "label_join(delta(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]) * -24 * on (cluster_uuid) group_left aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\") > 0",
+              "expr": "label_join(delta(min((aus_cluster_version_remaining_soak_days >= 0)) by(cluster_uuid, soaking_version)[1h:1m]) * -24 * on (cluster_uuid) group_left aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\") > 0",
               "format": "table",
               "hide": false,
               "instant": true,
@@ -355,6 +355,7 @@ data:
             "type": "prometheus",
             "uid": "P2C3F6ECC774D80E6"
           },
+          "description": "A numeric value represents the remaining soak days per version and cluster<br/>\nA 🎉 is displayed for versions which have soaked enough and are ready to be upgraded to <br/>\nA ⏰ is displayed for versions scheduled to be upgraded to <br/>\nA 💫 is displayed for versions which are being upgraded to <br/>\nUpgrades taking more than 6 hours will be highlighted with ❗️<br/>\nUpgrade paths to blocked versions are displayed with ⛔<br/>",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -366,7 +367,33 @@ data:
                 "filterable": false,
                 "inspect": false
               },
-              "mappings": [],
+              "mappings": [
+                {
+                  "options": {
+                    "0": {
+                      "index": 0,
+                      "text": "🎉"
+                    },
+                    "-1": {
+                      "index": 1,
+                      "text": "⏰"
+                    },
+                    "-2": {
+                      "index": 2,
+                      "text": "💫"
+                    },
+                    "-3": {
+                      "index": 3,
+                      "text": "💫❗️"
+                    },
+                    "-4": {
+                      "index": 4,
+                      "text": "⛔"
+                    }
+                  },
+                  "type": "value"
+                }
+              ],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -856,6 +883,7 @@ data:
                   "Time": true,
                   "Value": true,
                   "__name__": true,
+                  "channel": false,
                   "container": true,
                   "endpoint": true,
                   "instance": true,
@@ -867,28 +895,31 @@ data:
                 },
                 "indexByName": {
                   "Time": 0,
-                  "Value": 20,
+                  "Value": 21,
                   "__name__": 1,
+                  "channel": 4,
                   "cluster_name": 2,
                   "cluster_uuid": 3,
-                  "container": 10,
-                  "current_version": 4,
-                  "endpoint": 11,
-                  "instance": 12,
-                  "integration": 13,
-                  "job": 14,
-                  "mutexes": 15,
-                  "namespace": 16,
-                  "ocm_env": 5,
-                  "org_id": 7,
-                  "org_name": 6,
-                  "pod": 17,
-                  "schedule": 18,
-                  "service": 19,
-                  "soak_days": 9,
-                  "workloads": 8
+                  "container": 11,
+                  "current_version": 5,
+                  "endpoint": 12,
+                  "instance": 13,
+                  "integration": 14,
+                  "job": 15,
+                  "mutexes": 16,
+                  "namespace": 17,
+                  "ocm_env": 6,
+                  "org_id": 8,
+                  "org_name": 7,
+                  "pod": 18,
+                  "schedule": 19,
+                  "sector": 22,
+                  "service": 20,
+                  "soak_days": 10,
+                  "workloads": 9
                 },
                 "renameByName": {
+                  "channel": "Channel Group",
                   "cluster_name": "Cluster",
                   "cluster_uuid": "UUID",
                   "current_version": "Current Version",

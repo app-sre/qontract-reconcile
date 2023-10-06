@@ -21,6 +21,7 @@ from reconcile.gql_definitions.common.clusters import (
     ClusterV1,
 )
 from reconcile.typed_queries.clusters import get_clusters
+from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
     OCM,
@@ -123,6 +124,10 @@ class AbstractPool(ABC, BaseModel):
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
         pass
 
+    @abstractmethod
+    def deletable(self) -> bool:
+        pass
+
     def _has_diff_autoscale(self, pool):
         match (self.autoscaling, pool.autoscale):
             case (None, None):
@@ -173,6 +178,9 @@ class MachinePool(AbstractPool):
         if self.instance_type != pool.instance_type:
             return "instance_type"
         return None
+
+    def deletable(self) -> bool:
+        return True
 
     @classmethod
     def create_from_gql(cls, pool: ClusterMachinePoolV1, cluster: str):
@@ -245,6 +253,10 @@ class NodePool(AbstractPool):
             return "subnet"
         return None
 
+    def deletable(self) -> bool:
+        # As of now, you can not delete the first worker pool(s)
+        return not self.id.startswith("workers")
+
     @classmethod
     def create_from_gql(cls, pool: ClusterMachinePoolV1, cluster: str):
         autoscaling: Optional[NodePoolAutoscaling] = None
@@ -294,9 +306,18 @@ class DesiredMachinePool(BaseModel):
     hypershift: bool
     pools: list[ClusterMachinePoolV1]
 
-
-class DesiredStateList(BaseModel):
-    cluster_pools: list[DesiredMachinePool]
+    def build_pool_handler(
+        self,
+        action: str,
+        pool: ClusterMachinePoolV1,
+    ) -> PoolHandler:
+        pool_builder = (
+            NodePool.create_from_gql if self.hypershift else MachinePool.create_from_gql
+        )
+        return PoolHandler(
+            action=action,
+            pool=pool_builder(pool, self.cluster_name),
+        )
 
 
 def fetch_current_state(
@@ -309,8 +330,12 @@ def fetch_current_state(
     }
 
 
+def _is_hypershift(cluster: ClusterV1) -> bool:
+    return bool(cluster.spec and cluster.spec.hypershift)
+
+
 def fetch_current_state_for_cluster(cluster, ocm):
-    if cluster.spec and cluster.spec.hypershift:
+    if _is_hypershift(cluster):
         return [
             NodePool(
                 id=node_pool["id"],
@@ -353,106 +378,81 @@ def fetch_current_state_for_cluster(cluster, ocm):
 
 def create_desired_state_from_gql(
     clusters: Iterable[ClusterV1],
-) -> DesiredStateList:
-    desired_state: DesiredStateList = DesiredStateList(cluster_pools=[])
-    for cluster in clusters:
-        if cluster.machine_pools:
-            is_hypershift = False
-            if cluster.spec:
-                is_hypershift = True if cluster.spec.hypershift else False
-            desired_state.cluster_pools.append(
-                DesiredMachinePool(
-                    cluster_name=cluster.name,
-                    hypershift=is_hypershift,
-                    pools=cluster.machine_pools,
-                )
-            )
-
-    return desired_state
+) -> dict[str, DesiredMachinePool]:
+    return {
+        cluster.name: DesiredMachinePool(
+            cluster_name=cluster.name,
+            hypershift=_is_hypershift(cluster),
+            pools=cluster.machine_pools,
+        )
+        for cluster in clusters
+        if cluster.machine_pools is not None
+    }
 
 
 def calculate_diff(
     current_state: Mapping[str, list[AbstractPool]],
-    desired_state: DesiredStateList,
+    desired_state: Mapping[str, DesiredMachinePool],
 ) -> tuple[list[PoolHandler], list[InvalidUpdateError]]:
+    current_machine_pools = {
+        (cluster_name, machine_pool.id): machine_pool
+        for cluster_name, machine_pools in current_state.items()
+        for machine_pool in machine_pools
+    }
+
+    desired_machine_pools = {
+        (desired.cluster_name, desired_machine_pool.q_id): desired_machine_pool
+        for desired in desired_state.values()
+        for desired_machine_pool in desired.pools
+    }
+
+    diff_result = diff_mappings(
+        current_machine_pools,
+        desired_machine_pools,
+        equal=lambda current, desired: not current.has_diff(desired),
+    )
+
     diffs: list[PoolHandler] = []
     errors: list[InvalidUpdateError] = []
 
-    all_desired_pools: set[tuple[str, str]] = set()
-    for desired in desired_state.cluster_pools:
-        for desired_machine_pool in desired.pools:
-            current_machine_pool = [
-                p
-                for p in current_state.get(desired.cluster_name, [])
-                if p.id == desired_machine_pool.q_id
-            ]
-            all_desired_pools.add((desired_machine_pool.q_id, desired.cluster_name))
-            if not current_machine_pool:
-                if desired.hypershift:
-                    diffs.append(
-                        PoolHandler(
-                            action="create",
-                            pool=NodePool.create_from_gql(
-                                pool=desired_machine_pool,
-                                cluster=desired.cluster_name,
-                            ),
-                        )
-                    )
-                else:
-                    diffs.append(
-                        PoolHandler(
-                            action="create",
-                            pool=MachinePool.create_from_gql(
-                                pool=desired_machine_pool,
-                                cluster=desired.cluster_name,
-                            ),
-                        )
-                    )
-                    continue
-            elif current_machine_pool[0].has_diff(desired_machine_pool):
-                invalid_diff = current_machine_pool[0].invalid_diff(
-                    desired_machine_pool
+    for (cluster_name, _), desired_machine_pool in diff_result.add.items():
+        diffs.append(
+            desired_state[cluster_name].build_pool_handler(
+                "create",
+                desired_machine_pool,
+            )
+        )
+    for (cluster_name, _), diff_pair in diff_result.change.items():
+        invalid_diff = diff_pair.current.invalid_diff(diff_pair.desired)
+        if invalid_diff:
+            errors.append(
+                InvalidUpdateError(
+                    f"can not update {invalid_diff} for existing machine pool"
                 )
-                if invalid_diff:
-                    errors.append(
-                        InvalidUpdateError(
-                            f"can not update {invalid_diff} for existing machine pool"
-                        )
-                    )
-                else:
-                    if desired.hypershift:
-                        diffs.append(
-                            PoolHandler(
-                                action="update",
-                                pool=NodePool.create_from_gql(
-                                    pool=desired_machine_pool,
-                                    cluster=desired.cluster_name,
-                                ),
-                            )
-                        )
-                    else:
-                        diffs.append(
-                            PoolHandler(
-                                action="update",
-                                pool=MachinePool.create_from_gql(
-                                    pool=desired_machine_pool,
-                                    cluster=desired.cluster_name,
-                                ),
-                            )
-                        )
+            )
+        else:
+            diffs.append(
+                desired_state[cluster_name].build_pool_handler(
+                    "update",
+                    diff_pair.desired,
+                )
+            )
 
-    for cluster_name, machine_pools in current_state.items():
-        for pool in machine_pools:
-            if (pool.id, cluster_name) not in all_desired_pools:
-                if pool.id.startswith("workers"):
-                    # As of now, you can not delete the first worker pool(s)
-                    continue
-                diffs.append(
-                    PoolHandler(
-                        action="delete",
-                        pool=pool,
-                    )
+    for (cluster_name, _), current_machine_pool in diff_result.delete.items():
+        if not desired_state[cluster_name].pools:
+            errors.append(
+                InvalidUpdateError(
+                    f"can not delete all machine pools for cluster {cluster_name}"
                 )
+            )
+        elif current_machine_pool.deletable():
+            diffs.append(
+                PoolHandler(
+                    action="delete",
+                    pool=current_machine_pool,
+                )
+            )
+
     return diffs, errors
 
 

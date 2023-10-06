@@ -992,3 +992,15 @@ def test_realize_resource_data_3way_diff(
     assert len(actions) == len_actions
     assert apply_mock.call_count == apply_calls
     assert delete_mock.call_count == delete_calls
+
+
+def test_get_state_count_combinations():
+    state = [
+        {"cluster": "c1"},
+        {"cluster": "c2"},
+        {"cluster": "c1"},
+        {"cluster": "c3"},
+        {"cluster": "c2"},
+    ]
+    expected = {"c1": 2, "c2": 2, "c3": 1}
+    assert expected == sut.get_state_count_combinations(state)

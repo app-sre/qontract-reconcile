@@ -19,12 +19,16 @@ query Projects {
           org_username
         }
       }
+      ldapGroups
+      membersOrganizationRole
     }
     organization {
       name
       instance {
         name
       }
+      # for glitchtip access revalidation
+      owners
     }
     # for glitchtip-project-dsn
     namespaces {
@@ -53,7 +57,7 @@ query Projects {
         }
       }
     }
-    # for gltichtip access revalidation
+    # for glitchtip access revalidation
     app {
       path
     }

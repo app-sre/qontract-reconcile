@@ -29,7 +29,7 @@ from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "gabi-authorized-users"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
-EXPIRATION_DAYS_MAX = 90
+EXPIRATION_DAYS_MAX = 365
 
 
 def construct_gabi_oc_resource(
@@ -127,6 +127,7 @@ def run(
     if defer:
         defer(oc_map.cleanup)
     fetch_desired_state(gabi_instances, ri)
+    ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():

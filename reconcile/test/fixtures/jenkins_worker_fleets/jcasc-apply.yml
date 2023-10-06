@@ -9,7 +9,10 @@ jenkins:
       computerConnector:
         sSHConnector:
           credentialsId: jenkins
+          launchTimeoutSeconds: 60
+          maxNumRetries: 10
           port: 22
+          retryWaitTime: 15
           sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
       fsRoot: "/var/lib/jenkins"
       labelString: app-interface
@@ -31,7 +34,10 @@ jenkins:
       computerConnector:
         sSHConnector:
           credentialsId: jenkins
+          launchTimeoutSeconds: 60
+          maxNumRetries: 10
           port: 22
+          retryWaitTime: 15
           sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
       fsRoot: "/var/lib/jenkins"
       labelString: app-sre app-interface-long-running
@@ -53,8 +59,79 @@ jenkins:
       computerConnector:
         sSHConnector:
           credentialsId: jenkins
+          launchTimeoutSeconds: 60
+          maxNumRetries: 10
+          port: 22
+          retryWaitTime: 15
+          sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+      fsRoot: "/var/lib/jenkins"
+      labelString: rhel7
+      numExecutors: 3
+      idleMinutes: 30
+      minSpareSize: 0
+      maxTotalUses: -1
+      noDelayProvision: false
+      addNodeOnlyIfRunning: true
+      alwaysReconnect: true
+      privateIpUsed: true
+      restrictUsage: true
+  - eC2Fleet:
+      name: test-remove-sshConnector-attrs
+      fleet: test-remove-sshConnector-attrs
+      region: us-east-1
+      minSize: 1
+      maxSize: 1
+      computerConnector:
+        sSHConnector:
+          credentialsId: jenkins
           port: 22
           sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+      fsRoot: "/var/lib/jenkins"
+      labelString: rhel7
+      numExecutors: 3
+      idleMinutes: 30
+      minSpareSize: 0
+      maxTotalUses: -1
+      noDelayProvision: false
+      addNodeOnlyIfRunning: true
+      alwaysReconnect: true
+      privateIpUsed: true
+      restrictUsage: true
+  - eC2Fleet:
+      name: test-add-sshConnector-JVMOpts
+      fleet: test-add-sshConnector-JVMOpts
+      region: us-east-1
+      minSize: 1
+      maxSize: 1
+      computerConnector:
+        sSHConnector:
+          credentialsId: jenkins
+          port: 22
+          sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+          jvmOptions: "-djava.jenkinsci.iloveyou=false"
+      fsRoot: "/var/lib/jenkins"
+      labelString: rhel7
+      numExecutors: 3
+      idleMinutes: 30
+      minSpareSize: 0
+      maxTotalUses: -1
+      noDelayProvision: false
+      addNodeOnlyIfRunning: true
+      alwaysReconnect: true
+      privateIpUsed: true
+      restrictUsage: true
+  - eC2Fleet:
+      name: test-same-sshConnector-JVMOpts
+      fleet: test-same-sshConnector-JVMOpts
+      region: us-east-1
+      minSize: 1
+      maxSize: 1
+      computerConnector:
+        sSHConnector:
+          credentialsId: jenkins
+          port: 22
+          sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+          jvmOptions: "-djava.jenkinsci.iloveyou=false"
       fsRoot: "/var/lib/jenkins"
       labelString: rhel7
       numExecutors: 3

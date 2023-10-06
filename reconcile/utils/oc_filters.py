@@ -22,21 +22,21 @@ NS = TypeVar("NS", bound=Namespace)
 
 
 def filter_namespaces_by_cluster(
-    namespaces: Iterable[NS], cluster_name: str
+    namespaces: Iterable[NS], cluster_names: Iterable[str]
 ) -> list[NS]:
-    return [n for n in namespaces if n.cluster.name == cluster_name]
+    return [n for n in namespaces if n.cluster.name in cluster_names]
 
 
 def filter_namespaces_by_name(
-    namespaces: Iterable[NS], namespace_name: str
+    namespaces: Iterable[NS], namespace_names: Iterable[str]
 ) -> list[NS]:
-    return [n for n in namespaces if n.name == namespace_name]
+    return [n for n in namespaces if n.name in namespace_names]
 
 
 def filter_namespaces_by_cluster_and_namespace(
     namespaces: Iterable[NS],
-    cluster_name: Optional[str],
-    namespace_name: Optional[str],
+    cluster_names: Optional[Iterable[str]],
+    namespace_names: Optional[Iterable[str]],
 ) -> list[NS]:
     """
     Filter namespaces by cluster and namespace name.
@@ -45,12 +45,12 @@ def filter_namespaces_by_cluster_and_namespace(
     be empty, no matter if the namespace name exists or not.
     """
     result: list[NS] = list(namespaces)
-    if cluster_name:
+    if cluster_names:
         result = filter_namespaces_by_cluster(
-            namespaces=result, cluster_name=cluster_name
+            namespaces=result, cluster_names=cluster_names
         )
-    if namespace_name:
+    if namespace_names:
         result = filter_namespaces_by_name(
-            namespaces=result, namespace_name=namespace_name
+            namespaces=result, namespace_names=namespace_names
         )
     return result

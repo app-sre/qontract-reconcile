@@ -82,6 +82,10 @@ fragment SaasTargetNamespace on Namespace_v1 {
     selfServiceRoles {
       name
     }
+    serviceOwners {
+      name
+      email
+    }
   }
   cluster {
     name
@@ -124,6 +128,7 @@ query SaasFiles {
   saas_files: saas_files_v2 {
     path
     name
+    labels
     app {
       name
       parentApp {
@@ -131,6 +136,10 @@ query SaasFiles {
       }
       selfServiceRoles {
         name
+      }
+      serviceOwners {
+        name
+        email
       }
     }
     pipelinesProvider {
@@ -188,6 +197,10 @@ query SaasFiles {
       }
     }
     managedResourceTypes
+    managedResourceNames {
+      resource
+      resourceNames
+    }
     takeover
     deprecated
     compare
@@ -304,10 +317,16 @@ class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
+class OwnerV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    email: str = Field(..., alias="email")
+
+
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     parent_app: Optional[AppV1_AppV1] = Field(..., alias="parentApp")
     self_service_roles: Optional[list[RoleV1]] = Field(..., alias="selfServiceRoles")
+    service_owners: Optional[list[OwnerV1]] = Field(..., alias="serviceOwners")
 
 
 class PipelinesProviderV1(ConfiguredBaseModel):
@@ -403,6 +422,11 @@ class SlackOutputV1(ConfiguredBaseModel):
     notifications: Optional[SlackOutputNotificationsV1] = Field(
         ..., alias="notifications"
     )
+
+
+class ManagedResourceNamesV1(ConfiguredBaseModel):
+    resource: str = Field(..., alias="resource")
+    resource_names: list[str] = Field(..., alias="resourceNames")
 
 
 class SaasFileAuthenticationV1(ConfiguredBaseModel):
@@ -525,6 +549,7 @@ class SaasFileV2_RoleV1(ConfiguredBaseModel):
 class SaasFileV2(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     app: AppV1 = Field(..., alias="app")
     pipelines_provider: Union[PipelinesProviderTektonV1, PipelinesProviderV1] = Field(
         ..., alias="pipelinesProvider"
@@ -532,6 +557,9 @@ class SaasFileV2(ConfiguredBaseModel):
     deploy_resources: Optional[DeployResourcesV1] = Field(..., alias="deployResources")
     slack: Optional[SlackOutputV1] = Field(..., alias="slack")
     managed_resource_types: list[str] = Field(..., alias="managedResourceTypes")
+    managed_resource_names: Optional[list[ManagedResourceNamesV1]] = Field(
+        ..., alias="managedResourceNames"
+    )
     takeover: Optional[bool] = Field(..., alias="takeover")
     deprecated: Optional[bool] = Field(..., alias="deprecated")
     compare: Optional[bool] = Field(..., alias="compare")

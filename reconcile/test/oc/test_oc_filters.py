@@ -19,15 +19,15 @@ class Namespace:
 
 
 @pytest.mark.parametrize(
-    "namespaces, cluster_name, namespace_name, expected",
+    "namespaces, cluster_names, namespace_names, expected",
     [
         # Filter single namespace
         (
             [
                 Namespace(name="test-namespace", cluster=Cluster(name="test-cluster")),
             ],
-            "test-cluster",
-            "test-namespace",
+            ("test-cluster",),
+            ("test-namespace",),
             [
                 Namespace(name="test-namespace", cluster=Cluster(name="test-cluster")),
             ],
@@ -40,8 +40,8 @@ class Namespace:
                     name="test-namespace-2", cluster=Cluster(name="test-cluster-2")
                 ),
             ],
-            "test-cluster",
-            "test-namespace",
+            ("test-cluster",),
+            ("test-namespace",),
             [
                 Namespace(name="test-namespace", cluster=Cluster(name="test-cluster")),
             ],
@@ -54,9 +54,41 @@ class Namespace:
                     name="test-namespace", cluster=Cluster(name="test-cluster-2")
                 ),
             ],
-            "test-cluster-3",
-            "test-namespace",
+            ("test-cluster-3",),
+            ("test-namespace",),
             [],
+        ),
+        # Filter multiple clusters and multiple namespaces
+        (
+            [
+                Namespace(name="test-namespace", cluster=Cluster(name="test-cluster")),
+                Namespace(
+                    name="test-namespace-2", cluster=Cluster(name="test-cluster")
+                ),
+                Namespace(
+                    name="test-namespace", cluster=Cluster(name="test-cluster-2")
+                ),
+                Namespace(
+                    name="test-namespace-2", cluster=Cluster(name="test-cluster-2")
+                ),
+                Namespace(
+                    name="test-namespace", cluster=Cluster(name="test-cluster-3")
+                ),
+            ],
+            ("test-cluster", "test-cluster-2"),
+            ("test-namespace", "test-namespace-2"),
+            [
+                Namespace(name="test-namespace", cluster=Cluster(name="test-cluster")),
+                Namespace(
+                    name="test-namespace-2", cluster=Cluster(name="test-cluster")
+                ),
+                Namespace(
+                    name="test-namespace", cluster=Cluster(name="test-cluster-2")
+                ),
+                Namespace(
+                    name="test-namespace-2", cluster=Cluster(name="test-cluster-2")
+                ),
+            ],
         ),
         # Filter with Nones -> return input
         (
@@ -79,14 +111,14 @@ class Namespace:
 )
 def test_filter_namespaces_by_cluster_and_namespace(
     namespaces: Iterable[Namespace],
-    cluster_name: Optional[str],
-    namespace_name: Optional[str],
+    cluster_names: Optional[Iterable[str]],
+    namespace_names: Optional[Iterable[str]],
     expected: Iterable[Namespace],
-):
+) -> None:
     result = filter_namespaces_by_cluster_and_namespace(
         namespaces=namespaces,
-        cluster_name=cluster_name,
-        namespace_name=namespace_name,
+        cluster_names=cluster_names,
+        namespace_names=namespace_names,
     )
 
     def _sort(items: Iterable[Namespace]) -> list[Namespace]:

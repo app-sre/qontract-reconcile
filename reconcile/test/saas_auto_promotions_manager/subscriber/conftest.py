@@ -7,6 +7,9 @@ from typing import Any
 
 import pytest
 
+from reconcile.gql_definitions.fragments.saas_target_namespace import (
+    SaasTargetNamespace,
+)
 from reconcile.saas_auto_promotions_manager.publisher import (
     DeploymentInfo,
     Publisher,
@@ -24,7 +27,7 @@ from .data_keys import (
     CUR_SUBSCRIBER_REF,
     DESIRED_REF,
     DESIRED_TARGET_HASHES,
-    NAMESPACE_REF,
+    NAMESPACE,
     REAL_WORLD_SHA,
     SUCCESSFUL_DEPLOYMENT,
     TARGET_FILE_PATH,
@@ -33,7 +36,9 @@ from .data_keys import (
 
 
 @pytest.fixture
-def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
+def subscriber_builder(
+    saas_target_namespace_builder: Callable[..., SaasTargetNamespace]
+) -> Callable[[Mapping[str, Any]], Subscriber]:
     def builder(data: Mapping[str, Any]) -> Subscriber:
         channels: list[Channel] = []
         for channel_name, channel_data in data.get(CHANNELS, {}).items():
@@ -59,7 +64,7 @@ def subscriber_builder() -> Callable[[Mapping[str, Any]], Subscriber]:
                 cur_config_hash
             )
         subscriber = Subscriber(
-            namespace_file_path=data.get(NAMESPACE_REF, ""),
+            target_namespace=saas_target_namespace_builder(data.get(NAMESPACE, {})),
             ref=data.get(CUR_SUBSCRIBER_REF, ""),
             saas_name="",
             target_file_path=data.get(TARGET_FILE_PATH, ""),

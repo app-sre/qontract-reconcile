@@ -136,13 +136,17 @@ def aws_account_no_state(automation_token) -> AWSAccountV1:
 
 @pytest.fixture
 def int_params() -> TerraformRepoIntegrationParams:
-    return TerraformRepoIntegrationParams(output_file=None, validate_git=False)
+    return TerraformRepoIntegrationParams(
+        output_file=None, validate_git=False, ignore_state_errors=False
+    )
 
 
 @pytest.fixture
 def int_params_print_to_tmp(tmp_path) -> TerraformRepoIntegrationParams:
     return TerraformRepoIntegrationParams(
-        output_file=f"{tmp_path}/tf-repo.yaml", validate_git=False
+        output_file=f"{tmp_path}/tf-repo.yaml",
+        validate_git=False,
+        ignore_state_errors=False,
     )
 
 

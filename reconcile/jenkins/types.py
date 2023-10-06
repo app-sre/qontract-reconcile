@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Optional
 
 from pydantic import (
     BaseModel,
@@ -21,7 +22,11 @@ class SSHHostKeyVerificationStrategy(Enum):
 
 class SSHConnector(BaseModel):
     credentials_id: str = Field(..., alias="credentialsId")
-    port: int = 22
+    launch_timeout_seconds: Optional[int] = Field(None, alias="launchTimeoutSeconds")
+    max_num_retries: Optional[int] = Field(None, alias="maxNumRetries")
+    retry_wait_time: Optional[int] = Field(None, alias="retryWaitTime")
+    port: Optional[int] = 22
+    jvm_options: Optional[str] = Field(None, alias="jvmOptions")
     ssh_host_key_verification_strategy: SSHHostKeyVerificationStrategy = Field(
         SSHHostKeyVerificationStrategy.NON_VERIFYING_KEY_VERIFICATION_STRATEGY,
         alias="sshHostKeyVerificationStrategy",

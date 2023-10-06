@@ -1,6 +1,7 @@
 import json
 import logging
 import sys
+from collections.abc import Mapping
 from typing import (
     Any,
     Optional,
@@ -229,6 +230,22 @@ def build_one_per_namespace_task(
     return task
 
 
+def _curate_deploy_resources(deploy_resources: Mapping[str, Any]) -> dict[str, Any]:
+    """Removes empty (None) values in deploy_resources dicts
+
+    :param deploy_resources: dictionary with the resources returned by Gql
+    :return: dict with the resources without None values
+    """
+    resources = {
+        item: {
+            k: v for k, v in (deploy_resources.get(item) or {}).items() if v is not None
+        }
+        for item, values in deploy_resources.items()
+        if values is not None
+    }
+    return resources
+
+
 def build_one_per_saas_file_task(
     task_template_config: dict[str, str],
     saas_file: dict[str, Any],
@@ -255,7 +272,7 @@ def build_one_per_saas_file_task(
     resources_configured = False
     for step in task["spec"]["steps"]:
         if step["name"] == step_name:
-            step["computeResources"] = (
+            step["computeResources"] = _curate_deploy_resources(
                 saas_file.get("deployResources") or deploy_resources
             )
             resources_configured = True
@@ -442,6 +459,8 @@ def run(
     for desired_resource in desired_resources:
         ri.add_desired(**desired_resource)
 
+    LOG.debug("Publishing metrics")
+    ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     LOG.debug("Realizing data")
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 

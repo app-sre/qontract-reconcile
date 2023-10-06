@@ -36,7 +36,7 @@ def within_retention_days(resource: dict[str, Any], days: int) -> bool:
     now_date = datetime.now(timezone.utc)
     interval = now_date.timestamp() - creation_date.timestamp()
 
-    return interval < timedelta(days=days).seconds
+    return interval < timedelta(days=days).total_seconds()
 
 
 @defer
@@ -65,7 +65,7 @@ def run(
 
     for pp in pipeline_providers:
         if not pp.retention:
-            continue
+            pp.retention = pp.defaults.retention
 
         oc = oc_map.get(pp.namespace.cluster.name)
         if isinstance(oc, OCLogMsg):

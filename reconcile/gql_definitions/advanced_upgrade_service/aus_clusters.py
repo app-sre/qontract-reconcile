@@ -54,8 +54,11 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
       name
     }
     publishVersionData {
-      orgId
+      ... MinimalOCMOrganization
     }
+  }
+  publishVersionData {
+    ... MinimalOCMOrganization
   }
   sectors {
     name
@@ -86,6 +89,11 @@ fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
   }
 }
 
+fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {
+  name
+  orgId
+}
+
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
     name
     url
@@ -114,6 +122,7 @@ query AUSClusters($name: String) {
     }
     spec {
         product
+        id
         external_id
         version
     }
@@ -133,6 +142,7 @@ class ConfiguredBaseModel(BaseModel):
 
 class ClusterSpecV1(ConfiguredBaseModel):
     product: str = Field(..., alias="product")
+    q_id: Optional[str] = Field(..., alias="id")
     external_id: Optional[str] = Field(..., alias="external_id")
     version: str = Field(..., alias="version")
 

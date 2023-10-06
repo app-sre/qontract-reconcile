@@ -5,7 +5,10 @@ from typing import (
 )
 
 from reconcile import queries
-from reconcile.jenkins.types import JenkinsWorkerFleet
+from reconcile.jenkins.types import (
+    JenkinsWorkerFleet,
+    SSHConnector,
+)
 from reconcile.utils.external_resources import get_external_resource_specs
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.secret_reader import SecretReader
@@ -41,6 +44,10 @@ def get_desired_state(
         namespace = f["namespace"]
         account = f["account"]
         identifier = f["identifier"]
+
+        s = {k: v for k, v in f["sshConnector"].items() if v is not None}
+        ssh_connector = SSHConnector(**s)
+
         specs = get_external_resource_specs(namespace)
         found = False
         for spec in specs:
@@ -57,10 +64,8 @@ def get_desired_state(
                 f["region"] = region
                 f["minSize"] = values.get("min_size")
                 f["maxSize"] = values.get("max_size")
-                f["computerConnector"] = {
-                    "sSHConnector": {"credentialsId": f["credentialsId"]}
-                }
-                f = dict((k, v) for k, v in f.items() if v is not None)
+                f["computerConnector"] = {"sSHConnector": ssh_connector}
+                f = {k: v for k, v in f.items() if v is not None}
                 desired_state.append(JenkinsWorkerFleet(**f))
                 break
         if not found:
@@ -102,7 +107,7 @@ def act(
         if not dry_run:
             d_clouds = []
             for d in desired_state:
-                d_clouds.append({"eC2Fleet": d.dict(by_alias=True)})
+                d_clouds.append({"eC2Fleet": d.dict(by_alias=True, exclude_none=True)})
             config = {"jenkins": {"clouds": d_clouds}}
             jenkins.apply_jcasc_config(config)
 

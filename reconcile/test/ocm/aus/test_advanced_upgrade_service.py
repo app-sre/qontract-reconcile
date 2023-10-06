@@ -453,19 +453,19 @@ def test_discover_clusters_ignore_sts_clusters(mocker: MockerFixture) -> None:
 
 
 def test_org_labels(ocm_api: OCMBaseClient, mocker: MockerFixture) -> None:
-    get_organization_labels_mock = mocker.patch.object(
+    get_org_labels_mock = mocker.patch.object(
         advanced_upgrade_service,
-        "get_organization_labels",
+        "get_org_labels",
         autospec=True,
     )
-    get_organization_labels_mock.return_value = iter(
-        [build_organization_label("label", "value")]
-    )
+    get_org_labels_mock.return_value = {
+        "org-id": build_label_container([build_organization_label("label", "value")])
+    }
 
     labels = _get_org_labels(ocm_api, None)
 
-    get_organization_labels_mock.assert_called_once_with(
-        ocm_api, Filter().like("key", aus_label_key("%"))
+    get_org_labels_mock.assert_called_once_with(
+        ocm_api, set(), Filter().like("key", aus_label_key("%"))
     )
 
     assert len(labels) == 1
@@ -476,19 +476,19 @@ def test_org_labels_with_org_filter(
     ocm_api: OCMBaseClient, mocker: MockerFixture
 ) -> None:
     org_id = "org-id"
-    get_organization_labels_mock = mocker.patch.object(
+    get_org_labels_mock = mocker.patch.object(
         advanced_upgrade_service,
-        "get_organization_labels",
+        "get_org_labels",
         autospec=True,
     )
-    get_organization_labels_mock.return_value = iter(
-        [build_organization_label("label", "value", org_id)]
-    )
+    get_org_labels_mock.return_value = {
+        "org-id": build_label_container([build_organization_label("label", "value")])
+    }
 
     _get_org_labels(ocm_api, {org_id})
 
-    get_organization_labels_mock.assert_called_once_with(
-        ocm_api, Filter().like("key", aus_label_key("%")).eq("organization_id", org_id)
+    get_org_labels_mock.assert_called_once_with(
+        ocm_api, {"org-id"}, Filter().like("key", aus_label_key("%"))
     )
 
 

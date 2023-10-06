@@ -1,0 +1,11 @@
+# qenerate: plugin=pydantic_v1
+
+query OcmOrganizations {
+  organizations: ocm_instances_v1 {
+    orgId
+    name
+    environment {
+      name
+    }
+  }
+}

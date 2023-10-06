@@ -11,6 +11,9 @@ from unittest.mock import (
 
 import pytest
 
+from reconcile.gql_definitions.fragments.saas_target_namespace import (
+    SaasTargetNamespace,
+)
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
 from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.gitlab_api import GitLabApi
@@ -65,5 +68,21 @@ def gql_client_builder() -> Callable[..., GitLabApi]:
         api.project.mergerequests = MagicMock()
         api.project.mergerequests.create.side_effect = []
         return api
+
+    return builder
+
+
+@pytest.fixture
+def saas_target_namespace_builder(
+    gql_class_factory: Callable[..., SaasTargetNamespace]
+) -> Callable[..., SaasTargetNamespace]:
+    def builder(data: MutableMapping) -> SaasTargetNamespace:
+        if "environment" not in data:
+            data["environment"] = {}
+        if "app" not in data:
+            data["app"] = {}
+        if "cluster" not in data:
+            data["cluster"] = {}
+        return gql_class_factory(SaasTargetNamespace, data)
 
     return builder

@@ -143,7 +143,7 @@ def get_ocm_clusters(
 ) -> Generator[OCMCluster, None, None]:
     for cluster_dict in ocm_api.get_paginated(
         api_path="/api/clusters_mgmt/v1/clusters",
-        params={"search": cluster_filter.render()},
+        params={"search": cluster_filter.render(), "order": "creation_timestamp"},
         max_page_size=100,
     ):
         yield OCMCluster(**cluster_dict)

@@ -37,11 +37,27 @@ def get_addon_upgrade_policies(
     ):
         if addon_id and policy["addon_id"] != addon_id:
             continue
-        results.append(
-            {k: v for k, v in policy.items() if k in ADDON_UPGRADE_POLICY_DESIRED_KEYS}
+        policy_data = {
+            k: v for k, v in policy.items() if k in ADDON_UPGRADE_POLICY_DESIRED_KEYS
+        }
+        policy_data["state"] = get_addon_upgrade_policy_state(
+            ocm_api, cluster_id, policy["id"]
         )
+        results.append(policy_data)
 
     return results
+
+
+def get_addon_upgrade_policy_state(
+    ocm_api: OCMBaseClient, cluster_id: str, addon_upgrade_policy_id: str
+) -> Optional[str]:
+    try:
+        state_data = ocm_api.get(
+            f"{build_cluster_url(cluster_id)}/addon_upgrade_policies/{addon_upgrade_policy_id}/state"
+        )
+        return state_data.get("value")
+    except Exception:
+        return None
 
 
 def create_addon_upgrade_policy(
@@ -85,10 +101,27 @@ def get_upgrade_policies(
     ):
         if schedule_type and policy["schedule_type"] != schedule_type:
             continue
-        results.append(
-            {k: v for k, v in policy.items() if k in UPGRADE_POLICY_DESIRED_KEYS}
+        policy_data = {
+            k: v for k, v in policy.items() if k in UPGRADE_POLICY_DESIRED_KEYS
+        }
+        policy_data["state"] = get_upgrade_policy_state(
+            ocm_api, cluster_id, policy["id"]
         )
+        results.append(policy_data)
+
     return results
+
+
+def get_upgrade_policy_state(
+    ocm_api: OCMBaseClient, cluster_id: str, upgrade_policy_id: str
+) -> Optional[str]:
+    try:
+        state_data = ocm_api.get(
+            f"{build_cluster_url(cluster_id)}/upgrade_policies/{upgrade_policy_id}/state"
+        )
+        return state_data.get("value")
+    except Exception:
+        return None
 
 
 def create_upgrade_policy(ocm_api: OCMBaseClient, cluster_id: str, spec: dict) -> None:
@@ -124,9 +157,11 @@ def get_control_plane_upgrade_policies(
     ):
         if schedule_type and policy["schedule_type"] != schedule_type:
             continue
-        results.append(
-            {k: v for k, v in policy.items() if k in UPGRADE_POLICY_DESIRED_KEYS}
-        )
+        policy_data = {
+            k: v for k, v in policy.items() if k in UPGRADE_POLICY_DESIRED_KEYS
+        }
+        policy_data["state"] = policy.get("state", {}).get("value")
+        results.append(policy_data)
     return results
 
 

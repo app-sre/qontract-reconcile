@@ -21,6 +21,8 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
 )
 from reconcile.utils import gql
 
+CHANGE_OWNERS_LABELS_LABEL = "change-owners-labels"
+
 
 class NoApproversInSelfServiceRoleError(Exception):
     """
@@ -201,11 +203,23 @@ def change_type_contexts_for_self_service_roles(
                                 approver_reachability=approver_reachability_from_role(
                                     role
                                 ),
+                                change_owner_labels=change_type_labels_from_role(role),
                                 context_file=ownership.context_file_ref,
                             ),
                         )
                     )
     return change_type_contexts
+
+
+def change_type_labels_from_role(role: RoleV1) -> set[str]:
+    change_owner_labels = (
+        role.labels[CHANGE_OWNERS_LABELS_LABEL]
+        if role.labels and CHANGE_OWNERS_LABELS_LABEL in role.labels
+        else None
+    )
+    if change_owner_labels:
+        return {label.strip() for label in change_owner_labels.split(",")}
+    return set()
 
 
 def approver_reachability_from_role(role: RoleV1) -> list[ApproverReachability]:

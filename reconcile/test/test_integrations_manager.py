@@ -1,4 +1,5 @@
 import copy
+import json
 import os
 from collections.abc import (
     Callable,
@@ -30,7 +31,10 @@ from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zon
     CloudflareDnsRecordV1,
     CloudflareDnsZoneV1,
 )
-from reconcile.integrations_manager import HelmIntegrationSpec
+from reconcile.integrations_manager import (
+    INTEGRATION_UPSTREAM_REPOS_PARAM,
+    HelmIntegrationSpec,
+)
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.runtime.meta import IntegrationMeta
 from reconcile.utils.runtime.sharding import (
@@ -128,6 +132,38 @@ def test_collect_parameters_image_tag_from_ref(mocker):
         "IMAGE_TAG": "f44e417",
     }
     assert parameters == expected
+
+
+def test_collect_parameters_namespace_environment_parameter(mocker):
+    upstream = "https://github.com/some-upstream-repo"
+    template = {
+        "parameters": [
+            {
+                "name": "IMAGE_TAG",
+                "value": "dummy",
+            }
+        ]
+    }
+    os.environ["IMAGE_TAG"] = "env override"
+    environment = EnvironmentV1(
+        name="env",
+        parameters=json.dumps(
+            {
+                "IMAGE_TAG": "env-file-general-override",
+                INTEGRATION_UPSTREAM_REPOS_PARAM: [
+                    {
+                        "repo": upstream,
+                        "ref": "master",
+                    }
+                ],
+            }
+        ),
+    )
+    mocker.patch(
+        "reconcile.integrations_manager.get_image_tag_from_ref", return_value="f44e417"
+    )
+    parameters = intop.collect_parameters(template, environment, upstream, "", None)
+    assert parameters["IMAGE_TAG"] == "f44e417"
 
 
 @pytest.fixture

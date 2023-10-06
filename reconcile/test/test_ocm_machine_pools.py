@@ -1,4 +1,7 @@
-from collections.abc import Callable
+from collections.abc import (
+    Callable,
+    Iterable,
+)
 from typing import (
     Mapping,
     Optional,
@@ -17,7 +20,6 @@ from reconcile.ocm_machine_pools import (
     AbstractPool,
     AWSNodePool,
     DesiredMachinePool,
-    DesiredStateList,
     InvalidUpdateError,
     MachinePool,
     MachinePoolAutoscaling,
@@ -48,6 +50,9 @@ class TestPool(AbstractPool):
 
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
         return None
+
+    def deletable(self) -> bool:
+        return True
 
 
 @pytest.fixture
@@ -157,25 +162,23 @@ def test_calculate_diff_create():
     current: Mapping[str, list[AbstractPool]] = {
         "cluster1": [],
     }
-    desired = DesiredStateList(
-        cluster_pools=[
-            DesiredMachinePool(
-                cluster_name="cluster1",
-                hypershift=False,
-                pools=[
-                    ClusterMachinePoolV1(
-                        id="pool1",
-                        instance_type="m5.xlarge",
-                        autoscale=None,
-                        replicas=1,
-                        labels=None,
-                        taints=None,
-                        subnet="subnet1",
-                    )
-                ],
-            )
-        ]
-    )
+    desired = {
+        "cluster1": DesiredMachinePool(
+            cluster_name="cluster1",
+            hypershift=False,
+            pools=[
+                ClusterMachinePoolV1(
+                    id="pool1",
+                    instance_type="m5.xlarge",
+                    autoscale=None,
+                    replicas=1,
+                    labels=None,
+                    taints=None,
+                    subnet="subnet1",
+                )
+            ],
+        )
+    }
 
     diff, error = calculate_diff(current, desired)
     assert len(diff) == 1
@@ -184,50 +187,46 @@ def test_calculate_diff_create():
 
 
 def test_calculate_diff_noop(current_with_pool):
-    desired = DesiredStateList(
-        cluster_pools=[
-            DesiredMachinePool(
-                cluster_name="cluster1",
-                hypershift=False,
-                pools=[
-                    ClusterMachinePoolV1(
-                        id="pool1",
-                        instance_type="m5.xlarge",
-                        replicas=2,
-                        autoscale=None,
-                        labels=None,
-                        taints=None,
-                        subnet="subnet1",
-                    )
-                ],
-            )
-        ]
-    )
+    desired = {
+        "cluster1": DesiredMachinePool(
+            cluster_name="cluster1",
+            hypershift=False,
+            pools=[
+                ClusterMachinePoolV1(
+                    id="pool1",
+                    instance_type="m5.xlarge",
+                    replicas=2,
+                    autoscale=None,
+                    labels=None,
+                    taints=None,
+                    subnet="subnet1",
+                )
+            ],
+        ),
+    }
     diff, error = calculate_diff(current_with_pool, desired)
     assert len(diff) == 0
     assert not error
 
 
 def test_calculate_diff_update(current_with_pool):
-    desired = DesiredStateList(
-        cluster_pools=[
-            DesiredMachinePool(
-                cluster_name="cluster1",
-                hypershift=False,
-                pools=[
-                    ClusterMachinePoolV1(
-                        id="pool1",
-                        instance_type="m5.xlarge",
-                        replicas=1,
-                        autoscale=None,
-                        labels=None,
-                        taints=None,
-                        subnet="subnet1",
-                    )
-                ],
-            )
-        ]
-    )
+    desired = {
+        "cluster1": DesiredMachinePool(
+            cluster_name="cluster1",
+            hypershift=False,
+            pools=[
+                ClusterMachinePoolV1(
+                    id="pool1",
+                    instance_type="m5.xlarge",
+                    replicas=1,
+                    autoscale=None,
+                    labels=None,
+                    taints=None,
+                    subnet="subnet1",
+                )
+            ],
+        ),
+    }
 
     diff, error = calculate_diff(current_with_pool, desired)
     assert len(diff) == 1
@@ -235,17 +234,67 @@ def test_calculate_diff_update(current_with_pool):
     assert not error
 
 
-def test_calculate_diff_delete(current_with_pool):
-    desired = DesiredStateList(
-        cluster_pools=[
-            DesiredMachinePool(cluster_name="cluster1", hypershift=False, pools=[])
+@pytest.fixture
+def current_with_2_pools() -> Mapping[str, list[AbstractPool]]:
+    return {
+        "cluster1": [
+            MachinePool(
+                id="pool1",
+                instance_type="m5.xlarge",
+                replicas=2,
+                labels=None,
+                taints=None,
+                cluster="cluster1",
+            ),
+            MachinePool(
+                id="workers",
+                instance_type="m5.xlarge",
+                replicas=2,
+                labels=None,
+                taints=None,
+                cluster="cluster1",
+            ),
         ]
-    )
+    }
 
-    diff, error = calculate_diff(current_with_pool, desired)
+
+def test_calculate_diff_delete(current_with_2_pools):
+    desired = {
+        "cluster1": DesiredMachinePool(
+            cluster_name="cluster1",
+            hypershift=False,
+            pools=[
+                ClusterMachinePoolV1(
+                    id="pool1",
+                    instance_type="m5.xlarge",
+                    replicas=2,
+                    autoscale=None,
+                    labels=None,
+                    taints=None,
+                    subnet="subnet1",
+                )
+            ],
+        ),
+    }
+
+    diff, error = calculate_diff(current_with_2_pools, desired)
     assert len(diff) == 1
     assert diff[0].action == "delete"
     assert not error
+
+
+def test_calculate_diff_delete_all_fail_validation(current_with_pool):
+    desired = {
+        "cluster1": DesiredMachinePool(
+            cluster_name="cluster1",
+            hypershift=False,
+            pools=[],
+        ),
+    }
+
+    diff, error = calculate_diff(current_with_pool, desired)
+    assert len(diff) == 0
+    assert len(error) == 1
 
 
 def test_act_dry_run(test_pool, ocm_mock):
@@ -401,28 +450,65 @@ def test_run_no_action(mocker: MockerFixture) -> None:
 
 
 @pytest.fixture
-def ocm_cluster(
+def ocm_cluster_builder(
     gql_class_factory: Callable[..., ClusterV1],
-) -> ClusterV1:
-    return gql_class_factory(
-        ClusterV1,
-        {
-            "name": "ocm-cluster",
-            "auth": [],
-            "ocm": {
-                "name": "ocm-name",
-                "environment": {
-                    "accessTokenClientSecret": {},
+) -> Callable[..., ClusterV1]:
+    def builder(machine_pools: list[dict]) -> ClusterV1:
+        return gql_class_factory(
+            ClusterV1,
+            {
+                "name": "ocm-cluster",
+                "auth": [],
+                "ocm": {
+                    "name": "ocm-name",
+                    "environment": {
+                        "accessTokenClientSecret": {},
+                    },
                 },
+                "machinePools": machine_pools,
             },
-            "machinePools": [
-                {
-                    "id": "workers",
-                    "instance_type": "m5.xlarge",
-                    "replicas": 2,
-                }
-            ],
-        },
+        )
+
+    return builder
+
+
+@pytest.fixture
+def default_worker_machine_pool() -> dict:
+    return {
+        "id": "worker",
+        "instance_type": "m5.xlarge",
+        "replicas": 2,
+    }
+
+
+@pytest.fixture
+def ocm_cluster_with_default_machine_pool(
+    ocm_cluster_builder: Callable[..., ClusterV1],
+    default_worker_machine_pool: dict,
+) -> ClusterV1:
+    return ocm_cluster_builder([default_worker_machine_pool])
+
+
+@pytest.fixture
+def new_workers_machine_pool() -> dict:
+    return {
+        "id": "workers-new",
+        "instance_type": "m5.2xlarge",
+        "replicas": 3,
+    }
+
+
+@pytest.fixture
+def ocm_cluster_with_default_and_new_machine_pools(
+    ocm_cluster_builder: Callable[..., ClusterV1],
+    default_worker_machine_pool: dict,
+    new_workers_machine_pool: dict,
+) -> ClusterV1:
+    return ocm_cluster_builder(
+        [
+            default_worker_machine_pool,
+            new_workers_machine_pool,
+        ]
     )
 
 
@@ -431,38 +517,41 @@ def expected_ocm_machine_pool_create_payload() -> dict:
     return {
         "autoscaling": None,
         "cluster": "ocm-cluster",
-        "id": "workers",
-        "instance_type": "m5.xlarge",
+        "id": "workers-new",
+        "instance_type": "m5.2xlarge",
         "labels": None,
-        "replicas": 2,
+        "replicas": 3,
         "taints": [],
     }
 
 
 def test_run_create_machine_pool(
     mocker: MockerFixture,
-    ocm_cluster: ClusterV1,
+    ocm_cluster_with_default_and_new_machine_pools: ClusterV1,
+    default_worker_machine_pool: dict,
     expected_ocm_machine_pool_create_payload: dict,
 ) -> None:
-    mocks = setup_mocks(mocker, clusters=[ocm_cluster])
+    mocks = setup_mocks(
+        mocker,
+        clusters=[ocm_cluster_with_default_and_new_machine_pools],
+        machine_pools=[default_worker_machine_pool],
+    )
 
     run(False)
 
     mocks["OCM"].create_machine_pool.assert_called_once_with(
-        ocm_cluster.name,
+        ocm_cluster_with_default_and_new_machine_pools.name,
         expected_ocm_machine_pool_create_payload,
     )
 
 
 @pytest.fixture
-def existing_updated_ocm_machine_pools() -> list[dict]:
-    return [
-        {
-            "id": "workers",
-            "instance_type": "m5.xlarge",
-            "replicas": 3,
-        }
-    ]
+def existing_updated_default_machine_pool() -> dict:
+    return {
+        "id": "worker",
+        "instance_type": "m5.xlarge",
+        "replicas": 3,
+    }
 
 
 @pytest.fixture
@@ -470,51 +559,49 @@ def expected_ocm_machine_pool_update_payload() -> dict:
     return {
         "autoscaling": None,
         "cluster": "ocm-cluster",
-        "id": "workers",
+        "id": "worker",
         "replicas": 2,
     }
 
 
 def test_run_update_machine_pool(
     mocker: MockerFixture,
-    ocm_cluster: ClusterV1,
-    existing_updated_ocm_machine_pools: list[dict],
+    ocm_cluster_with_default_machine_pool: ClusterV1,
+    existing_updated_default_machine_pool: dict,
     expected_ocm_machine_pool_update_payload: dict,
 ) -> None:
     mocks = setup_mocks(
         mocker,
-        clusters=[ocm_cluster],
-        machine_pools=existing_updated_ocm_machine_pools,
+        clusters=[ocm_cluster_with_default_machine_pool],
+        machine_pools=[existing_updated_default_machine_pool],
     )
 
     run(False)
 
     mocks["OCM"].update_machine_pool.assert_called_once_with(
-        ocm_cluster.name,
+        ocm_cluster_with_default_machine_pool.name,
         expected_ocm_machine_pool_update_payload,
     )
 
 
 @pytest.fixture
-def existing_ocm_machine_pools_with_different_instance_type() -> list[dict]:
-    return [
-        {
-            "id": "workers",
-            "instance_type": "m5.2xlarge",
-            "replicas": 2,
-        }
-    ]
+def existing_default_machine_pool_with_different_instance_type() -> dict:
+    return {
+        "id": "worker",
+        "instance_type": "m5.2xlarge",
+        "replicas": 2,
+    }
 
 
 def test_run_update_machine_pool_error(
     mocker: MockerFixture,
-    ocm_cluster: ClusterV1,
-    existing_ocm_machine_pools_with_different_instance_type: list[dict],
+    ocm_cluster_with_default_machine_pool: ClusterV1,
+    existing_default_machine_pool_with_different_instance_type: dict,
 ) -> None:
     setup_mocks(
         mocker,
-        clusters=[ocm_cluster],
-        machine_pools=existing_ocm_machine_pools_with_different_instance_type,
+        clusters=[ocm_cluster_with_default_machine_pool],
+        machine_pools=[existing_default_machine_pool_with_different_instance_type],
     )
 
     with pytest.raises(ExceptionGroup) as eg:
@@ -525,28 +612,12 @@ def test_run_update_machine_pool_error(
 
 
 @pytest.fixture
-def existing_multiple_ocm_machine_pools() -> list[dict]:
-    return [
-        {
-            "id": "workers",
-            "instance_type": "m5.xlarge",
-            "replicas": 3,
-        },
-        {
-            "id": "new-workers",
-            "instance_type": "m5.xlarge",
-            "replicas": 3,
-        },
-    ]
-
-
-@pytest.fixture
 def expected_ocm_machine_pool_delete_payload() -> dict:
     return {
         "autoscaling": None,
         "cluster": "ocm-cluster",
-        "id": "new-workers",
-        "instance_type": "m5.xlarge",
+        "id": "workers-new",
+        "instance_type": "m5.2xlarge",
         "labels": None,
         "replicas": 3,
         "taints": None,
@@ -555,51 +626,91 @@ def expected_ocm_machine_pool_delete_payload() -> dict:
 
 def test_run_delete_machine_pool(
     mocker: MockerFixture,
-    ocm_cluster: ClusterV1,
-    existing_multiple_ocm_machine_pools: list[dict],
+    ocm_cluster_with_default_machine_pool: ClusterV1,
+    default_worker_machine_pool,
+    new_workers_machine_pool: dict,
     expected_ocm_machine_pool_delete_payload: dict,
 ) -> None:
     mocks = setup_mocks(
         mocker,
-        clusters=[ocm_cluster],
-        machine_pools=existing_multiple_ocm_machine_pools,
+        clusters=[ocm_cluster_with_default_machine_pool],
+        machine_pools=[default_worker_machine_pool, new_workers_machine_pool],
     )
 
     run(False)
 
     mocks["OCM"].delete_machine_pool.assert_called_once_with(
-        ocm_cluster.name,
+        ocm_cluster_with_default_machine_pool.name,
         expected_ocm_machine_pool_delete_payload,
     )
 
 
 @pytest.fixture
-def hypershift_cluster(
-    gql_class_factory: Callable[..., ClusterV1],
+def ocm_cluster_without_machine_pools(
+    ocm_cluster_builder: Callable[..., ClusterV1],
 ) -> ClusterV1:
-    return gql_class_factory(
-        ClusterV1,
-        {
-            "name": "hypershift-cluster",
-            "auth": [],
-            "ocm": {
-                "name": "hypershift",
-                "environment": {
-                    "accessTokenClientSecret": {},
-                },
-            },
-            "spec": {
-                "hypershift": True,
-            },
-            "machinePools": [
-                {
-                    "id": "workers",
-                    "instance_type": "m5.xlarge",
-                    "replicas": 2,
-                }
-            ],
-        },
+    return ocm_cluster_builder([])
+
+
+def test_run_delete_machine_pool_fail_validation(
+    mocker: MockerFixture,
+    ocm_cluster_without_machine_pools: ClusterV1,
+    default_worker_machine_pool,
+) -> None:
+    setup_mocks(
+        mocker,
+        clusters=[ocm_cluster_without_machine_pools],
+        machine_pools=[default_worker_machine_pool],
     )
+
+    with pytest.raises(ExceptionGroup) as eg:
+        run(False)
+
+    assert len(eg.value.exceptions) == 1
+    assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
+
+
+@pytest.fixture
+def hypershift_cluster_builder(
+    gql_class_factory: Callable[..., ClusterV1],
+) -> Callable[..., ClusterV1]:
+    def builder(machine_pools: Iterable[dict]) -> ClusterV1:
+        return gql_class_factory(
+            ClusterV1,
+            {
+                "name": "hypershift-cluster",
+                "auth": [],
+                "ocm": {
+                    "name": "hypershift",
+                    "environment": {
+                        "accessTokenClientSecret": {},
+                    },
+                },
+                "spec": {
+                    "hypershift": True,
+                },
+                "machinePools": machine_pools,
+            },
+        )
+
+    return builder
+
+
+@pytest.fixture
+def default_hypershift_worker_machine_pool() -> dict:
+    return {
+        "id": "workers",
+        "instance_type": "m5.xlarge",
+        "replicas": 2,
+    }
+
+
+@pytest.fixture
+def hypershift_cluster(
+    hypershift_cluster_builder: Callable[..., ClusterV1],
+    default_hypershift_worker_machine_pool: dict,
+) -> ClusterV1:
+    return hypershift_cluster_builder([default_hypershift_worker_machine_pool])
 
 
 @pytest.fixture
@@ -673,6 +784,15 @@ def test_run_update_node_pool(
 
 
 @pytest.fixture
+def non_default_hypershift_node_pool() -> dict:
+    return {
+        "id": "new-workers",
+        "aws_node_pool": {"instance_type": "m5.xlarge"},
+        "replicas": 3,
+    }
+
+
+@pytest.fixture
 def existing_multiple_hypershift_node_pools() -> list[dict]:
     return [
         {
@@ -720,3 +840,57 @@ def test_run_delete_node_pool(
         hypershift_cluster.name,
         expected_hypershift_node_pool_delete_payload,
     )
+
+
+@pytest.fixture
+def non_default_hypershift_worker_machine_pool() -> dict:
+    return {
+        "id": "new-workers",
+        "instance_type": "m5.xlarge",
+        "replicas": 3,
+    }
+
+
+@pytest.fixture
+def hypershift_cluster_without_default_worker_machine_pools(
+    hypershift_cluster_builder: Callable[..., ClusterV1],
+    non_default_hypershift_worker_machine_pool: dict,
+) -> ClusterV1:
+    return hypershift_cluster_builder([non_default_hypershift_worker_machine_pool])
+
+
+@pytest.fixture
+def existing_multiple_hypershift_node_pools_with_defaults() -> list[dict]:
+    return [
+        {
+            "id": "workers",
+            "aws_node_pool": {"instance_type": "m5.xlarge"},
+            "replicas": 3,
+        },
+        {
+            "id": "workers-1",
+            "aws_node_pool": {"instance_type": "m5.xlarge"},
+            "replicas": 3,
+        },
+        {
+            "id": "new-workers",
+            "aws_node_pool": {"instance_type": "m5.xlarge"},
+            "replicas": 3,
+        },
+    ]
+
+
+def test_run_delete_node_pool_skip_workers_ones(
+    mocker: MockerFixture,
+    hypershift_cluster_without_default_worker_machine_pools: ClusterV1,
+    existing_multiple_hypershift_node_pools_with_defaults: list[dict],
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        clusters=[hypershift_cluster_without_default_worker_machine_pools],
+        node_pools=existing_multiple_hypershift_node_pools_with_defaults,
+    )
+
+    run(False)
+
+    mocks["OCM"].delete_node_pool.assert_not_called()

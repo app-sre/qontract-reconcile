@@ -65,6 +65,10 @@ class SaasApp(Protocol):
     def self_service_roles(self) -> Optional[Sequence[SaasRole]]:
         ...
 
+    @property
+    def service_owners(self) -> Optional[Sequence[SaasServiceOwner]]:
+        ...
+
 
 class SaasPipelinesProvider(Protocol):
     name: str
@@ -377,12 +381,24 @@ class SaasRole(Protocol):
     name: str
 
 
+class SaasServiceOwner(Protocol):
+    name: str
+    email: str
+
+
 SaasPipelinesProviders = Union[SaasPipelinesProviderTekton, SaasPipelinesProvider]
+
+
+@runtime_checkable
+class ManagedResourceName(Protocol):
+    resource: str
+    resource_names: list[str]
 
 
 class SaasFile(HasParameters, HasSecretParameters, Protocol):
     path: str
     name: str
+    labels: Optional[dict[str, Any]]
     managed_resource_types: list[str]
     takeover: Optional[bool]
     deprecated: Optional[bool]
@@ -421,4 +437,8 @@ class SaasFile(HasParameters, HasSecretParameters, Protocol):
 
     @property
     def self_service_roles(self) -> Optional[Sequence[SaasRole]]:
+        ...
+
+    @property
+    def managed_resource_names(self) -> Optional[Sequence[ManagedResourceName]]:
         ...

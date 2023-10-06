@@ -67,7 +67,8 @@ class QuayMirror:
         control_file_dir: Optional[str] = None,
         compare_tags: Optional[bool] = None,
         compare_tags_interval: int = 86400,
-        images: Optional[Iterable[str]] = None,
+        repository_urls: Optional[Iterable[str]] = None,
+        exclude_repository_urls: Optional[Iterable[str]] = None,
     ) -> None:
         self.dry_run = dry_run
         self.gqlapi = gql.get_api()
@@ -77,7 +78,8 @@ class QuayMirror:
         self.push_creds = self._get_push_creds()
         self.compare_tags = compare_tags
         self.compare_tags_interval = compare_tags_interval
-        self.images = images
+        self.repository_urls = repository_urls
+        self.exclude_repository_urls = exclude_repository_urls
 
         self.response_cache_hits = metrics.cache_hits.labels(
             integration=QONTRACT_INTEGRATION,
@@ -129,9 +131,17 @@ class QuayMirror:
 
     @classmethod
     def process_repos_query(
-        cls, images: Optional[Iterable[str]] = None
+        cls,
+        repository_urls: Optional[Iterable[str]] = None,
+        exclude_repository_urls: Optional[Iterable[str]] = None,
     ) -> defaultdict[OrgKey, list[dict[str, Any]]]:
         apps = queries.get_quay_repos()
+
+        if repository_urls:
+            repository_urls = set(repository_urls)
+
+        if exclude_repository_urls:
+            exclude_repository_urls = set(exclude_repository_urls)
 
         summary = defaultdict(list)
 
@@ -147,15 +157,21 @@ class QuayMirror:
                 server_url = quay_repo["org"]["instance"]["url"]
 
                 for item in quay_repo["items"]:
-                    if images and item["name"] not in images:
-                        continue
-
                     if item["mirror"] is None:
                         continue
 
-                    mirror_image = Image(
-                        item["mirror"]["url"], response_cache=cls.response_cache
-                    )
+                    mirror_url = item["mirror"]["url"]
+
+                    if repository_urls and mirror_url not in repository_urls:
+                        continue
+
+                    if (
+                        exclude_repository_urls
+                        and mirror_url in exclude_repository_urls
+                    ):
+                        continue
+
+                    mirror_image = Image(mirror_url, response_cache=cls.response_cache)
                     if mirror_image.registry == "docker.io" and item["public"]:
                         _LOG.error(
                             "Image %s can't be mirrored to a public "
@@ -197,7 +213,9 @@ class QuayMirror:
     def process_sync_tasks(self):
         if self.is_compare_tags:
             _LOG.warning("Making a compare-tags run. This is a slow operation.")
-        summary = self.process_repos_query(self.images)
+        summary = self.process_repos_query(
+            self.repository_urls, self.exclude_repository_urls
+        )
         sync_tasks = defaultdict(list)
         for org_key, data in summary.items():
             org = org_key.org_name
@@ -374,10 +392,16 @@ def run(
     control_file_dir: Optional[str],
     compare_tags: Optional[bool],
     compare_tags_interval: int,
-    images: Optional[Iterable[str]],
+    repository_urls: Optional[Iterable[str]],
+    exclude_repository_urls: Optional[Iterable[str]],
 ):
     quay_mirror = QuayMirror(
-        dry_run, control_file_dir, compare_tags, compare_tags_interval, images
+        dry_run,
+        control_file_dir,
+        compare_tags,
+        compare_tags_interval,
+        repository_urls,
+        exclude_repository_urls,
     )
     quay_mirror.run()
 

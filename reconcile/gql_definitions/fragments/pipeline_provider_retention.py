@@ -24,6 +24,6 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
-class ResourceRequirements(ConfiguredBaseModel):
-    cpu: str = Field(..., alias="cpu")
-    memory: str = Field(..., alias="memory")
+class PipelineProviderRetention(ConfiguredBaseModel):
+    days: Optional[int] = Field(..., alias="days")
+    minimum: Optional[int] = Field(..., alias="minimum")

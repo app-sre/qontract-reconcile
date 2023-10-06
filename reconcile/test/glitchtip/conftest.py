@@ -1,11 +1,13 @@
 from collections.abc import Callable
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.glitchtip import GlitchtipClient
+from reconcile.utils.internal_groups.client import InternalGroupsClient
 from reconcile.utils.oc import OCNative
 from reconcile.utils.oc_map import OCMap
 
@@ -109,3 +111,8 @@ def oc_map(mocker: MockerFixture, oc: OCNative) -> OCMap:
     oc_map = mocker.patch("reconcile.utils.oc_map.OCMap", autospec=True)
     oc_map.get_cluster.return_value = oc
     return oc_map
+
+
+@pytest.fixture
+def internal_groups_client(mocker: MockerFixture) -> Mock:
+    return mocker.create_autospec(spec=InternalGroupsClient)

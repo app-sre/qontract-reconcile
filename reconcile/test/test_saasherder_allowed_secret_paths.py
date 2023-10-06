@@ -40,6 +40,7 @@ def test_saasherder_allowed_secret_paths(
                 "path": "path1",
                 "name": "a1",
                 "managedResourceTypes": [],
+                "managedResourceNames": None,
                 "allowedSecretParameterPaths": [allowed_secret_parameter_path],
                 "app": {"name": "app1", "selfServiceRoles": [{"name": "test"}]},
                 "pipelinesProvider": {

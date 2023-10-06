@@ -24,7 +24,7 @@
               role: owner
           users:
             - org_username: GlobalFlightDirector
-              name: Global  Fligh t Director
+              name: Global  Flight Director
         - glitchtip_roles:
             - organization:
                 name: ESA
@@ -137,6 +137,18 @@
           users:
             - org_username: MichaelCollins
               name: Michael Collins
+    - name: externals
+      ldapGroups:
+        - from-emea
+      membersOrganizationRole: member
+      roles:
+        - glitchtip_roles:
+            - organization:
+                name: NASA
+              role: admin
+          users:
+            - org_username: uhura
+              name: uhura
   organization:
     name: NASA
     instance:

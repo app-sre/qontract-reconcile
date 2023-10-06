@@ -1,4 +1,10 @@
 import pytest
+from pytest_mock import MockerFixture
+from terrascript.resource import (
+    aws_s3_bucket,
+    aws_s3_bucket_notification,
+    aws_s3_bucket_policy,
+)
 
 import reconcile.utils.terrascript_aws_client as tsclient
 from reconcile.utils.aws_api import AmiTag
@@ -6,6 +12,145 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceUniqueKey,
 )
+
+
+@pytest.fixture
+def default_account():
+    return {
+        "automationToken": "token",
+        "name": "account1",
+        "providerVersion": "1.0.0",
+        "resourcesDefaultRegion": "us-east-1",
+        "supportedDeploymentRegions": ["us-east-1"],
+        "terraformState": {
+            "provider": "s3",
+            "bucket": "some-bucket",
+            "region": "us-east-1",
+            "integrations": [
+                {
+                    "integration": "a-integration",
+                    "key": "some-key",
+                }
+            ],
+        },
+        "uid": "12345",
+    }
+
+
+@pytest.fixture
+def expected_supported_region_aws_provider():
+    return {
+        "access_key": "some-key-id",
+        "secret_key": "some-secret-key",
+        "version": "1.0.0",
+        "region": "us-east-1",
+        "alias": "us-east-1",
+        "skip_region_validation": True,
+        "default_tags": {
+            "tags": {
+                "app": "app-sre-infra",
+            }
+        },
+    }
+
+
+@pytest.fixture
+def expected_default_region_aws_provider():
+    return {
+        "access_key": "some-key-id",
+        "secret_key": "some-secret-key",
+        "version": "1.0.0",
+        "region": "us-east-1",
+        "skip_region_validation": True,
+        "default_tags": {
+            "tags": {
+                "app": "app-sre-infra",
+            }
+        },
+    }
+
+
+def test_init_with_default_tags(
+    mocker,
+    default_account,
+    expected_supported_region_aws_provider,
+    expected_default_region_aws_provider,
+):
+    mocked_secret_reader = mocker.patch(
+        "reconcile.utils.terrascript_aws_client.SecretReader",
+        autospec=True,
+    )
+    mocked_secret_reader.return_value.read_all.return_value = {
+        "aws_access_key_id": "some-key-id",
+        "aws_secret_access_key": "some-secret-key",
+    }
+
+    ts = tsclient.TerrascriptClient(
+        "a_integration",
+        "prefix",
+        1,
+        [default_account],
+    )
+
+    assert ts.tss["account1"]["provider"]["aws"] == [
+        expected_supported_region_aws_provider,
+        expected_default_region_aws_provider,
+    ]
+
+
+@pytest.fixture
+def account_with_assume_role(default_account):
+    return {
+        **default_account,
+        "assume_role": "arn:aws:iam::12345:role/1",
+        "assume_region": "us-east-1",
+    }
+
+
+@pytest.fixture
+def expected_additional_aws_provider():
+    return {
+        "access_key": "some-key-id",
+        "alias": "account-12345-1",
+        "assume_role": {"role_arn": "arn:aws:iam::12345:role/1"},
+        "default_tags": {"tags": {"app": "app-sre-infra"}},
+        "region": "us-east-1",
+        "secret_key": "some-secret-key",
+        "skip_region_validation": True,
+        "version": "1.0.0",
+    }
+
+
+def test_populate_additional_providers(
+    mocker,
+    default_account,
+    account_with_assume_role,
+    expected_supported_region_aws_provider,
+    expected_default_region_aws_provider,
+    expected_additional_aws_provider,
+):
+    mocked_secret_reader = mocker.patch(
+        "reconcile.utils.terrascript_aws_client.SecretReader",
+        autospec=True,
+    )
+    mocked_secret_reader.return_value.read_all.return_value = {
+        "aws_access_key_id": "some-key-id",
+        "aws_secret_access_key": "some-secret-key",
+    }
+
+    ts = tsclient.TerrascriptClient(
+        "a_integration",
+        "prefix",
+        1,
+        [default_account],
+    )
+    ts.populate_additional_providers([account_with_assume_role])
+
+    assert ts.tss["account1"]["provider"]["aws"] == [
+        expected_supported_region_aws_provider,
+        expected_default_region_aws_provider,
+        expected_additional_aws_provider,
+    ]
 
 
 @pytest.fixture
@@ -275,3 +420,242 @@ def test_terraform_state_when_not_present_error(ts):
         )
     except ValueError:
         pass
+
+
+def build_s3_spec(
+    resource: dict,
+) -> ExternalResourceSpec:
+    provider = "aws"
+    provisioner = {"name": "a"}
+    namespace = {
+        "name": "n",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": provider,
+                "provisioner": provisioner,
+                "resources": [resource],
+            },
+        ],
+        "cluster": {"name": "c"},
+        "environment": {
+            "name": "e",
+        },
+        "app": {"name": "app"},
+    }
+    return ExternalResourceSpec(
+        provision_provider=provider,
+        provisioner=provisioner,
+        resource=resource,
+        namespace=namespace,
+    )
+
+
+@pytest.fixture
+def s3_default_spec() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "s3-bucket",
+        "provider": "s3",
+    }
+    return build_s3_spec(resource)
+
+
+@pytest.fixture
+def expected_s3_default_bucket() -> aws_s3_bucket:
+    return aws_s3_bucket(
+        "s3-bucket",
+        **{
+            "bucket": "s3-bucket",
+            "versioning": {"enabled": True},
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+            "lifecycle": {"ignore_changes": ["grant"]},
+            "server_side_encryption_configuration": {
+                "rule": {
+                    "apply_server_side_encryption_by_default": {
+                        "sse_algorithm": "AES256"
+                    }
+                }
+            },
+        },
+    )
+
+
+def test_populate_tf_resource_s3(
+    ts: tsclient.TerrascriptClient,
+    s3_default_spec: ExternalResourceSpec,
+    expected_s3_default_bucket: aws_s3_bucket,
+) -> None:
+    bucket_tf_resource = ts.populate_tf_resource_s3(s3_default_spec)
+
+    assert bucket_tf_resource == expected_s3_default_bucket
+
+
+@pytest.fixture
+def s3_spec_with_bucket_policy() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "s3-bucket",
+        "provider": "s3",
+        "bucket_policy": "some-bucket-policy",
+    }
+    return build_s3_spec(resource)
+
+
+@pytest.fixture
+def expected_s3_bucket_policy() -> aws_s3_bucket_policy:
+    return aws_s3_bucket_policy(
+        "s3-bucket",
+        **{
+            "bucket": "s3-bucket",
+            "policy": "some-bucket-policy",
+            "depends_on": ["aws_s3_bucket.s3-bucket"],
+        },
+    )
+
+
+def test_populate_tf_resource_s3_with_bucket_policy(
+    mocker: MockerFixture,
+    ts: tsclient.TerrascriptClient,
+    s3_spec_with_bucket_policy: ExternalResourceSpec,
+    expected_s3_default_bucket: aws_s3_bucket,
+    expected_s3_bucket_policy: aws_s3_bucket_policy,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+
+    bucket_tf_resource = ts.populate_tf_resource_s3(s3_spec_with_bucket_policy)
+
+    assert bucket_tf_resource == expected_s3_default_bucket
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+    assert expected_s3_bucket_policy in tf_resources
+
+
+@pytest.fixture
+def s3_spec_with_bucket_policy_and_region() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "s3-bucket",
+        "provider": "s3",
+        "bucket_policy": "some-bucket-policy",
+        "region": "us-west-2",
+    }
+    return build_s3_spec(resource)
+
+
+@pytest.fixture
+def expected_s3_bucket_with_region() -> aws_s3_bucket:
+    return aws_s3_bucket(
+        "s3-bucket",
+        **{
+            "bucket": "s3-bucket",
+            "versioning": {"enabled": True},
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+            "lifecycle": {"ignore_changes": ["grant"]},
+            "server_side_encryption_configuration": {
+                "rule": {
+                    "apply_server_side_encryption_by_default": {
+                        "sse_algorithm": "AES256"
+                    }
+                }
+            },
+            "provider": "aws.us-west-2",
+        },
+    )
+
+
+@pytest.fixture
+def expected_s3_bucket_policy_with_region() -> aws_s3_bucket_policy:
+    return aws_s3_bucket_policy(
+        "s3-bucket",
+        **{
+            "bucket": "s3-bucket",
+            "policy": "some-bucket-policy",
+            "depends_on": ["aws_s3_bucket.s3-bucket"],
+            "provider": "aws.us-west-2",
+        },
+    )
+
+
+def test_populate_tf_resource_s3_with_bucket_policy_and_different_region(
+    mocker: MockerFixture,
+    ts: tsclient.TerrascriptClient,
+    s3_spec_with_bucket_policy_and_region: ExternalResourceSpec,
+    expected_s3_bucket_with_region: aws_s3_bucket,
+    expected_s3_bucket_policy_with_region: aws_s3_bucket_policy,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(ts, "_multiregion_account", return_value=True)
+
+    bucket_tf_resource = ts.populate_tf_resource_s3(
+        s3_spec_with_bucket_policy_and_region
+    )
+
+    assert bucket_tf_resource == expected_s3_bucket_with_region
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+    assert expected_s3_bucket_policy_with_region in tf_resources
+
+
+@pytest.fixture()
+def s3_spec_with_event_notifications() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "s3-bucket",
+        "provider": "s3",
+        "event_notifications": [
+            {
+                "destination_type": "sqs",
+                "destination": "test-sqs",
+                "event_type": ["s3:ObjectCreated:*"],
+            }
+        ],
+        "region": "us-west-2",
+    }
+    return build_s3_spec(resource)
+
+
+@pytest.fixture()
+def expected_s3_bucket_notification() -> aws_s3_bucket_notification:
+    return aws_s3_bucket_notification(
+        "s3-bucket-event-notifications",
+        **{
+            "bucket": "${aws_s3_bucket.s3-bucket.id}",
+            "queue": [
+                {
+                    "id": "test-sqs",
+                    "queue_arn": "${data.aws_sqs_queue.test-sqs.arn}",
+                    "events": ["s3:ObjectCreated:*"],
+                }
+            ],
+        },
+    )
+
+
+def test_s3_bucket_event_notifications(
+    mocker: MockerFixture,
+    ts: tsclient.TerrascriptClient,
+    s3_spec_with_event_notifications: ExternalResourceSpec,
+    expected_s3_bucket_notification: aws_s3_bucket_notification,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(ts, "_multiregion_account", return_value=True)
+
+    ts.populate_tf_resource_s3(s3_spec_with_event_notifications)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+    assert expected_s3_bucket_notification in tf_resources

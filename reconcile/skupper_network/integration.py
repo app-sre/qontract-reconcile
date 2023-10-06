@@ -145,7 +145,7 @@ def fetch_current_state(
             ri.initialize_resource_type(
                 cluster=site.cluster.name,
                 namespace=site.namespace.name,
-                resource_type=openshift_resource.kind,
+                resource_type=openshift_resource.kind_and_group,
             )
             ri.add_current(
                 cluster=site.cluster.name,
@@ -169,18 +169,18 @@ def fetch_desired_state(
                 integration=QONTRACT_INTEGRATION,
                 integration_version=QONTRACT_INTEGRATION_VERSION,
             )
-            integration_managed_kinds.add(openshift_resource.kind)
+            integration_managed_kinds.add(openshift_resource.kind_and_group)
             # only add desired state if not deleting
             if not site.delete:
                 ri.initialize_resource_type(
                     cluster=site.cluster.name,
                     namespace=site.namespace.name,
-                    resource_type=openshift_resource.kind,
+                    resource_type=openshift_resource.kind_and_group,
                 )
                 ri.add_desired(
                     cluster=site.cluster.name,
                     namespace=site.namespace.name,
-                    resource_type=openshift_resource.kind,
+                    resource_type=openshift_resource.kind_and_group,
                     name=openshift_resource.name,
                     value=openshift_resource,
                 )

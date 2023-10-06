@@ -20,6 +20,9 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 from reconcile.gql_definitions.fragments.jumphost_common_fields import (
     CommonJumphostFields,
 )
+from reconcile.gql_definitions.fragments.pipeline_provider_retention import (
+    PipelineProviderRetention,
+)
 from reconcile.gql_definitions.fragments.resource_limits_requirements import (
     ResourceLimitsRequirements,
 )
@@ -39,6 +42,11 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   identity {
     ... VaultSecret
   }
+}
+
+fragment PipelineProviderRetention on PipelinesProviderRetention_v1 {
+    days
+    minimum
 }
 
 fragment ResourceLimitsRequirements on ResourceLimitsRequirements_v1 {
@@ -65,8 +73,7 @@ query PipelineProviders {
     ...on PipelinesProviderTekton_v1 {
       defaults {
         retention {
-          days
-          minimum
+          ... PipelineProviderRetention
         }
         taskTemplates {
           ...on PipelinesProviderTektonObjectTemplate_v1 {
@@ -116,8 +123,7 @@ query PipelineProviders {
         }
       }
       retention {
-        days
-        minimum
+        ... PipelineProviderRetention
       }
       taskTemplates {
         ...on PipelinesProviderTektonObjectTemplate_v1 {
@@ -160,11 +166,6 @@ class PipelinesProviderV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
 
 
-class PipelinesProviderRetentionV1(ConfiguredBaseModel):
-    days: Optional[int] = Field(..., alias="days")
-    minimum: Optional[int] = Field(..., alias="minimum")
-
-
 class PipelinesProviderTektonObjectTemplateV1(ConfiguredBaseModel):
     ...
 
@@ -199,7 +200,7 @@ class DeployResourcesV1(ConfiguredBaseModel):
 
 
 class PipelinesProviderTektonProviderDefaultsV1(ConfiguredBaseModel):
-    retention: PipelinesProviderRetentionV1 = Field(..., alias="retention")
+    retention: PipelineProviderRetention = Field(..., alias="retention")
     task_templates: list[
         Union[
             PipelinesProviderTektonObjectTemplateV1_PipelinesProviderTektonObjectTemplateV1,
@@ -233,11 +234,6 @@ class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     cluster: ClusterV1 = Field(..., alias="cluster")
-
-
-class PipelinesProviderTektonV1_PipelinesProviderRetentionV1(ConfiguredBaseModel):
-    days: Optional[int] = Field(..., alias="days")
-    minimum: Optional[int] = Field(..., alias="minimum")
 
 
 class PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1(
@@ -280,9 +276,7 @@ class PipelinesProviderTektonV1_DeployResourcesV1(ConfiguredBaseModel):
 class PipelinesProviderTektonV1(PipelinesProviderV1):
     defaults: PipelinesProviderTektonProviderDefaultsV1 = Field(..., alias="defaults")
     namespace: NamespaceV1 = Field(..., alias="namespace")
-    retention: Optional[PipelinesProviderTektonV1_PipelinesProviderRetentionV1] = Field(
-        ..., alias="retention"
-    )
+    retention: Optional[PipelineProviderRetention] = Field(..., alias="retention")
     task_templates: Optional[
         list[
             Union[

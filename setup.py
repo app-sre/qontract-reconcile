@@ -56,11 +56,12 @@ setup(
         "pydantic~=1.10.6",
         "MarkupSafe==2.1.1",
         "filetype~=1.2.0",
+        "psycopg2~=2.9",
         # this is really needed only in lint and type validations.
         # Is there any better place to put this in?
         "packaging~=23.1",
         "deepdiff==6.4.1",
-        "jsonpath-ng~=1.5",
+        "jsonpath-ng==1.5.3",
         "networkx~=2.8",
         "mypy-boto3-s3~=1.24.94",
         "rich>=13.3.0,<14.0.0",
@@ -69,6 +70,7 @@ setup(
         "requests-oauthlib~=1.3",
         "dt==1.1.61",
         "jsonpatch~=1.33",
+        "jsonpointer~=2.4",
     ],
     test_suite="tests",
     classifiers=[

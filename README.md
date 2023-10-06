@@ -32,6 +32,7 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   Assets (CNA).
   dashdotdb-cso                   Collects the ImageManifestVuln CRs from all
                                   the clusters and posts them to Dashdotdb.
+  dashdotdb-dora                  Collects dora metrics.
   dashdotdb-dvo                   Collects the DeploymentValidations from all
                                   the clusters and posts them to Dashdotdb.
   dashdotdb-slo                   Collects the ServiceSloMetrics from all the
@@ -230,6 +231,18 @@ source venv/bin/activate
 pip install --upgrade pip setuptools
 ```
 
+Install build prerequisites for [psycopg2](https://www.psycopg.org/docs/install.html#build-prerequisites):
+
+* A C compiler
+* The Python header files. They are usually installed in a package such as `python-dev` or `python3-dev`.
+* `libpq` and `pg_config`
+  * The `libpq` header files. They are usually installed in a package such as `libpq-dev`.
+  * The `pg_config` program: it is usually installed by the `libpq-dev` package but sometimes it is not in a `PATH` directory.
+  * On macOS, can be installed via `brew install libpq`. Make sure the installation path is added to your PATH, otherwise `pg_config` will not be available.
+  
+Note:
+In macOS with M1/M2 `pip` will fail to install in a virtualenvironment unless LDFLAGS reference the openssl library path. It can be fixed with `export LDFLAGS="-I/opt/homebrew/opt/openssl/include -L/opt/homebrew/opt/openssl/lib"`.
+
 Install the package:
 
 ```sh
@@ -245,7 +258,20 @@ pip install -r ./requirements/requirements-dev.txt
 ```
 
 If the commands above don't work maybe you need to install the `python-devel` and `gcc-c++` packages.
-You may also need need to first [install a rust compiler](https://www.rust-lang.org/tools/install) ([Mac OS directions](https://sourabhbajaj.com/mac-setup/Rust/)) and then run `python3 -m pip install --upgrade pip setuptools_rust`.
+You may also need to first [install a rust compiler](https://www.rust-lang.org/tools/install) ([Mac OS directions](https://sourabhbajaj.com/mac-setup/Rust/)) and then run `python3 -m pip install --upgrade pip setuptools_rust`.
+
+Install runtime requirements:
+
+Versions can be found in [qontract-reconcile-base Dockerfile](https://github.com/app-sre/container-images/blob/master/qontract-reconcile-base/Dockerfile).
+
+* amtool
+* git-secrets
+* helm
+* kubectl
+* oc
+* promtool
+* skopeo
+* terraform
 
 ### Requirements
 

@@ -24,7 +24,9 @@ from reconcile.gql_definitions.fragments.aus_organization import (
     OpenShiftClusterManagerSectorV1,
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1,
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1,
-    OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1,
+)
+from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
+    MinimalOCMOrganization,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.upgrade_policy import (
@@ -47,6 +49,7 @@ from reconcile.utils.ocm.clusters import (
     discover_clusters_by_labels,
 )
 from reconcile.utils.ocm.labels import (
+    get_org_labels,
     get_organization_labels,
     subscription_label_filter,
 )
@@ -211,15 +214,14 @@ def _get_org_labels(
     """
     Fetch all AUS OCM org labels from organizations. They hold config
     parameters like blocked versions etc.
+
+    The result is a dict with organization IDs as keys and label containers as values.
     """
-    filter = Filter().like("key", aus_label_key("%")).is_in("organization_id", org_ids)
-    labels_by_org: dict[str, list[OCMOrganizationLabel]] = defaultdict(list)
-    for label in get_organization_labels(ocm_api, filter):
-        labels_by_org[label.organization_id].append(label)
-    return {
-        org_id: build_label_container(labels)
-        for org_id, labels in labels_by_org.items()
-    }
+    return get_org_labels(
+        ocm_api=ocm_api,
+        org_ids=org_ids or set(),
+        label_filter=Filter().like("key", aus_label_key("%")),
+    )
 
 
 def _build_org_upgrade_specs_for_ocm_env(
@@ -245,7 +247,7 @@ def _build_org_upgrade_specs_for_ocm_env(
     }
 
 
-def aus_label_key(config_atom: str) -> str:
+def aus_label_key(config_atom: Optional[str] = None) -> str:
     """
     Generates label keys for aus, compliant with the naming schema defined in
     https://service.pages.redhat.com/dev-guidelines/docs/sre-capabilities/framework/ocm-labels/
@@ -315,9 +317,7 @@ def _build_org_upgrade_spec(
                     name=source_org_ref.env_name
                 ),
                 publishVersionData=[
-                    OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(
-                        orgId=org.id
-                    )
+                    MinimalOCMOrganization(orgId=org.id, name=org.name)
                 ],
             )
             for source_org_ref in version_data_inheritance.inherit_from_orgs
@@ -337,6 +337,7 @@ def _build_org_upgrade_spec(
             accessTokenUrl=None,
             addonUpgradeTests=None,
             inheritVersionData=inherit_version_data,
+            publishVersionData=None,
             upgradePolicyAllowedWorkloads=None,
             upgradePolicyClusters=None,
         )
@@ -389,6 +390,42 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     sector: Optional[str] = Field(alias=aus_label_key("sector"))
     blocked_versions: Optional[CSV] = Field(alias=aus_label_key("blocked-versions"))
     _schedule_validator = validator("schedule", allow_reuse=True)(cron_validator)
+
+    def build_labels_dict(self) -> dict[str, str]:
+        """
+        Build a dictionary of all labels in this labelset.
+        """
+        labels = {}
+        for k, v in self.dict(by_alias=True).items():
+            if v is None:
+                continue
+            if isinstance(v, list):
+                labels[k] = ",".join(sorted(v))
+            else:
+                labels[k] = str(v)
+        return labels
+
+
+def build_cluster_upgrade_policy_label_set(
+    workloads: list[str],
+    schedule: str,
+    soak_days: int,
+    mutexes: Optional[list[str]] = None,
+    sector: Optional[str] = None,
+    blocked_versions: Optional[list[str]] = None,
+) -> ClusterUpgradePolicyLabelSet:
+    return ClusterUpgradePolicyLabelSet(
+        **{
+            aus_label_key("workloads"): ",".join(workloads),
+            aus_label_key("schedule"): schedule,
+            aus_label_key("soak-days"): soak_days,
+            aus_label_key("mutexes"): ",".join(mutexes) if mutexes else None,
+            aus_label_key("sector"): sector,
+            aus_label_key("blocked-versions"): ",".join(blocked_versions)
+            if blocked_versions
+            else None,
+        }
+    )
 
 
 def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicyV1:
@@ -548,6 +585,7 @@ def _signal_validation_issues_for_org(
                     description=org_error_msg,
                     service_name=QONTRACT_INTEGRATION,
                 ),
+                dedup_interval=timedelta(days=1),
             )
 
 

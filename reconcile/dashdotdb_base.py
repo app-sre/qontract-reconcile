@@ -52,6 +52,7 @@ class DashdotdbBase:
         self.dashdotdb_pass = self.secret_content["password"]
         self.logmarker = marker
         self.scope = scope
+        self.dashdotdb_token = Optional[str]
 
     def _get_token(self) -> None:
         if self.dry_run:
@@ -105,10 +106,26 @@ class DashdotdbBase:
         data: Mapping[Any, Any],
         timeout: tuple[int, int] = (5, 120),
     ) -> requests.Response:
+        headers: dict[str, str] = {}
+        if self.dashdotdb_token:
+            headers["X-Auth"] = str(self.dashdotdb_token)
         return requests.post(
             url=endpoint,
             json=data,
-            headers={"X-Auth": self.dashdotdb_token},
+            headers=headers,
+            auth=(self.dashdotdb_user, self.dashdotdb_pass),
+            timeout=timeout,
+        )
+
+    def _do_get(
+        self,
+        endpoint: str,
+        params: Mapping[Any, Any],
+        timeout: tuple[int, int] = (5, 120),
+    ) -> requests.Response:
+        return requests.get(
+            url=endpoint,
+            params=params,
             auth=(self.dashdotdb_user, self.dashdotdb_pass),
             timeout=timeout,
         )

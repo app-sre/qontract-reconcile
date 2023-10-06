@@ -40,6 +40,7 @@ from reconcile.utils.mr.labels import (
     HOLD,
     NOT_SELF_SERVICEABLE,
     SELF_SERVICEABLE,
+    change_owner_label,
     prioritized_approval_label,
 )
 from reconcile.utils.output import format_table
@@ -94,7 +95,7 @@ def manage_conditional_label(
     current_labels: list[str],
     conditional_labels: dict[str, bool],
     dry_run: bool = True,
-) -> list[str]:
+) -> set[str]:
     new_labels = current_labels.copy()
     for label, condition in conditional_labels.items():
         if condition and label not in new_labels:
@@ -105,7 +106,7 @@ def manage_conditional_label(
             logging.info(f"removing label {label}")
             if not dry_run:
                 new_labels.remove(label)
-    return new_labels
+    return set(new_labels)
 
 
 def write_coverage_report_to_mr(
@@ -377,6 +378,17 @@ def run(
                 conditional_labels=conditional_labels,
                 dry_run=False,
             )
+
+            # change-owner labels
+            labels = {
+                co_label
+                for co_label in labels
+                if not co_label.startswith("change-owner/")
+            }
+            for bc in changes:
+                for label in bc.change_owner_labels:
+                    labels.add(change_owner_label(label))
+
             if mr_management_enabled:
                 gl.set_labels_on_merge_request(merge_request, labels)
             else:
