@@ -112,7 +112,7 @@ def test_calculate_diff_create_cluster_upgrade_no_gate(
                 cluster=cluster,
                 version="4.12.19",
                 schedule_type="manual",
-                next_run="2021-08-30T18:06:00Z",
+                next_run="2021-08-30T18:07:00Z",
             ),
             gates_to_agree=[],
         )
@@ -152,7 +152,7 @@ def test_calculate_diff_create_control_plane_upgrade_no_gate(
                 cluster=cluster,
                 version="4.12.19",
                 schedule_type="manual",
-                next_run="2021-08-30T18:06:00Z",
+                next_run="2021-08-30T18:07:00Z",
             ),
             gates_to_agree=[],
         )
