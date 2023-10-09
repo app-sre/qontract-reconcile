@@ -880,8 +880,6 @@ class TestConfigHashPromotionsValidation(TestCase):
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
             SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
-        self.all_saas_files = [self.saas_file]
-
         self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
         self.state_mock = self.state_patcher.start().return_value
 
@@ -910,6 +908,7 @@ class TestConfigHashPromotionsValidation(TestCase):
             integration_version="",
             hash_length=24,
             repo_url="https://repo-url.com",
+            all_saas_files=[self.saas_file],
         )
 
         # IMPORTANT: Populating desired state modify self.saas_files within
@@ -1008,10 +1007,8 @@ class TestConfigHashTrigger(TestCase):
 
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
-        self.all_saas_files = [self.saas_file]
-
         self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
         self.state_mock = self.state_patcher.start().return_value
 
@@ -1035,6 +1032,7 @@ class TestConfigHashTrigger(TestCase):
             integration_version="",
             hash_length=24,
             repo_url="https://repo-url.com",
+            all_saas_files=[self.saas_file],
         )
 
     def tearDown(self) -> None:

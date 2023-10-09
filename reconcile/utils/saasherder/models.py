@@ -166,6 +166,11 @@ class PromotionData(BaseModel):
     data: Optional[list[Union[ParentSaasPromotion, PromotionChannelData]]] = None
 
 
+class Channel(BaseModel):
+    name: str
+    publisher_uids: list[str]
+
+
 class Promotion(BaseModel):
     """Implementation of the SaasPromotion interface for saasherder and AutoPromoter."""
 
@@ -175,7 +180,7 @@ class Promotion(BaseModel):
     saas_target_uid: str
     auto: Optional[bool] = None
     publish: Optional[list[str]] = None
-    subscribe: Optional[list[str]] = None
+    subscribe: Optional[list[Channel]] = None
     promotion_data: Optional[list[PromotionData]] = None
     saas_file_paths: Optional[list[str]] = None
     target_paths: Optional[list[str]] = None
