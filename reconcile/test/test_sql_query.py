@@ -8,6 +8,7 @@ import reconcile.sql_query as intg
 from reconcile.gql_definitions.common.smtp_client_settings import SmtpSettingsV1
 from reconcile.sql_query import split_long_query
 from reconcile.utils.oc import OCCli
+from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.state import State
 
 
@@ -124,7 +125,7 @@ def setup_mocks(
     mocked_oc_client = create_autospec(OCCli)
     mocked_oc_client.get_items.side_effect = lambda kind, **_: [
         {"kind": kind, "metadata": {"name": name}}
-        for name in current_items.get(kind, [])
+        for name in (current_items or {}).get(kind, [])
     ]
     mocked_oc_map.return_value.__enter__.return_value.get_cluster.return_value = (
         mocked_oc_client
@@ -138,6 +139,20 @@ def setup_mocks(
         "mocked_state": mocked_state,
         "mocked_ob": mocked_ob,
     }
+
+
+def _verify_publish_metrics(
+    ri: ResourceInventory,
+    integration: str,
+    expected_metrics: dict[tuple[str, str, str, str], int],
+) -> None:
+    assert integration == "sql-query"
+    metrics = {
+        (cluster, namespace, kind, state): len(data[state])
+        for cluster, namespace, kind, data in ri
+        for state in ("current", "desired")
+    }
+    assert expected_metrics == metrics
 
 
 def test_run_with_new_sql_query(
@@ -160,8 +175,24 @@ def test_run_with_new_sql_query(
     assert mocks["mocked_ob"].apply.call_count == 4
     mocks["mocked_ob"].delete.assert_not_called()
 
+    mocks["mocked_ob"].publish_metrics.assert_called_once()
+    ri, integration = mocks["mocked_ob"].publish_metrics.call_args[0]
+    expected_metrics = {
+        ("some-cluster", "some-namespace", "ConfigMap", "current"): 0,
+        ("some-cluster", "some-namespace", "ConfigMap", "desired"): 2,
+        ("some-cluster", "some-namespace", "ServiceAccount", "current"): 0,
+        ("some-cluster", "some-namespace", "ServiceAccount", "desired"): 1,
+        ("some-cluster", "some-namespace", "Job", "current"): 0,
+        ("some-cluster", "some-namespace", "Job", "desired"): 1,
+        ("some-cluster", "some-namespace", "CronJob", "current"): 0,
+        ("some-cluster", "some-namespace", "CronJob", "desired"): 0,
+        ("some-cluster", "some-namespace", "Secret", "current"): 0,
+        ("some-cluster", "some-namespace", "Secret", "desired"): 0,
+    }
+    _verify_publish_metrics(ri, integration, expected_metrics)
 
-def test_run_with_done_sql_query(
+
+def test_run_with_deleted_sql_query(
     mocker: MockFixture,
     smtp_settings: SmtpSettingsV1,
     smtp_server_connection_info: dict,
@@ -180,6 +211,22 @@ def test_run_with_done_sql_query(
     mocks["mocked_ob"].apply.assert_not_called()
     mocks["mocked_ob"].delete.assert_not_called()
 
+    mocks["mocked_ob"].publish_metrics.assert_called_once()
+    ri, integration = mocks["mocked_ob"].publish_metrics.call_args[0]
+    expected_metrics = {
+        ("some-cluster", "some-namespace", "ConfigMap", "current"): 0,
+        ("some-cluster", "some-namespace", "ConfigMap", "desired"): 0,
+        ("some-cluster", "some-namespace", "ServiceAccount", "current"): 0,
+        ("some-cluster", "some-namespace", "ServiceAccount", "desired"): 0,
+        ("some-cluster", "some-namespace", "Job", "current"): 0,
+        ("some-cluster", "some-namespace", "Job", "desired"): 0,
+        ("some-cluster", "some-namespace", "CronJob", "current"): 0,
+        ("some-cluster", "some-namespace", "CronJob", "desired"): 0,
+        ("some-cluster", "some-namespace", "Secret", "current"): 0,
+        ("some-cluster", "some-namespace", "Secret", "desired"): 0,
+    }
+    _verify_publish_metrics(ri, integration, expected_metrics)
+
 
 @pytest.fixture
 def current_items() -> dict[str, list[str]]:
@@ -190,7 +237,7 @@ def current_items() -> dict[str, list[str]]:
     }
 
 
-def test_run_with_sql_query_need_cleanup(
+def test_run_with_pending_deletion_sql_query(
     mocker: MockFixture,
     smtp_settings: SmtpSettingsV1,
     smtp_server_connection_info: dict,
@@ -203,7 +250,7 @@ def test_run_with_sql_query_need_cleanup(
         smtp_server_connection_info=smtp_server_connection_info,
         sql_query=sql_query,
         state={"some-query": 0},
-        time=6048000.0,
+        time=604800.0,
         current_items=current_items,
     )
 
@@ -213,3 +260,57 @@ def test_run_with_sql_query_need_cleanup(
     mocks["mocked_ob"].delete.assert_called()
     assert mocks["mocked_ob"].delete.call_count == 4
     mocks["mocked_state"].__setitem__.assert_called_once_with("some-query", "DONE")
+
+    mocks["mocked_ob"].publish_metrics.assert_called_once()
+    ri, integration = mocks["mocked_ob"].publish_metrics.call_args[0]
+    expected_metrics = {
+        ("some-cluster", "some-namespace", "ConfigMap", "current"): 2,
+        ("some-cluster", "some-namespace", "ConfigMap", "desired"): 0,
+        ("some-cluster", "some-namespace", "ServiceAccount", "current"): 1,
+        ("some-cluster", "some-namespace", "ServiceAccount", "desired"): 0,
+        ("some-cluster", "some-namespace", "Job", "current"): 1,
+        ("some-cluster", "some-namespace", "Job", "desired"): 0,
+        ("some-cluster", "some-namespace", "CronJob", "current"): 0,
+        ("some-cluster", "some-namespace", "CronJob", "desired"): 0,
+        ("some-cluster", "some-namespace", "Secret", "current"): 0,
+        ("some-cluster", "some-namespace", "Secret", "desired"): 0,
+    }
+    _verify_publish_metrics(ri, integration, expected_metrics)
+
+
+def test_run_with_active_sql_query(
+    mocker: MockFixture,
+    smtp_settings: SmtpSettingsV1,
+    smtp_server_connection_info: dict,
+    sql_query: dict,
+    current_items: dict[str, list[str]],
+) -> None:
+    mocks = setup_mocks(
+        mocker=mocker,
+        smtp_settings=smtp_settings,
+        smtp_server_connection_info=smtp_server_connection_info,
+        sql_query=sql_query,
+        state={"some-query": 0},
+        time=604800.0 - 1,
+    )
+
+    intg.run(False, enable_deletion=True)
+
+    mocks["mocked_ob"].apply.assert_not_called()
+    mocks["mocked_ob"].delete.assert_not_called()
+
+    mocks["mocked_ob"].publish_metrics.assert_called_once()
+    ri, integration = mocks["mocked_ob"].publish_metrics.call_args[0]
+    expected_metrics = {
+        ("some-cluster", "some-namespace", "ConfigMap", "current"): 2,
+        ("some-cluster", "some-namespace", "ConfigMap", "desired"): 2,
+        ("some-cluster", "some-namespace", "ServiceAccount", "current"): 1,
+        ("some-cluster", "some-namespace", "ServiceAccount", "desired"): 1,
+        ("some-cluster", "some-namespace", "Job", "current"): 1,
+        ("some-cluster", "some-namespace", "Job", "desired"): 1,
+        ("some-cluster", "some-namespace", "CronJob", "current"): 0,
+        ("some-cluster", "some-namespace", "CronJob", "desired"): 0,
+        ("some-cluster", "some-namespace", "Secret", "current"): 0,
+        ("some-cluster", "some-namespace", "Secret", "desired"): 0,
+    }
+    _verify_publish_metrics(ri, integration, expected_metrics)
