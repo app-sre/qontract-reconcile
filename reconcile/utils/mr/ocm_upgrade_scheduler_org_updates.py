@@ -1,5 +1,6 @@
 from ruamel import yaml
 
+from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
 
@@ -22,13 +23,13 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
     def description(self) -> str:
         return f'ocm upgrade scheduler org updates for {self.updates_info["name"]}'
 
-    def process(self, gitlab_cli):
+    def process(self, gitlab_cli: GitLabApi) -> None:
         changes = False
         ocm_path = self.updates_info["path"]
         ocm_name = self.updates_info["name"]
 
         raw_file = gitlab_cli.project.files.get(
-            file_path=ocm_path, ref=self.main_branch
+            file_path=ocm_path, ref=gitlab_cli.main_branch
         )
         content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
         upgrade_policy_clusters = content["upgradePolicyClusters"]

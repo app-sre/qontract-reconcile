@@ -38,7 +38,7 @@ class UnknownMergeRequestType(Exception):
     """
 
 
-def init_from_sqs_message(message):
+def init_from_sqs_message(message) -> MergeRequestBase:
     # First, let's find the classes that are inheriting from
     # MergeRequestBase and create a map where the class.name is
     # the key and the class itself is the value.

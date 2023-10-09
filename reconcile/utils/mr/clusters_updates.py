@@ -3,6 +3,7 @@ from io import StringIO
 from ruamel.yaml import YAML
 
 from reconcile.change_owners.decision import DecisionCommand
+from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 
 yaml = YAML()
@@ -27,7 +28,7 @@ class CreateClustersUpdates(MergeRequestBase):
     def description(self) -> str:
         return DecisionCommand.APPROVED.value
 
-    def process(self, gitlab_cli):
+    def process(self, gitlab_cli: GitLabApi):
         changes = False
         for cluster_name, cluster_updates in self.clusters_updates.items():
             if not cluster_updates:
@@ -35,7 +36,7 @@ class CreateClustersUpdates(MergeRequestBase):
 
             cluster_path = cluster_updates.pop("path")
             raw_file = gitlab_cli.project.files.get(
-                file_path=cluster_path, ref=self.main_branch
+                file_path=cluster_path, ref=gitlab_cli.main_branch
             )
             content = yaml.load(raw_file.decode())
             if "spec" not in content:

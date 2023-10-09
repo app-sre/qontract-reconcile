@@ -3,6 +3,7 @@ from pathlib import Path
 
 from ruamel.yaml.scalarstring import PreservedScalarString as pss
 
+from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import (
     MergeRequestBase,
     app_interface_email,
@@ -34,7 +35,7 @@ class CreateAppInterfaceReporter(MergeRequestBase):
     def description(self) -> str:
         return f"reports for {self.isodate}"
 
-    def process(self, gitlab_cli):
+    def process(self, gitlab_cli: GitLabApi) -> None:
         actions = [
             {
                 "action": "create",

@@ -5,6 +5,7 @@ from ruamel import yaml
 from ruamel.yaml.scalarstring import PreservedScalarString as pss
 
 from reconcile.utils.constants import PROJ_ROOT
+from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import (
     MergeRequestBase,
     app_interface_email,
@@ -34,10 +35,10 @@ class CreateDeleteAwsAccessKey(MergeRequestBase):
     def description(self) -> str:
         return f"delete {self.account} access key {self.key}"
 
-    def process(self, gitlab_cli):
+    def process(self, gitlab_cli: GitLabApi) -> None:
         # add key to deleteKeys list to be picked up by aws-iam-keys
         raw_file = gitlab_cli.project.files.get(
-            file_path=self.path, ref=self.main_branch
+            file_path=self.path, ref=gitlab_cli.main_branch
         )
         content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
 

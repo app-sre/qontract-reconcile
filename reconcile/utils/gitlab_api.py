@@ -100,6 +100,22 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             self.project = self.gl.projects.get(project_id)
         self.saas_files = saas_files
+        self._main_branch = None
+
+    @property
+    def main_branch(self) -> str:
+        if self._main_branch is None:
+            self._main_branch = self._determine_main_branch()
+        return self._main_branch or "master"
+
+    def _determine_main_branch(self) -> Optional[str]:
+        if self.project:
+            main_branch_obj = next(
+                (b for b in self.project.branches.list() if b.default), None
+            )
+            if main_branch_obj:
+                return main_branch_obj.name
+        return None
 
     def __enter__(self):
         return self

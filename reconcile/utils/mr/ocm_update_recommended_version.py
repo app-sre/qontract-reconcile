@@ -29,7 +29,7 @@ class CreateOCMUpdateRecommendedVersion(MergeRequestBase):
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         raw_file = gitlab_cli.project.files.get(
-            file_path=self.path, ref=self.main_branch
+            file_path=self.path, ref=gitlab_cli.main_branch
         )
         content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
 
