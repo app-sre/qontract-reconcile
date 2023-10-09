@@ -295,7 +295,7 @@ def run(
     if sast:
         saas_file = saas_files[0]
         owners = saas_file.app.service_owners or []
-        emails = ",".join([o.email for o in owners])
+        emails = " ".join([o.email for o in owners])
         file, url = saasherder.get_archive_info(saas_file, trigger_reason)
         sast_file = os.path.join(io_dir, "sast")
         with open(sast_file, "w") as f:
