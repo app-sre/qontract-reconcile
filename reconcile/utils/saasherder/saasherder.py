@@ -142,7 +142,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.include_trigger_trace = include_trigger_trace
         self.state = state
         self._promotion_state = PromotionState(state=state) if state else None
-        self._all_saas_files = all_saas_files
+        self._channel_map = self._assemble_channels(saas_files=all_saas_files)
 
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -1039,7 +1039,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
         target_promotion = None
         if target.promotion:
-            channels = self._assemble_channels(channel_names=target.promotion.subscribe)
+            channels = [
+                self._channel_map[sub] for sub in target.promotion.subscribe or []
+            ]
             target_promotion = Promotion(
                 auto=target.promotion.auto,
                 publish=target.promotion.publish,
@@ -1056,24 +1058,19 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return resources, html_url, target_promotion
 
     def _assemble_channels(
-        self, channel_names: Optional[Iterable[str]]
-    ) -> list[Channel]:
+        self, saas_files: Optional[Iterable[SaasFile]]
+    ) -> dict[str, Channel]:
         """
         We need to assemble all publisher_uids that are publishing to a channel.
         These uids are required to validate correctness of promotions.
         """
-        channel_names_set = set(channel_names or [])
         channel_map: dict[str, Channel] = {}
-        if not self._all_saas_files:
-            raise RuntimeError("Must set self._all_saas_files at saasherder init")
-        for saas_file in self._all_saas_files:
+        for saas_file in saas_files or []:
             for tmpl in saas_file.resource_templates:
                 for target in tmpl.targets:
                     if not target.promotion:
                         continue
                     for publish in target.promotion.publish or []:
-                        if publish not in channel_names_set:
-                            continue
                         publisher_uid = target.uid(
                             parent_saas_file_name=saas_file.name,
                             parent_resource_template_name=tmpl.name,
@@ -1084,7 +1081,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                                 publisher_uids=[],
                             )
                         channel_map[publish].publisher_uids.append(publisher_uid)
-        return list(channel_map.values())
+        return channel_map
 
     @staticmethod
     def _collect_images(resource: Resource) -> set[str]:
