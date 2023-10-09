@@ -242,6 +242,9 @@ class OCMLabel(BaseModel):
     See subclasses.
     """
 
+    def __repr__(self) -> str:
+        return f"{self.key}={self.value}"
+
 
 class OCMOrganizationLabel(OCMLabel):
     """

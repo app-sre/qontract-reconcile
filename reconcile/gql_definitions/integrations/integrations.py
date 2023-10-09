@@ -21,6 +21,9 @@ from reconcile.gql_definitions.fragments.jumphost_common_fields import (
     CommonJumphostFields,
 )
 from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
+    MinimalOCMOrganization,
+)
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -45,6 +48,11 @@ fragment DeployResourcesFields on DeployResources_v1 {
     cpu
     memory
   }
+}
+
+fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {
+  name
+  orgId
 }
 
 fragment VaultSecret on VaultSecret_v1 {
@@ -123,20 +131,34 @@ query Integrations {
 
         ... on OpenshiftClusterSharding_v1 {
             shardSpecOverrides {
-                shard {
-                    name
+              shard {
+                  name
+              }
+              imageRef
+              disabled
+              resources {
+                ... DeployResourcesFields
+              }
+              subSharding {
+                strategy
+                ... on StaticSubSharding_v1 {
+                  shards
                 }
-                imageRef
-                disabled
-                resources {
-                  ... DeployResourcesFields
-                }
-                subSharding {
-                  strategy
-                  ... on StaticSubSharding_v1 {
-                    shards
-                  }
-                }
+              }
+            }
+        }
+
+
+        ... on OCMOrganizationSharding_v1 {
+            shardSpecOverrides {
+              shard {
+                  ... MinimalOCMOrganization
+              }
+              imageRef
+              disabled
+              resources {
+                ... DeployResourcesFields
+              }
             }
         }
 
@@ -281,6 +303,19 @@ class OpenshiftClusterShardingV1(IntegrationShardingV1):
     )
 
 
+class OCMOrganizationShardSpecOverrideV1(ConfiguredBaseModel):
+    shard: MinimalOCMOrganization = Field(..., alias="shard")
+    image_ref: Optional[str] = Field(..., alias="imageRef")
+    disabled: Optional[bool] = Field(..., alias="disabled")
+    resources: Optional[DeployResourcesFields] = Field(..., alias="resources")
+
+
+class OCMOrganizationShardingV1(IntegrationShardingV1):
+    shard_spec_overrides: Optional[list[OCMOrganizationShardSpecOverrideV1]] = Field(
+        ..., alias="shardSpecOverrides"
+    )
+
+
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
@@ -328,6 +363,7 @@ class IntegrationManagedV1(ConfiguredBaseModel):
         Union[
             StaticShardingV1,
             OpenshiftClusterShardingV1,
+            OCMOrganizationShardingV1,
             AWSAccountShardingV1,
             CloudflareDNSZoneShardingV1,
             IntegrationShardingV1,

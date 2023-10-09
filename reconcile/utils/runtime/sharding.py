@@ -10,6 +10,9 @@ from typing import (
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
+from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
+    MinimalOCMOrganization,
+)
 from reconcile.gql_definitions.integrations.integrations import (
     AWSAccountShardingV1,
     AWSAccountShardSpecOverrideV1,
@@ -18,6 +21,8 @@ from reconcile.gql_definitions.integrations.integrations import (
     IntegrationManagedV1,
     IntegrationShardingV1,
     IntegrationSpecV1,
+    OCMOrganizationShardingV1,
+    OCMOrganizationShardSpecOverrideV1,
     OpenshiftClusterShardingV1,
     OpenshiftClusterShardSpecOverrideV1,
     StaticShardingV1,
@@ -25,6 +30,9 @@ from reconcile.gql_definitions.integrations.integrations import (
     SubShardingV1,
 )
 from reconcile.gql_definitions.sharding import aws_accounts as sharding_aws_accounts
+from reconcile.gql_definitions.sharding import (
+    ocm_organization as sharding_ocm_organization,
+)
 from reconcile.gql_definitions.terraform_cloudflare_dns import (
     terraform_cloudflare_zones,
 )
@@ -45,6 +53,7 @@ class ShardSpec(BaseModel):
             AWSAccountShardSpecOverrideV1,
             OpenshiftClusterShardSpecOverrideV1,
             CloudflareDNSZoneShardSpecOverrideV1,
+            OCMOrganizationShardSpecOverrideV1,
         ]
     ] = None
 
@@ -195,6 +204,71 @@ class AWSAccountShardingStrategy:
         for c in self.filter_objects(integration_meta.name):
             spo = spos.get(c.name)
             base_shard = self.build_shard_spec(c, integration_managed.spec, spo)
+            shards.append(base_shard)
+        return shards
+
+
+class OCMOrganizationShardingStrategy:
+    IDENTIFIER = "per-ocm-organization"
+
+    def __init__(
+        self,
+        ocm_organizations: Optional[Iterable[MinimalOCMOrganization]] = None,
+    ):
+        if not ocm_organizations:
+            self.ocm_organizations = (
+                sharding_ocm_organization.query(
+                    query_func=gql.get_api().query
+                ).ocm_organizations
+                or []
+            )
+        else:
+            self.ocm_organizations = list(ocm_organizations)
+
+    def get_shard_spec_overrides(
+        self, sharding: Optional[IntegrationShardingV1]
+    ) -> dict[str, OCMOrganizationShardSpecOverrideV1]:
+        spos: dict[str, OCMOrganizationShardSpecOverrideV1] = {}
+
+        if (
+            isinstance(sharding, OCMOrganizationShardingV1)
+            and sharding.shard_spec_overrides
+        ):
+            for sp in sharding.shard_spec_overrides or []:
+                spos[sp.shard.name] = sp
+        return spos
+
+    def check_integration_sharding_params(self, meta: IntegrationMeta) -> None:
+        if "--org-id" not in meta.args:
+            raise ValueError(
+                f"the integration {meta.name} does not support the required argument "
+                " --org-id for the 'per-ocm-organization' sharding strategy."
+            )
+
+    def build_shard_spec(
+        self,
+        org: MinimalOCMOrganization,
+        integration_spec: IntegrationSpecV1,
+        spo: Optional[OCMOrganizationShardSpecOverrideV1],
+    ) -> ShardSpec:
+        return ShardSpec(
+            shard_key=org.org_id,
+            shard_name_suffix=f"-{org.org_id}",
+            extra_args=(integration_spec.extra_args or "") + f" --org-id {org.org_id}",
+            shard_spec_overrides=spo,
+        )
+
+    def build_integration_shards(
+        self,
+        integration_meta: IntegrationMeta,
+        integration_managed: IntegrationManagedV1,
+    ) -> list[ShardSpec]:
+        self.check_integration_sharding_params(integration_meta)
+        spos = self.get_shard_spec_overrides(integration_managed.sharding)
+        shards = []
+        for org in self.ocm_organizations:
+            spo = spos.get(org.name)
+            base_shard = self.build_shard_spec(org, integration_managed.spec, spo)
             shards.append(base_shard)
         return shards
 
