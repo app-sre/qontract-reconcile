@@ -13,9 +13,9 @@ from reconcile.utils.state import State
 def test_key_exists_v1(s3_state_builder: Callable[[Mapping], State]):
     state = s3_state_builder(
         {
-            "ls": ["/promotions/channel/sha"],
+            "ls": ["/promotions_v2/channel/uid/sha"],
             "get": {
-                "promotions/channel/sha": {
+                "promotions_v2/channel/uid/sha": {
                     "success": True,
                     "target_config_hash": "hash",
                     "saas_file": "saas_file",
@@ -80,7 +80,7 @@ def test_key_does_not_exist_locally(s3_state_builder: Callable[[Mapping], State]
         {
             "ls": [],
             "get": {
-                "promotions/channel/sha": {
+                "promotions_v2/channel/uid/sha": {
                     "success": True,
                     "target_config_hash": "hash",
                     "saas_file": "saas_file",
