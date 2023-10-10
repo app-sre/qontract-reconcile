@@ -17,14 +17,16 @@ from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
 )
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
 from reconcile.typed_queries.saas_files import SaasFile
-from reconcile.utils.promotion_state import PromotionState
-from reconcile.utils.state import State
+from reconcile.utils.promotion_state import (
+    PromotionData,
+    PromotionState,
+)
 
 
 def test_integration_test(
     saas_files_builder: Callable[[Iterable[Mapping]], list[SaasFile]],
     vcs_builder: Callable[..., VCS],
-    s3_state_builder: Callable[[Mapping], State],
+    promotion_state_builder: Callable[..., PromotionState],
 ):
     """
     Have all the parts glued together and have one full run.
@@ -86,27 +88,19 @@ def test_integration_test(
         ]
     )
     vcs = vcs_builder()
-    deployment_state = PromotionState(
-        state=s3_state_builder(
-            {
-                "ls": [
-                    "/promotions/channel-1/new_sha",
-                    "/promotions/channel-2/new_sha",
-                ],
-                "get": {
-                    "promotions/channel-1/new_sha": {
-                        "success": True,
-                        "target_config_hash": "new_hash",
-                        "saas_file": "saas_1",
-                    },
-                    "promotions/channel-2/new_sha": {
-                        "success": True,
-                        "target_config_hash": "new_hash",
-                        "saas_file": "saas_1",
-                    },
-                },
-            }
-        )
+    deployment_state = promotion_state_builder(
+        [
+            PromotionData(
+                success=True,
+                target_config_hash="new_hash",
+                saas_file="saas_1",
+            ),
+            PromotionData(
+                success=True,
+                target_config_hash="new_hash",
+                saas_file="saas_1",
+            ),
+        ]
     )
     renderer = create_autospec(spec=Renderer)
     merge_request_manager = MergeRequestManager(
