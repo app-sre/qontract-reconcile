@@ -217,6 +217,7 @@ class MergeRequestBase(ABC):
 
         if isinstance(cli, SQSGateway):
             self.submit_to_sqs(sqs_cli=cli)
+            return None
 
         raise AttributeError(f"client {cli} not supported")
 
