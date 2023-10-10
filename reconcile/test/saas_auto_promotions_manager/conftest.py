@@ -17,6 +17,10 @@ from reconcile.gql_definitions.fragments.saas_target_namespace import (
 from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
 from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.promotion_state import (
+    PromotionData,
+    PromotionState,
+)
 
 
 @pytest.fixture
@@ -84,5 +88,15 @@ def saas_target_namespace_builder(
         if "cluster" not in data:
             data["cluster"] = {}
         return gql_class_factory(SaasTargetNamespace, data)
+
+    return builder
+
+
+@pytest.fixture
+def promotion_state_builder() -> Callable[..., PromotionState]:
+    def builder(data: Iterable[PromotionData]) -> PromotionState:
+        promotion_state = create_autospec(spec=PromotionState)
+        promotion_state.get_promotion_data.side_effect = data
+        return promotion_state
 
     return builder
