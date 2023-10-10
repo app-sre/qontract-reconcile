@@ -71,6 +71,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.saas_files import get_saas_files
+from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.utils import (
     amtool,
     config,
@@ -2289,6 +2290,40 @@ def ec2_jenkins_workers(ctx, aws_access_key_id, aws_secret_access_key, aws_regio
             results.append(item)
 
     print_output(ctx.obj["options"], results, columns)
+
+
+@get.command()
+@click.pass_context
+def slo_document_services(ctx):
+    """Print SLO Documents Services"""
+    columns = [
+        "slo_doc_name",
+        "product",
+        "app",
+        "slo",
+        "target",
+        "window",
+        "statusBoardEnabled",
+    ]
+
+    slodocs = []
+    for slodoc in get_slo_documents():
+        products = [ns.namespace.environment.product.name for ns in slodoc.namespaces]
+        for slo in slodoc.slos:
+            for product in products:
+                item = {
+                    "slo_doc_name": slodoc.name,
+                    "product": product,
+                    "app": slodoc.app.name,
+                    "slo": slo.name,
+                    "target": slo.slo_target,
+                    "window": slo.slo_parameters.window,
+                    "statusBoardService": f"{product}/{slodoc.app.name}/{slo.name}",
+                    "statusBoardEnabled": "statusBoard" in slodoc.labels,
+                }
+                slodocs.append(item)
+
+    print_output(ctx.obj["options"], slodocs, columns)
 
 
 @root.group(name="set")
