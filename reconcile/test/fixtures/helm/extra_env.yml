@@ -246,6 +246,8 @@ parameters:
   value: app-interface-sqs
 - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
   value: app-sre
+- name: AWS_CONFIG_SECRET_NAME
+  value: app-interface-aws-config
 - name: APP_INTERFACE_PROJECT_ID
   value: "0"
 - name: USER_ID

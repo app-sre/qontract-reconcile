@@ -289,6 +289,20 @@ objects:
                 key: aws.s3.bucket
           - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
             value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
+          - name: APP_INTERFACE_STATE_BUCKET_REGION
+            valueFrom:
+              secretKeyRef:
+                name: app-interface
+                key: aws.region
+                optional: true
+          - name: AWS_CONFIG_FILE
+            value: /aws/config
+          - name: APP_INTERFACE_STATE_AWS_PROFILE
+            valueFrom:
+              secretKeyRef:
+                name: app-interface
+                key: aws.profile.state
+                optional: true
           {{- end }}
           {{- if not $integration.disableUnleash }}
           - name: UNLEASH_API_URL
@@ -412,6 +426,13 @@ objects:
             mountPath: /fluentd/log/
           - name: qontract-reconcile-sa-token
             mountPath: ${KUBE_SA_TOKEN_MOUNT_PATH}
+          {{- if $integration.state }}
+          - name: aws-config
+            mountPath: /aws
+          - name: bound-qontract-reconcile-sa-token
+            mountPath: /var/run/secrets/openshift/serviceaccount
+            readOnly: true
+          {{- end }}
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
           imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
@@ -475,6 +496,20 @@ objects:
             - serviceAccountToken:
                 expirationSeconds: 1800
                 path: ${KUBE_SA_TOKEN_FILENAME}
+        {{- if $integration.state }}
+        - name: bound-qontract-reconcile-sa-token
+          projected:
+            defaultMode: 420
+            sources:
+            - serviceAccountToken:
+                audience: openshift
+                expirationSeconds: 1800
+                path: token
+        - name: aws-config
+          secret:
+            secretName: ${AWS_CONFIG_SECRET_NAME}
+            optional: true
+        {{- end }}
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
@@ -674,6 +709,8 @@ parameters:
   value: app-interface-sqs
 - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
   value: app-sre
+- name: AWS_CONFIG_SECRET_NAME
+  value: app-interface-aws-config
 - name: APP_INTERFACE_PROJECT_ID
   value: "0"
 - name: USER_ID

@@ -1,21 +1,22 @@
 import json
+import logging
 import os
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
+from abc import abstractmethod
 from typing import (
     Any,
     Optional,
 )
 
+import boto3
 from botocore.errorfactory import ClientError
 from jinja2 import Template
 from mypy_boto3_s3 import S3Client
+from pydantic import BaseModel
 
 from reconcile.gql_definitions.common.app_interface_state_settings import (
     AppInterfaceStateConfigurationS3V1,
 )
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.typed_queries.app_interface_state_settings import (
     get_app_interface_state_settings,
 )
@@ -23,7 +24,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.utils import gql
-from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.aws_api import aws_config_file_path
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -59,97 +60,177 @@ def init_state(
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
-    # if state settings are present via env variables, use them
+    s3_settings = acquire_state_settings(secret_reader)
+
+    return State(
+        integration=integration,
+        bucket=s3_settings.bucket,
+        client=s3_settings.build_client(),
+    )
+
+
+class S3StateConfiguration(BaseModel):
+    bucket: str
+    region: str
+
+    @abstractmethod
+    def build_client(self) -> S3Client:
+        pass
+
+
+class S3CredsBasedStateConfiguration(S3StateConfiguration):
+    access_key_id: str
+    secret_access_key: str
+
+    def build_client(self) -> S3Client:
+        session = boto3.Session(
+            aws_access_key_id=self.access_key_id,
+            aws_secret_access_key=self.secret_access_key,
+            region_name=self.region,
+        )
+        return session.client("s3")
+
+
+class S3ProfileBasedStateConfiguration(S3StateConfiguration):
+    profile: str
+
+    def build_client(self) -> S3Client:
+        session = boto3.Session(profile_name=self.profile, region_name=self.region)
+        return session.client("s3")
+
+
+def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfiguration:
+    """
+    Finds the settings for the app-interface state provider in the following order:
+
+    * env variables pointing to a bucket and an AWS profile
+    * env variables pointing to static credentials
+    * env variables pointing to a bucket and a vault secret for creds
+    * env variables pointing to a bucket and ann AWS account from app-interface for creds
+    * state settings in app-interface-settings-1.yml
+
+    If no settings can be found, a StateInaccessibleException is raised.
+    """
     state_bucket_name = os.environ.get("APP_INTERFACE_STATE_BUCKET")
+    state_bucket_region = os.environ.get("APP_INTERFACE_STATE_BUCKET_REGION")
     state_bucket_account_name = os.environ.get("APP_INTERFACE_STATE_BUCKET_ACCOUNT")
+    state_bucket_access_key_id = os.environ.get(
+        "APP_INTERFACE_STATE_BUCKET_ACCESS_KEY_ID"
+    )
+    state_bucket_secret_access_key = os.environ.get(
+        "APP_INTERFACE_STATE_BUCKET_SECRET_ACCESS_KEY"
+    )
+    state_bucket_vault_secret = os.environ.get("APP_INTERFACE_STATE_VAULT_SECRET")
+    state_bucket_vault_secret_version = os.environ.get(
+        "APP_INTERFACE_STATE_VAULT_SECRET_VERSION"
+    )
+
+    state_bucket_aws_profile = os.environ.get("APP_INTERFACE_STATE_AWS_PROFILE")
+
+    # if an AWS config file can be found and a profile for state usage is set ...
+    if (
+        state_bucket_name
+        and state_bucket_region
+        and aws_config_file_path()
+        and state_bucket_aws_profile
+    ):
+        logging.debug(f"access state via AWS profile {state_bucket_aws_profile}")
+        return S3ProfileBasedStateConfiguration(
+            bucket=state_bucket_name,
+            region=state_bucket_region,
+            profile=state_bucket_aws_profile,
+        )
+
+    # if the env vars point towards a vault secret that contains the credentials ...
+    if state_bucket_name and state_bucket_region and state_bucket_vault_secret:
+        logging.info(
+            f"access state via access credentials from vault secret {state_bucket_vault_secret} version {state_bucket_vault_secret_version or 'latest'})"
+        )
+        secret = secret_reader.read_all_secret(
+            VaultSecret(
+                path=state_bucket_vault_secret,
+                field="all",
+                format=None,
+                version=int(state_bucket_vault_secret_version)
+                if state_bucket_vault_secret_version
+                else None,
+            )
+        )
+        return S3CredsBasedStateConfiguration(
+            bucket=state_bucket_name,
+            region=state_bucket_region,
+            access_key_id=secret["aws_access_key_id"],
+            secret_access_key=secret["aws_secret_access_key"],
+        )
+
+    # if the env vars contain actual AWS credentials, lets use them ...
+    if (
+        state_bucket_name
+        and state_bucket_region
+        and state_bucket_access_key_id
+        and state_bucket_secret_access_key
+    ):
+        logging.info("access state via static credentials from env variables :(")
+        return S3CredsBasedStateConfiguration(
+            bucket=state_bucket_name,
+            region=state_bucket_region,
+            access_key_id=state_bucket_access_key_id,
+            secret_access_key=state_bucket_secret_access_key,
+        )
+
+    # if the env vars point towards an AWS account mentioned in app-interface ...
     if state_bucket_name and state_bucket_account_name:
-        query = Template(STATE_ACCOUNT_QUERY).render(name=state_bucket_account_name)
-        aws_accounts = gql.get_api().query(query)["accounts"]
-        return _init_state_from_accounts(
-            integration=integration,
-            secret_reader=secret_reader,
-            bucket_name=state_bucket_name,
-            account_name=state_bucket_account_name,
-            accounts=aws_accounts,
+        logging.info(
+            f"access state via {state_bucket_account_name} automation token from app-interface"
+        )
+        account = _get_aws_account_by_name(state_bucket_account_name)
+        if not account:
+            raise StateInaccessibleException(
+                f"The AWS account {state_bucket_account_name} that holds the state bucket can't be found in app-interface."
+            )
+        secret = secret_reader.read_all_secret(
+            VaultSecret(**account["automationToken"])
+        )
+        return S3CredsBasedStateConfiguration(
+            bucket=state_bucket_name,
+            region=state_bucket_region or account["resourcesDefaultRegion"],
+            access_key_id=secret["aws_access_key_id"],
+            secret_access_key=secret["aws_secret_access_key"],
         )
 
     # ... otherwise have a look if state settings are present in app-interface-settings-1.yml
-    state_settings = get_app_interface_state_settings()
-    if not state_settings:
+    ai_settings = get_app_interface_state_settings()
+    if ai_settings:
+        logging.info("access state via app-interface settings")
+        if isinstance(ai_settings, AppInterfaceStateConfigurationS3V1):
+            secret = secret_reader.read_all_secret(ai_settings.credentials)
+            return S3CredsBasedStateConfiguration(
+                bucket=ai_settings.bucket,
+                region=ai_settings.region,
+                access_key_id=secret["aws_access_key_id"],
+                secret_access_key=secret["aws_secret_access_key"],
+            )
         raise StateInaccessibleException(
-            "app-interface state must be configured in order to use stateful integrations. "
-            "use one of the following options to provide state config: "
-            "* env vars APP_INTERFACE_STATE_BUCKET and APP_INTERFACE_STATE_BUCKET_ACCOUNT "
-            "* state settings in app-interface-settings-1.yml"
-        )
-
-    if isinstance(state_settings, AppInterfaceStateConfigurationS3V1):
-        return _init_state_from_settings(
-            integration=integration,
-            secret_reader=secret_reader,
-            state_settings=state_settings,
+            f"The app-interface state provider {ai_settings.provider} is not supported."
         )
 
     raise StateInaccessibleException(
-        f"app-interface-settings-1.yml state provider {state_settings.provider} is not supported."
+        "app-interface state must be configured to use stateful integrations. "
+        "use one of the following options to provide state config: "
+        "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_AWS_PROFILE and AWS_CONFIG (hosting the requested profile) \n"
+        "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_VAULT_SECRET (and optionally APP_INTERFACE_STATE_VAULT_SECRET_VERSION) \n"
+        "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_BUCKET_ACCESS_KEY_ID, APP_INTERFACE_STATE_BUCKET_SECRET_ACCESS_KEY \n"
+        "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION and APP_INTERFACE_STATE_BUCKET_ACCOUNT if the mentioned AWS account is present in app-interface \n"
+        "* state settings in app-interface-settings-1.yml"
     )
 
 
-def _init_state_from_settings(
-    integration: str,
-    secret_reader: SecretReaderBase,
-    state_settings: AppInterfaceStateConfigurationS3V1,
-) -> "State":
-    """
-    Initializes a state object from the app-interface settings.
-
-    :raises StateInaccessibleException: if the bucket is missing
-    or not accessible
-    """
-    return _init_state_from_accounts(
-        integration=integration,
-        secret_reader=secret_reader,
-        bucket_name=state_settings.bucket,
-        account_name="settings-account",
-        accounts=[
-            {
-                "name": "settings-account",
-                "resourcesDefaultRegion": state_settings.region,
-                "automationToken": state_settings.credentials.dict(by_alias=True),
-            }
-        ],
-    )
-
-
-def _init_state_from_accounts(
-    integration: str,
-    secret_reader: SecretReaderBase,
-    bucket_name: str,
-    account_name: str,
-    accounts: Iterable[Mapping[str, Any]],
-) -> "State":
-    aws_account = next(
-        (a for a in accounts if a["name"] == account_name),
-        None,
-    )
-    if not aws_account:
-        raise StateInaccessibleException(
-            f"Can initialize state. app-interface does not define an AWS account named {account_name}"
-        )
-
-    aws_api = AWSApi(
-        1,
-        [aws_account],
-        settings=None,
-        secret_reader=secret_reader,
-        init_users=False,
-    )
-    session = aws_api.get_session(account_name)
-    return State(
-        integration=integration,
-        bucket=bucket_name,
-        client=aws_api.get_session_client(session, "s3"),
-    )
+def _get_aws_account_by_name(name: str) -> Optional[dict[str, Any]]:
+    query = Template(STATE_ACCOUNT_QUERY).render(name=name)
+    aws_accounts = gql.get_api().query(query)["accounts"]
+    if aws_accounts:
+        return aws_accounts[0]
+    return None
 
 
 class State:

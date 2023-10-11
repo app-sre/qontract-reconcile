@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import time
 from collections.abc import (
@@ -1530,3 +1531,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         if versions := response["DBEngineVersions"]:
             return versions[0]["ValidUpgradeTarget"]
         return []
+
+
+def aws_config_file_path() -> Optional[str]:
+    config_file_path = os.path.expanduser(
+        os.environ.get("AWS_CONFIG_FILE", "~/.aws/config")
+    )
+    if not os.path.isfile(config_file_path):
+        return None
+    return config_file_path
