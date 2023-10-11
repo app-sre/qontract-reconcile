@@ -251,6 +251,7 @@ def reconcile(
 ) -> None:
     """Realize all skupper resources and create skupper site connections."""
 
+    ob.publish_metrics(ri, integration)
     # create/update/delete all skupper site resources
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 

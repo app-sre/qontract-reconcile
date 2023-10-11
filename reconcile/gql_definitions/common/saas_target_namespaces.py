@@ -59,6 +59,10 @@ fragment SaasTargetNamespace on Namespace_v1 {
     selfServiceRoles {
       name
     }
+    serviceOwners {
+      name
+      email
+    }
   }
   cluster {
     name

@@ -116,7 +116,8 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         if not dry_run:
             state_obj["managed_groups"] = sorted(self._managed_groups)
 
-    def get_integration_settings(self, query_func: Callable) -> LdapGroupsSettingsV1:
+    @staticmethod
+    def get_integration_settings(query_func: Callable) -> LdapGroupsSettingsV1:
         data = settings_query(query_func)
         if not data.settings:
             raise AppInterfaceSettingsError("No app-interface settings found.")

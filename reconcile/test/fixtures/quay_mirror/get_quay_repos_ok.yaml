@@ -1,0 +1,75 @@
+- quayRepos:
+  - items:
+    - mirror: null
+      name: cloud-connector
+      public: true
+    - mirror:
+        pullCredentials:
+          field: all
+          format: null
+          path: app-sre/creds/mirror-images/docker.io-sdappsre
+          version: null
+        tags:
+        - latest
+        tagsExclude: null
+        url: docker.io/library/eclipse-mosquitto
+      name: eclipse-mosquitto
+      public: false
+    - mirror: null
+      name: tenant-utils
+      public: true
+    - mirror: null
+      name: cloud-connector-frontend
+      public: true
+    org:
+      instance:
+        name: quay.io
+        url: quay.io
+      name: cloudservices
+
+- quayRepos:
+  - items:
+    - mirror:
+        pullCredentials:
+          field: all
+          format: null
+          path: app-sre/creds/mirror-images/docker.io-sdappsre
+          version: null
+        tags: null
+        tagsExclude: null
+        url: docker.io/redis
+      name: redis
+      public: false
+    - mirror: null
+      name: kube-scripts
+      public: true
+    - mirror: null
+      name: miniop
+      public: true
+    - mirror: null
+      name: selenium-standalone-chrome
+      public: true
+    org:
+      instance:
+        name: quay.io
+        url: quay.io
+      name: cloudservices
+
+- quayRepos:
+  - items:
+    - mirror: null
+      name: acs-fleet-manager
+      public: true
+    - mirror:
+        pullCredentials: null
+        tags:
+        - v0.9.5
+        tagsExclude: null
+        url: ghcr.io/external-secrets/external-secrets
+      name: external-secrets
+      public: true
+    org:
+      instance:
+        name: quay.io
+        url: quay.io
+      name: app-sre

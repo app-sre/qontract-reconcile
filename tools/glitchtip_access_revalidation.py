@@ -64,7 +64,7 @@ def main(
         glitchtip_project_query(query_func=gql.get_api().query).glitchtip_projects or []
     )
 
-    apps = {project.app.path for project in glitchtip_projects}
+    apps = {project.app.path for project in glitchtip_projects if project.app}
 
     notification = Notification(
         notification_type="Action Required",

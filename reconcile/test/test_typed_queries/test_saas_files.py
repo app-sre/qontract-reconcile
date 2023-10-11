@@ -19,9 +19,8 @@ from reconcile.gql_definitions.fragments.saas_target_namespace import (
 from reconcile.test.fixtures import Fixtures
 from reconcile.typed_queries.saas_files import (
     SaasFile,
-    create_targets_for_namespace_selector,
+    SaasFileList,
     export_model,
-    get_namespaces_by_selector,
     get_saas_files,
     get_saasherder_settings,
 )
@@ -239,12 +238,16 @@ def namespaces(
     ],
 )
 def test_get_namespaces_by_selector(
+    query_func_from_fixture: Callable[..., Callable],
     namespaces: list[SaasTargetNamespace],
     json_path_selectors: Mapping[str, Any],
     expected_namespaces: list[str],
 ) -> None:
-    items = get_namespaces_by_selector(
+    saas_file_list = SaasFileList(
+        query_func=query_func_from_fixture("saas_files.yml", SaasFileV2, "saas_files"),
         namespaces=namespaces,
+    )
+    items = saas_file_list.get_namespaces_by_selector(
         namespace_selector=SaasResourceTemplateTargetNamespaceSelectorV1(
             **json_path_selectors
         ),
@@ -253,9 +256,15 @@ def test_get_namespaces_by_selector(
 
 
 def test_create_targets_for_namespace_selector(
-    namespaces: list[SaasTargetNamespace], gql_class_factory: Callable
+    query_func_from_fixture: Callable[..., Callable],
+    namespaces: list[SaasTargetNamespace],
+    gql_class_factory: Callable,
 ) -> None:
-    items = create_targets_for_namespace_selector(
+    saas_file_list = SaasFileList(
+        query_func=query_func_from_fixture("saas_files.yml", SaasFileV2, "saas_files"),
+        namespaces=namespaces,
+    )
+    items = saas_file_list.create_targets_for_namespace_selector(
         target=gql_class_factory(
             SaasResourceTemplateTargetV2,
             {
@@ -263,7 +272,6 @@ def test_create_targets_for_namespace_selector(
                 "parameters": '{"FOO": "BAR"}',
             },
         ),
-        namespaces=namespaces,
         namespace_selector=SaasResourceTemplateTargetNamespaceSelectorV1(
             **{
                 "jsonPathSelectors": {
@@ -571,7 +579,7 @@ PIPELINE_PROVIDER = {
         ),
         # missing provider
         pytest.param(
-            "saas-file-04",
+            "saas-file-04-missing-provider",
             None,
             None,
             "saas_files-missing-provider.yml",
@@ -626,7 +634,12 @@ def test_export_model(
             "path": "path1",
             "name": "saas-file-01",
             "labels": None,
-            "app": {"name": "app-01", "parentApp": None, "selfServiceRoles": None},
+            "app": {
+                "name": "app-01",
+                "parentApp": None,
+                "selfServiceRoles": None,
+                "serviceOwners": None,
+            },
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -702,6 +715,7 @@ def test_export_model(
                                     "labels": None,
                                     "parentApp": None,
                                     "selfServiceRoles": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -751,6 +765,7 @@ def test_export_model(
                                     "labels": None,
                                     "parentApp": None,
                                     "selfServiceRoles": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -790,7 +805,12 @@ def test_export_model(
             "path": "path2",
             "name": "saas-file-02",
             "labels": None,
-            "app": {"name": "app-02", "parentApp": None, "selfServiceRoles": None},
+            "app": {
+                "name": "app-02",
+                "parentApp": None,
+                "selfServiceRoles": None,
+                "serviceOwners": None,
+            },
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -866,6 +886,7 @@ def test_export_model(
                                     "labels": None,
                                     "parentApp": None,
                                     "selfServiceRoles": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -915,6 +936,7 @@ def test_export_model(
                                     "labels": None,
                                     "parentApp": None,
                                     "selfServiceRoles": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -954,7 +976,12 @@ def test_export_model(
             "path": "path3",
             "name": "saas-file-03",
             "labels": None,
-            "app": {"name": "example", "parentApp": None, "selfServiceRoles": None},
+            "app": {
+                "name": "example",
+                "parentApp": None,
+                "selfServiceRoles": None,
+                "serviceOwners": None,
+            },
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -1030,6 +1057,7 @@ def test_export_model(
                                     "parentApp": None,
                                     "selfServiceRoles": None,
                                     "labels": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -1079,6 +1107,7 @@ def test_export_model(
                                     "parentApp": None,
                                     "selfServiceRoles": None,
                                     "labels": None,
+                                    "serviceOwners": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",

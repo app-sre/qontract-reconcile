@@ -65,6 +65,10 @@ class SaasApp(Protocol):
     def self_service_roles(self) -> Optional[Sequence[SaasRole]]:
         ...
 
+    @property
+    def service_owners(self) -> Optional[Sequence[SaasServiceOwner]]:
+        ...
+
 
 class SaasPipelinesProvider(Protocol):
     name: str
@@ -269,6 +273,11 @@ class SaasResourceTemplateTargetPromotion(Protocol):
         ...
 
 
+class Channel(Protocol):
+    name: str
+    publisher_uids: list[str]
+
+
 @runtime_checkable
 class SaasPromotion(Protocol):
     commit_sha: str
@@ -276,12 +285,15 @@ class SaasPromotion(Protocol):
     target_config_hash: str
     auto: Optional[bool] = None
     publish: Optional[list[str]] = None
-    subscribe: Optional[list[str]] = None
     saas_file_paths: Optional[list[str]] = None
     target_paths: Optional[list[str]] = None
 
     @property
     def promotion_data(self) -> Optional[Sequence[SaasPromotionData]]:
+        ...
+
+    @property
+    def subscribe(self) -> Optional[list[Channel]]:
         ...
 
     def dict(self, *, by_alias: bool = False) -> dict[str, Any]:
@@ -375,6 +387,11 @@ class SaasResourceTemplate(HasParameters, HasSecretParameters, Protocol):
 
 class SaasRole(Protocol):
     name: str
+
+
+class SaasServiceOwner(Protocol):
+    name: str
+    email: str
 
 
 SaasPipelinesProviders = Union[SaasPipelinesProviderTekton, SaasPipelinesProvider]

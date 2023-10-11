@@ -5,6 +5,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
+from enum import Enum
 from textwrap import indent
 from typing import (
     Any,
@@ -29,7 +30,10 @@ from reconcile.utils.oc import (
     OC_Map,
     StatusCodeError,
 )
-from reconcile.utils.openshift_resource import OpenshiftResource
+from reconcile.utils.openshift_resource import (
+    OpenshiftResource,
+    ResourceInventory,
+)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.smtp_client import (
@@ -37,13 +41,24 @@ from reconcile.utils.smtp_client import (
     SmtpClient,
     get_smtp_server_connection,
 )
-from reconcile.utils.state import init_state
+from reconcile.utils.state import (
+    State,
+    init_state,
+)
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 QONTRACT_INTEGRATION = "sql-query"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)
 
 LOG = logging.getLogger(__name__)
+
+MANAGED_TYPES = [
+    "Job",
+    "CronJob",
+    "ConfigMap",
+    "Secret",
+    "ServiceAccount",
+]
 
 JOB_TTL = 604800  # 7 days
 POD_TTL = 3600  # 1 hour (used only when output is "filesystem")
@@ -520,17 +535,15 @@ def openshift_apply(
         )
 
 
-def openshift_delete_by_label(
-    dry_run: bool,
+def _get_openshift_resources_by_label(
     oc_map: OC_Map,
     cluster: str,
     namespace: str,
     kinds: list[str],
     labels: dict[str, str],
-    enable_deletion: bool,
-) -> None:
+) -> list[OpenshiftResource]:
     oc = oc_map.get_cluster(cluster)
-    resources: list[OpenshiftResource] = [
+    return [
         OpenshiftResource(
             body=item,
             integration=QONTRACT_INTEGRATION,
@@ -540,6 +553,15 @@ def openshift_delete_by_label(
         for item in oc.get_items(kind=kind, namespace=namespace, labels=labels)
     ]
 
+
+def _delete_openshift_resources(
+    resources: Iterable[OpenshiftResource],
+    dry_run: bool,
+    oc_map: OC_Map,
+    cluster: str,
+    namespace: str,
+    enable_deletion: bool,
+) -> None:
     for resource in resources:
         try:
             openshift_base.delete(
@@ -557,9 +579,268 @@ def openshift_delete_by_label(
             )
 
 
+def _build_common_resource_labels(query: dict[str, Any]) -> dict[str, str]:
+    return {
+        "app": "qontract-reconcile",
+        "integration": QONTRACT_INTEGRATION,
+        "query-name": query["name"],
+    }
+
+
+def _build_openshift_resources(
+    query: dict[str, Any],
+    image_repository: str,
+    pull_secret: dict[str, Any] | None,
+    settings: dict[str, Any],
+):
+    query_name = query["name"]
+    common_resource_labels = _build_common_resource_labels(query)
+    openshift_resources: list[OpenshiftResource] = []
+    if pull_secret:
+        labels = pull_secret["labels"] or {}
+        labels.update(common_resource_labels)
+        secret_resource = orb.fetch_provider_vault_secret(
+            path=pull_secret["path"],
+            version=pull_secret["version"],
+            name=query_name,
+            labels=labels,
+            annotations=pull_secret["annotations"] or {},
+            type=pull_secret["type"],
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            settings=settings,
+        )
+        openshift_resources.append(secret_resource)
+    # ConfigMap gpg
+    config_map_resources = [
+        get_config_map(
+            name=f"{query_name}-{GPG_KEY_NAME}",
+            data={GPG_KEY_NAME: query.get("public_gpg_key", "")},
+            labels=common_resource_labels,
+        )
+    ]
+    # ConfigMaps with SQL queries chunked into smaller pieces
+    config_map_resources.extend(
+        get_config_map(
+            name=f"{query_name}-q{i:05d}c{j:05d}",
+            data={f"q{i:05d}c{j:05d}": chunk},
+            labels=common_resource_labels,
+        )
+        for i, q in enumerate(query["queries"])
+        for j, chunk in enumerate(split_long_query(q, size=QUERY_CONFIG_MAP_CHUNK_SIZE))
+    )
+    openshift_resources.extend(
+        OpenshiftResource(
+            body=cm,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+        )
+        for cm in config_map_resources
+    )
+    # ServiceAccount
+    svc = get_service_account(query_name, labels=common_resource_labels)
+    openshift_resources.append(
+        OpenshiftResource(
+            body=svc,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+        )
+    )
+    # Job (sql executer)
+    job_yaml = process_template(
+        query,
+        image_repository=image_repository,
+        use_pull_secret=bool(pull_secret),
+        config_map_names=[cm["metadata"]["name"] for cm in config_map_resources],
+        service_account_name=svc["metadata"]["name"],
+    )
+    openshift_resources.append(
+        OpenshiftResource(
+            body=yaml.safe_load(job_yaml),
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+        )
+    )
+    return openshift_resources
+
+
+class QueryStatus(Enum):
+    ACTIVE = "ACTIVE"
+    PENDING_DELETION = "PENDING_DELETION"
+    DELETED = "DELETED"
+
+
+def _get_query_status(
+    query: dict[str, Any],
+    state: State,
+) -> QueryStatus:
+    # Query already executed. Now check current state:
+    # - State is a timestamp: executed and up for removal after the JOB_TTL
+    # - State is not 'DONE' but 'delete:true' and is a cronjob: up for removal
+    # - State is 'DONE': executed and removed. Nothing to do here.
+    query_state = state[query["name"]]
+    if query_state == "DONE":
+        return QueryStatus.DELETED
+    if query.get("schedule"):
+        # CronJob
+        if query.get("delete"):
+            return QueryStatus.PENDING_DELETION
+    else:
+        # Job
+        if time.time() >= query_state + JOB_TTL:
+            return QueryStatus.PENDING_DELETION
+    return QueryStatus.ACTIVE
+
+
+def _initialize_resource_types(
+    ri: ResourceInventory,
+    cluster: str,
+    namespace: str,
+) -> None:
+    for kind in MANAGED_TYPES:
+        ri.initialize_resource_type(cluster, namespace, kind)
+
+
+def _reconstruct_for_metrics(
+    query: dict[str, Any],
+    image_repository: str,
+    pull_secret: dict[str, Any] | None,
+    settings: dict[str, Any],
+    ri: ResourceInventory,
+) -> None:
+    openshift_resources = _build_openshift_resources(
+        query,
+        image_repository,
+        pull_secret,
+        settings,
+    )
+    cluster = query["cluster"]
+    namespace = query["namespace"]["name"]
+    _initialize_resource_types(ri, cluster, namespace)
+    for r in openshift_resources:
+        ri.add_current(cluster, namespace, r.kind, r.name, r)
+        ri.add_desired(cluster, namespace, r.kind, r.name, r)
+
+
+def _delete_query_resources(
+    query: dict[str, Any],
+    dry_run: bool,
+    enable_deletion: bool,
+    settings: dict[str, Any],
+    state: State,
+    ri: ResourceInventory,
+) -> None:
+    cluster = query["cluster"]
+    namespace = query["namespace"]["name"]
+
+    with OC_Map(
+        namespaces=[query["namespace"]],
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+    ) as oc_map:
+        openshift_resources = _get_openshift_resources_by_label(
+            oc_map=oc_map,
+            cluster=cluster,
+            namespace=namespace,
+            kinds=MANAGED_TYPES,
+            labels=_build_common_resource_labels(query),
+        )
+
+        _initialize_resource_types(ri, cluster, namespace)
+        for r in openshift_resources:
+            ri.add_current(cluster, namespace, r.kind, r.name, r)
+
+        _delete_openshift_resources(
+            openshift_resources,
+            dry_run=dry_run,
+            oc_map=oc_map,
+            cluster=cluster,
+            namespace=namespace,
+            enable_deletion=enable_deletion,
+        )
+    if not dry_run and enable_deletion:
+        state[query["name"]] = "DONE"
+
+
+def _process_existing_query(
+    query: dict[str, Any],
+    dry_run: bool,
+    enable_deletion: bool,
+    settings: dict[str, Any],
+    state: State,
+    image_repository: str,
+    pull_secret: dict[str, Any],
+    ri: ResourceInventory,
+) -> None:
+    match _get_query_status(query, state):
+        case QueryStatus.ACTIVE:
+            _reconstruct_for_metrics(
+                query,
+                image_repository,
+                pull_secret,
+                settings,
+                ri,
+            )
+        case QueryStatus.PENDING_DELETION:
+            _delete_query_resources(
+                query,
+                dry_run,
+                enable_deletion,
+                settings,
+                state,
+                ri,
+            )
+        case QueryStatus.DELETED:
+            _initialize_resource_types(
+                ri,
+                query["cluster"],
+                query["namespace"]["name"],
+            )
+
+
+def _process_new_query(
+    query: dict[str, Any],
+    dry_run: bool,
+    settings: dict[str, Any],
+    state: State,
+    image_repository: str,
+    pull_secret: dict[str, Any],
+    ri: ResourceInventory,
+):
+    openshift_resources = _build_openshift_resources(
+        query,
+        image_repository,
+        pull_secret,
+        settings,
+    )
+
+    cluster = query["cluster"]
+    namespace = query["namespace"]["name"]
+    _initialize_resource_types(ri, cluster, namespace)
+    for r in openshift_resources:
+        ri.add_desired(cluster, namespace, r.kind, r.name, r)
+
+    with OC_Map(
+        namespaces=[query["namespace"]],
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+    ) as oc_map:
+        openshift_apply(
+            dry_run=dry_run,
+            oc_map=oc_map,
+            cluster=cluster,
+            namespace=namespace,
+            resources=openshift_resources,
+        )
+    if not dry_run:
+        state[query["name"]] = time.time()
+
+
 @defer
 def run(
-    dry_run: bool, enable_deletion: bool = False, defer: Optional[Callable] = None
+    dry_run: bool,
+    enable_deletion: bool = False,
+    defer: Optional[Callable] = None,
 ) -> None:
     settings = queries.get_app_interface_settings()
     state = init_state(integration=QONTRACT_INTEGRATION)
@@ -581,152 +862,33 @@ def run(
     if sql_query_settings:
         image_repository = sql_query_settings["imageRepository"]
         pull_secret = sql_query_settings["pullSecret"]
-    use_pull_secret = True if pull_secret else False
 
     queries_list = collect_queries(settings=settings, smtp_client=smtp_client)
-    query_states = [s.lstrip("/") for s in state.ls()]
+    query_states = {s.lstrip("/") for s in state.ls()}
+    ri = ResourceInventory()
     for query in queries_list:
-        openshift_resources: list[OpenshiftResource] = []
-        query_name = query["name"]
-        common_resource_labels = {
-            "app": "qontract-reconcile",
-            "integration": QONTRACT_INTEGRATION,
-            "query-name": query_name,
-        }
-        if query_name in query_states:
-            # Query already executed. Now check current state:
-            # - State is a timestamp: executed and up for removal after the JOB_TTL
-            # - State is not 'DONE' but 'delete:true' and is a cronjob: up for removal
-            # - State is 'DONE': executed and removed. Nothing to do here.
-            cleanup = False
-            query_state = state[query_name]
-            if query_state == "DONE":
-                # nothing to do anymore
-                continue
-
-            if query.get("schedule"):
-                # CronJob
-                if query.get("delete"):
-                    cleanup = True
-            else:
-                # Job
-                if time.time() >= query_state + JOB_TTL:
-                    cleanup = True
-
-            if cleanup:
-                with OC_Map(
-                    namespaces=[query["namespace"]],
-                    integration=QONTRACT_INTEGRATION,
-                    settings=settings,
-                ) as oc_map:
-                    openshift_delete_by_label(
-                        dry_run=dry_run,
-                        oc_map=oc_map,
-                        cluster=query["cluster"],
-                        namespace=query["namespace"]["name"],
-                        kinds=[
-                            "Job",
-                            "CronJob",
-                            "ConfigMap",
-                            "Secret",
-                            "ServiceAccount",
-                        ],
-                        labels=common_resource_labels,
-                        enable_deletion=enable_deletion,
-                    )
-                if not dry_run and enable_deletion:
-                    state[query_name] = "DONE"
-
-            # continue with next query
-            continue
-
-        # New query
-        if use_pull_secret:
-            labels = pull_secret["labels"] or {}
-            labels.update(common_resource_labels)
-            secret_resource = orb.fetch_provider_vault_secret(
-                path=pull_secret["path"],
-                version=pull_secret["version"],
-                name=query_name,
-                labels=labels,
-                annotations=pull_secret["annotations"] or {},
-                type=pull_secret["type"],
-                integration=QONTRACT_INTEGRATION,
-                integration_version=QONTRACT_INTEGRATION_VERSION,
-                settings=settings,
+        if query["name"] in query_states:
+            _process_existing_query(
+                query,
+                dry_run,
+                enable_deletion,
+                settings,
+                state,
+                image_repository,
+                pull_secret,
+                ri,
             )
-            openshift_resources.append(secret_resource)
-
-        # ConfigMap gpg
-        config_map_resources = [
-            get_config_map(
-                name=f"{query_name}-{GPG_KEY_NAME}",
-                data={GPG_KEY_NAME: query.get("public_gpg_key", "")},
-                labels=common_resource_labels,
+        else:
+            _process_new_query(
+                query,
+                dry_run,
+                settings,
+                state,
+                image_repository,
+                pull_secret,
+                ri,
             )
-        ]
-        # ConfigMaps with SQL queries chunked into smaller pieces
-        config_map_resources += [
-            get_config_map(
-                name=f"{query_name}-q{i:05d}c{j:05d}",
-                data={f"q{i:05d}c{j:05d}": chunk},
-                labels=common_resource_labels,
-            )
-            for i, q in enumerate(query["queries"])
-            for j, chunk in enumerate(
-                split_long_query(q, size=QUERY_CONFIG_MAP_CHUNK_SIZE)
-            )
-        ]
-        openshift_resources += [
-            OpenshiftResource(
-                body=cm,
-                integration=QONTRACT_INTEGRATION,
-                integration_version=QONTRACT_INTEGRATION_VERSION,
-            )
-            for cm in config_map_resources
-        ]
-
-        # ServiceAccount
-        svc = get_service_account(query_name, labels=common_resource_labels)
-        openshift_resources.append(
-            OpenshiftResource(
-                body=svc,
-                integration=QONTRACT_INTEGRATION,
-                integration_version=QONTRACT_INTEGRATION_VERSION,
-            )
-        )
-
-        # Job (sql executer)
-        job_yaml = process_template(
-            query,
-            image_repository=image_repository,
-            use_pull_secret=use_pull_secret,
-            config_map_names=[cm["metadata"]["name"] for cm in config_map_resources],
-            service_account_name=svc["metadata"]["name"],
-        )
-        openshift_resources.append(
-            OpenshiftResource(
-                body=yaml.safe_load(job_yaml),
-                integration=QONTRACT_INTEGRATION,
-                integration_version=QONTRACT_INTEGRATION_VERSION,
-            )
-        )
-
-        with OC_Map(
-            namespaces=[query["namespace"]],
-            integration=QONTRACT_INTEGRATION,
-            settings=settings,
-        ) as oc_map:
-            openshift_apply(
-                dry_run=dry_run,
-                oc_map=oc_map,
-                cluster=query["cluster"],
-                namespace=query["namespace"]["name"],
-                resources=openshift_resources,
-            )
-
-        if not dry_run:
-            state[query_name] = time.time()
+    openshift_base.publish_metrics(ri, QONTRACT_INTEGRATION)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:

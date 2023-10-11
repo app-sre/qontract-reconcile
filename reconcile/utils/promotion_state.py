@@ -50,17 +50,6 @@ class PromotionState:
         """
         all_keys = self._state.ls()
         for commit in all_keys:
-            # BACKWARDS-COMPAT BLOCK
-            # Format: /promotions/{channel}/{commit-sha}
-            if commit.startswith("/promotions/"):
-                # Keep this for backwards-compatibility with v1 promotions
-                # We wait a couple of months to be sure all pipelines have
-                # been triggered since.
-                # This can be deleted after 30.09.2023
-                _, _, channel_name, commit_sha = commit.split("/")
-                self._commits_by_channel[channel_name].add(commit_sha)
-            # / BACKWARDS-COMPAT BLOCK
-
             # Format: /promotions_v2/{channel}/{publisher-target-uid}/{commit-sha}
             if not commit.startswith("/promotions_v2/"):
                 continue
@@ -71,28 +60,10 @@ class PromotionState:
     def get_promotion_data(
         self, sha: str, channel: str, target_uid: str = "", local_lookup: bool = True
     ) -> Optional[PromotionData]:
-        cache_key_v1 = channel
         cache_key_v2 = self._target_key(channel=channel, target_uid=target_uid)
-        if (
-            local_lookup
-            and sha not in self._commits_by_channel[cache_key_v1]
-            and sha not in self._commits_by_channel[cache_key_v2]
-        ):
+        if local_lookup and sha not in self._commits_by_channel[cache_key_v2]:
             # Lets reduce unecessary calls to S3
             return None
-
-        # BACKWARDS-COMPAT BLOCK
-        # Keep for backwards-compatibility with v1 promotions
-        # We wait a couple of months to be sure all pipelines have
-        # been triggered since.
-        # This can be deleted after 30.09.2023
-        path_v1 = f"promotions/{channel}/{sha}"
-        try:
-            data = self._state.get(path_v1)
-            return PromotionData(**data)
-        except KeyError:
-            pass
-        # / BACKWARDS-COMPAT BLOCK
 
         path_v2 = f"promotions_v2/{channel}/{target_uid}/{sha}"
         try:

@@ -160,12 +160,8 @@ def build_bundle_resourcefile_change(
     builder = QontractServerBundleDiffDataBuilder().add_resource_file(
         path=path,
         schema=schema,
-        old_content=json.dumps(old_content)
-        if old_content and isinstance(old_content, dict)
-        else old_content,
-        new_content=json.dumps(new_content)
-        if new_content and isinstance(new_content, dict)
-        else new_content,
+        old_content=old_content,
+        new_content=new_content,
     )
     parsed_changes = parse_bundle_changes(builder.diff)
     bundle_file_change = parsed_changes[0] if parsed_changes else None

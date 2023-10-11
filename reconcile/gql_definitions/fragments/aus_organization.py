@@ -18,6 +18,9 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
+from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
+    MinimalOCMOrganization,
+)
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -49,23 +52,15 @@ class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManage
     name: str = Field(..., alias="name")
 
 
-class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(
-    ConfiguredBaseModel
-):
-    org_id: str = Field(..., alias="orgId")
-
-
 class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     org_id: str = Field(..., alias="orgId")
     environment: OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1 = Field(
         ..., alias="environment"
     )
-    publish_version_data: Optional[
-        list[
-            OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1
-        ]
-    ] = Field(..., alias="publishVersionData")
+    publish_version_data: Optional[list[MinimalOCMOrganization]] = Field(
+        ..., alias="publishVersionData"
+    )
 
 
 class OpenShiftClusterManagerSectorDependenciesV1_OpenShiftClusterManagerV1(
@@ -110,6 +105,9 @@ class AUSOCMOrganization(ConfiguredBaseModel):
     inherit_version_data: Optional[
         list[OpenShiftClusterManagerV1_OpenShiftClusterManagerV1]
     ] = Field(..., alias="inheritVersionData")
+    publish_version_data: Optional[list[MinimalOCMOrganization]] = Field(
+        ..., alias="publishVersionData"
+    )
     sectors: Optional[list[OpenShiftClusterManagerSectorV1]] = Field(
         ..., alias="sectors"
     )

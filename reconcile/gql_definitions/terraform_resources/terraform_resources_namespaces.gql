@@ -234,11 +234,7 @@ query TerraformResourcesNamespaces {
                 region
                 identifier
                 vpc {
-                    vpc_id
-                    cidr_block
-                    subnets {
-                        id
-                    }
+                    ... AWSVPC
                 }
                 certificate_arn
                 ingress_cidr_blocks

@@ -12,7 +12,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 from .data_keys import (
     DESIRED_REF,
     DESIRED_TARGET_HASHES,
-    NAMESPACE_REF,
+    NAMESPACE,
     TARGET_FILE_PATH,
 )
 
@@ -21,7 +21,7 @@ def test_can_compute_content_hash(subscriber_builder: Callable[[Mapping], Subscr
     subscribers = [
         subscriber_builder(
             {
-                NAMESPACE_REF: "some_namespace",
+                NAMESPACE: {"path": "some_namespace"},
                 TARGET_FILE_PATH: "some_saas",
                 DESIRED_REF: "new",
                 DESIRED_TARGET_HASHES: [
@@ -32,7 +32,7 @@ def test_can_compute_content_hash(subscriber_builder: Callable[[Mapping], Subscr
         ),
         subscriber_builder(
             {
-                NAMESPACE_REF: "other_namespace",
+                NAMESPACE: {"path": "other_namespace"},
                 TARGET_FILE_PATH: "other_saas",
                 DESIRED_REF: "new",
                 DESIRED_TARGET_HASHES: [
@@ -54,7 +54,7 @@ def test_content_hash_is_deterministic(
     subscribers = [
         subscriber_builder(
             {
-                NAMESPACE_REF: "some_namespace",
+                NAMESPACE: {"path": "some_namespace"},
                 TARGET_FILE_PATH: "some_saas",
                 DESIRED_REF: "new",
                 DESIRED_TARGET_HASHES: [
@@ -65,7 +65,7 @@ def test_content_hash_is_deterministic(
         ),
         subscriber_builder(
             {
-                NAMESPACE_REF: "other_namespace",
+                NAMESPACE: {"path": "other_namespace"},
                 TARGET_FILE_PATH: "other_saas",
                 DESIRED_REF: "old",
                 DESIRED_TARGET_HASHES: [
@@ -84,7 +84,7 @@ def test_content_hash_is_deterministic(
 def test_content_hash_differs(subscriber_builder: Callable[[Mapping], Subscriber]):
     subscriber_a = subscriber_builder(
         {
-            NAMESPACE_REF: "some_namespace",
+            NAMESPACE: {"path": "some_namespace"},
             TARGET_FILE_PATH: "some_saas",
             DESIRED_REF: "new",
             DESIRED_TARGET_HASHES: [
@@ -96,7 +96,7 @@ def test_content_hash_differs(subscriber_builder: Callable[[Mapping], Subscriber
 
     subscriber_b = subscriber_builder(
         {
-            NAMESPACE_REF: "some_namespace",
+            NAMESPACE: {"path": "some_namespace"},
             TARGET_FILE_PATH: "some_other_saas",
             DESIRED_REF: "new",
             DESIRED_TARGET_HASHES: [
@@ -113,7 +113,7 @@ def test_content_hash_differs(subscriber_builder: Callable[[Mapping], Subscriber
 def test_content_hash_equals(subscriber_builder: Callable[[Mapping], Subscriber]):
     subscriber_a = subscriber_builder(
         {
-            NAMESPACE_REF: "some_namespace",
+            NAMESPACE: {"path": "some_namespace"},
             TARGET_FILE_PATH: "some_saas",
             DESIRED_REF: "new",
             DESIRED_TARGET_HASHES: [
@@ -126,7 +126,7 @@ def test_content_hash_equals(subscriber_builder: Callable[[Mapping], Subscriber]
     )
     subscriber_b = subscriber_builder(
         {
-            NAMESPACE_REF: "some_namespace",
+            NAMESPACE: {"path": "some_namespace"},
             TARGET_FILE_PATH: "some_saas",
             DESIRED_REF: "new",
             DESIRED_TARGET_HASHES: list(

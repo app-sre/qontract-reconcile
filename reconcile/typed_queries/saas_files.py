@@ -1,6 +1,7 @@
 import hashlib
 import json
 from collections.abc import Callable
+from threading import Lock
 from typing import (
     Any,
     Optional,
@@ -8,7 +9,6 @@ from typing import (
 )
 
 from jsonpath_ng.exceptions import JsonPathParserError
-from jsonpath_ng.ext import parser
 from pydantic import (
     BaseModel,
     Extra,
@@ -51,6 +51,7 @@ from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,
     ParameterError,
 )
+from reconcile.utils.jsonpath import parse_jsonpath
 
 
 class SaasResourceTemplateTarget(ConfiguredBaseModel):
@@ -141,51 +142,164 @@ class SaasFile(ConfiguredBaseModel):
     self_service_roles: Optional[list[RoleV1]] = Field(..., alias="selfServiceRoles")
 
 
-def get_namespaces_by_selector(
-    namespaces: list[SaasTargetNamespace],
-    namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
-) -> list[SaasTargetNamespace]:
-    # json representation of all the namespaces to filter on
-    # remove all the None values to simplify the jsonpath expressions
-    namespaces_as_dict = {
-        "namespace": [ns.dict(by_alias=True, exclude_none=True) for ns in namespaces]
-    }
+class SaasFileList:
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        query_func: Optional[Callable] = None,
+        namespaces: Optional[list[SaasTargetNamespace]] = None,
+    ) -> None:
+        # query_func and namespaces are optional args mostly used in tests
+        if not query_func:
+            query_func = gql.get_api().query
+        if not namespaces:
+            namespaces = namespaces_query(query_func).namespaces or []
+        self.namespaces = namespaces
+        self.cluster_namespaces = {
+            (ns.cluster.name, ns.name): ns for ns in self.namespaces
+        }
 
-    def _get_namespace_by_cluster_and_name(
-        cluster_name: str, name: str
-    ) -> SaasTargetNamespace:
-        for ns in namespaces:
-            if ns.cluster.name == cluster_name and ns.name == name:
-                return ns
-        # this should never ever happen - just make mypy happy
-        raise RuntimeError(f"namespace '{name}' not found in cluster '{cluster_name}'")
+        self._init_caches()
 
-    filtered_namespaces: dict[str, Any] = {}
+        self.saas_files_v2 = saas_files_query(query_func).saas_files or []
+        if name:
+            self.saas_files_v2 = [sf for sf in self.saas_files_v2 if sf.name == name]
+        self.saas_files = self._resolve_namespace_selectors()
 
-    try:
+    def _init_caches(self) -> None:
+        self._namespaces_as_dict_cache: Optional[dict[str, list[Any]]] = None
+        self._namespaces_as_dict_lock = Lock()
+        self._matching_namespaces_cache: dict[str, Any] = {}
+        self._matching_namespaces_lock = Lock()
+
+    def _resolve_namespace_selectors(self) -> list[SaasFile]:
+        saas_files: list[SaasFile] = []
+        # resolve namespaceSelectors to real namespaces
+        for sfv2 in self.saas_files_v2:
+            for rt_gql in sfv2.resource_templates:
+                for target_gql in rt_gql.targets[:]:
+                    # either namespace or namespaceSelector must be set
+                    if target_gql.namespace and target_gql.namespace_selector:
+                        raise ParameterError(
+                            f"SaasFile {sfv2.name}: namespace and namespaceSelector are mutually exclusive"
+                        )
+                    if not target_gql.provider:
+                        target_gql.provider = "static"
+
+                    if (
+                        target_gql.namespace_selector
+                        and target_gql.provider != "dynamic"
+                    ):
+                        raise ParameterError(
+                            f"SaasFile {sfv2.name}: namespaceSelector can only be used with 'provider: dynamic'"
+                        )
+                    if (
+                        target_gql.namespace_selector
+                        and target_gql.provider == "dynamic"
+                    ):
+                        rt_gql.targets.remove(target_gql)
+                        rt_gql.targets += self.create_targets_for_namespace_selector(
+                            target_gql, target_gql.namespace_selector
+                        )
+            # convert SaasFileV2 (with optional resource_templates.targets.namespace field)
+            # to SaasFile (with required resource_templates.targets.namespace field)
+            saas_files.append(SaasFile(**export_model(sfv2)))
+        return saas_files
+
+    def create_targets_for_namespace_selector(
+        self,
+        target: SaasResourceTemplateTargetV2,
+        namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
+    ) -> list[SaasResourceTemplateTargetV2]:
+        targets = []
+        for namespace in self.get_namespaces_by_selector(namespace_selector):
+            target_dict = export_model(target)
+            target_dict["namespace"] = export_model(namespace)
+            targets.append(SaasResourceTemplateTargetV2(**target_dict))
+        return targets
+
+    def _get_namespaces_as_dict(self) -> dict[str, list[Any]]:
+        # json representation of all the namespaces to filter on
+        # remove all the None values to simplify the jsonpath expressions
+        if self._namespaces_as_dict_cache is None:
+            with self._namespaces_as_dict_lock:
+                self._namespaces_as_dict_cache = {
+                    "namespace": [
+                        ns.dict(by_alias=True, exclude_none=True)
+                        for ns in self.namespaces
+                    ]
+                }
+        return self._namespaces_as_dict_cache
+
+    def _matching_namespaces(self, selector: str) -> Any:
+        if selector not in self._matching_namespaces_cache:
+            with self._matching_namespaces_lock:
+                namespaces_as_dict = self._get_namespaces_as_dict()
+                try:
+                    self._matching_namespaces_cache[selector] = parse_jsonpath(
+                        selector
+                    ).find(namespaces_as_dict)
+                except JsonPathParserError as e:
+                    raise ParameterError(
+                        f"Invalid jsonpath expression in namespaceSelector '{selector}' :{e}"
+                    )
+
+        return self._matching_namespaces_cache[selector]
+
+    def get_namespaces_by_selector(
+        self, namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1
+    ) -> list[SaasTargetNamespace]:
+        filtered_namespaces: dict[tuple[str, str], Any] = {}
+
         for include in namespace_selector.json_path_selectors.include:
-            for match in parser.parse(include).find(namespaces_as_dict):
+            for match in self._matching_namespaces(include):
                 cluster_name = match.value["cluster"]["name"]
                 ns_name = match.value["name"]
-                filtered_namespaces[
-                    f"{cluster_name}-{ns_name}"
-                ] = _get_namespace_by_cluster_and_name(cluster_name, ns_name)
-    except JsonPathParserError as e:
-        raise ParameterError(
-            f"Invalid jsonpath expression in namespaceSelector '{include}' :{e}"
-        )
+                filtered_namespaces[(cluster_name, ns_name)] = self.cluster_namespaces[
+                    (cluster_name, ns_name)
+                ]
 
-    try:
         for exclude in namespace_selector.json_path_selectors.exclude or []:
-            for match in parser.parse(exclude).find(namespaces_as_dict):
+            for match in self._matching_namespaces(exclude):
                 cluster_name = match.value["cluster"]["name"]
                 ns_name = match.value["name"]
-                filtered_namespaces.pop(f"{cluster_name}-{ns_name}", None)
-    except JsonPathParserError as e:
-        raise ParameterError(
-            f"Invalid jsonpath expression in namespaceSelector '{exclude}' :{e}"
-        )
-    return list(filtered_namespaces.values())
+                filtered_namespaces.pop((cluster_name, ns_name), None)
+
+        return list(filtered_namespaces.values())
+
+    def where(
+        self,
+        name: Optional[str] = None,
+        env_name: Optional[str] = None,
+        app_name: Optional[str] = None,
+    ) -> list[SaasFile]:
+        if name is None and env_name is None and app_name is None:
+            return self.saas_files
+
+        if name == "" or env_name == "" or app_name == "":
+            return []
+
+        filtered: list[SaasFile] = []
+        for saas_file in self.saas_files[:]:
+            if name and saas_file.name != name:
+                continue
+
+            if app_name and saas_file.app.name != app_name:
+                continue
+
+            sf = saas_file.copy(deep=True)
+            if env_name:
+                for rt in sf.resource_templates[:]:
+                    for target in rt.targets[:]:
+                        if target.namespace.environment.name != env_name:
+                            rt.targets.remove(target)
+                    if not rt.targets:
+                        sf.resource_templates.remove(rt)
+                if not sf.resource_templates:
+                    continue
+            filtered.append(sf)
+
+        return filtered
 
 
 def convert_parameters_to_json_string(root: dict[str, Any]) -> dict[str, Any]:
@@ -207,89 +321,19 @@ def export_model(model: BaseModel) -> dict[str, Any]:
     return convert_parameters_to_json_string(model.dict(by_alias=True))
 
 
-def create_targets_for_namespace_selector(
-    target: SaasResourceTemplateTargetV2,
-    namespaces: list[SaasTargetNamespace],
-    namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
-) -> list[SaasResourceTemplateTargetV2]:
-    targets = []
-    for namespace in get_namespaces_by_selector(namespaces, namespace_selector):
-        target_dict = export_model(target)
-        target_dict["namespace"] = export_model(namespace)
-        targets.append(SaasResourceTemplateTargetV2(**target_dict))
-    return targets
-
-
 def get_saas_files(
     name: Optional[str] = None,
     env_name: Optional[str] = None,
     app_name: Optional[str] = None,
     query_func: Optional[Callable] = None,
     namespaces: Optional[list[SaasTargetNamespace]] = None,
+    saas_file_list: Optional[SaasFileList] = None,
 ) -> list[SaasFile]:
-    if not query_func:
-        query_func = gql.get_api().query
-    data = saas_files_query(query_func)
-    saas_files: list[SaasFile] = []
-    if not namespaces:
-        namespaces = namespaces_query(query_func).namespaces or []
-
-    # resolve namespaceSelectors to real namespaces
-    for saas_file_gql in list(data.saas_files or []):
-        for rt_gql in saas_file_gql.resource_templates:
-            for target_gql in rt_gql.targets[:]:
-                # either namespace or namespaceSelector must be set
-                if target_gql.namespace and target_gql.namespace_selector:
-                    raise ParameterError(
-                        f"SaasFile {saas_file_gql.name}: namespace and namespaceSelector are mutually exclusive"
-                    )
-                if not target_gql.provider:
-                    target_gql.provider = "static"
-
-                if (
-                    target_gql.namespace_selector
-                    and not target_gql.provider == "dynamic"
-                ):
-                    raise ParameterError(
-                        f"SaasFile {saas_file_gql.name}: namespaceSelector can only be used with 'provider: dynamic'"
-                    )
-                if target_gql.namespace_selector and target_gql.provider == "dynamic":
-                    rt_gql.targets.remove(target_gql)
-                    rt_gql.targets += create_targets_for_namespace_selector(
-                        target_gql, namespaces, target_gql.namespace_selector
-                    )
-        # convert SaasFileV2 (with optional resource_templates.targets.namespace field)
-        # to SaasFile (with required resource_templates.targets.namespace field)
-        saas_files.append(SaasFile(**export_model(saas_file_gql)))
-
-    if name is None and env_name is None and app_name is None:
-        return saas_files
-    if name == "" or env_name == "" or app_name == "":
-        return []
-
-    for saas_file in saas_files[:]:
-        if name:
-            if saas_file.name != name:
-                saas_files.remove(saas_file)
-                continue
-
-        if env_name:
-            for rt in saas_file.resource_templates[:]:
-                for target in rt.targets[:]:
-                    if target.namespace.environment.name != env_name:
-                        rt.targets.remove(target)
-                if not rt.targets:
-                    saas_file.resource_templates.remove(rt)
-            if not saas_file.resource_templates:
-                saas_files.remove(saas_file)
-                continue
-
-        if app_name:
-            if saas_file.app.name != app_name:
-                saas_files.remove(saas_file)
-                continue
-
-    return saas_files
+    if not saas_file_list:
+        saas_file_list = SaasFileList(
+            name=name, query_func=query_func, namespaces=namespaces
+        )
+    return saas_file_list.where(env_name=env_name, app_name=app_name)
 
 
 def get_saasherder_settings(

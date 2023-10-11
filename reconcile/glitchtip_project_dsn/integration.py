@@ -232,6 +232,7 @@ def run(
             glitchtip_client=glitchtip_client,
         )
 
+    ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     # create/update/delete all secrets
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 

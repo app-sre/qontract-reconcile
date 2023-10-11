@@ -71,6 +71,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.saas_files import get_saas_files
+from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.utils import (
     amtool,
     config,
@@ -1050,6 +1051,60 @@ def clusters_network(ctx, name):
     # do not sort
     ctx.obj["options"]["sort"] = False
     print_output(ctx.obj["options"], clusters, columns)
+
+
+@get.command()
+@click.pass_context
+def cidr_blocks(ctx) -> None:
+    import ipaddress
+
+    from reconcile.typed_queries.aws_vpcs import get_aws_vpcs
+
+    columns = ["type", "name", "account", "cidr", "from", "to", "hosts", "overlaps"]
+
+    clusters = [c for c in queries.get_clusters() if c.get("network")]
+    cidrs = [
+        {
+            "type": "cluster",
+            "name": c["name"],
+            "account": ((c.get("spec") or {}).get("account") or {}).get("name"),
+            "cidr": c["network"]["vpc"],
+            "from": str(ipaddress.ip_network(c["network"]["vpc"])[0]),
+            "to": str(ipaddress.ip_network(c["network"]["vpc"])[-1]),
+            "hosts": str(ipaddress.ip_network(c["network"]["vpc"]).num_addresses),
+            "description": c.get("description"),
+        }
+        for c in clusters
+    ]
+
+    vpcs = get_aws_vpcs()
+    cidrs.extend(
+        {
+            "type": "vpc",
+            "name": vpc.name,
+            "account": vpc.account.name,
+            "cidr": vpc.cidr_block,
+            "from": str(ipaddress.ip_network(vpc.cidr_block)[0]),
+            "to": str(ipaddress.ip_network(vpc.cidr_block)[-1]),
+            "hosts": str(ipaddress.ip_network(vpc.cidr_block).num_addresses),
+            "description": vpc.description,
+        }
+        for vpc in vpcs
+    )
+
+    for index, cidr in enumerate(cidrs):
+        network = ipaddress.ip_network(cidr["cidr"])
+        overlaps = [
+            f"{c['type']}/{c['name']}"
+            for i, c in enumerate(cidrs)
+            if i != index and network.overlaps(ipaddress.ip_network(c["cidr"]))
+        ]
+        cidr["overlaps"] = ", ".join(overlaps)
+
+    cidrs.sort(key=lambda item: ipaddress.ip_network(item["cidr"]))
+
+    ctx.obj["options"]["sort"] = False
+    print_output(ctx.obj["options"], cidrs, columns)
 
 
 def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
@@ -2235,6 +2290,40 @@ def ec2_jenkins_workers(ctx, aws_access_key_id, aws_secret_access_key, aws_regio
             results.append(item)
 
     print_output(ctx.obj["options"], results, columns)
+
+
+@get.command()
+@click.pass_context
+def slo_document_services(ctx):
+    """Print SLO Documents Services"""
+    columns = [
+        "slo_doc_name",
+        "product",
+        "app",
+        "slo",
+        "target",
+        "window",
+        "statusBoardEnabled",
+    ]
+
+    slodocs = []
+    for slodoc in get_slo_documents():
+        products = [ns.namespace.environment.product.name for ns in slodoc.namespaces]
+        for slo in slodoc.slos:
+            for product in products:
+                item = {
+                    "slo_doc_name": slodoc.name,
+                    "product": product,
+                    "app": slodoc.app.name,
+                    "slo": slo.name,
+                    "target": slo.slo_target,
+                    "window": slo.slo_parameters.window,
+                    "statusBoardService": f"{product}/{slodoc.app.name}/{slo.name}",
+                    "statusBoardEnabled": "statusBoard" in slodoc.labels,
+                }
+                slodocs.append(item)
+
+    print_output(ctx.obj["options"], slodocs, columns)
 
 
 @root.group(name="set")

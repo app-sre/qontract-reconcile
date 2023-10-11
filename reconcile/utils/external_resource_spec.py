@@ -12,9 +12,11 @@ from typing import (
 )
 
 import yaml
+from pydantic import BaseModel
 from pydantic.dataclasses import dataclass
 
 from reconcile import openshift_resources_base
+from reconcile.utils.metrics import GaugeMetric
 from reconcile.utils.openshift_resource import (
     SECRET_MAX_KEY_LENGTH,
     OpenshiftResource,
@@ -186,6 +188,24 @@ class ExternalResourceUniqueKey:
             identifier=spec.identifier,
             provider=spec.provider,
         )
+
+
+class ExternalResourceBaseMetric(BaseModel):
+    "Base class External Resource metrics"
+
+    integration: str
+
+
+class ExternalResourceInventoryGauge(ExternalResourceBaseMetric, GaugeMetric):
+    "Inventory Gauge"
+
+    provision_provider: str
+    provisioner_name: str
+    provider: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "qontract_reconcile_external_resource_inventory"
 
 
 ExternalResourceSpecInventory = MutableMapping[

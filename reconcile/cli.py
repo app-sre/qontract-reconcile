@@ -1482,14 +1482,27 @@ def gcr_mirror(ctx):
     default=86400,
 )
 @click.option(
-    "-i",
-    "--image",
-    help="Only considers this image to mirror. It can be specified multiple times.",
+    "-r",
+    "--repository-url",
+    help="Only considers this repository to mirror. It can be specified multiple times.",
+    multiple=True,
+)
+@click.option(
+    "-e",
+    "--exclude-repository-url",
+    help="excludes this repository  to mirror. It can be specified multiple times.",
     multiple=True,
 )
 @click.pass_context
 @binary(["skopeo"])
-def quay_mirror(ctx, control_file_dir, compare_tags, compare_tags_interval, image):
+def quay_mirror(
+    ctx,
+    control_file_dir,
+    compare_tags,
+    compare_tags_interval,
+    repository_url,
+    exclude_repository_url,
+):
     import reconcile.quay_mirror
 
     run_integration(
@@ -1498,7 +1511,8 @@ def quay_mirror(ctx, control_file_dir, compare_tags, compare_tags_interval, imag
         control_file_dir,
         compare_tags,
         compare_tags_interval,
-        image,
+        repository_url,
+        exclude_repository_url,
     )
 
 
@@ -2559,11 +2573,12 @@ def ocm_standalone_user_management(ctx, ocm_env, ocm_org_ids, group_provider):
     from reconcile.oum.base import OCMUserManagementIntegrationParams
     from reconcile.oum.standalone import OCMStandaloneUserManagementIntegration
 
+    ocm_organization_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     run_class_integration(
         OCMStandaloneUserManagementIntegration(
             OCMUserManagementIntegrationParams(
                 ocm_environment=ocm_env,
-                ocm_org_ids=ocm_org_ids,
+                ocm_organization_ids=ocm_organization_ids,
                 group_provider_specs=group_provider,
             ),
         ),
@@ -2803,17 +2818,17 @@ def skupper_network(ctx, thread_pool_size, internal, use_jump_host):
     )
 
 
-@integration.command(short_help="Manage cluster OCM subscription labels.")
+@integration.command(short_help="Manage cluster OCM labels.")
 @click.option(
     "--managed-label-prefixes",
     help="A comma list of label prefixes that are managed.",
     required=True,
-    envvar="OSL_MANAGED_LABEL_PREFIXES",
+    envvar="OL_MANAGED_LABEL_PREFIXES",
     default="sre-capabilities",
 )
 @click.pass_context
-def ocm_subscription_labels(ctx, managed_label_prefixes):
-    from reconcile.ocm_subscription_labels.integration import (
+def ocm_labels(ctx, managed_label_prefixes):
+    from reconcile.ocm_labels.integration import (
         OcmLabelsIntegration,
         OcmLabelsIntegrationParams,
     )

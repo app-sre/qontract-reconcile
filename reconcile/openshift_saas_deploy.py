@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from collections.abc import Callable
 from typing import Optional
@@ -19,7 +20,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.saas_files import (
     SaasFile,
-    get_saas_files,
+    SaasFileList,
     get_saasherder_settings,
 )
 from reconcile.utils.defer import defer
@@ -99,13 +100,17 @@ def run(
     env_name: Optional[str] = None,
     trigger_integration: Optional[str] = None,
     trigger_reason: Optional[str] = None,
+    saas_file_list: Optional[SaasFileList] = None,
     defer: Optional[Callable] = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
-    all_saas_files = get_saas_files()
-    saas_files = get_saas_files(saas_file_name, env_name)
+    if not saas_file_list:
+        saas_file_list = SaasFileList()
+    all_saas_files = saas_file_list.saas_files
+    saas_files = saas_file_list.where(name=saas_file_name, env_name=env_name)
+
     if not saas_files:
         logging.error("no saas files found")
         raise RuntimeError("no saas files found")
@@ -183,6 +188,7 @@ def run(
         gitlab=gl,
         jenkins_map=jenkins_map,
         state=init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader),
+        all_saas_files=saas_file_list.saas_files,
     )
     if defer:
         defer(saasherder.cleanup)
@@ -273,3 +279,26 @@ def run(
                 + f"{action['kind']} {action['name']} {action['action']}"
             )
             slack.chat_post_message(message)
+
+    # get upstream repo info for sast scan
+    # we only do this if:
+    # - this is not a dry run
+    # - there is a single saas file deployed
+    # - saas-deploy triggered by upstream-job
+    sast = (
+        not dry_run
+        and len(saas_files) == 1
+        and trigger_integration
+        and trigger_integration == "openshift-saas-deploy-trigger-upstream-jobs"
+        and trigger_reason
+    )
+    if sast:
+        saas_file = saas_files[0]
+        owners = saas_file.app.service_owners or []
+        emails = " ".join([o.email for o in owners])
+        file, url = saasherder.get_archive_info(saas_file, trigger_reason)
+        sast_file = os.path.join(io_dir, "sast")
+        with open(sast_file, "w") as f:
+            f.write(file + "\n")
+            f.write(url + "\n")
+            f.write(emails + "\n")

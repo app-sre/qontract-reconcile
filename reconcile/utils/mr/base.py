@@ -1,10 +1,11 @@
 import json
 import logging
 from abc import (
-    ABCMeta,
+    ABC,
     abstractmethod,
 )
 from typing import (
+    Any,
     Optional,
     Union,
 )
@@ -38,7 +39,7 @@ class MergeRequestProcessingError(Exception):
 MRClient = Union[GitLabApi, SQSGateway]
 
 
-class MergeRequestBase(metaclass=ABCMeta):
+class MergeRequestBase(ABC):
     """
     Base abstract class for all merge request types.
     """
@@ -52,19 +53,17 @@ class MergeRequestBase(metaclass=ABCMeta):
         # of the child class.
         self.sqs_msg_data = {**self.__dict__}
 
-        self.gitlab_cli = None
         self.labels = [DO_NOT_MERGE_HOLD]
 
         random_id = str(uuid4())[:6]
         self.branch = f"{self.name}-{random_id}"
         self.branch_created = False
 
-        self.main_branch = "master"
         self.remove_source_branch = True
 
         self.cancelled = False
 
-    def cancel(self, message):
+    def cancel(self, message: str) -> None:
         self.cancelled = True
         raise CancelMergeRequest(
             f"{self.name} MR canceled for "
@@ -93,7 +92,7 @@ class MergeRequestBase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def process(self, gitlab_cli):
+    def process(self, gitlab_cli: GitLabApi) -> None:
         """
         Called by `submit_to_gitlab`, this method is the place for
         user-defined steps to create the commits of a merge request.
@@ -103,7 +102,7 @@ class MergeRequestBase(metaclass=ABCMeta):
         """
 
     @property
-    def sqs_data(self):
+    def sqs_data(self) -> dict[str, Any]:
         """
         The SQS Message payload (MessageBody) generated out of
         the Merge Request class instance.
@@ -113,7 +112,7 @@ class MergeRequestBase(metaclass=ABCMeta):
             **self.sqs_msg_data,
         }
 
-    def submit_to_sqs(self, sqs_cli) -> None:
+    def submit_to_sqs(self, sqs_cli: SQSGateway) -> None:
         """
         Sends the MR message to SQS.
 
@@ -122,21 +121,20 @@ class MergeRequestBase(metaclass=ABCMeta):
         """
         sqs_cli.send_message(self.sqs_data)
 
-    @property
-    def gitlab_data(self):
+    def gitlab_data(self, target_branch: str) -> dict[str, Any]:
         """
         The Gitlab payload for creating the Merge Request.
         """
         return {
             "source_branch": self.branch,
-            "target_branch": self.main_branch,
+            "target_branch": target_branch,
             "title": self.title,
             "description": self.description,
             "remove_source_branch": self.remove_source_branch,
             "labels": self.labels,
         }
 
-    def submit_to_gitlab(self, gitlab_cli):
+    def submit_to_gitlab(self, gitlab_cli: GitLabApi) -> Any:
         """
         Sends the MR to Gitlab.
 
@@ -163,11 +161,13 @@ class MergeRequestBase(metaclass=ABCMeta):
             # Avoiding empty MRs
             if not self.diffs(gitlab_cli):
                 self.cancel(
-                    f"No changes when compared to {self.main_branch}. "
+                    f"No changes when compared to {gitlab_cli.main_branch}. "
                     "Aborting MR creation."
                 )
 
-            return gitlab_cli.project.mergerequests.create(self.gitlab_data)
+            return gitlab_cli.project.mergerequests.create(
+                self.gitlab_data(target_branch=gitlab_cli.main_branch)
+            )
         except CancelMergeRequest as mr_cancel:
             # cancellation is a valid behaviour. it indicates, that the
             # operation is not required, therefore we will not signal
@@ -187,14 +187,14 @@ class MergeRequestBase(metaclass=ABCMeta):
                 f"Reason: {err}"
             ) from err
 
-    def ensure_tmp_branch_exists(self, gitlab_cli):
+    def ensure_tmp_branch_exists(self, gitlab_cli: GitLabApi) -> None:
         if not self.branch_created:
             gitlab_cli.create_branch(
-                new_branch=self.branch, source_branch=self.main_branch
+                new_branch=self.branch, source_branch=gitlab_cli.main_branch
             )
             self.branch_created = True
 
-    def delete_tmp_branch(self, gitlab_cli):
+    def delete_tmp_branch(self, gitlab_cli: GitLabApi) -> None:
         if self.branch_created:
             try:
                 gitlab_cli.delete_branch(branch=self.branch)
@@ -206,17 +206,18 @@ class MergeRequestBase(metaclass=ABCMeta):
                     f"Failed to delete branch {self.branch}. " f"Reason: {gitlab_error}"
                 )
 
-    def diffs(self, gitlab_cli):
+    def diffs(self, gitlab_cli: GitLabApi) -> Any:
         return gitlab_cli.project.repository_compare(
-            from_=self.main_branch, to=self.branch
+            from_=gitlab_cli.main_branch, to=self.branch
         )["diffs"]
 
-    def submit(self, cli: MRClient):
+    def submit(self, cli: MRClient) -> Union[Any, None]:
         if isinstance(cli, GitLabApi):
             return self.submit_to_gitlab(gitlab_cli=cli)
 
         if isinstance(cli, SQSGateway):
-            return self.submit_to_sqs(sqs_cli=cli)
+            self.submit_to_sqs(sqs_cli=cli)
+            return None
 
         raise AttributeError(f"client {cli} not supported")
 

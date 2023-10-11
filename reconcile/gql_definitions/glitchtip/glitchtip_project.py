@@ -61,12 +61,16 @@ query Projects {
           org_username
         }
       }
+      ldapGroups
+      membersOrganizationRole
     }
     organization {
       name
       instance {
         name
       }
+      # for glitchtip access revalidation
+      owners
     }
     # for glitchtip-project-dsn
     namespaces {
@@ -95,7 +99,7 @@ query Projects {
         }
       }
     }
-    # for gltichtip access revalidation
+    # for glitchtip access revalidation
     app {
       path
     }
@@ -134,6 +138,10 @@ class RoleV1(ConfiguredBaseModel):
 class GlitchtipTeamV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     roles: list[RoleV1] = Field(..., alias="roles")
+    ldap_groups: Optional[list[str]] = Field(..., alias="ldapGroups")
+    members_organization_role: Optional[str] = Field(
+        ..., alias="membersOrganizationRole"
+    )
 
 
 class GlitchtipInstanceV1(ConfiguredBaseModel):
@@ -143,6 +151,7 @@ class GlitchtipInstanceV1(ConfiguredBaseModel):
 class GlitchtipProjectsV1_GlitchtipOrganizationV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     instance: GlitchtipInstanceV1 = Field(..., alias="instance")
+    owners: Optional[list[str]] = Field(..., alias="owners")
 
 
 class ClusterSpecV1(ConfiguredBaseModel):
@@ -187,7 +196,7 @@ class GlitchtipProjectsV1(ConfiguredBaseModel):
         ..., alias="organization"
     )
     namespaces: list[NamespaceV1] = Field(..., alias="namespaces")
-    app: AppV1 = Field(..., alias="app")
+    app: Optional[AppV1] = Field(..., alias="app")
 
 
 class ProjectsQueryData(ConfiguredBaseModel):

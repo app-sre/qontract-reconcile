@@ -3,6 +3,9 @@
 query OcmSubscriptionLabel {
   clusters: clusters_v1 {
     name
+    spec {
+      id
+    }
     ocm {
       environment {
         ...OCMEnvironment

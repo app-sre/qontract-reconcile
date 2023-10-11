@@ -22,6 +22,7 @@ from typing import (
     Type,
     Union,
 )
+from urllib.parse import urlparse
 
 import yaml
 from github import (
@@ -70,6 +71,7 @@ from reconcile.utils.saasherder.interfaces import (
     SaasSecretParameters,
 )
 from reconcile.utils.saasherder.models import (
+    Channel,
     ImageAuth,
     Namespace,
     Promotion,
@@ -118,6 +120,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         state: Optional[State] = None,
         validate: bool = False,
         include_trigger_trace: bool = False,
+        all_saas_files: Optional[Iterable[SaasFile]] = None,
     ):
         self.error_registered = False
         self.saas_files = saas_files
@@ -139,6 +142,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.include_trigger_trace = include_trigger_trace
         self.state = state
         self._promotion_state = PromotionState(state=state) if state else None
+        self._channel_map = self._assemble_channels(saas_files=all_saas_files)
 
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -746,6 +750,27 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return ""
 
     @retry(max_attempts=20)
+    def get_archive_info(
+        self,
+        saas_file: SaasFile,
+        trigger_reason: str,
+    ) -> tuple[str, str]:
+        [url, sha] = trigger_reason.split(" ")[0].split("/commit/")
+        repo_name = urlparse(url).path.strip("/")
+        file_name = f"{repo_name.replace('/','-')}-{sha}.tar.gz"
+        if "github" in url:
+            github = self._initiate_github(saas_file, base_url="https://api.github.com")
+            repo = github.get_repo(repo_name)
+            # get_archive_link get redirect url form header, it does not work with github-mirror
+            archive_url = repo.get_archive_link("tarball", ref=sha)
+        elif "gitlab" in url:
+            archive_url = f"{url}/-/archive/{sha}/{file_name}"
+        else:
+            raise Exception(f"Only GitHub and GitLab are supported: {url}")
+
+        return file_name, archive_url
+
+    @retry(max_attempts=20)
     def _get_file_contents(
         self, url: str, path: str, ref: str, github: Github
     ) -> tuple[Any, str, str]:
@@ -1014,10 +1039,13 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
         target_promotion = None
         if target.promotion:
+            channels = [
+                self._channel_map[sub] for sub in target.promotion.subscribe or []
+            ]
             target_promotion = Promotion(
                 auto=target.promotion.auto,
                 publish=target.promotion.publish,
-                subscribe=target.promotion.subscribe,
+                subscribe=channels,
                 promotion_data=target.promotion.promotion_data,
                 commit_sha=commit_sha,
                 saas_file=saas_file_name,
@@ -1028,6 +1056,32 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 ),
             )
         return resources, html_url, target_promotion
+
+    def _assemble_channels(
+        self, saas_files: Optional[Iterable[SaasFile]]
+    ) -> dict[str, Channel]:
+        """
+        We need to assemble all publisher_uids that are publishing to a channel.
+        These uids are required to validate correctness of promotions.
+        """
+        channel_map: dict[str, Channel] = {}
+        for saas_file in saas_files or []:
+            for tmpl in saas_file.resource_templates:
+                for target in tmpl.targets:
+                    if not target.promotion:
+                        continue
+                    for publish in target.promotion.publish or []:
+                        publisher_uid = target.uid(
+                            parent_saas_file_name=saas_file.name,
+                            parent_resource_template_name=tmpl.name,
+                        )
+                        if publish not in channel_map:
+                            channel_map[publish] = Channel(
+                                name=publish,
+                                publisher_uids=[],
+                            )
+                        channel_map[publish].publisher_uids.append(publisher_uid)
+        return channel_map
 
     @staticmethod
     def _collect_images(resource: Resource) -> set[str]:
@@ -1123,14 +1177,16 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         )
         return any(errors)
 
-    def _initiate_github(self, saas_file: SaasFile) -> Github:
+    def _initiate_github(
+        self, saas_file: SaasFile, base_url: Optional[str] = None
+    ) -> Github:
         token = (
             self.secret_reader.read_secret(saas_file.authentication.code)
             if saas_file.authentication and saas_file.authentication.code
             else get_default_config()["token"]
         )
-
-        base_url = os.environ.get("GITHUB_API", "https://api.github.com")
+        if not base_url:
+            base_url = os.environ.get("GITHUB_API", "https://api.github.com")
         return Github(token, base_url=base_url)
 
     def _initiate_image_auth(self, saas_file: SaasFile) -> ImageAuth:
@@ -1812,23 +1868,26 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             # was successfully published to the subscribed channel(s)
             if promotion.subscribe:
                 for channel in promotion.subscribe:
-                    info = self._promotion_state.get_promotion_data(
-                        sha=promotion.commit_sha,
-                        channel=channel,
-                        target_uid=promotion.saas_target_uid,
-                        local_lookup=False,
-                    )
-                    if not (info and info.success):
-                        logging.error(
-                            f"Commit {promotion.commit_sha} was not "
-                            + f"published with success to channel {channel}"
+                    config_hashes: set[str] = set()
+                    for target_uid in channel.publisher_uids:
+                        deployment = self._promotion_state.get_promotion_data(
+                            sha=promotion.commit_sha,
+                            channel=channel.name,
+                            target_uid=target_uid,
+                            local_lookup=False,
                         )
-                        return False
-                    state_config_hash = info.target_config_hash
+                        if not (deployment and deployment.success):
+                            logging.error(
+                                f"Commit {promotion.commit_sha} was not "
+                                + f"published with success to channel {channel.name}"
+                            )
+                            return False
+                        if deployment.target_config_hash:
+                            config_hashes.add(deployment.target_config_hash)
 
                     # This code supports current saas targets that does
                     # not have promotion_data yet
-                    if not state_config_hash or not promotion.promotion_data:
+                    if not config_hashes or not promotion.promotion_data:
                         logging.info(
                             "Promotion data is missing; rely on the success "
                             "state only"
@@ -1840,7 +1899,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     # promotion_data type by now.
                     parent_saas_config = None
                     for pd in promotion.promotion_data:
-                        if pd.channel == channel:
+                        if pd.channel == channel.name:
                             for data in pd.data or []:
                                 if isinstance(data, SaasParentSaasPromotion):
                                     parent_saas_config = data
@@ -1858,7 +1917,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
                     # Validate that the state config_hash set by the parent
                     # matches with the hash set in promotion_data
-                    if parent_saas_config.target_config_hash == state_config_hash:
+                    if parent_saas_config.target_config_hash in config_hashes:
                         return True
 
                     logging.error(
@@ -1866,7 +1925,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         "configuration and the same commit (ref). "
                         "Check if other MR exists for this target, "
                         f"or update {parent_saas_config.target_config_hash} "
-                        f"to {state_config_hash} for channel {channel}"
+                        f"to any in {config_hashes} for channel {channel.name}"
                     )
                     return False
         return True

@@ -3,7 +3,11 @@ from collections.abc import (
     Generator,
     Iterable,
 )
-from typing import Optional
+from functools import lru_cache
+from typing import (
+    Any,
+    Optional,
+)
 
 from reconcile.utils.ocm.base import (
     ACTIVE_SUBSCRIPTION_STATES,
@@ -26,6 +30,23 @@ from reconcile.utils.ocm.subscriptions import (
     get_subscriptions,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+NODE_POOL_DESIRED_KEYS = {
+    "id",
+    "instance_type",
+    "replicas",
+    "autoscaling",
+    "labels",
+    "taints",
+    "aws_node_pool",
+    "subnet",
+    "version",
+}
+
+VERSION_DESIRED_KEYS = {
+    "id",
+    "raw_id",
+}
 
 
 def discover_clusters_by_labels(
@@ -122,7 +143,7 @@ def get_ocm_clusters(
 ) -> Generator[OCMCluster, None, None]:
     for cluster_dict in ocm_api.get_paginated(
         api_path="/api/clusters_mgmt/v1/clusters",
-        params={"search": cluster_filter.render()},
+        params={"search": cluster_filter.render(), "order": "creation_timestamp"},
         max_page_size=100,
     ):
         yield OCMCluster(**cluster_dict)
@@ -193,3 +214,22 @@ def cluster_ready_for_app_interface() -> Filter:
         .eq("state", OCMClusterState.READY.value)
         .is_in("product.id", [PRODUCT_ID_OSD, PRODUCT_ID_ROSA])
     )
+
+
+def get_node_pools(ocm_api: OCMBaseClient, cluster_id: str) -> list[dict[str, Any]]:
+    results = []
+    api = f"/api/clusters_mgmt/v1/clusters/{cluster_id}/node_pools"
+
+    for item in ocm_api.get_paginated(api):
+        result = {k: v for k, v in item.items() if k in NODE_POOL_DESIRED_KEYS}
+        results.append(result)
+
+    return results
+
+
+@lru_cache()
+def get_version(ocm_api: OCMBaseClient, version: str) -> dict[str, Any]:
+    api = f"/api/clusters_mgmt/v1/versions/{version}"
+
+    item = ocm_api.get(api)
+    return {k: v for k, v in item.items() if k in VERSION_DESIRED_KEYS}

@@ -33,7 +33,10 @@ from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.saasherder.interfaces import SaasFile as SaasFileInterface
-from reconcile.utils.saasherder.models import TriggerSpecMovingCommit
+from reconcile.utils.saasherder.models import (
+    TriggerSpecMovingCommit,
+    TriggerSpecUpstreamJob,
+)
 from reconcile.utils.secret_reader import SecretReaderBase
 
 from .fixtures import Fixtures
@@ -538,6 +541,119 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
 
 
 @pytest.mark.usefixtures("inject_gql_class_factory")
+class TestGetUpstreamJobsDiffSaasFile(TestCase):
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+        )
+        self.maxDiff = None
+
+    def test_get_upstream_jobs_diff_saas_file_all_fine(self) -> None:
+        state_content = {"number": 2, "result": "SUCCESS", "commit_sha": "abcd4242"}
+        current_state = {"ci": {"job": [state_content]}}
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+        )
+        saasherder.state = MagicMock()
+        saasherder.state.get.return_value = {
+            "number": 1,
+            "result": "SUCCESS",
+            "commit_sha": "4242efg",
+        }
+        expected = [
+            TriggerSpecUpstreamJob(
+                saas_file_name=self.saas_file.name,
+                env_name="App-SRE-stage",
+                timeout=None,
+                pipelines_provider=self.saas_file.pipelines_provider,
+                resource_template_name="test-saas-deployments",
+                cluster_name="appsres03ue1",
+                namespace_name="test-ns-publisher",
+                instance_name="ci",
+                job_name="job",
+                state_content=state_content,
+                reason=None,
+            )
+        ]
+
+        self.assertEqual(
+            saasherder.get_upstream_jobs_diff_saas_file(
+                self.saas_file, True, current_state
+            ),
+            expected,
+        )
+
+    def test_get_upstream_jobs_diff_saas_file_all_fine_include_trigger_trace(
+        self,
+    ) -> None:
+        state_content = {"number": 2, "result": "SUCCESS", "commit_sha": "abcd4242"}
+        current_state = {"ci": {"job": [state_content]}}
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+            include_trigger_trace=True,
+        )
+        saasherder.state = MagicMock()
+        saasherder.state.get.return_value = {
+            "number": 1,
+            "result": "SUCCESS",
+            "commit_sha": "4242efg",
+        }
+        expected = [
+            TriggerSpecUpstreamJob(
+                saas_file_name=self.saas_file.name,
+                env_name="App-SRE-stage",
+                timeout=None,
+                pipelines_provider=self.saas_file.pipelines_provider,
+                resource_template_name="test-saas-deployments",
+                cluster_name="appsres03ue1",
+                namespace_name="test-ns-publisher",
+                instance_name="ci",
+                job_name="job",
+                state_content=state_content,
+                reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 via https://jenkins.com/job/job/2",
+            )
+        ]
+
+        self.assertEqual(
+            saasherder.get_upstream_jobs_diff_saas_file(
+                self.saas_file, True, current_state
+            ),
+            expected,
+        )
+
+    def test_get_archive_info(self) -> None:
+        trigger_reason = "https://gitlab.com/app-sre/test-saas-deployments/commit/abcd4242 via https://jenkins.com/job/job/2"
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+            include_trigger_trace=True,
+        )
+        file_name = "app-sre-test-saas-deployments-abcd4242.tar.gz"
+        archive_url = f"https://gitlab.com/app-sre/test-saas-deployments/-/archive/abcd4242/{file_name}"
+        self.assertEqual(
+            saasherder.get_archive_info(self.saas_file, trigger_reason),
+            (file_name, archive_url),
+        )
+
+
+@pytest.mark.usefixtures("inject_gql_class_factory")
 class TestPopulateDesiredState(TestCase):
     def setUp(self) -> None:
         self.fxts = Fixtures("saasherder_populate_desired")
@@ -764,8 +880,6 @@ class TestConfigHashPromotionsValidation(TestCase):
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
             SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
-        self.all_saas_files = [self.saas_file]
-
         self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
         self.state_mock = self.state_patcher.start().return_value
 
@@ -794,6 +908,7 @@ class TestConfigHashPromotionsValidation(TestCase):
             integration_version="",
             hash_length=24,
             repo_url="https://repo-url.com",
+            all_saas_files=[self.saas_file],
         )
 
         # IMPORTANT: Populating desired state modify self.saas_files within
@@ -892,10 +1007,8 @@ class TestConfigHashTrigger(TestCase):
 
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
-        self.all_saas_files = [self.saas_file]
-
         self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
         self.state_mock = self.state_patcher.start().return_value
 
@@ -919,6 +1032,7 @@ class TestConfigHashTrigger(TestCase):
             integration_version="",
             hash_length=24,
             repo_url="https://repo-url.com",
+            all_saas_files=[self.saas_file],
         )
 
     def tearDown(self) -> None:

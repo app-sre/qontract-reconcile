@@ -24,6 +24,6 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
-class ResourceRequirements(ConfiguredBaseModel):
-    cpu: str = Field(..., alias="cpu")
-    memory: str = Field(..., alias="memory")
+class MinimalOCMOrganization(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    org_id: str = Field(..., alias="orgId")

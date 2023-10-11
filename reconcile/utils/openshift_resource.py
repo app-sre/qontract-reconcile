@@ -12,8 +12,9 @@ from typing import (
 )
 
 import semver
+from pydantic import BaseModel
 
-from reconcile.utils.unleash import get_feature_toggle_state
+from reconcile.utils.metrics import GaugeMetric
 
 SECRET_MAX_KEY_LENGTH = 253
 LAC_ANNOTATION = "kubectl.kubernetes.io/last-applied-configuration"
@@ -548,16 +549,31 @@ def fully_qualified_kind(kind: str, api_version: str) -> str:
     return kind
 
 
+class OpenshiftResourceBaseMetric(BaseModel):
+    "Base class Openshift Resource metrics"
+
+    integration: str
+
+
+class OpenshiftResourceInventoryGauge(OpenshiftResourceBaseMetric, GaugeMetric):
+    "Inventory Gauge"
+
+    cluster: str
+    namespace: str
+    kind: str
+    state: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "qontract_reconcile_openshift_resource_inventory"
+
+
 class ResourceInventory:
     def __init__(self):
         self._clusters = {}
         self._error_registered = False
         self._error_registered_clusters = {}
         self._lock = Lock()
-
-        # temporary logic to rollout new resources diff mechanism
-        self.clusters_3way_diff_strategy = {}
-        #
 
     def initialize_resource_type(
         self,
@@ -566,15 +582,6 @@ class ResourceInventory:
         resource_type,
         managed_names: Optional[list[str]] = None,
     ):
-        # temporary logic to rollout new resources diff mechanism
-        if cluster not in self.clusters_3way_diff_strategy:
-            toggle = "openshift-resources-3way-diff-strategy"
-            use_3way_diff = get_feature_toggle_state(
-                toggle, context={"cluster_name": cluster}, default=False
-            )
-            self.clusters_3way_diff_strategy[cluster] = use_3way_diff
-        #
-
         self._clusters.setdefault(cluster, {})
         self._clusters[cluster].setdefault(namespace, {})
         self._clusters[cluster][namespace].setdefault(

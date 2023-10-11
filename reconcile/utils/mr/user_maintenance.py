@@ -1,5 +1,6 @@
 from ruamel import yaml
 
+from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
 
@@ -31,7 +32,7 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
     def description(self) -> str:
         return f"delete user {self.username}"
 
-    def process(self, gitlab_cli):
+    def process(self, gitlab_cli: GitLabApi) -> None:
         for path_spec in self.paths:
             path_type = path_spec["type"]
             path = path_spec["path"]

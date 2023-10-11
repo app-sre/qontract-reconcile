@@ -1,5 +1,6 @@
 import itertools
 import logging
+from collections import Counter
 from collections.abc import (
     Iterable,
     Mapping,
@@ -24,7 +25,10 @@ from sretoolbox.utils import (
 )
 
 from reconcile import queries
-from reconcile.utils import differ
+from reconcile.utils import (
+    differ,
+    metrics,
+)
 from reconcile.utils.oc import (
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
@@ -41,7 +45,10 @@ from reconcile.utils.oc import (
     UnsupportedMediaTypeError,
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.openshift_resource import (
+    OpenshiftResourceInventoryGauge,
+    ResourceInventory,
+)
 from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 
 ACTION_APPLIED = "applied"
@@ -827,8 +834,6 @@ def _realize_resource_data(
     override_enable_deletion: bool,
     recycle_pods: bool,
 ) -> list[dict[str, Any]]:
-    cluster, _, _, _ = ri_item
-
     options = ApplyOptions(
         dry_run=dry_run,
         no_dry_run_skip_compare=no_dry_run_skip_compare,
@@ -841,26 +846,8 @@ def _realize_resource_data(
         privileged=False,
         enable_deletion=False,
     )
-
-    use_3way_diff = ri.clusters_3way_diff_strategy[cluster]
-
-    if use_3way_diff:
-        return _realize_resource_data_3way_diff(
-            ri_item=ri_item, oc_map=oc_map, ri=ri, options=options
-        )
-
-    return _realize_resource_data_qr(
-        unpacked_ri_item=ri_item,
-        dry_run=dry_run,
-        oc_map=oc_map,
-        ri=ri,
-        take_over=take_over,
-        caller=caller,
-        all_callers=all_callers,
-        wait_for_namespace=wait_for_namespace,
-        no_dry_run_skip_compare=no_dry_run_skip_compare,
-        override_enable_deletion=override_enable_deletion,
-        recycle_pods=recycle_pods,
+    return _realize_resource_data_3way_diff(
+        ri_item=ri_item, oc_map=oc_map, ri=ri, options=options
     )
 
 
@@ -926,186 +913,6 @@ def _realize_resource_data_3way_diff(
             options=options,
         )
     )
-
-    return actions
-
-
-def _realize_resource_data_qr(
-    unpacked_ri_item: tuple[str, str, str, Mapping[str, Any]],
-    dry_run: bool,
-    oc_map: ClusterMap,
-    ri: ResourceInventory,
-    take_over: bool,
-    caller: str,
-    all_callers: Sequence[str],
-    wait_for_namespace: bool,
-    no_dry_run_skip_compare: bool,
-    override_enable_deletion: bool,
-    recycle_pods: bool,
-):
-    cluster, namespace, resource_type, data = unpacked_ri_item
-    actions: list[dict] = []
-    if ri.has_error_registered(cluster=cluster):
-        msg = ("[{}] skipping realize_data for " "cluster with errors").format(cluster)
-        logging.error(msg)
-        return actions
-
-    enable_deletion = False if ri.has_error_registered() else True
-    # only allow to override enable_deletion if no errors were found
-    if enable_deletion is True and override_enable_deletion is False:
-        enable_deletion = False
-
-    # desired items
-    for name, d_item in data["desired"].items():
-        c_item: OR = data["current"].get(name)
-
-        if c_item is not None:
-            if not dry_run and no_dry_run_skip_compare:
-                msg = ("[{}/{}] skipping compare of resource '{}/{}'.").format(
-                    cluster, namespace, resource_type, name
-                )
-                logging.debug(msg)
-            else:
-                # If resource doesn't have annotations, annotate and apply
-                if not c_item.has_qontract_annotations():
-                    msg = (
-                        "[{}/{}] resource '{}/{}' present "
-                        "w/o annotations, annotating and applying"
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.info(msg)
-
-                # don't apply if there is a caller (saas file)
-                # and this is not a take over
-                # and current item caller is different from the current caller
-                elif caller and not take_over and c_item.caller != caller:
-                    # if the current item is owned by a caller that no longer exists,
-                    # do nothing. the condition is nested so we fall into this condition
-                    # so we end up either applying to take ownership, or we error if the
-                    # current caller is still present
-                    if c_item.caller in all_callers:
-                        ri.register_error()
-                        logging.error(
-                            f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present and managed by another caller: {c_item.caller}"
-                        )
-                        continue
-
-                # don't apply if resources match
-                # if there is a caller (saas file) and this is a take over
-                # we skip the equal compare as it's not covering
-                # cases of a removed label (for example)
-                # d_item == c_item is uncommutative
-                elif not (caller and take_over) and d_item == c_item:
-                    msg = (
-                        "[{}/{}] resource '{}/{}' present "
-                        "and matches desired, skipping."
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.debug(msg)
-                    continue
-
-                # don't apply if sha256sum hashes match
-                elif c_item.sha256sum() == d_item.sha256sum():
-                    if c_item.has_valid_sha256sum():
-                        msg = (
-                            "[{}/{}] resource '{}/{}' present "
-                            "and hashes match, skipping."
-                        ).format(cluster, namespace, resource_type, name)
-                        logging.debug(msg)
-                        continue
-
-                    msg = (
-                        "[{}/{}] resource '{}/{}' present and "
-                        "has stale sha256sum due to manual changes."
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.info(msg)
-
-                logging.debug("CURRENT: " + OR.serialize(OR.canonicalize(c_item.body)))
-        else:
-            logging.debug("CURRENT: None")
-
-        logging.debug("DESIRED: " + OR.serialize(OR.canonicalize(d_item.body)))
-
-        try:
-            privileged = data["use_admin_token"].get(name, False)
-            apply(
-                dry_run,
-                oc_map,
-                cluster,
-                namespace,
-                resource_type,
-                d_item,
-                wait_for_namespace,
-                recycle_pods,
-                privileged,
-            )
-            action = {
-                "action": ACTION_APPLIED,
-                "cluster": cluster,
-                "namespace": namespace,
-                "kind": resource_type,
-                "name": d_item.name,
-                "privileged": privileged,
-            }
-            actions.append(action)
-        except StatusCodeError as e:
-            ri.register_error()
-            err = (
-                str(e)
-                if resource_type != "Secret"
-                else f"error applying Secret {d_item.name}: REDACTED"
-            )
-            msg = (
-                f"[{cluster}/{namespace}] {err} "
-                + f"(error details: {d_item.error_details})"
-            )
-            logging.error(msg)
-
-    # current items
-    for name, c_item in data["current"].items():
-        d_item = data["desired"].get(name)
-        if d_item is not None:
-            continue
-
-        if c_item.has_qontract_annotations():
-            if caller and c_item.caller != caller:
-                continue
-        elif not take_over:
-            # this is reached when the current resources:
-            # - does not have qontract annotations (not managed)
-            # - not taking over all resources of the current kind
-            msg = (
-                f"[{cluster}/{namespace}] skipping " + f"{resource_type}/{c_item.name}"
-            )
-            logging.debug(msg)
-            continue
-
-        if c_item.has_owner_reference():
-            continue
-
-        try:
-            privileged = data["use_admin_token"].get(name, False)
-            delete(
-                dry_run,
-                oc_map,
-                cluster,
-                namespace,
-                resource_type,
-                name,
-                enable_deletion,
-                privileged,
-            )
-            action = {
-                "action": ACTION_DELETED,
-                "cluster": cluster,
-                "namespace": namespace,
-                "kind": resource_type,
-                "name": name,
-                "privileged": privileged,
-            }
-            actions.append(action)
-        except StatusCodeError as e:
-            ri.register_error()
-            msg = "[{}/{}] {}".format(cluster, namespace, str(e))
-            logging.error(msg)
 
     return actions
 
@@ -1511,3 +1318,38 @@ def get_namespace_resource_names(
         ref += item["resourceNames"]
 
     return rnames
+
+
+def publish_metrics(ri: ResourceInventory, integration: str) -> None:
+    for cluster, namespace, kind, data in ri:
+        for state in ("current", "desired"):
+            metrics.set_gauge(
+                OpenshiftResourceInventoryGauge(
+                    integration=integration.replace("_", "-"),
+                    cluster=cluster,
+                    namespace=namespace,
+                    kind=kind,
+                    state=state,
+                ),
+                len(data[state]),
+            )
+
+
+def get_state_count_combinations(state: Iterable[Mapping[str, str]]) -> Counter[str]:
+    return Counter(s["cluster"] for s in state)
+
+
+def publish_cluster_desired_metrics_from_state(
+    state: Iterable[Mapping[str, str]], integration: str, kind: str
+) -> None:
+    for cluster, count in get_state_count_combinations(state).items():
+        metrics.set_gauge(
+            OpenshiftResourceInventoryGauge(
+                integration=integration,
+                cluster=cluster,
+                namespace="cluster",
+                kind=kind,
+                state="desired",
+            ),
+            count,
+        )

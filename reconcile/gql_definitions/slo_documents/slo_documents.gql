@@ -1,0 +1,36 @@
+# qenerate: plugin=pydantic_v1
+
+query SloDocuments {
+  slo_document_v1 {
+    name
+    labels
+    app {
+      name
+    }
+    namespaces {
+      namespace {
+        cluster {
+          name
+        }
+        environment {
+          product {
+            name
+          }
+        }
+      }
+    }
+    slos {
+      name
+      dashboard
+      SLIType
+      SLISpecification
+      SLOTarget
+      SLOTargetUnit
+      SLOParameters {
+        window
+      }
+      SLODetails
+      expr
+    }
+  }
+}

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Generator
 from typing import (
     Any,
@@ -11,6 +12,7 @@ from reconcile.utils.ocm.base import (
     OCMLabel,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
+    build_label_container,
 )
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import OCMBaseClient
@@ -36,8 +38,23 @@ def add_subscription_label(
     value: str,
 ) -> None:
     """Add the given label to the cluster subscription."""
+    add_label(
+        ocm_api=ocm_api,
+        label_container_href=f"{ocm_cluster.subscription.href}/labels",
+        label=label,
+        value=value,
+    )
+
+
+def add_label(
+    ocm_api: OCMBaseClient,
+    label_container_href: str,
+    label: str,
+    value: str,
+) -> None:
+    """Add the given label to the cluster subscription."""
     ocm_api.post(
-        api_path=f"{ocm_cluster.subscription.href}/labels",
+        api_path=label_container_href,
         data={"kind": "Label", "key": label, "value": value},
     )
 
@@ -54,9 +71,27 @@ def update_ocm_label(
     )
 
 
+def update_label(
+    ocm_api: OCMBaseClient,
+    label_container_href: str,
+    label: str,
+    value: str,
+) -> None:
+    """Update the label value in the given OCM label."""
+    ocm_api.patch(
+        api_path=f"{label_container_href}/{label}",
+        data={"kind": "Label", "key": label, "value": value},
+    )
+
+
 def delete_ocm_label(ocm_api: OCMBaseClient, ocm_label: OCMLabel) -> None:
     """Delete the given OCM label."""
     ocm_api.delete(api_path=ocm_label.href)
+
+
+def delete_label(ocm_api: OCMBaseClient, label_container_href: str, label: str) -> None:
+    """Delete the given OCM label."""
+    ocm_api.delete(api_path=f"{label_container_href}/{label}")
 
 
 def subscription_label_filter() -> Filter:
@@ -94,7 +129,7 @@ def get_labels(
     """
     for label_dict in ocm_api.get_paginated(
         api_path="/api/accounts_mgmt/v1/labels",
-        params={"search": filter.render()},
+        params={"search": filter.render(), "orderBy": "created_at"},
     ):
         yield build_label_from_dict(label_dict)
 
@@ -145,3 +180,28 @@ def label_filter(key: str, value: Optional[str] = None) -> Filter:
     if value:
         return lf.eq("value", value)
     return lf
+
+
+def get_org_labels(
+    ocm_api: OCMBaseClient, org_ids: set[str], label_filter: Optional[Filter]
+) -> dict[str, LabelContainer]:
+    """
+    Fetch all labels from organizations. Optionally, label filtering can be
+    performed via the `label_filter` parameter.
+
+    The result is a dict with organization IDs as keys and label containers as values.
+    """
+    filter = Filter().is_in("organization_id", org_ids)
+    if label_filter:
+        filter &= label_filter
+    labels_by_org: dict[str, list[OCMOrganizationLabel]] = defaultdict(list)
+    for label in get_organization_labels(ocm_api, filter):
+        labels_by_org[label.organization_id].append(label)
+    return {
+        org_id: build_label_container(labels)
+        for org_id, labels in labels_by_org.items()
+    }
+
+
+def build_organization_labels_href(org_id: str) -> str:
+    return f"/api/accounts_mgmt/v1/organizations/{org_id}/labels"

@@ -6,10 +6,16 @@ import pytest
 
 from reconcile.quay_mirror import (
     CONTROL_FILE_NAME,
+    OrgKey,
     QuayMirror,
+    queries,
 )
 
+from .fixtures import Fixtures
+
 NOW = 1662124612.995397
+
+fxt = Fixtures("quay_mirror")
 
 
 @patch("reconcile.utils.gql.get_api", autospec=True)
@@ -107,3 +113,43 @@ class TestIsCompareTags:
 )
 def test_sync_tag(tags, tags_exclude, candidate, result):
     assert QuayMirror.sync_tag(tags, tags_exclude, candidate) == result
+
+
+def test_process_repos_query_ok(mocker):
+    repos_query = mocker.patch.object(queries, "get_quay_repos")
+    repos_query.return_value = fxt.get_anymarkup("get_quay_repos_ok.yaml")
+
+    cloudservices = OrgKey(instance="quay.io", org_name="cloudservices")
+    app_sre = OrgKey(instance="quay.io", org_name="app-sre")
+
+    summary = QuayMirror.process_repos_query()
+    assert len(summary) == 2
+    assert len(summary[cloudservices]) == 2
+    assert len(summary[app_sre]) == 1
+
+    mosquitto = "docker.io/library/eclipse-mosquitto"
+    redis = "docker.io/redis"
+
+    summary = QuayMirror.process_repos_query(repository_urls=[mosquitto, redis])
+    cl = summary[cloudservices]
+    ap = summary[app_sre]
+    assert len(cl) == 2
+    assert len(ap) == 0
+    assert cl[0]["mirror"]["url"] == mosquitto
+    assert cl[1]["mirror"]["url"] == redis
+
+    summary = QuayMirror.process_repos_query(exclude_repository_urls=[mosquitto, redis])
+    cl = summary[cloudservices]
+    ap = summary[app_sre]
+    assert len(cl) == 0
+    assert len(summary[app_sre]) == 1
+
+
+def test_process_repos_query_public_dockerhub(mocker, caplog):
+    repos_query = mocker.patch.object(queries, "get_quay_repos")
+    repos_query.return_value = fxt.get_anymarkup("get_quay_repos_public_dockerhub.yaml")
+
+    with pytest.raises(SystemExit):
+        QuayMirror.process_repos_query()
+
+    assert "can't be mirrored to a public quay repository" in caplog.text
