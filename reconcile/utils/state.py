@@ -143,7 +143,7 @@ def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurat
 
     # if the env vars point towards a vault secret that contains the credentials ...
     if state_bucket_name and state_bucket_region and state_bucket_vault_secret:
-        logging.info(
+        logging.debug(
             f"access state via access credentials from vault secret {state_bucket_vault_secret} version {state_bucket_vault_secret_version or 'latest'})"
         )
         secret = secret_reader.read_all_secret(
@@ -170,7 +170,7 @@ def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurat
         and state_bucket_access_key_id
         and state_bucket_secret_access_key
     ):
-        logging.info("access state via static credentials from env variables :(")
+        logging.debug("access state via static credentials from env variables :(")
         return S3CredsBasedStateConfiguration(
             bucket=state_bucket_name,
             region=state_bucket_region,
@@ -180,7 +180,7 @@ def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurat
 
     # if the env vars point towards an AWS account mentioned in app-interface ...
     if state_bucket_name and state_bucket_account_name:
-        logging.info(
+        logging.debug(
             f"access state via {state_bucket_account_name} automation token from app-interface"
         )
         account = _get_aws_account_by_name(state_bucket_account_name)
@@ -201,7 +201,7 @@ def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurat
     # ... otherwise have a look if state settings are present in app-interface-settings-1.yml
     ai_settings = get_app_interface_state_settings()
     if ai_settings:
-        logging.info("access state via app-interface settings")
+        logging.debug("access state via app-interface settings")
         if isinstance(ai_settings, AppInterfaceStateConfigurationS3V1):
             secret = secret_reader.read_all_secret(ai_settings.credentials)
             return S3CredsBasedStateConfiguration(
