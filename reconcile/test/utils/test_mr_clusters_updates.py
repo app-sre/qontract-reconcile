@@ -21,7 +21,6 @@ class TestProcess(TestCase):
         cli = MagicMock()
         c = sut.CreateClustersUpdates({})
         c.branch = "abranch"
-        c.main_branch = "main"
         c.process(cli)
         cancel.assert_called_once()
 
@@ -34,7 +33,6 @@ class TestProcess(TestCase):
             {"cluster1": {"spec": {"id": "42"}, "root": {}, "path": "/a/path"}}
         )
         c.branch = "abranch"
-        c.main_branch = "main"
         c.process(cli)
         self.clusters[0]["spec"]["id"] = "42"
 
@@ -61,7 +59,6 @@ class TestProcess(TestCase):
             }
         )
         c.branch = "abranch"
-        c.main_branch = "main"
         c.process(cli)
         self.clusters[0]["prometheusUrl"] = "aprometheusurl"
 
