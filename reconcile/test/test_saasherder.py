@@ -22,13 +22,14 @@ from github import (
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.common.saas_files import (
-    SaasFileV2,
     SaasResourceTemplateTargetImageV1,
     SaasResourceTemplateTargetPromotionV1,
     SaasResourceTemplateTargetV2_SaasSecretParametersV1,
-    SaasResourceTemplateV2,
 )
-from reconcile.typed_queries.saas_files import SaasFile
+from reconcile.typed_queries.saas_files import (
+    SaasFile,
+    SaasResourceTemplate,
+)
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
@@ -77,7 +78,7 @@ class MockSecretReader(SecretReaderBase):
 @pytest.fixture()
 def inject_gql_class_factory(
     request: pytest.FixtureRequest,
-    gql_class_factory: Callable[..., SaasFileV2],
+    gql_class_factory: Callable[..., SaasFile],
 ) -> None:
     def _gql_class_factory(
         self: Any,
@@ -93,7 +94,7 @@ def inject_gql_class_factory(
 class TestSaasFileValid(TestCase):
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
         jjb_mock_data = {
             "ci": [
@@ -406,7 +407,7 @@ class TestSaasFileValid(TestCase):
         ]
         rts = [
             self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-                SaasResourceTemplateV2, rt
+                SaasResourceTemplate, rt
             )
             for rt in raw_rts
         ]
@@ -428,7 +429,7 @@ class TestSaasFileValid(TestCase):
 class TestGetMovingCommitsDiffSaasFile(TestCase):
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
 
         self.initiate_gh_patcher = patch.object(
@@ -544,7 +545,7 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
 class TestGetUpstreamJobsDiffSaasFile(TestCase):
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
         self.maxDiff = None
 
@@ -660,7 +661,7 @@ class TestPopulateDesiredState(TestCase):
         raw_saas_file = self.fxts.get_anymarkup("saas_remote_openshift_template.yaml")
         del raw_saas_file["_placeholders"]
         saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFileV2, raw_saas_file
+            SaasFile, raw_saas_file
         )
         self.saasherder = SaasHerder(
             [saas_file],
@@ -742,7 +743,7 @@ class TestPopulateDesiredState(TestCase):
 class TestCollectRepoUrls(TestCase):
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
 
     def test_collect_repo_urls(self) -> None:
@@ -763,7 +764,7 @@ class TestCollectRepoUrls(TestCase):
 class TestGetSaasFileAttribute(TestCase):
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFileV2, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
         )
 
     def test_no_such_attribute(self) -> None:
@@ -1077,7 +1078,7 @@ def test_render_templated_parameters(
     gql_class_factory: Callable[..., SaasFileInterface]
 ) -> None:
     saas_file = gql_class_factory(
-        SaasFileV2,
+        SaasFile,
         Fixtures("saasherder").get_anymarkup("saas-templated-params.gql.yml"),
     )
     SaasHerder.resolve_templated_parameters([saas_file])
@@ -1131,7 +1132,7 @@ def test_render_templated_parameters_in_init(
     gql_class_factory: Callable[..., SaasFile]
 ) -> None:
     saas_file = gql_class_factory(
-        SaasFileV2,
+        SaasFile,
         Fixtures("saasherder").get_anymarkup("saas-templated-params.gql.yml"),
     )
     SaasHerder(
