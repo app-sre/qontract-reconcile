@@ -56,6 +56,12 @@ query GlitchtipProjectsWithAlerts {
         }
       }
     }
+    jira {
+      project
+      board {
+        name
+      }
+    }
   }
 }
 """
@@ -103,11 +109,21 @@ class GlitchtipProjectAlertV1(ConfiguredBaseModel):
     ] = Field(..., alias="recipients")
 
 
+class JiraBoardV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
+class GlitchtipProjectJiraV1(ConfiguredBaseModel):
+    project: Optional[str] = Field(..., alias="project")
+    board: Optional[JiraBoardV1] = Field(..., alias="board")
+
+
 class GlitchtipProjectsV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     project_id: Optional[str] = Field(..., alias="projectId")
     organization: GlitchtipOrganizationV1 = Field(..., alias="organization")
     alerts: Optional[list[GlitchtipProjectAlertV1]] = Field(..., alias="alerts")
+    jira: Optional[GlitchtipProjectJiraV1] = Field(..., alias="jira")
 
 
 class GlitchtipProjectsWithAlertsQueryData(ConfiguredBaseModel):

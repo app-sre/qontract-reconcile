@@ -17,14 +17,27 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
 query GlitchtipSettings {
   settings: app_interface_settings_v1 {
     glitchtip {
       readTimeout
       maxRetries
       mailDomain
+      glitchtipJiraBridgeAlertUrl
+      glitchtipJiraBridgeToken {
+        ...VaultSecret
+      }
     }
   }
 }
@@ -41,6 +54,12 @@ class GlitchtipSettingsV1(ConfiguredBaseModel):
     read_timeout: Optional[int] = Field(..., alias="readTimeout")
     max_retries: Optional[int] = Field(..., alias="maxRetries")
     mail_domain: Optional[str] = Field(..., alias="mailDomain")
+    glitchtip_jira_bridge_alert_url: Optional[str] = Field(
+        ..., alias="glitchtipJiraBridgeAlertUrl"
+    )
+    glitchtip_jira_bridge_token: Optional[VaultSecret] = Field(
+        ..., alias="glitchtipJiraBridgeToken"
+    )
 
 
 class AppInterfaceSettingsV1(ConfiguredBaseModel):

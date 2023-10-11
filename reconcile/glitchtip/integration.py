@@ -176,7 +176,7 @@ def run(
     gqlapi = gql.get_api()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    read_timeout, max_retries, mail_domain = get_glitchtip_settings()
+    glitchtip_settings = get_glitchtip_settings()
     internal_groups_client = get_internal_groups_client(gqlapi.query, secret_reader)
     if defer:
         defer(internal_groups_client.close)
@@ -191,8 +191,8 @@ def run(
         glitchtip_client = GlitchtipClient(
             host=glitchtip_instance.console_url,
             token=secret_reader.read_secret(glitchtip_instance.automation_token),
-            read_timeout=read_timeout,
-            max_retries=max_retries,
+            read_timeout=glitchtip_settings.read_timeout,
+            max_retries=glitchtip_settings.max_retries,
         )
         current_state = fetch_current_state(
             glitchtip_client=glitchtip_client,
@@ -207,7 +207,7 @@ def run(
                 for p in glitchtip_projects
                 if p.organization.instance.name == glitchtip_instance.name
             ],
-            mail_domain=mail_domain,
+            mail_domain=glitchtip_settings.mail_domain,
             internal_groups_client=internal_groups_client,
         )
 

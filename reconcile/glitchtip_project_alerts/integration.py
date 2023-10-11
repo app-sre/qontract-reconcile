@@ -8,6 +8,7 @@ from typing import (
     Any,
     Optional,
 )
+from urllib.parse import quote
 
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     query as glitchtip_instance_query,
@@ -79,7 +80,10 @@ class GlitchtipProjectAlertsIntegration(
         raise TypeError("Unsupported type")
 
     def fetch_desired_state(
-        self, glitchtip_projects: Iterable[GlitchtipProjectsV1]
+        self,
+        glitchtip_projects: Iterable[GlitchtipProjectsV1],
+        gjb_alert_url: str | None,
+        gjb_token: str | None,
     ) -> list[Organization]:
         organizations: dict[str, Organization] = {}
         for glitchtip_project in glitchtip_projects:
@@ -87,13 +91,9 @@ class GlitchtipProjectAlertsIntegration(
                 glitchtip_project.organization.name,
                 Organization(name=glitchtip_project.organization.name),
             )
-            project = Project(
-                name=glitchtip_project.name,
-                platform=None,
-                slug=glitchtip_project.project_id
-                if glitchtip_project.project_id
-                else "",
-                alerts=[
+            alerts = []
+            for alert in glitchtip_project.alerts or []:
+                alerts.append(
                     ProjectAlert(
                         name=alert.name,
                         timespan_minutes=alert.timespan_minutes,
@@ -103,8 +103,42 @@ class GlitchtipProjectAlertsIntegration(
                             for recp in alert.recipients
                         ],
                     )
-                    for alert in glitchtip_project.alerts or []
-                ],
+                )
+            if glitchtip_project.jira and gjb_alert_url:
+                if not (jira_project_key := glitchtip_project.jira.project):
+                    if glitchtip_project.jira.board:
+                        jira_project_key = glitchtip_project.jira.board.name
+
+                # this shouldn't happen, because our schemas enforce it
+                if not jira_project_key:
+                    raise ValueError(
+                        "Either jira.project or jira.board must be set for Jira integration"
+                    )
+
+                url = f"{gjb_alert_url}/{jira_project_key}"
+                if gjb_token:
+                    url += f"?token={quote(gjb_token)}"
+
+                alerts.append(
+                    ProjectAlert(
+                        name="Jira-integration",
+                        timespan_minutes=1,
+                        quantity=1,
+                        recipients=[
+                            ProjectAlertRecipient(
+                                recipient_type=RecipientType.WEBHOOK,
+                                url=url,
+                            )
+                        ],
+                    )
+                )
+            project = Project(
+                name=glitchtip_project.name,
+                platform=None,
+                slug=glitchtip_project.project_id
+                if glitchtip_project.project_id
+                else "",
+                alerts=alerts,
             )
 
             organization.projects.append(project)
@@ -199,7 +233,14 @@ class GlitchtipProjectAlertsIntegration(
 
     def run(self, dry_run: bool) -> None:
         gqlapi = gql.get_api()
-        read_timeout, max_retries, _ = get_glitchtip_settings()
+        glitchtip_settings = get_glitchtip_settings()
+        glitchtip_jira_bridge_token = (
+            self.secret_reader.read_secret(
+                glitchtip_settings.glitchtip_jira_bridge_token
+            )
+            if glitchtip_settings.glitchtip_jira_bridge_token
+            else None
+        )
         # data
         glitchtip_instances = glitchtip_instance_query(
             query_func=gqlapi.query
@@ -221,14 +262,16 @@ class GlitchtipProjectAlertsIntegration(
                 token=self.secret_reader.read_secret(
                     glitchtip_instance.automation_token
                 ),
-                read_timeout=read_timeout,
-                max_retries=max_retries,
+                read_timeout=glitchtip_settings.read_timeout,
+                max_retries=glitchtip_settings.max_retries,
             )
             current_state = self.fetch_current_state(glitchtip_client=glitchtip_client)
             desired_state = self.fetch_desired_state(
                 glitchtip_projects=glitchtip_projects_by_instance[
                     glitchtip_instance.name
-                ]
+                ],
+                gjb_alert_url=glitchtip_settings.glitchtip_jira_bridge_alert_url,
+                gjb_token=glitchtip_jira_bridge_token,
             )
             self.reconcile(
                 glitchtip_client=glitchtip_client,

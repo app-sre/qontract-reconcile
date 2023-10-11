@@ -28,5 +28,11 @@ query GlitchtipProjectsWithAlerts {
         }
       }
     }
+    jira {
+      project
+      board {
+        name
+      }
+    }
   }
 }

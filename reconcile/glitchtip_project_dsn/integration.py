@@ -175,7 +175,7 @@ def run(
 ) -> None:
     # settings
     vault_settings = get_app_interface_vault_settings()
-    read_timeout, max_retries, _ = get_glitchtip_settings()
+    glitchtip_settings = get_glitchtip_settings()
 
     # data
     gqlapi = gql.get_api()
@@ -208,8 +208,8 @@ def run(
         glitchtip_client = GlitchtipClient(
             host=glitchtip_instance.console_url,
             token=secret_reader.read_secret(glitchtip_instance.automation_token),
-            read_timeout=read_timeout,
-            max_retries=max_retries,
+            read_timeout=glitchtip_settings.read_timeout,
+            max_retries=glitchtip_settings.max_retries,
         )
         threaded.run(
             fetch_current_state,
