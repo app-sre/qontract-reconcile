@@ -16,32 +16,29 @@ else:
     CloudWatchLogsClient = object
 
 QONTRACT_INTEGRATION = "aws_cloudwatch_log_retention"
-MANAGED_TAG = {"managed_by_integration": QONTRACT_INTEGRATION}
+MANAGED_BY_INTEGRATION_KEY = "managed_by_integration"
+MANAGED_TAG = {MANAGED_BY_INTEGRATION_KEY: QONTRACT_INTEGRATION}
+DEFAULT_RETENTION_IN_DAYS = 90
 
 
 class AWSCloudwatchLogRetention(BaseModel):
-    name: str
-    acct_uid: str
-    log_regex: typing.Pattern
-    log_retention_day_length: str
+    regex: typing.Pattern
+    retention_in_days: int
 
 
-def get_app_interface_cloudwatch_retention_period(aws_acct: dict) -> list:
-    results = []
-    aws_acct_name = aws_acct.get("name")
-    acct_uid = aws_acct.get("uid")
-    if aws_acct.get("cleanup"):
-        for aws_acct_field in aws_acct.get("cleanup"):  # type: ignore[union-attr]
-            if aws_acct_field["provider"] == "cloudwatch":
-                results.append(
-                    AWSCloudwatchLogRetention(
-                        name=aws_acct_name,
-                        acct_uid=acct_uid,
-                        log_regex=re.compile(aws_acct_field["regex"]),
-                        log_retention_day_length=aws_acct_field["retention_in_days"],
-                    )
-                )
-    return results
+def get_app_interface_cloudwatch_retention_period(
+    aws_acct: dict,
+) -> list[AWSCloudwatchLogRetention]:
+    if cleanup := aws_acct.get("cleanup"):
+        return [
+            AWSCloudwatchLogRetention(
+                regex=re.compile(cleanup_option["regex"]),
+                retention_in_days=cleanup_option["retention_in_days"],
+            )
+            for cleanup_option in cleanup
+            if cleanup_option["provider"] == "cloudwatch"
+        ]
+    return []
 
 
 def check_cloudwatch_log_group_tag(
@@ -53,7 +50,7 @@ def check_cloudwatch_log_group_tag(
         tag_result = client.list_tags_log_group(logGroupName=log_group_name)
         tag_list = tag_result.get("tags", {})
         tag_match = any(
-            k == "managed_by_integration" and (v == "terraform_resources")
+            k == MANAGED_BY_INTEGRATION_KEY and v != QONTRACT_INTEGRATION
             for k, v in tag_list.items()
         )
         if not tag_match:
@@ -77,55 +74,62 @@ def get_log_group_list(awsapi: AWSApi, aws_acct: dict) -> list:
 
 
 def run(dry_run: bool, thread_pool_size: int) -> None:
-    app_interface_aws_accounts = get_aws_accounts(cleanup=True)
-    with create_awsapi_client(app_interface_aws_accounts, thread_pool_size) as awsapi:
-        for app_interface_aws_acct in app_interface_aws_accounts:
-            aws_act_name = app_interface_aws_acct["name"]
-            cloudwatch_cleanup_list = []
-            if app_interface_aws_acct.get("cleanup"):
-                cloudwatch_cleanup_list = get_app_interface_cloudwatch_retention_period(
-                    app_interface_aws_acct
-                )
-            aws_log_group_list = []
+    aws_accounts = get_aws_accounts(cleanup=True)
+    with create_awsapi_client(aws_accounts, thread_pool_size) as awsapi:
+        for aws_account in aws_accounts:
+            aws_account_name = aws_account["name"]
+            cloudwatch_cleanup_list = get_app_interface_cloudwatch_retention_period(
+                aws_account
+            )
             try:
-                aws_log_group_list = get_log_group_list(awsapi, app_interface_aws_acct)
+                aws_log_group_list = get_log_group_list(awsapi, aws_account)
             except ClientError as e:
                 if e.response["Error"]["Code"] == "AccessDeniedException":
                     logging.info(
-                        f" Access denied for aws account {aws_act_name}. Skipping..."
+                        "Access denied for aws account %s. Skipping...",
+                        aws_account_name,
                     )
-                    continue
+                else:
+                    logging.error(
+                        "Error getting log groups for %s: %s",
+                        aws_account_name,
+                        e,
+                    )
+                continue
+
             for aws_log_group in aws_log_group_list:
                 group_name = aws_log_group["logGroupName"]
                 retention_days = aws_log_group.get("retentionInDays")
 
-                cloudwatch_cleanup_entry = next(
-                    (
-                        c
-                        for c in cloudwatch_cleanup_list
-                        if c.log_regex.match(group_name)
-                    ),
-                    None,
-                )
                 log_group_tags = aws_log_group["tags"]
-                if log_group_tags.get("managed_by_integration") != QONTRACT_INTEGRATION:
+                if (
+                    log_group_tags.get(MANAGED_BY_INTEGRATION_KEY)
+                    != QONTRACT_INTEGRATION
+                ):
                     logging.info(
-                        f"Setting tag {MANAGED_TAG} for log group {group_name}"
+                        "Setting tag %s for log group %s",
+                        MANAGED_TAG,
+                        group_name,
                     )
                     if not dry_run:
                         awsapi.create_cloudwatch_tag(
-                            app_interface_aws_acct, group_name, MANAGED_TAG
+                            aws_account, group_name, MANAGED_TAG
                         )
-                desired_retention_days = (
-                    90
-                    if cloudwatch_cleanup_entry is None
-                    else int(cloudwatch_cleanup_entry.log_retention_day_length)
+                desired_retention_days = next(
+                    (
+                        c.retention_in_days
+                        for c in cloudwatch_cleanup_list
+                        if c.regex.match(group_name)
+                    ),
+                    DEFAULT_RETENTION_IN_DAYS,
                 )
                 if retention_days != desired_retention_days:
                     logging.info(
-                        f" Setting {group_name} retention days to {desired_retention_days}"
+                        "Setting %s retention days to %d",
+                        group_name,
+                        desired_retention_days,
                     )
                     if not dry_run:
                         awsapi.set_cloudwatch_log_retention(
-                            app_interface_aws_acct, group_name, desired_retention_days
+                            aws_account, group_name, desired_retention_days
                         )

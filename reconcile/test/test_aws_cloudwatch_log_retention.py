@@ -58,12 +58,12 @@ def test_cloudwatch_account() -> dict[str, Any]:
             {
                 "provider": "cloudwatch",
                 "regex": "some-path*",
-                "retention_in_days": "30",
+                "retention_in_days": 30,
             },
             {
                 "provider": "cloudwatch",
                 "regex": "some-other-path*",
-                "retention_in_days": "60",
+                "retention_in_days": 60,
             },
         ],
         "consoleUrl": "https://some-url.com/console",
