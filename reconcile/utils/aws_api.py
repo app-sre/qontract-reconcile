@@ -4,8 +4,8 @@ import re
 import time
 from collections.abc import (
     Iterable,
-    Mapping,
     Iterator,
+    Mapping,
 )
 from datetime import datetime
 from functools import lru_cache
@@ -1028,9 +1028,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         }
         image.modify_attribute(LaunchPermission=launch_permission)
 
-    def create_cloudwatch_tag(self, account, group_name, new_tag):
-        cloudwatch_logs = self._account_cloudwatch_client(account["name"])
-        cloudwatch_logs.tag_log_group(logGroupName=group_name, tags=new_tag)
+    def create_cloudwatch_tag(
+        self,
+        account: dict[str, Any],
+        arn: str,
+        new_tag: dict[str, str],
+    ) -> None:
+        client = self._account_cloudwatch_client(account["name"])
+        client.tag_resource(resourceArn=arn, tags=new_tag)
 
     def get_cloudwatch_log_groups(self, account) -> Iterator[dict]:
         client = self._account_cloudwatch_client(account["name"])
@@ -1039,9 +1044,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             for log_group in page["logGroups"]:
                 yield log_group
 
+    def get_cloudwatch_log_group_tags(self, account, arn) -> dict[str, str]:
+        client = self._account_cloudwatch_client(account["name"])
+        tags = client.list_tags_for_resource(resourceArn=arn)
+        return tags.get("tags", {})
+
     def set_cloudwatch_log_retention(self, account, group_name, retention_days):
-        cloudwatch_logs = self._account_cloudwatch_client(account["name"])
-        cloudwatch_logs.put_retention_policy(
+        client = self._account_cloudwatch_client(account["name"])
+        client.put_retention_policy(
             logGroupName=group_name, retentionInDays=retention_days
         )
 

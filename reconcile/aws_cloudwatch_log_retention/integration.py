@@ -47,16 +47,6 @@ def create_awsapi_client(accounts: list, thread_pool_size: int) -> AWSApi:
     return AWSApi(thread_pool_size, accounts, settings=settings, init_users=False)
 
 
-def get_log_group_tags(awsapi: AWSApi, aws_acct: dict, log_group: dict) -> dict:
-    session = awsapi.get_session(aws_acct["name"])
-    region = aws_acct["resourcesDefaultRegion"]
-    log_client = awsapi.get_session_client(session, "logs", region)
-    log_group_name = log_group.get("logGroupName")
-    tag_result = log_client.list_tags_log_group(logGroupName=log_group_name)
-    tag_list = tag_result.get("tags", {})
-    return tag_list
-
-
 def _reconcile_log_group(
     dry_run: bool,
     aws_log_group: dict,
@@ -65,15 +55,20 @@ def _reconcile_log_group(
     awsapi: AWSApi,
 ) -> None:
     current_retention_in_days = aws_log_group.get("retentionInDays")
-    group_name = aws_log_group["logGroupName"]
+    log_group_name = aws_log_group["logGroupName"]
     desired_retention_days = next(
-        (c.retention_in_days for c in desired_retentions if c.regex.match(group_name)),
+        (
+            c.retention_in_days
+            for c in desired_retentions
+            if c.regex.match(log_group_name)
+        ),
         DEFAULT_RETENTION_IN_DAYS,
     )
     if current_retention_in_days == desired_retention_days:
         return
 
-    log_group_tags = get_log_group_tags(awsapi, aws_account, aws_log_group)
+    log_group_arn = aws_log_group["arn"]
+    log_group_tags = awsapi.get_cloudwatch_log_group_tags(aws_account, log_group_arn)
     if managed_by_integration := log_group_tags.get(MANAGED_BY_INTEGRATION_KEY):
         if managed_by_integration != QONTRACT_INTEGRATION:
             return
@@ -81,19 +76,19 @@ def _reconcile_log_group(
         logging.info(
             "Setting tag %s for log group %s",
             MANAGED_TAG,
-            group_name,
+            log_group_arn,
         )
         if not dry_run:
-            awsapi.create_cloudwatch_tag(aws_account, group_name, MANAGED_TAG)
+            awsapi.create_cloudwatch_tag(aws_account, log_group_arn, MANAGED_TAG)
 
     logging.info(
         "Setting %s retention days to %d",
-        group_name,
+        log_group_arn,
         desired_retention_days,
     )
     if not dry_run:
         awsapi.set_cloudwatch_log_retention(
-            aws_account, group_name, desired_retention_days
+            aws_account, log_group_name, desired_retention_days
         )
 
 

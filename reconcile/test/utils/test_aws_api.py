@@ -296,3 +296,41 @@ def test_get_db_valid_upgrade_target_with_empty_db_engine_versions(
     )
 
     assert result == []
+
+
+def test_get_cloudwatch_log_group_tags(
+    aws_api: AWSApi,
+    accounts: list,
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch.object(aws_api, "get_session_client", autospec=True)
+    mocked_cloudwatch_client = aws_api.get_session_client.return_value  # type: ignore[attr-defined]
+    mocked_cloudwatch_client.list_tags_for_resource.return_value = {
+        "tags": {
+            "tag1": "value1",
+        }
+    }
+
+    result = aws_api.get_cloudwatch_log_group_tags(accounts[0], "some-arn")
+
+    assert result == {"tag1": "value1"}
+    mocked_cloudwatch_client.list_tags_for_resource.assert_called_once_with(
+        resourceArn="some-arn"
+    )
+
+
+def test_create_cloudwatch_tag(
+    aws_api: AWSApi,
+    accounts: list,
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch.object(aws_api, "get_session_client", autospec=True)
+    mocked_cloudwatch_client = aws_api.get_session_client.return_value  # type: ignore[attr-defined]
+    new_tag = {"tag1: value1"}
+
+    aws_api.create_cloudwatch_tag(accounts[0], "some-arn", new_tag)
+
+    mocked_cloudwatch_client.tag_resource.assert_called_once_with(
+        resourceArn="some-arn",
+        tags=new_tag,
+    )

@@ -3,6 +3,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
 )
+from unittest.mock import MagicMock
 
 import boto3
 import pytest
@@ -84,7 +85,7 @@ def setup_mocks(
     aws_accounts: list[dict],
     log_groups: list[dict],
     tags: dict[str, Any],
-) -> dict[str, Any]:
+) -> MagicMock:
     mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.get_aws_accounts",
         return_value=aws_accounts,
@@ -99,12 +100,8 @@ def setup_mocks(
     )
     mocked_aws_api = aws_api.return_value.__enter__.return_value
     mocked_aws_api.get_cloudwatch_log_groups.return_value = iter(log_groups)
-    mocked_log_client = mocked_aws_api.get_session_client.return_value
-    mocked_log_client.list_tags_log_group.return_value = tags
-    return {
-        "aws_api": mocked_aws_api,
-        "log_client": mocked_log_client,
-    }
+    mocked_aws_api.get_cloudwatch_log_group_tags.return_value = tags
+    return mocked_aws_api
 
 
 @pytest.fixture
@@ -118,25 +115,21 @@ def log_group_with_unset_retention() -> dict[str, Any]:
 
 
 @pytest.fixture
-def empty_tags() -> dict[str, Any]:
-    return {"tags": {}}
+def empty_tags() -> dict[str, str]:
+    return {}
 
 
 @pytest.fixture
-def managed_by_aws_cloudwatch_log_retention_tags() -> dict[str, Any]:
+def managed_by_aws_cloudwatch_log_retention_tags() -> dict[str, str]:
     return {
-        "tags": {
-            "managed_by_integration": "aws_cloudwatch_log_retention",
-        }
+        "managed_by_integration": "aws_cloudwatch_log_retention",
     }
 
 
 @pytest.fixture
-def managed_by_terraform_resources_tags() -> dict[str, Any]:
+def managed_by_terraform_resources_tags() -> dict[str, str]:
     return {
-        "tags": {
-            "managed_by_integration": "terraform_resources",
-        }
+        "managed_by_integration": "terraform_resources",
     }
 
 
@@ -146,7 +139,7 @@ def test_run_with_unset_retention_log_group_and_default_cleanup(
     log_group_with_unset_retention: dict[str, Any],
     empty_tags: dict[str, Any],
 ) -> None:
-    mocks = setup_mocks(
+    mocked_aws_api = setup_mocks(
         mocker,
         aws_accounts=[test_cloudwatch_account],
         log_groups=[log_group_with_unset_retention],
@@ -155,17 +148,18 @@ def test_run_with_unset_retention_log_group_and_default_cleanup(
 
     run(dry_run=False, thread_pool_size=1)
 
-    mocks["log_client"].list_tags_log_group.assert_called_once_with(
-        logGroupName="group-without-retention"
+    mocked_aws_api.get_cloudwatch_log_group_tags.assert_called_once_with(
+        test_cloudwatch_account,
+        log_group_with_unset_retention["arn"],
     )
 
-    mocks["aws_api"].create_cloudwatch_tag.assert_called_once_with(
+    mocked_aws_api.create_cloudwatch_tag.assert_called_once_with(
         test_cloudwatch_account,
-        "group-without-retention",
+        log_group_with_unset_retention["arn"],
         {"managed_by_integration": "aws_cloudwatch_log_retention"},
     )
 
-    mocks["aws_api"].set_cloudwatch_log_retention.assert_called_once_with(
+    mocked_aws_api.set_cloudwatch_log_retention.assert_called_once_with(
         test_cloudwatch_account,
         "group-without-retention",
         90,
@@ -188,7 +182,7 @@ def test_run_with_unset_retention_log_group_and_matching_cleanup(
     log_group_with_unset_retention_and_matching_name: dict[str, Any],
     empty_tags: dict[str, Any],
 ) -> None:
-    mocks = setup_mocks(
+    mocked_aws_api = setup_mocks(
         mocker,
         aws_accounts=[test_cloudwatch_account],
         log_groups=[log_group_with_unset_retention_and_matching_name],
@@ -197,17 +191,18 @@ def test_run_with_unset_retention_log_group_and_matching_cleanup(
 
     run(dry_run=False, thread_pool_size=1)
 
-    mocks["log_client"].list_tags_log_group.assert_called_once_with(
-        logGroupName="some-path-group-without-retention"
+    mocked_aws_api.get_cloudwatch_log_group_tags.assert_called_once_with(
+        test_cloudwatch_account,
+        log_group_with_unset_retention_and_matching_name["arn"],
     )
 
-    mocks["aws_api"].create_cloudwatch_tag.assert_called_once_with(
+    mocked_aws_api.create_cloudwatch_tag.assert_called_once_with(
         test_cloudwatch_account,
-        "some-path-group-without-retention",
+        log_group_with_unset_retention_and_matching_name["arn"],
         {"managed_by_integration": "aws_cloudwatch_log_retention"},
     )
 
-    mocks["aws_api"].set_cloudwatch_log_retention.assert_called_once_with(
+    mocked_aws_api.set_cloudwatch_log_retention.assert_called_once_with(
         test_cloudwatch_account,
         "some-path-group-without-retention",
         30,
@@ -231,7 +226,7 @@ def test_run_with_matching_retention_log_group(
     log_group_with_desired_retention: dict[str, Any],
     managed_by_aws_cloudwatch_log_retention_tags: dict[str, Any],
 ) -> None:
-    mocks = setup_mocks(
+    mocked_aws_api = setup_mocks(
         mocker,
         aws_accounts=[test_cloudwatch_account],
         log_groups=[log_group_with_desired_retention],
@@ -240,9 +235,9 @@ def test_run_with_matching_retention_log_group(
 
     run(dry_run=False, thread_pool_size=1)
 
-    mocks["log_client"].list_tags_log_group.assert_not_called()
-    mocks["aws_api"].create_cloudwatch_tag.assert_not_called()
-    mocks["aws_api"].set_cloudwatch_log_retention.assert_not_called()
+    mocked_aws_api.get_cloudwatch_log_group_tags.assert_not_called()
+    mocked_aws_api.create_cloudwatch_tag.assert_not_called()
+    mocked_aws_api.set_cloudwatch_log_retention.assert_not_called()
 
 
 def test_run_with_log_group_managed_by_terraform_resources(
@@ -251,7 +246,7 @@ def test_run_with_log_group_managed_by_terraform_resources(
     log_group_with_unset_retention: dict[str, Any],
     managed_by_terraform_resources_tags: dict[str, Any],
 ) -> None:
-    mocks = setup_mocks(
+    mocked_aws_api = setup_mocks(
         mocker,
         aws_accounts=[test_cloudwatch_account],
         log_groups=[log_group_with_unset_retention],
@@ -260,8 +255,9 @@ def test_run_with_log_group_managed_by_terraform_resources(
 
     run(dry_run=False, thread_pool_size=1)
 
-    mocks["log_client"].list_tags_log_group.assert_called_once_with(
-        logGroupName="group-without-retention"
+    mocked_aws_api.get_cloudwatch_log_group_tags.assert_called_once_with(
+        test_cloudwatch_account,
+        log_group_with_unset_retention["arn"],
     )
-    mocks["aws_api"].create_cloudwatch_tag.assert_not_called()
-    mocks["aws_api"].set_cloudwatch_log_retention.assert_not_called()
+    mocked_aws_api.create_cloudwatch_tag.assert_not_called()
+    mocked_aws_api.set_cloudwatch_log_retention.assert_not_called()
