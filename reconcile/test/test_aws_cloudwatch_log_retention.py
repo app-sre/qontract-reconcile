@@ -10,8 +10,7 @@ from moto import mock_logs
 from pytest_mock import MockerFixture
 
 from reconcile.aws_cloudwatch_log_retention.integration import (
-    check_cloudwatch_log_group_tag,
-    get_app_interface_cloudwatch_retention_period,
+    get_desired_retentions,
     run,
 )
 
@@ -73,21 +72,11 @@ def test_cloudwatch_account() -> dict[str, Any]:
     }
 
 
-def test_get_app_interface_cloudwatch_retention_period(
+def test_get_desired_retentions(
     test_cloudwatch_account: dict,
 ) -> None:
-    refined_cloudwatch_list = get_app_interface_cloudwatch_retention_period(
-        test_cloudwatch_account
-    )
+    refined_cloudwatch_list = get_desired_retentions(test_cloudwatch_account)
     assert len(refined_cloudwatch_list) == 2
-
-
-def test_get_log_tag_groups(
-    log_group_tf_tag: list, cloudwatchlogs_client: CloudWatchLogsClient
-) -> None:
-    tag_result = log_group_tf_tag
-    result = check_cloudwatch_log_group_tag(tag_result, cloudwatchlogs_client)
-    assert len(result) == 1
 
 
 def setup_mocks(
@@ -251,9 +240,7 @@ def test_run_with_matching_retention_log_group(
 
     run(dry_run=False, thread_pool_size=1)
 
-    mocks["log_client"].list_tags_log_group.assert_called_once_with(
-        logGroupName="group-with-desired-retention"
-    )
+    mocks["log_client"].list_tags_log_group.assert_not_called()
     mocks["aws_api"].create_cloudwatch_tag.assert_not_called()
     mocks["aws_api"].set_cloudwatch_log_retention.assert_not_called()
 
