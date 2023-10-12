@@ -37,9 +37,13 @@ from reconcile.aus.models import (
     OrganizationUpgradeSpec,
     Sector,
 )
+from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
+    query as aus_organizations_query,
+)
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
+from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
 from reconcile.utils import (
@@ -87,6 +91,7 @@ MIN_DELTA_MINUTES = 6
 class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
     ocm_environment: Optional[str] = None
     ocm_organization_ids: Optional[set[str]] = None
+    excluded_ocm_organization_ids: Optional[set[str]] = None
     ignore_sts_clusters: bool = False
 
 
@@ -127,6 +132,17 @@ class AdvancedUpgradeSchedulerBaseIntegration(
             raise ReconcileErrorSummary(unhandled_exceptions)
         sys.exit(0)
 
+    def get_orgs_for_environment(
+        self, ocm_env: OCMEnvironment, only_addon_managed_upgrades: bool = False
+    ) -> list[AUSOCMOrganization]:
+        return get_orgs_for_environment(
+            ocm_env_name=ocm_env.name,
+            query_func=gql.get_api().query,
+            ocm_organization_ids=self.params.ocm_organization_ids,
+            excluded_ocm_organization_ids=self.params.excluded_ocm_organization_ids,
+            only_addon_managed_upgrades=only_addon_managed_upgrades,
+        )
+
     def process_org(
         self, dry_run: bool, ocm_env: str, org_upgrade_spec: OrganizationUpgradeSpec
     ) -> None:
@@ -143,10 +159,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
 
     def get_upgrade_specs(self) -> dict[str, dict[str, OrganizationUpgradeSpec]]:
         return {
-            ocm_env.name: self.get_ocm_env_upgrade_specs(
-                ocm_env,
-                self.params.ocm_organization_ids,
-            )
+            ocm_env.name: self.get_ocm_env_upgrade_specs(ocm_env=ocm_env)
             for ocm_env in self.get_ocm_environments()
         }
 
@@ -166,7 +179,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
 
     @abstractmethod
     def get_ocm_env_upgrade_specs(
-        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
+        self, ocm_env: OCMEnvironment
     ) -> dict[str, OrganizationUpgradeSpec]:
         ...
 
@@ -978,3 +991,26 @@ def soaking_days(
         if not only_soaking and version not in soaking:
             soaking[version] = 0
     return soaking
+
+
+def get_orgs_for_environment(
+    ocm_env_name: str,
+    query_func: Callable,
+    ocm_organization_ids: Optional[set[str]] = None,
+    excluded_ocm_organization_ids: Optional[set[str]] = None,
+    only_addon_managed_upgrades: bool = False,
+) -> list[AUSOCMOrganization]:
+    orgs = aus_organizations_query(query_func=query_func).organizations or []
+    return [
+        org
+        for org in orgs or []
+        if org.environment.name == ocm_env_name
+        and (not only_addon_managed_upgrades or org.addon_managed_upgrades)
+        and (
+            (not ocm_organization_ids or org.org_id in ocm_organization_ids)
+            and (
+                not excluded_ocm_organization_ids
+                or org.org_id not in excluded_ocm_organization_ids
+            )
+        )
+    ]
