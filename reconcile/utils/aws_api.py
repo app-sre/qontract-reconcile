@@ -5,6 +5,7 @@ import time
 from collections.abc import (
     Iterable,
     Mapping,
+    Iterator,
 )
 from datetime import datetime
 from functools import lru_cache
@@ -1031,13 +1032,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         cloudwatch_logs = self._account_cloudwatch_client(account["name"])
         cloudwatch_logs.tag_log_group(logGroupName=group_name, tags=new_tag)
 
-    def get_cloudwatch_logs(self, account):
-        log_group_list = []
-        cloudwatch_logs = self._account_cloudwatch_client(account["name"])
-        paginator = cloudwatch_logs.get_paginator("describe_log_groups")
+    def get_cloudwatch_log_groups(self, account) -> Iterator[dict]:
+        client = self._account_cloudwatch_client(account["name"])
+        paginator = client.get_paginator("describe_log_groups")
         for page in paginator.paginate():
-            log_group_list.extend(page["logGroups"])
-        return log_group_list
+            for log_group in page["logGroups"]:
+                yield log_group
 
     def set_cloudwatch_log_retention(self, account, group_name, retention_days):
         cloudwatch_logs = self._account_cloudwatch_client(account["name"])

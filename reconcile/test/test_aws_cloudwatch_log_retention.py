@@ -98,7 +98,7 @@ def setup_mocks(
         autospec=True,
     )
     mocked_aws_api = aws_api.return_value.__enter__.return_value
-    mocked_aws_api.get_cloudwatch_logs.return_value = log_groups
+    mocked_aws_api.get_cloudwatch_log_groups.return_value = iter(log_groups)
     mocked_log_client = mocked_aws_api.get_session_client.return_value
     mocked_log_client.list_tags_log_group.return_value = tags
     return {

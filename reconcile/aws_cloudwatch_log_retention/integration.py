@@ -103,8 +103,16 @@ def _reconcile_log_groups(
     awsapi: AWSApi,
 ) -> None:
     aws_account_name = aws_account["name"]
+    desired_retentions = get_desired_retentions(aws_account)
     try:
-        aws_log_groups = awsapi.get_cloudwatch_logs(aws_account)
+        for aws_log_group in awsapi.get_cloudwatch_log_groups(aws_account):
+            _reconcile_log_group(
+                dry_run=dry_run,
+                aws_log_group=aws_log_group,
+                desired_retentions=desired_retentions,
+                aws_account=aws_account,
+                awsapi=awsapi,
+            )
     except ClientError as e:
         if e.response["Error"]["Code"] == "AccessDeniedException":
             logging.info(
@@ -113,26 +121,8 @@ def _reconcile_log_groups(
             )
         else:
             logging.error(
-                "Error getting log groups for %s: %s",
+                "Error reconciling log groups for %s: %s",
                 aws_account_name,
-                e,
-            )
-        return
-
-    desired_retentions = get_desired_retentions(aws_account)
-    for aws_log_group in aws_log_groups:
-        try:
-            _reconcile_log_group(
-                dry_run=dry_run,
-                aws_log_group=aws_log_group,
-                desired_retentions=desired_retentions,
-                aws_account=aws_account,
-                awsapi=awsapi,
-            )
-        except ClientError as e:
-            logging.error(
-                "Error reconciling log group retention for %s: %s",
-                aws_log_group["logGroupName"],
                 e,
             )
 
