@@ -559,8 +559,18 @@ def ocm_fleet_upgrade_policies(
 )
 @click.pass_context
 def aus_fleet_upgrade_policies(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
-    print(
-        "https://grafana.app-sre.devshift.net/d/ukLXCSwVz/aus-cluster-upgrade-overview"
+    from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
+
+    parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
+    generate_fleet_upgrade_policices_report(
+        ctx,
+        AdvancedUpgradeServiceIntegration(
+            AdvancedUpgradeSchedulerBaseIntegrationParams(
+                ocm_environment=ocm_env,
+                ocm_organization_ids=parsed_ocm_org_ids,
+                ignore_sts_clusters=ignore_sts_clusters,
+            )
+        ),
     )
 
 
