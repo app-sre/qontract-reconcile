@@ -22,7 +22,6 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
     def get_ocm_env_upgrade_specs(
         self, ocm_env: OCMEnvironment
     ) -> dict[str, OrganizationUpgradeSpec]:
-        # query all OCM organizations from app-interface and filter by and orgs
         organizations = self.get_orgs_for_environment(ocm_env)
         if not organizations:
             return {}

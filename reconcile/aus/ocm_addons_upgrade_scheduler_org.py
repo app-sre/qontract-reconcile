@@ -104,7 +104,6 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
         Build the upgrade specs for all relevant organizations. Each org spec contains
         one spec per cluster and addon.
         """
-        # query all OCM organizations from app-interface and filter by and orgs
         organizations = self.get_orgs_for_environment(
             ocm_env, only_addon_managed_upgrades=True
         )
