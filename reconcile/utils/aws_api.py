@@ -1028,6 +1028,11 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         }
         image.modify_attribute(LaunchPermission=launch_permission)
 
+    @staticmethod
+    def _normalize_log_group_arn(arn: str) -> str:
+        # DescribeLogGroups response arn has additional :* at the end
+        return arn.rstrip(":*")
+
     def create_cloudwatch_tag(
         self,
         account: dict[str, Any],
@@ -1035,7 +1040,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         new_tag: dict[str, str],
     ) -> None:
         client = self._account_cloudwatch_client(account["name"])
-        client.tag_resource(resourceArn=arn, tags=new_tag)
+        client.tag_resource(
+            resourceArn=self._normalize_log_group_arn(arn),
+            tags=new_tag,
+        )
 
     def get_cloudwatch_log_groups(self, account) -> Iterator[dict]:
         client = self._account_cloudwatch_client(account["name"])
@@ -1046,7 +1054,9 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def get_cloudwatch_log_group_tags(self, account, arn) -> dict[str, str]:
         client = self._account_cloudwatch_client(account["name"])
-        tags = client.list_tags_for_resource(resourceArn=arn)
+        tags = client.list_tags_for_resource(
+            resourceArn=self._normalize_log_group_arn(arn),
+        )
         return tags.get("tags", {})
 
     def set_cloudwatch_log_retention(self, account, group_name, retention_days):
