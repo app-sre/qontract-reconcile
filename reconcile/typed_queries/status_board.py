@@ -34,9 +34,10 @@ def get_selected_app_names(
         prefix = ""
         if namespace.app.parent_app:
             prefix = f"{namespace.app.parent_app.name}-"
-        selected_app_names.add(f"{prefix}{namespace.app.name}")
+        name = f"{prefix}{namespace.app.name}"
+        selected_app_names.add(name)
         app = namespace.app.dict(by_alias=True)
-        app["name"] = f"{prefix}{namespace.app.name}"
+        app["name"] = name
         apps["apps"].append(app)
 
         for child in namespace.app.children_apps or []:
