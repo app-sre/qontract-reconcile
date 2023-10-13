@@ -40,10 +40,11 @@ def get_selected_app_names(
         apps["apps"].append(app)
 
         for child in namespace.app.children_apps or []:
-            if child.name not in selected_app_names:
+            name = f"{namespace.app.name}-{child.name}"
+            if name not in selected_app_names:
                 selected_app_names.add(f"{namespace.app.name}-{child.name}")
                 child_dict = child.dict(by_alias=True)
-                child_dict["name"] = f"{namespace.app.name}-{child.name}"
+                child_dict["name"] = name
                 apps["apps"].append(child_dict)
 
     selectors = set(global_selectors)
