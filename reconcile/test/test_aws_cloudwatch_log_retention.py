@@ -1,4 +1,8 @@
 from collections.abc import Generator
+from datetime import (
+    datetime,
+    timedelta,
+)
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -11,7 +15,7 @@ from moto import mock_logs
 from pytest_mock import MockerFixture
 
 from reconcile.aws_cloudwatch_log_retention.integration import (
-    get_desired_retentions,
+    get_desired_cleanup_options,
     run,
 )
 
@@ -59,11 +63,13 @@ def test_cloudwatch_account() -> dict[str, Any]:
                 "provider": "cloudwatch",
                 "regex": "some-path*",
                 "retention_in_days": 30,
+                "delete_empty_log_group": None,
             },
             {
                 "provider": "cloudwatch",
                 "regex": "some-other-path*",
                 "retention_in_days": 60,
+                "delete_empty_log_group": True,
             },
         ],
         "consoleUrl": "https://some-url.com/console",
@@ -73,10 +79,10 @@ def test_cloudwatch_account() -> dict[str, Any]:
     }
 
 
-def test_get_desired_retentions(
+def test_get_desired_cleanup_options(
     test_cloudwatch_account: dict,
 ) -> None:
-    refined_cloudwatch_list = get_desired_retentions(test_cloudwatch_account)
+    refined_cloudwatch_list = get_desired_cleanup_options(test_cloudwatch_account)
     assert len(refined_cloudwatch_list) == 2
 
 
@@ -85,6 +91,7 @@ def setup_mocks(
     aws_accounts: list[dict],
     log_groups: list[dict],
     tags: dict[str, Any],
+    utcnow: datetime = datetime.utcnow(),
 ) -> MagicMock:
     mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.get_aws_accounts",
@@ -94,6 +101,11 @@ def setup_mocks(
         "reconcile.aws_cloudwatch_log_retention.integration.queries.get_secret_reader_settings",
         return_value={},
     )
+    mocked_datetime = mocker.patch(
+        "reconcile.aws_cloudwatch_log_retention.integration.datetime",
+        wraps=datetime,
+    )
+    mocked_datetime.utcnow.return_value = utcnow
     aws_api = mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.AWSApi",
         autospec=True,
@@ -170,7 +182,7 @@ def test_run_with_unset_retention_log_group_and_default_cleanup(
 def log_group_with_unset_retention_and_matching_name() -> dict[str, Any]:
     return {
         "logGroupName": "some-path-group-without-retention",
-        "storedBytes": 123,
+        "storedBytes": 0,
         "creationTime": 1433189500783,
         "arn": "arn:aws:logs:us-west-2:0123456789012:log-group:some-path-group-without-retention:*",
     }
@@ -259,5 +271,80 @@ def test_run_with_log_group_managed_by_terraform_resources(
         test_cloudwatch_account,
         log_group_with_unset_retention["arn"],
     )
+    mocked_aws_api.delete_cloudwatch_log_group.assert_not_called()
     mocked_aws_api.create_cloudwatch_tag.assert_not_called()
     mocked_aws_api.set_cloudwatch_log_retention.assert_not_called()
+
+
+@pytest.fixture
+def log_group_with_empty_stored_bytes() -> dict[str, Any]:
+    return {
+        "logGroupName": "some-other-path-empty-group",
+        "storedBytes": 0,
+        "retentionInDays": 90,
+        "creationTime": 1433189500783,
+        "arn": "arn:aws:logs:us-west-2:0123456789012:log-group:group-without-retention:*",
+    }
+
+
+def test_run_with_empty_log_group_after_retention_in_days(
+    mocker: MockerFixture,
+    test_cloudwatch_account: dict[str, Any],
+    log_group_with_empty_stored_bytes: dict[str, Any],
+    managed_by_aws_cloudwatch_log_retention_tags: dict[str, Any],
+) -> None:
+    mocked_aws_api = setup_mocks(
+        mocker,
+        aws_accounts=[test_cloudwatch_account],
+        log_groups=[log_group_with_empty_stored_bytes],
+        tags=managed_by_aws_cloudwatch_log_retention_tags,
+        utcnow=datetime.fromtimestamp(
+            log_group_with_empty_stored_bytes["creationTime"] / 1000
+        )
+        + timedelta(days=61),
+    )
+
+    run(dry_run=False, thread_pool_size=1)
+
+    mocked_aws_api.get_cloudwatch_log_group_tags.assert_called_once_with(
+        test_cloudwatch_account,
+        log_group_with_empty_stored_bytes["arn"],
+    )
+    mocked_aws_api.delete_cloudwatch_log_group.assert_called_once_with(
+        test_cloudwatch_account,
+        log_group_with_empty_stored_bytes["logGroupName"],
+    )
+    mocked_aws_api.create_cloudwatch_tag.assert_not_called()
+    mocked_aws_api.set_cloudwatch_log_retention.assert_not_called()
+
+
+def test_run_with_empty_log_group_before_retention_in_days(
+    mocker: MockerFixture,
+    test_cloudwatch_account: dict[str, Any],
+    log_group_with_empty_stored_bytes: dict[str, Any],
+    managed_by_aws_cloudwatch_log_retention_tags: dict[str, Any],
+) -> None:
+    mocked_aws_api = setup_mocks(
+        mocker,
+        aws_accounts=[test_cloudwatch_account],
+        log_groups=[log_group_with_empty_stored_bytes],
+        tags=managed_by_aws_cloudwatch_log_retention_tags,
+        utcnow=datetime.fromtimestamp(
+            log_group_with_empty_stored_bytes["creationTime"] / 1000
+        )
+        + timedelta(days=59),
+    )
+
+    run(dry_run=False, thread_pool_size=1)
+
+    mocked_aws_api.get_cloudwatch_log_group_tags.assert_called_once_with(
+        test_cloudwatch_account,
+        log_group_with_empty_stored_bytes["arn"],
+    )
+    mocked_aws_api.delete_cloudwatch_log_group.assert_not_called()
+    mocked_aws_api.create_cloudwatch_tag.assert_not_called()
+    mocked_aws_api.set_cloudwatch_log_retention.assert_called_once_with(
+        test_cloudwatch_account,
+        "some-other-path-empty-group",
+        60,
+    )

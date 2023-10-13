@@ -1065,6 +1065,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             logGroupName=group_name, retentionInDays=retention_days
         )
 
+    def delete_cloudwatch_log_group(self, account, group_name):
+        client = self._account_cloudwatch_client(account["name"])
+        client.delete_log_group(logGroupName=group_name)
+
     def create_tag(
         self, account: Mapping[str, Any], resource_id: str, tag: Mapping[str, str]
     ):

@@ -334,3 +334,18 @@ def test_create_cloudwatch_tag(
         resourceArn="some-arn",
         tags=new_tag,
     )
+
+
+def test_delete_cloudwatch_log_group(
+    aws_api: AWSApi,
+    accounts: list,
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch.object(aws_api, "get_session_client", autospec=True)
+    mocked_cloudwatch_client = aws_api.get_session_client.return_value  # type: ignore[attr-defined]
+
+    aws_api.delete_cloudwatch_log_group(accounts[0], "some-name")
+
+    mocked_cloudwatch_client.delete_log_group.assert_called_once_with(
+        logGroupName="some-name",
+    )

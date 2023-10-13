@@ -548,6 +548,7 @@ AWS_ACCOUNTS_QUERY = """
       ... on AWSAccountCleanupOptionCloudWatch_v1 {
         regex
         retention_in_days
+        delete_empty_log_group
       }
       ... on AWSAccountCleanupOptionAMI_v1 {
         regex
