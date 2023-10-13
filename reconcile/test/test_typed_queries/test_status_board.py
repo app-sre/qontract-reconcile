@@ -40,6 +40,16 @@ def status_board_product(
                             ],
                         }
                     },
+                    {
+                        "app": {
+                            "name": "baxr",
+                            "onboardingStatus": "BestEffort",
+                            "parentApp": {
+                                "name": "oxof",
+                                "onboardingStatus": "OnBoarded",
+                            },
+                        }
+                    },
                     {"app": {"name": "foo", "onboardingStatus": "OnBoarded"}},
                     {"app": {"name": "oof", "onboardingStatus": "BestEffort"}},
                 ],
