@@ -1000,17 +1000,29 @@ def get_orgs_for_environment(
     excluded_ocm_organization_ids: Optional[set[str]] = None,
     only_addon_managed_upgrades: bool = False,
 ) -> list[AUSOCMOrganization]:
+    """
+    Returns a list of organizations for the given OCM environment, applying
+    filters based on the provided arguments.
+
+    Args:
+        ocm_env_name (str): OCM environment name to filter
+        ocm_organization_ids (Optional[set[str]]): if any organization IDs are provided, any other organizations are excluded from the results
+        excluded_ocm_organization_ids (Optional[set[str]]): if any organization IDs are provided, these organizations are excluded from the results
+        only_addon_managed_upgrades (bool): if True, organizations without enabled addon management are excluded from the results
+        query_func (Callable): function to query organizations via GQL
+
+    Returns:
+        list[AUSOCMOrganization]: list of organizations matching the given filters
+    """
     orgs = aus_organizations_query(query_func=query_func).organizations or []
     return [
         org
         for org in orgs or []
         if org.environment.name == ocm_env_name
         and (not only_addon_managed_upgrades or org.addon_managed_upgrades)
+        and (not ocm_organization_ids or org.org_id in ocm_organization_ids)
         and (
-            (not ocm_organization_ids or org.org_id in ocm_organization_ids)
-            and (
-                not excluded_ocm_organization_ids
-                or org.org_id not in excluded_ocm_organization_ids
-            )
+            not excluded_ocm_organization_ids
+            or org.org_id not in excluded_ocm_organization_ids
         )
     ]
