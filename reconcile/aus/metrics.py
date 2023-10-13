@@ -21,6 +21,16 @@ UPGRADE_LONG_RUNNING_METRIC_VALUE = -3.0
 UPGRADE_BLOCKED_METRIC_VALUE = -4.0
 
 
+class AUSOCMEnvironmentError(AUSBaseMetric, CounterMetric):
+    "Error metric for failed OCM environment interactions"
+
+    ocm_env: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "aus_ocm_environment_errors"
+
+
 class AUSClusterVersionRemainingSoakDaysGauge(AUSBaseMetric, GaugeMetric):
     "Remaining days a version needs to soak for a cluster"
 
