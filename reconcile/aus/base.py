@@ -167,7 +167,8 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                 )
             except Exception as e:
                 logging.exception(
-                    f"Failed to get org upgrade specs for OCM environment {ocm_env.name}. Skipping.",
+                    "Failed to get org upgrade specs for OCM environment %s. Skipping. %s",
+                    ocm_env.name,
                     e,
                 )
                 metrics.inc_counter(
