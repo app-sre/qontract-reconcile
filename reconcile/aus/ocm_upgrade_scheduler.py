@@ -1,4 +1,4 @@
-from collections import defaultdict
+from abc import ABC
 from datetime import datetime
 from typing import Optional
 
@@ -15,32 +15,26 @@ from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
 )
-from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
-    query as aus_clusters_query,
-)
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.utils import (
-    gql,
-    metrics,
-)
-from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils import metrics
 from reconcile.utils.ocm import (
     OCM_PRODUCT_OSD,
     OCM_PRODUCT_ROSA,
 )
-from reconcile.utils.ocm.clusters import discover_clusters_for_organizations
-from reconcile.utils.ocm_base_client import (
-    init_ocm_base_client,
-    init_ocm_base_client_for_org,
-)
+from reconcile.utils.ocm_base_client import init_ocm_base_client_for_org
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD, OCM_PRODUCT_ROSA]
 
 
 class OCMClusterUpgradeSchedulerIntegration(
-    aus.AdvancedUpgradeSchedulerBaseIntegration
+    aus.AdvancedUpgradeSchedulerBaseIntegration, ABC
 ):
+    """
+    This flavor of upgrade scheduler has been made abstract to indicate that it
+    should not be used directly anymore until its code is removed.
+    """
+
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
@@ -77,50 +71,13 @@ class OCMClusterUpgradeSchedulerIntegration(
         aus.act(dry_run, diffs, ocm_api)
 
     def get_ocm_env_upgrade_specs(
-        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
+        self, ocm_env: OCMEnvironment
     ) -> dict[str, OrganizationUpgradeSpec]:
-        specs_per_org: dict[str, list[ClusterUpgradeSpec]] = defaultdict(list)
-        ai_clusters = aus_clusters_query(query_func=gql.get_api().query).clusters or []
-
-        # read cluster details from OCM
-        ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
-        cluster_details = {
-            c.ocm_cluster.external_id: c.ocm_cluster
-            for c in discover_clusters_for_organizations(
-                ocm_api, {c.ocm.org_id for c in ai_clusters if c.ocm}
-            )
-        }
-
-        for cluster in ai_clusters:
-            supported_product = (
-                cluster.spec and cluster.spec.product in SUPPORTED_OCM_PRODUCTS
-            )
-            in_env_shard = cluster.ocm and ocm_env.name == cluster.ocm.environment.name
-            in_org_shard = org_ids is None or (
-                cluster.ocm and cluster.ocm.org_id in org_ids
-            )
-            in_shard = in_env_shard and in_org_shard
-            cluster_uuid = cluster.spec.external_id if cluster.spec else None
-            cluster_detail = cluster_details.get(cluster_uuid) if cluster_uuid else None
-            if (
-                integration_is_enabled(self.name, cluster)  # pylint: disable=R0916
-                and cluster.ocm
-                and cluster.upgrade_policy
-                and supported_product
-                and cluster_detail
-                and in_shard
-            ):
-                specs_per_org[cluster.ocm.name].append(
-                    ClusterUpgradeSpec(
-                        org=cluster.ocm,
-                        upgradePolicy=cluster.upgrade_policy,
-                        cluster=cluster_detail,
-                    )
-                )
-        return {
-            org_name: OrganizationUpgradeSpec(org=specs[0].org, specs=specs)
-            for org_name, specs in specs_per_org.items()
-        }
+        raise NotImplementedError(
+            "Don't use ocm-upgrade-scheduler anymore but use: \n"
+            "* ocm-label to transfer upgrade policies to OCM subscription labels \n"
+            "* advanced-upgrade-service to drive upgrade policies based on OCM subscription labels"
+        )
 
     def expose_remaining_soak_day_metrics(
         self,

@@ -201,7 +201,7 @@ def discover_clusters(
     for c in clusters:
         is_sts_cluster = c.ocm_cluster.aws and c.ocm_cluster.aws.sts_enabled
         passed_sts_filter = not ignore_sts_clusters or not is_sts_cluster
-        passed_ocm_filters = org_ids is None or c.organization_id in org_ids
+        passed_ocm_filters = not org_ids or c.organization_id in org_ids
         if passed_ocm_filters and passed_sts_filter:
             clusters_by_org[c.organization_id].append(c)
 

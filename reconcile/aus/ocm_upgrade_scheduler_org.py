@@ -1,16 +1,10 @@
-from typing import Optional
-
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
 )
 from reconcile.aus.ocm_upgrade_scheduler import OCMClusterUpgradeSchedulerIntegration
-from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
-    query as aus_organizations_query,
-)
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.utils import gql
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
     discover_clusters_for_organizations,
@@ -26,18 +20,9 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
         return QONTRACT_INTEGRATION
 
     def get_ocm_env_upgrade_specs(
-        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
+        self, ocm_env: OCMEnvironment
     ) -> dict[str, OrganizationUpgradeSpec]:
-        # query all OCM organizations from app-interface and filter by and orgs
-        organizations = [
-            org
-            for org in aus_organizations_query(
-                query_func=gql.get_api().query
-            ).organizations
-            or []
-            if org.environment.name == ocm_env.name
-            and (org_ids is None or org.org_id in org_ids)
-        ]
+        organizations = self.get_orgs_for_environment(ocm_env)
         if not organizations:
             return {}
 
