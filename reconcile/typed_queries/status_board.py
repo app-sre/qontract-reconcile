@@ -27,13 +27,17 @@ def get_selected_app_names(
     global_selectors: Iterable[str],
     product: StatusBoardProductV1,
 ) -> set[str]:
-    selected_app_names: set[str] = {
-        namespace.app.name for namespace in product.product_environment.namespaces or []
-    }
+    selected_app_names: set[str] = set()
 
     apps: dict[str, Any] = {"apps": []}
     for namespace in product.product_environment.namespaces or []:
-        apps["apps"].append(namespace.app.dict(by_alias=True))
+        prefix = ""
+        if namespace.app.parent_app:
+            prefix = f"{namespace.app.parent_app.name}-"
+        selected_app_names.add(f"{prefix}{namespace.app.name}")
+        app = namespace.app.dict(by_alias=True)
+        app["name"] = f"{prefix}{namespace.app.name}"
+        apps["apps"].append(app)
 
         for child in namespace.app.children_apps or []:
             if child.name not in selected_app_names:
