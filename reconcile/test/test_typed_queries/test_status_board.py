@@ -24,6 +24,32 @@ def status_board_product(
                             "onboardingStatus": "OnBoarded",
                         }
                     },
+                    {
+                        "app": {
+                            "name": "bar",
+                            "onboardingStatus": "OnBoarded",
+                            "parentApp": {
+                                "name": "oof",
+                                "onboardingStatus": "OnBoarded",
+                            },
+                            "childrenApps": [
+                                {
+                                    "name": "oof-bar",
+                                    "onboardingStatus": "OnBoarded",
+                                }
+                            ],
+                        }
+                    },
+                    {
+                        "app": {
+                            "name": "baxr",
+                            "onboardingStatus": "BestEffort",
+                            "parentApp": {
+                                "name": "oxof",
+                                "onboardingStatus": "OnBoarded",
+                            },
+                        }
+                    },
                     {"app": {"name": "foo", "onboardingStatus": "OnBoarded"}},
                     {"app": {"name": "oof", "onboardingStatus": "BestEffort"}},
                 ],
@@ -39,7 +65,7 @@ def test_get_selected_app_names(status_board_product):
     app_names = get_selected_app_names(
         ['apps[?@.name=="excluded"]'], status_board_product
     )
-    assert app_names == {"foo"}
+    assert app_names == {"bar-oof-bar", "oof-bar", "foo"}
 
     app_names = get_selected_app_names([], status_board_product)
-    assert app_names == {"excluded", "foo"}
+    assert app_names == {"excluded", "bar-oof-bar", "oof-bar", "foo"}
