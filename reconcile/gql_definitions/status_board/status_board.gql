@@ -33,6 +33,10 @@ query StatusBoard {
               name
               onboardingStatus
             }
+            parentApp {
+              name
+              onboardingStatus
+            }
           }
         }
       }
