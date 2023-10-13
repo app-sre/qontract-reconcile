@@ -2227,7 +2227,11 @@ def slo_document_services(ctx, status_board_instance):
         "statusBoardEnabled",
     ]
 
-    [sb] = [sb for sb in get_status_board() if sb.name == status_board_instance]
+    try:
+        [sb] = [sb for sb in get_status_board() if sb.name == status_board_instance]
+    except ValueError:
+        print(f"Status-board instance '{status_board_instance}' not found.")
+        sys.exit(1)
 
     desired_product_apps: dict[str, set[str]] = StatusBoardExporterIntegration.get_product_apps(sb)
 
