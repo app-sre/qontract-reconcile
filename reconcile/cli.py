@@ -65,9 +65,7 @@ def before_breadcrumb(crumb, hint):
 
 # Enable Sentry
 if os.getenv("SENTRY_DSN"):
-    sentry_sdk.init(  # type: ignore[abstract] # pylint: disable=abstract-class-instantiated
-        os.environ["SENTRY_DSN"], before_breadcrumb=before_breadcrumb
-    )
+    sentry_sdk.init(os.environ["SENTRY_DSN"], before_breadcrumb=before_breadcrumb)
 
 
 def config_file(function):
