@@ -46,7 +46,7 @@ class InternalGroupsApi:
         try:
             resp.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
+            if e.response is not None and e.response.status_code == 404:
                 raise NotFound
             raise
 
