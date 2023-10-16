@@ -253,7 +253,7 @@ class OCMOrganizationShardingStrategy:
     ) -> ShardSpec:
         return ShardSpec(
             shard_key=org.org_id,
-            shard_name_suffix=f"-{org.org_id}",
+            shard_name_suffix=f"-{org.org_id.lower()}",
             extra_args=(integration_spec.extra_args or "") + f" --org-id {org.org_id}",
             shard_spec_overrides=spo,
         )
