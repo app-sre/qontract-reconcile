@@ -311,7 +311,11 @@ def test_get_cloudwatch_log_group_tags(
         }
     }
 
-    result = aws_api.get_cloudwatch_log_group_tags(accounts[0], "some-arn:*")
+    result = aws_api.get_cloudwatch_log_group_tags(
+        accounts[0]["name"],
+        "some-arn:*",
+        "us-east-1",
+    )
 
     assert result == {"tag1": "value1"}
     mocked_cloudwatch_client.list_tags_for_resource.assert_called_once_with(
@@ -328,9 +332,33 @@ def test_create_cloudwatch_tag(
     mocked_cloudwatch_client = aws_api.get_session_client.return_value  # type: ignore[attr-defined]
     new_tag = {"tag1": "value1"}
 
-    aws_api.create_cloudwatch_tag(accounts[0], "some-arn:*", new_tag)
+    aws_api.create_cloudwatch_tag(
+        accounts[0]["name"],
+        "some-arn:*",
+        new_tag,
+        "us-east-1",
+    )
 
     mocked_cloudwatch_client.tag_resource.assert_called_once_with(
         resourceArn="some-arn",
         tags=new_tag,
+    )
+
+
+def test_delete_cloudwatch_log_group(
+    aws_api: AWSApi,
+    accounts: list,
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch.object(aws_api, "get_session_client", autospec=True)
+    mocked_cloudwatch_client = aws_api.get_session_client.return_value  # type: ignore[attr-defined]
+
+    aws_api.delete_cloudwatch_log_group(
+        accounts[0]["name"],
+        "some-name",
+        "us-east-1",
+    )
+
+    mocked_cloudwatch_client.delete_log_group.assert_called_once_with(
+        logGroupName="some-name",
     )
