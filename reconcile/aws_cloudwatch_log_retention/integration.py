@@ -123,9 +123,8 @@ def _reconcile_log_group(
     log_group_name = aws_log_group["logGroupName"]
     log_group_arn = aws_log_group["arn"]
 
-    desired_cleanup_option = next(
-        (o for o in desired_cleanup_options if o.regex.match(log_group_name)),
-        DEFAULT_AWS_CLOUDWATCH_CLEANUP_OPTION,
+    desired_cleanup_option = _find_desired_cleanup_option(
+        log_group_name, desired_cleanup_options
     )
 
     if (
@@ -178,6 +177,24 @@ def _reconcile_log_group(
             desired_cleanup_option.retention_in_days,
             region,
         )
+
+
+def _find_desired_cleanup_option(
+    log_group_name: str,
+    desired_cleanup_options: Iterable[AWSCloudwatchCleanupOption],
+) -> AWSCloudwatchCleanupOption:
+    """
+    Find the first cleanup option that regex matches the log group name.
+    If no match is found, return the default cleanup option.
+
+    :param log_group_name: The name of the log group
+    :param desired_cleanup_options: The desired cleanup options
+    :return: The desired cleanup option
+    """
+    return next(
+        (o for o in desired_cleanup_options if o.regex.match(log_group_name)),
+        DEFAULT_AWS_CLOUDWATCH_CLEANUP_OPTION,
+    )
 
 
 def _reconcile_log_groups(
