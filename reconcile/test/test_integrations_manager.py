@@ -429,13 +429,13 @@ def ocm_organizations(
 ) -> list[MinimalOCMOrganization]:
     return [
         gql_class_factory(
-            MinimalOCMOrganization, {"name": "org-1", "orgId": "org-id-1"}
+            MinimalOCMOrganization, {"name": "org-1", "orgId": "org-id-A"}
         ),
         gql_class_factory(
-            MinimalOCMOrganization, {"name": "org-2", "orgId": "org-id-2"}
+            MinimalOCMOrganization, {"name": "org-2", "orgId": "org-id-B"}
         ),
         gql_class_factory(
-            MinimalOCMOrganization, {"name": "org-3", "orgId": "org-id-3"}
+            MinimalOCMOrganization, {"name": "org-3", "orgId": "org-id-C"}
         ),
     ]
 
@@ -752,19 +752,19 @@ def test_initialize_shard_specs_ocm_organizations_shards(
 
     expected = [
         ShardSpec(
-            shard_name_suffix="-org-id-1",
-            shard_key="org-id-1",
-            extra_args="integ-extra-arg --org-id org-id-1",
+            shard_name_suffix="-org-id-a",
+            shard_key="org-id-A",
+            extra_args="integ-extra-arg --org-id org-id-A",
         ),
         ShardSpec(
-            shard_name_suffix="-org-id-2",
-            shard_key="org-id-2",
-            extra_args="integ-extra-arg --org-id org-id-2",
+            shard_name_suffix="-org-id-b",
+            shard_key="org-id-B",
+            extra_args="integ-extra-arg --org-id org-id-B",
         ),
         ShardSpec(
-            shard_name_suffix="-org-id-3",
-            shard_key="org-id-3",
-            extra_args="integ-extra-arg --org-id org-id-3",
+            shard_name_suffix="-org-id-c",
+            shard_key="org-id-C",
+            extra_args="integ-extra-arg --org-id org-id-C",
         ),
     ]
 
@@ -823,21 +823,21 @@ def test_initialize_shard_specs_ocm_organizations_shards_with_overrides(
 
     expected = [
         ShardSpec(
-            shard_name_suffix="-org-id-1",
-            shard_key="org-id-1",
-            extra_args="integ-extra-arg --org-id org-id-1",
+            shard_name_suffix="-org-id-a",
+            shard_key="org-id-A",
+            extra_args="integ-extra-arg --org-id org-id-A",
             shard_spec_overrides=ocm_organizations_shard_overrides[0],
         ),
         ShardSpec(
-            shard_name_suffix="-org-id-2",
-            shard_key="org-id-2",
-            extra_args="integ-extra-arg --org-id org-id-2",
+            shard_name_suffix="-org-id-b",
+            shard_key="org-id-B",
+            extra_args="integ-extra-arg --org-id org-id-B",
             shard_spec_overrides=ocm_organizations_shard_overrides[1],
         ),
         ShardSpec(
-            shard_name_suffix="-org-id-3",
-            shard_key="org-id-3",
-            extra_args="integ-extra-arg --org-id org-id-3",
+            shard_name_suffix="-org-id-c",
+            shard_key="org-id-C",
+            extra_args="integ-extra-arg --org-id org-id-C",
             shard_spec_overrides=ocm_organizations_shard_overrides[2],
         ),
     ]
@@ -865,19 +865,19 @@ def test_initialize_shard_specs_ocm_organizations_shards_extra_args_aggregation(
 
     expected = [
         ShardSpec(
-            shard_name_suffix="-org-id-1",
-            shard_key="org-id-1",
-            extra_args="--arg --org-id org-id-1",
+            shard_name_suffix="-org-id-a",
+            shard_key="org-id-A",
+            extra_args="--arg --org-id org-id-A",
         ),
         ShardSpec(
-            shard_name_suffix="-org-id-2",
-            shard_key="org-id-2",
-            extra_args="--arg --org-id org-id-2",
+            shard_name_suffix="-org-id-b",
+            shard_key="org-id-B",
+            extra_args="--arg --org-id org-id-B",
         ),
         ShardSpec(
-            shard_name_suffix="-org-id-3",
-            shard_key="org-id-3",
-            extra_args="--arg --org-id org-id-3",
+            shard_name_suffix="-org-id-c",
+            shard_key="org-id-C",
+            extra_args="--arg --org-id org-id-C",
         ),
     ]
 
