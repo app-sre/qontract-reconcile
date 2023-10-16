@@ -1035,35 +1035,60 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def create_cloudwatch_tag(
         self,
-        account: dict[str, Any],
+        account_name: str,
         arn: str,
         new_tag: dict[str, str],
+        region_name: str | None = None,
     ) -> None:
-        client = self._account_cloudwatch_client(account["name"])
+        client = self._account_cloudwatch_client(account_name, region_name=region_name)
         client.tag_resource(
             resourceArn=self._normalize_log_group_arn(arn),
             tags=new_tag,
         )
 
-    def get_cloudwatch_log_groups(self, account) -> Iterator[dict]:
-        client = self._account_cloudwatch_client(account["name"])
+    def get_cloudwatch_log_groups(
+        self,
+        account_name: str,
+        region_name: str | None = None,
+    ) -> Iterator[dict]:
+        client = self._account_cloudwatch_client(account_name, region_name=region_name)
         paginator = client.get_paginator("describe_log_groups")
         for page in paginator.paginate():
             for log_group in page["logGroups"]:
                 yield log_group
 
-    def get_cloudwatch_log_group_tags(self, account, arn) -> dict[str, str]:
-        client = self._account_cloudwatch_client(account["name"])
+    def get_cloudwatch_log_group_tags(
+        self,
+        account_name: str,
+        arn: str,
+        region_name: str | None = None,
+    ) -> dict[str, str]:
+        client = self._account_cloudwatch_client(account_name, region_name=region_name)
         tags = client.list_tags_for_resource(
             resourceArn=self._normalize_log_group_arn(arn),
         )
         return tags.get("tags", {})
 
-    def set_cloudwatch_log_retention(self, account, group_name, retention_days):
-        client = self._account_cloudwatch_client(account["name"])
+    def set_cloudwatch_log_retention(
+        self,
+        account_name: str,
+        group_name: str,
+        retention_days: int,
+        region_name: str | None = None,
+    ):
+        client = self._account_cloudwatch_client(account_name, region_name=region_name)
         client.put_retention_policy(
             logGroupName=group_name, retentionInDays=retention_days
         )
+
+    def delete_cloudwatch_log_group(
+        self,
+        account_name: str,
+        group_name: str,
+        region_name: str | None = None,
+    ):
+        client = self._account_cloudwatch_client(account_name, region_name=region_name)
+        client.delete_log_group(logGroupName=group_name)
 
     def create_tag(
         self, account: Mapping[str, Any], resource_id: str, tag: Mapping[str, str]

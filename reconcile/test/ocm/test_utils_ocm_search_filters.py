@@ -364,3 +364,8 @@ def test_search_filter_equals() -> None:
     f3 = Filter().eq("some_field", "a").is_in("some_field", ["b", "c"])
     f4 = Filter().eq("some_field", "a").eq("some_field", "c").eq("some_field", "b")
     assert f3 == f4
+
+
+def test_empty_filter() -> None:
+    with pytest.raises(InvalidFilterError):
+        assert Filter().render()

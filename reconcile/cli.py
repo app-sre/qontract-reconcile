@@ -2096,12 +2096,6 @@ def ocm_addons_upgrade_scheduler_org(
     required=False,
     envvar="AUS_OCM_ENV",
 )
-@click.option(
-    "--ocm-org-ids",
-    help="A comma seperated list of OCM organization IDs AUS should operator on. If none is specified, all organizations are considered.",
-    required=False,
-    envvar="AUS_OCM_ORG_IDS",
-)
 @org_id_multiple
 @exclude_org_id
 @click.option(
