@@ -28,6 +28,7 @@ from reconcile.aus.cluster_version_data import (
 )
 from reconcile.aus.metrics import (
     AUSClusterUpgradePolicyInfoMetric,
+    AUSOCMEnvironmentError,
     AUSOrganizationErrorRate,
     AUSOrganizationValidationErrorsGauge,
 )
@@ -158,10 +159,25 @@ class AdvancedUpgradeSchedulerBaseIntegration(
             )
 
     def get_upgrade_specs(self) -> dict[str, dict[str, OrganizationUpgradeSpec]]:
-        return {
-            ocm_env.name: self.get_ocm_env_upgrade_specs(ocm_env=ocm_env)
-            for ocm_env in self.get_ocm_environments()
-        }
+        envs_org_upgrade_specs: dict[str, dict[str, OrganizationUpgradeSpec]] = {}
+        for ocm_env in self.get_ocm_environments():
+            try:
+                envs_org_upgrade_specs[ocm_env.name] = self.get_ocm_env_upgrade_specs(
+                    ocm_env=ocm_env
+                )
+            except Exception as e:
+                logging.exception(
+                    "Failed to get org upgrade specs for OCM environment %s. Skipping. %s",
+                    ocm_env.name,
+                    e,
+                )
+                metrics.inc_counter(
+                    AUSOCMEnvironmentError(
+                        integration=self.name,
+                        ocm_env=ocm_env.name,
+                    )
+                )
+        return envs_org_upgrade_specs
 
     def get_ocm_environments(self, filter: bool = True) -> list[OCMEnvironment]:
         return ocm_environment_query(
