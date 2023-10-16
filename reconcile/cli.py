@@ -7,7 +7,10 @@ import sys
 import traceback
 from signal import SIGUSR1
 from types import ModuleType
-from typing import Optional
+from typing import (
+    Iterable,
+    Optional,
+)
 
 import click
 import sentry_sdk
@@ -373,6 +376,29 @@ def exclude_aws_accounts(function):
         "--exclude-accounts",
         multiple=True,
         help="aws account name to remove from execution when in dry-run",
+        default=[],
+    )(function)
+
+    return function
+
+
+def org_id_multiple(function):
+    """This option can be used when more than one OCM organization ID needs to be passed as argument"""
+    function = click.option(
+        "--org-id",
+        default=None,
+        multiple=True,
+        help="OCM organization IDs to act on",
+    )(function)
+
+    return function
+
+
+def exclude_org_id(function):
+    function = click.option(
+        "--exclude-org-id",
+        multiple=True,
+        help="OCM organization to exclude from execution when in dry-run",
         default=[],
     )(function)
 
@@ -2002,25 +2028,13 @@ def ocm_machine_pools(ctx):
     run_integration(reconcile.ocm_machine_pools, ctx.obj)
 
 
-@integration.command(short_help="Manage Upgrade Policy schedules in OCM.")
-@click.pass_context
-def ocm_upgrade_scheduler(ctx):
-    from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
-    from reconcile.aus.ocm_upgrade_scheduler import (
-        OCMClusterUpgradeSchedulerIntegration,
-    )
-
-    run_class_integration(
-        integration=OCMClusterUpgradeSchedulerIntegration(
-            AdvancedUpgradeSchedulerBaseIntegrationParams()
-        ),
-        ctx=ctx.obj,
-    )
-
-
 @integration.command(short_help="Manage Upgrade Policy schedules in OCM organizations.")
+@org_id_multiple
+@exclude_org_id
 @click.pass_context
-def ocm_upgrade_scheduler_org(ctx):
+def ocm_upgrade_scheduler_org(
+    ctx, org_id: Iterable[str], exclude_org_id: Iterable[str]
+) -> None:
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
     from reconcile.aus.ocm_upgrade_scheduler_org import (
         OCMClusterUpgradeSchedulerOrgIntegration,
@@ -2029,7 +2043,8 @@ def ocm_upgrade_scheduler_org(ctx):
     run_class_integration(
         integration=OCMClusterUpgradeSchedulerOrgIntegration(
             AdvancedUpgradeSchedulerBaseIntegrationParams(
-                # pass in env or org here for sharding
+                ocm_organization_ids=set(org_id),
+                excluded_ocm_organization_ids=set(exclude_org_id),
             )
         ),
         ctx=ctx.obj,
@@ -2050,8 +2065,12 @@ def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
 @integration.command(
     short_help="Manage Addons Upgrade Policy schedules in OCM organizations."
 )
+@org_id_multiple
+@exclude_org_id
 @click.pass_context
-def ocm_addons_upgrade_scheduler_org(ctx):
+def ocm_addons_upgrade_scheduler_org(
+    ctx, org_id: Iterable[str], exclude_org_id: Iterable[str]
+) -> None:
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
     from reconcile.aus.ocm_addons_upgrade_scheduler_org import (
         OCMAddonsUpgradeSchedulerOrgIntegration,
@@ -2059,7 +2078,10 @@ def ocm_addons_upgrade_scheduler_org(ctx):
 
     run_class_integration(
         integration=OCMAddonsUpgradeSchedulerOrgIntegration(
-            AdvancedUpgradeSchedulerBaseIntegrationParams()
+            AdvancedUpgradeSchedulerBaseIntegrationParams(
+                ocm_organization_ids=set(org_id),
+                excluded_ocm_organization_ids=set(exclude_org_id),
+            )
         ),
         ctx=ctx.obj,
     )
@@ -2080,6 +2102,8 @@ def ocm_addons_upgrade_scheduler_org(ctx):
     required=False,
     envvar="AUS_OCM_ORG_IDS",
 )
+@org_id_multiple
+@exclude_org_id
 @click.option(
     "--ignore-sts-clusters",
     is_flag=True,
@@ -2087,16 +2111,22 @@ def ocm_addons_upgrade_scheduler_org(ctx):
     help="Ignore STS clusters",
 )
 @click.pass_context
-def advanced_upgrade_scheduler(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
+def advanced_upgrade_scheduler(
+    ctx,
+    ocm_env: str,
+    org_id: Iterable[str],
+    exclude_org_id: Iterable[str],
+    ignore_sts_clusters: bool,
+) -> None:
     from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
 
-    parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     run_class_integration(
         integration=AdvancedUpgradeServiceIntegration(
             AdvancedUpgradeSchedulerBaseIntegrationParams(
                 ocm_environment=ocm_env,
-                ocm_organization_ids=parsed_ocm_org_ids,
+                ocm_organization_ids=set(org_id),
+                excluded_ocm_organization_ids=set(exclude_org_id),
                 ignore_sts_clusters=ignore_sts_clusters,
             )
         ),

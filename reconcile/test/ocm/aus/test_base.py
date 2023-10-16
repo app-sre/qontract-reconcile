@@ -2,6 +2,10 @@ from datetime import (
     datetime,
     timedelta,
 )
+from typing import (
+    Any,
+    Callable,
+)
 
 import pytest
 from dateutil import parser
@@ -14,6 +18,7 @@ from reconcile.aus.base import (
     ClusterUpgradePolicy,
     ControlPlaneUpgradePolicy,
     UpgradePolicyHandler,
+    get_orgs_for_environment,
 )
 from reconcile.aus.cluster_version_data import (
     Stats,
@@ -811,3 +816,70 @@ def test_verify_schedule_should_skip_cluster_future() -> None:
         now,
     )
     assert s is None
+
+
+#
+# test organization filtering
+#
+
+
+@pytest.fixture
+def orgs_query_func() -> Callable:
+    def q(*args: Any, **kwargs: Any) -> dict[Any, Any]:
+        return {
+            "organizations": [
+                build_organization(
+                    org_id="org1", env_name="env1", addonManagedUpgrades=False
+                ).dict(by_alias=True),
+                build_organization(
+                    org_id="org2", env_name="env1", addonManagedUpgrades=True
+                ).dict(by_alias=True),
+                build_organization(
+                    org_id="org3", env_name="env2", addonManagedUpgrades=False
+                ).dict(by_alias=True),
+            ]
+        }
+
+    return q
+
+
+@pytest.mark.parametrize(
+    "ocm_env_name,only_addon_managed_upgrades,ocm_organization_ids,excluded_ocm_organization_ids,expected_org_ids",
+    [
+        ("env1", False, set(), set(), {"org1", "org2"}),
+        ("env1", False, None, None, {"org1", "org2"}),
+        ("env2", False, set(), set(), {"org3"}),
+        ("env1", True, set(), set(), {"org2"}),
+        ("env1", False, {"org1"}, set(), {"org1"}),
+        ("env1", False, set(), {"org1"}, {"org2"}),
+        ("env1", False, {"org1"}, {"org1"}, set()),
+        ("env2", True, set(), set(), set()),
+    ],
+    ids=[
+        "get all orgs from env1",
+        "get all orgs from env1 (None filters)",
+        "get all orgs from env2",
+        "get only the orgs with addon mgmt enabled from env1",
+        "get only org1 from env1",
+        "exclude org1 from env1",
+        "include and exclude an org should exclude it",
+        "nothing matches in an env",
+    ],
+)
+def test_aus_get_orgs_for_environment(
+    orgs_query_func: Callable,
+    ocm_env_name: str,
+    only_addon_managed_upgrades: bool,
+    ocm_organization_ids: set[str],
+    excluded_ocm_organization_ids: set[str],
+    expected_org_ids: set[str],
+) -> None:
+    orgs = get_orgs_for_environment(
+        ocm_env_name=ocm_env_name,
+        query_func=orgs_query_func,
+        only_addon_managed_upgrades=only_addon_managed_upgrades,
+        ocm_organization_ids=ocm_organization_ids,
+        excluded_ocm_organization_ids=excluded_ocm_organization_ids,
+    )
+
+    assert {o.org_id for o in orgs} == expected_org_ids

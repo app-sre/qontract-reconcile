@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import BaseModel
 
 from reconcile.aus import base as aus
@@ -14,15 +12,9 @@ from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
 )
-from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
-    query as aus_organizations_query,
-)
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.utils import (
-    gql,
-    metrics,
-)
+from reconcile.utils import metrics
 from reconcile.utils.ocm.addons import (
     OCMAddonInstallation,
     get_addon_latest_versions,
@@ -106,23 +98,15 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
             )
 
     def get_ocm_env_upgrade_specs(
-        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
+        self, ocm_env: OCMEnvironment
     ) -> dict[str, OrganizationUpgradeSpec]:
         """
         Build the upgrade specs for all relevant organizations. Each org spec contains
         one spec per cluster and addon.
         """
-        # query all OCM organizations from app-interface and filter by and orgs
-        organizations = [
-            org
-            for org in aus_organizations_query(
-                query_func=gql.get_api().query
-            ).organizations
-            or []
-            if org.environment.name == ocm_env.name
-            and org.addon_managed_upgrades
-            and (org_ids is None or org.org_id in org_ids)
-        ]
+        organizations = self.get_orgs_for_environment(
+            ocm_env, only_addon_managed_upgrades=True
+        )
         if not organizations:
             return {}
 

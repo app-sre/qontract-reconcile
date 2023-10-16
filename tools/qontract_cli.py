@@ -2,6 +2,7 @@
 
 import base64
 import json
+import logging
 import os
 import re
 import sys
@@ -509,98 +510,9 @@ def cluster_upgrade_policies(
     show_only_soaking_upgrades=False,
     by_workload=False,
 ):
-    from reconcile.aus.ocm_upgrade_scheduler import (
-        OCMClusterUpgradeSchedulerIntegration,
+    print(
+        "https://grafana.app-sre.devshift.net/d/ukLXCSwVz/aus-cluster-upgrade-overview"
     )
-
-    integration = OCMClusterUpgradeSchedulerIntegration(
-        AdvancedUpgradeSchedulerBaseIntegrationParams()
-    )
-    generate_cluster_upgrade_policies_report(
-        ctx,
-        integration=integration,
-        cluster=cluster,
-        workload=workload,
-        show_only_soaking_upgrades=show_only_soaking_upgrades,
-        by_workload=by_workload,
-    )
-
-
-def generate_cluster_upgrade_policies_report(
-    ctx,
-    integration: AdvancedUpgradeSchedulerBaseIntegration,
-    cluster: Optional[str],
-    workload: Optional[str],
-    show_only_soaking_upgrades: bool,
-    by_workload: bool,
-) -> None:
-    md_output = ctx.obj["options"]["output"] == "md"
-
-    org_upgrade_specs = []
-    for orgs in integration.get_upgrade_specs().values():
-        for org_spec in orgs.values():
-            filtered_specs = org_spec.specs
-            if cluster:
-                filtered_specs = [s for s in filtered_specs if cluster == s.name]
-            if workload:
-                filtered_specs = [
-                    s for s in filtered_specs if workload in s.upgrade_policy.workloads
-                ]
-            if filtered_specs:
-                org_upgrade_specs.append(
-                    OrganizationUpgradeSpec(org=org_spec.org, specs=filtered_specs)
-                )
-
-    results = get_upgrade_policies_data(
-        org_upgrade_specs,
-        md_output,
-        integration.name,
-        workload,
-        show_only_soaking_upgrades,
-        by_workload,
-    )
-
-    if md_output:
-        fields = [
-            {"key": "cluster", "sortable": True},
-            {"key": "version", "sortable": True},
-            {"key": "channel", "sortable": True},
-            {"key": "schedule"},
-            {"key": "sector", "sortable": True},
-            {"key": "mutexes", "sortable": True},
-            {"key": "soak_days", "sortable": True},
-            {"key": "workload"},
-            {"key": "soaking_upgrades"},
-        ]
-        md = """
-{}
-
-```json:table
-{}
-```
-        """
-        md = md.format(
-            upgrade_policies_output_description,
-            json.dumps(
-                {"fields": fields, "items": results, "filter": True, "caption": ""},
-                indent=1,
-            ),
-        )
-        print(md)
-    else:
-        columns = [
-            "cluster",
-            "version",
-            "channel",
-            "schedule",
-            "sector",
-            "mutexes",
-            "soak_days",
-            "workload",
-            "soaking_upgrades",
-        ]
-        ctx.obj["options"]["to_string"] = True
-        print_output(ctx.obj["options"], results, columns)
 
 
 def inherit_version_data_text(org: AUSOCMOrganization) -> str:
@@ -2258,6 +2170,12 @@ def ec2_jenkins_workers(ctx, aws_access_key_id, aws_secret_access_key, aws_regio
     auto_scaling_groups = client.describe_auto_scaling_groups()["AutoScalingGroups"]
     for a in auto_scaling_groups:
         for i in a["Instances"]:
+            lifecycle_state = i["LifecycleState"]
+            if lifecycle_state != "InService":
+                logging.info(
+                    f"instance is in lifecycle state {lifecycle_state} - ignoring instance"
+                )
+                continue
             instance = ec2.Instance(i["InstanceId"])
             state = instance.state["Name"]
             if state != "running":

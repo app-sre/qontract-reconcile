@@ -72,6 +72,7 @@ def build_organization(
     publish_version_data_from_org_ids: Optional[list[str]] = None,
     blocked_versions: Optional[list[str]] = None,
     sector_dependencies: Optional[dict[str, Optional[list[str]]]] = None,
+    addonManagedUpgrades: bool = False,
 ) -> AUSOCMOrganization:
     org_id = org_id or "org-1-id"
     return AUSOCMOrganization(
@@ -104,7 +105,7 @@ def build_organization(
         accessTokenClientSecret=None,
         upgradePolicyClusters=None,
         upgradePolicyAllowedWorkloads=None,
-        addonManagedUpgrades=False,
+        addonManagedUpgrades=addonManagedUpgrades,
         addonUpgradeTests=None,
         sectors=[
             OpenShiftClusterManagerSectorV1(
