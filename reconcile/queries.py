@@ -549,6 +549,7 @@ AWS_ACCOUNTS_QUERY = """
         regex
         retention_in_days
         delete_empty_log_group
+        region
       }
       ... on AWSAccountCleanupOptionAMI_v1 {
         regex
