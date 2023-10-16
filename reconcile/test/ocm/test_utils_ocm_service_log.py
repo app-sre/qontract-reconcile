@@ -22,8 +22,10 @@ from reconcile.utils.ocm.search_filters import (
     Filter,
 )
 from reconcile.utils.ocm.service_log import (
+    CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT,
+    CLUSTER_SERVICE_LOGS_LIST_ENDPOINT,
     create_service_log,
-    get_service_logs,
+    get_service_logs_for_cluster_uuid,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -64,7 +66,7 @@ def example_service_log(
     register_ocm_url_responses(
         [
             OcmUrl(
-                method="GET", uri="/api/service_logs/v1/cluster_logs"
+                method="GET", uri=CLUSTER_SERVICE_LOGS_LIST_ENDPOINT
             ).add_list_response([expected_service_log])
         ]
     )
@@ -72,16 +74,43 @@ def example_service_log(
     return expected_service_log
 
 
-def test_get_service_logs(
+def test_get_service_logs_for_cluster_uuid(
     ocm_api: OCMBaseClient,
     example_service_log: OCMClusterServiceLog,
+    find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
 ) -> None:
+    cluster_uuid = "cluster_uuid"
     fetched_logs = list(
-        get_service_logs(
-            ocm_api=ocm_api, filter=Filter().eq("cluster_uuid", "cluster_uuid")
+        get_service_logs_for_cluster_uuid(
+            ocm_api=ocm_api,
+            cluster_uuid=cluster_uuid,
         )
     )
     assert [example_service_log] == fetched_logs
+    get_request = find_ocm_http_request("GET", CLUSTER_SERVICE_LOGS_LIST_ENDPOINT)
+    assert get_request
+    assert get_request.querystring["cluster_uuid"] == [cluster_uuid]
+
+
+def test_get_service_logs_for_cluster_uuid_with_filter(
+    ocm_api: OCMBaseClient,
+    example_service_log: OCMClusterServiceLog,
+    find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
+) -> None:
+    cluster_uuid = "cluster_uuid"
+    service_filter = Filter().eq("service_name", "some-service")
+    fetched_logs = list(
+        get_service_logs_for_cluster_uuid(
+            ocm_api=ocm_api,
+            cluster_uuid=cluster_uuid,
+            filter=service_filter,
+        )
+    )
+    assert [example_service_log] == fetched_logs
+    get_request = find_ocm_http_request("GET", CLUSTER_SERVICE_LOGS_LIST_ENDPOINT)
+    assert get_request
+    assert get_request.querystring["cluster_uuid"] == [cluster_uuid]
+    assert get_request.querystring["search"] == [service_filter.render()]
 
 
 def test_create_service_log(
@@ -94,7 +123,7 @@ def test_create_service_log(
         [
             OcmUrl(
                 method="POST",
-                uri="/api/service_logs/v1/cluster_logs",
+                uri=CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT,
                 responses=[
                     build_service_log(
                         cluster_uuid="cluster_uuid",
@@ -119,13 +148,16 @@ def test_create_service_log(
         ),
     )
     assert result is not None
-    assert find_ocm_http_request("POST", "/api/service_logs/v1/cluster_logs")
+
+    assert find_ocm_http_request("POST", CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT)
 
 
 def test_create_service_log_dedup_timedelta_filter(
     ocm_api: OCMBaseClient, mocker: MockerFixture
 ) -> None:
-    get_service_logs_mock = mocker.patch.object(service_log, "get_service_logs")
+    get_service_logs_mock = mocker.patch.object(
+        service_log, "get_service_logs_for_cluster_uuid"
+    )
     get_service_logs_mock.return_value = iter(
         [
             build_service_log(
@@ -180,7 +212,7 @@ def test_create_service_log_dedup(
         dedup_interval=timedelta(days=1),
     )
     # expect no post call to the service log api
-    assert find_ocm_http_request("POST", "/api/service_logs/v1/cluster_logs") is None
+    assert find_ocm_http_request("POST", CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT) is None
 
 
 def test_create_service_log_dedup_no_dup(
@@ -191,11 +223,11 @@ def test_create_service_log_dedup_no_dup(
     register_ocm_url_responses(
         [
             OcmUrl(
-                method="GET", uri="/api/service_logs/v1/cluster_logs"
+                method="GET", uri=CLUSTER_SERVICE_LOGS_LIST_ENDPOINT
             ).add_list_response([]),
             OcmUrl(
                 method="POST",
-                uri="/api/service_logs/v1/cluster_logs",
+                uri=CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT,
                 responses=[build_service_log()],
             ),
         ]
@@ -213,4 +245,4 @@ def test_create_service_log_dedup_no_dup(
         dedup_interval=timedelta(days=1),
     )
     # expect a post call to the service log api
-    assert find_ocm_http_request("POST", "/api/service_logs/v1/cluster_logs")
+    assert find_ocm_http_request("POST", CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT)
