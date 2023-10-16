@@ -348,3 +348,29 @@ def test_run_with_empty_log_group_before_retention_in_days(
         "some-other-path-empty-group",
         60,
     )
+
+
+@pytest.fixture
+def account_with_disabled_integration() -> dict[str, Any]:
+    return {
+        "name": "disabled-account-name",
+        "disable": {
+            "integrations": ["aws-cloudwatch-log-retention"],
+        },
+    }
+
+
+def test_run_with_disabled_integration_account(
+    mocker: MockerFixture,
+    account_with_disabled_integration: dict[str, Any],
+) -> None:
+    mocked_aws_api = setup_mocks(
+        mocker,
+        aws_accounts=[account_with_disabled_integration],
+        log_groups=[],
+        tags={},
+    )
+
+    run(dry_run=False, thread_pool_size=1)
+
+    mocked_aws_api.get_cloudwatch_log_groups.assert_not_called()

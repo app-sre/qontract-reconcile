@@ -192,8 +192,17 @@ def _reconcile_log_groups(
             )
 
 
+def get_active_aws_accounts() -> list[dict]:
+    return [
+        a
+        for a in get_aws_accounts(cleanup=True)
+        if "aws-cloudwatch-log-retention"
+        not in a.get("disable", {}).get("integrations", [])
+    ]
+
+
 def run(dry_run: bool, thread_pool_size: int) -> None:
-    aws_accounts = get_aws_accounts(cleanup=True)
+    aws_accounts = get_active_aws_accounts()
     with create_awsapi_client(aws_accounts, thread_pool_size) as awsapi:
         for aws_account in aws_accounts:
             _reconcile_log_groups(dry_run, aws_account, awsapi)
