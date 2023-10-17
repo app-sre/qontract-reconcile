@@ -101,6 +101,7 @@ def run(
     trigger_integration: Optional[str] = None,
     trigger_reason: Optional[str] = None,
     saas_file_list: Optional[SaasFileList] = None,
+    publish_metrics_only: Optional[bool] = False,
     defer: Optional[Callable] = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
@@ -208,6 +209,10 @@ def run(
     if defer:  # defer is provided by the method decorator. this makes just mypy happy
         defer(oc_map.cleanup)
     saasherder.populate_desired_state(ri)
+
+    if publish_metrics_only:
+        ob.publish_metrics(ri, QONTRACT_INTEGRATION)
+        sys.exit(ExitCodes.SUCCESS)
 
     # validate that this deployment is valid
     # based on promotion information in targets
