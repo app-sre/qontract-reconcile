@@ -22,7 +22,6 @@ from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import
 from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import (
     query as glitchtip_project_query,
 )
-from reconcile.typed_queries.glitchtip_settings import get_glitchtip_settings
 from reconcile.utils import gql
 from reconcile.utils.differ import diff_iterables
 from reconcile.utils.glitchtip.client import GlitchtipClient
@@ -237,14 +236,6 @@ class GlitchtipProjectAlertsIntegration(
 
     def run(self, dry_run: bool) -> None:
         gqlapi = gql.get_api()
-        glitchtip_settings = get_glitchtip_settings()
-        glitchtip_jira_bridge_token = (
-            self.secret_reader.read_secret(
-                glitchtip_settings.glitchtip_jira_bridge_token
-            )
-            if glitchtip_settings.glitchtip_jira_bridge_token
-            else None
-        )
         # data
         glitchtip_instances = glitchtip_instance_query(
             query_func=gqlapi.query
@@ -260,21 +251,28 @@ class GlitchtipProjectAlertsIntegration(
         for glitchtip_instance in glitchtip_instances:
             if self.params.instance and glitchtip_instance.name != self.params.instance:
                 continue
+            glitchtip_jira_bridge_token = (
+                self.secret_reader.read_secret(
+                    glitchtip_instance.glitchtip_jira_bridge_token
+                )
+                if glitchtip_instance.glitchtip_jira_bridge_token
+                else None
+            )
 
             glitchtip_client = GlitchtipClient(
                 host=glitchtip_instance.console_url,
                 token=self.secret_reader.read_secret(
                     glitchtip_instance.automation_token
                 ),
-                read_timeout=glitchtip_settings.read_timeout,
-                max_retries=glitchtip_settings.max_retries,
+                read_timeout=glitchtip_instance.read_timeout,
+                max_retries=glitchtip_instance.max_retries,
             )
             current_state = self.fetch_current_state(glitchtip_client=glitchtip_client)
             desired_state = self.fetch_desired_state(
                 glitchtip_projects=glitchtip_projects_by_instance[
                     glitchtip_instance.name
                 ],
-                gjb_alert_url=glitchtip_settings.glitchtip_jira_bridge_alert_url,
+                gjb_alert_url=glitchtip_instance.glitchtip_jira_bridge_alert_url,
                 gjb_token=glitchtip_jira_bridge_token,
             )
             self.reconcile(
