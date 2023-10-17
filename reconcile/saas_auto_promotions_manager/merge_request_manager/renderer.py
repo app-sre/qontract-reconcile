@@ -56,14 +56,9 @@ class Renderer:
                 **namespace_selector
             )
             # Check if the target namespace is addressed by the selector
-            return (
-                len(
-                    get_namespaces_by_selector(
-                        namespaces=[subscriber.target_namespace],
-                        namespace_selector=selector,
-                    )
-                )
-                == 1
+            return is_namespace_addressed_by_selector(
+                namespace=subscriber.target_namespace,
+                namespace_selector=selector,
             )
         return target["namespace"]["$ref"] == subscriber.target_namespace.path
 
@@ -158,56 +153,38 @@ class Renderer:
         return f"[auto-promotion] event for channel(s) {channels}"
 
 
-def get_namespaces_by_selector(
-    namespaces: list[SaasTargetNamespace],
+def is_namespace_addressed_by_selector(
+    namespace: SaasTargetNamespace,
     namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
-) -> list[SaasTargetNamespace]:
-    """
-    # TODO: for whatever reason tox fails to import this from saas_files.
-    Interestingly it works outside of tox, but to get going we simply
-    copy the function here - very bad style but works for now
-
-    Copy of reconcile.typed_queries.saas_files.get_namespaces_by_selector
-    """
-
-    # json representation of all the namespaces to filter on
+) -> bool:
+    # json representation of namespace to filter on
     # remove all the None values to simplify the jsonpath expressions
-    namespaces_as_dict = {
-        "namespace": [ns.dict(by_alias=True, exclude_none=True) for ns in namespaces]
+    namespace_as_dict = {
+        "namespace": [namespace.dict(by_alias=True, exclude_none=True)]
     }
 
-    def _get_namespace_by_cluster_and_name(
-        cluster_name: str, name: str
-    ) -> SaasTargetNamespace:
-        for ns in namespaces:
-            if ns.cluster.name == cluster_name and ns.name == name:
-                return ns
-        # this should never ever happen - just make mypy happy
-        raise RuntimeError(f"namespace '{name}' not found in cluster '{cluster_name}'")
-
-    filtered_namespaces: dict[str, Any] = {}
-
     try:
+        do_include = False
         for include in namespace_selector.json_path_selectors.include:
-            for match in parser.parse(include).find(namespaces_as_dict):
-                cluster_name = match.value["cluster"]["name"]
-                ns_name = match.value["name"]
-                filtered_namespaces[
-                    f"{cluster_name}-{ns_name}"
-                ] = _get_namespace_by_cluster_and_name(cluster_name, ns_name)
+            if len(parser.parse(include).find(namespace_as_dict)):
+                # We found a match, i.e., the given namespace does
+                # fit the selector expression
+                do_include |= True
     except JsonPathParserError as e:
         raise RuntimeError(
             f"Invalid jsonpath expression in namespaceSelector '{include}' :{e}"
         )
 
     try:
+        do_exclude = False
         for exclude in namespace_selector.json_path_selectors.exclude or []:
-            for match in parser.parse(exclude).find(namespaces_as_dict):
-                cluster_name = match.value["cluster"]["name"]
-                ns_name = match.value["name"]
-                filtered_namespaces.pop(f"{cluster_name}-{ns_name}", None)
+            if parser.parse(exclude).find(namespace_as_dict):
+                # We have a match, i.e., the given namespace fits
+                # the exclude expression
+                do_exclude |= True
     except JsonPathParserError as e:
         raise RuntimeError(
             f"Invalid jsonpath expression in namespaceSelector '{exclude}' :{e}"
         )
-    return list(filtered_namespaces.values())
+
+    return do_include and not do_exclude
