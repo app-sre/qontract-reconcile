@@ -39,7 +39,7 @@ from reconcile.utils.runtime.integration import (
 )
 
 QONTRACT_INTEGRATION = "glitchtip-project-alerts"
-
+GJB_ALERT_NAME = "Glitchtip-Jira-Bridge-Integration"
 ProjectStates = dict[str, Project]
 
 
@@ -93,6 +93,10 @@ class GlitchtipProjectAlertsIntegration(
             )
             alerts = []
             for alert in glitchtip_project.alerts or []:
+                if alert.name == GJB_ALERT_NAME:
+                    raise ValueError(
+                        f"'{GJB_ALERT_NAME}' alert name is reserved. Please use another name."
+                    )
                 alerts.append(
                     ProjectAlert(
                         name=alert.name,
@@ -121,7 +125,7 @@ class GlitchtipProjectAlertsIntegration(
 
                 alerts.append(
                     ProjectAlert(
-                        name="Jira-integration",
+                        name=GJB_ALERT_NAME,
                         timespan_minutes=1,
                         quantity=1,
                         recipients=[
