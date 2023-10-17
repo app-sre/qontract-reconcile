@@ -116,6 +116,6 @@ def test_publish_info(s3_state_builder: Callable[[Mapping], State]):
         target_uid="uid",
         data=promotion_info,
     )
-    deployment_state._state.add.assert_called_with(  # type: ignore[attr-defined]
+    deployment_state._state.add.assert_called_once_with(  # type: ignore[attr-defined]
         "promotions_v2/channel/uid/sha", promotion_info.dict(), True
     )
