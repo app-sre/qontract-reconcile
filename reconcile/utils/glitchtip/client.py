@@ -39,8 +39,8 @@ class GlitchtipClient:  # pylint: disable=too-many-public-methods
     ) -> None:
         self.host = host
         self.token = token
-        self.max_retries = max_retries or 3
-        self.read_timeout = read_timeout or 30
+        self.max_retries = max_retries if max_retries is not None else 3
+        self.read_timeout = read_timeout if read_timeout is not None else 30
         self._thread_local = threading.local()
 
     @property
