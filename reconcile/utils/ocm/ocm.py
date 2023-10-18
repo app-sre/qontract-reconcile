@@ -79,11 +79,8 @@ REQUEST_TIMEOUT_SEC = 60
 
 SPEC_ATTR_ACCOUNT = "account"
 SPEC_ATTR_DISABLE_UWM = "disable_user_workload_monitoring"
-SPEC_ATTR_AUTOSCALE = "autoscale"
-SPEC_ATTR_INSTANCE_TYPE = "instance_type"
 SPEC_ATTR_PRIVATE = "private"
 SPEC_ATTR_CHANNEL = "channel"
-SPEC_ATTR_NODES = "nodes"
 SPEC_ATTR_LOAD_BALANCERS = "load_balancers"
 SPEC_ATTR_STORAGE = "storage"
 SPEC_ATTR_ID = "id"
@@ -154,10 +151,6 @@ class OCMProductOsd(OCMProduct):
         SPEC_ATTR_VERSION,
         SPEC_ATTR_INITIAL_VERSION,
         SPEC_ATTR_HYPERSHIFT,
-        # TODO: Remove below fields after schema cleanup
-        SPEC_ATTR_INSTANCE_TYPE,
-        SPEC_ATTR_AUTOSCALE,
-        SPEC_ATTR_NODES,
     }
 
     @staticmethod
@@ -348,10 +341,6 @@ class OCMProductRosa(OCMProduct):
         SPEC_ATTR_HYPERSHIFT,
         SPEC_ATTR_SUBNET_IDS,
         SPEC_ATTR_AVAILABILITY_ZONES,
-        # TODO: Remove below fields after schema cleanup
-        SPEC_ATTR_INSTANCE_TYPE,
-        SPEC_ATTR_AUTOSCALE,
-        SPEC_ATTR_NODES,
     }
 
     @staticmethod
@@ -647,13 +636,11 @@ class OCMProductHypershift(OCMProduct):
             channel=cluster["version"]["channel_group"],
             version=cluster["version"]["raw_id"],
             multi_az=cluster["multi_az"],
-            instance_type=cluster["nodes"]["compute_machine_type"]["id"],
             private=cluster["api"]["listening"] == "internal",
             disable_user_workload_monitoring=cluster[
                 "disable_user_workload_monitoring"
             ],
             provision_shard_id=provision_shard_id,
-            nodes=cluster["nodes"].get("compute"),
             subnet_ids=cluster["aws"].get("subnet_ids"),
             availability_zones=cluster["nodes"].get("availability_zones"),
             hypershift=cluster["hypershift"]["enabled"],

@@ -110,14 +110,8 @@ query Clusters($name: String) {
       version
       initial_version
       multi_az
-      nodes
-      instance_type
       private
       provision_shard_id
-      autoscale {
-        min_replicas
-        max_replicas
-      }
       disable_user_workload_monitoring
     }
     externalConfiguration {

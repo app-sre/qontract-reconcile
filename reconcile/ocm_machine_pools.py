@@ -17,7 +17,7 @@ from pydantic import (
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
-    ClusterMachinePoolV1_ClusterSpecAutoScaleV1,
+    ClusterSpecAutoScaleV1,
     ClusterV1,
 )
 from reconcile.typed_queries.clusters import get_clusters
@@ -36,7 +36,7 @@ class InvalidUpdateError(Exception):
 
 
 class AbstractAutoscaling(BaseModel):
-    def has_diff(self, autoscale: ClusterMachinePoolV1_ClusterSpecAutoScaleV1) -> bool:
+    def has_diff(self, autoscale: ClusterSpecAutoScaleV1) -> bool:
         return (
             self.get_min() != autoscale.min_replicas
             or self.get_max() != autoscale.max_replicas

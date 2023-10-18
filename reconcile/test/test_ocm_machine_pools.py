@@ -13,7 +13,7 @@ from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
-    ClusterMachinePoolV1_ClusterSpecAutoScaleV1,
+    ClusterSpecAutoScaleV1,
     ClusterV1,
 )
 from reconcile.ocm_machine_pools import (
@@ -134,7 +134,7 @@ def test_diff__has_diff_autoscale(cluster_machine_pool: ClusterMachinePoolV1):
     assert cluster_machine_pool.autoscale is None
     assert not pool._has_diff_autoscale(cluster_machine_pool)
 
-    cluster_machine_pool.autoscale = ClusterMachinePoolV1_ClusterSpecAutoScaleV1(
+    cluster_machine_pool.autoscale = ClusterSpecAutoScaleV1(
         min_replicas=1, max_replicas=2
     )
     assert pool._has_diff_autoscale(cluster_machine_pool)
@@ -143,7 +143,7 @@ def test_diff__has_diff_autoscale(cluster_machine_pool: ClusterMachinePoolV1):
     pool.autoscaling = MachinePoolAutoscaling(min_replicas=1, max_replicas=2)
     assert pool._has_diff_autoscale(cluster_machine_pool)
 
-    cluster_machine_pool.autoscale = ClusterMachinePoolV1_ClusterSpecAutoScaleV1(
+    cluster_machine_pool.autoscale = ClusterSpecAutoScaleV1(
         min_replicas=1, max_replicas=2
     )
     assert not pool._has_diff_autoscale(cluster_machine_pool)
@@ -349,7 +349,7 @@ def test_pool_machine_pool_has_new_auto_scale(machine_pool, cluster_machine_pool
     machine_pool.replicas = None
     cluster_machine_pool.replicas = None
     assert not machine_pool.has_diff(cluster_machine_pool)
-    cluster_machine_pool.autoscale = ClusterMachinePoolV1_ClusterSpecAutoScaleV1(
+    cluster_machine_pool.autoscale = ClusterSpecAutoScaleV1(
         min_replicas=1, max_replicas=2
     )
     assert machine_pool.has_diff(cluster_machine_pool)
@@ -359,7 +359,7 @@ def test_pool_node_pool_has_new_auto_scale(node_pool, cluster_machine_pool):
     node_pool.replicas = None
     cluster_machine_pool.replicas = None
     assert not node_pool.has_diff(cluster_machine_pool)
-    cluster_machine_pool.autoscale = ClusterMachinePoolV1_ClusterSpecAutoScaleV1(
+    cluster_machine_pool.autoscale = ClusterSpecAutoScaleV1(
         min_replicas=1, max_replicas=2
     )
     assert node_pool.has_diff(cluster_machine_pool)
