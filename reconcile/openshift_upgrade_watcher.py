@@ -86,7 +86,7 @@ def _get_start_hypershift(
     ocm_api: OCMBaseClient, cluster_id: str
 ) -> tuple[Optional[str], Optional[str]]:
     schedules = get_control_plane_upgrade_policies(ocm_api, cluster_id)
-    schedule = [s for s in schedules if s["state"]["value"] == "started"]
+    schedule = [s for s in schedules if s["state"] == "started"]
     if not schedule:
         return None, None
 
