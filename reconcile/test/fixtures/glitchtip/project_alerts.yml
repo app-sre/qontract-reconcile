@@ -6,6 +6,7 @@ glitchtip_projects:
     name: NASA
     instance:
       name: glitchtip-dev
+  jira: null
   alerts:
   - name: example-1
     description: Example alert 1
@@ -31,8 +32,38 @@ glitchtip_projects:
 
 - name: no-alerts
   projectId: null
+  jira: null
   organization:
     name: NASA
     instance:
       name: glitchtip-dev
+  alerts: null
+
+- name: jira-board-and-alerts
+  projectId: null
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev
+  jira:
+    project: null
+    board:
+      name: JIRA-VIA-BOARD
+  alerts:
+  - name: example-1
+    description: Example alert 1
+    quantity: 2
+    timespanMinutes: 2
+    recipients:
+    - provider: email-project-members
+
+- name: jira-project
+  projectId: null
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev
+  jira:
+    board: null
+    project: JIRA-VIA-PROJECT
   alerts: null

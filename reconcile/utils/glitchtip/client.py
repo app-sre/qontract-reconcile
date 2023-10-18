@@ -31,12 +31,16 @@ def get_next_url(links: dict[str, dict[str, str]]) -> Optional[str]:
 
 class GlitchtipClient:  # pylint: disable=too-many-public-methods
     def __init__(
-        self, host: str, token: str, max_retries: int = 3, read_timeout: float = 30
+        self,
+        host: str,
+        token: str,
+        max_retries: int | None = None,
+        read_timeout: float | None = None,
     ) -> None:
         self.host = host
         self.token = token
-        self.max_retries = max_retries
-        self.read_timeout = read_timeout
+        self.max_retries = max_retries if max_retries is not None else 3
+        self.read_timeout = read_timeout if read_timeout is not None else 30
         self._thread_local = threading.local()
 
     @property

@@ -16,7 +16,9 @@ from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import
     GlitchtipProjectAlertRecipientEmailV1,
     GlitchtipProjectAlertRecipientWebhookV1,
     GlitchtipProjectAlertV1,
+    GlitchtipProjectJiraV1,
     GlitchtipProjectsV1,
+    JiraBoardV1,
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.glitchtip.client import GlitchtipClient
@@ -101,6 +103,7 @@ def test_glitchtip_project_alerts_get_projects(
                     ],
                 ),
             ],
+            jira=None,
         ),
         GlitchtipProjectsV1(
             name="no-alerts",
@@ -109,6 +112,39 @@ def test_glitchtip_project_alerts_get_projects(
                 name="NASA", instance=GlitchtipInstanceV1(name="glitchtip-dev")
             ),
             alerts=None,
+            jira=None,
+        ),
+        GlitchtipProjectsV1(
+            name="jira-board-and-alerts",
+            projectId=None,
+            organization=GlitchtipOrganizationV1(
+                name="NASA", instance=GlitchtipInstanceV1(name="glitchtip-dev")
+            ),
+            alerts=[
+                GlitchtipProjectAlertV1(
+                    name="example-1",
+                    description="Example alert 1",
+                    quantity=2,
+                    timespanMinutes=2,
+                    recipients=[
+                        GlitchtipProjectAlertRecipientEmailV1(
+                            provider="email-project-members"
+                        )
+                    ],
+                )
+            ],
+            jira=GlitchtipProjectJiraV1(
+                project=None, board=JiraBoardV1(name="JIRA-VIA-BOARD")
+            ),
+        ),
+        GlitchtipProjectsV1(
+            name="jira-project",
+            projectId=None,
+            organization=GlitchtipOrganizationV1(
+                name="NASA", instance=GlitchtipInstanceV1(name="glitchtip-dev")
+            ),
+            alerts=None,
+            jira=GlitchtipProjectJiraV1(project="JIRA-VIA-PROJECT", board=None),
         ),
     ]
 
@@ -117,7 +153,9 @@ def test_glitchtip_project_alerts_fetch_desire_state(
     intg: GlitchtipProjectAlertsIntegration,
     projects: Sequence[GlitchtipProjectsV1],
 ) -> None:
-    org = intg.fetch_desired_state(projects)[0]
+    org = intg.fetch_desired_state(
+        projects, gjb_alert_url="http://gjb.com", gjb_token="secret"
+    )[0]
     project_1 = org.projects[0]
     assert project_1.alerts == [
         ProjectAlert(
@@ -154,6 +192,49 @@ def test_glitchtip_project_alerts_fetch_desire_state(
     ]
     project_2 = org.projects[1]
     assert project_2.alerts == []
+    project_3 = org.projects[2]
+    assert project_3.alerts == [
+        ProjectAlert(
+            pk=None,
+            name="example-1",
+            timespan_minutes=2,
+            quantity=2,
+            recipients=[
+                ProjectAlertRecipient(
+                    pk=None, recipient_type=RecipientType.EMAIL, url=""
+                )
+            ],
+        ),
+        ProjectAlert(
+            pk=None,
+            name="Jira integration",
+            timespan_minutes=1,
+            quantity=1,
+            recipients=[
+                ProjectAlertRecipient(
+                    pk=None,
+                    recipient_type=RecipientType.WEBHOOK,
+                    url="http://gjb.com/JIRA-VIA-BOARD?token=secret",
+                )
+            ],
+        ),
+    ]
+    project_4 = org.projects[3]
+    assert project_4.alerts == [
+        ProjectAlert(
+            pk=None,
+            name="Jira integration",
+            timespan_minutes=1,
+            quantity=1,
+            recipients=[
+                ProjectAlertRecipient(
+                    pk=None,
+                    recipient_type=RecipientType.WEBHOOK,
+                    url="http://gjb.com/JIRA-VIA-PROJECT?token=secret",
+                )
+            ],
+        )
+    ]
 
 
 def test_glitchtip_project_alerts_fetch_current_state(

@@ -38,6 +38,13 @@ query GlitchtipInstance {
     automationToken {
       ...VaultSecret
     }
+    readTimeout
+    maxRetries
+    mailDomain
+    glitchtipJiraBridgeAlertUrl
+    glitchtipJiraBridgeToken {
+      ...VaultSecret
+    }
   }
 }
 """
@@ -54,6 +61,15 @@ class GlitchtipInstanceV1(ConfiguredBaseModel):
     console_url: str = Field(..., alias="consoleUrl")
     automation_user_email: VaultSecret = Field(..., alias="automationUserEmail")
     automation_token: VaultSecret = Field(..., alias="automationToken")
+    read_timeout: Optional[int] = Field(..., alias="readTimeout")
+    max_retries: Optional[int] = Field(..., alias="maxRetries")
+    mail_domain: Optional[str] = Field(..., alias="mailDomain")
+    glitchtip_jira_bridge_alert_url: Optional[str] = Field(
+        ..., alias="glitchtipJiraBridgeAlertUrl"
+    )
+    glitchtip_jira_bridge_token: Optional[VaultSecret] = Field(
+        ..., alias="glitchtipJiraBridgeToken"
+    )
 
 
 class GlitchtipInstanceQueryData(ConfiguredBaseModel):

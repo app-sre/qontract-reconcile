@@ -27,7 +27,6 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
-from reconcile.typed_queries.glitchtip_settings import get_glitchtip_settings
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -175,7 +174,6 @@ def run(
 ) -> None:
     # settings
     vault_settings = get_app_interface_vault_settings()
-    read_timeout, max_retries, _ = get_glitchtip_settings()
 
     # data
     gqlapi = gql.get_api()
@@ -208,8 +206,8 @@ def run(
         glitchtip_client = GlitchtipClient(
             host=glitchtip_instance.console_url,
             token=secret_reader.read_secret(glitchtip_instance.automation_token),
-            read_timeout=read_timeout,
-            max_retries=max_retries,
+            read_timeout=glitchtip_instance.read_timeout,
+            max_retries=glitchtip_instance.max_retries,
         )
         threaded.run(
             fetch_current_state,

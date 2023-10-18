@@ -10,5 +10,12 @@ query GlitchtipInstance {
     automationToken {
       ...VaultSecret
     }
+    readTimeout
+    maxRetries
+    mailDomain
+    glitchtipJiraBridgeAlertUrl
+    glitchtipJiraBridgeToken {
+      ...VaultSecret
+    }
   }
 }
