@@ -153,6 +153,15 @@ class Renderer:
         return f"[auto-promotion] event for channel(s) {channels}"
 
 
+def _parse_expression(expression: str) -> Any:
+    try:
+        return parser.parse(expression)
+    except JsonPathParserError as e:
+        raise RuntimeError(
+            f"Invalid jsonpath expression in namespaceSelector '{expression}' :{e}"
+        )
+
+
 def is_namespace_addressed_by_selector(
     namespace: SaasTargetNamespace,
     namespace_selector: SaasResourceTemplateTargetNamespaceSelectorV1,
@@ -163,28 +172,14 @@ def is_namespace_addressed_by_selector(
         "namespace": [namespace.dict(by_alias=True, exclude_none=True)]
     }
 
-    try:
-        do_include = False
-        for include in namespace_selector.json_path_selectors.include:
-            if len(parser.parse(include).find(namespace_as_dict)):
-                # We found a match, i.e., the given namespace does
-                # fit the selector expression
-                do_include |= True
-    except JsonPathParserError as e:
-        raise RuntimeError(
-            f"Invalid jsonpath expression in namespaceSelector '{include}' :{e}"
-        )
+    do_include = any(
+        _parse_expression(include).find(namespace_as_dict)
+        for include in namespace_selector.json_path_selectors.include or []
+    )
 
-    try:
-        do_exclude = False
-        for exclude in namespace_selector.json_path_selectors.exclude or []:
-            if parser.parse(exclude).find(namespace_as_dict):
-                # We have a match, i.e., the given namespace fits
-                # the exclude expression
-                do_exclude |= True
-    except JsonPathParserError as e:
-        raise RuntimeError(
-            f"Invalid jsonpath expression in namespaceSelector '{exclude}' :{e}"
-        )
+    do_exclude = any(
+        _parse_expression(exclude).find(namespace_as_dict)
+        for exclude in namespace_selector.json_path_selectors.exclude or []
+    )
 
     return do_include and not do_exclude
