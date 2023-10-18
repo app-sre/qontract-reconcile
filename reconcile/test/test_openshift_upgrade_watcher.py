@@ -182,7 +182,7 @@ def test__get_start_hypershift_started(mocker):
         {
             "next_run": upgrade_at,
             "version": upgrade_version,
-            "state": {"value": "started"},
+            "state": "started",
         }
     ]
     ocm_api_mock = mocker.patch(
