@@ -272,6 +272,31 @@ def test_build_org_upgrade_spec_with_version_inheritance_no_publish(
     assert len(org_upgrade_spec.specs) == 1
 
 
+def test_build_org_upgrade_spec_missing_sector(
+    ocm_env: OCMEnvironment, org_labels: LabelContainer
+) -> None:
+    org_upgrade_spec = _build_org_upgrade_spec(
+        ocm_env=ocm_env,
+        org=OCMOrganization(
+            id="org-id",
+            name="org-name",
+        ),
+        clusters=[
+            build_cluster_details(
+                "cluster-1",
+                build_cluster_upgrade_policy_labels(
+                    sector="i-am-a-sector-missing-in-the-org"
+                ),
+            ),
+        ],
+        org_labels=org_labels,
+        version_data_inheritance=None,
+    )
+    assert len(org_upgrade_spec.cluster_errors) == 1
+    assert len(org_upgrade_spec.organization_errors) == 0
+    assert len(org_upgrade_spec.specs) == 0
+
+
 #
 # build_org_upgrade_specs_for_ocm_env
 #

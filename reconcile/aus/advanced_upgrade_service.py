@@ -359,6 +359,8 @@ def _build_org_upgrade_spec(
                 org_upgrade_spec.add_cluster_error(
                     c.ocm_cluster.external_id, f"label {e['loc'][0]}: {e['msg']}"
                 )
+        except Exception as ex:
+            org_upgrade_spec.add_cluster_error(c.ocm_cluster.external_id, str(ex))
 
     # register organization errors
     if (

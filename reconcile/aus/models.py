@@ -130,11 +130,15 @@ class OrganizationUpgradeSpec(BaseModel):
         return self._sectors
 
     def add_spec(self, spec: ClusterUpgradeSpec) -> None:
-        self._specs.append(spec)
-        self._specs.sort(key=upgrade_spec_sort_key)
         # add clusters to their sectors
         if spec.upgrade_policy.conditions.sector:
+            if spec.upgrade_policy.conditions.sector not in self._sectors:
+                raise ValueError(
+                    f"sector {spec.upgrade_policy.conditions.sector} not found in organization"
+                )
             self._sectors[spec.upgrade_policy.conditions.sector].add_spec(spec)
+        self._specs.append(spec)
+        self._specs.sort(key=upgrade_spec_sort_key)
 
     @property
     def specs(self) -> Sequence[ClusterUpgradeSpec]:
