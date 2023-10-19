@@ -19,20 +19,26 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query AcsOidcPermissions  {
-  oidc_permissions_v1: oidc_permissions_v1 {
-    name
-    description
-    service
-    ... on OidcPermissionAcs_v1 {
-      permission_set
-      clusters {
+query AcsRbac  {
+  acs_rbacs: users_v1 {
+    org_username
+    roles {
+      name
+      oidc_permissions {
         name
-      }
-      namespaces {
-        name
-        cluster {
-          name
+        description
+        service
+        ... on OidcPermissionAcs_v1 {
+          permission_set
+          clusters {
+            name
+          }
+          namespaces {
+            name
+            cluster {
+              name
+            }
+          }
         }
       }
     }
@@ -72,13 +78,23 @@ class OidcPermissionAcsV1(OidcPermissionV1):
     namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")
 
 
-class AcsOidcPermissionsQueryData(ConfiguredBaseModel):
-    oidc_permissions_v1: list[Union[OidcPermissionAcsV1, OidcPermissionV1]] = Field(
-        ..., alias="oidc_permissions_v1"
-    )
+class RoleV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    oidc_permissions: Optional[
+        list[Union[OidcPermissionAcsV1, OidcPermissionV1]]
+    ] = Field(..., alias="oidc_permissions")
 
 
-def query(query_func: Callable, **kwargs: Any) -> AcsOidcPermissionsQueryData:
+class UserV1(ConfiguredBaseModel):
+    org_username: str = Field(..., alias="org_username")
+    roles: Optional[list[RoleV1]] = Field(..., alias="roles")
+
+
+class AcsRbacQueryData(ConfiguredBaseModel):
+    acs_rbacs: Optional[list[UserV1]] = Field(..., alias="acs_rbacs")
+
+
+def query(query_func: Callable, **kwargs: Any) -> AcsRbacQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -91,7 +107,7 @@ def query(query_func: Callable, **kwargs: Any) -> AcsOidcPermissionsQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        AcsOidcPermissionsQueryData: queried data parsed into generated classes
+        AcsRbacQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return AcsOidcPermissionsQueryData(**raw_data)
+    return AcsRbacQueryData(**raw_data)
