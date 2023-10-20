@@ -4,7 +4,17 @@ query AcsInstance {
   instances: acs_instance_v1 {
     url
     token {
-      ...VaultSecret
+      ... on VaultSecret_v1 {
+        path
+        field
+        version
+      }
+    }
+    authProvider {
+      ... on AcsInstanceAuthProvider_v1 {
+        name
+        id
+      }
     }
   }
 }
