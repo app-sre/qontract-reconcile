@@ -17,17 +17,22 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
 query AcsInstance {
   instances: acs_instance_v1 {
     url
     token {
-      ... on VaultSecret_v1 {
-        path
-        field
-        version
-      }
+      ... VaultSecret
     }
     authProvider {
       ... on AcsInstanceAuthProvider_v1 {
@@ -46,16 +51,6 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
-class VaultSecretV1(ConfiguredBaseModel):
-    ...
-
-
-class VaultSecretV1_VaultSecretV1(VaultSecretV1):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-    version: Optional[int] = Field(..., alias="version")
-
-
 class AcsInstanceAuthProviderV1(ConfiguredBaseModel):
     ...
 
@@ -67,7 +62,7 @@ class AcsInstanceAuthProviderV1_AcsInstanceAuthProviderV1(AcsInstanceAuthProvide
 
 class AcsInstanceV1(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
-    token: Union[VaultSecretV1_VaultSecretV1, VaultSecretV1] = Field(..., alias="token")
+    token: VaultSecret = Field(..., alias="token")
     auth_provider: Union[
         AcsInstanceAuthProviderV1_AcsInstanceAuthProviderV1, AcsInstanceAuthProviderV1
     ] = Field(..., alias="authProvider")
