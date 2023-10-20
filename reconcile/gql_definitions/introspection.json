@@ -25193,7 +25193,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "token",
+                            "name": "credentials",
                             "description": null,
                             "args": [],
                             "type": {

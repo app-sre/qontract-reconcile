@@ -31,7 +31,7 @@ fragment VaultSecret on VaultSecret_v1 {
 query AcsInstance {
   instances: acs_instance_v1 {
     url
-    token {
+    credentials {
       ... VaultSecret
     }
     authProvider {
@@ -62,7 +62,7 @@ class AcsInstanceAuthProviderV1_AcsInstanceAuthProviderV1(AcsInstanceAuthProvide
 
 class AcsInstanceV1(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
-    token: VaultSecret = Field(..., alias="token")
+    credentials: VaultSecret = Field(..., alias="credentials")
     auth_provider: Union[
         AcsInstanceAuthProviderV1_AcsInstanceAuthProviderV1, AcsInstanceAuthProviderV1
     ] = Field(..., alias="authProvider")

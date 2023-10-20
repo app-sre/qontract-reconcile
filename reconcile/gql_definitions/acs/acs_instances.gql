@@ -3,7 +3,7 @@
 query AcsInstance {
   instances: acs_instance_v1 {
     url
-    token {
+    credentials {
       ... VaultSecret
     }
     authProvider {
