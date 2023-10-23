@@ -1,0 +1,47 @@
+# qenerate: plugin=pydantic_v1
+
+query DatabaseAccessManager {
+  namespaces_v1 {
+    name
+    cluster {
+      name
+      serverUrl
+      automationToken {
+        path
+        field
+        version
+        format
+      }
+      internal
+    }
+    externalResources {
+      provider
+      provisioner {
+        name
+      }
+      ... on NamespaceTerraformProviderResourceAWS_v1 {
+        resources {
+            provider
+            ... on NamespaceTerraformResourceRDS_v1 {
+              region
+              identifier
+              defaults
+              output_resource_name
+              database_access {
+              	username
+                name
+                database
+                delete
+                access {
+                  grants
+                  target {
+                    dbschema
+                  }
+                }
+              }
+         	 }
+        }
+      }
+    }
+  }
+}
