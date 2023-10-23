@@ -1,9 +1,199 @@
-class AcsApi:  
+import requests
+import logging
+
+from pydantic import BaseModel
+from typing import Any
+
+
+class Role(BaseModel):
+    name: str
+    permission_set_id: str
+    access_scope_id: str
+    description: str
+    system_default: bool
+
+    def __init__(self, api_data: Any) -> None:
+        # attributes defined within stackrox(ACS) API for GET /v1/roles
+        check_len_attributes(
+            ["name", "permissionSetId", "accessScopeId"],
+            api_data,
+        )
+
+        # traits is populated for system default resources and contains `origin: DEFAULT`
+        # this attribute is used to ignore such resources from reconciliation
+        traits = api_data.get("traits")
+        is_default = traits is not None and traits.get("origin") == "DEFAULT"
+
+        super().__init__(
+            name=api_data["name"],
+            permission_set_id=api_data["permissionSetId"],
+            access_scope_id=api_data["accessScopeId"],
+            description=api_data.get("description", ""),
+            system_default=is_default,
+        )
+
+
+class Group(BaseModel):
+    role_name: str
+    auth_id: str
+    key: str
+    value: str
+
+    def __init__(self, api_data: Any) -> None:
+        # attributes defined within stackrox(ACS) API for GET /v1/groups
+        check_len_attributes(["roleName", "props"], api_data)
+        try:
+            check_len_attributes(["authProviderId", "key", "value"], api_data["props"])
+        except ValueError as e:
+            # it is valid for the default None group to contain empty key/value
+            if api_data["roleName"] != "None":
+                raise e
+
+        super().__init__(
+            role_name=api_data["roleName"],
+            auth_id=api_data["props"]["authProviderId"],
+            key=api_data["props"]["key"],
+            value=api_data["props"]["value"],
+        )
+
+
+class AccessScope(BaseModel):
+    id: str
+    name: str
+    description: str
+    clusters: list[str]
+    namespaces: list[dict[str, str]]
+    system_default: bool
+
+    def __init__(self, api_data: Any) -> None:
+        # attributes defined within stackrox(ACS) API for GET /v1/simpleaccessscopes/{id}
+        unrestricted = False
+        try:
+            check_len_attributes(["id", "name", "rules"], api_data)
+        except ValueError as e:
+            # it is valid for the default Unrestricted access scope to have null `rules`
+            if api_data.get("name") != "Unrestricted":
+                raise e
+            unrestricted = True
+
+        # traits is populated for system default resources and contains `origin: DEFAULT`
+        # attribute is used to ignore these resources from reconciliation
+        traits = api_data.get("traits")
+        is_default = traits is not None and traits.get("origin") == "DEFAULT"
+
+        super().__init__(
+            id=api_data["id"],
+            name=api_data["name"],
+            clusters=[]
+            if unrestricted
+            else api_data["rules"].get("includedClusters", []),
+            namespaces=[]
+            if unrestricted
+            else api_data["rules"].get("includedNamespaces", []),
+            description=api_data.get("description", ""),
+            system_default=is_default,
+        )
+
+
+class PermissionSet(BaseModel):
+    id: str
+    name: str
+
+    def __init__(self, api_data: Any) -> None:
+        # attributes defined within stackrox(ACS) API for GET /v1/permissionsets/{id}
+        check_len_attributes(["id", "name"], api_data)
+
+        super().__init__(id=api_data["id"], name=api_data["name"])
+
+
+def check_len_attributes(attrs: list[Any], api_data: Any) -> None:
+    # generic attribute check function for expected types with valid len()
+    for attr in attrs:
+        value = api_data.get(attr)
+        if value is None or len(value) == 0:
+            raise ValueError(
+                f"Attribute '{attr}' must exist and not be empty\n\t{api_data}"
+            )
+
+
+class AcsApi:
     def __init__(
         self,
-        instance,
-        timeout=30,
-    ):
+        instance: Any,
+        timeout: int = 30,
+    ) -> None:
         self.url = instance["url"]
         self.token = instance["token"]
-        
+        self.timeout = timeout
+
+    def get_roles(self) -> list[Role]:
+        endpoint = f"{self.url}/v1/roles"
+        response = requests.get(
+            url=endpoint,
+            headers={"Authorization": f"Bearer {self.token}"},
+            timeout=self.timeout,
+        )
+        try:
+            response.raise_for_status()
+        except requests.exceptions.RequestException as details:
+            raise requests.exceptions.RequestException(
+                f"Failed to perform GET request to {endpoint}\n\t{details}"
+            )
+
+        roles = []
+        for role in response.json()["roles"]:
+            roles.append(Role(role))
+
+        return roles
+
+    def get_groups(self) -> list[Group]:
+        endpoint = f"{self.url}/v1/groups"
+        response = requests.get(
+            url=endpoint,
+            headers={"Authorization": f"Bearer {self.token}"},
+            timeout=self.timeout,
+        )
+        try:
+            response.raise_for_status()
+        except requests.exceptions.RequestException as details:
+            raise requests.exceptions.RequestException(
+                f"Failed to perform GET request to {endpoint}\n\t{details}"
+            )
+
+        groups = []
+        for group in response.json()["groups"]:
+            groups.append(Group(group))
+
+        return groups
+
+    def get_access_scope_by_id(self, id: str) -> AccessScope:
+        endpoint = f"{self.url}/v1/simpleaccessscopes/{id}"
+        response = requests.get(
+            url=endpoint,
+            headers={"Authorization": f"Bearer {self.token}"},
+            timeout=self.timeout,
+        )
+        try:
+            response.raise_for_status()
+        except requests.exceptions.RequestException as details:
+            raise requests.exceptions.RequestException(
+                f"Failed to perform GET request to {endpoint}\n\t{details}"
+            )
+
+        return AccessScope(response.json())
+
+    def get_permission_set_by_id(self, id: str) -> PermissionSet:
+        endpoint = f"{self.url}/v1/permissionsets/{id}"
+        response = requests.get(
+            url=endpoint,
+            headers={"Authorization": f"Bearer {self.token}"},
+            timeout=self.timeout,
+        )
+        try:
+            response.raise_for_status()
+        except requests.exceptions.RequestException as details:
+            raise requests.exceptions.RequestException(
+                f"Failed to perform GET request to {endpoint}\n\t{details}"
+            )
+
+        return PermissionSet(response.json())
