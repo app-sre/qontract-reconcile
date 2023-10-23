@@ -18,6 +18,7 @@ from reconcile import openshift_resources_base as orb
 from reconcile import queries
 from reconcile.gql_definitions.terraform_resources.database_access_manager import (
     DatabaseAccessV1,
+    NamespaceTerraformProviderResourceAWSV1,
     NamespaceTerraformResourceRDSV1,
     NamespaceV1,
     query,
@@ -30,7 +31,7 @@ from reconcile.utils.oc import (
 from reconcile.utils.openshift_resource import OpenshiftResource
 from reconcile.utils.runtime.integration import QontractReconcileIntegration
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.state import init_state
+from reconcile.utils.state import init_state, State
 
 QONTRACT_INTEGRATION = "database-access-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -59,31 +60,29 @@ class PSQLScriptGenerator(BaseModel):
     connection_parameter: DatabaseConnectionParameters
     engine: str
 
-    def _get_db(self):
+    def _get_db(self) -> str:
         return self.db_access.database
 
-    def _get_user(self):
+    def _get_user(self) -> str:
         return self.db_access.username
 
     def _generate_create_user(self) -> str:
         return f"""
-    SELECT 'CREATE DATABASE "{self._get_db()}"' 
-    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{self._get_db()}');\gexec
-    
-    /* revoke only required for databases lower version 15
-       this makes the behaviour compliant with postgres 15, writes are only allowed
-       in the schema created for the role/user */
-    REVOKE ALL ON DATABASE "{self._get_db()}" FROM public;
-    
-    \c "{self._get_db()}"
-    
-    select 'CREATE ROLE "{self._get_user()}"  WITH LOGIN PASSWORD ''{self.connection_parameter.password}'' VALID UNTIL ''infinity'''
-    WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{self._get_db()}');\gexec
-    
-    -- rds specific, grant role to admin or create schema fails
-    grant "{self._get_user()}" to postgres;
-    CREATE SCHEMA IF NOT EXISTS "{self._get_user()}" AUTHORIZATION "{self._get_user()}";
-    """
+SELECT 'CREATE DATABASE "{self._get_db()}"'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{self._get_db()}');\\gexec
+/* revoke only required for databases lower version 15
+   this makes the behaviour compliant with postgres 15, writes are only allowed
+   in the schema created for the role/user */
+REVOKE ALL ON DATABASE "{self._get_db()}" FROM public;
+
+\\c "{self._get_db()}"
+
+select 'CREATE ROLE "{self._get_user()}"  WITH LOGIN PASSWORD ''{self.connection_parameter.password}'' VALID UNTIL ''infinity'''
+WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{self._get_db()}');\\gexec
+
+-- rds specific, grant role to admin or create schema fails
+grant "{self._get_user()}" to postgres;
+CREATE SCHEMA IF NOT EXISTS "{self._get_user()}" AUTHORIZATION "{self._get_user()}";"""
 
     def _generate_db_access(self) -> str:
         statements: list[str] = ["\n"]
@@ -341,10 +340,10 @@ def _populate_resources(
     db_access: DatabaseAccessV1,
     engine: str,
     image_repository: str,
-    pull_secret: dict[any, any],
+    pull_secret: dict[Any, Any],
     admin_secret_name: str,
     resource_prefix: str,
-    settings: dict[any, any],
+    settings: dict[Any, Any],
     database_connection: DatabaseConnectionParameters,
 ) -> list[DBAMResource]:
     managed_resources: list[DBAMResource] = []
@@ -465,10 +464,110 @@ def _create_database_connection_parameter(
     return database_connection
 
 
+class JobFailedError (Exception):
+    pass
+
+def _process_db_access(dry_run: bool,
+                       state: State,
+                       db_access: DatabaseAccessV1,
+                       oc_map: OC_Map,
+                       cluster_name: str,
+                       namespace_name: str,
+                       admin_secret_name: str,
+                       engine: str,
+                       settings: dict[Any, Any]) -> None:
+
+    if state.exists(db_access.name):
+        current_state = state.get(db_access.name)
+        if current_state == db_access.dict(by_alias=True):
+            return
+
+    resource_prefix = f"dbam-{db_access.name}"
+    oc = oc_map.get_cluster(cluster_name, False)
+
+    database_connection = _create_database_connection_parameter(
+        db_access,
+        namespace_name,
+        oc,
+        admin_secret_name,
+        resource_prefix,
+    )
+
+    managed_resources = _populate_resources(
+        db_access,
+        engine,
+        settings["imageRepository"],
+        settings["pullSecret"],
+        admin_secret_name,
+        resource_prefix,
+        settings,
+        database_connection,
+    )
+
+    # create job, delete old, failed job first
+    job = oc.get(
+        namespace_name,
+        "Job",
+        f"dbam-{db_access.name}",
+        allow_not_found=True,
+    )
+    if job:
+        conditions = [
+            JobStatusCondition(type=c["type"])
+            for c in job["status"].get("conditions", [])
+        ]
+        job_status = JobStatus(conditions=conditions)
+        if job_status.is_complete():
+            if job_status.has_errors():
+                logging.info(
+                    f"Deleting previous failed job job dbam-{db_access.name}"
+                )
+                raise JobFailedError(
+                    f"Job dbam-{db_access.name} failed, please check logs"
+                )
+            else:
+                state.add(
+                    db_access.name,
+                    value=db_access.dict(by_alias=True),
+                    force=True,
+                )
+                logging.debug("job completed, cleaning up")
+                for r in managed_resources:
+                    if r.clean_up:
+                        openshift_base.delete(
+                            dry_run=dry_run,
+                            oc_map=oc_map,
+                            cluster=cluster_name,
+                            namespace=namespace_name,
+                            resource_type=r.resource.kind,
+                            name=r.resource.name,
+                            enable_deletion=True,
+                        )
+                return
+
+        else:
+            logging.Info(
+                f"Job dbam-{db_access.name} appears to be still running"
+            )
+            return
+    else:
+        for r in managed_resources:
+            openshift_base.apply(
+                dry_run=dry_run,
+                oc_map=oc_map,
+                cluster=cluster_name,
+                namespace=namespace_name,
+                resource_type=r.resource.kind,
+                resource=r.resource,
+                wait_for_namespace=False,
+            )
+
+
 class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
+
 
     def run(self, dry_run: bool) -> None:
         settings = queries.get_app_interface_settings()
@@ -477,14 +576,12 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
         if not sql_query_settings:
             raise KeyError("sqlQuery settings are required")
 
-        image_repository = sql_query_settings["imageRepository"]
-        pull_secret = sql_query_settings["pullSecret"]
-
-        encounteredErrors = False
-
         state = init_state(
             integration=QONTRACT_INTEGRATION, secret_reader=self.secret_reader
         )
+
+        encounteredErrors = False
+
         namespaces = get_database_access_namespaces()
         with OC_Map(
             namespaces=[n.dict(by_alias=True) for n in namespaces],
@@ -492,105 +589,36 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
             settings=settings,
         ) as oc_map:
             for namespace in namespaces:
-                for external_resource in namespace.external_resources:
-                    for resource in external_resource.resources:
-                        engine = get_db_engine(resource)
-                        for db_access in resource.database_access:
-                            """
-                            Tests:
-                                1. State exists, and matches
-                                2. State exists, and does not match, Job does not exist
-                                3. State exists, and does not match, Job exists with error
-                                4. State exists, and does not match, Job exists without error
-
-
-                            """
-                            if state.exists(db_access.name):
-                                current_state = state.get(db_access.name)
-                                if current_state == db_access.dict(by_alias=True):
-                                    continue
-
-                            resource_prefix = f"dbam-{db_access.name}"
-                            oc = oc_map.get_cluster(namespace.cluster.name, False)
-
-                            database_connection = _create_database_connection_parameter(
-                                db_access,
-                                namespace.name,
-                                oc,
-                                resource.output_resource_name,
-                                resource_prefix,
-                            )
-
-                            managed_resources = _populate_resources(
-                                db_access,
-                                engine,
-                                image_repository,
-                                pull_secret,
-                                resource.output_resource_name,
-                                resource_prefix,
-                                settings,
-                                database_connection,
-                            )
-
-                            # create job, delete old, failed job first
-                            job = oc.get(
-                                namespace.name,
-                                "Job",
-                                f"dbam-{db_access.name}",
-                                allow_not_found=True,
-                            )
-                            if job:
-                                conditions = [
-                                    JobStatusCondition(type=c["type"])
-                                    for c in job["status"].get("conditions", [])
-                                ]
-                                job_status = JobStatus(conditions=conditions)
-                                if job_status.is_complete():
-                                    if job_status.has_errors():
-                                        logging.info(
-                                            f"Deleting previous failed job job dbam-{db_access.name}"
-                                        )
-                                        oc.delete(
-                                            namespace.name,
-                                            "Job",
-                                            f"dbam-{db_access.name}",
-                                        )
-                                    else:
-                                        state.add(
-                                            db_access.name,
-                                            value=db_access.dict(by_alias=True),
-                                            force=True,
-                                        )
-                                        logging.debug("job completed, cleaning up")
-                                        for r in managed_resources:
-                                            if r.clean_up:
-                                                openshift_base.delete(
-                                                    dry_run=dry_run,
-                                                    oc_map=oc_map,
-                                                    cluster=namespace.cluster.name,
-                                                    namespace=namespace.name,
-                                                    resource_type=r.resource.kind,
-                                                    name=r.resource.name,
-                                                    enable_deletion=True,
-                                                )
-                                        continue
-
-                                else:
-                                    logging.error(
-                                        f"Job dbam-{db_access.name} appears to be still running"
+                for external_resource in [
+                    er
+                    for er in namespace.external_resources or []
+                    if isinstance(er, NamespaceTerraformProviderResourceAWSV1)
+                ]:
+                    for resource in [
+                        r
+                        for r in external_resource.resources or []
+                        if isinstance(r, NamespaceTerraformResourceRDSV1)
+                    ]:
+                        admin_secret_name = resource.output_resource_name
+                        if admin_secret_name is None:
+                            logging.error(f"{resource.identifier}-{resource.provider} is missing output_resource_name")
+                            encounteredErrors = True
+                        else:
+                            for db_access in resource.database_access or []:
+                                try:
+                                    _process_db_access(
+                                        dry_run,
+                                        state,
+                                        db_access,
+                                        oc_map,
+                                        namespace.cluster.name,
+                                        namespace.name,
+                                        admin_secret_name,
+                                        get_db_engine(resource),
+                                        sql_query_settings
                                     )
-                                    continue
-                            else:
-                                for r in managed_resources:
-                                    openshift_base.apply(
-                                        dry_run=dry_run,
-                                        oc_map=oc_map,
-                                        cluster=namespace.cluster.name,
-                                        namespace=namespace.name,
-                                        resource_type=r.resource.kind,
-                                        resource=r.resource,
-                                        wait_for_namespace=False,
-                                    )
+                                except JobFailedError:
+                                    encounteredErrors = True
 
             if encounteredErrors:
-                raise Exception("One or more jobs failed to complete")
+                raise JobFailedError("One or more jobs failed to complete")

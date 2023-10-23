@@ -10,7 +10,7 @@ from reconcile.database_access_manager import (
     PSQLScriptGenerator,
     _create_database_connection_parameter,
     _generate_password,
-    _populate_resources,
+    _populate_resources, _process_db_access,
 )
 from reconcile.gql_definitions.terraform_resources.database_access_manager import (
     DatabaseAccessAccessV1,
@@ -60,7 +60,7 @@ def db_connection_parameter():
         host="localhost",
         port="5432",
         user="test",
-        password="postgres", # notsecret
+        password="postgres",  # notsecret
         database="test",
     )
 
@@ -69,7 +69,7 @@ def db_connection_parameter():
 def db_secret_dict() -> dict[str, dict[str, str]]:
     return {
         "data": {
-            "db.password": "aGR1aHNkZnVoc2Rm", # notsecret
+            "db.password": "aGR1aHNkZnVoc2Rm",  # notsecret
             "db.host": "bG9jYWxob3N0",
             "db.port": "NTQzMg==",
             "db.user": "dXNlcg==",
@@ -212,7 +212,7 @@ def test__create_database_connection_parameter_user_missing(
     db_secret_dict: dict[str, dict[str, str]],
     mocker: MockerFixture,
 ):
-    pw_generated = "1N5j7oksB45l8w0RJD8qR0ENJP1yOAOs" # notsecret
+    pw_generated = "1N5j7oksB45l8w0RJD8qR0ENJP1yOAOs"  # notsecret
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     oc.get.side_effect = [None, db_secret_dict]
     mocker.patch(
@@ -240,3 +240,14 @@ def test_generate_password():
     assert _generate_password() != _generate_password()
 
 
+# """
+# Tests:
+#     1. State exists, and matches
+#     2. State exists, and does not match, Job does not exist
+#     3. State exists, and does not match, Job exists with error
+#     4. State exists, and does not match, Job exists without error
+#
+#
+# """
+def test__process_db_access_state_exists_matched():
+    pass

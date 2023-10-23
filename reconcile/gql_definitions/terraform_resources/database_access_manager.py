@@ -40,25 +40,25 @@ query DatabaseAccessManager {
       }
       ... on NamespaceTerraformProviderResourceAWS_v1 {
         resources {
-            provider
-            ... on NamespaceTerraformResourceRDS_v1 {
-              region
-              identifier
-              defaults
-              output_resource_name
-              database_access {
-              	username
-                name
-                database
-                delete
-                access {
-                  grants
-                  target {
-                    dbschema
-                  }
+          provider
+          ... on NamespaceTerraformResourceRDS_v1 {
+            region
+            identifier
+            defaults
+            output_resource_name
+            database_access {
+              username
+              name
+              database
+              delete
+              access {
+                grants
+                target {
+                  dbschema
                 }
               }
-         	 }
+            }
+          }
         }
       }
     }
