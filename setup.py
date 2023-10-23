@@ -83,10 +83,10 @@ setup(
         "console_scripts": [
             "qontract-reconcile = reconcile.cli:integration",
             "app-interface-reporter = tools.app_interface_reporter:main",
+            "app-interface-metrics-exporter = tools.app_interface_metrics_exporter:main",
             "glitchtip-access-reporter = tools.glitchtip_access_reporter:main",
             "glitchtip-access-revalidation = tools.glitchtip_access_revalidation:main",
             "qontract-cli = tools.qontract_cli:root",
-            "app-interface-metrics-exporter = tools.app_interface_metrics_exporter:main",
         ],
     },
 )

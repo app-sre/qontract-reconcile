@@ -64,3 +64,14 @@ def test_get_onboarding_status(
     result = get_onboarding_status(gql_api)
 
     assert result == Counter({"OnBoarded": 2, "InProgress": 1})
+
+
+def test_get_onboarding_status_with_emtpy_data(
+    gql_api_builder: Callable[..., GqlApi],
+    apps: OnboardingStatusQueryData,
+) -> None:
+    gql_api = gql_api_builder({"apps": None})
+
+    result = get_onboarding_status(gql_api)
+
+    assert result == Counter()

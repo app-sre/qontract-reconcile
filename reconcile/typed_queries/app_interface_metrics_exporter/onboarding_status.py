@@ -9,5 +9,5 @@ from reconcile.utils.gql import GqlApi
 def get_onboarding_status(
     gql: GqlApi,
 ) -> Counter:
-    data = query(gql.query)
-    return Counter(a.onboarding_status for a in data.apps)
+    apps = query(gql.query).apps or []
+    return Counter(a.onboarding_status for a in apps)
