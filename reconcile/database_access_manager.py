@@ -96,7 +96,6 @@ CREATE SCHEMA IF NOT EXISTS "{self._get_user()}" AUTHORIZATION "{self._get_user(
 
     def generate_script(self) -> str:
         x = self._generate_create_user() + "\n" + self._generate_db_access()
-        print(x)
         return x
 
 
@@ -516,7 +515,7 @@ def _process_db_access(
         f"dbam-{db_access.name}",
         allow_not_found=True,
     )
-    if job is False:
+    if not job:
         for r in managed_resources:
             openshift_base.apply(
                 dry_run=dry_run,
