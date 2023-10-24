@@ -65,7 +65,7 @@ def test_template_cache(helm_integration_specs: Sequence[HelmIntegrationSpec]):
 
 
 def test_template_command(helm_integration_specs: Sequence[HelmIntegrationSpec]):
-    helm_integration_specs[0].command = "app-interface-reporter"
+    helm_integration_specs[0].command = "app-interface-metrics-exporter"
     template = helm.template(build_helm_values(helm_integration_specs))
     expected = yaml.safe_load(fxt.get("command.yml"))
     assert template == expected
