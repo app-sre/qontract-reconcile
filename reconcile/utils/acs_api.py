@@ -1,5 +1,4 @@
 import requests
-import logging
 
 from pydantic import BaseModel
 from typing import Any
@@ -63,7 +62,6 @@ class AccessScope(BaseModel):
     description: str
     clusters: list[str]
     namespaces: list[dict[str, str]]
-    system_default: bool
 
     def __init__(self, api_data: Any) -> None:
         # attributes defined within stackrox(ACS) API for GET /v1/simpleaccessscopes/{id}
@@ -76,11 +74,6 @@ class AccessScope(BaseModel):
                 raise e
             unrestricted = True
 
-        # traits is populated for system default resources and contains `origin: DEFAULT`
-        # attribute is used to ignore these resources from reconciliation
-        traits = api_data.get("traits")
-        is_default = traits is not None and traits.get("origin") == "DEFAULT"
-
         super().__init__(
             id=api_data["id"],
             name=api_data["name"],
@@ -91,7 +84,6 @@ class AccessScope(BaseModel):
             if unrestricted
             else api_data["rules"].get("includedNamespaces", []),
             description=api_data.get("description", ""),
-            system_default=is_default,
         )
 
 
@@ -126,10 +118,9 @@ class AcsApi:
         self.token = instance["token"]
         self.timeout = timeout
 
-    def get_roles(self) -> list[Role]:
-        endpoint = f"{self.url}/v1/roles"
+    def generic_get_request(self, path: str) -> requests.Response:
         response = requests.get(
-            url=endpoint,
+            url=f"{self.url}{path}",
             headers={"Authorization": f"Bearer {self.token}"},
             timeout=self.timeout,
         )
@@ -137,8 +128,29 @@ class AcsApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as details:
             raise requests.exceptions.RequestException(
-                f"Failed to perform GET request to {endpoint}\n\t{details}"
+                f"Failed to perform GET request to {path}\n\t{details}"
             )
+
+        return response
+
+    def generic_post_request(self, path: str, json: Any) -> requests.Response:
+        response = requests.post(
+            url=f"{self.url}{path}",
+            headers={"Authorization": f"Bearer {self.token}"},
+            timeout=self.timeout,
+            json=json,
+        )
+        try:
+            response.raise_for_status()
+        except requests.exceptions.RequestException as details:
+            raise requests.exceptions.RequestException(
+                f"Failed to perform GET request to {path}\n\t{details}"
+            )
+
+        return response
+
+    def get_roles(self) -> list[Role]:
+        response = self.generic_get_request("/v1/roles")
 
         roles = []
         for role in response.json()["roles"]:
@@ -146,19 +158,19 @@ class AcsApi:
 
         return roles
 
+    def create_role(
+        self, name: str, desc: str, permission_set_id: str, access_scope_id: str
+    ):
+        json = {
+            "name": name,
+            "description": desc,
+            "permissionSetId": permission_set_id,
+            "accessScopeId": access_scope_id,
+        }
+        self.generic_post_request(f"/v1/roles/{name}", json)
+
     def get_groups(self) -> list[Group]:
-        endpoint = f"{self.url}/v1/groups"
-        response = requests.get(
-            url=endpoint,
-            headers={"Authorization": f"Bearer {self.token}"},
-            timeout=self.timeout,
-        )
-        try:
-            response.raise_for_status()
-        except requests.exceptions.RequestException as details:
-            raise requests.exceptions.RequestException(
-                f"Failed to perform GET request to {endpoint}\n\t{details}"
-            )
+        response = self.generic_get_request("/v1/groups")
 
         groups = []
         for group in response.json()["groups"]:
@@ -166,34 +178,77 @@ class AcsApi:
 
         return groups
 
+    class GroupRule(BaseModel):
+        role_name: str
+        key: str
+        value: str
+        auth_provider_id: str
+
+    def create_group(self, group_rule: GroupRule):
+        json = {
+            "roleName": group_rule.role_name,
+            "props": {
+                "authProviderId": group_rule.auth_provider_id,
+                "key": group_rule.key,
+                "value": group_rule.value,
+            },
+        }
+        self.generic_post_request("/v1/groups", json)
+
     def get_access_scope_by_id(self, id: str) -> AccessScope:
-        endpoint = f"{self.url}/v1/simpleaccessscopes/{id}"
-        response = requests.get(
-            url=endpoint,
-            headers={"Authorization": f"Bearer {self.token}"},
-            timeout=self.timeout,
-        )
-        try:
-            response.raise_for_status()
-        except requests.exceptions.RequestException as details:
-            raise requests.exceptions.RequestException(
-                f"Failed to perform GET request to {endpoint}\n\t{details}"
-            )
+        response = self.generic_get_request(f"/v1/simpleaccessscopes/{id}")
 
         return AccessScope(response.json())
 
+    def get_access_scopes(self) -> list[AccessScope]:
+        response = self.generic_get_request("/v1/simpleaccessscopes")
+
+        access_scopes = []
+        for scope in response.json()["accessScopes"]:
+            access_scopes.append(AccessScope(scope))
+
+        return access_scopes
+
+    def create_access_scope(
+        self,
+        name: str,
+        desc: str,
+        clusters: list[str],
+        namespaces: list[dict[str, str]],
+    ) -> str:
+        # response is the created access_scope id
+
+        # access scope defined with no clusters or namespaces is treated as unrestricted scope
+        if len(clusters) == 0 and len(namespaces) == 0:
+            json = {
+                "name": name,
+                "description": desc,
+                "rules": None,  # ACS api treats this as unrestricted access
+            }
+        else:
+            json = {
+                "name": name,
+                "description": desc,
+                "rules": {
+                    "includedClusters": clusters,
+                    "includedNamespaces": namespaces,
+                },
+            }
+
+        response = self.generic_post_request("/v1/simpleaccessscopes", json)
+
+        return response.json()["id"]
+
     def get_permission_set_by_id(self, id: str) -> PermissionSet:
-        endpoint = f"{self.url}/v1/permissionsets/{id}"
-        response = requests.get(
-            url=endpoint,
-            headers={"Authorization": f"Bearer {self.token}"},
-            timeout=self.timeout,
-        )
-        try:
-            response.raise_for_status()
-        except requests.exceptions.RequestException as details:
-            raise requests.exceptions.RequestException(
-                f"Failed to perform GET request to {endpoint}\n\t{details}"
-            )
+        response = self.generic_get_request(f"/v1/permissionsets/{id}")
 
         return PermissionSet(response.json())
+
+    def get_permission_sets(self) -> list[PermissionSet]:
+        response = self.generic_get_request("/v1/permissionsets")
+
+        permission_sets = []
+        for ps in response.json()["permissionSets"]:
+            permission_sets.append(PermissionSet(ps))
+
+        return permission_sets

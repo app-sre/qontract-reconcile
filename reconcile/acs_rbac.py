@@ -20,7 +20,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 from reconcile.utils.secret_reader import (
     create_secret_reader,
 )
-
+from sretoolbox.utils import threaded
 from reconcile.utils.acs_api import AcsApi, Group
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils import gql
@@ -175,8 +175,8 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         role_assignments: RoleAssignments = self.build_role_assignments(auth_id, groups)
 
         for role in roles:
-            # only process roles referenced by users or generated via A-I
-            if role.name in role_assignments or not role.system_default:
+            # do not process system default roles
+            if not role.system_default:
                 try:
                     access_scope = acs.get_access_scope_by_id(role.access_scope_id)
                 except Exception as e:
@@ -236,11 +236,79 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     ]
         return auth_rules
 
-    @defer
+    def reconcile(
+        self,
+        diff: DiffResult[AcsRole, AcsRole, str],
+        acs: AcsApi,
+        auth_id: str,
+        dry_run: bool,
+    ):
+        access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
+        self.add_rbac(diff.add, acs, auth_id, dry_run)
+
+    def add_rbac(
+        self, to_add: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
+    ):
+        permission_sets_id_map = {ps.name: ps.id for ps in acs.get_permission_sets()}
+        for role in to_add.values():
+            # recall that a desired role and access scope are derived from a single oidc-permission-1
+            # therefore, items in diff.add entail creation of dependency access scope first and then role
+            if not dry_run:
+                try:
+                    as_id = acs.create_access_scope(
+                        role.access_scope.name,
+                        role.access_scope.desc,
+                        role.access_scope.clusters,
+                        role.access_scope.namespaces,
+                    )
+                except Exception as e:
+                    logging.error(
+                        f"Failed to create access scope: {role.access_scope.name} for role: {role.name}\t\n{e}"
+                    )
+                    continue
+            logging.info(f"access_scope '{role.access_scope.name}' created")
+
+            if not dry_run:
+                try:
+                    acs.create_role(
+                        role.name,
+                        role.description,
+                        permission_sets_id_map[role.permission_set_name],
+                        as_id,
+                    )
+                except Exception as e:
+                    logging.error(f"Failed to create role: {role.name}\t\n{e}")
+                    continue
+            logging.info(f"role '{role.name}' created")
+
+            if not dry_run:
+                group_rules = [
+                    AcsApi.GroupRule(
+                        role_name=role.name,
+                        key=a.key,
+                        value=a.value,
+                        auth_provider_id=auth_id,
+                    )
+                    for a in role.assignments
+                ]
+                try:
+                    threaded.run(
+                        acs.create_group(),
+                        group_rules,
+                        self.params.thread_pool_size,
+                    )
+                except Exception as e:
+                    logging.error(
+                        f"Failed to create group(s) for role: {role.name}\t\n{e}"
+                    )
+                    continue
+            logging.info(
+                f"{len(role.assignments)} rules created for new role: '{role.name}'"
+            )
+
     def run(
         self,
         dry_run: bool,
-        defer: Optional[Callable] = None,
     ) -> None:
         gqlapi = gql.get_api()
         instance = self.get_acs_instance(gqlapi.query)
@@ -256,5 +324,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         desired = self.get_desired_state(gqlapi.query)
         existing = self.get_existing_state(acs, auth_id=instance.auth_provider.q_id)
 
-        print(desired)
-        print(existing)
+        self.reconcile(
+            diff_iterables(existing, desired, lambda x: x.name),
+            acs,
+            instance.auth_provider.q_id,
+            dry_run,
+        )
