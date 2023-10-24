@@ -82,6 +82,21 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                     )
                 )
             else:
+                # This may happen for alerts rules without "message". This can happen
+                # if schema cannot be validated for a certain alert rule because it
+                # is not valid yaml (go templates, jinja templates)
+                if "text" not in at:
+                    alert_state = "FIRING" if "FIRING" in mg.group(2) else mg.group(2)
+                    alerts[alert_name].append(
+                        Alert(
+                            state=alert_state,
+                            message="placeholder",
+                            timestamp=timestamp,
+                            username=m["username"],
+                        )
+                    )
+                    continue
+
                 alert_state = ""
                 for line in at["text"].split("\n"):
                     if "Alerts Firing" in line:
