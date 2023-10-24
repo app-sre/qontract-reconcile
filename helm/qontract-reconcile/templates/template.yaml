@@ -247,6 +247,10 @@ objects:
           {{- end }}
           - name: DRY_RUN
             value: ${DRY_RUN}
+          {{- if $integration.command }}
+          - name: COMMAND_NAME
+            value: {{ $integration.command }}
+          {{- end }}
           {{- if eq $integration.name "integrations-manager" }}
           - name: MANAGER_DRY_RUN
             value: ${MANAGER_DRY_RUN}

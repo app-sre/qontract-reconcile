@@ -103,6 +103,8 @@ objects:
             value: "0"
           - name: DRY_RUN
             value: ${DRY_RUN}
+          - name: COMMAND_NAME
+            value: app-interface-metrics-exporter
           - name: INTEGRATION_NAME
             value: integ
           - name: SLEEP_DURATION_SECS
