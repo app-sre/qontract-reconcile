@@ -31,7 +31,10 @@ from reconcile.utils.oc import (
 from reconcile.utils.openshift_resource import OpenshiftResource
 from reconcile.utils.runtime.integration import QontractReconcileIntegration
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.state import init_state, State
+from reconcile.utils.state import (
+    State,
+    init_state,
+)
 
 QONTRACT_INTEGRATION = "database-access-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -464,19 +467,21 @@ def _create_database_connection_parameter(
     return database_connection
 
 
-class JobFailedError (Exception):
+class JobFailedError(Exception):
     pass
 
-def _process_db_access(dry_run: bool,
-                       state: State,
-                       db_access: DatabaseAccessV1,
-                       oc_map: OC_Map,
-                       cluster_name: str,
-                       namespace_name: str,
-                       admin_secret_name: str,
-                       engine: str,
-                       settings: dict[Any, Any]) -> None:
 
+def _process_db_access(
+    dry_run: bool,
+    state: State,
+    db_access: DatabaseAccessV1,
+    oc_map: OC_Map,
+    cluster_name: str,
+    namespace_name: str,
+    admin_secret_name: str,
+    engine: str,
+    settings: dict[Any, Any],
+) -> None:
     if state.exists(db_access.name):
         current_state = state.get(db_access.name)
         if current_state == db_access.dict(by_alias=True):
@@ -511,46 +516,7 @@ def _process_db_access(dry_run: bool,
         f"dbam-{db_access.name}",
         allow_not_found=True,
     )
-    if job:
-        conditions = [
-            JobStatusCondition(type=c["type"])
-            for c in job["status"].get("conditions", [])
-        ]
-        job_status = JobStatus(conditions=conditions)
-        if job_status.is_complete():
-            if job_status.has_errors():
-                logging.info(
-                    f"Deleting previous failed job job dbam-{db_access.name}"
-                )
-                raise JobFailedError(
-                    f"Job dbam-{db_access.name} failed, please check logs"
-                )
-            else:
-                state.add(
-                    db_access.name,
-                    value=db_access.dict(by_alias=True),
-                    force=True,
-                )
-                logging.debug("job completed, cleaning up")
-                for r in managed_resources:
-                    if r.clean_up:
-                        openshift_base.delete(
-                            dry_run=dry_run,
-                            oc_map=oc_map,
-                            cluster=cluster_name,
-                            namespace=namespace_name,
-                            resource_type=r.resource.kind,
-                            name=r.resource.name,
-                            enable_deletion=True,
-                        )
-                return
-
-        else:
-            logging.Info(
-                f"Job dbam-{db_access.name} appears to be still running"
-            )
-            return
-    else:
+    if job is False:
         for r in managed_resources:
             openshift_base.apply(
                 dry_run=dry_run,
@@ -561,13 +527,41 @@ def _process_db_access(dry_run: bool,
                 resource=r.resource,
                 wait_for_namespace=False,
             )
+        return
+    job_status = JobStatus(
+        conditions=[
+            JobStatusCondition(type=c["type"])
+            for c in job["status"].get("conditions", [])
+        ]
+    )
+    if job_status.is_complete():
+        if job_status.has_errors():
+            raise JobFailedError(f"Job dbam-{db_access.name} failed, please check logs")
+        state.add(
+            db_access.name,
+            value=db_access.dict(by_alias=True),
+            force=True,
+        )
+        logging.debug("job completed, cleaning up")
+        for r in managed_resources:
+            if r.clean_up:
+                openshift_base.delete(
+                    dry_run=dry_run,
+                    oc_map=oc_map,
+                    cluster=cluster_name,
+                    namespace=namespace_name,
+                    resource_type=r.resource.kind,
+                    name=r.resource.name,
+                    enable_deletion=True,
+                )
+    else:
+        logging.info(f"Job dbam-{db_access.name} appears to be still running")
 
 
 class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
-
 
     def run(self, dry_run: bool) -> None:
         settings = queries.get_app_interface_settings()
@@ -601,7 +595,9 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                     ]:
                         admin_secret_name = resource.output_resource_name
                         if admin_secret_name is None:
-                            logging.error(f"{resource.identifier}-{resource.provider} is missing output_resource_name")
+                            logging.error(
+                                f"{resource.identifier}-{resource.provider} is missing output_resource_name"
+                            )
                             encounteredErrors = True
                         else:
                             for db_access in resource.database_access or []:
@@ -615,7 +611,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                                         namespace.name,
                                         admin_secret_name,
                                         get_db_engine(resource),
-                                        sql_query_settings
+                                        sql_query_settings,
                                     )
                                 except JobFailedError:
                                     encounteredErrors = True

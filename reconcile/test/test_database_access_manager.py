@@ -1,21 +1,27 @@
+from collections import defaultdict
 from typing import Callable
+from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.database_access_manager import (
     DatabaseConnectionParameters,
+    DBAMResource,
+    JobFailedError,
     JobStatus,
     JobStatusCondition,
     PSQLScriptGenerator,
     _create_database_connection_parameter,
     _generate_password,
-    _populate_resources, _process_db_access,
+    _populate_resources,
+    _process_db_access,
 )
 from reconcile.gql_definitions.terraform_resources.database_access_manager import (
     DatabaseAccessAccessV1,
     DatabaseAccessV1,
 )
+from reconcile.utils.oc import OC_Map
 from reconcile.utils.openshift_resource import OpenshiftResource
 
 
@@ -72,10 +78,23 @@ def db_secret_dict() -> dict[str, dict[str, str]]:
             "db.password": "aGR1aHNkZnVoc2Rm",  # notsecret
             "db.host": "bG9jYWxob3N0",
             "db.port": "NTQzMg==",
-            "db.user": "dXNlcg==",
+            "db.user": "dGVzdA==",
             "db.name": "dGVzdA==",
         }
     }
+
+
+@pytest.fixture
+def openshift_resource_secet() -> OpenshiftResource:
+    return OpenshiftResource(
+        body={
+            "metadata": {"name": "test"},
+            "kind": "secret",
+            "data": {"password": "postgres"},
+        },
+        integration="TEST",
+        integration_version="0.0.1",
+    )
 
 
 def _assert_create_script(script: str) -> None:
@@ -150,18 +169,11 @@ def test_populate_resources(
     mocker: MockerFixture,
     db_access: DatabaseAccessV1,
     db_connection_parameter: DatabaseConnectionParameters,
+    openshift_resource_secet: OpenshiftResource,
 ):
     mocker.patch(
         "reconcile.database_access_manager.orb.fetch_provider_vault_secret",
-        return_value=OpenshiftResource(
-            body={
-                "metadata": {"name": "test"},
-                "kind": "secret",
-                "data": {"password": "postgres"},
-            },
-            integration="TEST",
-            integration_version="0.0.1",
-        ),
+        return_value=openshift_resource_secet,
     )
     reources = _populate_resources(
         db_access=db_access,
@@ -201,7 +213,7 @@ def test__create_database_connection_parameter_user_exists(
     assert p == DatabaseConnectionParameters(
         host="localhost",
         port="5432",
-        user="user",
+        user="test",
         password="hduhsdfuhsdf",
         database="test",
     )
@@ -229,7 +241,7 @@ def test__create_database_connection_parameter_user_missing(
     assert p == DatabaseConnectionParameters(
         host="localhost",
         port="5432",
-        user="user",
+        user="test",
         password=pw_generated,
         database="test",
     )
@@ -240,14 +252,154 @@ def test_generate_password():
     assert _generate_password() != _generate_password()
 
 
-# """
-# Tests:
-#     1. State exists, and matches
-#     2. State exists, and does not match, Job does not exist
-#     3. State exists, and does not match, Job exists with error
-#     4. State exists, and does not match, Job exists without error
-#
-#
-# """
-def test__process_db_access_state_exists_matched():
-    pass
+@pytest.fixture
+def dbam_state(mocker: MockerFixture) -> MockerFixture:
+    return mocker.patch("reconcile.database_access_manager.State", autospec=True)
+
+
+@pytest.fixture
+def dbam_oc_map(mocker: MockerFixture) -> MockerFixture:
+    return mocker.patch("reconcile.database_access_manager.OC_Map", autospec=True)
+
+
+@pytest.fixture
+def dbam_process_mocks(
+    openshift_resource_secet: OpenshiftResource, mocker: MockerFixture
+) -> DBAMResource:
+    expected_resource = DBAMResource(resource=openshift_resource_secet, clean_up=True)
+    mocker.patch(
+        "reconcile.database_access_manager._create_database_connection_parameter",
+        return_value=db_connection_parameter,
+    )
+    mocker.patch(
+        "reconcile.database_access_manager._populate_resources",
+        return_value=[expected_resource],
+    )
+    return expected_resource
+
+
+def test__process_db_access_job_pass(
+    db_access: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_oc_map: MagicMock,
+    dbam_process_mocks: DBAMResource,
+    mocker: MockerFixture,
+):
+    dbam_state.exists.return_value = False
+    oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
+    oc.get.return_value = {"status": {"conditions": [{"type": "Complete"}]}}
+    dbam_oc_map.get_cluster.return_value = oc
+
+    ob_delete = mocker.patch(
+        "reconcile.database_access_manager.openshift_base.delete", autospec=True
+    )
+
+    _process_db_access(
+        False,
+        dbam_state,
+        db_access,
+        dbam_oc_map,
+        "test-cluster",
+        namespace_name="test-namepsace",
+        admin_secret_name="db-secret",
+        engine="postgres",
+        settings=defaultdict(str),
+    )
+
+    assert ob_delete.call_count == 1
+    ob_delete.assert_called_once_with(
+        dry_run=False,
+        oc_map=dbam_oc_map,
+        cluster="test-cluster",
+        namespace="test-namepsace",
+        resource_type="secret",
+        name=dbam_process_mocks.resource.name,
+        enable_deletion=True,
+    )
+
+
+def test__process_db_access_job_error(
+    db_access: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_oc_map: MagicMock,
+    dbam_process_mocks: DBAMResource,
+    mocker: MockerFixture,
+):
+    dbam_state.exists.return_value = False
+    oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
+    oc.get.return_value = {"status": {"conditions": [{"type": "Failed"}]}}
+    dbam_oc_map.get_cluster.return_value = oc
+
+    with pytest.raises(JobFailedError):
+        _process_db_access(
+            False,
+            dbam_state,
+            db_access,
+            dbam_oc_map,
+            "test-cluster",
+            namespace_name="test-namepsace",
+            admin_secret_name="db-secret",
+            engine="postgres",
+            settings=defaultdict(str),
+        )
+
+
+def test__process_db_access_state_diff(
+    db_access: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_oc_map: MagicMock,
+    dbam_process_mocks: DBAMResource,
+    mocker: MockerFixture,
+):
+    dbam_state.exists.return_value = True
+    dbam_state.get.return_value = {}
+    oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
+    oc.get.return_value = False
+    dbam_oc_map.get_cluster.return_value = oc
+
+    ob_apply = mocker.patch(
+        "reconcile.database_access_manager.openshift_base.apply", autospec=True
+    )
+    _process_db_access(
+        False,
+        dbam_state,
+        db_access,
+        dbam_oc_map,
+        "test-cluster",
+        namespace_name="test-namepsace",
+        admin_secret_name="db-secret",
+        engine="postgres",
+        settings=defaultdict(str),
+    )
+
+    assert ob_apply.call_count == 1
+    ob_apply.assert_called_once_with(
+        dry_run=False,
+        oc_map=dbam_oc_map,
+        cluster="test-cluster",
+        namespace="test-namepsace",
+        resource_type="secret",
+        resource=dbam_process_mocks.resource,
+        wait_for_namespace=False,
+    )
+
+
+def test__process_db_access_state_exists_matched(
+    db_access: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    dbam_oc_map: OC_Map,
+):
+    dbam_state.exists.return_value = True
+    dbam_state.get.return_value = db_access.dict(by_alias=True)
+    # missing mocks would cause this to fail if not exit early
+    _process_db_access(
+        False,
+        dbam_state,
+        db_access,
+        dbam_oc_map,
+        "test-cluster",
+        namespace_name="test-namepsace",
+        admin_secret_name="db-secret",
+        engine="postgres",
+        settings=defaultdict(str),
+    )
