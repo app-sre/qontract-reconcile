@@ -71,6 +71,8 @@ class PSQLScriptGenerator(BaseModel):
 
     def _generate_create_user(self) -> str:
         return f"""
+\\set ON_ERROR_STOP on
+
 SELECT 'CREATE DATABASE "{self._get_db()}"'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{self._get_db()}');\\gexec
 /* revoke only required for databases lower version 15
