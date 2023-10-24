@@ -175,7 +175,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         role_assignments: RoleAssignments = self.build_role_assignments(auth_id, groups)
 
         for role in roles:
-            # do not process system default roles
+            # system default roles are ignored
             if not role.system_default:
                 try:
                     access_scope = acs.get_access_scope_by_id(role.access_scope_id)
@@ -198,7 +198,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 current_roles[role.name] = AcsRole(
                     name=role.name,
                     description=role.description,
-                    assignments=role_assignments[role.name],
+                    assignments=role_assignments.get(role.name, []),
                     permission_set_name=permission_set.name,
                     access_scope=AcsAccessScope(
                         name=access_scope.name,
@@ -243,30 +243,44 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         auth_id: str,
         dry_run: bool,
     ):
-        access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
         self.add_rbac(diff.add, acs, auth_id, dry_run)
 
     def add_rbac(
         self, to_add: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
     ):
-        permission_sets_id_map = {ps.name: ps.id for ps in acs.get_permission_sets()}
+        DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
+        access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
+        permission_sets_id_map = {
+            ps.name.lower(): ps.id for ps in acs.get_permission_sets()
+        }
+
         for role in to_add.values():
-            # recall that a desired role and access scope are derived from a single oidc-permission-1
-            # therefore, items in diff.add entail creation of dependency access scope first and then role
-            if not dry_run:
-                try:
-                    as_id = acs.create_access_scope(
-                        role.access_scope.name,
-                        role.access_scope.desc,
-                        role.access_scope.clusters,
-                        role.access_scope.namespaces,
-                    )
-                except Exception as e:
-                    logging.error(
-                        f"Failed to create access scope: {role.access_scope.name} for role: {role.name}\t\n{e}"
-                    )
-                    continue
-            logging.info(f"access_scope '{role.access_scope.name}' created")
+            is_unrestricted_scope = False
+
+            # empty cluster and namespaces attributes in oidc-permission signifies unrestricted scope
+            # skip access scope creation and use existing system default 'Unrestricted' access scope
+            if (
+                len(role.access_scope.clusters) == 0
+                or len(role.access_scope.namespaces) == 0
+            ):
+                is_unrestricted_scope = True
+            else:
+                # recall that a desired role and access scope are derived from a single oidc-permission-1
+                # therefore, items in diff.add require creation of dependency access scope first and then role
+                if not dry_run:
+                    try:
+                        as_id = acs.create_access_scope(
+                            role.access_scope.name,
+                            role.access_scope.description,
+                            role.access_scope.clusters,
+                            role.access_scope.namespaces,
+                        )
+                    except Exception as e:
+                        logging.error(
+                            f"Failed to create access scope: {role.access_scope.name} for role: {role.name}\t\n{e}"
+                        )
+                        continue
+                logging.info(f"access_scope '{role.access_scope.name}' created")
 
             if not dry_run:
                 try:
@@ -274,7 +288,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         role.name,
                         role.description,
                         permission_sets_id_map[role.permission_set_name],
-                        as_id,
+                        access_scope_id_map[DEFAULT_ADMIN_SCOPE_NAME]
+                        if is_unrestricted_scope
+                        else as_id,
                     )
                 except Exception as e:
                     logging.error(f"Failed to create role: {role.name}\t\n{e}")
@@ -293,7 +309,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 ]
                 try:
                     threaded.run(
-                        acs.create_group(),
+                        acs.create_group,
                         group_rules,
                         self.params.thread_pool_size,
                     )
@@ -302,9 +318,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         f"Failed to create group(s) for role: {role.name}\t\n{e}"
                     )
                     continue
-            logging.info(
-                f"{len(role.assignments)} rules created for new role: '{role.name}'"
-            )
+            for a in role.assignments:
+                logging.info(
+                    f"Rule created assigning '{a.value}' to role '{role.name}'"
+                )
 
     def run(
         self,

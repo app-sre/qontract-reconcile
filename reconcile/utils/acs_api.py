@@ -1,7 +1,7 @@
 import requests
 
 from pydantic import BaseModel
-from typing import Any
+from typing import Any, Optional
 
 
 class Role(BaseModel):
@@ -128,7 +128,7 @@ class AcsApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as details:
             raise requests.exceptions.RequestException(
-                f"Failed to perform GET request to {path}\n\t{details}"
+                f"Failed to perform GET request\n\t{details}\n\t{response.text}"
             )
 
         return response
@@ -136,15 +136,19 @@ class AcsApi:
     def generic_post_request(self, path: str, json: Any) -> requests.Response:
         response = requests.post(
             url=f"{self.url}{path}",
-            headers={"Authorization": f"Bearer {self.token}"},
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
+            },
             timeout=self.timeout,
             json=json,
         )
+
         try:
             response.raise_for_status()
         except requests.exceptions.RequestException as details:
             raise requests.exceptions.RequestException(
-                f"Failed to perform GET request to {path}\n\t{details}"
+                f"Failed to perform POST request with body:{json}\n\t{details}\n\t{response.text}"
             )
 
         return response
@@ -167,6 +171,7 @@ class AcsApi:
             "permissionSetId": permission_set_id,
             "accessScopeId": access_scope_id,
         }
+
         self.generic_post_request(f"/v1/roles/{name}", json)
 
     def get_groups(self) -> list[Group]:
@@ -217,23 +222,14 @@ class AcsApi:
         namespaces: list[dict[str, str]],
     ) -> str:
         # response is the created access_scope id
-
-        # access scope defined with no clusters or namespaces is treated as unrestricted scope
-        if len(clusters) == 0 and len(namespaces) == 0:
-            json = {
-                "name": name,
-                "description": desc,
-                "rules": None,  # ACS api treats this as unrestricted access
-            }
-        else:
-            json = {
-                "name": name,
-                "description": desc,
-                "rules": {
-                    "includedClusters": clusters,
-                    "includedNamespaces": namespaces,
-                },
-            }
+        json = {
+            "name": name,
+            "description": desc,
+            "rules": {
+                "includedClusters": clusters,
+                "includedNamespaces": namespaces,
+            },
+        }
 
         response = self.generic_post_request("/v1/simpleaccessscopes", json)
 
