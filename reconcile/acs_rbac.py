@@ -153,24 +153,24 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
 
         return list(desired_roles.values())
 
-    def get_existing_state(self, acs: AcsApi, auth_id: str) -> list[AcsRole]:
+    def get_current_state(self, acs: AcsApi, auth_id: str) -> list[AcsRole]:
         """
-        Get existing ACS roles and associated users from ACS api
+        Get current ACS roles and associated users from ACS api
 
         :param acs: acs api client
         :return: list of AcsRole
         :rtype: AcsRole
         """
-        existing_roles: dict[str, AcsRole] = {}
+        current_roles: dict[str, AcsRole] = {}
         try:
             roles = acs.get_roles()
         except Exception as e:
-            raise Exception(f"Failed to retrieve existing roles: {e}")
+            raise Exception(f"Failed to retrieve current roles: {e}")
 
         try:
             groups = acs.get_groups()
         except Exception as e:
-            raise Exception(f"Failed to retrieve existing role assignments: {e}")
+            raise Exception(f"Failed to retrieve current role assignments: {e}")
 
         role_assignments: RoleAssignments = self.build_role_assignments(auth_id, groups)
 
@@ -181,7 +181,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     access_scope = acs.get_access_scope_by_id(role.access_scope_id)
                 except Exception as e:
                     logging.error(
-                        f"Failed to retrieve existing access scope: {role.access_scope_id} for role: {role.name}\t\n{e}"
+                        f"Failed to retrieve current access scope: {role.access_scope_id} for role: {role.name}\t\n{e}"
                     )
                     continue
 
@@ -191,11 +191,11 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     )
                 except Exception as e:
                     logging.error(
-                        f"Failed to retrieve existing permission set: {role.permission_set_id} for role: {role.name}\t\n{e}"
+                        f"Failed to retrieve current permission set: {role.permission_set_id} for role: {role.name}\t\n{e}"
                     )
                     continue
 
-                existing_roles[role.name] = AcsRole(
+                current_roles[role.name] = AcsRole(
                     name=role.name,
                     description=role.description,
                     assignments=role_assignments[role.name],
@@ -208,7 +208,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     ),
                 )
 
-        return list(existing_roles.values())
+        return list(current_roles.values())
 
     def build_role_assignments(
         self, auth_id: str, groups: list[Group]
@@ -322,10 +322,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         )
 
         desired = self.get_desired_state(gqlapi.query)
-        existing = self.get_existing_state(acs, auth_id=instance.auth_provider.q_id)
+        current = self.get_current_state(acs, auth_id=instance.auth_provider.q_id)
 
         self.reconcile(
-            diff_iterables(existing, desired, lambda x: x.name),
+            diff_iterables(current, desired, lambda x: x.name),
             acs,
             instance.auth_provider.q_id,
             dry_run,
