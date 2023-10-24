@@ -2128,6 +2128,17 @@ def advanced_upgrade_scheduler(
     )
 
 
+@integration.command(short_help="Manage Databases and Database Users.")
+@click.pass_context
+def database_access_manager(ctx):
+    from reconcile.database_access_manager import DatabaseAccessManagerIntegration
+
+    run_class_integration(
+        integration=DatabaseAccessManagerIntegration(PydanticRunParams()),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(
     short_help="Export Product and Application informnation to Status Board."
 )
