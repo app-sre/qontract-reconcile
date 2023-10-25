@@ -175,7 +175,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         role_assignments: RoleAssignments = self.build_role_assignments(auth_id, groups)
 
         for role in roles:
-            # system default roles are ignored
+            # system default roles and dependency resources are ignored
             if not role.system_default:
                 try:
                     access_scope = acs.get_access_scope_by_id(role.access_scope_id)
@@ -236,15 +236,6 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     ]
         return auth_rules
 
-    def reconcile(
-        self,
-        diff: DiffResult[AcsRole, AcsRole, str],
-        acs: AcsApi,
-        auth_id: str,
-        dry_run: bool,
-    ):
-        self.add_rbac(diff.add, acs, auth_id, dry_run)
-
     def add_rbac(
         self, to_add: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
     ):
@@ -298,8 +289,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             logging.info(f"role '{role.name}' created")
 
             if not dry_run:
-                group_rules = [
+                additions = [
                     AcsApi.GroupRule(
+                        id="",
                         role_name=role.name,
                         key=a.key,
                         value=a.value,
@@ -308,11 +300,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     for a in role.assignments
                 ]
                 try:
-                    threaded.run(
-                        acs.create_group,
-                        group_rules,
-                        self.params.thread_pool_size,
-                    )
+                    acs.create_group_batch(additions)
                 except Exception as e:
                     logging.error(
                         f"Failed to create group(s) for role: {role.name}\t\n{e}"
@@ -322,6 +310,14 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 logging.info(
                     f"Rule created assigning '{a.value}' to role '{role.name}'"
                 )
+
+    def delete_rbac(
+        self, to_delete: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
+    ):
+        # deletion of role requires deletion of any dependency resources first
+        # inverse flow of 'add_rbac()'
+        for role in to_delete.values():
+            pass
 
     def run(
         self,
@@ -341,9 +337,5 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         desired = self.get_desired_state(gqlapi.query)
         current = self.get_current_state(acs, auth_id=instance.auth_provider.q_id)
 
-        self.reconcile(
-            diff_iterables(current, desired, lambda x: x.name),
-            acs,
-            instance.auth_provider.q_id,
-            dry_run,
-        )
+        diff = diff_iterables(current, desired, lambda x: x.name)
+        self.add_rbac(diff.add, acs, instance.auth_provider.q_id, dry_run)

@@ -33,6 +33,7 @@ class Role(BaseModel):
 
 
 class Group(BaseModel):
+    id: str
     role_name: str
     auth_id: str
     key: str
@@ -42,7 +43,9 @@ class Group(BaseModel):
         # attributes defined within stackrox(ACS) API for GET /v1/groups
         check_len_attributes(["roleName", "props"], api_data)
         try:
-            check_len_attributes(["authProviderId", "key", "value"], api_data["props"])
+            check_len_attributes(
+                ["id", "authProviderId", "key", "value"], api_data["props"]
+            )
         except ValueError as e:
             # it is valid for the default None group to contain empty key/value
             if api_data["roleName"] != "None":
@@ -50,6 +53,7 @@ class Group(BaseModel):
 
         super().__init__(
             role_name=api_data["roleName"],
+            id=api_data["props"]["id"],
             auth_id=api_data["props"]["authProviderId"],
             key=api_data["props"]["key"],
             value=api_data["props"]["value"],
@@ -128,7 +132,7 @@ class AcsApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as details:
             raise requests.exceptions.RequestException(
-                f"Failed to perform GET request\n\t{details}\n\t{response.text}"
+                f"Failed to perform GET request:\n\t{details}\n\t{response.text}"
             )
 
         return response
@@ -148,7 +152,25 @@ class AcsApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as details:
             raise requests.exceptions.RequestException(
-                f"Failed to perform POST request with body:{json}\n\t{details}\n\t{response.text}"
+                f"Failed to perform POST request with body:\n\t{json}\n\t{details}\n\t{response.text}"
+            )
+
+        return response
+
+    def generic_delete_request(self, path: str) -> requests.Response:
+        response = requests.delete(
+            url=f"{self.url}{path}",
+            headers={
+                "Authorization": f"Bearer {self.token}",
+            },
+            timeout=self.timeout,
+        )
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.RequestException as details:
+            raise requests.exceptions.RequestException(
+                f"Failed to perform DELETE request:\n\t{details}\n\t{response.text}"
             )
 
         return response
@@ -174,6 +196,9 @@ class AcsApi:
 
         self.generic_post_request(f"/v1/roles/{name}", json)
 
+    def delete_role(self, name: str):
+        pass
+
     def get_groups(self) -> list[Group]:
         response = self.generic_get_request("/v1/groups")
 
@@ -184,21 +209,30 @@ class AcsApi:
         return groups
 
     class GroupRule(BaseModel):
+        id: str
         role_name: str
         key: str
         value: str
         auth_provider_id: str
 
-    def create_group(self, group_rule: GroupRule):
+    def create_group_batch(self, additions: list[GroupRule]):
         json = {
-            "roleName": group_rule.role_name,
-            "props": {
-                "authProviderId": group_rule.auth_provider_id,
-                "key": group_rule.key,
-                "value": group_rule.value,
-            },
+            "previousGroups": [],
+            "requiredGroups": [
+                {
+                    "roleName": rule.role_name,
+                    "props": {
+                        "id": rule.id,
+                        "authProviderId": rule.auth_provider_id,
+                        "key": rule.key,
+                        "value": rule.value,
+                    },
+                }
+                for rule in additions
+            ],
         }
-        self.generic_post_request("/v1/groups", json)
+
+        self.generic_post_request("/v1/groupsbatch", json)
 
     def get_access_scope_by_id(self, id: str) -> AccessScope:
         response = self.generic_get_request(f"/v1/simpleaccessscopes/{id}")
