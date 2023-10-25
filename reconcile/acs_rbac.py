@@ -1,9 +1,6 @@
 import logging
 
 from collections.abc import Callable
-from typing import (
-    Optional,
-)
 
 from reconcile.gql_definitions.acs.acs_rbac import (
     query as acs_rbac_query,
@@ -20,16 +17,12 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 from reconcile.utils.secret_reader import (
     create_secret_reader,
 )
-from sretoolbox.utils import threaded
 from reconcile.utils.acs_api import AcsApi, Group
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils import gql
-from reconcile.utils.defer import defer
 from reconcile.utils.differ import (
-    DiffResult,
     diff_iterables,
 )
-from reconcile.utils.exceptions import ParameterError
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -225,7 +218,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         auth_rules: RoleAssignments = {}
         for group in groups:
             # part of auth provider specified in A-I to reconcile (internal SSO)
-            if group.auth_id == auth_id:
+            if group.auth_provider_id == auth_id:
                 if group.role_name in auth_rules:
                     auth_rules[group.role_name].append(
                         AssignmentPair(key=group.key, value=group.value)
@@ -252,7 +245,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             # skip access scope creation and use existing system default 'Unrestricted' access scope
             if (
                 len(role.access_scope.clusters) == 0
-                or len(role.access_scope.namespaces) == 0
+                and len(role.access_scope.namespaces) == 0
             ):
                 is_unrestricted_scope = True
             else:
@@ -271,7 +264,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                             f"Failed to create access scope: {role.access_scope.name} for role: {role.name}\t\n{e}"
                         )
                         continue
-                logging.info(f"access_scope '{role.access_scope.name}' created")
+                logging.info(f"Created access_scope '{role.access_scope.name}'")
 
             if not dry_run:
                 try:
@@ -286,12 +279,11 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 except Exception as e:
                     logging.error(f"Failed to create role: {role.name}\t\n{e}")
                     continue
-            logging.info(f"role '{role.name}' created")
+            logging.info(f"Created role '{role.name}'")
 
             if not dry_run:
                 additions = [
-                    AcsApi.GroupRule(
-                        id="",
+                    AcsApi.GroupAdd(
                         role_name=role.name,
                         key=a.key,
                         value=a.value,
@@ -308,16 +300,50 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     continue
             for a in role.assignments:
                 logging.info(
-                    f"Rule created assigning '{a.value}' to role '{role.name}'"
+                    f"Created rule assigning '{a.value}' to role '{role.name}'"
                 )
 
-    def delete_rbac(
-        self, to_delete: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
-    ):
-        # deletion of role requires deletion of any dependency resources first
-        # inverse flow of 'add_rbac()'
+    def delete_rbac(self, to_delete: dict[str, AcsRole], acs: AcsApi, dry_run: bool):
+        access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
+        role_group_mappings = {}
+        for group in acs.get_groups():
+            if group.role_name not in role_group_mappings:
+                role_group_mappings[group.role_name] = []
+            role_group_mappings[group.role_name].append(group)
+
+        # role and associated resources must be deleted in the proceeding order
         for role in to_delete.values():
-            pass
+            if not dry_run:
+                try:
+                    acs.delete_group_batch(role_group_mappings[role.name])
+                except Exception as e:
+                    logging.error(
+                        f"Failed to delete group(s) for role: {role.name}\t\n{e}"
+                    )
+                    continue
+            for a in role.assignments:
+                logging.info(
+                    f"Deleted rule assigning '{a.value}' to role '{role.name}'"
+                )
+            if not dry_run:
+                try:
+                    acs.delete_role(role.name)
+                except Exception as e:
+                    logging.error(f"Failed to delete role: {role.name}\t\n{e}")
+                    continue
+            logging.info(f"Deleted role '{role.name}'")
+            if not dry_run:
+                try:
+                    acs.delete_access_scope(access_scope_id_map[role.access_scope.name])
+                except Exception as e:
+                    logging.error(
+                        f"Failed to delete access scope for role: {role.name}\t\n{e}"
+                    )
+                    continue
+            logging.info(f"Deleted access scope '{role.access_scope.name}'")
+
+    def update_rbac(self, to_update: dict[str, AcsRole], acs: AcsApi, dry_run: bool):
+        pass
 
     def run(
         self,
@@ -338,4 +364,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         current = self.get_current_state(acs, auth_id=instance.auth_provider.q_id)
 
         diff = diff_iterables(current, desired, lambda x: x.name)
-        self.add_rbac(diff.add, acs, instance.auth_provider.q_id, dry_run)
+        if len(diff.add) > 0:
+            self.add_rbac(diff.add, acs, instance.auth_provider.q_id, dry_run)
+        if len(diff.delete) > 0:
+            self.delete_rbac(diff.delete, acs, dry_run)
+        if len(diff.change) > 0:
+            self.update_rbac(diff.change, acs, dry_run)

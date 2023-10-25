@@ -35,7 +35,7 @@ class Role(BaseModel):
 class Group(BaseModel):
     id: str
     role_name: str
-    auth_id: str
+    auth_provider_id: str
     key: str
     value: str
 
@@ -54,7 +54,7 @@ class Group(BaseModel):
         super().__init__(
             role_name=api_data["roleName"],
             id=api_data["props"]["id"],
-            auth_id=api_data["props"]["authProviderId"],
+            auth_provider_id=api_data["props"]["authProviderId"],
             key=api_data["props"]["key"],
             value=api_data["props"]["value"],
         )
@@ -197,7 +197,7 @@ class AcsApi:
         self.generic_post_request(f"/v1/roles/{name}", json)
 
     def delete_role(self, name: str):
-        pass
+        self.generic_delete_request(f"/v1/roles/{name}")
 
     def get_groups(self) -> list[Group]:
         response = self.generic_get_request("/v1/groups")
@@ -208,27 +208,45 @@ class AcsApi:
 
         return groups
 
-    class GroupRule(BaseModel):
-        id: str
+    class GroupAdd(BaseModel):
         role_name: str
         key: str
         value: str
         auth_provider_id: str
 
-    def create_group_batch(self, additions: list[GroupRule]):
+    def create_group_batch(self, additions: list[GroupAdd]):
         json = {
             "previousGroups": [],
             "requiredGroups": [
                 {
-                    "roleName": rule.role_name,
+                    "roleName": group.role_name,
                     "props": {
-                        "id": rule.id,
-                        "authProviderId": rule.auth_provider_id,
-                        "key": rule.key,
-                        "value": rule.value,
+                        "id": "",
+                        "authProviderId": group.auth_provider_id,
+                        "key": group.key,
+                        "value": group.value,
                     },
                 }
-                for rule in additions
+                for group in additions
+            ],
+        }
+
+        self.generic_post_request("/v1/groupsbatch", json)
+
+    def delete_group_batch(self, removals: list[Group]):
+        json = {
+            "requiredGroups": [],
+            "previousGroups": [
+                {
+                    "roleName": group.role_name,
+                    "props": {
+                        "id": group.id,
+                        "authProviderId": group.auth_provider_id,
+                        "key": group.key,
+                        "value": group.value,
+                    },
+                }
+                for group in removals
             ],
         }
 
@@ -268,6 +286,9 @@ class AcsApi:
         response = self.generic_post_request("/v1/simpleaccessscopes", json)
 
         return response.json()["id"]
+
+    def delete_access_scope(self, id: str):
+        self.generic_delete_request(f"/v1/simpleaccessscopes/{id}")
 
     def get_permission_set_by_id(self, id: str) -> PermissionSet:
         response = self.generic_get_request(f"/v1/permissionsets/{id}")
