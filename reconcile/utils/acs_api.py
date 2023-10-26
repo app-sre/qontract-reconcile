@@ -1,7 +1,7 @@
 import requests
 
 from pydantic import BaseModel
-from typing import Any, Optional
+from typing import Any
 
 
 class Role(BaseModel):
@@ -235,7 +235,6 @@ class AcsApi:
 
     def delete_group_batch(self, removals: list[Group]):
         json = {
-            "requiredGroups": [],
             "previousGroups": [
                 {
                     "roleName": group.role_name,
@@ -248,9 +247,13 @@ class AcsApi:
                 }
                 for group in removals
             ],
+            "requiredGroups": [],
         }
 
         self.generic_post_request("/v1/groupsbatch", json)
+
+    def patch_group_batch(self, current: list[Group], removals: list[Group]):
+        pass
 
     def get_access_scope_by_id(self, id: str) -> AccessScope:
         response = self.generic_get_request(f"/v1/simpleaccessscopes/{id}")

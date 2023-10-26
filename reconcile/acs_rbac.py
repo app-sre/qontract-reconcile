@@ -1,6 +1,7 @@
 import logging
 
 from collections.abc import Callable
+from typing import Optional
 
 from reconcile.gql_definitions.acs.acs_rbac import (
     query as acs_rbac_query,
@@ -20,9 +21,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.acs_api import AcsApi, Group
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils import gql
-from reconcile.utils.differ import (
-    diff_iterables,
-)
+from reconcile.utils.differ import diff_iterables, DiffPair
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -61,6 +60,7 @@ class AcsRole(BaseModel):
     assignments: list[AssignmentPair]
     permission_set_name: str
     access_scope: AcsAccessScope
+    system_default: Optional[bool]
 
 
 class AcsRbacIntegrationParams(PydanticRunParams):
@@ -168,8 +168,13 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         role_assignments: RoleAssignments = self.build_role_assignments(auth_id, groups)
 
         for role in roles:
-            # system default roles and dependency resources are ignored
-            if not role.system_default:
+            # process roles that are not system default 
+            # OR
+            # system default roles referenced in auth rules
+            # however, do not reconcile the auth provider minimum access rule associated with 'None' system default
+            if not role.system_default or (
+                role.name in role_assignments and role.name != "None"
+            ):
                 try:
                     access_scope = acs.get_access_scope_by_id(role.access_scope_id)
                 except Exception as e:
@@ -193,6 +198,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     description=role.description,
                     assignments=role_assignments.get(role.name, []),
                     permission_set_name=permission_set.name,
+                    system_default=role.system_default,
                     access_scope=AcsAccessScope(
                         name=access_scope.name,
                         description=access_scope.description,
@@ -325,6 +331,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 logging.info(
                     f"Deleted rule assigning '{a.value}' to role '{role.name}'"
                 )
+            # only reconcile rules associated with a system default role
+            # do not delete the role and associated access scope
+            if role.system_default:
+                continue
             if not dry_run:
                 try:
                     acs.delete_role(role.name)
@@ -342,8 +352,27 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     continue
             logging.info(f"Deleted access scope '{role.access_scope.name}'")
 
-    def update_rbac(self, to_update: dict[str, AcsRole], acs: AcsApi, dry_run: bool):
-        pass
+    def update_rbac(
+        self,
+        to_update: dict[str, DiffPair[AcsRole, AcsRole]],
+        acs: AcsApi,
+        dry_run: bool,
+    ):
+        # role_group_mappings = {}
+        # for group in acs.get_groups():
+        #    if group.role_name not in role_group_mappings:
+        #        role_group_mappings[group.role_name] = []
+        #    role_group_mappings[group.role_name].append(group)
+
+        for role_diff_pair in to_update.values():
+            # check rules
+            diff = diff_iterables(
+                role_diff_pair.current.assignments,
+                role_diff_pair.desired.assignments,
+                lambda x: x.value,
+            )
+            print("RULE DIFFS")
+            print(diff)
 
     def run(
         self,
