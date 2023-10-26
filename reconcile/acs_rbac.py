@@ -168,7 +168,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         role_assignments: RoleAssignments = self.build_role_assignments(auth_id, groups)
 
         for role in roles:
-            # process roles that are not system default 
+            # process roles that are not system default
             # OR
             # system default roles referenced in auth rules
             # however, do not reconcile the auth provider minimum access rule associated with 'None' system default
@@ -304,10 +304,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         f"Failed to create group(s) for role: {role.name}\t\n{e}"
                     )
                     continue
-            for a in role.assignments:
-                logging.info(
-                    f"Created rule assigning '{a.value}' to role '{role.name}'"
-                )
+            logging.info(
+                f"Added users to role '{role.name}': {[a.value for a in role.assignments]}"
+            )
 
     def delete_rbac(self, to_delete: dict[str, AcsRole], acs: AcsApi, dry_run: bool):
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
@@ -327,10 +326,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         f"Failed to delete group(s) for role: {role.name}\t\n{e}"
                     )
                     continue
-            for a in role.assignments:
-                logging.info(
-                    f"Deleted rule assigning '{a.value}' to role '{role.name}'"
-                )
+            logging.info(
+                f"Deleted users from role '{role.name}': {[a.value for a in role.assignments]}"
+            )
             # only reconcile rules associated with a system default role
             # do not delete the role and associated access scope
             if role.system_default:
@@ -356,23 +354,47 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         self,
         to_update: dict[str, DiffPair[AcsRole, AcsRole]],
         acs: AcsApi,
+        auth_id: str,
         dry_run: bool,
     ):
-        # role_group_mappings = {}
-        # for group in acs.get_groups():
-        #    if group.role_name not in role_group_mappings:
-        #        role_group_mappings[group.role_name] = []
-        #    role_group_mappings[group.role_name].append(group)
+        role_group_mappings: dict[str[dict[str, str]]] = {}
+        for group in acs.get_groups():
+            if group.role_name not in role_group_mappings:
+                role_group_mappings[group.role_name] = {}
+            role_group_mappings[group.role_name][group.value] = group
 
         for role_diff_pair in to_update.values():
-            # check rules
             diff = diff_iterables(
                 role_diff_pair.current.assignments,
                 role_diff_pair.desired.assignments,
                 lambda x: x.value,
             )
-            print("RULE DIFFS")
-            print(diff)
+            old = [
+                role_group_mappings[role_diff_pair.current.name][d.value]
+                for d in diff.delete.values()
+            ]
+            new = [
+                AcsApi.GroupAdd(
+                    role_name=role_diff_pair.desired.name,
+                    key=a.key,
+                    value=a.value,
+                    auth_provider_id=auth_id,
+                )
+                for a in diff.add.values()
+            ]
+            if not dry_run:
+                try:
+                    acs.patch_group_batch(old, new)
+                except Exception as e:
+                    logging.error(
+                        f"Failed to update rules for role: {role_diff_pair.current.name}\t\n{e}"
+                    )
+                    continue
+            logging.info(
+                f"Updated rules for role '{role_diff_pair.desired.name}':\n\t"
+                + f"Added: {[n.value for n in new]}\n\t"
+                + f"Deleted: {[o.value for o in old]}"
+            )
 
     def run(
         self,
@@ -398,4 +420,4 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         if len(diff.delete) > 0:
             self.delete_rbac(diff.delete, acs, dry_run)
         if len(diff.change) > 0:
-            self.update_rbac(diff.change, acs, dry_run)
+            self.update_rbac(diff.change, acs, instance.auth_provider.q_id, dry_run)

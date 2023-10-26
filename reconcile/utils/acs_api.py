@@ -252,8 +252,34 @@ class AcsApi:
 
         self.generic_post_request("/v1/groupsbatch", json)
 
-    def patch_group_batch(self, current: list[Group], removals: list[Group]):
-        pass
+    def patch_group_batch(self, old: list[Group], new: list[GroupAdd]):
+        json = {
+            "previousGroups": [
+                {
+                    "roleName": o.role_name,
+                    "props": {
+                        "id": o.id,
+                        "authProviderId": o.auth_provider_id,
+                        "key": o.key,
+                        "value": o.value,
+                    },
+                }
+                for o in old
+            ],
+            "requiredGroups": [
+                {
+                    "roleName": n.role_name,
+                    "props": {
+                        "id": "",
+                        "authProviderId": n.auth_provider_id,
+                        "key": n.key,
+                        "value": n.value,
+                    },
+                }
+                for n in new
+            ],
+        }
+        self.generic_post_request("/v1/groupsbatch", json)
 
     def get_access_scope_by_id(self, id: str) -> AccessScope:
         response = self.generic_get_request(f"/v1/simpleaccessscopes/{id}")
