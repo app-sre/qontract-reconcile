@@ -18,7 +18,9 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     CloudflareAccountV1 as CFAccountV1,
 )
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
+    CertificateSecretV1,
     CloudflareAccountV1,
+    CloudflareCustomSSLCertificateV1,
     CloudflareDnsRecordV1,
     CloudflareZoneArgoV1,
     CloudflareZoneCacheReserveV1,
@@ -113,6 +115,28 @@ def external_resources(provisioner_config):
                         certificate_authority="lets_encrypt",
                         cloudflare_branding=False,
                         wait_for_active_status=False,
+                    )
+                ],
+                cloudflare_custom_ssl_certificates=[
+                    CloudflareCustomSSLCertificateV1(
+                        identifier="testcustomssl",
+                        type="legacy_custom",
+                        bundle_method="ubiquitous",
+                        geo_restrictions="us",
+                        certificate_secret=CertificateSecretV1(
+                            certificate=VaultSecret(
+                                path="some/path",
+                                field="certificate.crt",
+                                format="plain",
+                                version=1,
+                            ),
+                            key=VaultSecret(
+                                path="another/path",
+                                field="certificate.key",
+                                format="plain",
+                                version=1,
+                            ),
+                        ),
                     )
                 ],
             ),
