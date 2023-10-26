@@ -92,10 +92,14 @@ query TerraformCloudflareResources {
               identifier
               type
               bundle_method
-              vault_certificate {
-                path
-                certificate_key
-                private_key_key
+              geo_restrictions
+              certificate_secret {
+                certificate {
+                  ... VaultSecret
+                }
+                key {
+                  ... VaultSecret
+                }
               }
             }
           }
