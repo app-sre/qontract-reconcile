@@ -668,7 +668,6 @@ def test_external_spec_with_two_roles_from_different_account_one_user(
         ["redhat.com"],
     )
 
-    print(actual_users)
     expected_users = {
         "cloudflare-account-1": {
             "user1@redhat.com": CloudflareUser(
