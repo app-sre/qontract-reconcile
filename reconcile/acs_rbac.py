@@ -47,6 +47,19 @@ class AcsAccessScope(BaseModel):
     clusters: list[str]
     namespaces: list[dict[str, str]]
 
+    def __eq__(self, other):
+        if isinstance(other, AcsAccessScope):
+            return (
+                self.name == other.name
+                and self.description == other.description
+                and self.clusters == other.clusters
+                and self.namespaces == other.namespaces
+            )
+        return False
+
+
+DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
+
 
 class AcsRole(BaseModel):
     """
@@ -197,7 +210,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     name=role.name,
                     description=role.description,
                     assignments=role_assignments.get(role.name, []),
-                    permission_set_name=permission_set.name,
+                    permission_set_name=permission_set.name.lower(),
                     system_default=role.system_default,
                     access_scope=AcsAccessScope(
                         name=access_scope.name,
@@ -238,7 +251,6 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
     def add_rbac(
         self, to_add: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
     ):
-        DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
         permission_sets_id_map = {
             ps.name.lower(): ps.id for ps in acs.get_permission_sets()
@@ -249,6 +261,8 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
 
             # empty cluster and namespaces attributes in oidc-permission signifies unrestricted scope
             # skip access scope creation and use existing system default 'Unrestricted' access scope
+            # note: this serves to reduce redundant admin scopes but also due to restriction within api when
+            # attempting to provision another admin access scope
             if (
                 len(role.access_scope.clusters) == 0
                 and len(role.access_scope.namespaces) == 0
@@ -329,8 +343,8 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             logging.info(
                 f"Deleted users from role '{role.name}': {[a.value for a in role.assignments]}"
             )
-            # only reconcile rules associated with a system default role
-            # do not delete the role and associated access scope
+            # only delete rules associated with a system default roles
+            # do not continue to deletion of the role and associated access scope
             if role.system_default:
                 continue
             if not dry_run:
@@ -357,6 +371,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         auth_id: str,
         dry_run: bool,
     ):
+        access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
         role_group_mappings: dict[str[dict[str, str]]] = {}
         for group in acs.get_groups():
             if group.role_name not in role_group_mappings:
@@ -364,37 +379,71 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             role_group_mappings[group.role_name][group.value] = group
 
         for role_diff_pair in to_update.values():
+            # auth rule (groups) portion
             diff = diff_iterables(
                 role_diff_pair.current.assignments,
                 role_diff_pair.desired.assignments,
                 lambda x: x.value,
             )
-            old = [
-                role_group_mappings[role_diff_pair.current.name][d.value]
-                for d in diff.delete.values()
-            ]
-            new = [
-                AcsApi.GroupAdd(
-                    role_name=role_diff_pair.desired.name,
-                    key=a.key,
-                    value=a.value,
-                    auth_provider_id=auth_id,
-                )
-                for a in diff.add.values()
-            ]
-            if not dry_run:
-                try:
-                    acs.patch_group_batch(old, new)
-                except Exception as e:
-                    logging.error(
-                        f"Failed to update rules for role: {role_diff_pair.current.name}\t\n{e}"
+            # due to usage of 'value' in auth rules for the key, if a single rule requires a change
+            # it will appear as one entry to delete and one entry to add
+            # ex: desired value = foo. current value = bar
+            # output will be an entry to delete bar and an entry to add foo
+            if any(len(lst) > 0 for lst in [diff.add, diff.delete, diff.change]):
+                old = [
+                    role_group_mappings[role_diff_pair.current.name][d.value]
+                    for d in diff.delete.values()
+                ]
+                new = [
+                    AcsApi.GroupAdd(
+                        role_name=role_diff_pair.desired.name,
+                        key=a.key,
+                        value=a.value,
+                        auth_provider_id=auth_id,
                     )
-                    continue
-            logging.info(
-                f"Updated rules for role '{role_diff_pair.desired.name}':\n\t"
-                + f"Added: {[n.value for n in new]}\n\t"
-                + f"Deleted: {[o.value for o in old]}"
-            )
+                    for a in diff.add.values()
+                ]
+                if not dry_run:
+                    try:
+                        acs.patch_group_batch(old, new)
+                    except Exception as e:
+                        logging.error(
+                            f"Failed to update rules for role: {role_diff_pair.current.name}\t\n{e}"
+                        )
+                        continue
+                logging.info(
+                    f"Updated rules for role '{role_diff_pair.desired.name}':\n\t"
+                    + f"Added: {[n.value for n in new]}\n\t"
+                    + f"Deleted: {[o.value for o in old]}"
+                )
+
+            # access scope portion
+            # recall from 'add_rbac' that a desired access scope that equates to admin scope
+            # is assigned to the system default access scope.
+            # diff for admin-equivalent scope will exist (name and description) and is ignored
+            if (
+                role_diff_pair.current.access_scope != DEFAULT_ADMIN_SCOPE_NAME
+                and role_diff_pair.current.access_scope
+                != role_diff_pair.desired.access_scope
+            ):
+                if not dry_run:
+                    try:
+                        acs.update_access_scope(
+                            role_diff_pair.current.access_scope.name,
+                            role_diff_pair.current.access_scope.description,
+                            role_diff_pair.current.access_scope.clusters,
+                            role_diff_pair.current.access_scope.namespaces,
+                        )
+                    except Exception as e:
+                        logging.error(
+                            f"Failed to update access scope: {role_diff_pair.current.access_scope.name}\t\n{e}"
+                        )
+                        continue
+                logging.info(
+                    f"Updated access scope '{role_diff_pair.current.access_scope.name}'"
+                )
+
+            # role portion
 
     def run(
         self,

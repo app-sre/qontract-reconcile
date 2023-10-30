@@ -157,6 +157,26 @@ class AcsApi:
 
         return response
 
+    def generic_put_request(self, path: str, json: Any) -> requests.Response:
+        response = requests.put(
+            url=f"{self.url}{path}",
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
+            },
+            timeout=self.timeout,
+            json=json,
+        )
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.RequestException as details:
+            raise requests.exceptions.RequestException(
+                f"Failed to perform PUT request with body:\n\t{json}\n\t{details}\n\t{response.text}"
+            )
+
+        return response
+
     def generic_delete_request(self, path: str) -> requests.Response:
         response = requests.delete(
             url=f"{self.url}{path}",
@@ -318,6 +338,25 @@ class AcsApi:
 
     def delete_access_scope(self, id: str):
         self.generic_delete_request(f"/v1/simpleaccessscopes/{id}")
+
+    def update_access_scope(
+        self,
+        id: str,
+        name: str,
+        desc: str,
+        clusters: list[str],
+        namespaces: list[dict[str, str]],
+    ):
+        json = {
+            "name": name,
+            "description": desc,
+            "rules": {
+                "includedClusters": clusters,
+                "includedNamespaces": namespaces,
+            },
+        }
+
+        self.generic_put_request(f"/v1/simpleaccessscopes/{id}")
 
     def get_permission_set_by_id(self, id: str) -> PermissionSet:
         response = self.generic_get_request(f"/v1/permissionsets/{id}")
