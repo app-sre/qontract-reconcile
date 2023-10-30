@@ -231,13 +231,12 @@ def test_namespace_validation(
         namespaces=[],
     )
 
-    with caplog.at_level(logging.INFO):
-        with pytest.raises(SystemExit) as sample:
-            integ.run(True, None, False, 10)
-        assert sample.value.code == 0
-        assert ["No namespaces were detected, nothing to do."] == [
-            rec.message for rec in caplog.records
-        ]
+    with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
+        integ.run(True, None, False, 10)
+    assert sample.value.code == 0
+    assert ["No namespaces were detected, nothing to do."] == [
+        rec.message for rec in caplog.records
+    ]
 
 
 def test_cloudflare_namespace_validation(
@@ -278,3 +277,26 @@ def test_cloudflare_namespace_validation(
         assert ["No cloudflare namespaces were detected, nothing to do."] == [
             rec.message for rec in caplog.records
         ]
+
+
+def test_namespace_validation(
+    mocker, caplog, mock_gql, mock_vault_secret, mock_cloudflare_accounts
+):
+    # Mocking resources without namespaces
+    mocked_resources = mocker.patch(
+        "reconcile.terraform_cloudflare_resources.terraform_cloudflare_resources",
+        autospec=True,
+    )
+
+    mocked_resources.query.return_value = TerraformCloudflareResourcesQueryData(
+        namespaces=[],
+    )
+
+    with caplog.at_level(logging.INFO):
+        with pytest.raises(SystemExit) as sample:
+            integ.run(True, None, False, 10)
+        assert sample.value.code == 0
+        assert ["No namespaces were detected, nothing to do."] == [
+            rec.message for rec in caplog.records
+        ]
+
