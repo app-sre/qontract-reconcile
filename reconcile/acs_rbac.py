@@ -372,6 +372,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         dry_run: bool,
     ):
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
+        permission_sets_id_map = {
+            ps.name.lower(): ps.id for ps in acs.get_permission_sets()
+        }
         role_group_mappings: dict[str[dict[str, str]]] = {}
         for group in acs.get_groups():
             if group.role_name not in role_group_mappings:
@@ -422,13 +425,16 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             # is assigned to the system default access scope.
             # diff for admin-equivalent scope will exist (name and description) and is ignored
             if (
-                role_diff_pair.current.access_scope != DEFAULT_ADMIN_SCOPE_NAME
+                role_diff_pair.current.access_scope.name != DEFAULT_ADMIN_SCOPE_NAME
                 and role_diff_pair.current.access_scope
                 != role_diff_pair.desired.access_scope
             ):
                 if not dry_run:
                     try:
                         acs.update_access_scope(
+                            access_scope_id_map[
+                                role_diff_pair.current.access_scope.name
+                            ],
                             role_diff_pair.current.access_scope.name,
                             role_diff_pair.current.access_scope.description,
                             role_diff_pair.current.access_scope.clusters,
@@ -444,6 +450,33 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 )
 
             # role portion
+            # dependency role resources updated by prior logic
+            # only potential attributes left to change for role is permission set and desc
+            # note: changing role name triggers a creation/deletion
+            if (
+                role_diff_pair.current.permission_set_name
+                != role_diff_pair.desired.permission_set_name
+                or role_diff_pair.current.description
+                != role_diff_pair.desired.description
+            ):
+                if not dry_run:
+                    try:
+                        acs.update_role(
+                            role_diff_pair.current.access_scope.name,
+                            role_diff_pair.current.access_scope.description,
+                            permission_sets_id_map[
+                                role_diff_pair.current.permission_set_name
+                            ],
+                            access_scope_id_map[
+                                role_diff_pair.current.access_scope.name
+                            ],
+                        )
+                    except Exception as e:
+                        logging.error(
+                            f"Failed to update role: {role_diff_pair.current.name}\t\n{e}"
+                        )
+                        continue
+                logging.info(f"Updated role '{role_diff_pair.current.name}'")
 
     def run(
         self,

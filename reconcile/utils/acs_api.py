@@ -216,6 +216,18 @@ class AcsApi:
 
         self.generic_post_request(f"/v1/roles/{name}", json)
 
+    def update_role(
+        self, name: str, desc: str, permission_set_id: str, access_scope_id: str
+    ):
+        json = {
+            "name": name,
+            "description": desc,
+            "permissionSetId": permission_set_id,
+            "accessScopeId": access_scope_id,
+        }
+
+        self.generic_put_request(f"/v1/roles/{name}", json)
+
     def delete_role(self, name: str):
         self.generic_delete_request(f"/v1/roles/{name}")
 
