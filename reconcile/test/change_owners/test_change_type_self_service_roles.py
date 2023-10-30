@@ -52,10 +52,11 @@ def test_valid_self_service_role() -> None:
                 resources=None,
             )
         ],
-        users=[UserV1(org_username="u", tag_on_merge_requests=False)],
+        users=[UserV1(name="u", org_username="u", tag_on_merge_requests=False)],
         bots=[],
         permissions=[],
         labels=None,
+        memberSources=[],
     )
     validate_self_service_role(role)
 
@@ -79,10 +80,11 @@ def test_invalid_self_service_role_schema_mismatch() -> None:
                 resources=None,
             )
         ],
-        users=[UserV1(org_username="u", tag_on_merge_requests=False)],
+        users=[UserV1(name="u", org_username="u", tag_on_merge_requests=False)],
         bots=[],
         permissions=[],
         labels=None,
+        memberSources=[],
     )
     with pytest.raises(DatafileIncompatibleWithChangeTypeError):
         validate_self_service_role(role)
@@ -120,10 +122,11 @@ def test_change_type_contexts_for_self_service_roles_schema() -> None:
                 resources=None,
             )
         ],
-        users=[UserV1(org_username="u", tag_on_merge_requests=False)],
+        users=[UserV1(name="u", org_username="u", tag_on_merge_requests=False)],
         bots=[],
         permissions=[],
         labels=None,
+        memberSources=[],
     )
     ctp = build_change_type(
         name="schema-admin",

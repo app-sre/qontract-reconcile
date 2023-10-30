@@ -17,10 +17,12 @@ query SelfServiceRolesQuery($name: String) {
       resources
     }
     users {
+      name
       org_username
       tag_on_merge_requests
     }
     bots {
+      name
       org_username
     }
     permissions {
@@ -33,6 +35,9 @@ query SelfServiceRolesQuery($name: String) {
       ... on PermissionGitlabGroupMembership_v1 {
         group
       }
+    }
+    memberSources {
+      ...RoleMembershipSource
     }
   }
 }
