@@ -35,10 +35,8 @@ query AcsInstance {
       ... VaultSecret
     }
     authProvider {
-      ... on AcsInstanceAuthProvider_v1 {
-        name
-        id
-      }
+      name
+      id      
     }
   }
 }
@@ -52,10 +50,6 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class AcsInstanceAuthProviderV1(ConfiguredBaseModel):
-    ...
-
-
-class AcsInstanceAuthProviderV1_AcsInstanceAuthProviderV1(AcsInstanceAuthProviderV1):
     name: str = Field(..., alias="name")
     q_id: str = Field(..., alias="id")
 
@@ -63,9 +57,7 @@ class AcsInstanceAuthProviderV1_AcsInstanceAuthProviderV1(AcsInstanceAuthProvide
 class AcsInstanceV1(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
     credentials: VaultSecret = Field(..., alias="credentials")
-    auth_provider: Union[
-        AcsInstanceAuthProviderV1_AcsInstanceAuthProviderV1, AcsInstanceAuthProviderV1
-    ] = Field(..., alias="authProvider")
+    auth_provider: AcsInstanceAuthProviderV1 = Field(..., alias="authProvider")
 
 
 class AcsInstanceQueryData(ConfiguredBaseModel):

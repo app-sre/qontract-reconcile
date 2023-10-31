@@ -7,10 +7,8 @@ query AcsInstance {
       ... VaultSecret
     }
     authProvider {
-      ... on AcsInstanceAuthProvider_v1 {
-        name
-        id
-      }
+      name
+      id      
     }
   }
 }
