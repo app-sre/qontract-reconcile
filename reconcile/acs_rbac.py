@@ -47,7 +47,7 @@ class AcsAccessScope(BaseModel):
     clusters: list[str]
     namespaces: list[dict[str, str]]
 
-    def __eq__(self, other):
+    def __eq__(self, other: object):
         if isinstance(other, AcsAccessScope):
             return (
                 self.name == other.name
@@ -92,7 +92,11 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         return self.qontract_integration.replace("_", "-")
 
     def get_acs_instance(self, query_func: Callable) -> AcsInstanceV1:
-        """Get an ACS instance."""
+        """
+        Get an ACS instance
+
+        :param query_func: function which queries GQL Server
+        """
         if instances := acs_instances_query(query_func=query_func).instances:
             # mirroring logic for gitlab instances
             # current assumption is for appsre to only utilize one instance
@@ -105,10 +109,8 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         """
         Get desired ACS roles and associated users from App Interface
 
-        :param query_func: function which queries GQL server and formats result
-        :type query_func: Callable
-        :return: list of AcsRole
-        :rtype: AcsRole
+        :param query_func: function which queries GQL server
+        :return: list of AcsRole derived from oidc-permission-1 definitions
         """
 
         query_results = acs_rbac_query(query_func=query_func).acs_rbacs
@@ -163,9 +165,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         """
         Get current ACS roles and associated users from ACS api
 
-        :param acs: acs api client
-        :return: list of AcsRole
-        :rtype: AcsRole
+        :param acs: ACS api client
+        :param auth_id: id of auth provider within ACS instance to target for reconciliation
+        :return: list of current AcsRole associated with specified auth provider
         """
         current_roles: dict[str, AcsRole] = {}
         try:
@@ -227,12 +229,12 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
     ) -> RoleAssignments:
         """
         Processes Groups returned by ACS api and maps roles to users
-        A "group" in ACS api is an object that acts as assignment of a user to a role
+        A "group" in ACS api is a rule that assigns a user to a role
 
-        :param auth_id: the authProviderId to process for
-        :param groups: list of Group objects received from api
-        :return: map in which keys are role names and values are list of user attributes
-        :rtype: RoleAssignment
+        :param auth_id: id of auth provider within ACS instance to target for reconciliation
+        :param groups: list of current Group objects received from api
+        :return: dict in which keys are role names and values are list of
+                user attributes assigned to role
         """
         auth_rules: RoleAssignments = {}
         for group in groups:
@@ -250,7 +252,15 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
 
     def add_rbac(
         self, to_add: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
-    ):
+    ) -> None:
+        """
+        Creates desired ACS roles as well as associated access scopes and rules
+
+        :param to_add: result of 'diff_iterables(current, desired).add' for ACS roles
+        :param acs: ACS api client
+        :param auth_id: id of auth provider within ACS instance to target for reconciliation
+        :param dry_run: run in dry-run mode
+        """
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
         permission_sets_id_map = {
             ps.name.lower(): ps.id for ps in acs.get_permission_sets()
@@ -324,9 +334,17 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
 
     def delete_rbac(
         self, to_delete: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
-    ):
+    ) -> None:
+        """
+        Deletes desired ACS roles as well as associated access scopes and rules
+
+        :param to_delete: result of 'diff_iterables(current, desired).delete' for ACS roles
+        :param acs: ACS api client
+        :param auth_id: id of auth provider within ACS instance to target for reconciliation
+        :param dry_run: run in dry-run mode
+        """
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
-        role_group_mappings = {}
+        role_group_mappings: dict[str, list[str]] = {}
         for group in acs.get_groups():
             if group.auth_provider_id == auth_id:
                 if group.role_name not in role_group_mappings:
@@ -374,6 +392,14 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         auth_id: str,
         dry_run: bool,
     ):
+        """
+        Updates desired ACS roles as well as associated access scopes and rules
+
+        :param to_update: result of 'diff_iterables(current, desired).change' for ACS roles
+        :param acs: ACS api client
+        :param auth_id: id of auth provider within ACS instance to target for reconciliation
+        :param dry_run: run in dry-run mode
+        """
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
         permission_sets_id_map = {
             ps.name.lower(): ps.id for ps in acs.get_permission_sets()

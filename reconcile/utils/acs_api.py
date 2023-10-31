@@ -206,7 +206,7 @@ class AcsApi:
 
     def create_role(
         self, name: str, desc: str, permission_set_id: str, access_scope_id: str
-    ):
+    ) -> None:
         json = {
             "name": name,
             "description": desc,
@@ -218,7 +218,7 @@ class AcsApi:
 
     def update_role(
         self, name: str, desc: str, permission_set_id: str, access_scope_id: str
-    ):
+    ) -> None:
         json = {
             "name": name,
             "description": desc,
@@ -228,7 +228,7 @@ class AcsApi:
 
         self.generic_put_request(f"/v1/roles/{name}", json)
 
-    def delete_role(self, name: str):
+    def delete_role(self, name: str) -> None:
         self.generic_delete_request(f"/v1/roles/{name}")
 
     def get_groups(self) -> list[Group]:
@@ -246,7 +246,7 @@ class AcsApi:
         value: str
         auth_provider_id: str
 
-    def create_group_batch(self, additions: list[GroupAdd]):
+    def create_group_batch(self, additions: list[GroupAdd]) -> None:
         json = {
             "previousGroups": [],
             "requiredGroups": [
@@ -265,7 +265,7 @@ class AcsApi:
 
         self.generic_post_request("/v1/groupsbatch", json)
 
-    def delete_group_batch(self, removals: list[Group]):
+    def delete_group_batch(self, removals: list[Group]) -> None:
         json = {
             "previousGroups": [
                 {
@@ -284,7 +284,7 @@ class AcsApi:
 
         self.generic_post_request("/v1/groupsbatch", json)
 
-    def patch_group_batch(self, old: list[Group], new: list[GroupAdd]):
+    def patch_group_batch(self, old: list[Group], new: list[GroupAdd]) -> None:
         json = {
             "previousGroups": [
                 {
@@ -348,7 +348,7 @@ class AcsApi:
 
         return response.json()["id"]
 
-    def delete_access_scope(self, id: str):
+    def delete_access_scope(self, id: str) -> None:
         self.generic_delete_request(f"/v1/simpleaccessscopes/{id}")
 
     def update_access_scope(
@@ -358,7 +358,7 @@ class AcsApi:
         desc: str,
         clusters: list[str],
         namespaces: list[dict[str, str]],
-    ):
+    ) -> None:
         json = {
             "name": name,
             "description": desc,
@@ -368,7 +368,7 @@ class AcsApi:
             },
         }
 
-        self.generic_put_request(f"/v1/simpleaccessscopes/{id}")
+        self.generic_put_request(f"/v1/simpleaccessscopes/{id}", json)
 
     def get_permission_set_by_id(self, id: str) -> PermissionSet:
         response = self.generic_get_request(f"/v1/permissionsets/{id}")
