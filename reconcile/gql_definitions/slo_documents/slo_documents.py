@@ -25,6 +25,9 @@ query SloDocuments {
     labels
     app {
       name
+      parentApp {
+        name
+      }
     }
     namespaces {
       namespace {
@@ -62,8 +65,13 @@ class ConfiguredBaseModel(BaseModel):
         extra = Extra.forbid
 
 
+class AppV1_AppV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    parent_app: Optional[AppV1_AppV1] = Field(..., alias="parentApp")
 
 
 class ClusterV1(ConfiguredBaseModel):

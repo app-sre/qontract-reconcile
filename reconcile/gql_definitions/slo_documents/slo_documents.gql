@@ -6,6 +6,9 @@ query SloDocuments {
     labels
     app {
       name
+      parentApp {
+        name
+      }
     }
     namespaces {
       namespace {
