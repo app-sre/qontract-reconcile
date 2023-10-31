@@ -240,6 +240,7 @@ Install build prerequisites for [psycopg2](https://www.psycopg.org/docs/install.
   * The `libpq` header files. They are usually installed in a package such as `libpq-dev`.
   * The `pg_config` program: it is usually installed by the `libpq-dev` package but sometimes it is not in a `PATH` directory.
   * On macOS, can be installed via `brew install libpq`. Make sure the installation path is added to your PATH, otherwise `pg_config` will not be available.
+  * On Fedora, it can be installed with `dnf install libpq-devel`
   
 Note:
 In macOS with M1/M2 `pip` will fail to install in a virtualenvironment unless LDFLAGS reference the openssl library path. It can be fixed with `export LDFLAGS="-I/opt/homebrew/opt/openssl/include -L/opt/homebrew/opt/openssl/lib"`.
