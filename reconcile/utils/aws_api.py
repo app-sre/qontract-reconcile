@@ -20,6 +20,7 @@ from typing import (
 
 import botocore
 from boto3 import Session
+from botocore.config import Config
 from pydantic import BaseModel
 from sretoolbox.utils import threaded
 
@@ -170,6 +171,13 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             access_key = secret["aws_access_key_id"]
             secret_key = secret["aws_secret_access_key"]
             region_name = account["resourcesDefaultRegion"]
+            self.use_fips = False
+
+            # ensure that govcloud accounts use FIPs endpoints
+            if "partition" in account and account["partition"] == GOVCLOUD_PARTITION:
+                logging.debug(f"FIPS endpoint enabled for AWS account: {account_name}")
+                self.use_fips = True
+
             session = Session(
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
@@ -203,7 +211,11 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         region_name: Optional[str] = None,
     ):
         region = region_name if region_name else session.region_name
-        client = session.client(service_name, region_name=region)
+        client = session.client(
+            service_name,
+            region_name=region,
+            config=Config(use_fips_endpoint=self.use_fips),
+        )
         self._session_clients.append(client)
         return client
 
