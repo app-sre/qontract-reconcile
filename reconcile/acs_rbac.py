@@ -322,13 +322,16 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 f"Added users to role '{role.name}': {[a.value for a in role.assignments]}"
             )
 
-    def delete_rbac(self, to_delete: dict[str, AcsRole], acs: AcsApi, dry_run: bool):
+    def delete_rbac(
+        self, to_delete: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
+    ):
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
         role_group_mappings = {}
         for group in acs.get_groups():
-            if group.role_name not in role_group_mappings:
-                role_group_mappings[group.role_name] = []
-            role_group_mappings[group.role_name].append(group)
+            if group.auth_provider_id == auth_id:
+                if group.role_name not in role_group_mappings:
+                    role_group_mappings[group.role_name] = []
+                role_group_mappings[group.role_name].append(group)
 
         # role and associated resources must be deleted in the proceeding order
         for role in to_delete.values():
@@ -500,6 +503,6 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         if len(diff.add) > 0:
             self.add_rbac(diff.add, acs, instance.auth_provider.q_id, dry_run)
         if len(diff.delete) > 0:
-            self.delete_rbac(diff.delete, acs, dry_run)
+            self.delete_rbac(diff.delete, acs, instance.auth_provider.q_id, dry_run)
         if len(diff.change) > 0:
             self.update_rbac(diff.change, acs, instance.auth_provider.q_id, dry_run)
