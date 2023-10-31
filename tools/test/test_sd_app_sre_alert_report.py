@@ -28,16 +28,21 @@ def test_group_alerts():
     assert csopc
     assert len(csopc) == 1
 
+    art = alerts["AlertmanagerReceiverTest"]
+    assert art
+    assert len(art) == 2
+
     # This means one of the list elements has been ignored as it didn't have alertname
-    # as the total alerts we have from the above tests is 11 and the total of messages
-    # from the fixture is 12.
+    # as the total alerts we have from the above tests is 13 and the total of messages
+    # from the fixture is 14.
     assert set(alerts.keys()) == {
         "PrometheusTargetFlapping",
         "SLOMetricAbsent",
         "PatchmanAlertEvalDelay",
         "ContainerSecurityOperatorPodCount",
+        "AlertmanagerReceiverTest",
     }
-    assert len(messages) == 12
+    assert len(messages) == 14
 
 
 def test_alert_stats():
@@ -62,3 +67,8 @@ def test_alert_stats():
     assert csopc.triggered_alerts == 0
     assert csopc.resolved_alerts == 1
     assert not csopc.elapsed_times
+
+    art = alert_stats["AlertmanagerReceiverTest"]
+    assert art.triggered_alerts == 1
+    assert art.resolved_alerts == 1
+    assert median(art.elapsed_times) == 300

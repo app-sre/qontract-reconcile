@@ -1,3 +1,63 @@
+# AlertmanagerReceiverTest rule file does not have "message" set
+# in the rule file, so we have to consider it separately
+# elapsed time: 300s
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.app-sre-prod-04.devshift.net/graph?g0.expr=floor%28vector%28time%28%29+%2F+%282+%2A+60%29%29%29+%25+2+%3E+0+%3C+2&g0.tab=1
+    - id: '2'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.app-sre-prod-04.devshift.net/#/silences/new?filter=%7Bcluster%3D"app-sre-prod-04"%2C%20environment%3D"production"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20statusBoardService%3D"status-board/status-board/AlertmanagerReceiverTest"%2C%20alertname%3D"AlertmanagerReceiverTest"%7D
+    color: 2eb886
+    fallback: "Alert: AlertmanagerReceiverTest [RESOLVED] \n | <https://alertmanager.app-sre-prod-04.devshift.net/#/alerts?receiver=slack-app-sre-alerts>"
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    title: 'Alert: AlertmanagerReceiverTest [RESOLVED]'
+    title_link: https://alertmanager.app-sre-prod-04.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686819033.031509'
+  type: message
+  username: app-sre-alerts (app-sre-prod-04)
+- attachments:
+  - actions:
+    - id: '1'
+      style: ''
+      text: 'Query :mag:'
+      type: button
+      url: https://prometheus.app-sre-prod-04.devshift.net/graph?g0.expr=floor%28vector%28time%28%29+%2F+%282+%2A+60%29%29%29+%25+2+%3E+0+%3C+2&g0.tab=1
+    - id: '2'
+      style: ''
+      text: 'Silence :no_bell:'
+      type: button
+      url: https://alertmanager.app-sre-prod-04.devshift.net/#/silences/new?filter=%7Bcluster%3D"app-sre-prod-04"%2C%20environment%3D"production"%2C%20prometheus%3D"openshift-customer-monitoring/app-sre"%2C%20statusBoardService%3D"status-board/status-board/AlertmanagerReceiverTest"%2C%20alertname%3D"AlertmanagerReceiverTest"%7D
+    fallback: 'Alert: AlertmanagerReceiverTest [FIRING:1]  | <https://alertmanager.app-sre-prod-04.devshift.net/#/alerts?receiver=slack-app-sre-alerts>'
+    id: 1
+    mrkdwn_in:
+    - fallback
+    - pretext
+    - text
+    title: 'Alert: AlertmanagerReceiverTest [FIRING:1]'
+    title_link: https://alertmanager.app-sre-prod-04.devshift.net/#/alerts?receiver=slack-app-sre-alerts
+  bot_id: BFYPB540Z
+  icons:
+    emoji: ':prometheus:'
+  subtype: bot_message
+  text: ''
+  ts: '1686818733.031509'
+  type: message
+  username: app-sre-alerts (app-sre-prod-04)
 # PrometheusTargetFlapping alerts
 # Cases to test multiple entries to calculate medians
 ## Target pushgateway-nginx-gate-1/10.131.0.19:9091
