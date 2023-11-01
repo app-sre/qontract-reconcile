@@ -62,6 +62,12 @@ class AcsAccessScope(BaseModel):
 
 
 DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
+# map enum values defined in oidc-permission schema to system default ACS values
+PERMISSION_SET_NAMES = {
+    "admin": "Admin",
+    "analyst": "Analyst",
+    "vuln-admin": "Vulnerability Management Admin"
+}
 
 
 class AcsRole(BaseModel):
@@ -136,7 +142,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                                         key="org_username", value=user.org_username
                                     )
                                 ],
-                                permission_set_name=permission.permission_set,
+                                permission_set_name=PERMISSION_SET_NAMES[permission.permission_set],
                                 access_scope=AcsAccessScope(
                                     name=permission.name,
                                     description=permission.description,
@@ -217,7 +223,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     name=role.name,
                     description=role.description,
                     assignments=role_assignments.get(role.name, []),
-                    permission_set_name=permission_set.name.lower(),
+                    permission_set_name=permission_set.name,
                     system_default=role.system_default,
                     access_scope=AcsAccessScope(
                         name=access_scope.name,
@@ -268,7 +274,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         """
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
         permission_sets_id_map = {
-            ps.name.lower(): ps.id for ps in acs.get_permission_sets()
+            ps.name: ps.id for ps in acs.get_permission_sets()
         }
 
         for role in to_add.values():
@@ -407,7 +413,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         """
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
         permission_sets_id_map = {
-            ps.name.lower(): ps.id for ps in acs.get_permission_sets()
+            ps.name: ps.id for ps in acs.get_permission_sets()
         }
         role_group_mappings: dict[str[dict[str, str]]] = {}
         for group in acs.get_groups():
