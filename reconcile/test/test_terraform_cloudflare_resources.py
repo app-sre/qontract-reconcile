@@ -10,7 +10,13 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
     AWSAccountV1,
     AWSTerraformStateIntegrationsV1,
+)
+from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
+    CloudflareAccountV1 as CFAccountV1,
+)
+from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
     DeletionApprovalV1,
+    TerraformCloudflareAccountsQueryData,
     TerraformStateAWSV1,
 )
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
@@ -132,13 +138,6 @@ def mock_vault_secret(mocker):
 
 @pytest.fixture
 def mock_cloudflare_accounts(mocker):
-    from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
-        CloudflareAccountV1 as CFAccountV1,
-    )
-    from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
-        TerraformCloudflareAccountsQueryData,
-    )
-
     mocked_cloudflare_accounts = mocker.patch(
         "reconcile.terraform_cloudflare_resources.terraform_cloudflare_accounts",
         autospec=True,
@@ -197,10 +196,6 @@ def mock_cloudflare_resources(mocker, external_resources):
 def test_cloudflare_accounts_validation(
     mocker, caplog, mock_gql, mock_vault_secret, mock_cloudflare_resources
 ):
-    from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
-        TerraformCloudflareAccountsQueryData,
-    )
-
     # Mocking accounts with an empty response
     mocked_cloudflare_accounts = mocker.patch(
         "reconcile.terraform_cloudflare_resources.terraform_cloudflare_accounts",
