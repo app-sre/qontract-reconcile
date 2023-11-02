@@ -34,6 +34,12 @@ query SLODocuments {
     namespaces {
       prometheusAccess {
          url
+         username {
+         ... VaultSecret
+         }
+         password {
+           ... VaultSecret
+         }
       }
       namespace {
         name
@@ -75,6 +81,8 @@ class ConfiguredBaseModel(BaseModel):
 
 class SLOExternalPrometheusAccessV1(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
+    username: VaultSecret = Field(..., alias="username")
+    password: VaultSecret = Field(..., alias="password")
 
 
 class AppV1(ConfiguredBaseModel):
