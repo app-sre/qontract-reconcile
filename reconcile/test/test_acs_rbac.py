@@ -601,58 +601,6 @@ def test_update_rbac_groups_only(
     assert not acs_mock.patch_role.called
 
 
-def test_update_rbac_groups_only(
-    mocker,
-    modeled_acs_roles,
-    api_response_access_scopes,
-    api_response_permission_sets,
-    api_response_groups,
-):
-    dry_run = False
-    desired = modeled_acs_roles
-
-    current = copy.deepcopy(modeled_acs_roles)
-    # change a user assignment in 'app-sre-acs-admin' role
-    current[0].assignments[0].value = "lasagna"
-    current_groups = copy.deepcopy(api_response_groups)
-    current_groups[0].value = "lasagna"
-
-    acs_mock = Mock()
-
-    acs_mock.get_access_scopes.return_value = api_response_access_scopes
-    acs_mock.get_permission_sets.return_value = api_response_permission_sets
-    acs_mock.get_groups.return_value = current_groups
-    mocker.patch.object(acs_mock, "patch_group_batch")
-    mocker.patch.object(acs_mock, "patch_access_scope")
-    mocker.patch.object(acs_mock, "patch_role")
-
-    integration = AcsRbacIntegration(AcsRbacIntegrationParams(thread_pool_size=10))
-    integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
-
-    acs_mock.get_access_scopes.assert_called_once()
-    acs_mock.get_permission_sets.assert_called_once()
-    acs_mock.get_groups.assert_called_once()
-
-    acs_mock.patch_group_batch.assert_has_calls(
-        [
-            mocker.call(
-                [current_groups[0]],
-                [
-                    acs_api.AcsApi.GroupAdd(
-                        role_name=desired[0].name,
-                        key=desired[0].assignments[0].key,
-                        value=desired[0].assignments[0].value,
-                        auth_provider_id=AUTH_PROVIDER_ID,
-                    )
-                ],
-            )
-        ]
-    )
-
-    assert not acs_mock.patch_access_scope.called
-    assert not acs_mock.patch_role.called
-
-
 def test_full_reconcile(
     mocker,
     modeled_acs_roles,
