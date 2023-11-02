@@ -50,7 +50,7 @@ class AcsAccessScope(BaseModel):
     clusters: list[str]
     namespaces: list[dict[str, str]]
 
-    def __eq__(self, other: object):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, AcsAccessScope):
             return (
                 self.name == other.name
@@ -62,9 +62,7 @@ class AcsAccessScope(BaseModel):
 
 
 DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
-DEFAULT_ADMIN_SCOPE_DESC = (
-    "Access to all clusters and namespaces"
-)
+DEFAULT_ADMIN_SCOPE_DESC = "Access to all clusters and namespaces"
 # map enum values defined in oidc-permission schema to system default ACS values
 PERMISSION_SET_NAMES = {
     "admin": "Admin",
@@ -140,8 +138,11 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                             # empty cluster and namespaces attributes in oidc-permission
                             # signifies unrestricted scope.
                             is_unrestricted_scope = (
-                                (permission.clusters is None or len(permission.clusters) == 0)
-                                and (permission.namespaces is None or len(permission.namespaces) == 0)
+                                permission.clusters is None
+                                or len(permission.clusters) == 0
+                            ) and (
+                                permission.namespaces is None
+                                or len(permission.namespaces) == 0
                             )
 
                             desired_roles[permission.name] = AcsRole(
@@ -377,7 +378,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         :param dry_run: run in dry-run mode
         """
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
-        role_group_mappings: dict[str, list[str]] = {}
+        role_group_mappings: dict[str, list[Group]] = {}
         for group in acs.get_groups():
             if group.auth_provider_id == auth_id:
                 if group.role_name not in role_group_mappings:
@@ -424,7 +425,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         acs: AcsApi,
         auth_id: str,
         dry_run: bool,
-    ):
+    ) -> None:
         """
         Updates desired ACS roles as well as associated access scopes and rules
 
@@ -435,7 +436,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         """
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
         permission_sets_id_map = {ps.name: ps.id for ps in acs.get_permission_sets()}
-        role_group_mappings: dict[str[dict[str, str]]] = {}
+        role_group_mappings: dict[str[dict[str, Group]]] = {}
         for group in acs.get_groups():
             if group.role_name not in role_group_mappings:
                 role_group_mappings[group.role_name] = {}
@@ -452,7 +453,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             # it will appear as one entry to delete and one entry to add
             # ex: desired value = foo. current value = bar
             # output will be an entry to delete bar and an entry to add foo
-            if any(len(lst) > 0 for lst in [diff.add, diff.delete, diff.change]):
+            if any(len(lst) > 0 for lst in [diff.add, diff.delete, diff.change]):  # type: ignore
                 old = [
                     role_group_mappings[role_diff_pair.current.name][d.value]
                     for d in diff.delete.values()
@@ -541,7 +542,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         acs: AcsApi,
         auth_provider_id: str,
         dry_run: bool,
-    ):
+    ) -> None:
         diff = diff_iterables(current, desired, lambda x: x.name)
         if len(diff.add) > 0:
             self.add_rbac(diff.add, acs, auth_provider_id, dry_run)
