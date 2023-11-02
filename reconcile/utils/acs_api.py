@@ -215,7 +215,7 @@ class AcsApi:
 
         self.generic_post_request(f"/v1/roles/{name}", json)
 
-    def update_role(
+    def patch_role(
         self, name: str, desc: str, permission_set_id: str, access_scope_id: str
     ) -> None:
         json = {
@@ -350,7 +350,7 @@ class AcsApi:
     def delete_access_scope(self, id: str) -> None:
         self.generic_delete_request(f"/v1/simpleaccessscopes/{id}")
 
-    def update_access_scope(
+    def patch_access_scope(
         self,
         id: str,
         name: str,

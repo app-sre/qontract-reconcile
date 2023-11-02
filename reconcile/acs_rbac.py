@@ -481,7 +481,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             ):
                 if not dry_run:
                     try:
-                        acs.update_access_scope(
+                        acs.patch_access_scope(
                             access_scope_id_map[
                                 role_diff_pair.current.access_scope.name
                             ],
@@ -511,7 +511,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             ):
                 if not dry_run:
                     try:
-                        acs.update_role(
+                        acs.patch_role(
                             role_diff_pair.current.access_scope.name,
                             role_diff_pair.current.access_scope.description,
                             permission_sets_id_map[
