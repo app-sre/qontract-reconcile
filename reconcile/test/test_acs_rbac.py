@@ -1,6 +1,6 @@
-import pytest
-
 from unittest.mock import Mock
+
+import pytest
 
 from reconcile.acs_rbac import (
     AcsRbacIntegration,
@@ -20,7 +20,7 @@ from reconcile.gql_definitions.acs.acs_rbac import (
     ClusterV1,
 )
 
-import reconcile.utils.acs_api as acs_api
+from reconcile.utils import acs_api
 
 
 AUTH_PROVIDER_ID = "6a41743c-792b-11ee-b962-0242ac120002"

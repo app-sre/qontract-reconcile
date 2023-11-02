@@ -3,6 +3,10 @@ import logging
 from collections.abc import Callable
 from typing import Optional
 
+from pydantic import (
+    BaseModel,
+)
+
 from reconcile.gql_definitions.acs.acs_rbac import (
     query as acs_rbac_query,
     OidcPermissionAcsV1,
@@ -30,10 +34,6 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver
-
-from pydantic import (
-    BaseModel,
-)
 
 
 class AssignmentPair(BaseModel):

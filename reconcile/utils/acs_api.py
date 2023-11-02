@@ -1,7 +1,7 @@
+from typing import Any
 import requests
 
 from pydantic import BaseModel
-from typing import Any
 
 
 class Role(BaseModel):
