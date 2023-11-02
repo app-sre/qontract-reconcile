@@ -3,25 +3,22 @@ from unittest.mock import Mock
 import pytest
 
 from reconcile.acs_rbac import (
+    AcsAccessScope,
     AcsRbacIntegration,
     AcsRbacIntegrationParams,
     AcsRole,
-    AcsAccessScope,
     AssignmentPair,
 )
-
 from reconcile.gql_definitions.acs.acs_rbac import (
     AcsRbacQueryData,
-    UserV1,
-    RoleV1,
-    OidcPermissionAcsV1,
+    ClusterV1,
     NamespaceV1,
     NamespaceV1_ClusterV1,
-    ClusterV1,
+    OidcPermissionAcsV1,
+    RoleV1,
+    UserV1,
 )
-
 from reconcile.utils import acs_api
-
 
 AUTH_PROVIDER_ID = "6a41743c-792b-11ee-b962-0242ac120002"
 

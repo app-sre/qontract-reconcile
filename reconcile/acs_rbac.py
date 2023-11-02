@@ -1,38 +1,31 @@
 import logging
-
 from collections.abc import Callable
 from typing import Optional
 
-from pydantic import (
-    BaseModel,
-)
+from pydantic import BaseModel
 
-from reconcile.gql_definitions.acs.acs_rbac import (
-    query as acs_rbac_query,
-    OidcPermissionAcsV1,
-)
 from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
-from reconcile.gql_definitions.acs.acs_instances import (
-    query as acs_instances_query,
-)
-
+from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
+from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1
+from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
-from reconcile.utils.secret_reader import (
-    create_secret_reader,
-)
-from reconcile.utils.acs_api import AcsApi, Group
-from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils import gql
-from reconcile.utils.differ import (
-    diff_iterables,
-    DiffPair,
+from reconcile.utils.acs_api import (
+    AcsApi,
+    Group,
 )
+from reconcile.utils.differ import (
+    DiffPair,
+    diff_iterables,
+)
+from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
 

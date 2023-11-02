@@ -1,6 +1,6 @@
 from typing import Any
-import requests
 
+import requests
 from pydantic import BaseModel
 
 
