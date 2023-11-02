@@ -201,7 +201,6 @@ class AcsApi:
         roles = []
         for role in response.json()["roles"]:
             roles.append(Role(role))
-
         return roles
 
     def create_role(
