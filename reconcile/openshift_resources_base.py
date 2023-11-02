@@ -147,6 +147,7 @@ NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    path
     labels
     delete
     clusterAdmin
