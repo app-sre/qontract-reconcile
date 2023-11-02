@@ -1,5 +1,4 @@
 import pytest
-import copy
 
 from unittest.mock import Mock
 

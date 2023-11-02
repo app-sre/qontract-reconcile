@@ -36,7 +36,7 @@ query AcsInstance {
     }
     authProvider {
       name
-      id      
+      id
     }
   }
 }

@@ -436,7 +436,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         """
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
         permission_sets_id_map = {ps.name: ps.id for ps in acs.get_permission_sets()}
-        role_group_mappings: dict[str[dict[str, Group]]] = {}
+        role_group_mappings: dict[str, dict[str, Group]] = {}
         for group in acs.get_groups():
             if group.role_name not in role_group_mappings:
                 role_group_mappings[group.role_name] = {}
