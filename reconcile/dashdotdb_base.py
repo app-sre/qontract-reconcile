@@ -1,5 +1,6 @@
 import logging
 import os
+from base64 import b64encode
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import (
@@ -135,6 +136,8 @@ class DashdotdbBase:
         url: str,
         params: Optional[Mapping[Any, Any]],
         token: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
         ssl_verify: bool = True,
         uri: str = "api/v1/query",
     ) -> dict[Any, Any]:
@@ -145,6 +148,10 @@ class DashdotdbBase:
         }
         if token:
             headers["Authorization"] = f"Bearer {token}"
+        elif username and password:
+            headers[
+                "Authorization"
+            ] = f"Basic {b64encode(f'{username}:{password}'.encode()).decode('utf-8')}"
         response = requests.get(
             url, params=params, headers=headers, verify=ssl_verify, timeout=(5, 120)
         )

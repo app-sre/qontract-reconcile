@@ -101,8 +101,16 @@ class DashdotdbSLO(DashdotdbBase):
         for namespace_access in slo_document.namespaces:
             ns = namespace_access.namespace
             promtoken: Optional[str] = None
+            username: Optional[str] = None
+            password: Optional[str] = None
             if namespace_access.prometheus_access:
                 promurl = namespace_access.prometheus_access.url
+                username = self.secret_reader.read_secret(
+                    namespace_access.prometheus_access.username
+                )
+                password = self.secret_reader.read_secret(
+                    namespace_access.prometheus_access.password
+                )
             else:
                 promurl = ns.cluster.prometheus_url
                 if not ns.cluster.automation_token:
@@ -118,7 +126,11 @@ class DashdotdbSLO(DashdotdbBase):
                 window = slo.slo_parameters.window
                 promquery = template.render({"window": window})
                 prom_response = self._promget(
-                    url=promurl, params={"query": (f"{promquery}")}, token=promtoken
+                    url=promurl,
+                    params={"query": (f"{promquery}")},
+                    token=promtoken,
+                    username=username,
+                    password=password,
                 )
                 prom_result = prom_response["data"]["result"]
                 if not prom_result:
