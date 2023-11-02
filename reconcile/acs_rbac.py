@@ -62,11 +62,14 @@ class AcsAccessScope(BaseModel):
 
 
 DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
+DEFAULT_ADMIN_SCOPE_DESC = (
+    "Access to all clusters and namespaces"
+)
 # map enum values defined in oidc-permission schema to system default ACS values
 PERMISSION_SET_NAMES = {
     "admin": "Admin",
     "analyst": "Analyst",
-    "vuln-admin": "Vulnerability Management Admin"
+    "vuln-admin": "Vulnerability Management Admin",
 }
 
 
@@ -134,23 +137,43 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         # first encounter of specific permission
                         # derive the Acs role specifics and add initial user
                         if permission.name not in desired_roles:
+                            # empty cluster and namespaces attributes in oidc-permission
+                            # signifies unrestricted scope.
+                            is_unrestricted_scope = (
+                                (permission.clusters is None or len(permission.clusters) == 0)
+                                and (permission.namespaces is None or len(permission.namespaces) == 0)
+                            )
+
                             desired_roles[permission.name] = AcsRole(
                                 name=permission.name,
                                 description=permission.description,
                                 assignments=[
                                     AssignmentPair(
-                                        key="org_username", value=user.org_username
+                                        # https://github.com/app-sre/qontract-schemas/blob/main/schemas/access/user-1.yml#L16
+                                        key="org_username",
+                                        value=user.org_username,
                                     )
                                 ],
-                                permission_set_name=PERMISSION_SET_NAMES[permission.permission_set],
+                                permission_set_name=PERMISSION_SET_NAMES[
+                                    permission.permission_set
+                                ],
                                 access_scope=AcsAccessScope(
-                                    name=permission.name,
-                                    description=permission.description,
+                                    # Due to api restriction, additional Unrestricted scopes
+                                    # cannot be made.
+                                    # Therefore, desired scopes that meet unrestricted condition
+                                    # are treated as the system default 'Unrestricted'
+                                    name=DEFAULT_ADMIN_SCOPE_NAME
+                                    if is_unrestricted_scope
+                                    else permission.name,
+                                    description=DEFAULT_ADMIN_SCOPE_DESC
+                                    if is_unrestricted_scope
+                                    else permission.description,
                                     # second arg is returned even if first arg == False
                                     clusters=[
                                         cluster.name
                                         for cluster in (permission.clusters or [])
                                     ],
+                                    # mirroring format of 'rules.includedNamespaces' in /v1/simpleaccessscopes response
                                     namespaces=[
                                         {
                                             "clusterName": n.cluster.name,
@@ -159,6 +182,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                                         for n in (permission.namespaces or [])
                                     ],
                                 ),
+                                system_default=False,
                             )
                         else:
                             # role accounted for by prior user ref. Append additional desired user
@@ -273,9 +297,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         :param dry_run: run in dry-run mode
         """
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
-        permission_sets_id_map = {
-            ps.name: ps.id for ps in acs.get_permission_sets()
-        }
+        permission_sets_id_map = {ps.name: ps.id for ps in acs.get_permission_sets()}
 
         for role in to_add.values():
             is_unrestricted_scope = False
@@ -412,9 +434,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         :param dry_run: run in dry-run mode
         """
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
-        permission_sets_id_map = {
-            ps.name: ps.id for ps in acs.get_permission_sets()
-        }
+        permission_sets_id_map = {ps.name: ps.id for ps in acs.get_permission_sets()}
         role_group_mappings: dict[str[dict[str, str]]] = {}
         for group in acs.get_groups():
             if group.role_name not in role_group_mappings:
@@ -461,12 +481,8 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 )
 
             # access scope portion
-            # recall from 'add_rbac' that a desired access scope that equates to admin scope
-            # is assigned to the system default access scope.
-            # diff for admin-equivalent scope will exist (name and description) and is ignored
             if (
-                role_diff_pair.current.access_scope.name != DEFAULT_ADMIN_SCOPE_NAME
-                and role_diff_pair.current.access_scope
+                role_diff_pair.current.access_scope
                 != role_diff_pair.desired.access_scope
             ):
                 if not dry_run:
