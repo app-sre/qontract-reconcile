@@ -465,7 +465,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         acs.patch_group_batch(old, new)
                     except Exception as e:
                         logging.error(
-                            f"Failed to update rules for role: {role_diff_pair.current.name}\t\n{e}"
+                            f"Failed to update rules for role: {role_diff_pair.desired.name}\t\n{e}"
                         )
                         continue
                 logging.info(
@@ -483,50 +483,53 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     try:
                         acs.patch_access_scope(
                             access_scope_id_map[
-                                role_diff_pair.current.access_scope.name
+                                role_diff_pair.desired.access_scope.name
                             ],
-                            role_diff_pair.current.access_scope.name,
-                            role_diff_pair.current.access_scope.description,
-                            role_diff_pair.current.access_scope.clusters,
-                            role_diff_pair.current.access_scope.namespaces,
+                            role_diff_pair.desired.access_scope.name,
+                            role_diff_pair.desired.access_scope.description,
+                            role_diff_pair.desired.access_scope.clusters,
+                            role_diff_pair.desired.access_scope.namespaces,
                         )
                     except Exception as e:
                         logging.error(
-                            f"Failed to update access scope: {role_diff_pair.current.access_scope.name}\t\n{e}"
+                            f"Failed to update access scope: {role_diff_pair.desired.access_scope.name}\t\n{e}"
                         )
                         continue
                 logging.info(
-                    f"Updated access scope '{role_diff_pair.current.access_scope.name}'"
+                    f"Updated access scope '{role_diff_pair.desired.access_scope.name}'"
                 )
 
             # role portion
-            # dependency role resources updated by prior logic
-            # only potential attributes left to change for role is permission set and desc
-            # note: changing role name triggers a creation/deletion
+            # access scope is included in diff check once more here
+            # in case the role needs to be assigned different access scope.
+            # changes to access scope resource are handled in dedicated section above
+            # assignments are not included in this diff. Handled in dedicated section above
             if (
                 role_diff_pair.current.permission_set_name
                 != role_diff_pair.desired.permission_set_name
+                or role_diff_pair.current.access_scope
+                != role_diff_pair.desired.access_scope
                 or role_diff_pair.current.description
                 != role_diff_pair.desired.description
             ):
                 if not dry_run:
                     try:
                         acs.patch_role(
-                            role_diff_pair.current.access_scope.name,
-                            role_diff_pair.current.access_scope.description,
+                            role_diff_pair.desired.name,
+                            role_diff_pair.desired.description,
                             permission_sets_id_map[
-                                role_diff_pair.current.permission_set_name
+                                role_diff_pair.desired.permission_set_name
                             ],
                             access_scope_id_map[
-                                role_diff_pair.current.access_scope.name
+                                role_diff_pair.desired.access_scope.name
                             ],
                         )
                     except Exception as e:
                         logging.error(
-                            f"Failed to update role: {role_diff_pair.current.name}\t\n{e}"
+                            f"Failed to update role: {role_diff_pair.desired.name}\t\n{e}"
                         )
                         continue
-                logging.info(f"Updated role '{role_diff_pair.current.name}'")
+                logging.info(f"Updated role '{role_diff_pair.desired.name}'")
 
     def reconcile(
         self,
