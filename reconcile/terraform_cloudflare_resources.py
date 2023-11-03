@@ -20,7 +20,9 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     TerraformCloudflareAccountsQueryData,
 )
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
+    CloudflareCustomSSLCertificateV1,
     NamespaceTerraformProviderResourceCloudflareV1,
+    NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceV1,
     TerraformCloudflareResourcesQueryData,
 )
@@ -307,6 +309,29 @@ def _filter_cloudflare_namespaces(
     return cloudflare_namespaces
 
 
+def _filter_cloudflare_custom_ssl_certificate(
+    namespaces: Iterable[NamespaceV1],
+) -> list[CloudflareCustomSSLCertificateV1]:
+    certificates: list[CloudflareCustomSSLCertificateV1] = []
+
+    for ns in namespaces:
+        if ns.external_resources:
+            for ext_resource in ns.external_resources:
+                if isinstance(
+                    ext_resource, NamespaceTerraformProviderResourceCloudflareV1
+                ):
+                    zones = [
+                        res for res in ext_resource.resources if res.provider == "zone"
+                    ]
+                    for zone in zones:
+                        if (
+                            isinstance(zone, NamespaceTerraformResourceCloudflareZoneV1)
+                            and zone.cloudflare_custom_ssl_certificates
+                        ):
+                            certificates += zone.cloudflare_custom_ssl_certificates
+    return certificates
+
+
 @defer
 def run(
     dry_run: bool,
@@ -344,6 +369,10 @@ def run(
     if not cloudflare_namespaces:
         logging.info("No cloudflare namespaces were detected, nothing to do.")
         sys.exit(ExitCodes.SUCCESS)
+
+    cloudflare_custom_ssl_certificates = _filter_cloudflare_custom_ssl_certificate(
+        cloudflare_namespaces
+    )
 
     # Build Cloudflare clients
     cf_clients = TerraformConfigClientCollection()
