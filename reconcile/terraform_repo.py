@@ -352,7 +352,7 @@ class TerraformRepoIntegration(
 
         :param diff_result: diff between current and desired Terraform Repos
         :type diff_result: DiffResult[TerraformRepoV1, TerraformRepoV1, str]
-        """        
+        """
         if self.params.gitlab_merge_request_id and self.params.gitlab_project_id:
             instance = queries.get_gitlab_instance()
             with GitLabApi(
