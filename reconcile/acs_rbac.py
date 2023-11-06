@@ -359,11 +359,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         :param dry_run: run in dry-run mode
         """
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
-        role_group_mappings: dict[str, list[Group]] = {}
+        role_group_mappings: dict[str, list[Group]] = defaultdict(list)
         for group in acs.get_groups():
             if group.auth_provider_id == auth_id:
-                if group.role_name not in role_group_mappings:
-                    role_group_mappings[group.role_name] = []
                 role_group_mappings[group.role_name].append(group)
 
         # role and associated resources must be deleted in the proceeding order
