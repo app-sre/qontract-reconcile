@@ -311,7 +311,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                             f"Failed to create access scope: {role.access_scope.name} for role: {role.name}\t\n{e}"
                         )
                         continue
-                logging.info(f"Created access_scope '{role.access_scope.name}'")
+                    logging.info("Created access scope: %s", role.access_scope.name)
 
             if not dry_run:
                 try:
@@ -326,7 +326,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 except Exception as e:
                     logging.error(f"Failed to create role: {role.name}\t\n{e}")
                     continue
-            logging.info(f"Created role '{role.name}'")
+            logging.info("Created role: %s", role.name)
 
             if not dry_run:
                 additions = [
@@ -346,7 +346,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     )
                     continue
             logging.info(
-                f"Added users to role '{role.name}': {[a.value for a in role.assignments]}"
+                "Added users to role %s: %s",
+                role.name,
+                [a.value for a in role.assignments],
             )
 
     def delete_rbac(
@@ -379,7 +381,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     )
                     continue
             logging.info(
-                f"Deleted users from role '{role.name}': {[a.value for a in role.assignments]}"
+                "Deleted users from role %s: %s",
+                role.name,
+                [a.value for a in role.assignments],
             )
             # only delete rules associated with a system default roles
             # do not continue to deletion of the role and associated access scope
@@ -391,7 +395,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 except Exception as e:
                     logging.error(f"Failed to delete role: {role.name}\t\n{e}")
                     continue
-            logging.info(f"Deleted role '{role.name}'")
+            logging.info("Deleted role: %s", role.name)
             if not dry_run:
                 try:
                     acs.delete_access_scope(access_scope_id_map[role.access_scope.name])
@@ -400,7 +404,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         f"Failed to delete access scope for role: {role.name}\t\n{e}"
                     )
                     continue
-            logging.info(f"Deleted access scope '{role.access_scope.name}'")
+            logging.info("Deleted access scope: %s", role.access_scope.name)
 
     def update_rbac(
         self,
@@ -459,9 +463,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         )
                         continue
                 logging.info(
-                    f"Updated rules for role '{role_diff_pair.desired.name}':\n\t"
-                    + f"Added: {[n.value for n in new]}\n\t"
-                    + f"Deleted: {[o.value for o in old]}"
+                    "Updated rules for role '%s':\n\t" "Added: %s\n\t" "Deleted: %s",
+                    role_diff_pair.desired.name,
+                    [n.value for n in new],
+                    [o.value for o in old],
                 )
 
             # access scope portion
@@ -486,7 +491,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         )
                         continue
                 logging.info(
-                    f"Updated access scope '{role_diff_pair.desired.access_scope.name}'"
+                    "Updated access scope %s", role_diff_pair.desired.access_scope.name
                 )
 
             # role portion
@@ -519,7 +524,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                             f"Failed to update role: {role_diff_pair.desired.name}\t\n{e}"
                         )
                         continue
-                logging.info(f"Updated role '{role_diff_pair.desired.name}'")
+                logging.info("Updated role: %s", role_diff_pair.desired.name)
 
     def reconcile(
         self,
