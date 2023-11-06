@@ -1,4 +1,8 @@
-from typing import Any, Optional, Self
+from typing import (
+    Any,
+    Optional,
+    Self,
+)
 
 import requests
 from pydantic import BaseModel
