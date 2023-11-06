@@ -126,6 +126,10 @@ class AcsRole(BaseModel):
             or self.description != b.description
         )
 
+    def is_unrestricted_scope(self) -> bool:
+        # empty cluster and namespaces attributes signifies unrestricted scope
+        return not self.access_scope.clusters and not self.access_scope.namespaces
+
 
 class AcsRbacIntegrationParams(PydanticRunParams):
     thread_pool_size: int
@@ -280,18 +284,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         permission_sets_id_map = {ps.name: ps.id for ps in acs.get_permission_sets()}
 
         for role in to_add.values():
-            is_unrestricted_scope = False
-
-            # empty cluster and namespaces attributes in oidc-permission signifies unrestricted scope
-            # skip access scope creation and use existing system default 'Unrestricted' access scope
+            # skip access scope creation and use existing system default 'Unrestricted' access scope if unrestricted
             # note: this serves to reduce redundant admin scopes but also due to restriction within api when
             # attempting to provision another admin access scope
-            if (
-                len(role.access_scope.clusters) == 0
-                and len(role.access_scope.namespaces) == 0
-            ):
-                is_unrestricted_scope = True
-            else:
+            if not role.is_unrestricted_scope():
                 # recall that a desired role and access scope are derived from a single oidc-permission-1
                 # therefore, items in diff.add require creation of dependency access scope first and then role
                 if not dry_run:
@@ -319,7 +315,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         role.description,
                         permission_sets_id_map[role.permission_set_name],
                         access_scope_id_map[DEFAULT_ADMIN_SCOPE_NAME]
-                        if is_unrestricted_scope
+                        if role.is_unrestricted_scope()
                         else as_id,
                     )
                 except Exception as e:
