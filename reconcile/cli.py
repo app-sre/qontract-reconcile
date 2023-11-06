@@ -2892,7 +2892,7 @@ def acs_rbac(ctx, thread_pool_size):
 
     run_class_integration(
         integration=acs_rbac.AcsRbacIntegration(
-            acs_rbac.AcsRbacIntegrationParams(thread_pool_size)
+            acs_rbac.AcsRbacIntegrationParams(thread_pool_size=thread_pool_size)
         ),
         ctx=ctx.obj,
     )
