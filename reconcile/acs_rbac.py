@@ -59,7 +59,7 @@ class AcsAccessScope(BaseModel):
 
 
 class Permission(OidcPermissionAcsV1):
-    def __hash__(self) -> str:
+    def __hash__(self) -> int:
         return hash(self.name)
 
 

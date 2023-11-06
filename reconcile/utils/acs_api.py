@@ -118,14 +118,14 @@ class AcsApi:
         instance: Any,
         timeout: int = 30,
     ) -> None:
-        self.url = instance["url"]
+        self.base_url = instance["url"]
         self.token = instance["token"]
         self.timeout = timeout
 
     def generic_request(
-        self, path: str, verb: str, json: Optional[Any]
+        self, path: str, verb: str, json: Optional[Any] = None
     ) -> requests.Response:
-        url = (f"{self.url}{path}",)
+        url = f"{self.base_url}{path}"
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
@@ -150,7 +150,7 @@ class AcsApi:
         return response
 
     def get_roles(self) -> list[Role]:
-        response = self.generic_request(path="/v1/roles", verb="GET")
+        response = self.generic_request("/v1/roles", "GET")
         return [Role(r) for r in response.json()["roles"]]
 
     def create_role(
@@ -207,7 +207,7 @@ class AcsApi:
             ],
         }
 
-        self.generic_post_request("/v1/groupsbatch", "POST", json)
+        self.generic_request("/v1/groupsbatch", "POST", json)
 
     def delete_group_batch(self, removals: list[Group]) -> None:
         json = {
