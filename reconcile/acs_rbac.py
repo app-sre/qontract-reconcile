@@ -59,7 +59,7 @@ class AcsAccessScope(BaseModel):
 
 
 class Permission(OidcPermissionAcsV1):
-    def __hash__(self):
+    def __hash__(self) -> str:
         return hash(self.name)
 
 
@@ -209,7 +209,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     access_scope = acs.get_access_scope_by_id(role.access_scope_id)
                 except Exception as e:
                     logging.error(
-                        f"Failed to retrieve current access scope: {role.access_scope_id} for role: {role.name}\t\n{e}"
+                        "Failed to retrieve current access scope: %s for role: %s\n\t%s",
+                        role.access_scope_id,
+                        role.name,
+                        e,
                     )
                     continue
 
@@ -219,7 +222,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     )
                 except Exception as e:
                     logging.error(
-                        f"Failed to retrieve current permission set: {role.permission_set_id} for role: {role.name}\t\n{e}"
+                        "Failed to retrieve current permission set: %s for role: %s\n\t%s",
+                        role.permission_set_id,
+                        role.name,
+                        e,
                     )
                     continue
 
@@ -299,7 +305,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         )
                     except Exception as e:
                         logging.error(
-                            f"Failed to create access scope: {role.access_scope.name} for role: {role.name}\t\n{e}"
+                            "Failed to create access scope: %s for role: %s\n\t%s",
+                            role.access_scope.name,
+                            role.name,
+                            e,
                         )
                         continue
                     logging.info("Created access scope: %s", role.access_scope.name)
@@ -315,7 +324,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         else as_id,
                     )
                 except Exception as e:
-                    logging.error(f"Failed to create role: {role.name}\t\n{e}")
+                    logging.error("Failed to create role: %s\n\t%s", role.name, e)
                     continue
             logging.info("Created role: %s", role.name)
 
@@ -333,7 +342,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     acs.create_group_batch(additions)
                 except Exception as e:
                     logging.error(
-                        f"Failed to create group(s) for role: {role.name}\t\n{e}"
+                        "Failed to create group(s) for role: %s\n\t%s", role.name, e
                     )
                     continue
             logging.info(
@@ -366,7 +375,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     acs.delete_group_batch(role_group_mappings[role.name])
                 except Exception as e:
                     logging.error(
-                        f"Failed to delete group(s) for role: {role.name}\t\n{e}"
+                        "Failed to delete group(s) for role: %s\n\t%s", role.name, e
                     )
                     continue
             logging.info(
@@ -382,7 +391,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 try:
                     acs.delete_role(role.name)
                 except Exception as e:
-                    logging.error(f"Failed to delete role: {role.name}\t\n{e}")
+                    logging.error("Failed to delete role: %s\n\t%s", role.name, e)
                     continue
             logging.info("Deleted role: %s", role.name)
             if not dry_run:
@@ -390,7 +399,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                     acs.delete_access_scope(access_scope_id_map[role.access_scope.name])
                 except Exception as e:
                     logging.error(
-                        f"Failed to delete access scope for role: {role.name}\t\n{e}"
+                        "Failed to delete access scope for role: %s\n\t%s", role.name, e
                     )
                     continue
             logging.info("Deleted access scope: %s", role.access_scope.name)
@@ -448,7 +457,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         acs.patch_group_batch(old, new)
                     except Exception as e:
                         logging.error(
-                            f"Failed to update rules for role: {role_diff_pair.desired.name}\t\n{e}"
+                            "Failed to update rules for role: %s\n\t%s",
+                            role_diff_pair.desired.name,
+                            e,
                         )
                         continue
                 logging.info(
@@ -478,7 +489,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         )
                     except Exception as e:
                         logging.error(
-                            f"Failed to update access scope: {role_diff_pair.desired.access_scope.name}\t\n{e}"
+                            "Failed to update access scope: %s\n\t%s",
+                            role_diff_pair.desired.access_scope.name,
+                            e,
                         )
                         continue
                 logging.info(
@@ -505,7 +518,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         )
                     except Exception as e:
                         logging.error(
-                            f"Failed to update role: {role_diff_pair.desired.name}\t\n{e}"
+                            "Failed to update role: %s\n\t%s",
+                            role_diff_pair.desired.name,
+                            e,
                         )
                         continue
                 logging.info("Updated role: %s", role_diff_pair.desired.name)
