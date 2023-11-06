@@ -174,7 +174,7 @@ class AcsApi:
 
     def get_roles(self) -> list[Role]:
         response = self.generic_get_request("/v1/roles")
-        return list(response.json()["roles"])
+        return [Role(r) for r in response.json()["roles"]]
 
     def create_role(
         self, name: str, desc: str, permission_set_id: str, access_scope_id: str
@@ -205,7 +205,7 @@ class AcsApi:
 
     def get_groups(self) -> list[Group]:
         response = self.generic_get_request("/v1/groups")
-        return list(response.json()["groups"])
+        return [Group(g) for g in response.json()["groups"]]
 
     class GroupAdd(BaseModel):
         role_name: str
@@ -286,7 +286,7 @@ class AcsApi:
 
     def get_access_scopes(self) -> list[AccessScope]:
         response = self.generic_get_request("/v1/simpleaccessscopes")
-        return list(response.json()["accessScopes"])
+        return [AccessScope(a) for a in response.json()["accessScopes"]]
 
     def create_access_scope(
         self,
@@ -337,4 +337,4 @@ class AcsApi:
 
     def get_permission_sets(self) -> list[PermissionSet]:
         response = self.generic_get_request("/v1/permissionsets")
-        return list(response.json()["permissionSets"])
+        return [PermissionSet(p) for p in response.json()["permissionSets"]]
