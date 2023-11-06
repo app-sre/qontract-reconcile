@@ -66,6 +66,8 @@ class TerraformRepoIntegrationParams(PydanticRunParams):
     output_file: Optional[str]
     validate_git: bool
     ignore_state_errors: bool
+    gitlab_project_id: Optional[str]
+    gitlab_merge_request_id: Optional[int]
 
 
 class TerraformRepoIntegration(
@@ -335,8 +337,46 @@ class TerraformRepoIntegration(
         if len(merged) != 0:
             if not dry_run and state:
                 self.update_state(diff, state)
+            self.update_mr_with_ref_diffs(diff)
             return merged
         return None
+
+    def update_mr_with_ref_diffs(
+        self,
+        diff_result: DiffResult[TerraformRepoV1, TerraformRepoV1, str],
+    ) -> None:
+        """Heavily "inspired" from the update_mr_with_ref_diffs function
+        in saas change deploy tester.
+        Adds a comment to GitLab indicating the diffs between an old and new version of
+        a Terraform repo.
+
+        :param diff_result: diff between current and desired Terraform Repos
+        :type diff_result: DiffResult[TerraformRepoV1, TerraformRepoV1, str]
+        """
+        if self.params.gitlab_merge_request_id and self.params.gitlab_project_id:
+            instance = queries.get_gitlab_instance()
+            with GitLabApi(
+                instance,
+                project_id=self.params.gitlab_project_id,
+                settings=queries.get_secret_reader_settings(),
+            ) as gl:
+                mr = gl.get_merge_request(self.params.gitlab_merge_request_id)
+
+                # construct diff urls
+                diff_urls: list[str] = []
+                for pair in diff_result.change.values():
+                    if pair.current.ref != pair.desired.ref:
+                        # gitlab specific syntax
+                        diff_urls.append(
+                            f"{pair.current.repository}/compare/{pair.current.ref}...{pair.desired.ref}"
+                        )
+
+                if len(diff_urls) > 0:
+                    comment_body = "tf-repo diffs:\n" + "\n".join(
+                        [f"- {d}" for d in diff_urls]
+                    )
+                    gl.delete_merge_request_comments(mr, startswith="tf-repo diffs:")
+                    gl.add_comment_to_merge_request(mr, comment_body)
 
     def early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         gqlapi = gql.get_api()
