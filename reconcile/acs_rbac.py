@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from collections.abc import Callable
 from typing import Optional
 
@@ -6,7 +7,7 @@ from pydantic import BaseModel
 
 from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
 from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
-from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1
+from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1, UserV1
 from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -78,6 +79,55 @@ class AcsRole(BaseModel):
     access_scope: AcsAccessScope
     system_default: Optional[bool]
 
+    class PermissionWithUsers(BaseModel):
+        permission: OidcPermissionAcsV1
+        usernames: list[str]
+
+    @classmethod
+    def build(cls, pu: PermissionWithUsers):
+        assignments = [
+            AssignmentPair(
+                # https://github.com/app-sre/qontract-schemas/blob/main/schemas/access/user-1.yml#L16
+                key="org_username",
+                value=u,
+            )
+            for u in pu.usernames
+        ]
+
+        is_unrestricted_scope = (
+            pu.permission.clusters is None or len(pu.permission.clusters) == 0
+        ) and (pu.permission.namespaces is None or len(pu.permission.namespaces) == 0)
+
+        return cls(
+            name=pu.permission.name,
+            description=pu.permission.description,
+            assignments=assignments,
+            permission_set_name=PERMISSION_SET_NAMES[pu.permission.permission_set],
+            access_scope=AcsAccessScope(
+                # Due to api restriction, additional Unrestricted scopes
+                # cannot be made.
+                # Therefore, desired scopes that meet unrestricted condition
+                # are treated as the system default 'Unrestricted'
+                name=DEFAULT_ADMIN_SCOPE_NAME
+                if is_unrestricted_scope
+                else pu.permission.name,
+                description=DEFAULT_ADMIN_SCOPE_DESC
+                if is_unrestricted_scope
+                else pu.permission.description,
+                # second arg is returned even if first arg == False
+                clusters=[cluster.name for cluster in (pu.permission.clusters or [])],
+                # mirroring format of 'rules.includedNamespaces' in /v1/simpleaccessscopes response
+                namespaces=[
+                    {
+                        "clusterName": n.cluster.name,
+                        "namespaceName": n.name,
+                    }
+                    for n in (pu.permission.namespaces or [])
+                ],
+            ),
+            system_default=False,
+        )
+
 
 class AcsRbacIntegrationParams(PydanticRunParams):
     thread_pool_size: int
@@ -88,7 +138,6 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         super().__init__(params)
         self.qontract_integration = "acs_rbac"
         self.qontract_integration_version = make_semver(0, 1, 0)
-        self.qontract_tf_prefix = "qracsrbac"
 
     @property
     def name(self) -> str:
@@ -120,73 +169,22 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         if query_results is None:
             return []
 
-        desired_roles: dict[str, AcsRole] = {}
+        permission_with_users: dict[str, AcsRole.PermissionWithUsers] = {}
         for user in query_results:
             for role in user.roles or []:
                 for permission in role.oidc_permissions or []:
                     if isinstance(permission, OidcPermissionAcsV1):
-                        # first encounter of specific permission
-                        # derive the Acs role specifics and add initial user
-                        if permission.name not in desired_roles:
-                            # empty cluster and namespaces attributes in oidc-permission
-                            # signifies unrestricted scope.
-                            is_unrestricted_scope = (
-                                permission.clusters is None
-                                or len(permission.clusters) == 0
-                            ) and (
-                                permission.namespaces is None
-                                or len(permission.namespaces) == 0
-                            )
-
-                            desired_roles[permission.name] = AcsRole(
-                                name=permission.name,
-                                description=permission.description,
-                                assignments=[
-                                    AssignmentPair(
-                                        # https://github.com/app-sre/qontract-schemas/blob/main/schemas/access/user-1.yml#L16
-                                        key="org_username",
-                                        value=user.org_username,
-                                    )
-                                ],
-                                permission_set_name=PERMISSION_SET_NAMES[
-                                    permission.permission_set
-                                ],
-                                access_scope=AcsAccessScope(
-                                    # Due to api restriction, additional Unrestricted scopes
-                                    # cannot be made.
-                                    # Therefore, desired scopes that meet unrestricted condition
-                                    # are treated as the system default 'Unrestricted'
-                                    name=DEFAULT_ADMIN_SCOPE_NAME
-                                    if is_unrestricted_scope
-                                    else permission.name,
-                                    description=DEFAULT_ADMIN_SCOPE_DESC
-                                    if is_unrestricted_scope
-                                    else permission.description,
-                                    # second arg is returned even if first arg == False
-                                    clusters=[
-                                        cluster.name
-                                        for cluster in (permission.clusters or [])
-                                    ],
-                                    # mirroring format of 'rules.includedNamespaces' in /v1/simpleaccessscopes response
-                                    namespaces=[
-                                        {
-                                            "clusterName": n.cluster.name,
-                                            "namespaceName": n.name,
-                                        }
-                                        for n in (permission.namespaces or [])
-                                    ],
-                                ),
-                                system_default=False,
+                        if permission.name not in permission_with_users:
+                            permission_with_users[
+                                permission.name
+                            ] = AcsRole.PermissionWithUsers(
+                                permission=permission, usernames=[user.org_username]
                             )
                         else:
-                            # role accounted for by prior user ref. Append additional desired user
-                            desired_roles[permission.name].assignments.append(
-                                AssignmentPair(
-                                    key="org_username", value=user.org_username
-                                )
+                            permission_with_users[permission.name].usernames.append(
+                                user.org_username
                             )
-
-        return list(desired_roles.values())
+        return [AcsRole.build(pus) for pus in permission_with_users.values()]
 
     def get_current_state(self, acs: AcsApi, auth_provider_id: str) -> list[AcsRole]:
         """
