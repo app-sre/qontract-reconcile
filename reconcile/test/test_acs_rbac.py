@@ -605,11 +605,7 @@ def test_full_reconcile(
 ):
     dry_run = False
 
-    desired = copy.deepcopy(modeled_acs_roles)
-    # trigger deletion of 'service-vuln-admin' rbac
-    desired.pop()
-    # create new admin rbac
-    desired.append(
+    desired = modeled_acs_roles[:-1] + [
         AcsRole(
             name="new-role",
             description="add me",
@@ -626,7 +622,7 @@ def test_full_reconcile(
             ),
             system_default=False,
         )
-    )
+    ]
 
     current = copy.deepcopy(modeled_acs_roles)
     # change permission set to trigger update to existing 'cluster-analyst' role

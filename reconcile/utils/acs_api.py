@@ -1,7 +1,4 @@
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any, Optional, Self
 
 import requests
 from pydantic import BaseModel
@@ -126,7 +123,10 @@ class AcsApi:
         self.timeout = timeout
         self.session = requests.Session()
 
-    def __exit__(self) -> None:
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.session.close()
 
     def generic_request(
