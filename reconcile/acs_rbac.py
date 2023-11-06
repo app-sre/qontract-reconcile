@@ -1,7 +1,10 @@
 import logging
 from collections import defaultdict
 from collections.abc import Callable
-from typing import Optional, Self
+from typing import (
+    Optional,
+    Self,
+)
 
 from pydantic import BaseModel
 
