@@ -32,7 +32,6 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
-
 DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
 DEFAULT_ADMIN_SCOPE_DESC = "Access to all clusters and namespaces"
 # map enum values defined in oidc-permission schema to system default ACS values
