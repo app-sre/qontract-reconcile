@@ -194,16 +194,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         :return: list of current AcsRole associated with specified auth provider
         """
         current_roles: dict[str, AcsRole] = {}
-        try:
-            roles = acs.get_roles()
-        except Exception as e:
-            raise Exception(f"Failed to retrieve current roles: {e}")
 
-        try:
-            groups = acs.get_groups()
-        except Exception as e:
-            raise Exception(f"Failed to retrieve current role assignments: {e}")
-
+        roles = acs.get_roles()
+        groups = acs.get_groups()
         role_assignments: RoleAssignments = self.build_role_assignments(
             auth_provider_id, groups
         )
