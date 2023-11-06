@@ -44,16 +44,6 @@ class AcsAccessScope(BaseModel):
     clusters: list[str]
     namespaces: list[dict[str, str]]
 
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, AcsAccessScope):
-            return (
-                self.name == other.name
-                and self.description == other.description
-                and self.clusters == other.clusters
-                and self.namespaces == other.namespaces
-            )
-        return False
-
 
 DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
 DEFAULT_ADMIN_SCOPE_DESC = "Access to all clusters and namespaces"
