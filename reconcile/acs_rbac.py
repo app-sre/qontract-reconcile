@@ -551,11 +551,12 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         token = secret_reader.read_all_secret(instance.credentials)
 
-        acs = AcsApi(
-            instance={"url": instance.url, "token": token[instance.credentials.field]}
-        )
-
         desired = self.get_desired_state(gqlapi.query)
-        current = self.get_current_state(acs, instance.auth_provider.q_id)
 
-        self.reconcile(desired, current, acs, instance.auth_provider.q_id, dry_run)
+        with AcsApi(
+            instance={"url": instance.url, "token": token[instance.credentials.field]}
+        ) as acs_api:
+            current = self.get_current_state(acs_api, instance.auth_provider.q_id)
+            self.reconcile(
+                desired, current, acs_api, instance.auth_provider.q_id, dry_run
+            )

@@ -124,6 +124,10 @@ class AcsApi:
         self.base_url = instance["url"]
         self.token = instance["token"]
         self.timeout = timeout
+        self.session = requests.Session()
+
+    def __exit__(self) -> None:
+        self.session.close()
 
     def generic_request(
         self, path: str, verb: str, json: Optional[Any] = None
@@ -135,15 +139,15 @@ class AcsApi:
         }
 
         if verb == "GET":
-            response = requests.get(url, headers=headers, timeout=self.timeout)
+            response = self.session.get(url, headers=headers, timeout=self.timeout)
         elif verb == "DELETE":
-            response = requests.delete(url, headers=headers, timeout=self.timeout)
+            response = self.session.delete(url, headers=headers, timeout=self.timeout)
         elif verb == "POST":
-            response = requests.put(
+            response = self.session.put(
                 url, headers=headers, json=json, timeout=self.timeout
             )
         elif verb == "PUT":
-            response = requests.post(
+            response = self.session.post(
                 url, headers=headers, json=json, timeout=self.timeout
             )
         else:
