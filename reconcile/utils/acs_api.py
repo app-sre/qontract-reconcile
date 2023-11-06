@@ -127,9 +127,9 @@ class AcsApi:
     ) -> requests.Response:
         url = (f"{self.url}{path}",)
         headers = {
-                "Authorization": f"Bearer {self.token}",
-                "Content-Type": "application/json",
-            }
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+        }
 
         if verb == "GET":
             response = requests.get(url, headers=headers, timeout=self.timeout)
