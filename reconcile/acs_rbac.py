@@ -33,6 +33,16 @@ from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
 
+DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
+DEFAULT_ADMIN_SCOPE_DESC = "Access to all clusters and namespaces"
+# map enum values defined in oidc-permission schema to system default ACS values
+PERMISSION_SET_NAMES = {
+    "admin": "Admin",
+    "analyst": "Analyst",
+    "vuln-admin": "Vulnerability Management Admin",
+}
+
+
 class AssignmentPair(BaseModel):
     key: str
     value: str
@@ -48,14 +58,9 @@ class AcsAccessScope(BaseModel):
     namespaces: list[dict[str, str]]
 
 
-DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
-DEFAULT_ADMIN_SCOPE_DESC = "Access to all clusters and namespaces"
-# map enum values defined in oidc-permission schema to system default ACS values
-PERMISSION_SET_NAMES = {
-    "admin": "Admin",
-    "analyst": "Analyst",
-    "vuln-admin": "Vulnerability Management Admin",
-}
+class Permission(OidcPermissionAcsV1):
+    def __hash__(self):
+        return hash(self.name)
 
 
 class AcsRole(BaseModel):
@@ -72,30 +77,24 @@ class AcsRole(BaseModel):
     access_scope: AcsAccessScope
     system_default: Optional[bool]
 
-    class PermissionWithUsers(BaseModel):
-        permission: OidcPermissionAcsV1
-        usernames: list[str]
-
     @classmethod
-    def build(cls, pu: PermissionWithUsers) -> Self:
+    def build(cls, permission: Permission, usernames: list[str]) -> Self:
         assignments = [
             AssignmentPair(
                 # https://github.com/app-sre/qontract-schemas/blob/main/schemas/access/user-1.yml#L16
                 key="org_username",
                 value=u,
             )
-            for u in pu.usernames
+            for u in usernames
         ]
 
-        is_unrestricted_scope = (
-            not pu.permission.clusters and not pu.permission.namespaces
-        )
+        is_unrestricted_scope = not permission.clusters and not permission.namespaces
 
         return cls(
-            name=pu.permission.name,
-            description=pu.permission.description,
+            name=permission.name,
+            description=permission.description,
             assignments=assignments,
-            permission_set_name=PERMISSION_SET_NAMES[pu.permission.permission_set],
+            permission_set_name=PERMISSION_SET_NAMES[permission.permission_set],
             access_scope=AcsAccessScope(
                 # Due to api restriction, additional Unrestricted scopes
                 # cannot be made.
@@ -103,19 +102,19 @@ class AcsRole(BaseModel):
                 # are treated as the system default 'Unrestricted'
                 name=DEFAULT_ADMIN_SCOPE_NAME
                 if is_unrestricted_scope
-                else pu.permission.name,
+                else permission.name,
                 description=DEFAULT_ADMIN_SCOPE_DESC
                 if is_unrestricted_scope
-                else pu.permission.description,
+                else permission.description,
                 # second arg is returned even if first arg == False
-                clusters=[cluster.name for cluster in (pu.permission.clusters or [])],
+                clusters=[cluster.name for cluster in (permission.clusters or [])],
                 # mirroring format of 'rules.includedNamespaces' in /v1/simpleaccessscopes response
                 namespaces=[
                     {
                         "clusterName": n.cluster.name,
                         "namespaceName": n.name,
                     }
-                    for n in (pu.permission.namespaces or [])
+                    for n in (permission.namespaces or [])
                 ],
             ),
             system_default=False,
@@ -169,22 +168,18 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         if query_results is None:
             return []
 
-        permission_with_users: dict[str, AcsRole.PermissionWithUsers] = {}
+        permission_usernames: dict[Permission, list[str]] = defaultdict(list)
         for user in query_results:
             for role in user.roles or []:
                 for permission in role.oidc_permissions or []:
                     if isinstance(permission, OidcPermissionAcsV1):
-                        if permission.name not in permission_with_users:
-                            permission_with_users[
-                                permission.name
-                            ] = AcsRole.PermissionWithUsers(
-                                permission=permission, usernames=[user.org_username]
-                            )
-                        else:
-                            permission_with_users[permission.name].usernames.append(
-                                user.org_username
-                            )
-        return [AcsRole.build(pus) for pus in permission_with_users.values()]
+                        permission_usernames[
+                            Permission(**permission.dict(by_alias=True))
+                        ].append(user.org_username)
+        return [
+            AcsRole.build(permission, usernames)
+            for permission, usernames in permission_usernames.items()
+        ]
 
     def get_current_state(self, acs: AcsApi, auth_provider_id: str) -> list[AcsRole]:
         """
