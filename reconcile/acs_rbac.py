@@ -434,7 +434,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             # it will appear as one entry to delete and one entry to add
             # ex: desired value = foo. current value = bar
             # output will be an entry to delete bar and an entry to add foo
-            if any(len(lst) > 0 for lst in [diff.add, diff.delete, diff.change]):  # type: ignore
+            if any((diff.add, diff.delete)):
                 old = [
                     role_group_mappings[role_diff_pair.current.name][d.value]
                     for d in diff.delete.values()
