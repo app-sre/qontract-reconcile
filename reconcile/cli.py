@@ -2885,13 +2885,14 @@ def ocm_labels(ctx, managed_label_prefixes):
 
 
 @integration.command(short_help="Manages RHACS rbac configuration")
+@threaded()
 @click.pass_context
-def acs_rbac(ctx):
+def acs_rbac(ctx, thread_pool_size):
     from reconcile import acs_rbac
 
     run_class_integration(
         integration=acs_rbac.AcsRbacIntegration(
-            acs_rbac.AcsRbacIntegrationParams(thread_pool_size=10)
+            acs_rbac.AcsRbacIntegrationParams(thread_pool_size)
         ),
         ctx=ctx.obj,
     )
