@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 from collections.abc import Callable
-from typing import Optional
+from typing import Optional, Self
 
 from pydantic import BaseModel
 
@@ -74,7 +74,7 @@ class AcsRole(BaseModel):
         usernames: list[str]
 
     @classmethod
-    def build(cls, pu: PermissionWithUsers) -> "AcsRole":
+    def build(cls, pu: PermissionWithUsers) -> Self:
         assignments = [
             AssignmentPair(
                 # https://github.com/app-sre/qontract-schemas/blob/main/schemas/access/user-1.yml#L16
@@ -116,6 +116,13 @@ class AcsRole(BaseModel):
                 ],
             ),
             system_default=False,
+        )
+
+    def diff_role(self, b: Self) -> bool:
+        return (
+            self.permission_set_name != b.permission_set_name
+            or self.access_scope != b.access_scope
+            or self.description != b.description
         )
 
 
@@ -485,14 +492,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             # in case the role needs to be assigned different access scope.
             # changes to access scope resource are handled in dedicated section above
             # assignments are not included in this diff. Handled in dedicated section above
-            if (
-                role_diff_pair.current.permission_set_name
-                != role_diff_pair.desired.permission_set_name
-                or role_diff_pair.current.access_scope
-                != role_diff_pair.desired.access_scope
-                or role_diff_pair.current.description
-                != role_diff_pair.desired.description
-            ):
+            if role_diff_pair.current.diff_role(role_diff_pair.desired):
                 if not dry_run:
                     try:
                         acs.patch_role(
