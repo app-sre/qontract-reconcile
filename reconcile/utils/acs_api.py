@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 import requests
 from pydantic import BaseModel
@@ -122,58 +122,37 @@ class AcsApi:
         self.token = instance["token"]
         self.timeout = timeout
 
-    def generic_get_request(self, path: str) -> requests.Response:
-        response = requests.get(
-            url=f"{self.url}{path}",
-            headers={"Authorization": f"Bearer {self.token}"},
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-
-        return response
-
-    def generic_post_request(self, path: str, json: Any) -> requests.Response:
-        response = requests.post(
-            url=f"{self.url}{path}",
-            headers={
+    def generic_request(
+        self, path, request_type, json: Optional[Any]
+    ) -> requests.Response:
+        url = (f"{self.url}{path}",)
+        headers = (
+            {
                 "Authorization": f"Bearer {self.token}",
                 "Content-Type": "application/json",
             },
-            timeout=self.timeout,
-            json=json,
         )
+
+        if request_type == "GET":
+            response = requests.get(url, headers=headers, timeout=self.timeout)
+        elif request_type == "DELETE":
+            response = requests.delete(url, headers=headers, timeout=self.timeout)
+        elif request_type == "POST":
+            response = requests.put(
+                url, headers=headers, json=json, timeout=self.timeout
+            )
+        elif request_type == "PUT":
+            response = requests.post(
+                url, headers=headers, json=json, timeout=self.timeout
+            )
+        else:
+            raise ValueError(f"Unsupported request type: {request_type}")
+
         response.raise_for_status()
-
-        return response
-
-    def generic_put_request(self, path: str, json: Any) -> requests.Response:
-        response = requests.put(
-            url=f"{self.url}{path}",
-            headers={
-                "Authorization": f"Bearer {self.token}",
-                "Content-Type": "application/json",
-            },
-            timeout=self.timeout,
-            json=json,
-        )
-        response.raise_for_status()
-
-        return response
-
-    def generic_delete_request(self, path: str) -> requests.Response:
-        response = requests.delete(
-            url=f"{self.url}{path}",
-            headers={
-                "Authorization": f"Bearer {self.token}",
-            },
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-
         return response
 
     def get_roles(self) -> list[Role]:
-        response = self.generic_get_request("/v1/roles")
+        response = self.generic_request("/v1/roles", "GET")
         return [Role(r) for r in response.json()["roles"]]
 
     def create_role(
@@ -186,9 +165,9 @@ class AcsApi:
             "accessScopeId": access_scope_id,
         }
 
-        self.generic_post_request(f"/v1/roles/{name}", json)
+        self.generic_request(f"/v1/roles/{name}", "POST", json)
 
-    def patch_role(
+    def update_role(
         self, name: str, desc: str, permission_set_id: str, access_scope_id: str
     ) -> None:
         json = {
@@ -198,13 +177,13 @@ class AcsApi:
             "accessScopeId": access_scope_id,
         }
 
-        self.generic_put_request(f"/v1/roles/{name}", json)
+        self.generic_request(f"/v1/roles/{name}", "PUT", json)
 
     def delete_role(self, name: str) -> None:
-        self.generic_delete_request(f"/v1/roles/{name}")
+        self.generic_request(f"/v1/roles/{name}", "DELETE")
 
     def get_groups(self) -> list[Group]:
-        response = self.generic_get_request("/v1/groups")
+        response = self.generic_request("/v1/groups", "GET")
         return [Group(g) for g in response.json()["groups"]]
 
     class GroupAdd(BaseModel):
@@ -230,7 +209,7 @@ class AcsApi:
             ],
         }
 
-        self.generic_post_request("/v1/groupsbatch", json)
+        self.generic_post_request("/v1/groupsbatch", "POST", json)
 
     def delete_group_batch(self, removals: list[Group]) -> None:
         json = {
@@ -249,9 +228,9 @@ class AcsApi:
             "requiredGroups": [],
         }
 
-        self.generic_post_request("/v1/groupsbatch", json)
+        self.generic_request("/v1/groupsbatch", "POST", json)
 
-    def patch_group_batch(self, old: list[Group], new: list[GroupAdd]) -> None:
+    def update_group_batch(self, old: list[Group], new: list[GroupAdd]) -> None:
         json = {
             "previousGroups": [
                 {
@@ -278,14 +257,14 @@ class AcsApi:
                 for n in new
             ],
         }
-        self.generic_post_request("/v1/groupsbatch", json)
+        self.generic_request("/v1/groupsbatch", "POST", json)
 
     def get_access_scope_by_id(self, id: str) -> AccessScope:
-        response = self.generic_get_request(f"/v1/simpleaccessscopes/{id}")
+        response = self.generic_request(f"/v1/simpleaccessscopes/{id}", "GET")
         return AccessScope(response.json())
 
     def get_access_scopes(self) -> list[AccessScope]:
-        response = self.generic_get_request("/v1/simpleaccessscopes")
+        response = self.generic_request("/v1/simpleaccessscopes", "GET")
         return [AccessScope(a) for a in response.json()["accessScopes"]]
 
     def create_access_scope(
@@ -305,14 +284,14 @@ class AcsApi:
             },
         }
 
-        response = self.generic_post_request("/v1/simpleaccessscopes", json)
+        response = self.generic_request("/v1/simpleaccessscopes", "POST", json)
 
         return response.json()["id"]
 
     def delete_access_scope(self, id: str) -> None:
-        self.generic_delete_request(f"/v1/simpleaccessscopes/{id}")
+        self.generic_request(f"/v1/simpleaccessscopes/{id}", "DELETE")
 
-    def patch_access_scope(
+    def update_access_scope(
         self,
         id: str,
         name: str,
@@ -329,12 +308,12 @@ class AcsApi:
             },
         }
 
-        self.generic_put_request(f"/v1/simpleaccessscopes/{id}", json)
+        self.generic_request(f"/v1/simpleaccessscopes/{id}", "PUT", json)
 
     def get_permission_set_by_id(self, id: str) -> PermissionSet:
-        response = self.generic_get_request(f"/v1/permissionsets/{id}")
+        response = self.generic_request(f"/v1/permissionsets/{id}", "GET")
         return PermissionSet(response.json())
 
     def get_permission_sets(self) -> list[PermissionSet]:
-        response = self.generic_get_request("/v1/permissionsets")
+        response = self.generic_request("/v1/permissionsets", "GET")
         return [PermissionSet(p) for p in response.json()["permissionSets"]]
