@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from collections.abc import Callable
 from typing import Optional
 
@@ -255,18 +256,13 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
         :return: dict in which keys are role names and values are list of
                 user attributes assigned to role
         """
-        auth_rules: RoleAssignments = {}
+        auth_rules: RoleAssignments = defaultdict(list)
         for group in groups:
             # part of auth provider specified in A-I to reconcile (internal SSO)
             if group.auth_provider_id == auth_id:
-                if group.role_name in auth_rules:
-                    auth_rules[group.role_name].append(
-                        AssignmentPair(key=group.key, value=group.value)
-                    )
-                else:
-                    auth_rules[group.role_name] = [
-                        AssignmentPair(key=group.key, value=group.value)
-                    ]
+                auth_rules[group.role_name].append(
+                    AssignmentPair(key=group.key, value=group.value)
+                )
         return auth_rules
 
     def add_rbac(
