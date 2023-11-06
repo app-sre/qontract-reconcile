@@ -128,12 +128,7 @@ class AcsApi:
             headers={"Authorization": f"Bearer {self.token}"},
             timeout=self.timeout,
         )
-        try:
-            response.raise_for_status()
-        except requests.exceptions.RequestException as details:
-            raise requests.exceptions.RequestException(
-                f"Failed to perform GET request:\n\t{details}\n\t{response.text}"
-            )
+        response.raise_for_status()
 
         return response
 
@@ -147,13 +142,7 @@ class AcsApi:
             timeout=self.timeout,
             json=json,
         )
-
-        try:
-            response.raise_for_status()
-        except requests.exceptions.RequestException as details:
-            raise requests.exceptions.RequestException(
-                f"Failed to perform POST request with body:\n\t{json}\n\t{details}\n\t{response.text}"
-            )
+        response.raise_for_status()
 
         return response
 
@@ -167,13 +156,7 @@ class AcsApi:
             timeout=self.timeout,
             json=json,
         )
-
-        try:
-            response.raise_for_status()
-        except requests.exceptions.RequestException as details:
-            raise requests.exceptions.RequestException(
-                f"Failed to perform PUT request with body:\n\t{json}\n\t{details}\n\t{response.text}"
-            )
+        response.raise_for_status()
 
         return response
 
@@ -185,13 +168,7 @@ class AcsApi:
             },
             timeout=self.timeout,
         )
-
-        try:
-            response.raise_for_status()
-        except requests.exceptions.RequestException as details:
-            raise requests.exceptions.RequestException(
-                f"Failed to perform DELETE request:\n\t{details}\n\t{response.text}"
-            )
+        response.raise_for_status()
 
         return response
 
