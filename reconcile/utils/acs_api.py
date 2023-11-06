@@ -197,11 +197,7 @@ class AcsApi:
 
     def get_roles(self) -> list[Role]:
         response = self.generic_get_request("/v1/roles")
-
-        roles = []
-        for role in response.json()["roles"]:
-            roles.append(Role(role))
-        return roles
+        return [role for role in response.json()["roles"]]
 
     def create_role(
         self, name: str, desc: str, permission_set_id: str, access_scope_id: str
@@ -232,12 +228,7 @@ class AcsApi:
 
     def get_groups(self) -> list[Group]:
         response = self.generic_get_request("/v1/groups")
-
-        groups = []
-        for group in response.json()["groups"]:
-            groups.append(Group(group))
-
-        return groups
+        return [group for group in response.json()["groups"]]
 
     class GroupAdd(BaseModel):
         role_name: str
@@ -314,17 +305,11 @@ class AcsApi:
 
     def get_access_scope_by_id(self, id: str) -> AccessScope:
         response = self.generic_get_request(f"/v1/simpleaccessscopes/{id}")
-
         return AccessScope(response.json())
 
     def get_access_scopes(self) -> list[AccessScope]:
         response = self.generic_get_request("/v1/simpleaccessscopes")
-
-        access_scopes = []
-        for scope in response.json()["accessScopes"]:
-            access_scopes.append(AccessScope(scope))
-
-        return access_scopes
+        return [scope for scope in response.json()["accessScopes"]]
 
     def create_access_scope(
         self,
@@ -371,14 +356,8 @@ class AcsApi:
 
     def get_permission_set_by_id(self, id: str) -> PermissionSet:
         response = self.generic_get_request(f"/v1/permissionsets/{id}")
-
         return PermissionSet(response.json())
 
     def get_permission_sets(self) -> list[PermissionSet]:
         response = self.generic_get_request("/v1/permissionsets")
-
-        permission_sets = []
-        for ps in response.json()["permissionSets"]:
-            permission_sets.append(PermissionSet(ps))
-
-        return permission_sets
+        return [ps for ps in response.json()["permissionSets"]]
