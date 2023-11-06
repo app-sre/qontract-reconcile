@@ -397,10 +397,8 @@ def test_add_rbac_dry_run(
     dry_run = True
     desired = modeled_acs_roles
 
-    current = copy.deepcopy(modeled_acs_roles)
-    current.pop()
-    current_access_scopes = copy.deepcopy(api_response_access_scopes)
-    current_access_scopes.pop()
+    current = modeled_acs_roles[:-1]
+    current_access_scopes = api_response_access_scopes[:-1]
 
     acs_mock = Mock()
 
@@ -418,9 +416,9 @@ def test_add_rbac_dry_run(
     acs_mock.get_access_scopes.assert_called_once()
     acs_mock.get_permission_sets.assert_called_once()
 
-    assert not acs_mock.create_access_scope.called
-    assert not acs_mock.create_role.called
-    assert not acs_mock.create_group_batch.called
+    acs_mock.create_access_scope.assert_not_called()
+    acs_mock.create_role.assert_not_called()
+    acs_mock.create_group_batch.assert_not_called()
 
 
 def test_add_rbac(
@@ -432,11 +430,8 @@ def test_add_rbac(
     dry_run = False
     desired = modeled_acs_roles
 
-    current = copy.deepcopy(modeled_acs_roles)
-    # trigger creation of 'service-vuln-admin' role and dependencies
-    current.pop()
-    current_access_scopes = copy.deepcopy(api_response_access_scopes)
-    current_access_scopes.pop()
+    current = modeled_acs_roles[:-1]
+    current_access_scopes = api_response_access_scopes[:-1]
 
     acs_mock = Mock()
 
@@ -496,8 +491,7 @@ def test_delete_rbac_dry_run(
     dry_run = True
     current = modeled_acs_roles
 
-    desired = copy.deepcopy(modeled_acs_roles)
-    desired.pop(1)  # remove 'cluster-analyst' role
+    desired = modeled_acs_roles[:-1]  # remove 'cluster-analyst' role
 
     acs_mock = Mock()
 
@@ -513,9 +507,9 @@ def test_delete_rbac_dry_run(
     acs_mock.get_access_scopes.assert_called_once()
     acs_mock.get_groups.assert_called_once()
 
-    assert not acs_mock.delete_role.called
-    assert not acs_mock.delete_group_batch.called
-    assert not acs_mock.delete_access_scope.called
+    acs_mock.delete_role.assert_not_called()
+    acs_mock.delete_group_batch.assert_not_called()
+    acs_mock.delete_access_scope.assert_not_called()
 
 
 def test_delete_rbac(
@@ -524,8 +518,9 @@ def test_delete_rbac(
     dry_run = False
     current = modeled_acs_roles
 
-    desired = copy.deepcopy(modeled_acs_roles)
-    desired.pop(1)  # remove 'cluster-analyst' role
+    desired = (
+        modeled_acs_roles[:1] + modeled_acs_roles[2:]
+    )  # remove 'cluster-analyst' role
 
     acs_mock = Mock()
 
@@ -597,8 +592,8 @@ def test_update_rbac_groups_only(
         ]
     )
 
-    assert not acs_mock.patch_access_scope.called
-    assert not acs_mock.patch_role.called
+    acs_mock.patch_access_scope.assert_not_called()
+    acs_mock.patch_role.assert_not_called()
 
 
 def test_full_reconcile(
@@ -720,5 +715,5 @@ def test_full_reconcile(
     assert acs_mock.get_permission_sets.call_count == 2
     assert acs_mock.get_groups.call_count == 2
     # new desired role is admin scope. Should use existing 'Unrestricted' system default
-    assert not acs_mock.create_access_scope.called
-    assert not acs_mock.patch_group_batch.called
+    acs_mock.create_access_scope.assert_not_called()
+    acs_mock.patch_group_batch.assert_not_called()
