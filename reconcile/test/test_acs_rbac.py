@@ -565,9 +565,9 @@ def test_update_rbac_groups_only(
     acs_mock.get_access_scopes.return_value = api_response_access_scopes
     acs_mock.get_permission_sets.return_value = api_response_permission_sets
     acs_mock.get_groups.return_value = current_groups
-    mocker.patch.object(acs_mock, "patch_group_batch")
-    mocker.patch.object(acs_mock, "patch_access_scope")
-    mocker.patch.object(acs_mock, "patch_role")
+    mocker.patch.object(acs_mock, "update_group_batch")
+    mocker.patch.object(acs_mock, "update_access_scope")
+    mocker.patch.object(acs_mock, "update_role")
 
     integration = AcsRbacIntegration(AcsRbacIntegrationParams(thread_pool_size=10))
     integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
@@ -576,7 +576,7 @@ def test_update_rbac_groups_only(
     acs_mock.get_permission_sets.assert_called_once()
     acs_mock.get_groups.assert_called_once()
 
-    acs_mock.patch_group_batch.assert_has_calls(
+    acs_mock.update_group_batch.assert_has_calls(
         [
             mocker.call(
                 [current_groups[0]],
@@ -592,8 +592,8 @@ def test_update_rbac_groups_only(
         ]
     )
 
-    acs_mock.patch_access_scope.assert_not_called()
-    acs_mock.patch_role.assert_not_called()
+    acs_mock.update_access_scope.assert_not_called()
+    acs_mock.update_role.assert_not_called()
 
 
 def test_full_reconcile(
@@ -647,9 +647,9 @@ def test_full_reconcile(
     mocker.patch.object(acs_mock, "delete_role")
     mocker.patch.object(acs_mock, "delete_group_batch")
     mocker.patch.object(acs_mock, "delete_access_scope")
-    mocker.patch.object(acs_mock, "patch_group_batch")
-    mocker.patch.object(acs_mock, "patch_access_scope")
-    mocker.patch.object(acs_mock, "patch_role")
+    mocker.patch.object(acs_mock, "update_group_batch")
+    mocker.patch.object(acs_mock, "update_access_scope")
+    mocker.patch.object(acs_mock, "update_role")
 
     integration = AcsRbacIntegration(AcsRbacIntegrationParams(thread_pool_size=10))
     integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
@@ -688,7 +688,7 @@ def test_full_reconcile(
         [mocker.call(api_response_access_scopes[2].id)]
     )
 
-    acs_mock.patch_role.assert_has_calls(
+    acs_mock.update_role.assert_has_calls(
         [
             mocker.call(
                 desired[1].name,
@@ -699,7 +699,7 @@ def test_full_reconcile(
             )
         ]
     )
-    acs_mock.patch_access_scope.assert_has_calls(
+    acs_mock.update_access_scope.assert_has_calls(
         [
             mocker.call(
                 api_response_access_scopes[1].id,
@@ -716,4 +716,4 @@ def test_full_reconcile(
     assert acs_mock.get_groups.call_count == 2
     # new desired role is admin scope. Should use existing 'Unrestricted' system default
     acs_mock.create_access_scope.assert_not_called()
-    acs_mock.patch_group_batch.assert_not_called()
+    acs_mock.update_group_batch.assert_not_called()

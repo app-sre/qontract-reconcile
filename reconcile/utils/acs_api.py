@@ -123,36 +123,34 @@ class AcsApi:
         self.timeout = timeout
 
     def generic_request(
-        self, path, request_type, json: Optional[Any]
+        self, path: str, verb: str, json: Optional[Any]
     ) -> requests.Response:
         url = (f"{self.url}{path}",)
-        headers = (
-            {
+        headers = {
                 "Authorization": f"Bearer {self.token}",
                 "Content-Type": "application/json",
-            },
-        )
+            }
 
-        if request_type == "GET":
+        if verb == "GET":
             response = requests.get(url, headers=headers, timeout=self.timeout)
-        elif request_type == "DELETE":
+        elif verb == "DELETE":
             response = requests.delete(url, headers=headers, timeout=self.timeout)
-        elif request_type == "POST":
+        elif verb == "POST":
             response = requests.put(
                 url, headers=headers, json=json, timeout=self.timeout
             )
-        elif request_type == "PUT":
+        elif verb == "PUT":
             response = requests.post(
                 url, headers=headers, json=json, timeout=self.timeout
             )
         else:
-            raise ValueError(f"Unsupported request type: {request_type}")
+            raise ValueError(f"Unsupported request type: {verb}")
 
         response.raise_for_status()
         return response
 
     def get_roles(self) -> list[Role]:
-        response = self.generic_request("/v1/roles", "GET")
+        response = self.generic_request(path="/v1/roles", verb="GET")
         return [Role(r) for r in response.json()["roles"]]
 
     def create_role(

@@ -454,7 +454,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                 ]
                 if not dry_run:
                     try:
-                        acs.patch_group_batch(old, new)
+                        acs.update_group_batch(old, new)
                     except Exception as e:
                         logging.error(
                             "Failed to update rules for role: %s\n\t%s",
@@ -478,7 +478,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             ):
                 if not dry_run:
                     try:
-                        acs.patch_access_scope(
+                        acs.update_access_scope(
                             access_scope_id_map[
                                 role_diff_pair.desired.access_scope.name
                             ],
@@ -506,7 +506,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
             if role_diff_pair.current.diff_role(role_diff_pair.desired):
                 if not dry_run:
                     try:
-                        acs.patch_role(
+                        acs.update_role(
                             role_diff_pair.desired.name,
                             role_diff_pair.desired.description,
                             permission_sets_id_map[
