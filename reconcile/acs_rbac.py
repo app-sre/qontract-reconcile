@@ -94,8 +94,8 @@ class AcsRole(BaseModel):
         ]
 
         is_unrestricted_scope = (
-            pu.permission.clusters is None or len(pu.permission.clusters) == 0
-        ) and (pu.permission.namespaces is None or len(pu.permission.namespaces) == 0)
+            not pu.permission.clusters and not pu.permission.namespaces
+        )
 
         return cls(
             name=pu.permission.name,
