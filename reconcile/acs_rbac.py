@@ -1,5 +1,4 @@
 import logging
-from collections import defaultdict
 from collections.abc import Callable
 from typing import Optional
 
@@ -7,7 +6,7 @@ from pydantic import BaseModel
 
 from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
 from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
-from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1, UserV1
+from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1
 from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -84,7 +83,7 @@ class AcsRole(BaseModel):
         usernames: list[str]
 
     @classmethod
-    def build(cls, pu: PermissionWithUsers):
+    def build(cls, pu: PermissionWithUsers) -> "AcsRole":
         assignments = [
             AssignmentPair(
                 # https://github.com/app-sre/qontract-schemas/blob/main/schemas/access/user-1.yml#L16
