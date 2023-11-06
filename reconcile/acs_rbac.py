@@ -459,7 +459,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                         )
                         continue
                 logging.info(
-                    "Updated rules for role '%s':\n\t" "Added: %s\n\t" "Deleted: %s",
+                    "Updated rules for role '%s':\n"
+                    + "\tAdded: %s\n"
+                    + "\tDeleted: %s",
                     role_diff_pair.desired.name,
                     [n.value for n in new],
                     [o.value for o in old],
