@@ -6,7 +6,6 @@ import pytest
 from reconcile.acs_rbac import (
     AcsAccessScope,
     AcsRbacIntegration,
-    AcsRbacIntegrationParams,
     AcsRole,
     AssignmentPair,
 )
@@ -362,7 +361,7 @@ def test_get_desired_state(mocker, query_data_desired_state, modeled_acs_roles):
     query_func = mocker.patch("reconcile.acs_rbac.acs_rbac_query", autospec=True)
     query_func.return_value = query_data_desired_state
 
-    integration = AcsRbacIntegration(AcsRbacIntegrationParams(thread_pool_size=10))
+    integration = AcsRbacIntegration()
     result = integration.get_desired_state(query_func)
 
     assert result == modeled_acs_roles
@@ -382,7 +381,7 @@ def test_get_current_state(
     acs_mock.get_access_scope_by_id.side_effect = api_response_access_scopes
     acs_mock.get_permission_set_by_id.side_effect = api_response_permission_sets
 
-    integration = AcsRbacIntegration(AcsRbacIntegrationParams(thread_pool_size=10))
+    integration = AcsRbacIntegration()
     result = integration.get_current_state(acs_mock, AUTH_PROVIDER_ID)
 
     assert result == modeled_acs_roles
@@ -410,7 +409,7 @@ def test_add_rbac_dry_run(
     mocker.patch.object(acs_mock, "create_role")
     mocker.patch.object(acs_mock, "create_group_batch")
 
-    integration = AcsRbacIntegration(AcsRbacIntegrationParams(thread_pool_size=10))
+    integration = AcsRbacIntegration()
     integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.get_access_scopes.assert_called_once()
@@ -443,7 +442,7 @@ def test_add_rbac(
     mocker.patch.object(acs_mock, "create_role")
     mocker.patch.object(acs_mock, "create_group_batch")
 
-    integration = AcsRbacIntegration(AcsRbacIntegrationParams(thread_pool_size=10))
+    integration = AcsRbacIntegration()
     integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.get_access_scopes.assert_called_once()
@@ -501,7 +500,7 @@ def test_delete_rbac_dry_run(
     mocker.patch.object(acs_mock, "delete_group_batch")
     mocker.patch.object(acs_mock, "delete_access_scope")
 
-    integration = AcsRbacIntegration(AcsRbacIntegrationParams(thread_pool_size=10))
+    integration = AcsRbacIntegration()
     integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.get_access_scopes.assert_called_once()
@@ -530,7 +529,7 @@ def test_delete_rbac(
     mocker.patch.object(acs_mock, "delete_group_batch")
     mocker.patch.object(acs_mock, "delete_access_scope")
 
-    integration = AcsRbacIntegration(AcsRbacIntegrationParams(thread_pool_size=10))
+    integration = AcsRbacIntegration()
     integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.get_access_scopes.assert_called_once()
@@ -569,7 +568,7 @@ def test_update_rbac_groups_only(
     mocker.patch.object(acs_mock, "update_access_scope")
     mocker.patch.object(acs_mock, "update_role")
 
-    integration = AcsRbacIntegration(AcsRbacIntegrationParams(thread_pool_size=10))
+    integration = AcsRbacIntegration()
     integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.get_access_scopes.assert_called_once()
@@ -647,7 +646,7 @@ def test_full_reconcile(
     mocker.patch.object(acs_mock, "update_access_scope")
     mocker.patch.object(acs_mock, "update_role")
 
-    integration = AcsRbacIntegration(AcsRbacIntegrationParams(thread_pool_size=10))
+    integration = AcsRbacIntegration()
     integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.create_role.assert_has_calls(

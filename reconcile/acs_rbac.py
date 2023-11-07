@@ -26,7 +26,7 @@ from reconcile.utils.differ import (
 )
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.runtime.integration import (
-    PydanticRunParams,
+    NoParams,
     QontractReconcileIntegration,
 )
 from reconcile.utils.secret_reader import create_secret_reader
@@ -134,13 +134,9 @@ class AcsRole(BaseModel):
         return not self.access_scope.clusters and not self.access_scope.namespaces
 
 
-class AcsRbacIntegrationParams(PydanticRunParams):
-    thread_pool_size: int
-
-
-class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams]):
-    def __init__(self, params: AcsRbacIntegrationParams) -> None:
-        super().__init__(params)
+class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
+    def __init__(self) -> None:
+        super().__init__(NoParams())
         self.qontract_integration = "acs_rbac"
         self.qontract_integration_version = make_semver(0, 1, 0)
 
