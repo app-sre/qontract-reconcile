@@ -142,20 +142,13 @@ class AcsApi:
             "Content-Type": "application/json",
         }
 
-        if verb == "GET":
-            response = self.session.get(url, headers=headers, timeout=self.timeout)
-        elif verb == "DELETE":
-            response = self.session.delete(url, headers=headers, timeout=self.timeout)
-        elif verb == "POST":
-            response = self.session.put(
-                url, headers=headers, json=json, timeout=self.timeout
-            )
-        elif verb == "PUT":
-            response = self.session.post(
-                url, headers=headers, json=json, timeout=self.timeout
-            )
-        else:
-            raise ValueError(f"Unsupported request type: {verb}")
+        response = self.session.request(
+            verb,
+            url,
+            headers=headers,
+            json=json,
+            timeout=self.timeout,
+        )
 
         response.raise_for_status()
         return response
