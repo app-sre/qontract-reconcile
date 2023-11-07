@@ -108,3 +108,15 @@ class AUSOrganizationErrorRate(ErrorRateMetricSet):
                 org_id=org_id,
             ),
         )
+
+
+class AUSOrganizationVersionDataGauge(AUSBaseMetric, GaugeMetric):
+    """Gauge for the version data for an OCM organization"""
+
+    org_id: str
+    version: str
+    workload: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "aus_organization_version_data"

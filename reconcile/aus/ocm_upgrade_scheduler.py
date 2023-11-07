@@ -10,6 +10,7 @@ from reconcile.aus.metrics import (
     UPGRADE_SCHEDULED_METRIC_VALUE,
     UPGRADE_STARTED_METRIC_VALUE,
     AUSClusterVersionRemainingSoakDaysGauge,
+    AUSOrganizationVersionDataGauge,
 )
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
@@ -56,12 +57,15 @@ class OCMClusterUpgradeSchedulerIntegration(
             org_upgrade_spec.org.environment.name, org_upgrade_spec.org.org_id
         )
 
+        self.expose_version_data_metrics(
+            ocm_env=org_upgrade_spec.org.environment.name,
+            org_id=org_upgrade_spec.org.org_id,
+            version_data=version_data,
+        )
         self.expose_remaining_soak_day_metrics(
             ocm_env=org_upgrade_spec.org.environment.name,
             org_upgrade_spec=org_upgrade_spec,
-            version_data=version_data_map.get(
-                org_upgrade_spec.org.environment.name, org_upgrade_spec.org.org_id
-            ),
+            version_data=version_data,
             current_state=current_state,
         )
 
@@ -78,6 +82,25 @@ class OCMClusterUpgradeSchedulerIntegration(
             "* ocm-label to transfer upgrade policies to OCM subscription labels \n"
             "* advanced-upgrade-service to drive upgrade policies based on OCM subscription labels"
         )
+
+    def expose_version_data_metrics(
+        self,
+        ocm_env: str,
+        org_id: str,
+        version_data: VersionData,
+    ) -> None:
+        for version, version_history in version_data.versions.items():
+            for workload, workload_histry in version_history.workloads.items():
+                metrics.set_gauge(
+                    AUSOrganizationVersionDataGauge(
+                        integration=self.name,
+                        ocm_env=ocm_env,
+                        org_id=org_id,
+                        version=version,
+                        workload=workload,
+                    ),
+                    workload_histry.soak_days,
+                )
 
     def expose_remaining_soak_day_metrics(
         self,
