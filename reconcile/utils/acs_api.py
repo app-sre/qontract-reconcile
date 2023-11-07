@@ -46,14 +46,13 @@ class Group(BaseModel):
     def __init__(self, api_data: Any) -> None:
         # attributes defined within stackrox(ACS) API for GET /v1/groups
         check_len_attributes(["roleName", "props"], api_data)
-        try:
+        if api_data["roleName"] != "None":
             check_len_attributes(
                 ["id", "authProviderId", "key", "value"], api_data["props"]
             )
-        except ValueError as e:
+        else:
             # it is valid for the default None group to contain empty key/value
-            if api_data["roleName"] != "None":
-                raise e
+            check_len_attributes(["id", "authProviderId"], api_data["props"])
 
         super().__init__(
             role_name=api_data["roleName"],
