@@ -60,7 +60,7 @@ class OCMClusterUpgradeSchedulerIntegration(
         self.expose_version_data_metrics(
             ocm_env=org_upgrade_spec.org.environment.name,
             org_id=org_upgrade_spec.org.org_id,
-            version_data=version_data
+            version_data=version_data,
         )
         self.expose_remaining_soak_day_metrics(
             ocm_env=org_upgrade_spec.org.environment.name,
