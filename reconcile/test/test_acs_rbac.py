@@ -29,7 +29,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
     return AcsRbacQueryData(
         acs_rbacs=[
             UserV1(
-                org_username="foo",
+                acs_user="foo@redhat.com",
                 roles=[
                     RoleV1(
                         name="app-sre-admin",
@@ -47,7 +47,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                 ],
             ),
             UserV1(
-                org_username="bar",
+                acs_user="bar@redhat.com",
                 roles=[
                     RoleV1(
                         name="app-sre-admin",
@@ -65,7 +65,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                 ],
             ),
             UserV1(
-                org_username="foofoo",
+                acs_user="foofoo@redhat.com",
                 roles=[
                     RoleV1(
                         name="tenant-role-a",
@@ -86,7 +86,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                 ],
             ),
             UserV1(
-                org_username="barbar",
+                acs_user="barbar@redhat.com",
                 roles=[
                     RoleV1(
                         name="tenant-role-a",
@@ -107,7 +107,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                 ],
             ),
             UserV1(
-                org_username="foobar",
+                acs_user="foobar@redhat.com",
                 roles=[
                     RoleV1(
                         name="tenant-role-b",
@@ -148,8 +148,8 @@ def modeled_acs_roles() -> list[AcsRole]:
             name="app-sre-acs-admin",
             description="admin access to acs instance",
             assignments=[
-                AssignmentPair(key="org_username", value="foo"),
-                AssignmentPair(key="org_username", value="bar"),
+                AssignmentPair(key="email", value="foo@redhat.com"),
+                AssignmentPair(key="email", value="bar@redhat.com"),
             ],
             permission_set_name="Admin",
             access_scope=AcsAccessScope(
@@ -164,8 +164,8 @@ def modeled_acs_roles() -> list[AcsRole]:
             name="cluster-analyst",
             description="analyst access to clusters in acs instance",
             assignments=[
-                AssignmentPair(key="org_username", value="foofoo"),
-                AssignmentPair(key="org_username", value="barbar"),
+                AssignmentPair(key="email", value="foofoo@redhat.com"),
+                AssignmentPair(key="email", value="barbar@redhat.com"),
             ],
             permission_set_name="Analyst",
             access_scope=AcsAccessScope(
@@ -179,7 +179,7 @@ def modeled_acs_roles() -> list[AcsRole]:
         AcsRole(
             name="service-vuln-admin",
             description="vuln-admin access to service namespaces in acs instance",
-            assignments=[AssignmentPair(key="org_username", value="foobar")],
+            assignments=[AssignmentPair(key="email", value="foobar@redhat.com")],
             permission_set_name="Vulnerability Management Admin",
             access_scope=AcsAccessScope(
                 name="service-vuln-admin",
@@ -237,8 +237,8 @@ def api_response_groups() -> list[acs_api.Group]:
                 "props": {
                     "id": "1",
                     "authProviderId": AUTH_PROVIDER_ID,
-                    "key": "org_username",
-                    "value": "foo",
+                    "key": "email",
+                    "value": "foo@redhat.com",
                 },
             }
         ),
@@ -248,8 +248,8 @@ def api_response_groups() -> list[acs_api.Group]:
                 "props": {
                     "id": "2",
                     "authProviderId": AUTH_PROVIDER_ID,
-                    "key": "org_username",
-                    "value": "bar",
+                    "key": "email",
+                    "value": "bar@redhat.com",
                 },
             }
         ),
@@ -259,8 +259,8 @@ def api_response_groups() -> list[acs_api.Group]:
                 "props": {
                     "id": "3",
                     "authProviderId": AUTH_PROVIDER_ID,
-                    "key": "org_username",
-                    "value": "foofoo",
+                    "key": "email",
+                    "value": "foofoo@redhat.com",
                 },
             }
         ),
@@ -270,8 +270,8 @@ def api_response_groups() -> list[acs_api.Group]:
                 "props": {
                     "id": "4",
                     "authProviderId": AUTH_PROVIDER_ID,
-                    "key": "org_username",
-                    "value": "barbar",
+                    "key": "email",
+                    "value": "barbar@redhat.com",
                 },
             }
         ),
@@ -281,8 +281,8 @@ def api_response_groups() -> list[acs_api.Group]:
                 "props": {
                     "id": "5",
                     "authProviderId": AUTH_PROVIDER_ID,
-                    "key": "org_username",
-                    "value": "foobar",
+                    "key": "email",
+                    "value": "foobar@redhat.com",
                 },
             }
         ),
@@ -610,8 +610,8 @@ def test_full_reconcile(
             name="new-role",
             description="add me",
             assignments=[
-                AssignmentPair(key="org_username", value="elsa"),
-                AssignmentPair(key="org_username", value="anna"),
+                AssignmentPair(key="email", value="elsa@redhat.com"),
+                AssignmentPair(key="email", value="anna@redhat.com"),
             ],
             permission_set_name="Admin",
             access_scope=AcsAccessScope(

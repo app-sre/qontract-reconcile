@@ -21,7 +21,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 DEFINITION = """
 query AcsRbac  {
   acs_rbacs: users_v1 {
-    org_username
+    acs_user
     roles {
       name
       oidc_permissions {
@@ -86,7 +86,7 @@ class RoleV1(ConfiguredBaseModel):
 
 
 class UserV1(ConfiguredBaseModel):
-    org_username: str = Field(..., alias="org_username")
+    acs_user: Optional[str] = Field(..., alias="acs_user")
     roles: Optional[list[RoleV1]] = Field(..., alias="roles")
 
 

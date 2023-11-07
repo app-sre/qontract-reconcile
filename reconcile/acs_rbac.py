@@ -80,8 +80,11 @@ class AcsRole(BaseModel):
     def build(cls, permission: Permission, usernames: list[str]) -> Self:
         assignments = [
             AssignmentPair(
-                # https://github.com/app-sre/qontract-schemas/blob/main/schemas/access/user-1.yml#L16
-                key="org_username",
+                # acs_user attribute from https://github.com/app-sre/qontract-schemas/blob/main/schemas/access/user-1.yml
+                # is mapped to email key in auth rules.
+                # this is due to current limitation with ACS ability to enforce custom keys in rules
+                # see step 5: https://docs.openshift.com/acs/4.2/operating/manage-user-access/manage-role-based-access-control-3630.html#assign-role-to-user-or-group_manage-role-based-access-control
+                key="email",
                 value=u,
             )
             for u in usernames
@@ -173,12 +176,13 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
 
         permission_usernames: dict[Permission, list[str]] = defaultdict(list)
         for user in query_results:
-            for role in user.roles or []:
-                for permission in role.oidc_permissions or []:
-                    if isinstance(permission, OidcPermissionAcsV1):
-                        permission_usernames[
-                            Permission(**permission.dict(by_alias=True))
-                        ].append(user.org_username)
+            if user.acs_user:  # user file must set acs_user attribute
+                for role in user.roles or []:
+                    for permission in role.oidc_permissions or []:
+                        if isinstance(permission, OidcPermissionAcsV1):
+                            permission_usernames[
+                                Permission(**permission.dict(by_alias=True))
+                            ].append(user.acs_user)
         return [
             AcsRole.build(permission, usernames)
             for permission, usernames in permission_usernames.items()
@@ -306,7 +310,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[AcsRbacIntegrationParams])
                             e,
                         )
                         continue
-                    logging.info("Created access scope: %s", role.access_scope.name)
+                logging.info("Created access scope: %s", role.access_scope.name)
 
             if not dry_run:
                 try:
