@@ -74,10 +74,10 @@ class AccessScope(BaseModel):
         # attributes defined within stackrox(ACS) API for GET /v1/simpleaccessscopes/{id}
         unrestricted = False
         check_len_attributes(["id", "name"], api_data)
+
         # it is valid for the default Unrestricted access scope to have null 'rules'
-        if api_data["name"] == "Unrestricted":
-            unrestricted = True
-        else:
+        unrestricted = api_data["name"] == "Unrestricted"
+        if not unrestricted:
             check_len_attributes(["rules"], api_data)
 
         super().__init__(
