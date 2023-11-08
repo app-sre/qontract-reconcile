@@ -67,8 +67,16 @@ def slack_notify(
     in_progress: bool,
     trigger_integration: Optional[str] = None,
     trigger_reason: Optional[str] = None,
+    skip_successful_notifications: Optional[bool] = False,
 ) -> None:
     success = not ri.has_error_registered()
+    # if the deployment doesn't want any notifications for successful
+    # deployments, then we should grant the wish. However, there's a user
+    # expereince concern where the deployment owners will receive a "in
+    # progress" notice but no subsequent notice. We handle this case by
+    # including an "fyi" message for in progress deployments down below.
+    if success and skip_successful_notifications and not in_progress:
+        return
     if in_progress:
         icon = ":yellow_jenkins_circle:"
         description = "In Progress"
@@ -87,6 +95,8 @@ def slack_notify(
         message += f". Reason: {trigger_reason}"
     if trigger_integration:
         message += f" triggered by _{trigger_integration}_"
+    if in_progress and skip_successful_notifications:
+        message += f". There will not be a notice for success."
     slack.chat_post_message(message)
 
 
@@ -120,6 +130,9 @@ def run(
     # - this is not a dry run
     # - there is a single saas file deployed
     notify = not dry_run and len(saas_files) == 1
+    skip_successful_deploy_notifications = False
+    if len(saas_files) > 0:
+        skip_successful_deploy_notifications = saas_files[0].skip_successful_deploy_notifications
     slack = None
     if notify:
         saas_file = saas_files[0]
@@ -151,6 +164,7 @@ def run(
                         in_progress=False,
                         trigger_integration=trigger_integration,
                         trigger_reason=trigger_reason,
+                        skip_successful_notifications=skip_successful_deploy_notifications,
                     )
                 )
             # deployment start notification
@@ -164,6 +178,7 @@ def run(
                     in_progress=True,
                     trigger_integration=trigger_integration,
                     trigger_reason=trigger_reason,
+                    skip_successful_notifications=skip_successful_deploy_notifications,
                 )
 
     jenkins_map = jenkins_base.get_jenkins_map()
