@@ -1,4 +1,5 @@
 from typing import Callable
+from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
@@ -45,20 +46,24 @@ def test_resolve_app_interface_membership_source(
     bot: BotV1,
     app_interface_membership_provider: AppInterfaceMembershipProviderSourceV1,
 ) -> None:
+    gql_query_func_for_source_mock_ctx_mgr = MagicMock()
+    gql_query_func_for_source_mock_ctx_mgr.__enter__.return_value = (
+        lambda *args, **kwargs: {
+            "roles": [
+                {
+                    "name": "role1",
+                    "labels": None,
+                    "path": "some/path.yml",
+                    "users": [user.dict(by_alias=True)],
+                    "bots": [bot.dict(by_alias=True)],
+                }
+            ],
+        }
+    )
     gql_query_func_for_source_mock = mocker.patch.object(
         app_interface_resolver, "gql_query_func_for_source"
     )
-    gql_query_func_for_source_mock.return_value = lambda *args, **kwargs: {
-        "roles": [
-            {
-                "name": "role1",
-                "labels": None,
-                "path": "some/path.yml",
-                "users": [user.dict(by_alias=True)],
-                "bots": [bot.dict(by_alias=True)],
-            }
-        ],
-    }
+    gql_query_func_for_source_mock.return_value = gql_query_func_for_source_mock_ctx_mgr
     groups = resolve_app_interface_membership_source(
         "provider",
         app_interface_membership_provider,

@@ -1,7 +1,9 @@
 import base64
+from contextlib import contextmanager
 from typing import (
     Any,
     Callable,
+    Generator,
     Optional,
 )
 
@@ -23,9 +25,10 @@ from reconcile.utils.membershipsources.models import (
 from reconcile.utils.secret_reader import SecretReader
 
 
+@contextmanager
 def gql_query_func_for_source(
     source: AppInterfaceMembershipProviderSourceV1,
-) -> Callable[[str, Optional[Any], bool], dict[str, Any]]:
+) -> Generator[Callable[[str, Optional[Any], bool], dict[str, Any]], None, None]:
     settings = queries.get_secret_reader_settings()
     secret_reader = SecretReader(settings=settings)
     username = secret_reader.read_secret(source.username)
@@ -34,7 +37,10 @@ def gql_query_func_for_source(
     gql_api = gql.get_api_for_server(
         source.url, f"Basic {basic_auth_info}", None, False
     )
-    return gql_api.query
+    try:
+        yield gql_api.query
+    finally:
+        gql_api.close()
 
 
 def resolve_app_interface_membership_source(
@@ -42,14 +48,14 @@ def resolve_app_interface_membership_source(
     source: AppInterfaceMembershipProviderSourceV1,
     groups: set[str],
 ) -> dict[ProviderGroup, list[RoleMember]]:
-    query_func = gql_query_func_for_source(source)
-    roles = (
-        mebershipsource_query(
-            query_func, variables={"filter": {"name": {"in": groups}}}
-        ).roles
-        or []
-    )
-    return {(provider_name, r.name): build_member_list(r) for r in roles}
+    with gql_query_func_for_source(source) as query_func:
+        roles = (
+            mebershipsource_query(
+                query_func, variables={"filter": {"name": {"in": list(groups)}}}
+            ).roles
+            or []
+        )
+        return {(provider_name, r.name): build_member_list(r) for r in roles}
 
 
 def build_member_list(role: RoleV1) -> list[RoleMember]:
