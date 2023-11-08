@@ -1,4 +1,5 @@
 import logging
+import sys
 from collections import defaultdict
 from collections.abc import Callable
 from typing import (
@@ -12,6 +13,7 @@ from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
 from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
 from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1
 from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
+from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -208,29 +210,8 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
             if not role.system_default or (
                 role.name in role_assignments and role.name != "None"
             ):
-                try:
-                    access_scope = acs.get_access_scope_by_id(role.access_scope_id)
-                except Exception as e:
-                    logging.error(
-                        "Failed to retrieve current access scope: %s for role: %s\n\t%s",
-                        role.access_scope_id,
-                        role.name,
-                        e,
-                    )
-                    continue
-
-                try:
-                    permission_set = acs.get_permission_set_by_id(
-                        role.permission_set_id
-                    )
-                except Exception as e:
-                    logging.error(
-                        "Failed to retrieve current permission set: %s for role: %s\n\t%s",
-                        role.permission_set_id,
-                        role.name,
-                        e,
-                    )
-                    continue
+                access_scope = acs.get_access_scope_by_id(role.access_scope_id)
+                permission_set = acs.get_permission_set_by_id(role.permission_set_id)
 
                 current_roles.append(
                     AcsRole(
@@ -273,7 +254,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
 
     def add_rbac(
         self, to_add: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
-    ) -> None:
+    ) -> int:
         """
         Creates desired ACS roles as well as associated access scopes and rules
 
@@ -285,6 +266,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
         permission_sets_id_map = {ps.name: ps.id for ps in acs.get_permission_sets()}
 
+        err_count = 0
         for role in to_add.values():
             # skip access scope creation and use existing system default 'Unrestricted' access scope if unrestricted
             # note: this serves to reduce redundant admin scopes but also due to restriction within api when
@@ -307,6 +289,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                             role.name,
                             e,
                         )
+                        err_count += 1
                         continue
                 logging.info("Created access scope: %s", role.access_scope.name)
 
@@ -322,6 +305,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                     )
                 except Exception as e:
                     logging.error("Failed to create role: %s\n\t%s", role.name, e)
+                    err_count += 1
                     continue
             logging.info("Created role: %s", role.name)
 
@@ -341,16 +325,18 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                     logging.error(
                         "Failed to create group(s) for role: %s\n\t%s", role.name, e
                     )
+                    err_count += 1
                     continue
             logging.info(
                 "Added users to role %s: %s",
                 role.name,
                 [a.value for a in role.assignments],
             )
+        return err_count
 
     def delete_rbac(
         self, to_delete: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
-    ) -> None:
+    ) -> int:
         """
         Deletes desired ACS roles as well as associated access scopes and rules
 
@@ -365,6 +351,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
             if group.auth_provider_id == auth_id:
                 role_group_mappings[group.role_name].append(group)
 
+        err_count = 0
         # role and associated resources must be deleted in the proceeding order
         for role in to_delete.values():
             if not dry_run:
@@ -374,6 +361,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                     logging.error(
                         "Failed to delete group(s) for role: %s\n\t%s", role.name, e
                     )
+                    err_count += 1
                     continue
             logging.info(
                 "Deleted users from role %s: %s",
@@ -389,6 +377,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                     acs.delete_role(role.name)
                 except Exception as e:
                     logging.error("Failed to delete role: %s\n\t%s", role.name, e)
+                    err_count += 1
                     continue
             logging.info("Deleted role: %s", role.name)
             if not dry_run:
@@ -398,8 +387,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                     logging.error(
                         "Failed to delete access scope for role: %s\n\t%s", role.name, e
                     )
+                    err_count += 1
                     continue
             logging.info("Deleted access scope: %s", role.access_scope.name)
+        return err_count
 
     def update_rbac(
         self,
@@ -407,7 +398,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         acs: AcsApi,
         auth_id: str,
         dry_run: bool,
-    ) -> None:
+    ) -> int:
         """
         Updates desired ACS roles as well as associated access scopes and rules
 
@@ -424,6 +415,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                 role_group_mappings[group.role_name] = {}
             role_group_mappings[group.role_name][group.value] = group
 
+        err_count = 0
         for role_diff_pair in to_update.values():
             # auth rule (groups) portion
             diff = diff_iterables(
@@ -458,6 +450,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                             role_diff_pair.desired.name,
                             e,
                         )
+                        err_count += 1
                         continue
                 logging.info(
                     "Updated rules for role '%s':\n"
@@ -490,6 +483,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                             role_diff_pair.desired.access_scope.name,
                             e,
                         )
+                        err_count += 1
                         continue
                 logging.info(
                     "Updated access scope %s", role_diff_pair.desired.access_scope.name
@@ -519,8 +513,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                             role_diff_pair.desired.name,
                             e,
                         )
+                        err_count += 1
                         continue
                 logging.info("Updated role: %s", role_diff_pair.desired.name)
+        return err_count
 
     def reconcile(
         self,
@@ -529,14 +525,16 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         acs: AcsApi,
         auth_provider_id: str,
         dry_run: bool,
-    ) -> None:
+    ) -> int:
+        err_count = 0
         diff = diff_iterables(current, desired, lambda x: x.name)
         if len(diff.add) > 0:
-            self.add_rbac(diff.add, acs, auth_provider_id, dry_run)
+            err_count += self.add_rbac(diff.add, acs, auth_provider_id, dry_run)
         if len(diff.delete) > 0:
-            self.delete_rbac(diff.delete, acs, auth_provider_id, dry_run)
+            err_count += self.delete_rbac(diff.delete, acs, auth_provider_id, dry_run)
         if len(diff.change) > 0:
-            self.update_rbac(diff.change, acs, auth_provider_id, dry_run)
+            err_count += self.update_rbac(diff.change, acs, auth_provider_id, dry_run)
+        return err_count
 
     def run(
         self,
@@ -551,10 +549,14 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
 
         desired = self.get_desired_state(gqlapi.query)
 
+        errors_occurred = 0
         with AcsApi(
             instance={"url": instance.url, "token": token[instance.credentials.field]}
         ) as acs_api:
             current = self.get_current_state(acs_api, instance.auth_provider.q_id)
-            self.reconcile(
+            errors_occurred = self.reconcile(
                 desired, current, acs_api, instance.auth_provider.q_id, dry_run
             )
+
+        if errors_occurred:
+            sys.exit(ExitCodes.ERROR)

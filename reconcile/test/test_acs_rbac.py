@@ -415,7 +415,7 @@ def test_add_rbac_dry_run(
     mocker.patch.object(acs_mock, "create_group_batch")
 
     integration = AcsRbacIntegration()
-    integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
+    errs = integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.get_access_scopes.assert_called_once()
     acs_mock.get_permission_sets.assert_called_once()
@@ -423,6 +423,8 @@ def test_add_rbac_dry_run(
     acs_mock.create_access_scope.assert_not_called()
     acs_mock.create_role.assert_not_called()
     acs_mock.create_group_batch.assert_not_called()
+
+    assert not errs
 
 
 def test_add_rbac(
@@ -448,7 +450,7 @@ def test_add_rbac(
     mocker.patch.object(acs_mock, "create_group_batch")
 
     integration = AcsRbacIntegration()
-    integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
+    errs = integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.get_access_scopes.assert_called_once()
     acs_mock.get_permission_sets.assert_called_once()
@@ -488,6 +490,8 @@ def test_add_rbac(
         ]
     )
 
+    assert not errs
+
 
 def test_delete_rbac_dry_run(
     mocker: MockerFixture,
@@ -508,7 +512,7 @@ def test_delete_rbac_dry_run(
     mocker.patch.object(acs_mock, "delete_access_scope")
 
     integration = AcsRbacIntegration()
-    integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
+    errs = integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.get_access_scopes.assert_called_once()
     acs_mock.get_groups.assert_called_once()
@@ -516,6 +520,8 @@ def test_delete_rbac_dry_run(
     acs_mock.delete_role.assert_not_called()
     acs_mock.delete_group_batch.assert_not_called()
     acs_mock.delete_access_scope.assert_not_called()
+
+    assert not errs
 
 
 def test_delete_rbac(
@@ -539,7 +545,7 @@ def test_delete_rbac(
     mocker.patch.object(acs_mock, "delete_access_scope")
 
     integration = AcsRbacIntegration()
-    integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
+    errs = integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.get_access_scopes.assert_called_once()
     acs_mock.get_groups.assert_called_once()
@@ -550,6 +556,8 @@ def test_delete_rbac(
     acs_mock.delete_access_scope.assert_has_calls(
         [mocker.call(api_response_access_scopes[1].id)]
     )
+
+    assert not errs
 
 
 def test_update_rbac_groups_only(
@@ -578,7 +586,7 @@ def test_update_rbac_groups_only(
     mocker.patch.object(acs_mock, "update_role")
 
     integration = AcsRbacIntegration()
-    integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
+    errs = integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.get_access_scopes.assert_called_once()
     acs_mock.get_permission_sets.assert_called_once()
@@ -603,6 +611,8 @@ def test_update_rbac_groups_only(
     acs_mock.update_access_scope.assert_not_called()
     acs_mock.update_role.assert_not_called()
 
+    assert not errs
+
 
 def test_full_reconcile(
     mocker: MockerFixture,
@@ -613,6 +623,7 @@ def test_full_reconcile(
 ):
     dry_run = False
 
+    # trigger creation of new role and deletion of existing 'service-vuln-admin' role
     desired = modeled_acs_roles[:-1] + [
         AcsRole(
             name="new-role",
@@ -656,7 +667,7 @@ def test_full_reconcile(
     mocker.patch.object(acs_mock, "update_role")
 
     integration = AcsRbacIntegration()
-    integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
+    errs = integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
 
     acs_mock.create_role.assert_has_calls(
         [
@@ -721,3 +732,116 @@ def test_full_reconcile(
     # new desired role is admin scope. Should use existing 'Unrestricted' system default
     acs_mock.create_access_scope.assert_not_called()
     acs_mock.update_group_batch.assert_not_called()
+
+    assert not errs
+
+
+def test_full_reconcile_with_errors(
+    mocker: MockerFixture,
+    modeled_acs_roles: list[AcsRole],
+    api_response_access_scopes: list[acs_api.AccessScope],
+    api_response_permission_sets: list[acs_api.PermissionSet],
+    api_response_groups: list[acs_api.Group],
+):
+    dry_run = False
+
+    desired = modeled_acs_roles[:-1] + [
+        AcsRole(
+            name="new-role",
+            description="add me",
+            assignments=[
+                AssignmentPair(key="email", value="elsa@redhat.com"),
+                AssignmentPair(key="email", value="anna@redhat.com"),
+            ],
+            permission_set_name="Admin",
+            access_scope=AcsAccessScope(
+                name="Unrestricted",
+                description="Access to all clusters and namespaces",
+                clusters=[],
+                namespaces=[],
+            ),
+            system_default=False,
+        )
+    ]
+
+    current = copy.deepcopy(modeled_acs_roles)
+    # change permission set to trigger update to existing 'cluster-analyst' role
+    current[1].permission_set_name = "Vulnerability Management Admin"
+    # remove a cluster from scope to trigger update to access scope of 'cluster-analyst'
+    current[1].access_scope.clusters.pop()
+    current_access_scopes = copy.deepcopy(api_response_access_scopes)
+    current_access_scopes[1].clusters.pop()
+
+    acs_mock = Mock()
+
+    acs_mock.get_access_scopes.return_value = current_access_scopes
+    acs_mock.get_permission_sets.return_value = api_response_permission_sets
+    acs_mock.get_groups.return_value = api_response_groups
+    mocker.patch.object(acs_mock, "create_access_scope")
+    mocker.patch.object(
+        acs_mock, "create_role", side_effect=Exception("Simulated error")
+    )
+    mocker.patch.object(acs_mock, "create_group_batch")
+    mocker.patch.object(
+        acs_mock, "delete_group_batch", side_effect=Exception("Simulated error")
+    )
+    mocker.patch.object(acs_mock, "delete_role")
+    mocker.patch.object(acs_mock, "delete_access_scope")
+    mocker.patch.object(acs_mock, "update_group_batch")
+    mocker.patch.object(acs_mock, "update_access_scope")
+    mocker.patch.object(acs_mock, "update_role")
+
+    integration = AcsRbacIntegration()
+    errs = integration.reconcile(desired, current, acs_mock, AUTH_PROVIDER_ID, dry_run)
+
+    # call to 'create_role' failed. remaining create logic should be skipped
+    acs_mock.create_role.assert_has_calls(
+        [
+            mocker.call(
+                desired[2].name,
+                desired[2].description,
+                api_response_permission_sets[0].id,
+                api_response_access_scopes[0].id,
+            ),
+        ]
+    )
+    acs_mock.create_group_batch.assert_not_called()
+
+    acs_mock.delete_group_batch.assert_has_calls(
+        [mocker.call([api_response_groups[4]])]
+    )
+    # call to 'delete_group_batch' failed. remaining delete logic should be skipped
+    acs_mock.delete_role.assert_not_called()
+    acs_mock.delete_access_scope.assert_not_called()
+
+    acs_mock.update_role.assert_has_calls(
+        [
+            mocker.call(
+                desired[1].name,
+                desired[1].description,
+                # use originals
+                api_response_permission_sets[1].id,
+                api_response_access_scopes[1].id,
+            )
+        ]
+    )
+    acs_mock.update_access_scope.assert_has_calls(
+        [
+            mocker.call(
+                api_response_access_scopes[1].id,
+                desired[1].access_scope.name,
+                desired[1].access_scope.description,
+                desired[1].access_scope.clusters,
+                desired[1].access_scope.namespaces,
+            )
+        ]
+    )
+
+    assert acs_mock.get_access_scopes.call_count == 3
+    assert acs_mock.get_permission_sets.call_count == 2
+    assert acs_mock.get_groups.call_count == 2
+    # new desired role is admin scope. Should use existing 'Unrestricted' system default
+    acs_mock.create_access_scope.assert_not_called()
+    acs_mock.update_group_batch.assert_not_called()
+
+    assert errs
