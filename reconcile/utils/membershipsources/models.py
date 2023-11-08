@@ -20,23 +20,35 @@ from reconcile.gql_definitions.fragments.membership_source import (
 
 
 class User(Protocol):
-    name: str
-    org_username: str
+    @property
+    def name(self) -> str:
+        ...
+
+    @property
+    def org_username(self) -> str:
+        ...
 
     def dict(self, *, by_alias: bool = False) -> dict[str, Any]:
         ...
 
 
 class Bot(Protocol):
-    name: str
-    org_username: Optional[str]
+    @property
+    def name(self) -> str:
+        ...
+
+    @property
+    def org_username(self) -> Optional[str]:
+        ...
 
     def dict(self, *, by_alias: bool = False) -> dict[str, Any]:
         ...
 
 
 class RoleWithMemberships(Protocol):
-    name: str
+    @property
+    def name(self) -> str:
+        ...
 
     @property
     def users(self) -> Sequence[User]:
