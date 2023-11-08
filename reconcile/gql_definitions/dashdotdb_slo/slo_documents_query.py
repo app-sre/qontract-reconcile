@@ -57,7 +57,7 @@ query SLODocuments {
           }
         }
       }
-      targetNamespace {
+      SLONamespace {
         name
       }
     }
@@ -118,8 +118,8 @@ class SLONamespacesV1(ConfiguredBaseModel):
         ..., alias="prometheusAccess"
     )
     namespace: NamespaceV1 = Field(..., alias="namespace")
-    target_namespace: Optional[SLONamespacesV1_NamespaceV1] = Field(
-        ..., alias="targetNamespace"
+    slo_namespace: Optional[SLONamespacesV1_NamespaceV1] = Field(
+        ..., alias="SLONamespace"
     )
 
 
