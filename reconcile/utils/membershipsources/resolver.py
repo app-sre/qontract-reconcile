@@ -12,6 +12,7 @@ from reconcile.gql_definitions.fragments.membership_source import (
     MembershipProviderSourceV1,
     MembershipProviderV1,
 )
+from reconcile.utils.grouping import group_by
 from reconcile.utils.membershipsources.app_interface_resolver import (
     resolve_app_interface_membership_source,
 )
@@ -32,20 +33,22 @@ class GroupResolverJob:
 
 def build_resolver_jobs(
     roles: Sequence[RoleWithMemberships],
-) -> Iterable[GroupResolverJob]:
+) -> list[GroupResolverJob]:
     """
-    Bundles groups to resolve by provider so that they can be resolved
+    Bundles groups to be resolve by provider so that they can be resolved
     in batches.
     """
-    resolver_jobs: dict[str, GroupResolverJob] = {}
-    for r in roles:
-        for ms in r.member_sources or []:
-            job = resolver_jobs.get(ms.provider.name)
-            if not job:
-                job = GroupResolverJob(provider=ms.provider, groups=set())
-                resolver_jobs[ms.provider.name] = job
-            job.groups.add(ms.group)
-    return resolver_jobs.values()
+    groups = group_by(
+        (ms for r in roles for ms in r.member_sources or []),
+        key=lambda ms: ms.provider.name,
+    )
+    return [
+        GroupResolverJob(
+            provider=g[0].provider,
+            groups={ms.group for ms in g},
+        )
+        for g in groups.values()
+    ]
 
 
 ProviderGroup = tuple[str, str]
