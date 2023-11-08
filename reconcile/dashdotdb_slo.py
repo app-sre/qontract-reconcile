@@ -102,7 +102,7 @@ class DashdotdbSLO(DashdotdbBase):
             # TODO: APPSRE-8513 Dashdotdb SLO collector should deal with
             # namespaceTargets. This `if` is a temporary workaround until
             # APPSRE-8513 is implemented.
-            if namespace_access.target_namespace:
+            if namespace_access.slo_namespace:
                 continue
 
             ns = namespace_access.namespace
