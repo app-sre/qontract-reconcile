@@ -192,7 +192,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         :param auth_id: id of auth provider within ACS instance to target for reconciliation
         :return: list of current AcsRole associated with specified auth provider
         """
-        current_roles: dict[str, AcsRole] = {}
+        current_roles: list[AcsRole] = []
 
         roles = acs.get_roles()
         groups = acs.get_groups()
@@ -232,21 +232,23 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                     )
                     continue
 
-                current_roles[role.name] = AcsRole(
-                    name=role.name,
-                    description=role.description,
-                    assignments=role_assignments.get(role.name, []),
-                    permission_set_name=permission_set.name,
-                    system_default=role.system_default,
-                    access_scope=AcsAccessScope(
-                        name=access_scope.name,
-                        description=access_scope.description,
-                        clusters=access_scope.clusters,
-                        namespaces=access_scope.namespaces,
-                    ),
+                current_roles.append(
+                    AcsRole(
+                        name=role.name,
+                        description=role.description,
+                        assignments=role_assignments.get(role.name, []),
+                        permission_set_name=permission_set.name,
+                        system_default=role.system_default,
+                        access_scope=AcsAccessScope(
+                            name=access_scope.name,
+                            description=access_scope.description,
+                            clusters=access_scope.clusters,
+                            namespaces=access_scope.namespaces,
+                        ),
+                    )
                 )
 
-        return list(current_roles.values())
+        return current_roles
 
     def build_role_assignments(
         self, auth_id: str, groups: list[Group]
