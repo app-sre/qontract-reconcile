@@ -197,7 +197,7 @@ def change_type_contexts_for_self_service_roles(
                                 approvers=[
                                     approver
                                     for rm in resolved_approvers.get(role.name, [])
-                                    if (approver := _build_approver(rm)) is not None
+                                    if (approver := build_approver(rm)) is not None
                                 ],
                                 approver_reachability=approver_reachability_from_role(
                                     role
@@ -210,11 +210,16 @@ def change_type_contexts_for_self_service_roles(
     return change_type_contexts
 
 
-def _build_approver(role_member: RoleMember) -> Optional[Approver]:
+def build_approver(role_member: RoleMember) -> Optional[Approver]:
+    """
+    Builds an approver from a role member. Can return None if the passed
+    approver is not considered valid within this context, e.g. not having
+    an org username.
+    """
     match role_member:
         case RoleUser():
             return Approver(role_member.org_username, role_member.tag_on_merge_requests)
-        case RoleBot():
+        case RoleBot() if role_member.org_username:
             return (
                 Approver(role_member.org_username, False)
                 if role_member.org_username

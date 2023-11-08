@@ -1,8 +1,10 @@
 import json
+from typing import Optional
 
 import pytest
 
 from reconcile.change_owners.approver import (
+    Approver,
     GitlabGroupApproverReachability,
     SlackGroupApproverReachability,
 )
@@ -11,6 +13,7 @@ from reconcile.change_owners.self_service_roles import (
     DatafileIncompatibleWithChangeTypeError,
     NoApproversInSelfServiceRoleError,
     approver_reachability_from_role,
+    build_approver,
     change_type_labels_from_role,
     cover_changes_with_self_service_roles,
     validate_self_service_role,
@@ -26,6 +29,11 @@ from reconcile.test.change_owners.fixtures import (
     build_change_type,
     build_role,
     build_test_datafile,
+)
+from reconcile.utils.membershipsources.models import (
+    RoleBot,
+    RoleMember,
+    RoleUser,
 )
 
 #
@@ -232,3 +240,28 @@ def test_self_service_role_empty_change_owner_labels() -> None:
         labels=json.dumps({CHANGE_OWNERS_LABELS_LABEL: ""}),
     )
     assert not change_type_labels_from_role(role)
+
+
+@pytest.mark.parametrize(
+    "member,approver",
+    [
+        (
+            RoleUser(name="user", org_username="user", tag_on_merge_requests=True),
+            Approver("user", True),
+        ),
+        (
+            RoleUser(name="user", org_username="user", tag_on_merge_requests=False),
+            Approver("user", False),
+        ),
+        (
+            RoleBot(name="bot", org_username="bot"),
+            Approver("bot", False),
+        ),
+        (
+            RoleBot(name="bot", org_username=None),
+            None,
+        ),
+    ],
+)
+def test_build_approver(member: RoleMember, approver: Optional[Approver]) -> None:
+    assert build_approver(member) == approver
