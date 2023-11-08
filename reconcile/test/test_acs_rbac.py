@@ -2,6 +2,7 @@ import copy
 from unittest.mock import Mock
 
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile.acs_rbac import (
     AcsAccessScope,
@@ -357,7 +358,11 @@ def api_response_permission_sets() -> list[acs_api.PermissionSet]:
     ]
 
 
-def test_get_desired_state(mocker, query_data_desired_state, modeled_acs_roles):
+def test_get_desired_state(
+    mocker: MockerFixture,
+    query_data_desired_state: AcsRbacQueryData,
+    modeled_acs_roles: list[AcsRole],
+):
     query_func = mocker.patch("reconcile.acs_rbac.acs_rbac_query", autospec=True)
     query_func.return_value = query_data_desired_state
 
@@ -368,11 +373,11 @@ def test_get_desired_state(mocker, query_data_desired_state, modeled_acs_roles):
 
 
 def test_get_current_state(
-    modeled_acs_roles,
-    api_response_roles,
-    api_response_groups,
-    api_response_access_scopes,
-    api_response_permission_sets,
+    modeled_acs_roles: list[AcsRole],
+    api_response_roles: list[acs_api.Role],
+    api_response_groups: list[acs_api.Group],
+    api_response_access_scopes: list[acs_api.AccessScope],
+    api_response_permission_sets: list[acs_api.PermissionSet],
 ):
     acs_mock = Mock()
 
@@ -388,10 +393,10 @@ def test_get_current_state(
 
 
 def test_add_rbac_dry_run(
-    mocker,
-    modeled_acs_roles,
-    api_response_access_scopes,
-    api_response_permission_sets,
+    mocker: MockerFixture,
+    modeled_acs_roles: list[AcsRole],
+    api_response_access_scopes: list[acs_api.AccessScope],
+    api_response_permission_sets: list[acs_api.PermissionSet],
 ):
     dry_run = True
     desired = modeled_acs_roles
@@ -421,10 +426,10 @@ def test_add_rbac_dry_run(
 
 
 def test_add_rbac(
-    mocker,
-    modeled_acs_roles,
-    api_response_access_scopes,
-    api_response_permission_sets,
+    mocker: MockerFixture,
+    modeled_acs_roles: list[AcsRole],
+    api_response_access_scopes: list[acs_api.AccessScope],
+    api_response_permission_sets: list[acs_api.PermissionSet],
 ):
     dry_run = False
     desired = modeled_acs_roles
@@ -485,11 +490,13 @@ def test_add_rbac(
 
 
 def test_delete_rbac_dry_run(
-    mocker, modeled_acs_roles, api_response_access_scopes, api_response_groups
+    mocker: MockerFixture,
+    modeled_acs_roles: list[AcsRole],
+    api_response_access_scopes: list[acs_api.AccessScope],
+    api_response_groups: list[acs_api.Group],
 ):
     dry_run = True
     current = modeled_acs_roles
-
     desired = modeled_acs_roles[:-1]  # remove 'cluster-analyst' role
 
     acs_mock = Mock()
@@ -512,11 +519,13 @@ def test_delete_rbac_dry_run(
 
 
 def test_delete_rbac(
-    mocker, modeled_acs_roles, api_response_access_scopes, api_response_groups
+    mocker: MockerFixture,
+    modeled_acs_roles: list[AcsRole],
+    api_response_access_scopes: list[acs_api.AccessScope],
+    api_response_groups: list[acs_api.Group],
 ):
     dry_run = False
     current = modeled_acs_roles
-
     desired = (
         modeled_acs_roles[:1] + modeled_acs_roles[2:]
     )  # remove 'cluster-analyst' role
@@ -544,11 +553,11 @@ def test_delete_rbac(
 
 
 def test_update_rbac_groups_only(
-    mocker,
-    modeled_acs_roles,
-    api_response_access_scopes,
-    api_response_permission_sets,
-    api_response_groups,
+    mocker: MockerFixture,
+    modeled_acs_roles: list[AcsRole],
+    api_response_access_scopes: list[acs_api.AccessScope],
+    api_response_permission_sets: list[acs_api.PermissionSet],
+    api_response_groups: list[acs_api.Group],
 ):
     dry_run = False
     desired = modeled_acs_roles
@@ -596,11 +605,11 @@ def test_update_rbac_groups_only(
 
 
 def test_full_reconcile(
-    mocker,
-    modeled_acs_roles,
-    api_response_access_scopes,
-    api_response_permission_sets,
-    api_response_groups,
+    mocker: MockerFixture,
+    modeled_acs_roles: list[AcsRole],
+    api_response_access_scopes: list[acs_api.AccessScope],
+    api_response_permission_sets: list[acs_api.PermissionSet],
+    api_response_groups: list[acs_api.Group],
 ):
     dry_run = False
 
