@@ -80,6 +80,7 @@ from reconcile.utils import (
     config,
     dnsutils,
     gql,
+    ocm,
 )
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
@@ -2267,6 +2268,75 @@ def slo_document_services(ctx, status_board_instance):
                 slodocs.append(item)
 
     print_output(ctx.obj["options"], slodocs, columns)
+
+
+@get.command()
+@click.pass_context
+def network_connections(ctx):
+    import reconcile.terraform_tgw_attachments as tftgw
+
+    desired_state_data_source = tftgw._fetch_desired_state_data_source()
+    accounts = [a.dict(by_alias=True) for a in desired_state_data_source.accounts]
+
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(vault_settings.vault)
+    aws_api = AWSApi(1, accounts, secret_reader=secret_reader, init_users=False)
+
+    ocm_map = tftgw._build_ocm_map(desired_state_data_source.clusters, vault_settings)
+    desired_state, err = tftgw._build_desired_state_tgw_attachments(
+        desired_state_data_source.clusters,
+        ocm_map,
+        aws_api,
+    )
+    if err:
+        raise RuntimeError("Could not find VPC ID for cluster")
+
+    tftgw._validate_tgw_connection_names(desired_state)
+
+    print("graph LR")
+    for item in desired_state:
+        r = item.requester
+        source = f"{r.account.name}/{r.region}/{r.tgw_id}"
+        a = item.accepter
+        target = f"{a.account.name}/{a.region}/{a.vpc_id}"
+        print(f"    {source} --> {target}")
+
+
+    import reconcile.terraform_vpc_peerings as tfvpc
+
+    settings = queries.get_secret_reader_settings()
+    clusters = queries.get_clusters_with_peering_settings()
+    ocm_map = ocm.OCMMap(
+        clusters=clusters, integration="qontract-cli", settings=settings
+    )
+    accounts = queries.get_aws_accounts(terraform_state=True, ecrs=False)
+    awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
+
+    desired_state = []
+    # Fetch desired state for cluster-to-vpc(account) VPCs
+    desired_state_vpc, _ = tfvpc.build_desired_state_vpc(
+        clusters, ocm_map, awsapi, None
+    )
+    desired_state.extend(desired_state_vpc)
+
+    # Fetch desired state for cluster-to-account (vpc mesh) VPCs
+    desired_state_vpc_mesh, _ = tfvpc.build_desired_state_vpc_mesh(
+        clusters, ocm_map, awsapi, None
+    )
+    desired_state.extend(desired_state_vpc_mesh)
+
+    # Fetch desired state for cluster-to-cluster VPCs
+    desired_state_cluster, _ = tfvpc.build_desired_state_all_clusters(
+        clusters, ocm_map, awsapi, None
+    )
+    desired_state.extend(desired_state_cluster)
+
+    for item in desired_state:
+        r = item["requester"]
+        source = f"{r['account']['name']}/{r['region']}/{r['vpc_id']}"
+        a = item["accepter"]
+        target = f"{a['account']['name']}/{a['region']}/{a['vpc_id']}"
+        print(f"    {source} --> {target}")
 
 
 @root.group(name="set")
