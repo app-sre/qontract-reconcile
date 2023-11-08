@@ -57,6 +57,9 @@ query SLODocuments {
           }
         }
       }
+      targetNamespace {
+        name
+      }
     }
     slos {
       name
@@ -106,11 +109,18 @@ class NamespaceV1(ConfiguredBaseModel):
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 
+class SLONamespacesV1_NamespaceV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class SLONamespacesV1(ConfiguredBaseModel):
     prometheus_access: Optional[SLOExternalPrometheusAccessV1] = Field(
         ..., alias="prometheusAccess"
     )
     namespace: NamespaceV1 = Field(..., alias="namespace")
+    target_namespace: Optional[SLONamespacesV1_NamespaceV1] = Field(
+        ..., alias="targetNamespace"
+    )
 
 
 class SLODocumentSLOSLOParametersV1(ConfiguredBaseModel):

@@ -99,6 +99,13 @@ class DashdotdbSLO(DashdotdbBase):
         LOG.debug("SLO: processing %s", slo_document.name)
         result: list[ServiceSLO] = []
         for namespace_access in slo_document.namespaces:
+            # skip if there is a `targetNamespace` defined. in this case we
+            # don't know which is the prometheus that must evaluate the query.
+            # This functionlity is implemented here instead:
+            # app-interface/docs/status-board/statusboard-alertmanager-receiver.md
+            if namespace_access.target_namespace:
+                continue
+
             ns = namespace_access.namespace
             promtoken: Optional[str] = None
             username: Optional[str] = None

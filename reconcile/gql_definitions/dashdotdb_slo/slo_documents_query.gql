@@ -29,6 +29,9 @@ query SLODocuments {
           }
         }
       }
+      targetNamespace {
+        name
+      }
     }
     slos {
       name
