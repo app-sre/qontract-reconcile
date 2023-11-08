@@ -1,11 +1,6 @@
 import base64
 from contextlib import contextmanager
-from typing import (
-    Any,
-    Callable,
-    Generator,
-    Optional,
-)
+from typing import Generator
 
 from reconcile import queries
 from reconcile.gql_definitions.fragments.membership_source import (
@@ -26,9 +21,9 @@ from reconcile.utils.secret_reader import SecretReader
 
 
 @contextmanager
-def gql_query_func_for_source(
+def gql_api_for_source(
     source: AppInterfaceMembershipProviderSourceV1,
-) -> Generator[Callable[[str, Optional[Any], bool], dict[str, Any]], None, None]:
+) -> Generator[gql.GqlApi, None, None]:
     settings = queries.get_secret_reader_settings()
     secret_reader = SecretReader(settings=settings)
     username = secret_reader.read_secret(source.username)
@@ -38,7 +33,7 @@ def gql_query_func_for_source(
         source.url, f"Basic {basic_auth_info}", None, False
     )
     try:
-        yield gql_api.query
+        yield gql_api
     finally:
         gql_api.close()
 
@@ -48,10 +43,10 @@ def resolve_app_interface_membership_source(
     source: AppInterfaceMembershipProviderSourceV1,
     groups: set[str],
 ) -> dict[ProviderGroup, list[RoleMember]]:
-    with gql_query_func_for_source(source) as query_func:
+    with gql_api_for_source(source) as gql_api:
         roles = (
             mebershipsource_query(
-                query_func, variables={"filter": {"name": {"in": list(groups)}}}
+                gql_api.query, variables={"filter": {"name": {"in": list(groups)}}}
             ).roles
             or []
         )
