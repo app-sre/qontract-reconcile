@@ -3,6 +3,7 @@ from collections.abc import (
     Sequence,
 )
 from dataclasses import dataclass
+from itertools import chain
 
 from sretoolbox.utils import threaded
 
@@ -85,9 +86,9 @@ def resolve_role_members(
         iterable=resolver_jobs,
         thread_pool_size=thread_pool,
     )
-    resolved_groups = {}
-    for d in processed_jobs:
-        resolved_groups.update(d)
+    resolved_groups: dict[ProviderGroup, list[RoleMember]] = dict(
+        chain.from_iterable(d.items() for d in processed_jobs)
+    )
 
     members_by_group = {}
     for r in roles:
