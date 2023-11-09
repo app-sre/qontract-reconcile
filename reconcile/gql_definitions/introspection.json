@@ -19917,7 +19917,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "targetNamespace",
+                            "name": "SLONamespace",
                             "description": null,
                             "args": [],
                             "type": {

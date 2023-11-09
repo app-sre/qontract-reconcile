@@ -99,6 +99,12 @@ class DashdotdbSLO(DashdotdbBase):
         LOG.debug("SLO: processing %s", slo_document.name)
         result: list[ServiceSLO] = []
         for namespace_access in slo_document.namespaces:
+            # TODO: APPSRE-8513 Dashdotdb SLO collector should deal with
+            # namespaceTargets. This `if` is a temporary workaround until
+            # APPSRE-8513 is implemented.
+            if namespace_access.slo_namespace:
+                continue
+
             ns = namespace_access.namespace
             promtoken: Optional[str] = None
             username: Optional[str] = None

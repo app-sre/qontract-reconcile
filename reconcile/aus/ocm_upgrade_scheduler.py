@@ -90,7 +90,7 @@ class OCMClusterUpgradeSchedulerIntegration(
         version_data: VersionData,
     ) -> None:
         for version, version_history in version_data.versions.items():
-            for workload, workload_histry in version_history.workloads.items():
+            for workload, workload_history in version_history.workloads.items():
                 metrics.set_gauge(
                     AUSOrganizationVersionDataGauge(
                         integration=self.name,
@@ -99,7 +99,7 @@ class OCMClusterUpgradeSchedulerIntegration(
                         version=version,
                         workload=workload,
                     ),
-                    workload_histry.soak_days,
+                    workload_history.soak_days,
                 )
 
     def expose_remaining_soak_day_metrics(
