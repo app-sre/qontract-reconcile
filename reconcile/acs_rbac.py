@@ -21,6 +21,7 @@ from reconcile.utils import gql
 from reconcile.utils.acs_api import (
     AcsApi,
     Group,
+    RbacResources,
 )
 from reconcile.utils.differ import (
     DiffPair,
@@ -186,7 +187,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
             for permission, usernames in permission_usernames.items()
         ]
 
-    def get_current_state(self, acs: AcsApi, auth_provider_id: str) -> list[AcsRole]:
+    def get_current_state(
+        self, auth_provider_id: str, rbac_api_resources: RbacResources
+    ) -> list[AcsRole]:
         """
         Get current ACS roles and associated users from ACS api
 
@@ -196,13 +199,15 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         """
         current_roles: list[AcsRole] = []
 
-        roles = acs.get_roles()
-        groups = acs.get_groups()
         role_assignments: RoleAssignments = self.build_role_assignments(
-            auth_provider_id, groups
+            auth_provider_id, rbac_api_resources.groups
         )
+        access_scope_id_map = {s.id: s for s in rbac_api_resources.access_scopes}
+        permission_sets_id_map = {
+            ps.id: ps for ps in rbac_api_resources.permission_sets
+        }
 
-        for role in roles:
+        for role in rbac_api_resources.roles:
             # process roles that are not system default
             # OR
             # system default roles referenced in auth rules
@@ -210,8 +215,8 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
             if not role.system_default or (
                 role.name in role_assignments and role.name != "None"
             ):
-                access_scope = acs.get_access_scope_by_id(role.access_scope_id)
-                permission_set = acs.get_permission_set_by_id(role.permission_set_id)
+                access_scope = access_scope_id_map[role.access_scope_id]
+                permission_set = permission_sets_id_map[role.permission_set_id]
 
                 current_roles.append(
                     AcsRole(
@@ -253,7 +258,12 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         return auth_rules
 
     def add_rbac(
-        self, to_add: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
+        self,
+        to_add: dict[str, AcsRole],
+        rbac_api_resources: RbacResources,
+        acs: AcsApi,
+        auth_id: str,
+        dry_run: bool,
     ) -> int:
         """
         Creates desired ACS roles as well as associated access scopes and rules
@@ -263,8 +273,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         :param auth_id: id of auth provider within ACS instance to target for reconciliation
         :param dry_run: run in dry-run mode
         """
-        access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
-        permission_sets_id_map = {ps.name: ps.id for ps in acs.get_permission_sets()}
+        access_scope_id_map = {s.name: s.id for s in rbac_api_resources.access_scopes}
+        permission_sets_id_map = {
+            ps.name: ps.id for ps in rbac_api_resources.permission_sets
+        }
 
         err_count = 0
         for role in to_add.values():
@@ -335,7 +347,12 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         return err_count
 
     def delete_rbac(
-        self, to_delete: dict[str, AcsRole], acs: AcsApi, auth_id: str, dry_run: bool
+        self,
+        to_delete: dict[str, AcsRole],
+        rbac_api_resources: RbacResources,
+        acs: AcsApi,
+        auth_id: str,
+        dry_run: bool,
     ) -> int:
         """
         Deletes desired ACS roles as well as associated access scopes and rules
@@ -345,9 +362,9 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         :param auth_id: id of auth provider within ACS instance to target for reconciliation
         :param dry_run: run in dry-run mode
         """
-        access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
+        access_scope_id_map = {s.name: s.id for s in rbac_api_resources.access_scopes}
         role_group_mappings: dict[str, list[Group]] = defaultdict(list)
-        for group in acs.get_groups():
+        for group in rbac_api_resources.groups:
             if group.auth_provider_id == auth_id:
                 role_group_mappings[group.role_name].append(group)
 
@@ -395,6 +412,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
     def update_rbac(
         self,
         to_update: dict[str, DiffPair[AcsRole, AcsRole]],
+        rbac_api_resources: RbacResources,
         acs: AcsApi,
         auth_id: str,
         dry_run: bool,
@@ -407,10 +425,12 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         :param auth_id: id of auth provider within ACS instance to target for reconciliation
         :param dry_run: run in dry-run mode
         """
-        access_scope_id_map = {s.name: s.id for s in acs.get_access_scopes()}
-        permission_sets_id_map = {ps.name: ps.id for ps in acs.get_permission_sets()}
+        access_scope_id_map = {s.name: s.id for s in rbac_api_resources.access_scopes}
+        permission_sets_id_map = {
+            ps.name: ps.id for ps in rbac_api_resources.permission_sets
+        }
         role_group_mappings: dict[str, dict[str, Group]] = {}
-        for group in acs.get_groups():
+        for group in rbac_api_resources.groups:
             if group.role_name not in role_group_mappings:
                 role_group_mappings[group.role_name] = {}
             role_group_mappings[group.role_name][group.value] = group
@@ -522,6 +542,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         self,
         desired: list[AcsRole],
         current: list[AcsRole],
+        rbac_api_resources: RbacResources,
         acs: AcsApi,
         auth_provider_id: str,
         dry_run: bool,
@@ -529,11 +550,29 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         err_count = 0
         diff = diff_iterables(current, desired, lambda x: x.name)
         if len(diff.add) > 0:
-            err_count += self.add_rbac(diff.add, acs, auth_provider_id, dry_run)
+            err_count += self.add_rbac(
+                to_add=diff.add,
+                rbac_api_resources=rbac_api_resources,
+                acs=acs,
+                auth_id=auth_provider_id,
+                dry_run=dry_run,
+            )
         if len(diff.delete) > 0:
-            err_count += self.delete_rbac(diff.delete, acs, auth_provider_id, dry_run)
+            err_count += self.delete_rbac(
+                to_delete=diff.delete,
+                rbac_api_resources=rbac_api_resources,
+                acs=acs,
+                auth_id=auth_provider_id,
+                dry_run=dry_run,
+            )
         if len(diff.change) > 0:
-            err_count += self.update_rbac(diff.change, acs, auth_provider_id, dry_run)
+            err_count += self.update_rbac(
+                to_update=diff.change,
+                rbac_api_resources=rbac_api_resources,
+                acs=acs,
+                auth_id=auth_provider_id,
+                dry_run=dry_run,
+            )
         return err_count
 
     def run(
@@ -549,13 +588,21 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
 
         desired = self.get_desired_state(gqlapi.query)
 
-        errors_occurred = 0
         with AcsApi(
             instance={"url": instance.url, "token": token[instance.credentials.field]}
         ) as acs_api:
-            current = self.get_current_state(acs_api, instance.auth_provider.q_id)
+            rbac_api_resources = acs_api.get_rbac_resources()
+
+            current = self.get_current_state(
+                instance.auth_provider.q_id, rbac_api_resources
+            )
             errors_occurred = self.reconcile(
-                desired, current, acs_api, instance.auth_provider.q_id, dry_run
+                desired=desired,
+                current=current,
+                rbac_api_resources=rbac_api_resources,
+                acs=acs_api,
+                auth_provider_id=instance.auth_provider.q_id,
+                dry_run=dry_run,
             )
 
         if errors_occurred:

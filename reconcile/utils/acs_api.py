@@ -104,6 +104,13 @@ class PermissionSet(BaseModel):
         super().__init__(id=api_data["id"], name=api_data["name"])
 
 
+class RbacResources(BaseModel):
+    roles: list[Role]
+    access_scopes: list[AccessScope]
+    groups: list[Group]
+    permission_sets: list[PermissionSet]
+
+
 def check_len_attributes(attrs: list[Any], api_data: Any) -> None:
     # generic attribute check function for expected types with valid len()
     for attr in attrs:
@@ -259,10 +266,6 @@ class AcsApi:
         }
         self.generic_request("/v1/groupsbatch", "POST", json)
 
-    def get_access_scope_by_id(self, id: str) -> AccessScope:
-        response = self.generic_request(f"/v1/simpleaccessscopes/{id}", "GET")
-        return AccessScope(response.json())
-
     def get_access_scopes(self) -> list[AccessScope]:
         response = self.generic_request("/v1/simpleaccessscopes", "GET")
         return [AccessScope(a) for a in response.json()["accessScopes"]]
@@ -310,10 +313,14 @@ class AcsApi:
 
         self.generic_request(f"/v1/simpleaccessscopes/{id}", "PUT", json)
 
-    def get_permission_set_by_id(self, id: str) -> PermissionSet:
-        response = self.generic_request(f"/v1/permissionsets/{id}", "GET")
-        return PermissionSet(response.json())
-
     def get_permission_sets(self) -> list[PermissionSet]:
         response = self.generic_request("/v1/permissionsets", "GET")
         return [PermissionSet(p) for p in response.json()["permissionSets"]]
+
+    def get_rbac_resources(self) -> RbacResources:
+        return RbacResources(
+            roles=self.get_roles(),
+            access_scopes=self.get_access_scopes(),
+            groups=self.get_groups(),
+            permission_sets=self.get_permission_sets(),
+        )
