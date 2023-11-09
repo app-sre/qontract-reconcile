@@ -38,6 +38,7 @@ import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 import reconcile.prometheus_rules_tester.integration as ptr
 import reconcile.terraform_resources as tfr
+import reconcile.terraform_tgw_attachments as tftgw
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
 from reconcile import queries
@@ -2273,8 +2274,7 @@ def slo_document_services(ctx, status_board_instance):
 @get.command()
 @click.pass_context
 def network_connections(ctx):
-    import reconcile.terraform_tgw_attachments as tftgw
-
+    # terraform-tgw-attachments
     desired_state_data_source = tftgw._fetch_desired_state_data_source()
     accounts = [a.dict(by_alias=True) for a in desired_state_data_source.accounts]
 
@@ -2303,9 +2303,7 @@ def network_connections(ctx):
         target = f"{a.account.name}/{a.region}/{a.vpc_id}"
         print(f"    {source} --> {target}")
 
-
-    import reconcile.terraform_vpc_peerings as tfvpc
-
+    # terraform-vpc-peerings
     settings = queries.get_secret_reader_settings()
     clusters = queries.get_clusters_with_peering_settings()
     ocm_map = ocm.OCMMap(
