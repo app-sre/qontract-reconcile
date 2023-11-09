@@ -2295,6 +2295,8 @@ def network_connections(ctx):
 
     print("graph LR")
     for item in desired_state:
+        if item.deleted:
+            continue
         r = item.requester
         source = f"{r.account.name}/{r.region}/{r.tgw_id}"
         a = item.accepter
@@ -2332,6 +2334,8 @@ def network_connections(ctx):
     desired_state.extend(desired_state_cluster)
 
     for item in desired_state:
+        if item["deleted"]:
+            continue
         r = item["requester"]
         source = f"{r['account']['name']}/{r['region']}/{r['vpc_id']}"
         a = item["accepter"]
