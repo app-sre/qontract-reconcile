@@ -420,7 +420,7 @@ def test_add_rbac_dry_run(
     mocker.patch.object(acs_mock, "create_group_batch")
 
     integration = AcsRbacIntegration()
-    errs = integration.reconcile(
+    integration.reconcile(
         desired=desired,
         current=current,
         rbac_api_resources=rbac_api_resources,
@@ -432,8 +432,6 @@ def test_add_rbac_dry_run(
     acs_mock.create_access_scope.assert_not_called()
     acs_mock.create_role.assert_not_called()
     acs_mock.create_group_batch.assert_not_called()
-
-    assert not errs
 
 
 def test_add_rbac(
@@ -463,7 +461,7 @@ def test_add_rbac(
     mocker.patch.object(acs_mock, "create_group_batch")
 
     integration = AcsRbacIntegration()
-    errs = integration.reconcile(
+    integration.reconcile(
         desired=desired,
         current=current,
         rbac_api_resources=rbac_api_resources,
@@ -508,8 +506,6 @@ def test_add_rbac(
         ]
     )
 
-    assert not errs
-
 
 def test_delete_rbac_dry_run(
     mocker: MockerFixture,
@@ -534,7 +530,7 @@ def test_delete_rbac_dry_run(
     mocker.patch.object(acs_mock, "delete_access_scope")
 
     integration = AcsRbacIntegration()
-    errs = integration.reconcile(
+    integration.reconcile(
         desired=desired,
         current=current,
         rbac_api_resources=rbac_api_resources,
@@ -546,8 +542,6 @@ def test_delete_rbac_dry_run(
     acs_mock.delete_role.assert_not_called()
     acs_mock.delete_group_batch.assert_not_called()
     acs_mock.delete_access_scope.assert_not_called()
-
-    assert not errs
 
 
 def test_delete_rbac(
@@ -575,7 +569,7 @@ def test_delete_rbac(
     mocker.patch.object(acs_mock, "delete_access_scope")
 
     integration = AcsRbacIntegration()
-    errs = integration.reconcile(
+    integration.reconcile(
         desired=desired,
         current=current,
         rbac_api_resources=rbac_api_resources,
@@ -591,8 +585,6 @@ def test_delete_rbac(
     acs_mock.delete_access_scope.assert_has_calls(
         [mocker.call(api_response_access_scopes[1].id)]
     )
-
-    assert not errs
 
 
 def test_update_rbac_groups_only(
@@ -624,7 +616,7 @@ def test_update_rbac_groups_only(
     mocker.patch.object(acs_mock, "update_role")
 
     integration = AcsRbacIntegration()
-    errs = integration.reconcile(
+    integration.reconcile(
         desired=desired,
         current=current,
         rbac_api_resources=rbac_api_resources,
@@ -651,8 +643,6 @@ def test_update_rbac_groups_only(
 
     acs_mock.update_access_scope.assert_not_called()
     acs_mock.update_role.assert_not_called()
-
-    assert not errs
 
 
 def test_full_reconcile(
@@ -711,7 +701,7 @@ def test_full_reconcile(
     mocker.patch.object(acs_mock, "update_role")
 
     integration = AcsRbacIntegration()
-    errs = integration.reconcile(
+    integration.reconcile(
         desired=desired,
         current=current,
         rbac_api_resources=rbac_api_resources,
@@ -781,8 +771,6 @@ def test_full_reconcile(
     acs_mock.create_access_scope.assert_not_called()
     acs_mock.update_group_batch.assert_not_called()
 
-    assert not errs
-
 
 def test_full_reconcile_with_errors(
     mocker: MockerFixture,
@@ -843,14 +831,15 @@ def test_full_reconcile_with_errors(
     mocker.patch.object(acs_mock, "update_role")
 
     integration = AcsRbacIntegration()
-    errs = integration.reconcile(
-        desired=desired,
-        current=current,
-        rbac_api_resources=rbac_api_resources,
-        acs=acs_mock,
-        auth_provider_id=AUTH_PROVIDER_ID,
-        dry_run=dry_run,
-    )
+    with pytest.raises(ExceptionGroup) as exc_info:
+        integration.reconcile(
+            desired=desired,
+            current=current,
+            rbac_api_resources=rbac_api_resources,
+            acs=acs_mock,
+            auth_provider_id=AUTH_PROVIDER_ID,
+            dry_run=dry_run,
+        )
 
     # call to 'create_role' failed. remaining create logic should be skipped
     acs_mock.create_role.assert_has_calls(
@@ -899,4 +888,4 @@ def test_full_reconcile_with_errors(
     acs_mock.create_access_scope.assert_not_called()
     acs_mock.update_group_batch.assert_not_called()
 
-    assert errs
+    assert "Reconcile errors occurred" in str(exc_info.value)
