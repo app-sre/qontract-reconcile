@@ -304,11 +304,13 @@ def build_role(
             )
         ],
         users=[
-            UserV1(org_username=u, tag_on_merge_requests=False) for u in users or []
+            UserV1(name=u, org_username=u, tag_on_merge_requests=False)
+            for u in users or []
         ],
-        bots=[BotV1(org_username=b) for b in bots or []],
+        bots=[BotV1(name=b, org_username=b) for b in bots or []],
         permissions=permissions,
         labels=labels,
+        memberSources=None,
     )
 
 

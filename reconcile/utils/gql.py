@@ -417,6 +417,22 @@ def get_api_for_sha(
     )
 
 
+def get_api_for_server(
+    server: str,
+    token: Optional[str],
+    integration: Optional[str] = None,
+    validate_schemas: bool = True,
+) -> GqlApi:
+    return GqlApi(
+        server,
+        token,
+        integration,
+        validate_schemas,
+        commit=None,
+        commit_timestamp=None,
+    )
+
+
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_diff(
     old_sha: str, file_type: Optional[str] = None, file_path: Optional[str] = None
