@@ -9,12 +9,13 @@ from reconcile.status import ExitCodes
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
 
-
 QONTRACT_INTEGRATION = "ocm-external-configuration-labels"
 
 
 def get_allowed_labels_for_cluster(cluster: dict[str, Any]) -> set[str]:
-    allowed_labels = cluster.get("ocm", {}).get("allowedClusterExternalConfigLabels", [])
+    allowed_labels = cluster.get("ocm", {}).get(
+        "allowedClusterExternalConfigLabels", []
+    )
     return set(allowed_labels)
 
 
