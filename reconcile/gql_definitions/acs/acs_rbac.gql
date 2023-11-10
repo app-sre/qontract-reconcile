@@ -2,7 +2,7 @@
 
 query AcsRbac  {
   acs_rbacs: users_v1 {
-    acs_user
+    org_username
     roles {
       name
       oidc_permissions {

@@ -81,11 +81,9 @@ class AcsRole(BaseModel):
     def build(cls, permission: Permission, usernames: list[str]) -> Self:
         assignments = [
             AssignmentPair(
-                # acs_user attribute from https://github.com/app-sre/qontract-schemas/blob/main/schemas/access/user-1.yml
-                # is mapped to email key in auth rules.
-                # this is due to current limitation with ACS ability to enforce custom keys in rules
-                # see step 5: https://docs.openshift.com/acs/4.2/operating/manage-user-access/manage-role-based-access-control-3630.html#assign-role-to-user-or-group_manage-role-based-access-control
-                key="email",
+                # org_username attribute from https://github.com/app-sre/qontract-schemas/blob/main/schemas/access/user-1.yml
+                # is mapped to userid key in auth rules.
+                key="userid",
                 value=u,
             )
             for u in usernames
@@ -173,13 +171,12 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
 
         permission_usernames: dict[Permission, list[str]] = defaultdict(list)
         for user in query_results:
-            if user.acs_user:  # user file must set acs_user attribute
-                for role in user.roles or []:
-                    for permission in role.oidc_permissions or []:
-                        if isinstance(permission, OidcPermissionAcsV1):
-                            permission_usernames[
-                                Permission(**permission.dict(by_alias=True))
-                            ].append(user.acs_user)
+            for role in user.roles or []:
+                for permission in role.oidc_permissions or []:
+                    if isinstance(permission, OidcPermissionAcsV1):
+                        permission_usernames[
+                            Permission(**permission.dict(by_alias=True))
+                        ].append(user.org_username)
         return [
             AcsRole.build(permission, usernames)
             for permission, usernames in permission_usernames.items()

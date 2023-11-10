@@ -29,7 +29,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
     return AcsRbacQueryData(
         acs_rbacs=[
             UserV1(
-                acs_user="foo@redhat.com",
+                org_username="foo",
                 roles=[
                     RoleV1(
                         name="app-sre-admin",
@@ -47,7 +47,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                 ],
             ),
             UserV1(
-                acs_user="bar@redhat.com",
+                org_username="bar",
                 roles=[
                     RoleV1(
                         name="app-sre-admin",
@@ -65,7 +65,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                 ],
             ),
             UserV1(
-                acs_user="foofoo@redhat.com",
+                org_username="foofoo",
                 roles=[
                     RoleV1(
                         name="tenant-role-a",
@@ -86,7 +86,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                 ],
             ),
             UserV1(
-                acs_user="barbar@redhat.com",
+                org_username="barbar",
                 roles=[
                     RoleV1(
                         name="tenant-role-a",
@@ -107,7 +107,7 @@ def query_data_desired_state() -> AcsRbacQueryData:
                 ],
             ),
             UserV1(
-                acs_user="foobar@redhat.com",
+                org_username="foobar",
                 roles=[
                     RoleV1(
                         name="tenant-role-b",
@@ -148,8 +148,8 @@ def modeled_acs_roles() -> list[AcsRole]:
             name="app-sre-acs-admin",
             description="admin access to acs instance",
             assignments=[
-                AssignmentPair(key="email", value="foo@redhat.com"),
-                AssignmentPair(key="email", value="bar@redhat.com"),
+                AssignmentPair(key="userid", value="foo"),
+                AssignmentPair(key="userid", value="bar"),
             ],
             permission_set_name="Admin",
             access_scope=AcsAccessScope(
@@ -164,8 +164,8 @@ def modeled_acs_roles() -> list[AcsRole]:
             name="cluster-analyst",
             description="analyst access to clusters in acs instance",
             assignments=[
-                AssignmentPair(key="email", value="foofoo@redhat.com"),
-                AssignmentPair(key="email", value="barbar@redhat.com"),
+                AssignmentPair(key="userid", value="foofoo"),
+                AssignmentPair(key="userid", value="barbar"),
             ],
             permission_set_name="Analyst",
             access_scope=AcsAccessScope(
@@ -179,7 +179,7 @@ def modeled_acs_roles() -> list[AcsRole]:
         AcsRole(
             name="service-vuln-admin",
             description="vuln-admin access to service namespaces in acs instance",
-            assignments=[AssignmentPair(key="email", value="foobar@redhat.com")],
+            assignments=[AssignmentPair(key="userid", value="foobar")],
             permission_set_name="Vulnerability Management Admin",
             access_scope=AcsAccessScope(
                 name="service-vuln-admin",
@@ -237,8 +237,8 @@ def api_response_groups() -> list[acs_api.Group]:
                 "props": {
                     "id": "1",
                     "authProviderId": AUTH_PROVIDER_ID,
-                    "key": "email",
-                    "value": "foo@redhat.com",
+                    "key": "userid",
+                    "value": "foo",
                 },
             }
         ),
@@ -248,8 +248,8 @@ def api_response_groups() -> list[acs_api.Group]:
                 "props": {
                     "id": "2",
                     "authProviderId": AUTH_PROVIDER_ID,
-                    "key": "email",
-                    "value": "bar@redhat.com",
+                    "key": "userid",
+                    "value": "bar",
                 },
             }
         ),
@@ -259,8 +259,8 @@ def api_response_groups() -> list[acs_api.Group]:
                 "props": {
                     "id": "3",
                     "authProviderId": AUTH_PROVIDER_ID,
-                    "key": "email",
-                    "value": "foofoo@redhat.com",
+                    "key": "userid",
+                    "value": "foofoo",
                 },
             }
         ),
@@ -270,8 +270,8 @@ def api_response_groups() -> list[acs_api.Group]:
                 "props": {
                     "id": "4",
                     "authProviderId": AUTH_PROVIDER_ID,
-                    "key": "email",
-                    "value": "barbar@redhat.com",
+                    "key": "userid",
+                    "value": "barbar",
                 },
             }
         ),
@@ -281,8 +281,8 @@ def api_response_groups() -> list[acs_api.Group]:
                 "props": {
                     "id": "5",
                     "authProviderId": AUTH_PROVIDER_ID,
-                    "key": "email",
-                    "value": "foobar@redhat.com",
+                    "key": "userid",
+                    "value": "foobar",
                 },
             }
         ),
@@ -660,8 +660,8 @@ def test_full_reconcile(
             name="new-role",
             description="add me",
             assignments=[
-                AssignmentPair(key="email", value="elsa@redhat.com"),
-                AssignmentPair(key="email", value="anna@redhat.com"),
+                AssignmentPair(key="userid", value="elsa"),
+                AssignmentPair(key="userid", value="anna"),
             ],
             permission_set_name="Admin",
             access_scope=AcsAccessScope(
@@ -786,8 +786,8 @@ def test_full_reconcile_with_errors(
             name="new-role",
             description="add me",
             assignments=[
-                AssignmentPair(key="email", value="elsa@redhat.com"),
-                AssignmentPair(key="email", value="anna@redhat.com"),
+                AssignmentPair(key="userid", value="elsa"),
+                AssignmentPair(key="userid", value="anna"),
             ],
             permission_set_name="Admin",
             access_scope=AcsAccessScope(
