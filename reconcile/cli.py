@@ -2884,6 +2884,17 @@ def ocm_labels(ctx, managed_label_prefixes):
     )
 
 
+@integration.command(short_help="Manages RHACS rbac configuration")
+@click.pass_context
+def acs_rbac(ctx):
+    from reconcile import acs_rbac
+
+    run_class_integration(
+        integration=acs_rbac.AcsRbacIntegration(),
+        ctx=ctx.obj,
+    )
+
+
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
     """
     returns all integrations known to cli.py via click introspection

@@ -1,0 +1,14 @@
+# qenerate: plugin=pydantic_v1
+
+query AcsInstance {
+  instances: acs_instance_v1 {
+    url
+    credentials {
+      ... VaultSecret
+    }
+    authProvider {
+      name
+      id
+    }
+  }
+}
