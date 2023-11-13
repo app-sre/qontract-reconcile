@@ -12,6 +12,13 @@ from reconcile.utils.ocm import OCMMap
 QONTRACT_INTEGRATION = "ocm-external-configuration-labels"
 
 
+def get_allowed_labels_for_cluster(cluster: dict[str, Any]) -> set[str]:
+    allowed_labels = cluster.get("ocm", {}).get(
+        "allowedClusterExternalConfigLabels", []
+    )
+    return set(allowed_labels)
+
+
 def fetch_current_state(clusters):
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(
@@ -21,9 +28,12 @@ def fetch_current_state(clusters):
     current_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
+        allowed_labels = get_allowed_labels_for_cluster(cluster)
         ocm = ocm_map.get(cluster_name)
         labels = ocm.get_external_configuration_labels(cluster_name)
         for key, value in labels.items():
+            if key not in allowed_labels:
+                continue
             item = {"label": {"key": key, "value": value}, "cluster": cluster_name}
             current_state.append(item)
 
@@ -34,8 +44,13 @@ def fetch_desired_state(clusters):
     desired_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
+        allowed_labels = get_allowed_labels_for_cluster(cluster)
         labels = json.loads(cluster["externalConfiguration"]["labels"])
         for key, value in labels.items():
+            if key not in allowed_labels:
+                raise ValueError(
+                    f"Unsupported external configuration label '{key}' in cluster '{cluster_name}'"
+                )
             item = {"label": {"key": key, "value": value}, "cluster": cluster_name}
             desired_state.append(item)
 
