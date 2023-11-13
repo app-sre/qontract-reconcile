@@ -353,6 +353,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         role: AcsRole,
         acs: AcsApi,
         access_scope_id: str,
+        admin_access_scope_id: str,
         groups: list[Group],
         dry_run: bool,
     ) -> None:
@@ -383,9 +384,11 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
             acs.delete_role(role.name)
         logging.info("Deleted role: %s", role.name)
 
-        if not dry_run:
-            acs.delete_access_scope(access_scope_id)
-        logging.info("Deleted access scope: %s", role.access_scope.name)
+        # do not attempt deletion of system default 'Unrestricted' scope referenced by a custom role
+        if access_scope_id != admin_access_scope_id:
+            if not dry_run:
+                acs.delete_access_scope(access_scope_id)
+            logging.info("Deleted access scope: %s", role.access_scope.name)
 
     def delete_rbac(
         self,
@@ -416,6 +419,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                     role=role,
                     acs=acs,
                     access_scope_id=access_scope_id_map[role.access_scope.name],
+                    admin_access_scope_id=access_scope_id_map[DEFAULT_ADMIN_SCOPE_NAME],
                     groups=role_group_mappings[role.name],
                     dry_run=dry_run,
                 )
