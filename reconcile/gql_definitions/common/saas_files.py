@@ -205,6 +205,7 @@ query SaasFiles {
     deprecated
     compare
     timeout
+    skipSuccessfulDeployNotifications
     publishJobLogs
     clusterAdmin
     imagePatterns
@@ -564,6 +565,9 @@ class SaasFileV2(ConfiguredBaseModel):
     deprecated: Optional[bool] = Field(..., alias="deprecated")
     compare: Optional[bool] = Field(..., alias="compare")
     timeout: Optional[str] = Field(..., alias="timeout")
+    skip_successful_deploy_notifications: Optional[bool] = Field(
+        ..., alias="skipSuccessfulDeployNotifications"
+    )
     publish_job_logs: Optional[bool] = Field(..., alias="publishJobLogs")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     image_patterns: list[str] = Field(..., alias="imagePatterns")

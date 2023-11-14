@@ -109,9 +109,6 @@ class SaasFile(ConfiguredBaseModel):
     pipelines_provider: Union[PipelinesProviderTektonV1, PipelinesProviderV1] = Field(
         ..., alias="pipelinesProvider"
     )
-    skip_successful_deploy_notifications: Optional[bool] = Field(
-        ..., alias="skipSuccessfulDeployNotifications"
-    )
     deploy_resources: Optional[DeployResourcesV1] = Field(..., alias="deployResources")
     slack: Optional[SlackOutputV1] = Field(..., alias="slack")
     managed_resource_types: list[str] = Field(..., alias="managedResourceTypes")
