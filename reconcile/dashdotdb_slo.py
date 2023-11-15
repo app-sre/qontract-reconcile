@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import (
     Any,
+    Callable,
     Optional,
 )
 
@@ -193,3 +194,7 @@ def run(dry_run: bool = False, thread_pool_size: int = 10) -> None:
         dry_run=dry_run, thread_pool_size=thread_pool_size, secret_reader=secret_reader
     )
     dashdotdb_slo.run()
+
+
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return {doc.name: doc.dict() for doc in get_slo_documents()}
