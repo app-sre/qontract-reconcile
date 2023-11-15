@@ -65,8 +65,10 @@ def run(dry_run, gitlab_project_id):
                 c for c in upgrade_policy_clusters if c["name"] == ocm_cluster_name
             ]
             if not found:
-                ocm_cluster_labels = ocm.get_external_configuration_labels(
-                    ocm_cluster_name
+                ocm_cluster_labels = (
+                    ocm.get_external_configuration_labels(ocm_cluster_name)
+                    if not ocm_cluster_spec.spec.hypershift
+                    else {}
                 )
                 for default in upgrade_policy_defaults:
                     default_name = default["name"]
