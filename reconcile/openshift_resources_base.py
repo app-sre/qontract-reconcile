@@ -1056,7 +1056,7 @@ def run(
         namespace_name=namespace_name,
     )
     if not namespaces:
-        logging.info(
+        logging.debug(
             "No namespaces found when filtering for "
             f"cluster={cluster_name}, namespace={namespace_name}. "
             "Exiting."
