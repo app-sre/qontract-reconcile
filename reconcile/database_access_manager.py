@@ -578,31 +578,32 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
         encounteredErrors = False
 
         namespaces = get_database_access_namespaces()
-        with OC_Map(
-            namespaces=[n.dict(by_alias=True) for n in namespaces],
-            integration=QONTRACT_INTEGRATION,
-            settings=settings,
-        ) as oc_map:
-            for namespace in namespaces:
-                for external_resource in [
-                    er
-                    for er in namespace.external_resources or []
-                    if isinstance(er, NamespaceTerraformProviderResourceAWSV1)
+        for namespace in namespaces:
+            for external_resource in [
+                er
+                for er in namespace.external_resources or []
+                if isinstance(er, NamespaceTerraformProviderResourceAWSV1)
+            ]:
+                for resource in [
+                    r
+                    for r in external_resource.resources or []
+                    if isinstance(r, NamespaceTerraformResourceRDSV1)
+                    and r.database_access is not None
                 ]:
-                    for resource in [
-                        r
-                        for r in external_resource.resources or []
-                        if isinstance(r, NamespaceTerraformResourceRDSV1)
-                    ]:
-                        admin_secret_name = resource.output_resource_name
-                        if admin_secret_name is None:
-                            logging.error(
-                                f"{resource.identifier}-{resource.provider} is missing output_resource_name"
-                            )
-                            encounteredErrors = True
-                        else:
-                            for db_access in resource.database_access or []:
-                                try:
+                    admin_secret_name = resource.output_resource_name
+                    if admin_secret_name is None:
+                        logging.error(
+                            f"{resource.identifier}-{resource.provider} is missing output_resource_name"
+                        )
+                        encounteredErrors = True
+                    else:
+                        for db_access in resource.database_access or []:
+                            try:
+                                with OC_Map(
+                                        clusters=namespace.cluster.dict(by_alias=True),
+                                        integration=QONTRACT_INTEGRATION,
+                                        settings=settings,
+                                ) as oc_map:
                                     _process_db_access(
                                         dry_run,
                                         state,
@@ -614,8 +615,8 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                                         get_db_engine(resource),
                                         sql_query_settings,
                                     )
-                                except JobFailedError:
-                                    encounteredErrors = True
+                            except JobFailedError:
+                                encounteredErrors = True
 
             if encounteredErrors:
                 raise JobFailedError("One or more jobs failed to complete")
