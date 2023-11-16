@@ -28,7 +28,8 @@ from reconcile.utils.oc import (
     OC_Map,
     OCClient,
 )
-from reconcile.utils.openshift_resource import OpenshiftResource
+from reconcile.utils.openshift_resource import OpenshiftResource, \
+    base64_encode_secret_field_value
 from reconcile.utils.runtime.integration import QontractReconcileIntegration
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import (
@@ -117,15 +118,11 @@ def generate_user_secret_spec(
 ) -> OpenshiftResource:
     secret = secret_head(name)
     secret["data"] = {
-        "db.host": base64.b64encode(db_connection.host.encode("utf-8")).decode("utf-8"),
-        "db.name": base64.b64encode(db_connection.database.encode("utf-8")).decode(
-            "utf-8"
-        ),
-        "db.password": base64.b64encode(db_connection.password.encode("utf-8")).decode(
-            "utf-8"
-        ),
-        "db.port": base64.b64encode(db_connection.port.encode("utf-8")).decode("utf-8"),
-        "db.user": base64.b64encode(db_connection.user.encode("utf-8")).decode("utf-8"),
+        "db.host": base64_encode_secret_field_value(db_connection.host),
+        "db.name": base64_encode_secret_field_value(db_connection.database),
+        "db.password": base64_encode_secret_field_value(db_connection.password),
+        "db.port": base64_encode_secret_field_value(db_connection.port),
+        "db.user": base64_encode_secret_field_value(db_connection.user),
     }
     return OpenshiftResource(
         body=secret,
