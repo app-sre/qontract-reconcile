@@ -213,6 +213,7 @@ def build_desired_state_single_cluster(
             "vpc_id": requester_vpc_id,
             "route_table_ids": requester_route_table_ids,
             "account": req_aws,
+            "cluster_name": cluster_name,
         }
 
         accepter_vpc_id, accepter_route_table_ids, _ = awsapi.get_cluster_vpc_details(
@@ -230,6 +231,7 @@ def build_desired_state_single_cluster(
             "vpc_id": accepter_vpc_id,
             "route_table_ids": accepter_route_table_ids,
             "account": acc_aws,
+            "cluster_name": peer_cluster_name,
         }
 
         item = {
@@ -290,6 +292,7 @@ def build_desired_state_vpc_mesh_single_cluster(
         requester = {
             "cidr_block": cluster_info["network"]["vpc"],
             "region": cluster_info["spec"]["region"],
+            "cluster_name": cluster,
         }
 
         # assume_role is the role to assume to provision the peering
@@ -390,6 +393,7 @@ def build_desired_state_vpc_single_cluster(
         requester = {
             "cidr_block": cluster_info["network"]["vpc"],
             "region": cluster_info["spec"]["region"],
+            "cluster_name": cluster,
         }
         connection_name = peer_connection["name"]
         peer_vpc = peer_connection["vpc"]

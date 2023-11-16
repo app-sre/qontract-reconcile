@@ -2334,9 +2334,9 @@ def network_connections(ctx):
         if item["deleted"]:
             continue
         r = item["requester"]
-        source = f"{r['account']['name']}/{r['region']}/{r['vpc_id']}"
+        source = r.get("cluster_name") or f"{r['account']['name']}/{r['region']}/{r['vpc_id']}"
         a = item["accepter"]
-        target = f"{a['account']['name']}/{a['region']}/{a['vpc_id']}"
+        target = a.get("cluster_name") or f"{a['account']['name']}/{a['region']}/{a['vpc_id']}"
         print(f"    {source} --> {target}")
 
 
