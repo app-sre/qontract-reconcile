@@ -28,8 +28,10 @@ from reconcile.utils.oc import (
     OC_Map,
     OCClient,
 )
-from reconcile.utils.openshift_resource import OpenshiftResource, \
-    base64_encode_secret_field_value
+from reconcile.utils.openshift_resource import (
+    OpenshiftResource,
+    base64_encode_secret_field_value,
+)
 from reconcile.utils.runtime.integration import QontractReconcileIntegration
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import (
@@ -597,9 +599,9 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                         for db_access in resource.database_access or []:
                             try:
                                 with OC_Map(
-                                        clusters=namespace.cluster.dict(by_alias=True),
-                                        integration=QONTRACT_INTEGRATION,
-                                        settings=settings,
+                                    clusters=namespace.cluster.dict(by_alias=True),
+                                    integration=QONTRACT_INTEGRATION,
+                                    settings=settings,
                                 ) as oc_map:
                                     _process_db_access(
                                         dry_run,
