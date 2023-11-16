@@ -44,6 +44,9 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 SUPPORTED_ENGINES = ["postgres"]
 
+JOB_DEADLINE_IN_SECONDS = 60
+JOB_PSQL_ENGINE_VERSION = "15.4-alpine"
+
 
 def get_database_access_namespaces(
     query_func: Optional[Callable] = None,
@@ -182,6 +185,9 @@ def get_job_spec(job_data: JobData) -> OpenshiftResource:
                 "app": "qontract-reconcile",
                 "integration": QONTRACT_INTEGRATION,
             },
+            "annotations": {
+                "ignore-check.kube-linter.io/unset-cpu-requirements": "no cpu limits",
+            },
         },
         "spec": {
             "backoffLimit": 1,
@@ -190,6 +196,7 @@ def get_job_spec(job_data: JobData) -> OpenshiftResource:
                     "name": job_name,
                 },
                 "spec": {
+                    "activeDeadlineSeconds": JOB_DEADLINE_IN_SECONDS,
                     "imagePullSecrets": [{"name": job_data.pull_secret}],
                     "restartPolicy": "Never",
                     "serviceAccountName": job_data.service_account_name,
@@ -259,6 +266,9 @@ def get_job_spec(job_data: JobData) -> OpenshiftResource:
                                 "requests": {
                                     "cpu": "100m",
                                     "memory": "128Mi",
+                                },
+                                "limits": {
+                                    "memory": "256Mi",
                                 },
                             },
                             "volumeMounts": [
@@ -403,7 +413,7 @@ def _populate_resources(
             resource=get_job_spec(
                 JobData(
                     engine=engine,
-                    engine_version="15.4-alpine",
+                    engine_version=JOB_PSQL_ENGINE_VERSION,
                     name_suffix=db_access.name,
                     image_repository=image_repository,
                     service_account_name=resource_prefix,
@@ -589,33 +599,31 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                     if isinstance(r, NamespaceTerraformResourceRDSV1)
                     and r.database_access is not None
                 ]:
-                    admin_secret_name = resource.output_resource_name
-                    if admin_secret_name is None:
-                        logging.error(
-                            f"{resource.identifier}-{resource.provider} is missing output_resource_name"
-                        )
-                        encounteredErrors = True
+                    if resource.output_resource_name is None:
+                        admin_secret_name = f"{resource.identifier}-{resource.provider}"
                     else:
-                        for db_access in resource.database_access or []:
-                            try:
-                                with OC_Map(
-                                    clusters=namespace.cluster.dict(by_alias=True),
-                                    integration=QONTRACT_INTEGRATION,
-                                    settings=settings,
-                                ) as oc_map:
-                                    _process_db_access(
-                                        dry_run,
-                                        state,
-                                        db_access,
-                                        oc_map,
-                                        namespace.cluster.name,
-                                        namespace.name,
-                                        admin_secret_name,
-                                        get_db_engine(resource),
-                                        sql_query_settings,
-                                    )
-                            except JobFailedError:
-                                encounteredErrors = True
+                        admin_secret_name = resource.output_resource_name
+
+                    for db_access in resource.database_access or []:
+                        try:
+                            with OC_Map(
+                                clusters=namespace.cluster.dict(by_alias=True),
+                                integration=QONTRACT_INTEGRATION,
+                                settings=settings,
+                            ) as oc_map:
+                                _process_db_access(
+                                    dry_run,
+                                    state,
+                                    db_access,
+                                    oc_map,
+                                    namespace.cluster.name,
+                                    namespace.name,
+                                    admin_secret_name,
+                                    get_db_engine(resource),
+                                    sql_query_settings,
+                                )
+                        except JobFailedError:
+                            encounteredErrors = True
 
             if encounteredErrors:
                 raise JobFailedError("One or more jobs failed to complete")
