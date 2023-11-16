@@ -84,6 +84,7 @@ class Accepter(BaseModel):
     route_table_ids: Optional[list[str]]
     subnets_id_az: Optional[list[dict]]
     account: AccountWithAssumeRole
+    cluster_name: str
 
 
 class DesiredStateItem(BaseModel):
@@ -161,6 +162,7 @@ def _build_desired_state_tgw_connection(
         cluster_region,
         cluster_cidr_block,
         awsapi,
+        cluster_name,
     )
     if accepter.vpc_id is None:
         logging.error(f"[{cluster_name}] could not find VPC ID for cluster")
@@ -223,6 +225,7 @@ def _build_accepter(
     region: str,
     cidr_block: str,
     awsapi: AWSApi,
+    cluster_name: str,
 ) -> Accepter:
     (vpc_id, route_table_ids, subnets_id_az) = awsapi.get_cluster_vpc_details(
         account.dict(by_alias=True),
@@ -236,6 +239,7 @@ def _build_accepter(
         route_table_ids=route_table_ids,
         subnets_id_az=subnets_id_az,
         account=account,
+        cluster_name=cluster_name,
     )
 
 

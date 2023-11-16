@@ -2299,8 +2299,7 @@ def network_connections(ctx):
             continue
         r = item.requester
         source = f"{r.account.name}/{r.region}/{r.tgw_id}"
-        a = item.accepter
-        target = f"{a.account.name}/{a.region}/{a.vpc_id}"
+        target = item.accepter.cluster_name
         print(f"    {source} --> {target}")
 
     # terraform-vpc-peerings
