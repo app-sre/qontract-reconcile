@@ -547,11 +547,6 @@ def _process_db_access(
     if job_status.is_complete():
         if job_status.has_errors():
             raise JobFailedError(f"Job dbam-{db_access.name} failed, please check logs")
-        state.add(
-            db_access.name,
-            value=db_access.dict(by_alias=True),
-            force=True,
-        )
         logging.debug("job completed, cleaning up")
         for r in managed_resources:
             if r.clean_up:
@@ -564,6 +559,11 @@ def _process_db_access(
                     name=r.resource.name,
                     enable_deletion=True,
                 )
+        state.add(
+            db_access.name,
+            value=db_access.dict(by_alias=True),
+            force=True,
+        )
     else:
         logging.info(f"Job dbam-{db_access.name} appears to be still running")
 
