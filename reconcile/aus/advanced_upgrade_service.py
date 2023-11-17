@@ -316,9 +316,7 @@ def _build_org_upgrade_spec(
     final_org.blocked_versions = org_labelset.blocked_versions
     final_org.sectors = org_labelset.sector_dependencies()
     final_org.inherit_version_data = inherit_version_data
-    org_upgrade_spec = OrganizationUpgradeSpec(
-        org=final_org
-    )
+    org_upgrade_spec = OrganizationUpgradeSpec(org=final_org)
 
     # init policy for each cluster
     for c in clusters:
