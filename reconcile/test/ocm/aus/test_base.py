@@ -837,6 +837,9 @@ def orgs_query_func() -> Callable:
                 build_organization(
                     org_id="org3", env_name="env2", addonManagedUpgrades=False
                 ).dict(by_alias=True),
+                build_organization(
+                    org_id="org4", env_name="env2", addonManagedUpgrades=False, disabled_integrations=["integration"]
+                ).dict(by_alias=True),
             ]
         }
 
