@@ -58,6 +58,7 @@ from reconcile.utils import (
     metrics,
 )
 from reconcile.utils.defer import defer
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.filtering import remove_none_values_from_dict
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
@@ -143,6 +144,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         self, ocm_env: OCMEnvironment, only_addon_managed_upgrades: bool = False
     ) -> list[AUSOCMOrganization]:
         return get_orgs_for_environment(
+            integration=self.name,
             ocm_env_name=ocm_env.name,
             query_func=gql.get_api().query,
             ocm_organization_ids=self.params.ocm_organization_ids,
@@ -1059,6 +1061,7 @@ def soaking_days(
 
 
 def get_orgs_for_environment(
+    integration: str,
     ocm_env_name: str,
     query_func: Callable,
     ocm_organization_ids: Optional[set[str]] = None,
@@ -1084,6 +1087,7 @@ def get_orgs_for_environment(
         org
         for org in orgs or []
         if org.environment.name == ocm_env_name
+        and integration_is_enabled(integration, org)
         and (not only_addon_managed_upgrades or org.addon_managed_upgrades)
         and (not ocm_organization_ids or org.org_id in ocm_organization_ids)
         and (

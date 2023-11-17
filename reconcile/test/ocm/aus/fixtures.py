@@ -68,6 +68,7 @@ def build_organization(
     org_id: Optional[str] = None,
     org_name: Optional[str] = None,
     env_name: Optional[str] = None,
+    ocm_env: Optional[OCMEnvironment] = None,
     inherit_version_data_from_org_ids: Optional[list[tuple[str, str, bool]]] = None,
     publish_version_data_from_org_ids: Optional[list[str]] = None,
     blocked_versions: Optional[list[str]] = None,
@@ -77,7 +78,7 @@ def build_organization(
     org_id = org_id or "org-1-id"
     return AUSOCMOrganization(
         name=org_name or "org-name",
-        environment=build_ocm_environment(env_name or "env-name"),
+        environment=ocm_env or build_ocm_environment(env_name or "env-name"),
         orgId=org_id,
         blockedVersions=blocked_versions,
         inheritVersionData=[
@@ -107,6 +108,7 @@ def build_organization(
         upgradePolicyAllowedWorkloads=None,
         addonManagedUpgrades=addonManagedUpgrades,
         addonUpgradeTests=None,
+        disable=None,
         sectors=[
             OpenShiftClusterManagerSectorV1(
                 name=sector,

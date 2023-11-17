@@ -22,6 +22,7 @@ from reconcile.aus.advanced_upgrade_service import (
 )
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+from reconcile.test.ocm.aus.fixtures import build_organization
 from reconcile.test.ocm.fixtures import (
     build_cluster_details,
     build_label,
@@ -34,7 +35,6 @@ from reconcile.utils.ocm.base import (
 from reconcile.utils.ocm.labels import subscription_label_filter
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.sre_capability_labels import build_labelset
-from reconcile.utils.ocm.subscriptions import OCMOrganization
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 #
@@ -174,10 +174,10 @@ def test_build_org_upgrade_spec(
     ocm_env: OCMEnvironment, org_labels: LabelContainer
 ) -> None:
     org_upgrade_spec = _build_org_upgrade_spec(
-        ocm_env=ocm_env,
-        org=OCMOrganization(
-            id="org-id",
-            name="org-name",
+        org=build_organization(
+            org_id="org-id",
+            org_name="org-name",
+            ocm_env=ocm_env,
         ),
         clusters=[
             build_cluster_details(
@@ -197,10 +197,10 @@ def test_build_org_upgrade_spec_with_cluster_error(
     ocm_env: OCMEnvironment, org_labels: LabelContainer
 ) -> None:
     org_upgrade_spec = _build_org_upgrade_spec(
-        ocm_env=ocm_env,
-        org=OCMOrganization(
-            id="org-id",
-            name="org-name",
+        org=build_organization(
+            org_id="org-id",
+            org_name="org-name",
+            ocm_env=ocm_env,
         ),
         clusters=[
             build_cluster_details(
@@ -220,10 +220,10 @@ def test_build_org_upgrade_spec_with_version_inheritance(
     ocm_env: OCMEnvironment, org_labels: LabelContainer
 ) -> None:
     org_upgrade_spec = _build_org_upgrade_spec(
-        ocm_env=ocm_env,
-        org=OCMOrganization(
-            id="org-id",
-            name="org-name",
+        org=build_organization(
+            org_id="org-id",
+            org_name="org-name",
+            ocm_env=ocm_env,
         ),
         clusters=[
             build_cluster_details(
@@ -247,10 +247,10 @@ def test_build_org_upgrade_spec_with_version_inheritance_no_publish(
     ocm_env: OCMEnvironment, org_labels: LabelContainer
 ) -> None:
     org_upgrade_spec = _build_org_upgrade_spec(
-        ocm_env=ocm_env,
-        org=OCMOrganization(
-            id="org-id",
-            name="org-name",
+        org=build_organization(
+            org_id="org-id",
+            org_name="org-name",
+            ocm_env=ocm_env,
         ),
         clusters=[
             build_cluster_details(
@@ -276,10 +276,10 @@ def test_build_org_upgrade_spec_missing_sector(
     ocm_env: OCMEnvironment, org_labels: LabelContainer
 ) -> None:
     org_upgrade_spec = _build_org_upgrade_spec(
-        ocm_env=ocm_env,
-        org=OCMOrganization(
-            id="org-id",
-            name="org-name",
+        org=build_organization(
+            org_id="org-id",
+            org_name="org-name",
+            ocm_env=ocm_env,
         ),
         clusters=[
             build_cluster_details(
@@ -310,12 +310,12 @@ def test_build_org_upgrade_specs_for_ocm_env(ocm_env: OCMEnvironment) -> None:
         subscription_labels=build_cluster_upgrade_policy_labels(soak_days=soak_days),
     )
     upgrade_specs = _build_org_upgrade_specs_for_ocm_env(
-        ocm_env=ocm_env,
         orgs={
-            org_id: OCMOrganization(
-                id=org_id,
-                name="org-name",
-            ),
+            org_id: build_organization(
+                org_id=org_id,
+                org_name="org-name",
+                ocm_env=ocm_env,
+            )
         },
         clusters_by_org={org_id: [cluster_details]},
         labels_by_org={
@@ -343,12 +343,12 @@ def test_build_org_upgrade_specs_for_ocm_env_with_cluster_error(
         subscription_labels=build_cluster_upgrade_policy_labels(soak_days=-10),
     )
     upgrade_specs = _build_org_upgrade_specs_for_ocm_env(
-        ocm_env=ocm_env,
         orgs={
-            org_id: OCMOrganization(
-                id=org_id,
-                name="org-name",
-            ),
+            org_id: build_organization(
+                org_id=org_id,
+                org_name="org-name",
+                ocm_env=ocm_env,
+            )
         },
         clusters_by_org={org_id: [cluster_details]},
         labels_by_org={
@@ -533,12 +533,12 @@ def build_org_upgrade_specs(
         ),
     )
     return _build_org_upgrade_specs_for_ocm_env(
-        ocm_env=ocm_env,
         orgs={
-            org_id: OCMOrganization(
-                id=org_id,
-                name="org-name",
-            ),
+            org_id: build_organization(
+                org_id=org_id,
+                org_name="org-name",
+                ocm_env=ocm_env,
+            )
         },
         clusters_by_org={org_id: [cluster_details]},
         labels_by_org={

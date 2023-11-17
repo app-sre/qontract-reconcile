@@ -418,6 +418,16 @@
                                         "ofType": null
                                     },
                                     "defaultValue": null
+                                },
+                                {
+                                    "name": "filter",
+                                    "description": null,
+                                    "type": {
+                                        "kind": "SCALAR",
+                                        "name": "JSON",
+                                        "ofType": null
+                                    },
+                                    "defaultValue": null
                                 }
                             ],
                             "type": {
@@ -1805,6 +1815,16 @@
                                     "type": {
                                         "kind": "SCALAR",
                                         "name": "String",
+                                        "ofType": null
+                                    },
+                                    "defaultValue": null
+                                },
+                                {
+                                    "name": "filter",
+                                    "description": null,
+                                    "type": {
+                                        "kind": "SCALAR",
+                                        "name": "JSON",
                                         "ofType": null
                                     },
                                     "defaultValue": null
@@ -5898,6 +5918,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "disable",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "DisableClusterAutomations_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "clusters",
                             "description": null,
                             "args": [],
@@ -7506,6 +7538,37 @@
                 },
                 {
                     "kind": "OBJECT",
+                    "name": "DisableClusterAutomations_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "integrations",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
                     "name": "DynatraceEnvironment_v1",
                     "description": null,
                     "fields": [
@@ -8417,37 +8480,6 @@
                                     "ofType": {
                                         "kind": "OBJECT",
                                         "name": "Cluster_v1",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "DisableClusterAutomations_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "integrations",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "SCALAR",
-                                        "name": "String",
                                         "ofType": null
                                     }
                                 }

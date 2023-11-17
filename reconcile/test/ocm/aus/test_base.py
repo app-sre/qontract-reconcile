@@ -875,6 +875,7 @@ def test_aus_get_orgs_for_environment(
     expected_org_ids: set[str],
 ) -> None:
     orgs = get_orgs_for_environment(
+        "integration",
         ocm_env_name=ocm_env_name,
         query_func=orgs_query_func,
         only_addon_managed_upgrades=only_addon_managed_upgrades,
