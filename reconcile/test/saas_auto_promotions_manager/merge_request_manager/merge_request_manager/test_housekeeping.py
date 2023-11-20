@@ -15,7 +15,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     VERSION_REF,
     Renderer,
 )
-from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
+from reconcile.utils.vcs import VCS
 
 from .data_keys import (
     DESCRIPTION,

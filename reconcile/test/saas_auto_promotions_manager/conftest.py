@@ -14,13 +14,13 @@ import pytest
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
-from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
 from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.promotion_state import (
     PromotionData,
     PromotionState,
 )
+from reconcile.utils.vcs import VCS
 
 
 @pytest.fixture
