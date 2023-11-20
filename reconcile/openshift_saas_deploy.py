@@ -76,6 +76,7 @@ def slack_notify(
     # progress" notice but no subsequent notice. We handle this case by
     # including an "fyi" message for in progress deployments down below.
     if success and skip_successful_notifications and not in_progress:
+        logging.info(f"Skipping Slack notification for {saas_file_name} to {env_name} because deploy was successful.")
         return
     if in_progress:
         icon = ":yellow_jenkins_circle:"
