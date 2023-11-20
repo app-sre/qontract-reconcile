@@ -1,0 +1,36 @@
+# qenerate: plugin=pydantic_v1
+
+query AVSNamespaces {
+  namespaces: namespaces_v1 {
+    path
+    name
+    delete
+    managedExternalResources
+    externalResources {
+      provider
+      provisioner {
+        ... on AWSAccount_v1 {
+          path
+          name
+          uid
+        }
+      }
+      ... on NamespaceTerraformProviderResourceAWS_v1 {
+        resources {
+          provider
+          ... on NamespaceTerraformResourceRDS_v1 {
+            identifier
+            defaults
+            overrides
+          }
+        }
+      }
+    }
+    cluster {
+      name
+      disable {
+        integrations
+      }
+    }
+  }
+}
