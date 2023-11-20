@@ -70,7 +70,7 @@ def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
         if client is None:
             logging.getLogger("apscheduler").setLevel(logging.ERROR)
             logging.getLogger("UnleashClient").setLevel(logging.ERROR)
-            headers = {"Authorization": f"Bearer {auth_head}"}
+            headers = {"Authorization": auth_head}
             client = UnleashClient(
                 url=api_url,
                 app_name="qontract-reconcile",
