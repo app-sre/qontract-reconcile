@@ -42,6 +42,16 @@ class AUSClusterVersionRemainingSoakDaysGauge(AUSBaseMetric, GaugeMetric):
         return "aus_cluster_version_remaining_soak_days"
 
 
+class AUSAddonVersionRemainingSoakDaysGauge(AUSClusterVersionRemainingSoakDaysGauge):
+    "Remaining days a version needs to soak for an addon on a cluster"
+
+    addon: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "aus_addon_version_remaining_soak_days"
+
+
 class AUSClusterUpgradePolicyInfoMetric(AUSBaseMetric, InfoMetric):
     "Info metric for clusters under AUS upgrade control"
 
@@ -60,6 +70,18 @@ class AUSClusterUpgradePolicyInfoMetric(AUSBaseMetric, InfoMetric):
     @classmethod
     def name(cls) -> str:
         return "aus_cluster_upgrade_policy_info"
+
+
+class AUSAddonUpgradePolicyInfoMetric(
+    AUSClusterUpgradePolicyInfoMetric
+):  # pylint: disable=R0901
+    "Info metric for cluster addons under AUS upgrade control"
+
+    addon: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "aus_addon_upgrade_policy_info"
 
 
 class AUSOrganizationValidationErrorsGauge(AUSBaseMetric, GaugeMetric):
@@ -108,3 +130,15 @@ class AUSOrganizationErrorRate(ErrorRateMetricSet):
                 org_id=org_id,
             ),
         )
+
+
+class AUSOrganizationVersionDataGauge(AUSBaseMetric, GaugeMetric):
+    """Gauge for the version data for an OCM organization"""
+
+    org_id: str
+    version: str
+    workload: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "aus_organization_version_data"

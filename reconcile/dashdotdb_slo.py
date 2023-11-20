@@ -99,10 +99,24 @@ class DashdotdbSLO(DashdotdbBase):
         LOG.debug("SLO: processing %s", slo_document.name)
         result: list[ServiceSLO] = []
         for namespace_access in slo_document.namespaces:
+            # TODO: APPSRE-8513 Dashdotdb SLO collector should deal with
+            # namespaceTargets. This `if` is a temporary workaround until
+            # APPSRE-8513 is implemented.
+            if namespace_access.slo_namespace:
+                continue
+
             ns = namespace_access.namespace
             promtoken: Optional[str] = None
+            username: Optional[str] = None
+            password: Optional[str] = None
             if namespace_access.prometheus_access:
                 promurl = namespace_access.prometheus_access.url
+                username = self.secret_reader.read_secret(
+                    namespace_access.prometheus_access.username
+                )
+                password = self.secret_reader.read_secret(
+                    namespace_access.prometheus_access.password
+                )
             else:
                 promurl = ns.cluster.prometheus_url
                 if not ns.cluster.automation_token:
@@ -118,7 +132,11 @@ class DashdotdbSLO(DashdotdbBase):
                 window = slo.slo_parameters.window
                 promquery = template.render({"window": window})
                 prom_response = self._promget(
-                    url=promurl, params={"query": (f"{promquery}")}, token=promtoken
+                    url=promurl,
+                    params={"query": (f"{promquery}")},
+                    token=promtoken,
+                    username=username,
+                    password=password,
                 )
                 prom_result = prom_response["data"]["result"]
                 if not prom_result:
@@ -175,3 +193,7 @@ def run(dry_run: bool = False, thread_pool_size: int = 10) -> None:
         dry_run=dry_run, thread_pool_size=thread_pool_size, secret_reader=secret_reader
     )
     dashdotdb_slo.run()
+
+
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return {doc.name: doc.dict() for doc in get_slo_documents()}

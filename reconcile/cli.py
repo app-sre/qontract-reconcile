@@ -1649,8 +1649,12 @@ def ldap_groups(ctx):
     is_flag=True,
     help="Instructs terraform-repo to ignore state load errors and re-create repo states",
 )
+@click.argument("gitlab-project-id", required=False)
+@click.argument("gitlab-merge-request-id", required=False)
 @click.pass_context
-def terraform_repo(ctx, output_file, ignore_state_errors):
+def terraform_repo(
+    ctx, output_file, ignore_state_errors, gitlab_project_id, gitlab_merge_request_id
+):
     from reconcile import terraform_repo
 
     run_class_integration(
@@ -1659,6 +1663,8 @@ def terraform_repo(ctx, output_file, ignore_state_errors):
                 output_file=output_file,
                 validate_git=True,
                 ignore_state_errors=ignore_state_errors,
+                gitlab_project_id=gitlab_project_id,
+                gitlab_merge_request_id=gitlab_merge_request_id,
             )
         ),
         ctx=ctx.obj,
@@ -2874,6 +2880,17 @@ def ocm_labels(ctx, managed_label_prefixes):
                 managed_label_prefixes=list(set(managed_label_prefixes.split(","))),
             )
         ),
+        ctx=ctx.obj,
+    )
+
+
+@integration.command(short_help="Manages RHACS rbac configuration")
+@click.pass_context
+def acs_rbac(ctx):
+    from reconcile import acs_rbac
+
+    run_class_integration(
+        integration=acs_rbac.AcsRbacIntegration(),
         ctx=ctx.obj,
     )
 

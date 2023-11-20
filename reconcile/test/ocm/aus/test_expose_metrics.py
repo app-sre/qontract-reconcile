@@ -3,14 +3,12 @@ from datetime import (
     timedelta,
 )
 
+from reconcile.aus.base import remaining_soak_day_metric_values_for_cluster
 from reconcile.aus.metrics import (
     UPGRADE_BLOCKED_METRIC_VALUE,
     UPGRADE_LONG_RUNNING_METRIC_VALUE,
     UPGRADE_SCHEDULED_METRIC_VALUE,
     UPGRADE_STARTED_METRIC_VALUE,
-)
-from reconcile.aus.ocm_upgrade_scheduler import (
-    remaining_soak_day_metric_values_for_cluster,
 )
 from reconcile.test.ocm.aus.fixtures import (
     build_cluster_upgrade_policy,

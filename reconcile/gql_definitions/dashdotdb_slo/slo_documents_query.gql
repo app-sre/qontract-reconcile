@@ -6,6 +6,12 @@ query SLODocuments {
     namespaces {
       prometheusAccess {
          url
+         username {
+         ... VaultSecret
+         }
+         password {
+           ... VaultSecret
+         }
       }
       namespace {
         name
@@ -22,6 +28,9 @@ query SLODocuments {
             private
           }
         }
+      }
+      SLONamespace {
+        name
       }
     }
     slos {

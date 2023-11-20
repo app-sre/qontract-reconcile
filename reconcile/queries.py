@@ -697,6 +697,7 @@ CLUSTERS_QUERY = """
         format
         version
       }
+      allowedClusterExternalConfigLabels
       blockedVersions
       inheritVersionData {
         name

@@ -12,6 +12,8 @@ from datetime import (
 from typing import (
     Callable,
     Optional,
+    Protocol,
+    Sequence,
     cast,
 )
 
@@ -27,6 +29,10 @@ from reconcile.aus.cluster_version_data import (
     get_version_data,
 )
 from reconcile.aus.metrics import (
+    UPGRADE_BLOCKED_METRIC_VALUE,
+    UPGRADE_LONG_RUNNING_METRIC_VALUE,
+    UPGRADE_SCHEDULED_METRIC_VALUE,
+    UPGRADE_STARTED_METRIC_VALUE,
     AUSClusterUpgradePolicyInfoMetric,
     AUSOCMEnvironmentError,
     AUSOrganizationErrorRate,
@@ -52,6 +58,7 @@ from reconcile.utils import (
     metrics,
 )
 from reconcile.utils.defer import defer
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.filtering import remove_none_values_from_dict
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
@@ -137,6 +144,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         self, ocm_env: OCMEnvironment, only_addon_managed_upgrades: bool = False
     ) -> list[AUSOCMOrganization]:
         return get_orgs_for_environment(
+            integration=self.name,
             ocm_env_name=ocm_env.name,
             query_func=gql.get_api().query,
             ocm_organization_ids=self.params.ocm_organization_ids,
@@ -186,6 +194,44 @@ class AdvancedUpgradeSchedulerBaseIntegration(
             if self.params.ocm_environment and filter
             else None,
         ).environments
+
+    def expose_remaining_soak_day_metrics(
+        self,
+        org_upgrade_spec: OrganizationUpgradeSpec,
+        version_data: VersionData,
+        current_state: Sequence["AbstractUpgradePolicy"],
+        metrics_builder: "RemainingSoakDayMetricsBuilder",
+    ) -> None:
+        current_cluster_upgrade_policies = {
+            p.cluster.external_id: p for p in current_state
+        }
+        for spec in org_upgrade_spec.specs:
+            upgrades = spec.get_available_upgrades()
+            if not upgrades:
+                continue
+
+            # calculate the amount every version has soaked. if a version has soaked for
+            # multiple workloads, we will pick the minimum soak day value of all workloads
+            # relevant on the cluster.
+            soaked_versions: dict[str, float] = {}
+            for workload in spec.upgrade_policy.workloads:
+                for version, soak_days in soaking_days(
+                    version_data, upgrades, workload, False
+                ).items():
+                    soaked_versions[version] = min(
+                        soak_days, soaked_versions.get(version, soak_days)
+                    )
+
+            current_upgrade = current_cluster_upgrade_policies.get(spec.cluster_uuid)
+            for version, metric_value in remaining_soak_day_metric_values_for_cluster(
+                spec, soaked_versions, current_upgrade
+            ).items():
+                metrics.set_gauge(
+                    metrics_builder(
+                        cluster_uuid=spec.cluster.external_id, soaking_version=version
+                    ),
+                    metric_value,
+                )
 
     @abstractmethod
     def process_upgrade_policies_in_org(
@@ -267,6 +313,11 @@ class GateAgreement(BaseModel):
                 "Unexpected response while creating version "
                 f"agreement with id {self.gate.id} for cluster {cluster.name} (id={cluster.id})"
             )
+
+
+class RemainingSoakDayMetricsBuilder(Protocol):
+    def __call__(self, cluster_uuid: str, soaking_version: str) -> metrics.GaugeMetric:
+        ...
 
 
 class AbstractUpgradePolicy(ABC, BaseModel):
@@ -735,7 +786,7 @@ def upgradeable_version(
 
 
 def verify_current_should_skip(
-    current_state: list[AbstractUpgradePolicy],
+    current_state: Sequence[AbstractUpgradePolicy],
     desired: ClusterUpgradeSpec,
     now: datetime,
     addon_id: str = "",
@@ -861,7 +912,7 @@ def _calculate_node_pool_diffs(
 
 
 def calculate_diff(
-    current_state: list[AbstractUpgradePolicy],
+    current_state: Sequence[AbstractUpgradePolicy],
     desired_state: OrganizationUpgradeSpec,
     ocm_api: OCMBaseClient,
     version_data: VersionData,
@@ -1010,6 +1061,7 @@ def soaking_days(
 
 
 def get_orgs_for_environment(
+    integration: str,
     ocm_env_name: str,
     query_func: Callable,
     ocm_organization_ids: Optional[set[str]] = None,
@@ -1035,6 +1087,7 @@ def get_orgs_for_environment(
         org
         for org in orgs or []
         if org.environment.name == ocm_env_name
+        and integration_is_enabled(integration, org)
         and (not only_addon_managed_upgrades or org.addon_managed_upgrades)
         and (not ocm_organization_ids or org.org_id in ocm_organization_ids)
         and (
@@ -1042,3 +1095,76 @@ def get_orgs_for_environment(
             or org.org_id not in excluded_ocm_organization_ids
         )
     ]
+
+
+def remaining_soak_day_metric_values_for_cluster(
+    spec: ClusterUpgradeSpec,
+    soaked_versions: dict[str, float],
+    current_upgrade: Optional[AbstractUpgradePolicy],
+) -> dict[str, float]:
+    """
+    Calculate what versions and metric values to report for `AUS*VersionRemainingSoakDaysGauge` metrics.
+    Usually, the remaining soak days for a version are reported but there are some special cases
+    where we report negative values to indicate that a version is blocked or an upgrade has been
+    scheduled or started.
+
+    Additionally certain versions are not reported when it is not meaningful (e.g. an upgrade will never happen)
+    to prevent metric clutter.
+    """
+    upgrades = spec.get_available_upgrades()
+    if not upgrades:
+        return {}
+
+    # calculate the remaining soakdays for each upgrade version candidate of the cluster.
+    # when a version is soaking, it has a value > 0 and when it soaked enough, the value is 0.
+    remaining_soakdays: list[float] = [
+        max(
+            (spec.upgrade_policy.conditions.soak_days or 0) - soaked_versions.get(v, 0),
+            0,
+        )
+        for v in upgrades
+    ]
+
+    # under certain conditions, the remaining soak day value for a version needs to be
+    # replaced with special marker values
+    version_metrics: dict[str, float] = {}
+    for idx, version in reversed(list(enumerate(upgrades))):
+        # if an upgrade is `scheduled` or `started`` for the specific version, their respective negative
+        # marker values will be used instead of their actual soak days. there are other states than `scheduled`
+        # and `started` but the `UpgradePolicy` vanishes too quickly to observe them reliably, when such
+        # states are reached.
+        if current_upgrade and current_upgrade.version == version:
+            if current_upgrade.state == "scheduled":
+                remaining_soakdays[idx] = UPGRADE_SCHEDULED_METRIC_VALUE
+            elif current_upgrade.state in ("started", "delayed"):
+                remaining_soakdays[idx] = UPGRADE_STARTED_METRIC_VALUE
+                if current_upgrade.next_run:
+                    # if an upgrade runs for over 6 hours, we mark it as a long running upgrade
+                    next_run = datetime.strptime(
+                        current_upgrade.next_run, "%Y-%m-%dT%H:%M:%SZ"
+                    )
+                    now = datetime.utcnow()
+                    hours_ago = (now - next_run).total_seconds() / 3600
+                    if hours_ago >= 6:
+                        remaining_soakdays[idx] = UPGRADE_LONG_RUNNING_METRIC_VALUE
+        elif spec.version_blocked(version):
+            # if a version is blocked, we will still report it but with a dedicated negative marker value
+            remaining_soakdays[idx] = UPGRADE_BLOCKED_METRIC_VALUE
+
+        # we are intentionally not reporting versions that still soak or soaked enough when
+        # there is a later version that also soaked enough. the later one will be picked
+        # for an upgrade over the older one anyways.
+        if remaining_soakdays[idx] >= 0 and any(
+            later_version_remaining_soak_days
+            in (
+                0,
+                UPGRADE_SCHEDULED_METRIC_VALUE,
+                UPGRADE_STARTED_METRIC_VALUE,
+                UPGRADE_LONG_RUNNING_METRIC_VALUE,
+            )
+            for later_version_remaining_soak_days in remaining_soakdays[idx + 1 :]
+        ):
+            continue
+        version_metrics[version] = remaining_soakdays[idx]
+
+    return version_metrics

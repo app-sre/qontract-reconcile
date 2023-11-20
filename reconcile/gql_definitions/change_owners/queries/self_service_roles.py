@@ -17,8 +17,36 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.membership_source import RoleMembershipSource
+
 
 DEFINITION = """
+fragment RoleMembershipSource on RoleMembershipSource_V1 {
+  group
+  provider {
+    name
+    hasAuditTrail
+    source {
+      ... on AppInterfaceMembershipProviderSource_V1 {
+        url
+        username {
+          ...VaultSecret
+        }
+        password {
+          ...VaultSecret
+        }
+      }
+    }
+  }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
 query SelfServiceRolesQuery($name: String) {
   roles: roles_v1(name: $name) {
     name
@@ -36,10 +64,12 @@ query SelfServiceRolesQuery($name: String) {
       resources
     }
     users {
+      name
       org_username
       tag_on_merge_requests
     }
     bots {
+      name
       org_username
     }
     permissions {
@@ -52,6 +82,9 @@ query SelfServiceRolesQuery($name: String) {
       ... on PermissionGitlabGroupMembership_v1 {
         group
       }
+    }
+    memberSources {
+      ...RoleMembershipSource
     }
   }
 }
@@ -81,11 +114,13 @@ class SelfServiceConfigV1(ConfiguredBaseModel):
 
 
 class UserV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
     org_username: str = Field(..., alias="org_username")
     tag_on_merge_requests: Optional[bool] = Field(..., alias="tag_on_merge_requests")
 
 
 class BotV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
     org_username: Optional[str] = Field(..., alias="org_username")
 
 
@@ -122,6 +157,9 @@ class RoleV1(ConfiguredBaseModel):
             ]
         ]
     ] = Field(..., alias="permissions")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(
+        ..., alias="memberSources"
+    )
 
 
 class SelfServiceRolesQueryQueryData(ConfiguredBaseModel):

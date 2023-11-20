@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import Optional
 
 from reconcile.change_owners.approver import (
     ApproverReachability,
@@ -20,6 +21,12 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     RoleV1,
 )
 from reconcile.utils import gql
+from reconcile.utils.membershipsources.models import (
+    RoleBot,
+    RoleMember,
+    RoleUser,
+)
+from reconcile.utils.membershipsources.resolver import resolve_role_members
 
 CHANGE_OWNERS_LABELS_LABEL = "change-owners-labels"
 
@@ -52,9 +59,9 @@ def validate_self_service_role(role: RoleV1) -> None:
     Validate that a self-service role has approvers and that the referenced
     change-types and datafiles/resources are compatible.
     """
-    if not role.users and not role.bots:
+    if not role.users and not role.bots and not role.member_sources:
         raise NoApproversInSelfServiceRoleError(
-            f"The role {role.name} has no users or bots "
+            f"The role {role.name} has no users, bots or memberSources definitions "
             "to drive the self-service process. Add approvers to the roles."
         )
     for ssc in role.self_service or []:
@@ -100,7 +107,6 @@ def change_type_contexts_for_self_service_roles(
     role_lookup: dict[tuple[BundleFileType, str, str], list[RoleV1]] = defaultdict(list)
     # schema role lookup enables fast lookup roles for a (schema, changetype-name)
     schema_role_lookup: dict[tuple[str, str], list[RoleV1]] = defaultdict(list)
-    orphaned_roles: list[RoleV1] = []
     change_types_by_name: dict[str, ChangeTypeProcessor] = {
         ctp.name: ctp for ctp in change_type_processors
     }
@@ -108,9 +114,6 @@ def change_type_contexts_for_self_service_roles(
     for r in roles:
         # build role lookup for self_service section of a role
         if r.self_service:
-            if not r.users and not r.bots:
-                orphaned_roles.append(r)
-                continue
             for ss in r.self_service:
                 if ss.datafiles:
                     for df in ss.datafiles:
@@ -132,6 +135,9 @@ def change_type_contexts_for_self_service_roles(
                     schema_role_lookup[
                         (ss.change_type.context_schema, ss.change_type.name)
                     ].append(r)
+
+    # resolve approvers for self-service roles, either directly or via member sources
+    resolved_approvers = resolve_role_members([r for r in roles if r.self_service])
 
     # match every BundleChange with every relevant ChangeTypeV1
     change_type_contexts = []
@@ -181,17 +187,6 @@ def change_type_contexts_for_self_service_roles(
                     }
                 )
                 for role in owning_roles.values():
-                    approvers = [
-                        Approver(u.org_username, u.tag_on_merge_requests)
-                        for u in role.users or []
-                    ]
-                    approvers.extend(
-                        [
-                            Approver(b.org_username, False)
-                            for b in role.bots or []
-                            if b.org_username
-                        ]
-                    )
                     change_type_contexts.append(
                         (
                             bc,
@@ -199,7 +194,11 @@ def change_type_contexts_for_self_service_roles(
                                 change_type_processor=ctp,
                                 context=f"RoleV1 - {role.name}",
                                 origin=ownership.change_type.name,
-                                approvers=approvers,
+                                approvers=[
+                                    approver
+                                    for rm in resolved_approvers.get(role.name, [])
+                                    if (approver := build_approver(rm)) is not None
+                                ],
                                 approver_reachability=approver_reachability_from_role(
                                     role
                                 ),
@@ -209,6 +208,25 @@ def change_type_contexts_for_self_service_roles(
                         )
                     )
     return change_type_contexts
+
+
+def build_approver(role_member: RoleMember) -> Optional[Approver]:
+    """
+    Builds an approver from a role member. Can return None if the passed
+    approver is not considered valid within this context, e.g. not having
+    an org username.
+    """
+    match role_member:
+        case RoleUser():
+            return Approver(role_member.org_username, role_member.tag_on_merge_requests)
+        case RoleBot() if role_member.org_username:
+            return (
+                Approver(role_member.org_username, False)
+                if role_member.org_username
+                else None
+            )
+        case _:
+            return None
 
 
 def change_type_labels_from_role(role: RoleV1) -> set[str]:

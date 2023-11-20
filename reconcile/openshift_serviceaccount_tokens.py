@@ -77,15 +77,6 @@ def fetch_desired_state(namespaces: list[dict], ri: ResourceInventory, oc_map: O
                 sa_token_list = get_tokens_for_service_account(sa_name, all_tokens)
                 sa_token_list.sort(key=lambda t: t["metadata"]["name"])
                 sa_token = sa_token_list[0]["data"]["token"]
-                cur = ri.get_current(
-                    cluster_name, namespace_name, "Secret", oc_resource_name
-                )
-                if cur:
-                    for token in sa_token_list:
-                        if token["data"]["token"] == cur.body.get("data", {}).get(
-                            "token"
-                        ):
-                            sa_token = token["data"]["token"]
             except KeyError:
                 logging.log(
                     level=logging.ERROR,

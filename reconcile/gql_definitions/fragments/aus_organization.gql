@@ -11,6 +11,9 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   accessTokenClientSecret {
     ... VaultSecret
   }
+  disable {
+    ... DisableAutomations
+  }
   blockedVersions
   addonManagedUpgrades
   addonUpgradeTests {

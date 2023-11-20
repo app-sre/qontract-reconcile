@@ -1,3 +1,5 @@
+import functools
+
 from pydantic import BaseModel
 
 from reconcile.aus import base as aus
@@ -6,7 +8,10 @@ from reconcile.aus.base import (
     AddonUpgradePolicy,
 )
 from reconcile.aus.cluster_version_data import VersionData
-from reconcile.aus.metrics import AUSOrganizationReconcileCounter
+from reconcile.aus.metrics import (
+    AUSAddonUpgradePolicyInfoMetric,
+    AUSAddonVersionRemainingSoakDaysGauge,
+)
 from reconcile.aus.models import (
     ClusterAddonUpgradeSpec,
     ClusterUpgradeSpec,
@@ -62,6 +67,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
             for spec in org_upgrade_spec.specs
             if isinstance(spec, ClusterAddonUpgradeSpec)
         }
+
         for addon_id in addons:
             addon_org_upgrade_spec = OrganizationUpgradeSpec(
                 org=org_upgrade_spec.org,
@@ -79,12 +85,26 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                 integration=self.name,
             ).get(org_upgrade_spec.org.environment.name, org_upgrade_spec.org.org_id)
 
+            addon_current_state: list[AddonUpgradePolicy] = [
+                s
+                for s in current_state
+                if isinstance(s, AddonUpgradePolicy) and s.addon_id == addon_id
+            ]
+
+            self.expose_remaining_soak_day_metrics(
+                org_upgrade_spec=org_upgrade_spec,
+                version_data=version_data,
+                current_state=addon_current_state,
+                metrics_builder=functools.partial(
+                    AUSAddonVersionRemainingSoakDaysGauge,
+                    integration=self.name,
+                    ocm_env=org_upgrade_spec.org.environment.name,
+                    addon=addon_id,
+                ),
+            )
+
             diffs = calculate_diff(
-                addon_current_state=[
-                    s
-                    for s in current_state
-                    if isinstance(s, AddonUpgradePolicy) and s.addon_id == addon_id
-                ],
+                addon_current_state=addon_current_state,
                 org_upgrade_spec=addon_org_upgrade_spec,
                 ocm_api=ocm_api,
                 version_data=version_data,
@@ -169,17 +189,34 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
     def expose_org_upgrade_spec_metrics(
         self, ocm_env: str, org_upgrade_spec: OrganizationUpgradeSpec
     ) -> None:
-        metrics.inc_counter(
-            AUSOrganizationReconcileCounter(
-                integration=self.name,
-                ocm_env=ocm_env,
-                org_id=org_upgrade_spec.org.org_id,
+        for cluster_upgrade_spec in org_upgrade_spec.specs:
+            if not isinstance(cluster_upgrade_spec, ClusterAddonUpgradeSpec):
+                continue
+            mutexes = cluster_upgrade_spec.upgrade_policy.conditions.mutexes
+            metrics.set_info(
+                AUSAddonUpgradePolicyInfoMetric(
+                    integration=self.name,
+                    ocm_env=ocm_env,
+                    cluster_uuid=cluster_upgrade_spec.cluster_uuid,
+                    org_id=cluster_upgrade_spec.org.org_id,
+                    org_name=org_upgrade_spec.org.name,
+                    channel=cluster_upgrade_spec.cluster.version.channel_group,
+                    current_version=cluster_upgrade_spec.current_version,
+                    cluster_name=cluster_upgrade_spec.name,
+                    schedule=cluster_upgrade_spec.upgrade_policy.schedule,
+                    sector=cluster_upgrade_spec.upgrade_policy.conditions.sector or "",
+                    mutexes=",".join(mutexes) if mutexes else "",
+                    soak_days=str(
+                        cluster_upgrade_spec.upgrade_policy.conditions.soak_days or 0
+                    ),
+                    workloads=",".join(cluster_upgrade_spec.upgrade_policy.workloads),
+                    addon=cluster_upgrade_spec.addon.id,
+                ),
             )
-        )
 
 
 def calculate_diff(
-    addon_current_state: list[AbstractUpgradePolicy],
+    addon_current_state: list[AddonUpgradePolicy],
     org_upgrade_spec: OrganizationUpgradeSpec,
     ocm_api: OCMBaseClient,
     version_data: VersionData,
@@ -193,11 +230,7 @@ def calculate_diff(
         addon_id,
     )
     for current in addon_current_state:
-        if (
-            isinstance(current, AddonUpgradePolicy)
-            and addon_id == current.addon_id
-            and current.schedule_type == "automatic"
-        ):
+        if addon_id == current.addon_id and current.schedule_type == "automatic":
             diffs.append(
                 aus.UpgradePolicyHandler(
                     action="delete",

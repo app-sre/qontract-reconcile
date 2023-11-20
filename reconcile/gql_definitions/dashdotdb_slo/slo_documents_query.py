@@ -34,6 +34,12 @@ query SLODocuments {
     namespaces {
       prometheusAccess {
          url
+         username {
+         ... VaultSecret
+         }
+         password {
+           ... VaultSecret
+         }
       }
       namespace {
         name
@@ -50,6 +56,9 @@ query SLODocuments {
             private
           }
         }
+      }
+      SLONamespace {
+        name
       }
     }
     slos {
@@ -75,6 +84,8 @@ class ConfiguredBaseModel(BaseModel):
 
 class SLOExternalPrometheusAccessV1(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
+    username: VaultSecret = Field(..., alias="username")
+    password: VaultSecret = Field(..., alias="password")
 
 
 class AppV1(ConfiguredBaseModel):
@@ -98,11 +109,18 @@ class NamespaceV1(ConfiguredBaseModel):
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 
+class SLONamespacesV1_NamespaceV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class SLONamespacesV1(ConfiguredBaseModel):
     prometheus_access: Optional[SLOExternalPrometheusAccessV1] = Field(
         ..., alias="prometheusAccess"
     )
     namespace: NamespaceV1 = Field(..., alias="namespace")
+    slo_namespace: Optional[SLONamespacesV1_NamespaceV1] = Field(
+        ..., alias="SLONamespace"
+    )
 
 
 class SLODocumentSLOSLOParametersV1(ConfiguredBaseModel):
