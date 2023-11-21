@@ -32,6 +32,9 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   accessTokenClientSecret {
     ... VaultSecret
   }
+  disable {
+    ... DisableAutomations
+  }
   blockedVersions
   addonManagedUpgrades
   addonUpgradeTests {
@@ -86,6 +89,10 @@ fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
     sector
     blockedVersions
   }
+}
+
+fragment DisableAutomations on DisableClusterAutomations_v1 {
+  integrations
 }
 
 fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {

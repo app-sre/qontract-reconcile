@@ -18,6 +18,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
+from reconcile.gql_definitions.fragments.disable import DisableAutomations
 from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
     MinimalOCMOrganization,
 )
@@ -97,6 +98,7 @@ class AUSOCMOrganization(ConfiguredBaseModel):
     access_token_client_secret: Optional[VaultSecret] = Field(
         ..., alias="accessTokenClientSecret"
     )
+    disable: Optional[DisableAutomations] = Field(..., alias="disable")
     blocked_versions: Optional[list[str]] = Field(..., alias="blockedVersions")
     addon_managed_upgrades: Optional[bool] = Field(..., alias="addonManagedUpgrades")
     addon_upgrade_tests: Optional[list[AddonUpgradeTestV1]] = Field(

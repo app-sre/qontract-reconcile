@@ -14,6 +14,7 @@ from reconcile.gql_definitions.fragments.aus_organization import (
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1,
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1,
 )
+from reconcile.gql_definitions.fragments.disable import DisableAutomations
 from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
     MinimalOCMOrganization,
 )
@@ -68,16 +69,23 @@ def build_organization(
     org_id: Optional[str] = None,
     org_name: Optional[str] = None,
     env_name: Optional[str] = None,
+    ocm_env: Optional[OCMEnvironment] = None,
     inherit_version_data_from_org_ids: Optional[list[tuple[str, str, bool]]] = None,
     publish_version_data_from_org_ids: Optional[list[str]] = None,
     blocked_versions: Optional[list[str]] = None,
     sector_dependencies: Optional[dict[str, Optional[list[str]]]] = None,
     addonManagedUpgrades: bool = False,
+    disabled_integrations: Optional[list[str]] = None,
 ) -> AUSOCMOrganization:
     org_id = org_id or "org-1-id"
+    disable = (
+        DisableAutomations(integrations=disabled_integrations)
+        if disabled_integrations
+        else None
+    )
     return AUSOCMOrganization(
         name=org_name or "org-name",
-        environment=build_ocm_environment(env_name or "env-name"),
+        environment=ocm_env or build_ocm_environment(env_name or "env-name"),
         orgId=org_id,
         blockedVersions=blocked_versions,
         inheritVersionData=[
@@ -107,6 +115,7 @@ def build_organization(
         upgradePolicyAllowedWorkloads=None,
         addonManagedUpgrades=addonManagedUpgrades,
         addonUpgradeTests=None,
+        disable=disable,
         sectors=[
             OpenShiftClusterManagerSectorV1(
                 name=sector,
