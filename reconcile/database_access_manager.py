@@ -28,7 +28,10 @@ from reconcile.utils.oc import (
     OC_Map,
     OCClient,
 )
-from reconcile.utils.openshift_resource import OpenshiftResource
+from reconcile.utils.openshift_resource import (
+    OpenshiftResource,
+    base64_encode_secret_field_value,
+)
 from reconcile.utils.runtime.integration import QontractReconcileIntegration
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import (
@@ -40,6 +43,9 @@ QONTRACT_INTEGRATION = "database-access-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 SUPPORTED_ENGINES = ["postgres"]
+
+JOB_DEADLINE_IN_SECONDS = 60
+JOB_PSQL_ENGINE_VERSION = "15.4-alpine"
 
 
 def get_database_access_namespaces(
@@ -117,15 +123,11 @@ def generate_user_secret_spec(
 ) -> OpenshiftResource:
     secret = secret_head(name)
     secret["data"] = {
-        "db.host": base64.b64encode(db_connection.host.encode("utf-8")).decode("utf-8"),
-        "db.name": base64.b64encode(db_connection.database.encode("utf-8")).decode(
-            "utf-8"
-        ),
-        "db.password": base64.b64encode(db_connection.password.encode("utf-8")).decode(
-            "utf-8"
-        ),
-        "db.port": base64.b64encode(db_connection.port.encode("utf-8")).decode("utf-8"),
-        "db.user": base64.b64encode(db_connection.user.encode("utf-8")).decode("utf-8"),
+        "db.host": base64_encode_secret_field_value(db_connection.host),
+        "db.name": base64_encode_secret_field_value(db_connection.database),
+        "db.password": base64_encode_secret_field_value(db_connection.password),
+        "db.port": base64_encode_secret_field_value(db_connection.port),
+        "db.user": base64_encode_secret_field_value(db_connection.user),
     }
     return OpenshiftResource(
         body=secret,
@@ -183,6 +185,9 @@ def get_job_spec(job_data: JobData) -> OpenshiftResource:
                 "app": "qontract-reconcile",
                 "integration": QONTRACT_INTEGRATION,
             },
+            "annotations": {
+                "ignore-check.kube-linter.io/unset-cpu-requirements": "no cpu limits",
+            },
         },
         "spec": {
             "backoffLimit": 1,
@@ -191,6 +196,7 @@ def get_job_spec(job_data: JobData) -> OpenshiftResource:
                     "name": job_name,
                 },
                 "spec": {
+                    "activeDeadlineSeconds": JOB_DEADLINE_IN_SECONDS,
                     "imagePullSecrets": [{"name": job_data.pull_secret}],
                     "restartPolicy": "Never",
                     "serviceAccountName": job_data.service_account_name,
@@ -260,6 +266,9 @@ def get_job_spec(job_data: JobData) -> OpenshiftResource:
                                 "requests": {
                                     "cpu": "100m",
                                     "memory": "128Mi",
+                                },
+                                "limits": {
+                                    "memory": "256Mi",
                                 },
                             },
                             "volumeMounts": [
@@ -404,7 +413,7 @@ def _populate_resources(
             resource=get_job_spec(
                 JobData(
                     engine=engine,
-                    engine_version="15.4-alpine",
+                    engine_version=JOB_PSQL_ENGINE_VERSION,
                     name_suffix=db_access.name,
                     image_repository=image_repository,
                     service_account_name=resource_prefix,
@@ -538,11 +547,6 @@ def _process_db_access(
     if job_status.is_complete():
         if job_status.has_errors():
             raise JobFailedError(f"Job dbam-{db_access.name} failed, please check logs")
-        state.add(
-            db_access.name,
-            value=db_access.dict(by_alias=True),
-            force=True,
-        )
         logging.debug("job completed, cleaning up")
         for r in managed_resources:
             if r.clean_up:
@@ -555,6 +559,11 @@ def _process_db_access(
                     name=r.resource.name,
                     enable_deletion=True,
                 )
+        state.add(
+            db_access.name,
+            value=db_access.dict(by_alias=True),
+            force=True,
+        )
     else:
         logging.info(f"Job dbam-{db_access.name} appears to be still running")
 
@@ -578,44 +587,43 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
         encounteredErrors = False
 
         namespaces = get_database_access_namespaces()
-        with OC_Map(
-            namespaces=[n.dict(by_alias=True) for n in namespaces],
-            integration=QONTRACT_INTEGRATION,
-            settings=settings,
-        ) as oc_map:
-            for namespace in namespaces:
-                for external_resource in [
-                    er
-                    for er in namespace.external_resources or []
-                    if isinstance(er, NamespaceTerraformProviderResourceAWSV1)
+        for namespace in namespaces:
+            for external_resource in [
+                er
+                for er in namespace.external_resources or []
+                if isinstance(er, NamespaceTerraformProviderResourceAWSV1)
+            ]:
+                for resource in [
+                    r
+                    for r in external_resource.resources or []
+                    if isinstance(r, NamespaceTerraformResourceRDSV1)
+                    and r.database_access is not None
                 ]:
-                    for resource in [
-                        r
-                        for r in external_resource.resources or []
-                        if isinstance(r, NamespaceTerraformResourceRDSV1)
-                    ]:
+                    if resource.output_resource_name is None:
+                        admin_secret_name = f"{resource.identifier}-{resource.provider}"
+                    else:
                         admin_secret_name = resource.output_resource_name
-                        if admin_secret_name is None:
-                            logging.error(
-                                f"{resource.identifier}-{resource.provider} is missing output_resource_name"
-                            )
+
+                    for db_access in resource.database_access or []:
+                        try:
+                            with OC_Map(
+                                clusters=namespace.cluster.dict(by_alias=True),
+                                integration=QONTRACT_INTEGRATION,
+                                settings=settings,
+                            ) as oc_map:
+                                _process_db_access(
+                                    dry_run,
+                                    state,
+                                    db_access,
+                                    oc_map,
+                                    namespace.cluster.name,
+                                    namespace.name,
+                                    admin_secret_name,
+                                    get_db_engine(resource),
+                                    sql_query_settings,
+                                )
+                        except JobFailedError:
                             encounteredErrors = True
-                        else:
-                            for db_access in resource.database_access or []:
-                                try:
-                                    _process_db_access(
-                                        dry_run,
-                                        state,
-                                        db_access,
-                                        oc_map,
-                                        namespace.cluster.name,
-                                        namespace.name,
-                                        admin_secret_name,
-                                        get_db_engine(resource),
-                                        sql_query_settings,
-                                    )
-                                except JobFailedError:
-                                    encounteredErrors = True
 
             if encounteredErrors:
                 raise JobFailedError("One or more jobs failed to complete")
