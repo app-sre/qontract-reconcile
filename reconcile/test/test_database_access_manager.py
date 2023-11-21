@@ -1,5 +1,8 @@
 from collections import defaultdict
-from typing import Callable
+from typing import (
+    Any,
+    Callable,
+)
 from unittest.mock import MagicMock
 
 import pytest
@@ -279,8 +282,8 @@ def dbam_process_mocks(
 
 
 @pytest.fixture
-def ai_settings() -> dict[str, any]:
-    d = defaultdict(str)
+def ai_settings() -> dict[str, Any]:
+    d: dict[str, Any] = defaultdict(str)
     d["sqlQuery"] = {
         "imageRepository": {"foo": "bar"},
         "pullSecret": {"foo": "bar"},
@@ -294,7 +297,7 @@ def test__process_db_access_job_pass(
     dbam_oc_map: MagicMock,
     dbam_process_mocks: DBAMResource,
     mocker: MockerFixture,
-    ai_settings: dict[str, any],
+    ai_settings: dict[str, Any],
 ):
     dbam_state.exists.return_value = False
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
@@ -335,7 +338,7 @@ def test__process_db_access_job_error(
     dbam_oc_map: MagicMock,
     dbam_process_mocks: DBAMResource,
     mocker: MockerFixture,
-    ai_settings: dict[str, any],
+    ai_settings: dict[str, Any],
 ):
     dbam_state.exists.return_value = False
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
@@ -362,7 +365,7 @@ def test__process_db_access_state_diff(
     dbam_oc_map: MagicMock,
     dbam_process_mocks: DBAMResource,
     mocker: MockerFixture,
-    ai_settings: dict[str, any],
+    ai_settings: dict[str, Any],
 ):
     dbam_state.exists.return_value = True
     dbam_state.get.return_value = {}
