@@ -508,11 +508,15 @@ def _process_db_access(
         resource_prefix,
     )
 
+    sql_query_settings = settings.get("sqlQuery")
+    if not sql_query_settings:
+        raise KeyError("sqlQuery settings are required")
+
     managed_resources = _populate_resources(
         db_access,
         engine,
-        settings["imageRepository"],
-        settings["pullSecret"],
+        sql_query_settings["imageRepository"],
+        sql_query_settings["pullSecret"],
         admin_secret_name,
         resource_prefix,
         settings,
@@ -576,10 +580,6 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
     def run(self, dry_run: bool) -> None:
         settings = queries.get_app_interface_settings()
 
-        sql_query_settings = settings.get("sqlQuery")
-        if not sql_query_settings:
-            raise KeyError("sqlQuery settings are required")
-
         state = init_state(
             integration=QONTRACT_INTEGRATION, secret_reader=self.secret_reader
         )
@@ -607,7 +607,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                     for db_access in resource.database_access or []:
                         try:
                             with OC_Map(
-                                clusters=namespace.cluster.dict(by_alias=True),
+                                clusters=[namespace.cluster.dict(by_alias=True)],
                                 integration=QONTRACT_INTEGRATION,
                                 settings=settings,
                             ) as oc_map:
@@ -620,7 +620,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                                     namespace.name,
                                     admin_secret_name,
                                     get_db_engine(resource),
-                                    sql_query_settings,
+                                    settings,
                                 )
                         except JobFailedError:
                             encounteredErrors = True
