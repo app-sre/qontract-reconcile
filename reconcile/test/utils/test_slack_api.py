@@ -1,9 +1,6 @@
 import json
 from collections import namedtuple
-from typing import (
-    Optional,
-    Union,
-)
+from typing import Any
 from unittest.mock import (
     MagicMock,
     call,
@@ -91,9 +88,7 @@ def test_slack_api_config_from_dict():
     assert slack_api_config.timeout == 5
 
 
-def new_slack_response(
-    data: dict[str, Optional[Union[bool, int, str, dict[str, str]]]]
-):
+def new_slack_response(data: dict[str, Any]):
     return SlackResponse(
         client="",
         http_verb="",
