@@ -278,12 +278,23 @@ def dbam_process_mocks(
     return expected_resource
 
 
+@pytest.fixture
+def ai_settings() -> dict[str, any]:
+    d = defaultdict(str)
+    d["sqlQuery"] = {
+        "imageRepository": {"foo": "bar"},
+        "pullSecret": {"foo": "bar"},
+    }
+    return d
+
+
 def test__process_db_access_job_pass(
     db_access: DatabaseAccessV1,
     dbam_state: MagicMock,
     dbam_oc_map: MagicMock,
     dbam_process_mocks: DBAMResource,
     mocker: MockerFixture,
+    ai_settings: dict[str, any],
 ):
     dbam_state.exists.return_value = False
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
@@ -303,7 +314,7 @@ def test__process_db_access_job_pass(
         namespace_name="test-namepsace",
         admin_secret_name="db-secret",
         engine="postgres",
-        settings=defaultdict(str),
+        settings=ai_settings,
     )
 
     assert ob_delete.call_count == 1
@@ -324,6 +335,7 @@ def test__process_db_access_job_error(
     dbam_oc_map: MagicMock,
     dbam_process_mocks: DBAMResource,
     mocker: MockerFixture,
+    ai_settings: dict[str, any],
 ):
     dbam_state.exists.return_value = False
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
@@ -340,7 +352,7 @@ def test__process_db_access_job_error(
             namespace_name="test-namepsace",
             admin_secret_name="db-secret",
             engine="postgres",
-            settings=defaultdict(str),
+            settings=ai_settings,
         )
 
 
@@ -350,6 +362,7 @@ def test__process_db_access_state_diff(
     dbam_oc_map: MagicMock,
     dbam_process_mocks: DBAMResource,
     mocker: MockerFixture,
+    ai_settings: dict[str, any],
 ):
     dbam_state.exists.return_value = True
     dbam_state.get.return_value = {}
@@ -369,7 +382,7 @@ def test__process_db_access_state_diff(
         namespace_name="test-namepsace",
         admin_secret_name="db-secret",
         engine="postgres",
-        settings=defaultdict(str),
+        settings=ai_settings,
     )
 
     assert ob_apply.call_count == 1
