@@ -275,6 +275,49 @@ def test_create_usergroup(slack_api):
     )
 
 
+@pytest.mark.parametrize(
+    "user,ids,expected",
+    [
+        (
+            {
+                "id": "ID_A",
+                "name": "user_a",
+            },
+            ["ID_A"],
+            {"ID_A": "user_a"},
+        ),
+        (
+            {
+                "id": "ID_A",
+                "name": "user_a",
+                "enterprise_user": {"id": "ENTERPRISE_ID_A"},
+            },
+            ["ENTERPRISE_ID_A"],
+            {"ENTERPRISE_ID_A": "user_a"},
+        ),
+        (
+            {
+                "id": "ID_A",
+                "name": "user_a",
+                "enterprise_user": {"id": "ENTERPRISE_ID_A"},
+            },
+            ["ID_A"],
+            {},
+        ),
+    ],
+)
+def test_get_users_by_ids(slack_api, user, ids, expected):
+    slack_response = new_slack_response(
+        {
+            "members": [user],
+            "response_metadata": {"next_cursor": ""},
+        }
+    )
+    slack_api.mock_slack_client.return_value.api_call.return_value = slack_response
+
+    assert slack_api.client.get_users_by_ids(ids) == expected
+
+
 def test_update_usergroup_users(slack_api):
     slack_api.client.update_usergroup_users("ABCD", ["USERA", "USERB"])
 
