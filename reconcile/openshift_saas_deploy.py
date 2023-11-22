@@ -99,7 +99,7 @@ def slack_notify(
     if trigger_integration:
         message += f" triggered by _{trigger_integration}_"
     if in_progress and skip_successful_notifications:
-        message += f". There will not be a notice for success."
+        message += ". There will not be a notice for success."
     slack.chat_post_message(message)
 
 
@@ -133,10 +133,9 @@ def run(
     # - this is not a dry run
     # - there is a single saas file deployed
     notify = not dry_run and len(saas_files) == 1
-    if len(saas_files) > 0:
-        skip_successful_deploy_notifications = saas_files[
-            0
-        ].skip_successful_deploy_notifications
+    skip_successful_deploy_notifications = (
+        saas_files[0].skip_successful_deploy_notifications if saas_files else False
+    )
     slack = None
     if notify:
         saas_file = saas_files[0]

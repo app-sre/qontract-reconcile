@@ -2,11 +2,18 @@ from collections.abc import Callable
 
 import pytest
 
-from reconcile.openshift_saas_deploy import compose_console_url
+from reconcile.openshift_saas_deploy import (
+    compose_console_url,
+    slack_notify,
+)
 from reconcile.openshift_tekton_resources import (
     OpenshiftTektonResourcesNameTooLongError,
 )
 from reconcile.typed_queries.saas_files import SaasFile
+from reconcile.utils import (
+    openshift_resource,
+    slack_api,
+)
 
 
 @pytest.fixture
@@ -86,3 +93,130 @@ def test_compose_console_url_with_long_saas_name(
         f"Pipeline name o-saas-deploy-{saas_name} is longer than 56 characters"
         == str(e.value)
     )
+
+
+def new_slack_api() -> slack_api.SlackApi:
+    api = slack_api.SlackApi(
+        workspace_name="test",
+        token="test-token",
+        init_usergroups=False,
+    )
+
+    def intercepted_slack_chat_post_message(message: str) -> str:
+        # Refer to the test_slack_notify_skipped_success method for a
+        # description of message_type
+        global message_type
+        if ":yellow_jenkins_circle:" in message:
+            message_type = "in_progress"
+        elif ":green_jenkins_circle:" in message:
+            message_type = "success"
+        elif ":red_jenkins_circle:" in message:
+            message_type = "failure"
+        else:
+            # this shouldn't be reached. the case where a notification is
+            # skipped should not have anything sent to slack for this method to
+            # intercept.
+            message_type = "unknown"
+        return message_type
+
+    api.chat_post_message = intercepted_slack_chat_post_message
+    return api
+
+
+def test_slack_notify_skipped_success():
+    api = new_slack_api()
+    # what type of message (if any) is being sent to Slack?
+    # this can be in the set [ "in_progress", "success", "failure", "" ]
+    # the empty string corresponds to no message at all because it was skipped.
+    global message_type
+    message_type = ""
+    slack_notify(
+        saas_file_name="test-slack_notify--skipped-success.yaml",
+        env_name="test",
+        slack=api,
+        ri=openshift_resource.ResourceInventory(),
+        console_url="https://test.local/console",
+        in_progress=False,
+        skip_successful_notifications=True,
+    )
+    assert (
+        message_type == ""
+    ), f"expected a skipped success message type to be '', but got {message_type}"
+
+
+def test_slack_notify_unskipped_success():
+    api = new_slack_api()
+    global message_type
+    message_type = ""
+    slack_notify(
+        saas_file_name="test-slack_notify--unskipped-success.yaml",
+        env_name="test",
+        slack=api,
+        ri=openshift_resource.ResourceInventory(),
+        console_url="https://test.local/console",
+        in_progress=False,
+        skip_successful_notifications=False,
+    )
+    assert (
+        message_type == "success"
+    ), f"expected an unskipped success to be 'success', but got {message_type}"
+
+
+def test_slack_notify_unskipped_failure():
+    api = new_slack_api()
+    global message_type
+    message_type = ""
+    ri = openshift_resource.ResourceInventory()
+    ri.register_error()
+    slack_notify(
+        saas_file_name="test-saas-file-name.yaml",
+        env_name="test",
+        slack=api,
+        ri=ri,
+        console_url="https://test.local/console",
+        in_progress=False,
+        skip_successful_notifications=False,
+    )
+    assert (
+        message_type == "failure"
+    ), f"expected an unskipped failure to be 'falure', but got {message_type}"
+
+
+def test_slack_notify_skipped_failure():
+    api = new_slack_api()
+    global message_type
+    message_type = ""
+    ri = openshift_resource.ResourceInventory()
+    ri.register_error()
+    slack_notify(
+        saas_file_name="test-saas-file-name.yaml",
+        env_name="test",
+        slack=api,
+        ri=ri,
+        console_url="https://test.local/console",
+        in_progress=False,
+        skip_successful_notifications=True,
+    )
+    assert (
+        message_type == "failure"
+    ), f"expected a skipped failure to be 'failure', but got {message_type}"
+
+
+def test_slack_notify_skipped_in_progress():
+    api = new_slack_api()
+    global message_type
+    message_type = ""
+    ri = openshift_resource.ResourceInventory()
+    #ri.register_error()
+    slack_notify(
+        saas_file_name="test-saas-file-name.yaml",
+        env_name="test",
+        slack=api,
+        ri=ri,
+        console_url="https://test.local/console",
+        in_progress=True,
+        skip_successful_notifications=True,
+    )
+    assert (
+        message_type == "in_progress"
+    ), f"expected a skipped, in progress to be 'in_progress', but got {message_type}"
