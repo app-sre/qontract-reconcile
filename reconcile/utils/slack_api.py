@@ -195,6 +195,7 @@ class SlackApi:
         self._configure_client_retry()
 
         self._results: dict[str, Any] = {}
+        self._enterprise_user_id_to_user_ids: dict[str, str] = {}
 
         self.channel = channel
         self.chat_kwargs = chat_kwargs
@@ -392,19 +393,15 @@ class SlackApi:
         }
 
     def get_users_by_ids(self, users_ids: Iterable[str]) -> dict[str, str]:
+        users = self._get("users")
+        translated_user_ids = (
+            self._translate_user_id(user_id) for user_id in users_ids
+        )
         return {
             user_id: user["name"]
-            for user_id in users_ids
-            if (user := self._get("users").get(user_id))
+            for user_id in translated_user_ids
+            if (user := users.get(user_id))
         }
-
-    @staticmethod
-    def _default_id_key(data: Mapping) -> str:
-        return data["id"]
-
-    @staticmethod
-    def _user_id_key(data: Mapping) -> str:
-        return data.get("enterprise_user", {}).get("id") or data["id"]
 
     def _get(self, resource: str) -> dict[str, Any]:
         """
@@ -418,7 +415,6 @@ class SlackApi:
             return self._results[resource]
 
         result_key = "members" if resource == "users" else resource
-        key_func = self._user_id_key if resource == "users" else self._default_id_key
         api_key = "conversations" if resource == "channels" else resource
         results = {}
         additional_kwargs: dict[str, Union[str, int]] = {"cursor": ""}
@@ -433,7 +429,7 @@ class SlackApi:
             )
 
             for r in result[result_key]:
-                results[key_func(r)] = r
+                results[r["id"]] = r
 
             cursor = result["response_metadata"]["next_cursor"]
 
@@ -443,7 +439,18 @@ class SlackApi:
             additional_kwargs["cursor"] = cursor
 
         self._results[resource] = results
+
+        if resource == "users":
+            self._enterprise_user_id_to_user_ids = {
+                enterprise_user_id: user["id"]
+                for user in results.values()
+                if (enterprise_user_id := user.get("enterprise_user", {}).get("id"))
+            }
         return results
+
+    def _translate_user_id(self, user_id: str) -> str:
+        """Translate enterprise user id to user id"""
+        return self._enterprise_user_id_to_user_ids.get(user_id, user_id)
 
     def get_flat_conversation_history(
         self, from_timestamp: int, to_timestamp: Optional[int]

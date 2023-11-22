@@ -288,7 +288,7 @@ def test_create_usergroup(slack_api):
                 "enterprise_user": {"id": "ENTERPRISE_ID_A"},
             },
             ["ENTERPRISE_ID_A"],
-            {"ENTERPRISE_ID_A": "user_a"},
+            {"ID_A": "user_a"},
         ),
         (
             {
@@ -297,6 +297,15 @@ def test_create_usergroup(slack_api):
                 "enterprise_user": {"id": "ENTERPRISE_ID_A"},
             },
             ["ID_A"],
+            {"ID_A": "user_a"},
+        ),
+        (
+            {
+                "id": "ID_A",
+                "name": "user_a",
+                "enterprise_user": {"id": "ENTERPRISE_ID_A"},
+            },
+            ["ID_NOT_FOUND"],
             {},
         ),
     ],
