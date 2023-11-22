@@ -1,9 +1,6 @@
 import json
 from collections import namedtuple
-from typing import (
-    Optional,
-    Union,
-)
+from typing import Any
 from unittest.mock import (
     MagicMock,
     call,
@@ -91,9 +88,7 @@ def test_slack_api_config_from_dict():
     assert slack_api_config.timeout == 5
 
 
-def new_slack_response(
-    data: dict[str, Optional[Union[bool, int, str, dict[str, str]]]]
-):
+def new_slack_response(data: dict[str, Any]):
     return SlackResponse(
         client="",
         http_verb="",
@@ -273,6 +268,49 @@ def test_create_usergroup(slack_api):
     assert slack_api.mock_slack_client.return_value.usergroups_create.call_args == call(
         name="ABCD", handle="ABCD"
     )
+
+
+@pytest.mark.parametrize(
+    "user,ids,expected",
+    [
+        (
+            {
+                "id": "ID_A",
+                "name": "user_a",
+            },
+            ["ID_A"],
+            {"ID_A": "user_a"},
+        ),
+        (
+            {
+                "id": "ID_A",
+                "name": "user_a",
+                "enterprise_user": {"id": "ENTERPRISE_ID_A"},
+            },
+            ["ENTERPRISE_ID_A"],
+            {"ENTERPRISE_ID_A": "user_a"},
+        ),
+        (
+            {
+                "id": "ID_A",
+                "name": "user_a",
+                "enterprise_user": {"id": "ENTERPRISE_ID_A"},
+            },
+            ["ID_A"],
+            {},
+        ),
+    ],
+)
+def test_get_users_by_ids(slack_api, user, ids, expected):
+    slack_response = new_slack_response(
+        {
+            "members": [user],
+            "response_metadata": {"next_cursor": ""},
+        }
+    )
+    slack_api.mock_slack_client.return_value.api_call.return_value = slack_response
+
+    assert slack_api.client.get_users_by_ids(ids) == expected
 
 
 def test_update_usergroup_users(slack_api):
