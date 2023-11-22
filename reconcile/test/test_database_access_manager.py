@@ -25,7 +25,6 @@ from reconcile.gql_definitions.terraform_resources.database_access_manager impor
     DatabaseAccessV1,
     NamespaceV1,
 )
-from reconcile.utils.oc import OC_Map
 from reconcile.utils.openshift_resource import OpenshiftResource
 
 
