@@ -16,6 +16,7 @@ from reconcile.database_access_manager import (
     JobStatusCondition,
     PSQLScriptGenerator,
     _create_database_connection_parameter,
+    _DBDonnections,
     _generate_password,
     _populate_resources,
     _process_db_access,
@@ -315,10 +316,10 @@ def dbam_process_mocks(
     expected_resource = DBAMResource(resource=openshift_resource_secet, clean_up=True)
     mocker.patch(
         "reconcile.database_access_manager._create_database_connection_parameter",
-        return_value={
-            "user": db_connection_parameter,
-            "admin": db_admin_connection_parameter,
-        },
+        return_value=_DBDonnections(
+            user=db_connection_parameter,
+            admin=db_admin_connection_parameter,
+        ),
     )
     mocker.patch(
         "reconcile.database_access_manager._populate_resources",

@@ -9,6 +9,7 @@ from typing import (
     Any,
     Callable,
     Optional,
+    TypedDict,
 )
 
 from pydantic import BaseModel
@@ -436,13 +437,18 @@ def _generate_password() -> str:
     return "".join(choices(ascii_letters + digits, k=32))
 
 
+class _DBDonnections(TypedDict):
+    user: DatabaseConnectionParameters
+    admin: DatabaseConnectionParameters
+
+
 def _create_database_connection_parameter(
     db_access: DatabaseAccessV1,
     namespace_name: str,
     oc: OCClient,
     admin_secret_name: str,
     user_secret_name: str,
-) -> dict[str, DatabaseConnectionParameters]:
+) -> _DBDonnections:
     def _decode_secret_value(value: str) -> str:
         return base64.b64decode(value).decode("utf-8")
 
@@ -471,22 +477,22 @@ def _create_database_connection_parameter(
         user = db_access.username
         password = _generate_password()
         database = db_access.database
-    return {
-        "user": DatabaseConnectionParameters(
+    return _DBDonnections(
+        user=DatabaseConnectionParameters(
             host=host,
             port=port,
             user=user,
             password=password,
             database=database,
         ),
-        "admin": DatabaseConnectionParameters(
+        admin=DatabaseConnectionParameters(
             host=_decode_secret_value(admin_secret["data"]["db.host"]),
             port=_decode_secret_value(admin_secret["data"]["db.port"]),
             user=_decode_secret_value(admin_secret["data"]["db.user"]),
             password=_decode_secret_value(admin_secret["data"]["db.password"]),
             database=_decode_secret_value(admin_secret["data"]["db.name"]),
         ),
-    }
+    )
 
 
 class JobFailedError(Exception):
@@ -518,7 +524,7 @@ def _process_db_access(
     ) as oc_map:
         oc = oc_map.get_cluster(cluster_name, False)
 
-        database_connection = _create_database_connection_parameter(
+        connections = _create_database_connection_parameter(
             db_access,
             namespace_name,
             oc,
@@ -538,8 +544,8 @@ def _process_db_access(
             admin_secret_name,
             resource_prefix,
             settings,
-            database_connection["user"],
-            database_connection["admin"],
+            connections["user"],
+            connections["admin"],
         )
 
         # create job, delete old, failed job first
