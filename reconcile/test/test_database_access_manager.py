@@ -88,6 +88,17 @@ def db_connection_parameter():
 
 
 @pytest.fixture
+def db_admin_connection_parameter():
+    return DatabaseConnectionParameters(
+        host="localhost",
+        port="5432",
+        user="admin",
+        password="adminpw",  # notsecret
+        database="test",
+    )
+
+
+@pytest.fixture
 def db_secret_dict() -> dict[str, dict[str, str]]:
     return {
         "data": {
@@ -118,6 +129,7 @@ def _assert_create_script(script: str) -> None:
     assert "REVOKE ALL ON DATABASE" in script
     assert 'CREATE ROLE "test"  WITH LOGIN PASSWORD' in script
     assert "CREATE SCHEMA IF NOT EXISTS" in script
+    assert 'GRANT "test" to "admin";' in script
 
 
 def _assert_grant_access(script: str) -> None:
@@ -125,11 +137,14 @@ def _assert_grant_access(script: str) -> None:
 
 
 def test_generate_create_user(
-    db_access: DatabaseAccessV1, db_connection_parameter: DatabaseConnectionParameters
+    db_access: DatabaseAccessV1,
+    db_connection_parameter: DatabaseConnectionParameters,
+    db_admin_connection_parameter: DatabaseConnectionParameters,
 ) -> None:
     s = PSQLScriptGenerator(
         db_access=db_access,
         connection_parameter=db_connection_parameter,
+        admin_connection_parameter=db_admin_connection_parameter,
         engine="postgres",
     )
     script = s._generate_create_user()
@@ -140,12 +155,14 @@ def test_generate_access(
     db_access: DatabaseAccessV1,
     db_access_access: DatabaseAccessAccessV1,
     db_connection_parameter: DatabaseConnectionParameters,
+    db_admin_connection_parameter: DatabaseConnectionParameters,
 ):
     db_access.access = [db_access_access]
 
     s = PSQLScriptGenerator(
         db_access=db_access,
         connection_parameter=db_connection_parameter,
+        admin_connection_parameter=db_connection_parameter,
         engine="postgres",
     )
     script = s._generate_db_access()
@@ -155,10 +172,12 @@ def test_generate_access(
 def test_generate_complete(
     db_access_complete: DatabaseAccessV1,
     db_connection_parameter: DatabaseConnectionParameters,
+    db_admin_connection_parameter: DatabaseConnectionParameters,
 ):
     s = PSQLScriptGenerator(
         db_access=db_access_complete,
         connection_parameter=db_connection_parameter,
+        admin_connection_parameter=db_admin_connection_parameter,
         engine="postgres",
     )
     script = s.generate_script()
@@ -185,6 +204,7 @@ def test_populate_resources(
     mocker: MockerFixture,
     db_access: DatabaseAccessV1,
     db_connection_parameter: DatabaseConnectionParameters,
+    db_admin_connection_parameter: DatabaseConnectionParameters,
     openshift_resource_secet: OpenshiftResource,
 ):
     mocker.patch(
@@ -205,7 +225,8 @@ def test_populate_resources(
         admin_secret_name="db-secret",
         resource_prefix="dbam-foo",
         settings={"foo": "bar"},
-        database_connection=db_connection_parameter,
+        user_connection=db_connection_parameter,
+        admin_connection=db_admin_connection_parameter,
     )
 
     r_kinds = [r.resource.kind for r in reources]
@@ -226,13 +247,17 @@ def test__create_database_connection_parameter_user_exists(
         admin_secret_name="db-secret",
         user_secret_name="db-user-secret",
     )
-    assert p == DatabaseConnectionParameters(
+    conn = DatabaseConnectionParameters(
         host="localhost",
         port="5432",
         user="test",
         password="hduhsdfuhsdf",
         database="test",
     )
+
+    assert p["user"] == conn
+    assert p["admin"] == conn
+    assert oc.get.call_count == 2
 
 
 def test__create_database_connection_parameter_user_missing(
@@ -254,13 +279,20 @@ def test__create_database_connection_parameter_user_missing(
         admin_secret_name="db-secret",
         user_secret_name="db-user-secret",
     )
-    assert p == DatabaseConnectionParameters(
+    conn = DatabaseConnectionParameters(
         host="localhost",
         port="5432",
         user="test",
         password=pw_generated,
         database="test",
     )
+
+    admin_conn = conn.copy()
+    admin_conn.password = "hduhsdfuhsdf"
+
+    assert p["user"] == conn
+    assert p["admin"] == admin_conn
+    assert oc.get.call_count == 2
 
 
 def test_generate_password():
@@ -275,12 +307,18 @@ def dbam_state(mocker: MockerFixture) -> MockerFixture:
 
 @pytest.fixture
 def dbam_process_mocks(
-    openshift_resource_secet: OpenshiftResource, mocker: MockerFixture
+    openshift_resource_secet: OpenshiftResource,
+    mocker: MockerFixture,
+    db_connection_parameter: DatabaseConnectionParameters,
+    db_admin_connection_parameter: DatabaseConnectionParameters,
 ) -> DBAMResource:
     expected_resource = DBAMResource(resource=openshift_resource_secet, clean_up=True)
     mocker.patch(
         "reconcile.database_access_manager._create_database_connection_parameter",
-        return_value=db_connection_parameter,
+        return_value={
+            "user": db_connection_parameter,
+            "admin": db_admin_connection_parameter,
+        },
     )
     mocker.patch(
         "reconcile.database_access_manager._populate_resources",
