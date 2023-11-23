@@ -9,6 +9,7 @@ from typing import (
     Any,
     Callable,
     Optional,
+    TypedDict,
 )
 
 from pydantic import BaseModel
@@ -67,6 +68,7 @@ class DatabaseConnectionParameters(BaseModel):
 class PSQLScriptGenerator(BaseModel):
     db_access: DatabaseAccessV1
     connection_parameter: DatabaseConnectionParameters
+    admin_connection_parameter: DatabaseConnectionParameters
     engine: str
 
     def _get_db(self) -> str:
@@ -92,7 +94,7 @@ select 'CREATE ROLE "{self._get_user()}"  WITH LOGIN PASSWORD ''{self.connection
 WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{self._get_db()}');\\gexec
 
 -- rds specific, grant role to admin or create schema fails
-grant "{self._get_user()}" to postgres;
+GRANT "{self._get_user()}" to "{self.admin_connection_parameter.user}";
 CREATE SCHEMA IF NOT EXISTS "{self._get_user()}" AUTHORIZATION "{self._get_user()}";"""
 
     def _generate_db_access(self) -> str:
@@ -357,7 +359,8 @@ def _populate_resources(
     admin_secret_name: str,
     resource_prefix: str,
     settings: dict[Any, Any],
-    database_connection: DatabaseConnectionParameters,
+    user_connection: DatabaseConnectionParameters,
+    admin_connection: DatabaseConnectionParameters,
 ) -> list[DBAMResource]:
     managed_resources: list[DBAMResource] = []
     # create service account
@@ -371,7 +374,8 @@ def _populate_resources(
     # create script secret
     generator = PSQLScriptGenerator(
         db_access=db_access,
-        connection_parameter=database_connection,
+        connection_parameter=user_connection,
+        admin_connection_parameter=admin_connection,
         engine=engine,
     )
     script_secret_name = f"{resource_prefix}-script"
@@ -387,7 +391,7 @@ def _populate_resources(
     # create user secret
     managed_resources.append(
         DBAMResource(
-            resource=generate_user_secret_spec(resource_prefix, database_connection),
+            resource=generate_user_secret_spec(resource_prefix, user_connection),
             clean_up=False,
         )
     )
@@ -433,13 +437,18 @@ def _generate_password() -> str:
     return "".join(choices(ascii_letters + digits, k=32))
 
 
+class _DBDonnections(TypedDict):
+    user: DatabaseConnectionParameters
+    admin: DatabaseConnectionParameters
+
+
 def _create_database_connection_parameter(
     db_access: DatabaseAccessV1,
     namespace_name: str,
     oc: OCClient,
     admin_secret_name: str,
     user_secret_name: str,
-) -> DatabaseConnectionParameters:
+) -> _DBDonnections:
     def _decode_secret_value(value: str) -> str:
         return base64.b64decode(value).decode("utf-8")
 
@@ -449,6 +458,13 @@ def _create_database_connection_parameter(
         user_secret_name,
         allow_not_found=True,
     )
+    admin_secret = oc.get(
+        namespace_name,
+        "Secret",
+        admin_secret_name,
+        allow_not_found=False,
+    )
+
     if user_secret:
         password = _decode_secret_value(user_secret["data"]["db.password"])
         host = _decode_secret_value(user_secret["data"]["db.host"])
@@ -456,25 +472,27 @@ def _create_database_connection_parameter(
         port = _decode_secret_value(user_secret["data"]["db.port"])
         database = _decode_secret_value(user_secret["data"]["db.name"])
     else:
-        admin_secret = oc.get(
-            namespace_name,
-            "Secret",
-            admin_secret_name,
-            allow_not_found=False,
-        )
         host = _decode_secret_value(admin_secret["data"]["db.host"])
         port = _decode_secret_value(admin_secret["data"]["db.port"])
         user = db_access.username
         password = _generate_password()
         database = db_access.database
-    database_connection = DatabaseConnectionParameters(
-        host=host,
-        port=port,
-        user=user,
-        password=password,
-        database=database,
+    return _DBDonnections(
+        user=DatabaseConnectionParameters(
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            database=database,
+        ),
+        admin=DatabaseConnectionParameters(
+            host=_decode_secret_value(admin_secret["data"]["db.host"]),
+            port=_decode_secret_value(admin_secret["data"]["db.port"]),
+            user=_decode_secret_value(admin_secret["data"]["db.user"]),
+            password=_decode_secret_value(admin_secret["data"]["db.password"]),
+            database=_decode_secret_value(admin_secret["data"]["db.name"]),
+        ),
     )
-    return database_connection
 
 
 class JobFailedError(Exception):
@@ -506,7 +524,7 @@ def _process_db_access(
     ) as oc_map:
         oc = oc_map.get_cluster(cluster_name, False)
 
-        database_connection = _create_database_connection_parameter(
+        connections = _create_database_connection_parameter(
             db_access,
             namespace_name,
             oc,
@@ -526,7 +544,8 @@ def _process_db_access(
             admin_secret_name,
             resource_prefix,
             settings,
-            database_connection,
+            connections["user"],
+            connections["admin"],
         )
 
         # create job, delete old, failed job first
