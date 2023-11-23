@@ -446,7 +446,6 @@ def _create_database_connection_parameter(
     def _decode_secret_value(value: str) -> str:
         return base64.b64decode(value).decode("utf-8")
 
-    print("creating database connection parameter")
     user_secret = oc.get(
         namespace_name,
         "Secret",
@@ -459,7 +458,7 @@ def _create_database_connection_parameter(
         admin_secret_name,
         allow_not_found=False,
     )
-    print(f"admin_secret: {admin_secret}")
+
     if user_secret:
         password = _decode_secret_value(user_secret["data"]["db.password"])
         host = _decode_secret_value(user_secret["data"]["db.host"])
