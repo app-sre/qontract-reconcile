@@ -145,7 +145,9 @@ def _assert_delete_script(script: str) -> None:
 
 
 def _assert_revoke_access(script: str) -> None:
-    assert '\nREVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "foo" FROM "test";\n' in script
+    assert (
+        '\nREVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "foo" FROM "test";\n' in script
+    )
 
 
 def test_generate_create_user(
