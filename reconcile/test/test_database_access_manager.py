@@ -408,6 +408,7 @@ def test__process_db_access_job_pass(
     ai_settings: dict[str, Any],
 ):
     dbam_state.exists.return_value = False
+    dbam_state.get.return_value = db_access
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     oc.get.return_value = {"status": {"conditions": [{"type": "Complete"}]}}
 
@@ -475,7 +476,9 @@ def test__process_db_access_state_diff(
     mocker: MockerFixture,
     ai_settings: dict[str, Any],
 ):
-    dbam_state.get.return_value = {}
+    dba_current = db_access.dict(by_alias=True)
+    dba_current["database"] = "foo"
+    dbam_state.get.return_value = dba_current
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     oc.get.return_value = False
     oc_map = mocker.patch("reconcile.database_access_manager.OC_Map", autospec=True)

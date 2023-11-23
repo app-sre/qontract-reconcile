@@ -67,6 +67,7 @@ class DatabaseConnectionParameters(BaseModel):
 
 class PSQLScriptGenerator(BaseModel):
     db_access: DatabaseAccessV1
+    current_db_access: Optional[DatabaseAccessV1]
     connection_parameter: DatabaseConnectionParameters
     admin_connection_parameter: DatabaseConnectionParameters
     engine: str
@@ -121,11 +122,35 @@ DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
         ]
         return "\n".join(statements)
 
+    def _generate_revoke_changed(self) -> str:
+        if not self.current_db_access:
+            return ""
+        statements: list[str] = ["\n"]
+        schema_grants = {
+            x.target.dbschema: x.grants for x in self.db_access.access or []
+        }
+        for access in self.current_db_access.access or []:
+            if access.target.dbschema not in schema_grants:
+                statement = f'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "{access.target.dbschema}" FROM "{self._get_user()}";\n'
+                statements.append(statement)
+            else:
+                for grant in access.grants:
+                    if grant not in schema_grants[access.target.dbschema]:
+                        statement = f'REVOKE {grant} ON ALL TABLES IN SCHEMA "{access.target.dbschema}" FROM "{self._get_user()}";\n'
+                        statements.append(statement)
+        return "".join(statements)
+
     def _provision_script(self) -> str:
         return self._generate_create_user() + "\n" + self._generate_db_access()
 
     def _deprovision_script(self) -> str:
-        return self._generate_revoke_db_access() + "\n" + self._generate_delete_user()
+        return (
+            self._generate_revoke_db_access()
+            + "\n"
+            + self._generate_revoke_changed()
+            + "\n"
+            + self._generate_delete_user()
+        )
 
     def generate_script(self) -> str:
         if self.db_access.delete:
@@ -385,6 +410,7 @@ def _populate_resources(
     settings: dict[Any, Any],
     user_connection: DatabaseConnectionParameters,
     admin_connection: DatabaseConnectionParameters,
+    current_db_access: Optional[DatabaseAccessV1] = None,
 ) -> list[DBAMResource]:
     managed_resources: list[DBAMResource] = []
     # create service account
@@ -398,6 +424,7 @@ def _populate_resources(
     # create script secret
     generator = PSQLScriptGenerator(
         db_access=db_access,
+        current_db_access=current_db_access,
         connection_parameter=user_connection,
         admin_connection_parameter=admin_connection,
         engine=engine,
@@ -532,10 +559,17 @@ def _process_db_access(
     engine: str,
     settings: dict[Any, Any],
 ) -> None:
+    current_db_access: Optional[DatabaseAccessV1] = None
     if state.exists(db_access.name):
         current_state = state.get(db_access.name)
         if current_state == db_access.dict(by_alias=True):
             return
+        else:
+            current_db_access = DatabaseAccessV1(**current_state)
+            if current_db_access.database != db_access.database:
+                raise ValueError(f"Database name cannot be changed.")
+            if current_db_access.username != db_access.username:
+                raise ValueError(f"Username cannot be changed.")
 
     cluster_name = namespace.cluster.name
     namespace_name = namespace.name
@@ -570,6 +604,7 @@ def _process_db_access(
             settings,
             connections["user"],
             connections["admin"],
+            current_db_access=current_db_access,
         )
 
         # create job, delete old, failed job first
