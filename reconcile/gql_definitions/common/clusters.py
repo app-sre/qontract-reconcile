@@ -487,7 +487,7 @@ class RosaOcmAwsSpecV1(ConfiguredBaseModel):
     creator_role_arn: str = Field(..., alias="creator_role_arn")
     installer_role_arn: str = Field(..., alias="installer_role_arn")
     support_role_arn: str = Field(..., alias="support_role_arn")
-    controlplane_role_arn: str = Field(..., alias="controlplane_role_arn")
+    controlplane_role_arn: Optional[str] = Field(..., alias="controlplane_role_arn")
     worker_role_arn: str = Field(..., alias="worker_role_arn")
 
 

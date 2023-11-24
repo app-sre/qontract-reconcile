@@ -55,7 +55,7 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
             sts=ROSAOcmAwsStsAttrs(
                 installer_role_arn=env["installer_role_arn"],
                 support_role_arn=env["support_role_arn"],
-                controlplane_role_arn=env["controlplane_role_arn"],
+                controlplane_role_arn=env.get("controlplane_role_arn"),
                 worker_role_arn=env["worker_role_arn"],
             ),
         ),
