@@ -10,6 +10,7 @@ from typing import (
     Callable,
     Optional,
     TypedDict,
+    cast,
 )
 
 from pydantic import BaseModel
@@ -33,11 +34,18 @@ from reconcile.utils.openshift_resource import (
     OpenshiftResource,
     base64_encode_secret_field_value,
 )
-from reconcile.utils.runtime.integration import QontractReconcileIntegration
+from reconcile.utils.runtime.integration import (
+    PydanticRunParams,
+    QontractReconcileIntegration,
+)
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import (
     State,
     init_state,
+)
+from reconcile.utils.vault import (
+    VaultClient,
+    _VaultClient,
 )
 
 QONTRACT_INTEGRATION = "database-access-manager"
@@ -82,7 +90,7 @@ class PSQLScriptGenerator(BaseModel):
         return self.admin_connection_parameter.user
 
     def _generate_create_user(self) -> str:
-        return """
+        return f"""
 \\set ON_ERROR_STOP on
 
 SELECT 'CREATE DATABASE "{self._get_db()}"'
@@ -558,6 +566,7 @@ def _process_db_access(
     admin_secret_name: str,
     engine: str,
     settings: dict[Any, Any],
+    vault_output_path: str,
 ) -> None:
     current_db_access: Optional[DatabaseAccessV1] = None
     if state.exists(db_access.name):
@@ -637,6 +646,13 @@ def _process_db_access(
                 raise JobFailedError(
                     f"Job dbam-{db_access.name} failed, please check logs"
                 )
+            if not dry_run and not db_access.delete:
+                vault_client = cast(_VaultClient, VaultClient())
+                secret = {
+                    "path": f"{vault_output_path}/{QONTRACT_INTEGRATION}/{cluster_name}/{namespace_name}/{db_access.name}",
+                    "data": connections["user"].dict(by_alias=True),
+                }
+                vault_client.write(secret, decode_base64=False)
             logging.debug("job completed, cleaning up")
             for r in managed_resources:
                 if r.clean_up:
@@ -656,6 +672,10 @@ def _process_db_access(
             )
         else:
             logging.info(f"Job dbam-{db_access.name} appears to be still running")
+
+
+class DBAMIntegrationParams(PydanticRunParams):
+    vault_output_path: str
 
 
 class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
@@ -700,6 +720,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                                 admin_secret_name,
                                 get_db_engine(resource),
                                 settings,
+                                self.params.vault_output_path,
                             )
                         except (JobFailedError, ValueError) as e:
                             encounteredErrors.append(e)
