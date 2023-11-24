@@ -612,7 +612,7 @@ data:
               "refId": "A"
             }
           ],
-          "title": "Aborted Upgrades 24h",
+          "title": "Clusters w/ failed upgrades 24h",
           "type": "stat"
         },
         {
@@ -724,7 +724,7 @@ data:
               "refId": "A"
             }
           ],
-          "title": "Aborted Upgrades 24h",
+          "title": "Failed upgrades 24h",
           "transformations": [
             {
               "id": "organize",
