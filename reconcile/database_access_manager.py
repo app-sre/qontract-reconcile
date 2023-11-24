@@ -574,12 +574,11 @@ def _process_db_access(
         current_state = state.get(db_access.name)
         if current_state == db_access.dict(by_alias=True):
             return
-        else:
-            current_db_access = DatabaseAccessV1(**current_state)
-            if current_db_access.database != db_access.database:
-                raise ValueError("Database name cannot be changed.")
-            if current_db_access.username != db_access.username:
-                raise ValueError("Username cannot be changed.")
+        current_db_access = DatabaseAccessV1(**current_state)
+        if current_db_access.database != db_access.database:
+            raise ValueError("Database name cannot be changed.")
+        if current_db_access.username != db_access.username:
+            raise ValueError("Username cannot be changed.")
 
     cluster_name = namespace.cluster.name
     namespace_name = namespace.name
