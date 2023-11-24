@@ -77,6 +77,9 @@ class PSQLScriptGenerator(BaseModel):
     def _get_user(self) -> str:
         return self.db_access.username
 
+    def _get_admin_user(self) -> str:
+        return self.admin_connection_parameter.user
+
     def _generate_create_user(self) -> str:
         return f"""
 \\set ON_ERROR_STOP on
@@ -94,19 +97,40 @@ select 'CREATE ROLE "{self._get_user()}"  WITH LOGIN PASSWORD ''{self.connection
 WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{self._get_db()}');\\gexec
 
 -- rds specific, grant role to admin or create schema fails
-GRANT "{self._get_user()}" to "{self.admin_connection_parameter.user}";
+GRANT "{self._get_user()}" to "{self._get_admin_user()}";
 CREATE SCHEMA IF NOT EXISTS "{self._get_user()}" AUTHORIZATION "{self._get_user()}";"""
 
+    def _generate_delete_user(self) -> str:
+        return f"""
+\\set ON_ERROR_STOP on
+\\c "{self._get_db()}"
+REASSIGN OWNED BY "{self._get_user()}" TO "{self._get_admin_user()}";
+DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
+
+    def _generate_revoke_db_access(self) -> str:
+        statements = [
+            f'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "{access.target.dbschema}" FROM "{self._get_user()}";'
+            for access in self.db_access.access or []
+        ]
+        return "\n".join(statements)
+
     def _generate_db_access(self) -> str:
-        statements: list[str] = ["\n"]
-        for access in self.db_access.access or []:
-            statement = f"GRANT {','.join(access.grants)} ON ALL TABLES IN SCHEMA \"{access.target.dbschema}\" TO \"{self._get_user()}\";\n"
-            statements.append(statement)
-        return "".join(statements)
+        statements = [
+            f"GRANT {','.join(access.grants)} ON ALL TABLES IN SCHEMA \"{access.target.dbschema}\" TO \"{self._get_user()}\";"
+            for access in self.db_access.access or []
+        ]
+        return "\n".join(statements)
+
+    def _provision_script(self) -> str:
+        return self._generate_create_user() + "\n" + self._generate_db_access()
+
+    def _deprovision_script(self) -> str:
+        return self._generate_revoke_db_access() + "\n" + self._generate_delete_user()
 
     def generate_script(self) -> str:
-        x = self._generate_create_user() + "\n" + self._generate_db_access()
-        return x
+        if self.db_access.delete:
+            return self._deprovision_script()
+        return self._provision_script()
 
 
 def secret_head(name: str) -> dict[str, Any]:
