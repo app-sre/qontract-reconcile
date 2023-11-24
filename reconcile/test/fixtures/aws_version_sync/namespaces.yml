@@ -1,0 +1,97 @@
+---
+- path: /namespace-file.yml
+  name: namespace-1
+  managedExternalResources: true
+  externalResources:
+  - provider: aws
+    provisioner:
+      path: account-1.yml
+      name: account-1
+      uid: 'account-1'
+    resources:
+    - provider: rds
+      identifier: rds-1
+      defaults: defaults.yml
+    - provider: rds
+      identifier: rds-2
+      defaults: defaults.yml
+    - provider: elasticache
+  - provider: aws
+    provisioner:
+      path: account-1a.yml
+      name: account-1a
+      uid: 'account-1a'
+    resources:
+    - provider: rds
+      identifier: rds-1
+      defaults: defaults.yml
+  cluster:
+    name: cluster-1
+
+- path: /namespace-file.yml
+  name: namespace-2
+  managedExternalResources: true
+  externalResources:
+  - provider: aws
+    provisioner:
+      path: account-2.yml
+      name: account-2
+      uid: 'account-2'
+    resources:
+    - provider: rds
+      identifier: rds-1
+      defaults: defaults.yml
+  cluster:
+    name: cluster-2
+
+# the namespaces below must be ignored
+- path: /namespace-file.yml
+  name: integration-disabled-on-this-cluster
+  managedExternalResources: true
+  externalResources:
+  - provider: aws
+    provisioner:
+      path: account-1.yml
+      name: account-1
+      uid: 'account-1'
+    resources:
+    - provider: rds
+      identifier: does-not-matter-1
+      defaults: defaults.yml
+  cluster:
+    name: cluster-3
+    disable:
+      integrations:
+      - aws-version-sync
+
+- path: /namespace-file.yml
+  name: managed-external-resources-disabled-on-this-namespace
+  managedExternalResources: false
+  externalResources:
+  - provider: aws
+    provisioner:
+      path: account-1.yml
+      name: account-1
+      uid: 'account-1'
+    resources:
+    - provider: rds
+      identifier: does-not-matter-1
+      defaults: defaults.yml
+  cluster:
+    name: cluster-4
+
+- path: /namespace-file.yml
+  name: cluster-not-in-cluster-param
+  managedExternalResources: true
+  externalResources:
+  - provider: aws
+    provisioner:
+      path: account-2.yml
+      name: account-2
+      uid: 'account-2'
+    resources:
+    - provider: rds
+      identifier: rds-1
+      defaults: defaults.yml
+  cluster:
+    name: cluster-5
