@@ -133,32 +133,38 @@ DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
     def _generate_revoke_changed(self) -> str:
         if not self.current_db_access:
             return ""
-        statements: list[str] = ["\n"]
-        schema_grants = {
+        statements: list[str] = []
+        current_grants = {
+            x.target.dbschema: x.grants for x in self.current_db_access.access or []
+        }
+        desired_grants = {
             x.target.dbschema: x.grants for x in self.db_access.access or []
         }
-        for access in self.current_db_access.access or []:
-            if access.target.dbschema not in schema_grants:
-                statement = f'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "{access.target.dbschema}" FROM "{self._get_user()}";\n'
-                statements.append(statement)
+
+        for schema, grants in current_grants.items():
+            if schema not in desired_grants:
+                statements.append(
+                    f'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "{schema}" FROM "{self._get_user()}";'
+                )
             else:
-                for grant in access.grants:
-                    if grant not in schema_grants[access.target.dbschema]:
-                        statement = f'REVOKE {grant} ON ALL TABLES IN SCHEMA "{access.target.dbschema}" FROM "{self._get_user()}";\n'
-                        statements.append(statement)
+                for grant in grants:
+                    if grant not in desired_grants[schema]:
+                        statements.append(
+                            f'REVOKE {grant} ON ALL TABLES IN SCHEMA "{schema}" FROM "{self._get_user()}";'
+                        )
         return "".join(statements)
 
     def _provision_script(self) -> str:
-        return self._generate_create_user() + "\n" + self._generate_db_access()
-
-    def _deprovision_script(self) -> str:
         return (
-            self._generate_revoke_db_access()
+            self._generate_create_user()
             + "\n"
             + self._generate_revoke_changed()
             + "\n"
-            + self._generate_delete_user()
+            + self._generate_db_access()
         )
+
+    def _deprovision_script(self) -> str:
+        return self._generate_revoke_db_access() + "\n" + self._generate_delete_user()
 
     def generate_script(self) -> str:
         if self.db_access.delete:

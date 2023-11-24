@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import (
     Any,
     Callable,
+    Optional,
 )
 from unittest.mock import MagicMock
 
@@ -22,6 +23,7 @@ from reconcile.database_access_manager import (
     _process_db_access,
 )
 from reconcile.gql_definitions.terraform_resources.database_access_manager import (
+    DatabaseAccessAccessGranteeV1,
     DatabaseAccessAccessV1,
     DatabaseAccessV1,
     NamespaceV1,
@@ -48,7 +50,7 @@ def db_access_access(
     return gql_class_factory(
         DatabaseAccessAccessV1,
         {
-            "grants": ["insert", "select"],
+            "grants": ["INSERT", "SELECT"],
             "target": {
                 "dbschema": "foo",
             },
@@ -134,7 +136,7 @@ def _assert_create_script(script: str) -> None:
 
 
 def _assert_grant_access(script: str) -> None:
-    assert 'GRANT insert,select ON ALL TABLES IN SCHEMA "foo" TO "test"' in script
+    assert 'GRANT INSERT,SELECT ON ALL TABLES IN SCHEMA "foo" TO "test"' in script
 
 
 def _assert_delete_script(script: str) -> None:
@@ -212,6 +214,66 @@ def test_generate_revoke_access(
     )
     script = s._generate_revoke_db_access()
     _assert_revoke_access(script)
+
+
+@pytest.mark.parametrize(
+    "current, expected",
+    [
+        (None, ""),
+        (
+            DatabaseAccessV1(
+                username="test", name="test", database="test", delete=False, access=[]
+            ),
+            "",
+        ),
+        (
+            DatabaseAccessV1(
+                username="test",
+                name="test",
+                database="test",
+                delete=False,
+                access=[
+                    DatabaseAccessAccessV1(
+                        grants=["SELECT", "INSERT", "UPDATE"],
+                        target=DatabaseAccessAccessGranteeV1(dbschema="foo"),
+                    )
+                ],
+            ),
+            'REVOKE UPDATE ON ALL TABLES IN SCHEMA "foo" FROM "test";',
+        ),
+        (
+            DatabaseAccessV1(
+                username="test",
+                name="test",
+                database="test",
+                delete=False,
+                access=[
+                    DatabaseAccessAccessV1(
+                        grants=["SELECT"],
+                        target=DatabaseAccessAccessGranteeV1(dbschema="bar"),
+                    )
+                ],
+            ),
+            'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "bar" FROM "test";',
+        ),
+    ],
+)
+def test_generate_revoke_changed(
+    db_access_complete: DatabaseAccessV1,
+    db_connection_parameter: DatabaseConnectionParameters,
+    db_admin_connection_parameter: DatabaseConnectionParameters,
+    expected: str,
+    current: Optional[DatabaseAccessV1],
+):
+    s = PSQLScriptGenerator(
+        db_access=db_access_complete,
+        current_db_access=current,
+        connection_parameter=db_connection_parameter,
+        admin_connection_parameter=db_connection_parameter,
+        engine="postgres",
+    )
+    script = s._generate_revoke_changed()
+    assert script == expected
 
 
 def test_generate_complete(
