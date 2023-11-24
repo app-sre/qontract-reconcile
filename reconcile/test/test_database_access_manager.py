@@ -450,6 +450,7 @@ def test__process_db_access_job_error(
     mocker: MockerFixture,
     ai_settings: dict[str, Any],
 ):
+    dbam_state.exists.return_value = False
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     oc.get.return_value = {"status": {"conditions": [{"type": "Failed"}]}}
     oc_map = mocker.patch("reconcile.database_access_manager.OC_Map", autospec=True)
@@ -477,7 +478,7 @@ def test__process_db_access_state_diff(
     ai_settings: dict[str, Any],
 ):
     dba_current = db_access.dict(by_alias=True)
-    dba_current["database"] = "foo"
+    dba_current["access"] = [{"grants": ["SELECT"], "target": {"dbschema": "test"}}]
     dbam_state.get.return_value = dba_current
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     oc.get.return_value = False
@@ -508,6 +509,31 @@ def test__process_db_access_state_diff(
         resource=dbam_process_mocks.resource,
         wait_for_namespace=False,
     )
+
+
+@pytest.mark.parametrize("field", ["database", "username"])
+def test__process_db_access_value_error_database(
+    db_access: DatabaseAccessV1,
+    dbam_state: MagicMock,
+    db_access_namespace: NamespaceV1,
+    dbam_process_mocks: DBAMResource,
+    ai_settings: dict[str, Any],
+    field: str,
+):
+    dba_current = db_access.dict(by_alias=True)
+    dba_current[field] = "foo"
+    dbam_state.get.return_value = dba_current
+
+    with pytest.raises(ValueError):
+        _process_db_access(
+            False,
+            dbam_state,
+            db_access,
+            namespace=db_access_namespace,
+            admin_secret_name="db-secret",
+            engine="postgres",
+            settings=ai_settings,
+        )
 
 
 def test__process_db_access_state_exists_matched(

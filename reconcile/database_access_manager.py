@@ -82,7 +82,7 @@ class PSQLScriptGenerator(BaseModel):
         return self.admin_connection_parameter.user
 
     def _generate_create_user(self) -> str:
-        return f"""
+        return """
 \\set ON_ERROR_STOP on
 
 SELECT 'CREATE DATABASE "{self._get_db()}"'
@@ -670,7 +670,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
             integration=QONTRACT_INTEGRATION, secret_reader=self.secret_reader
         )
 
-        encounteredErrors = False
+        encounteredErrors: list[Exception] = []
 
         namespaces = get_database_access_namespaces()
         for namespace in namespaces:
@@ -701,8 +701,10 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                                 get_db_engine(resource),
                                 settings,
                             )
-                        except JobFailedError:
-                            encounteredErrors = True
+                        except (JobFailedError, ValueError) as e:
+                            encounteredErrors.append(e)
 
             if encounteredErrors:
+                for err in encounteredErrors:
+                    logging.error(err)
                 raise JobFailedError("One or more jobs failed to complete")
