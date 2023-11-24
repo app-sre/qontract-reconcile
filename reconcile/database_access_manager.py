@@ -567,6 +567,7 @@ def _process_db_access(
     engine: str,
     settings: dict[Any, Any],
     vault_output_path: str,
+    vault_client: _VaultClient,
 ) -> None:
     current_db_access: Optional[DatabaseAccessV1] = None
     if state.exists(db_access.name):
@@ -647,7 +648,6 @@ def _process_db_access(
                     f"Job dbam-{db_access.name} failed, please check logs"
                 )
             if not dry_run and not db_access.delete:
-                vault_client = cast(_VaultClient, VaultClient())
                 secret = {
                     "path": f"{vault_output_path}/{QONTRACT_INTEGRATION}/{cluster_name}/{namespace_name}/{db_access.name}",
                     "data": connections["user"].dict(by_alias=True),
@@ -685,6 +685,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
 
     def run(self, dry_run: bool) -> None:
         settings = queries.get_app_interface_settings()
+        vault_client = cast(_VaultClient, VaultClient())
 
         state = init_state(
             integration=QONTRACT_INTEGRATION, secret_reader=self.secret_reader
@@ -721,6 +722,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                                 get_db_engine(resource),
                                 settings,
                                 self.params.vault_output_path,
+                                vault_client,
                             )
                         except (JobFailedError, ValueError) as e:
                             encounteredErrors.append(e)

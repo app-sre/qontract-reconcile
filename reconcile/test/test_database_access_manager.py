@@ -368,6 +368,11 @@ def dbam_state(mocker: MockerFixture) -> MockerFixture:
 
 
 @pytest.fixture
+def vault_mock(mocker: MockerFixture) -> MockerFixture:
+    return mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+
+
+@pytest.fixture
 def dbam_process_mocks(
     openshift_resource_secet: OpenshiftResource,
     mocker: MockerFixture,
@@ -406,6 +411,7 @@ def test__process_db_access_job_pass(
     dbam_process_mocks: DBAMResource,
     mocker: MockerFixture,
     ai_settings: dict[str, Any],
+    vault_mock: MagicMock,
 ):
     dbam_state.exists.return_value = False
     dbam_state.get.return_value = db_access
@@ -428,6 +434,22 @@ def test__process_db_access_job_pass(
         admin_secret_name="db-secret",
         engine="postgres",
         settings=ai_settings,
+        vault_output_path="foo",
+        vault_client=vault_mock,
+    )
+
+    vault_mock.write.assert_called_once_with(
+        {
+            "path": "foo/database-access-manager/test-cluster/test-namespace/test",
+            "data": {
+                "host": "localhost",
+                "port": "5432",
+                "user": "test",
+                "password": "postgres",
+                "database": "test",
+            },
+        },
+        decode_base64=False,
     )
 
     assert ob_delete.call_count == 1
@@ -449,6 +471,7 @@ def test__process_db_access_job_error(
     dbam_process_mocks: DBAMResource,
     mocker: MockerFixture,
     ai_settings: dict[str, Any],
+    vault_mock: MagicMock,
 ):
     dbam_state.exists.return_value = False
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
@@ -466,6 +489,8 @@ def test__process_db_access_job_error(
             admin_secret_name="db-secret",
             engine="postgres",
             settings=ai_settings,
+            vault_output_path="foo",
+            vault_client=vault_mock,
         )
 
 
@@ -476,6 +501,7 @@ def test__process_db_access_state_diff(
     dbam_process_mocks: DBAMResource,
     mocker: MockerFixture,
     ai_settings: dict[str, Any],
+    vault_mock: MagicMock,
 ):
     dba_current = db_access.dict(by_alias=True)
     dba_current["access"] = [{"grants": ["SELECT"], "target": {"dbschema": "test"}}]
@@ -497,6 +523,8 @@ def test__process_db_access_state_diff(
         admin_secret_name="db-secret",
         engine="postgres",
         settings=ai_settings,
+        vault_output_path="foo",
+        vault_client=vault_mock,
     )
 
     assert ob_apply.call_count == 1
@@ -519,6 +547,7 @@ def test__process_db_access_value_error_database(
     dbam_process_mocks: DBAMResource,
     ai_settings: dict[str, Any],
     field: str,
+    vault_mock: MagicMock,
 ):
     dba_current = db_access.dict(by_alias=True)
     dba_current[field] = "foo"
@@ -533,6 +562,8 @@ def test__process_db_access_value_error_database(
             admin_secret_name="db-secret",
             engine="postgres",
             settings=ai_settings,
+            vault_output_path="foo",
+            vault_client=vault_mock,
         )
 
 
@@ -540,6 +571,7 @@ def test__process_db_access_state_exists_matched(
     db_access: DatabaseAccessV1,
     db_access_namespace: NamespaceV1,
     dbam_state: MagicMock,
+    vault_mock: MagicMock,
 ):
     dbam_state.exists.return_value = True
     dbam_state.get.return_value = db_access.dict(by_alias=True)
@@ -552,4 +584,6 @@ def test__process_db_access_state_exists_matched(
         admin_secret_name="db-secret",
         engine="postgres",
         settings=defaultdict(str),
+        vault_output_path="foo",
+        vault_client=vault_mock,
     )
