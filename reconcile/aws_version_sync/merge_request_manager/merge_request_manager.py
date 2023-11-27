@@ -184,6 +184,10 @@ class MergeRequestManager:
             self._vcs.close_app_interface_mr(
                 mr.raw, "Closing this MR because it's outdated."
             )
+            # don't open a new MR right now, because the deletion of the old MRs could be
+            # disabled. In this case, we would end up with multiple open MRs for the
+            # same external resource.
+            return None
 
         try:
             content = self._vcs.get_file_content_from_app_interface_master(
