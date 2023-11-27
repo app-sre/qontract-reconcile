@@ -50,9 +50,9 @@ QONTRACT_INTEGRATION = "aws-version-sync"
 
 class AVSIntegrationParams(PydanticRunParams):
     prometheus_timeout: int = 10
-    supported_providers: list[str]
-    clusters: list[str]
-    aws_resource_exporter_clusters: list[str]
+    supported_providers: set[str]
+    clusters: set[str]
+    aws_resource_exporter_clusters: set[str]
 
 
 class ExternalResourceProvisioner(BaseModel):
