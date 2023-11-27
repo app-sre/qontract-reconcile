@@ -17,6 +17,7 @@ from reconcile.database_access_manager import (
     JobStatusCondition,
     PSQLScriptGenerator,
     _create_database_connection_parameter,
+    _db_access_acccess_is_valid,
     _DBDonnections,
     _generate_password,
     _populate_resources,
@@ -307,6 +308,15 @@ def test_generate_delete_complete(
     script = s.generate_script()
     _assert_delete_script(script)
     _assert_revoke_access(script)
+
+
+def test_db_access_acccess_is_valid(
+    db_access_complete: DatabaseAccessV1, db_access_access: DatabaseAccessAccessV1
+):
+    assert db_access_complete.access
+    assert _db_access_acccess_is_valid(db_access_complete)
+    db_access_complete.access.append(db_access_access)
+    assert not _db_access_acccess_is_valid(db_access_complete)
 
 
 def test_job_completion():

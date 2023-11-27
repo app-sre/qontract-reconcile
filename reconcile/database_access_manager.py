@@ -560,6 +560,17 @@ def _create_database_connection_parameter(
     )
 
 
+def _db_access_acccess_is_valid(db_acces: DatabaseAccessV1) -> bool:
+    found_schema: set[str] = set()
+
+    for schema in db_acces.access or []:
+        if schema.target.dbschema in found_schema:
+            return False
+        found_schema.add(schema.target.dbschema)
+
+    return True
+
+
 class JobFailedError(Exception):
     pass
 
@@ -575,6 +586,9 @@ def _process_db_access(
     vault_output_path: str,
     vault_client: _VaultClient,
 ) -> None:
+    if not _db_access_acccess_is_valid(db_access):
+        raise ValueError("Duplicate schema in access list.")
+
     current_db_access: Optional[DatabaseAccessV1] = None
     if state.exists(db_access.name):
         current_state = state.get(db_access.name)
