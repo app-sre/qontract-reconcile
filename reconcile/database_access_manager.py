@@ -9,6 +9,7 @@ from typing import (
     Any,
     Callable,
     Optional,
+    TypedDict,
 )
 
 from pydantic import BaseModel
@@ -67,6 +68,7 @@ class DatabaseConnectionParameters(BaseModel):
 class PSQLScriptGenerator(BaseModel):
     db_access: DatabaseAccessV1
     connection_parameter: DatabaseConnectionParameters
+    admin_connection_parameter: DatabaseConnectionParameters
     engine: str
 
     def _get_db(self) -> str:
@@ -74,6 +76,9 @@ class PSQLScriptGenerator(BaseModel):
 
     def _get_user(self) -> str:
         return self.db_access.username
+
+    def _get_admin_user(self) -> str:
+        return self.admin_connection_parameter.user
 
     def _generate_create_user(self) -> str:
         return f"""
@@ -92,19 +97,40 @@ select 'CREATE ROLE "{self._get_user()}"  WITH LOGIN PASSWORD ''{self.connection
 WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{self._get_db()}');\\gexec
 
 -- rds specific, grant role to admin or create schema fails
-grant "{self._get_user()}" to postgres;
+GRANT "{self._get_user()}" to "{self._get_admin_user()}";
 CREATE SCHEMA IF NOT EXISTS "{self._get_user()}" AUTHORIZATION "{self._get_user()}";"""
 
+    def _generate_delete_user(self) -> str:
+        return f"""
+\\set ON_ERROR_STOP on
+\\c "{self._get_db()}"
+REASSIGN OWNED BY "{self._get_user()}" TO "{self._get_admin_user()}";
+DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
+
+    def _generate_revoke_db_access(self) -> str:
+        statements = [
+            f'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "{access.target.dbschema}" FROM "{self._get_user()}";'
+            for access in self.db_access.access or []
+        ]
+        return "\n".join(statements)
+
     def _generate_db_access(self) -> str:
-        statements: list[str] = ["\n"]
-        for access in self.db_access.access or []:
-            statement = f"GRANT {','.join(access.grants)} ON ALL TABLES IN SCHEMA \"{access.target.dbschema}\" TO \"{self._get_user()}\";\n"
-            statements.append(statement)
-        return "".join(statements)
+        statements = [
+            f"GRANT {','.join(access.grants)} ON ALL TABLES IN SCHEMA \"{access.target.dbschema}\" TO \"{self._get_user()}\";"
+            for access in self.db_access.access or []
+        ]
+        return "\n".join(statements)
+
+    def _provision_script(self) -> str:
+        return self._generate_create_user() + "\n" + self._generate_db_access()
+
+    def _deprovision_script(self) -> str:
+        return self._generate_revoke_db_access() + "\n" + self._generate_delete_user()
 
     def generate_script(self) -> str:
-        x = self._generate_create_user() + "\n" + self._generate_db_access()
-        return x
+        if self.db_access.delete:
+            return self._deprovision_script()
+        return self._provision_script()
 
 
 def secret_head(name: str) -> dict[str, Any]:
@@ -357,7 +383,8 @@ def _populate_resources(
     admin_secret_name: str,
     resource_prefix: str,
     settings: dict[Any, Any],
-    database_connection: DatabaseConnectionParameters,
+    user_connection: DatabaseConnectionParameters,
+    admin_connection: DatabaseConnectionParameters,
 ) -> list[DBAMResource]:
     managed_resources: list[DBAMResource] = []
     # create service account
@@ -371,7 +398,8 @@ def _populate_resources(
     # create script secret
     generator = PSQLScriptGenerator(
         db_access=db_access,
-        connection_parameter=database_connection,
+        connection_parameter=user_connection,
+        admin_connection_parameter=admin_connection,
         engine=engine,
     )
     script_secret_name = f"{resource_prefix}-script"
@@ -387,7 +415,7 @@ def _populate_resources(
     # create user secret
     managed_resources.append(
         DBAMResource(
-            resource=generate_user_secret_spec(resource_prefix, database_connection),
+            resource=generate_user_secret_spec(resource_prefix, user_connection),
             clean_up=False,
         )
     )
@@ -433,13 +461,18 @@ def _generate_password() -> str:
     return "".join(choices(ascii_letters + digits, k=32))
 
 
+class _DBDonnections(TypedDict):
+    user: DatabaseConnectionParameters
+    admin: DatabaseConnectionParameters
+
+
 def _create_database_connection_parameter(
     db_access: DatabaseAccessV1,
     namespace_name: str,
     oc: OCClient,
     admin_secret_name: str,
     user_secret_name: str,
-) -> DatabaseConnectionParameters:
+) -> _DBDonnections:
     def _decode_secret_value(value: str) -> str:
         return base64.b64decode(value).decode("utf-8")
 
@@ -449,6 +482,13 @@ def _create_database_connection_parameter(
         user_secret_name,
         allow_not_found=True,
     )
+    admin_secret = oc.get(
+        namespace_name,
+        "Secret",
+        admin_secret_name,
+        allow_not_found=False,
+    )
+
     if user_secret:
         password = _decode_secret_value(user_secret["data"]["db.password"])
         host = _decode_secret_value(user_secret["data"]["db.host"])
@@ -456,25 +496,27 @@ def _create_database_connection_parameter(
         port = _decode_secret_value(user_secret["data"]["db.port"])
         database = _decode_secret_value(user_secret["data"]["db.name"])
     else:
-        admin_secret = oc.get(
-            namespace_name,
-            "Secret",
-            admin_secret_name,
-            allow_not_found=False,
-        )
         host = _decode_secret_value(admin_secret["data"]["db.host"])
         port = _decode_secret_value(admin_secret["data"]["db.port"])
         user = db_access.username
         password = _generate_password()
         database = db_access.database
-    database_connection = DatabaseConnectionParameters(
-        host=host,
-        port=port,
-        user=user,
-        password=password,
-        database=database,
+    return _DBDonnections(
+        user=DatabaseConnectionParameters(
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            database=database,
+        ),
+        admin=DatabaseConnectionParameters(
+            host=_decode_secret_value(admin_secret["data"]["db.host"]),
+            port=_decode_secret_value(admin_secret["data"]["db.port"]),
+            user=_decode_secret_value(admin_secret["data"]["db.user"]),
+            password=_decode_secret_value(admin_secret["data"]["db.password"]),
+            database=_decode_secret_value(admin_secret["data"]["db.name"]),
+        ),
     )
-    return database_connection
 
 
 class JobFailedError(Exception):
@@ -485,9 +527,7 @@ def _process_db_access(
     dry_run: bool,
     state: State,
     db_access: DatabaseAccessV1,
-    oc_map: OC_Map,
-    cluster_name: str,
-    namespace_name: str,
+    namespace: NamespaceV1,
     admin_secret_name: str,
     engine: str,
     settings: dict[Any, Any],
@@ -497,75 +537,90 @@ def _process_db_access(
         if current_state == db_access.dict(by_alias=True):
             return
 
+    cluster_name = namespace.cluster.name
+    namespace_name = namespace.name
+
     resource_prefix = f"dbam-{db_access.name}"
-    oc = oc_map.get_cluster(cluster_name, False)
+    with OC_Map(
+        clusters=[namespace.cluster.dict(by_alias=True)],
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+    ) as oc_map:
+        oc = oc_map.get_cluster(cluster_name, False)
 
-    database_connection = _create_database_connection_parameter(
-        db_access,
-        namespace_name,
-        oc,
-        admin_secret_name,
-        resource_prefix,
-    )
+        connections = _create_database_connection_parameter(
+            db_access,
+            namespace_name,
+            oc,
+            admin_secret_name,
+            resource_prefix,
+        )
 
-    managed_resources = _populate_resources(
-        db_access,
-        engine,
-        settings["imageRepository"],
-        settings["pullSecret"],
-        admin_secret_name,
-        resource_prefix,
-        settings,
-        database_connection,
-    )
+        sql_query_settings = settings.get("sqlQuery")
+        if not sql_query_settings:
+            raise KeyError("sqlQuery settings are required")
 
-    # create job, delete old, failed job first
-    job = oc.get(
-        namespace_name,
-        "Job",
-        f"dbam-{db_access.name}",
-        allow_not_found=True,
-    )
-    if not job:
-        for r in managed_resources:
-            openshift_base.apply(
-                dry_run=dry_run,
-                oc_map=oc_map,
-                cluster=cluster_name,
-                namespace=namespace_name,
-                resource_type=r.resource.kind,
-                resource=r.resource,
-                wait_for_namespace=False,
-            )
-        return
-    job_status = JobStatus(
-        conditions=[
-            JobStatusCondition(type=c["type"])
-            for c in job["status"].get("conditions", [])
-        ]
-    )
-    if job_status.is_complete():
-        if job_status.has_errors():
-            raise JobFailedError(f"Job dbam-{db_access.name} failed, please check logs")
-        logging.debug("job completed, cleaning up")
-        for r in managed_resources:
-            if r.clean_up:
-                openshift_base.delete(
+        managed_resources = _populate_resources(
+            db_access,
+            engine,
+            sql_query_settings["imageRepository"],
+            sql_query_settings["pullSecret"],
+            admin_secret_name,
+            resource_prefix,
+            settings,
+            connections["user"],
+            connections["admin"],
+        )
+
+        # create job, delete old, failed job first
+        job = oc.get(
+            namespace_name,
+            "Job",
+            f"dbam-{db_access.name}",
+            allow_not_found=True,
+        )
+        if not job:
+            for r in managed_resources:
+                openshift_base.apply(
                     dry_run=dry_run,
                     oc_map=oc_map,
                     cluster=cluster_name,
                     namespace=namespace_name,
                     resource_type=r.resource.kind,
-                    name=r.resource.name,
-                    enable_deletion=True,
+                    resource=r.resource,
+                    wait_for_namespace=False,
                 )
-        state.add(
-            db_access.name,
-            value=db_access.dict(by_alias=True),
-            force=True,
+            return
+        job_status = JobStatus(
+            conditions=[
+                JobStatusCondition(type=c["type"])
+                for c in job["status"].get("conditions", [])
+            ]
         )
-    else:
-        logging.info(f"Job dbam-{db_access.name} appears to be still running")
+        if job_status.is_complete():
+            if job_status.has_errors():
+                raise JobFailedError(
+                    f"Job dbam-{db_access.name} failed, please check logs"
+                )
+            logging.debug("job completed, cleaning up")
+            for r in managed_resources:
+                if r.clean_up:
+                    openshift_base.delete(
+                        dry_run=dry_run,
+                        oc_map=oc_map,
+                        cluster=cluster_name,
+                        namespace=namespace_name,
+                        resource_type=r.resource.kind,
+                        name=r.resource.name,
+                        enable_deletion=True,
+                    )
+            state.add(
+                db_access.name,
+                value=db_access.dict(by_alias=True),
+                force=True,
+            )
+        else:
+            logging.info(f"Job dbam-{db_access.name} appears to be still running")
 
 
 class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
@@ -575,10 +630,6 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
 
     def run(self, dry_run: bool) -> None:
         settings = queries.get_app_interface_settings()
-
-        sql_query_settings = settings.get("sqlQuery")
-        if not sql_query_settings:
-            raise KeyError("sqlQuery settings are required")
 
         state = init_state(
             integration=QONTRACT_INTEGRATION, secret_reader=self.secret_reader
@@ -606,22 +657,15 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
 
                     for db_access in resource.database_access or []:
                         try:
-                            with OC_Map(
-                                clusters=namespace.cluster.dict(by_alias=True),
-                                integration=QONTRACT_INTEGRATION,
-                                settings=settings,
-                            ) as oc_map:
-                                _process_db_access(
-                                    dry_run,
-                                    state,
-                                    db_access,
-                                    oc_map,
-                                    namespace.cluster.name,
-                                    namespace.name,
-                                    admin_secret_name,
-                                    get_db_engine(resource),
-                                    sql_query_settings,
-                                )
+                            _process_db_access(
+                                dry_run,
+                                state,
+                                db_access,
+                                namespace,
+                                admin_secret_name,
+                                get_db_engine(resource),
+                                settings,
+                            )
                         except JobFailedError:
                             encounteredErrors = True
 
