@@ -1,4 +1,3 @@
-import copy
 from collections.abc import (
     Callable,
     Iterable,
