@@ -56,8 +56,8 @@ def mr_builder(
     has_conflicts: bool = False,
 ) -> ProjectMergeRequest:
     mr = create_autospec(spec=ProjectMergeRequest)
+    mr.labels = labels
     mr.attributes = {
-        "labels": labels,
         "description": description,
         "web_url": "http://localhost",
         "has_conflicts": has_conflicts,

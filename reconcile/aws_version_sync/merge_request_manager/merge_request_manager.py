@@ -88,9 +88,7 @@ class MergeRequestManager:
 
     def fetch_avs_managed_open_merge_requests(self) -> None:
         all_open_mrs = self._vcs.get_open_app_interface_merge_requests()
-        self._open_raw_mrs = [
-            mr for mr in all_open_mrs if AVS_LABEL in mr.attributes.get("labels")
-        ]
+        self._open_raw_mrs = [mr for mr in all_open_mrs if AVS_LABEL in mr.labels]
 
     def housekeeping(self) -> None:
         """
