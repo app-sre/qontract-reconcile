@@ -61,6 +61,7 @@ query GlitchtipProjectsWithAlerts {
       board {
         name
       }
+      labels
     }
   }
 }
@@ -116,6 +117,7 @@ class JiraBoardV1(ConfiguredBaseModel):
 class GlitchtipProjectJiraV1(ConfiguredBaseModel):
     project: Optional[str] = Field(..., alias="project")
     board: Optional[JiraBoardV1] = Field(..., alias="board")
+    labels: Optional[list[str]] = Field(..., alias="labels")
 
 
 class GlitchtipProjectsV1(ConfiguredBaseModel):
