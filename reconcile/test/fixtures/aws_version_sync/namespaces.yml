@@ -14,7 +14,7 @@
       defaults: defaults.yml
     - provider: rds
       identifier: rds-2
-      defaults: defaults.yml
+      defaults: defaults-2.yml
     - provider: elasticache
   - provider: aws
     provisioner:

@@ -188,16 +188,15 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                     # make mypy happy
                     assert isinstance(resource, NamespaceTerraformResourceRDSV1)
 
+                    values = {}
                     # get/set the defaults file values from/to cache
-                    values = (
-                        _defaults_cache.setdefault(
-                            resource.defaults,
-                            # retrieve the external resource spec values
-                            get_values(gql_get_resource_func, resource.defaults),
-                        )
-                        if resource.defaults
-                        else {}
-                    )
+                    if resource.defaults and resource.defaults in _defaults_cache:
+                        values = _defaults_cache[resource.defaults]
+                    elif resource.defaults:
+                        # retrieve the external resource spec values
+                        values = get_values(gql_get_resource_func, resource.defaults)
+                        _defaults_cache[resource.defaults] = values
+
                     values = override_values(values, resource.overrides)
                     external_resources.append(
                         ExternalResource(

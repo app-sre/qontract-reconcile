@@ -25,6 +25,7 @@ from reconcile.gql_definitions.aws_version_sync.clusters import (
 )
 from reconcile.gql_definitions.aws_version_sync.namespaces import NamespaceV1
 from reconcile.test.fixtures import Fixtures
+from reconcile.utils.gql import GqlApi
 from reconcile.utils.secret_reader import SecretReader
 
 
@@ -155,10 +156,10 @@ def test_avs_get_external_resource_specs(
     namespaces: Sequence[NamespaceV1],
     intg: AVSIntegration,
 ) -> None:
-    eres = intg.get_external_resource_specs(
-        gql_get_resource_func=lambda *args, **kwargs: {
-            "content": dedent(
-                """
+    gql_mock = mocker.create_autospec(spec=GqlApi)
+    gql_mock.get_resource.return_value = {
+        "content": dedent(
+            """
                 ---
                 $schema: /aws/rds-defaults-1.yml
                 engine: postgres
@@ -174,10 +175,20 @@ def test_avs_get_external_resource_specs(
                 storage_type: gp2
                 multi_az: false
             """
-            )
-        },
+        )
+    }
+
+    eres = intg.get_external_resource_specs(
+        gql_get_resource_func=gql_mock.get_resource,
         namespaces=namespaces,
         supported_providers=intg.params.supported_providers,
+    )
+    assert gql_mock.get_resource.call_count == 2
+    gql_mock.get_resource.assert_has_calls(
+        [
+            mocker.call("defaults.yml"),
+            mocker.call("defaults-2.yml"),
+        ]
     )
     assert eres == [
         ExternalResource(
