@@ -267,7 +267,7 @@ def test_merge_request_manager_create_avs_merge_request_close_outdated_mr_first(
     )
 
     vcs_mock.close_app_interface_mr.assert_called_once_with(raw_mr, ANY)
-    vcs_mock.open_app_interface_merge_request.assert_called_once()
+    vcs_mock.open_app_interface_merge_request.assert_not_called()
 
 
 def test_merge_request_manager_create_avs_merge_request(
