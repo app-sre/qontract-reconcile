@@ -81,6 +81,7 @@ query SaasFiles {
     deprecated
     compare
     timeout
+    skipSuccessfulDeployNotifications
     publishJobLogs
     clusterAdmin
     imagePatterns
