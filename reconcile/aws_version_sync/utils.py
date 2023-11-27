@@ -60,9 +60,6 @@ def get_values(gql_get_resource_func: Callable, path: str) -> dict[str, Any]:
 
 
 def override_values(values: Mapping, overrides: Mapping | None) -> dict:
-    new_values = dict(copy.deepcopy(values))
     if overrides is None:
-        return new_values
-    for k, v in overrides.items():
-        new_values[k] = v
-    return new_values
+        return {**values}
+    return {**values, **overrides}
