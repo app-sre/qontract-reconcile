@@ -2135,12 +2135,18 @@ def advanced_upgrade_scheduler(
 
 
 @integration.command(short_help="Manage Databases and Database Users.")
+@vault_output_path
 @click.pass_context
-def database_access_manager(ctx):
-    from reconcile.database_access_manager import DatabaseAccessManagerIntegration
+def database_access_manager(ctx, vault_output_path: str):
+    from reconcile.database_access_manager import (
+        DatabaseAccessManagerIntegration,
+        DBAMIntegrationParams,
+    )
 
     run_class_integration(
-        integration=DatabaseAccessManagerIntegration(PydanticRunParams()),
+        integration=DatabaseAccessManagerIntegration(
+            DBAMIntegrationParams(vault_output_path=vault_output_path)
+        ),
         ctx=ctx.obj,
     )
 
