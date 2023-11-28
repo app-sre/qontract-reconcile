@@ -171,7 +171,6 @@ def test_slack_notify_skipped_failure():
 def test_slack_notify_skipped_in_progress():
     api = create_autospec(slack_api.SlackApi)
     ri = openshift_resource.ResourceInventory()
-    # ri.register_error()
     slack_notify(
         saas_file_name="test-saas-file-name.yaml",
         env_name="test",
