@@ -118,14 +118,12 @@ class GlitchtipProjectAlertsIntegration(
                         "Either jira.project or jira.board must be set for Jira integration"
                     )
 
-                params = []
+                params: dict[str, str | list] = {}
                 if gjb_token:
-                    params.append(("token", gjb_token))
+                    params["token"] = gjb_token
                 if glitchtip_project.jira.labels:
-                    params += [
-                        ("labels", label) for label in glitchtip_project.jira.labels
-                    ]
-                url = f"{gjb_alert_url}/{jira_project_key}?{urlencode(params)}"
+                    params["labels"] = glitchtip_project.jira.labels
+                url = f"{gjb_alert_url}/{jira_project_key}?{urlencode(params, True)}"
                 alerts.append(
                     ProjectAlert(
                         name=GJB_ALERT_NAME,
