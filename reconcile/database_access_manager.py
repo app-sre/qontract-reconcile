@@ -10,6 +10,7 @@ from typing import (
     Callable,
     Optional,
     TypedDict,
+    cast,
 )
 
 from pydantic import BaseModel
@@ -33,11 +34,18 @@ from reconcile.utils.openshift_resource import (
     OpenshiftResource,
     base64_encode_secret_field_value,
 )
-from reconcile.utils.runtime.integration import QontractReconcileIntegration
+from reconcile.utils.runtime.integration import (
+    PydanticRunParams,
+    QontractReconcileIntegration,
+)
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import (
     State,
     init_state,
+)
+from reconcile.utils.vault import (
+    VaultClient,
+    _VaultClient,
 )
 
 QONTRACT_INTEGRATION = "database-access-manager"
@@ -67,6 +75,7 @@ class DatabaseConnectionParameters(BaseModel):
 
 class PSQLScriptGenerator(BaseModel):
     db_access: DatabaseAccessV1
+    current_db_access: Optional[DatabaseAccessV1]
     connection_parameter: DatabaseConnectionParameters
     admin_connection_parameter: DatabaseConnectionParameters
     engine: str
@@ -121,8 +130,37 @@ DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
         ]
         return "\n".join(statements)
 
+    def _generate_revoke_changed(self) -> str:
+        if not self.current_db_access:
+            return ""
+        statements: list[str] = []
+        current_grants = {
+            x.target.dbschema: x.grants for x in self.current_db_access.access or []
+        }
+        desired_grants = {
+            x.target.dbschema: x.grants for x in self.db_access.access or []
+        }
+
+        for schema, grants in current_grants.items():
+            if schema not in desired_grants:
+                statements.append(
+                    f'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "{schema}" FROM "{self._get_user()}";'
+                )
+            else:
+                for grant in set(grants) - set(desired_grants[schema]):
+                    statements.append(
+                        f'REVOKE {grant} ON ALL TABLES IN SCHEMA "{schema}" FROM "{self._get_user()}";'
+                    )
+        return "".join(statements)
+
     def _provision_script(self) -> str:
-        return self._generate_create_user() + "\n" + self._generate_db_access()
+        return (
+            self._generate_create_user()
+            + "\n"
+            + self._generate_revoke_changed()
+            + "\n"
+            + self._generate_db_access()
+        )
 
     def _deprovision_script(self) -> str:
         return self._generate_revoke_db_access() + "\n" + self._generate_delete_user()
@@ -385,6 +423,7 @@ def _populate_resources(
     settings: dict[Any, Any],
     user_connection: DatabaseConnectionParameters,
     admin_connection: DatabaseConnectionParameters,
+    current_db_access: Optional[DatabaseAccessV1] = None,
 ) -> list[DBAMResource]:
     managed_resources: list[DBAMResource] = []
     # create service account
@@ -398,6 +437,7 @@ def _populate_resources(
     # create script secret
     generator = PSQLScriptGenerator(
         db_access=db_access,
+        current_db_access=current_db_access,
         connection_parameter=user_connection,
         admin_connection_parameter=admin_connection,
         engine=engine,
@@ -519,6 +559,17 @@ def _create_database_connection_parameter(
     )
 
 
+def _db_access_acccess_is_valid(db_acces: DatabaseAccessV1) -> bool:
+    found_schema: set[str] = set()
+
+    for schema in db_acces.access or []:
+        if schema.target.dbschema in found_schema:
+            return False
+        found_schema.add(schema.target.dbschema)
+
+    return True
+
+
 class JobFailedError(Exception):
     pass
 
@@ -531,11 +582,22 @@ def _process_db_access(
     admin_secret_name: str,
     engine: str,
     settings: dict[Any, Any],
+    vault_output_path: str,
+    vault_client: _VaultClient,
 ) -> None:
+    if not _db_access_acccess_is_valid(db_access):
+        raise ValueError("Duplicate schema in access list.")
+
+    current_db_access: Optional[DatabaseAccessV1] = None
     if state.exists(db_access.name):
         current_state = state.get(db_access.name)
         if current_state == db_access.dict(by_alias=True):
             return
+        current_db_access = DatabaseAccessV1(**current_state)
+        if current_db_access.database != db_access.database:
+            raise ValueError("Database name cannot be changed.")
+        if current_db_access.username != db_access.username:
+            raise ValueError("Username cannot be changed.")
 
     cluster_name = namespace.cluster.name
     namespace_name = namespace.name
@@ -570,6 +632,7 @@ def _process_db_access(
             settings,
             connections["user"],
             connections["admin"],
+            current_db_access=current_db_access,
         )
 
         # create job, delete old, failed job first
@@ -602,6 +665,12 @@ def _process_db_access(
                 raise JobFailedError(
                     f"Job dbam-{db_access.name} failed, please check logs"
                 )
+            if not dry_run and not db_access.delete:
+                secret = {
+                    "path": f"{vault_output_path}/{QONTRACT_INTEGRATION}/{cluster_name}/{namespace_name}/{db_access.name}",
+                    "data": connections["user"].dict(by_alias=True),
+                }
+                vault_client.write(secret, decode_base64=False)
             logging.debug("job completed, cleaning up")
             for r in managed_resources:
                 if r.clean_up:
@@ -623,6 +692,10 @@ def _process_db_access(
             logging.info(f"Job dbam-{db_access.name} appears to be still running")
 
 
+class DBAMIntegrationParams(PydanticRunParams):
+    vault_output_path: str
+
+
 class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
     @property
     def name(self) -> str:
@@ -630,12 +703,13 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
 
     def run(self, dry_run: bool) -> None:
         settings = queries.get_app_interface_settings()
+        vault_client = cast(_VaultClient, VaultClient())
 
         state = init_state(
             integration=QONTRACT_INTEGRATION, secret_reader=self.secret_reader
         )
 
-        encounteredErrors = False
+        encounteredErrors: list[Exception] = []
 
         namespaces = get_database_access_namespaces()
         for namespace in namespaces:
@@ -665,9 +739,13 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                                 admin_secret_name,
                                 get_db_engine(resource),
                                 settings,
+                                self.params.vault_output_path,
+                                vault_client,
                             )
-                        except JobFailedError:
-                            encounteredErrors = True
+                        except (JobFailedError, ValueError) as e:
+                            encounteredErrors.append(e)
 
             if encounteredErrors:
+                for err in encounteredErrors:
+                    logging.error(err)
                 raise JobFailedError("One or more jobs failed to complete")

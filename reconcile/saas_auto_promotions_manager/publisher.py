@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
 from reconcile.utils.promotion_state import PromotionState
 from reconcile.utils.secret_reader import HasSecret
+from reconcile.utils.vcs import VCS
 
 
 @dataclass

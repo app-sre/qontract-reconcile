@@ -33,6 +33,7 @@ query GlitchtipProjectsWithAlerts {
       board {
         name
       }
+      labels
     }
   }
 }

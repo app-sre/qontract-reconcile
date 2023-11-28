@@ -20,7 +20,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
-from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
+from reconcile.utils.vcs import VCS
 
 
 @dataclass
