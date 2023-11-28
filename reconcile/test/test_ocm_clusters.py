@@ -257,10 +257,11 @@ def rosa_hosted_cp_cluster_fxt():
                 "uid": "123123123",
                 "rosa": {
                     "creator_role_arn": "creator_role",
-                    "installer_role_arn": "installer_role",
-                    "support_role_arn": " support_role",
-                    "controlplane_role_arn": "controlplane_role",
-                    "worker_role_arn": "worker_role",
+                    "sts": {
+                        "installer_role_arn": "installer_role",
+                        "support_role_arn": " support_role",
+                        "worker_role_arn": "worker_role",
+                    },
                 },
             },
             "id": "the-cluster-id",
@@ -363,6 +364,11 @@ def get_json_mock():
 
 def test_ocm_spec_population_rosa(rosa_cluster_fxt):
     n = OCMSpec(**rosa_cluster_fxt)
+    assert isinstance(n.spec, ROSAClusterSpec)
+
+
+def test_ocm_spec_population_hcp(rosa_hosted_cp_cluster_fxt):
+    n = OCMSpec(**rosa_hosted_cp_cluster_fxt)
     assert isinstance(n.spec, ROSAClusterSpec)
 
 
