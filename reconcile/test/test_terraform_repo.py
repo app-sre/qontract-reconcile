@@ -39,6 +39,7 @@ def existing_repo(aws_account) -> TerraformRepoV1:
         account=aws_account,
         projectPath="tf",
         delete=False,
+        requireFips=True,
     )
 
 
@@ -58,6 +59,7 @@ def existing_repo_output() -> str:
           bucket: {STATE_BUCKET}
           region: {STATE_REGION}
           bucket_path: tf-repo
+          require_fips: true
     """
 
 
@@ -70,6 +72,7 @@ def new_repo(aws_account_no_state) -> TerraformRepoV1:
         account=aws_account_no_state,
         projectPath="tf",
         delete=False,
+        requireFips=False,
     )
 
 
@@ -89,6 +92,7 @@ def new_repo_output() -> str:
           bucket: null
           region: null
           bucket_path: null
+          require_fips: false
     """
 
 
@@ -255,6 +259,7 @@ def test_get_repo_state(s3_state_builder, int_params, existing_repo):
                     "ref": A_REPO_SHA,
                     "projectPath": "tf",
                     "delete": False,
+                    "requireFips": True,
                     "account": {
                         "name": "foo",
                         "uid": AWS_UID,
