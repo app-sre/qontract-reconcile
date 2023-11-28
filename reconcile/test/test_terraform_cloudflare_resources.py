@@ -33,6 +33,7 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     NamespaceV1,
     TerraformCloudflareResourcesQueryData,
 )
+from reconcile.utils.secret_reader import SecretNotFound
 
 
 @pytest.fixture
@@ -207,12 +208,12 @@ def mock_cloudflare_accounts(mocker):
 
 
 @pytest.fixture
-def mock_cloudflare_resources(mocker, external_resources):
+def mock_cloudflare_resources(mocker, query_data):
     mocked_cloudflare_resources = mocker.patch(
         "reconcile.terraform_cloudflare_resources.terraform_cloudflare_resources",
         autospec=True,
     )
-    mocked_cloudflare_resources.query.return_value = external_resources
+    mocked_cloudflare_resources.query.return_value = query_data
 
 
 def test_cloudflare_accounts_validation(
@@ -293,3 +294,14 @@ def test_cloudflare_namespace_validation(
     assert ["No cloudflare namespaces were detected, nothing to do."] == [
         rec.message for rec in caplog.records
     ]
+
+
+def test_cloudflare_custom_ssl_secret_validation(
+    mocker,
+    mock_gql,
+    mock_vault_secret,
+    mock_cloudflare_accounts,
+    mock_cloudflare_resources,
+):
+    with pytest.raises(SecretNotFound):
+        integ.run(True, None, False, 10)
