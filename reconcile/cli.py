@@ -1638,6 +1638,63 @@ def ldap_groups(ctx):
     )
 
 
+@integration.command(short_help="Sync AWS asset version numbers to App-Interface")
+@click.option(
+    "--aws-resource-exporter-clusters",
+    help="A comma seperated list of cluster names where aws-resource-exporter is deployed.",
+    required=True,
+    envvar="AVS_AWS_RESOURCE_EXPORTER_CLUSTERS",
+)
+@click.option(
+    "--clusters",
+    help="A comma seperated list of cluster names to operator on. If none is specified, all clusters are considered.",
+    required=False,
+    envvar="AVS_CLUSTERS",
+)
+@click.option(
+    "--supported-providers",
+    help="A comma seperated list of supported external resource providers to operator on. Default: rds",
+    required=False,
+    envvar="AVS_SUPPORTED_PROVIDERS",
+)
+@click.option(
+    "--prometheus-timeout",
+    help="Prometheus timeout in seconds. Default: 10",
+    required=False,
+    envvar="AVS_PROMETHEUS_TIMEOUT",
+)
+@click.pass_context
+def aws_version_sync(
+    ctx,
+    aws_resource_exporter_clusters,
+    clusters,
+    supported_providers,
+    prometheus_timeout,
+):
+    from reconcile.aws_version_sync.integration import (
+        AVSIntegration,
+        AVSIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=AVSIntegration(
+            AVSIntegrationParams(
+                aws_resource_exporter_clusters=aws_resource_exporter_clusters.split(
+                    ","
+                ),
+                supported_providers=supported_providers.split(",")
+                if supported_providers
+                else ["rds"],
+                clusters=clusters.split(",") if clusters else [],
+                prometheus_timeout=int(prometheus_timeout)
+                if prometheus_timeout
+                else 10,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manages raw HCL Terraform from a separate repository.")
 @click.option(
     "-o",

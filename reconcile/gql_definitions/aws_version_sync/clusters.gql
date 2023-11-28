@@ -1,0 +1,14 @@
+# qenerate: plugin=pydantic_v1
+
+query AwsExporterCluster {
+  clusters: clusters_v1 {
+    name
+    prometheusUrl
+    automationToken {
+      ... VaultSecret
+    }
+    disable {
+      integrations
+    }
+  }
+}

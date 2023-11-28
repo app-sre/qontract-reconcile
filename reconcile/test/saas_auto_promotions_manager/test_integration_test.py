@@ -15,12 +15,12 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
 from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
 )
-from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
 from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.promotion_state import (
     PromotionData,
     PromotionState,
 )
+from reconcile.utils.vcs import VCS
 
 
 def test_integration_test(

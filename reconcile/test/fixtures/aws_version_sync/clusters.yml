@@ -1,0 +1,31 @@
+---
+clusters:
+- name: aws-resource-exporter-cluster-1
+  prometheusUrl: https://prometheus.com
+  automationToken:
+    path: vault-path
+    field: token
+    version: null
+    format: null
+  disable: null
+
+# this cluster must be ignored because the integration is disabled
+- name: aws-resource-exporter-cluster-2
+  prometheusUrl: https://prometheus.com
+  automationToken:
+    path: vault-path
+    field: token
+    version: null
+    format: null
+  disable:
+    integrations:
+    - aws-version-sync
+
+- name: cluster-not-in-cluster-param
+  prometheusUrl: https://prometheus.com
+  automationToken:
+    path: vault-path
+    field: token
+    version: null
+    format: null
+  disable: null

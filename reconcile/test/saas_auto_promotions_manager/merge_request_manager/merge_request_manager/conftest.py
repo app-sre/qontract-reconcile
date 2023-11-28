@@ -23,7 +23,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     Channel,
     Subscriber,
 )
-from reconcile.saas_auto_promotions_manager.utils.vcs import VCS
+from reconcile.utils.vcs import VCS
 
 from .data_keys import (
     DESCRIPTION,
