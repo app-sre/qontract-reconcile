@@ -7,7 +7,16 @@ def make_semver(major: int, minor: int, patch: int) -> str:
     return str(semver.VersionInfo(major=major, minor=minor, patch=patch))
 
 
-def parse_semver(version: str) -> semver.VersionInfo:
+def parse_semver(
+    version: str, optional_minor_and_patch: bool = False
+) -> semver.VersionInfo:
+    if optional_minor_and_patch:
+        # semver3 supports optional minor and patch.
+        # until we upgrade to semver3, we support this by adding a default minor and/or patch
+        if "." not in version:
+            version = f"{version}.0.0"
+        elif version.count(".") == 1:
+            version = f"{version}.0"
     return semver.VersionInfo.parse(version)
 
 
