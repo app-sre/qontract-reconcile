@@ -26,7 +26,10 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request_manager impo
     OpenMergeRequest,
 )
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.mr.labels import AUTO_MERGE
+from reconcile.utils.mr.labels import (
+    AUTO_MERGE,
+    SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
+)
 from reconcile.utils.vcs import VCS
 
 
@@ -340,5 +343,6 @@ def test_merge_request_manager_create_avs_merge_request_auto_merge_off(
 
     vcs_mock.close_app_interface_mr.assert_not_called()
     assert vcs_mock.open_app_interface_merge_request.call_args.kwargs["mr"].labels == [
-        AVS_LABEL
+        AVS_LABEL,
+        SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
     ]
