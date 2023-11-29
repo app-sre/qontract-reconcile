@@ -60,10 +60,6 @@ from reconcile.utils.ocm.sre_capability_labels import (
     labelset_groupfield,
     sre_capability_label_key,
 )
-from reconcile.utils.ocm.subscriptions import (
-    OCMOrganization,
-    get_organizations,
-)
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
     init_ocm_base_client,
@@ -88,7 +84,6 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         return {
             ocm_env.name: self._build_ocm_env_upgrade_specs(
                 ocm_env=ocm_env,
-                org_ids=self.params.ocm_organization_ids,
                 inheritance_network=inheritance_network,
             )
             for ocm_env in self.get_ocm_environments()
@@ -120,27 +115,23 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
     def _build_ocm_env_upgrade_specs(
         self,
         ocm_env: OCMEnvironment,
-        org_ids: Optional[set[str]],
         inheritance_network: dict["OrgRef", "VersionDataInheritance"],
     ) -> dict[str, OrganizationUpgradeSpec]:
+        organizations = {
+            org.org_id: org for org in self.get_orgs_for_environment(ocm_env)
+        }
         ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
         clusters_by_org = discover_clusters(
             ocm_api=ocm_api,
-            org_ids=org_ids,
+            org_ids=set(organizations.keys()),
             ignore_sts_clusters=self.params.ignore_sts_clusters,
         )
-        orgs = (
-            get_organizations(
-                ocm_api=ocm_api, filter=Filter().is_in("id", clusters_by_org.keys())
-            )
-            if clusters_by_org
-            else {}
+        labels_by_org = _get_org_labels(
+            ocm_api=ocm_api, org_ids=set(organizations.keys())
         )
-        labels_by_org = _get_org_labels(ocm_api=ocm_api, org_ids=org_ids)
 
         return _build_org_upgrade_specs_for_ocm_env(
-            ocm_env=ocm_env,
-            orgs=orgs,
+            orgs=organizations,
             clusters_by_org=clusters_by_org,
             labels_by_org=labels_by_org,
             inheritance_network={
@@ -225,8 +216,7 @@ def _get_org_labels(
 
 
 def _build_org_upgrade_specs_for_ocm_env(
-    ocm_env: OCMEnvironment,
-    orgs: dict[str, OCMOrganization],
+    orgs: dict[str, AUSOCMOrganization],
     clusters_by_org: dict[str, list[ClusterDetails]],
     labels_by_org: dict[str, LabelContainer],
     inheritance_network: dict[str, "VersionDataInheritance"],
@@ -237,7 +227,6 @@ def _build_org_upgrade_specs_for_ocm_env(
     """
     return {
         org_id: _build_org_upgrade_spec(
-            ocm_env,
             orgs[org_id],
             clusters,
             labels_by_org.get(org_id) or build_label_container(),
@@ -294,8 +283,7 @@ class OrganizationLabelSet(BaseModel):
 
 
 def _build_org_upgrade_spec(
-    ocm_env: OCMEnvironment,
-    org: OCMOrganization,
+    org: AUSOCMOrganization,
     clusters: list[ClusterDetails],
     org_labels: LabelContainer,
     version_data_inheritance: Optional["VersionDataInheritance"],
@@ -317,31 +305,18 @@ def _build_org_upgrade_spec(
                     name=source_org_ref.env_name
                 ),
                 publishVersionData=[
-                    MinimalOCMOrganization(orgId=org.id, name=org.name)
+                    MinimalOCMOrganization(orgId=org.org_id, name=org.name)
                 ],
             )
             for source_org_ref in version_data_inheritance.inherit_from_orgs
         ]
 
     org_labelset = build_labelset(org_labels, OrganizationLabelSet)
-    org_upgrade_spec = OrganizationUpgradeSpec(
-        org=AUSOCMOrganization(
-            name=org.name,
-            orgId=org.id,
-            blockedVersions=org_labelset.blocked_versions,
-            environment=ocm_env,
-            addonManagedUpgrades=False,
-            sectors=org_labelset.sector_dependencies(),
-            accessTokenClientId=None,
-            accessTokenClientSecret=None,
-            accessTokenUrl=None,
-            addonUpgradeTests=None,
-            inheritVersionData=inherit_version_data,
-            publishVersionData=None,
-            upgradePolicyAllowedWorkloads=None,
-            upgradePolicyClusters=None,
-        )
-    )
+    final_org = org.copy(deep=True)
+    final_org.blocked_versions = org_labelset.blocked_versions
+    final_org.sectors = org_labelset.sector_dependencies()
+    final_org.inherit_version_data = inherit_version_data
+    org_upgrade_spec = OrganizationUpgradeSpec(org=final_org)
 
     # init policy for each cluster
     for c in clusters:
@@ -373,7 +348,7 @@ def _build_org_upgrade_spec(
         ]
         org_upgrade_spec.add_organization_error(
             f"Version data inheritance from organizations {', '.join(sorted(unverified_org_ids))} "
-            f"are unverified. Ask the owner of these organizations to publish version data to the organization ID {org.id}. "
+            f"are unverified. Ask the owner of these organizations to publish version data to the organization ID {org.org_id}. "
             "See https://source.redhat.com/groups/public/sre/wiki/advanced_upgrade_service_aus"
         )
 

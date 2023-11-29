@@ -8,7 +8,7 @@ from typing import (
     Any,
     Optional,
 )
-from urllib.parse import quote
+from urllib.parse import urlencode
 
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     query as glitchtip_instance_query,
@@ -118,10 +118,12 @@ class GlitchtipProjectAlertsIntegration(
                         "Either jira.project or jira.board must be set for Jira integration"
                     )
 
-                url = f"{gjb_alert_url}/{jira_project_key}"
+                params: dict[str, str | list] = {}
                 if gjb_token:
-                    url += f"?token={quote(gjb_token)}"
-
+                    params["token"] = gjb_token
+                if glitchtip_project.jira.labels:
+                    params["labels"] = glitchtip_project.jira.labels
+                url = f"{gjb_alert_url}/{jira_project_key}?{urlencode(params, True)}"
                 alerts.append(
                     ProjectAlert(
                         name=GJB_ALERT_NAME,

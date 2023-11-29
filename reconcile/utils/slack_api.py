@@ -195,6 +195,7 @@ class SlackApi:
         self._configure_client_retry()
 
         self._results: dict[str, Any] = {}
+        self._enterprise_user_id_to_user_ids: dict[str, str] = {}
 
         self.channel = channel
         self.chat_kwargs = chat_kwargs
@@ -392,7 +393,15 @@ class SlackApi:
         }
 
     def get_users_by_ids(self, users_ids: Iterable[str]) -> dict[str, str]:
-        return {k: v["name"] for k, v in self._get("users").items() if k in users_ids}
+        users = self._get("users")
+        translated_user_ids = (
+            self._translate_user_id(user_id) for user_id in users_ids
+        )
+        return {
+            user_id: user["name"]
+            for user_id in translated_user_ids
+            if (user := users.get(user_id))
+        }
 
     def _get(self, resource: str) -> dict[str, Any]:
         """
@@ -402,13 +411,13 @@ class SlackApi:
         :param resource: resource type
         :return: data from API call
         """
+        if resource in self._results:
+            return self._results[resource]
+
         result_key = "members" if resource == "users" else resource
         api_key = "conversations" if resource == "channels" else resource
         results = {}
         additional_kwargs: dict[str, Union[str, int]] = {"cursor": ""}
-
-        if resource in self._results:
-            return self._results[resource]
 
         method_config = self.config.get_method_config(f"{api_key}.list")
         if method_config:
@@ -430,7 +439,18 @@ class SlackApi:
             additional_kwargs["cursor"] = cursor
 
         self._results[resource] = results
+
+        if resource == "users":
+            self._enterprise_user_id_to_user_ids = {
+                enterprise_user_id: user["id"]
+                for user in results.values()
+                if (enterprise_user_id := user.get("enterprise_user", {}).get("id"))
+            }
         return results
+
+    def _translate_user_id(self, user_id: str) -> str:
+        """Translate enterprise user id to user id"""
+        return self._enterprise_user_id_to_user_ids.get(user_id, user_id)
 
     def get_flat_conversation_history(
         self, from_timestamp: int, to_timestamp: Optional[int]

@@ -837,6 +837,12 @@ def orgs_query_func() -> Callable:
                 build_organization(
                     org_id="org3", env_name="env2", addonManagedUpgrades=False
                 ).dict(by_alias=True),
+                build_organization(
+                    org_id="org4",
+                    env_name="env2",
+                    addonManagedUpgrades=False,
+                    disabled_integrations=["integration"],
+                ).dict(by_alias=True),
             ]
         }
 
@@ -875,6 +881,7 @@ def test_aus_get_orgs_for_environment(
     expected_org_ids: set[str],
 ) -> None:
     orgs = get_orgs_for_environment(
+        "integration",
         ocm_env_name=ocm_env_name,
         query_func=orgs_query_func,
         only_addon_managed_upgrades=only_addon_managed_upgrades,

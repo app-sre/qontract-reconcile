@@ -476,7 +476,7 @@ data:
             ]
           },
           "gridPos": {
-            "h": 15,
+            "h": 21,
             "w": 11,
             "x": 13,
             "y": 1
@@ -560,6 +560,204 @@ data:
                 "mode": "thresholds"
               },
               "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 4,
+            "x": 0,
+            "y": 8
+          },
+          "id": 20,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P2C3F6ECC774D80E6"
+              },
+              "editorMode": "code",
+              "expr": "count(sum(\n    resets(\n    ((aus_cluster_version_remaining_soak_days == 0 or aus_cluster_version_remaining_soak_days == -2)*-1)[24h:]\n    )\n) by (cluster_uuid, soaking_version)\n* on (cluster_uuid, soaking_version) count(aus_cluster_version_remaining_soak_days) by (cluster_uuid, soaking_version)\n* on (cluster_uuid) group_left(cluster_name, ocm_env, org_name, current_version) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0)",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Clusters w/ failed upgrades 24h",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P2C3F6ECC774D80E6"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Attempted Version"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Current Version"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "# Aborts"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 140
+                  },
+                  {
+                    "id": "custom.align",
+                    "value": "left"
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 9,
+            "x": 4,
+            "y": 8
+          },
+          "id": 18,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P2C3F6ECC774D80E6"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(\n    resets(\n    ((aus_cluster_version_remaining_soak_days == 0 or aus_cluster_version_remaining_soak_days == -2)*-1)[24h:]\n    )\n) by (cluster_uuid, soaking_version)\n* on (cluster_uuid, soaking_version) count(aus_cluster_version_remaining_soak_days) by (cluster_uuid, soaking_version)\n* on (cluster_uuid) group_left(cluster_name, ocm_env, org_name, current_version) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0",
+              "format": "table",
+              "instant": true,
+              "interval": "10m",
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Failed upgrades 24h",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "cluster_uuid": true,
+                  "ocm_env": true,
+                  "org_name": true
+                },
+                "indexByName": {},
+                "renameByName": {
+                  "Value": "# Aborts",
+                  "cluster_name": "Cluster",
+                  "current_version": "Current Version",
+                  "soaking_version": "Attempted Version"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P2C3F6ECC774D80E6"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -577,10 +775,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 8,
+            "h": 7,
             "w": 4,
             "x": 0,
-            "y": 8
+            "y": 15
           },
           "id": 16,
           "options": {
@@ -665,7 +863,7 @@ data:
                 "properties": [
                   {
                     "id": "custom.width",
-                    "value": 120
+                    "value": 140
                   }
                 ]
               },
@@ -689,17 +887,17 @@ data:
                 "properties": [
                   {
                     "id": "custom.minWidth",
-                    "value": 150
+                    "value": 140
                   }
                 ]
               }
             ]
           },
           "gridPos": {
-            "h": 8,
+            "h": 7,
             "w": 9,
             "x": 4,
-            "y": 8
+            "y": 15
           },
           "id": 10,
           "options": {
@@ -781,7 +979,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 16
+            "y": 22
           },
           "id": 14,
           "panels": [],
@@ -838,7 +1036,7 @@ data:
             "h": 21,
             "w": 24,
             "x": 0,
-            "y": 17
+            "y": 23
           },
           "id": 6,
           "options": {

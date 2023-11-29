@@ -51,6 +51,7 @@ query TerraformRepo {
     ref
     projectPath
     delete
+    requireFips
   }
 }
 """
@@ -90,6 +91,7 @@ class TerraformRepoV1(ConfiguredBaseModel):
     ref: str = Field(..., alias="ref")
     project_path: str = Field(..., alias="projectPath")
     delete: Optional[bool] = Field(..., alias="delete")
+    require_fips: Optional[bool] = Field(..., alias="requireFips")
 
 
 class TerraformRepoQueryData(ConfiguredBaseModel):

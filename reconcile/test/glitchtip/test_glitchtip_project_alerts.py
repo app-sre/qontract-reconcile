@@ -6,6 +6,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.glitchtip_project_alerts.integration import (
+    GJB_ALERT_NAME,
     GlitchtipProjectAlertsIntegration,
     GlitchtipProjectAlertsIntegrationParams,
 )
@@ -134,7 +135,9 @@ def test_glitchtip_project_alerts_get_projects(
                 )
             ],
             jira=GlitchtipProjectJiraV1(
-                project=None, board=JiraBoardV1(name="JIRA-VIA-BOARD")
+                project=None,
+                board=JiraBoardV1(name="JIRA-VIA-BOARD"),
+                labels=["example-label-1", "example-label-2"],
             ),
         ),
         GlitchtipProjectsV1(
@@ -144,7 +147,9 @@ def test_glitchtip_project_alerts_get_projects(
                 name="NASA", instance=GlitchtipInstanceV1(name="glitchtip-dev")
             ),
             alerts=None,
-            jira=GlitchtipProjectJiraV1(project="JIRA-VIA-PROJECT", board=None),
+            jira=GlitchtipProjectJiraV1(
+                project="JIRA-VIA-PROJECT", board=None, labels=None
+            ),
         ),
     ]
 
@@ -207,14 +212,14 @@ def test_glitchtip_project_alerts_fetch_desire_state(
         ),
         ProjectAlert(
             pk=None,
-            name="Jira integration",
+            name=GJB_ALERT_NAME,
             timespan_minutes=1,
             quantity=1,
             recipients=[
                 ProjectAlertRecipient(
                     pk=None,
                     recipient_type=RecipientType.WEBHOOK,
-                    url="http://gjb.com/JIRA-VIA-BOARD?token=secret",
+                    url="http://gjb.com/JIRA-VIA-BOARD?token=secret&labels=example-label-1&labels=example-label-2",
                 )
             ],
         ),
@@ -223,7 +228,7 @@ def test_glitchtip_project_alerts_fetch_desire_state(
     assert project_4.alerts == [
         ProjectAlert(
             pk=None,
-            name="Jira integration",
+            name=GJB_ALERT_NAME,
             timespan_minutes=1,
             quantity=1,
             recipients=[

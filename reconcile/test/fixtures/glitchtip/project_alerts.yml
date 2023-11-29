@@ -49,6 +49,9 @@ glitchtip_projects:
     project: null
     board:
       name: JIRA-VIA-BOARD
+    labels:
+    - example-label-1
+    - example-label-2
   alerts:
   - name: example-1
     description: Example alert 1
@@ -66,4 +69,5 @@ glitchtip_projects:
   jira:
     board: null
     project: JIRA-VIA-PROJECT
+    labels: null
   alerts: null

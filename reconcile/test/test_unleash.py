@@ -7,6 +7,8 @@ from UnleashClient.features import Feature
 
 import reconcile.utils.unleash
 from reconcile.utils.unleash import (
+    DisableClusterStrategy,
+    EnableClusterStrategy,
     _get_unleash_api_client,
     _shutdown_client,
     get_feature_toggle_default,
@@ -21,20 +23,42 @@ def reset_client():
 
 
 def test__get_unleash_api_client(mocker):
-    a = mocker.patch("UnleashClient.UnleashClient.initialize_client")
+    mocked_unleash_client = mocker.patch(
+        "reconcile.utils.unleash.UnleashClient",
+        autospec=True,
+    )
+    mocked_cache_dict = mocker.patch(
+        "reconcile.utils.unleash.CacheDict",
+        autospec=True,
+    )
+
     c = _get_unleash_api_client("https://u/api", "foo")
 
-    assert a.call_count == 1
+    mocked_unleash_client.assert_called_once_with(
+        url="https://u/api",
+        app_name="qontract-reconcile",
+        custom_headers={"Authorization": "foo"},
+        cache=mocked_cache_dict.return_value,
+        custom_strategies={
+            "enableCluster": EnableClusterStrategy,
+            "disableCluster": DisableClusterStrategy,
+        },
+    )
+    mocked_unleash_client.return_value.initialize_client.assert_called_once_with()
     assert reconcile.utils.unleash.client == c
 
 
 def test__get_unleash_api_client_skip_create(mocker):
-    u = mocker.patch("UnleashClient.UnleashClient")
+    mocked_unleash_client = mocker.patch(
+        "reconcile.utils.unleash.UnleashClient",
+        autospec=True,
+    )
+    u = mocked_unleash_client.return_value
     reconcile.utils.unleash.client = u
-    a = mocker.patch("UnleashClient.UnleashClient.initialize_client")
+
     c = _get_unleash_api_client("https://u/api", "foo")
 
-    assert a.call_count == 0
+    mocked_unleash_client.assert_not_called()
     assert reconcile.utils.unleash.client == c == u
 
 

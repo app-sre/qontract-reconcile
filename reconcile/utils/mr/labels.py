@@ -20,3 +20,8 @@ def prioritized_approval_label(priority: str) -> str:
 
 def change_owner_label(label: str) -> str:
     return f"change-owner/{label}"
+
+
+SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE = change_owner_label(
+    "show-self-serviceable-in-review-queue"
+)

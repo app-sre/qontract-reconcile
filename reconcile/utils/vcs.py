@@ -1,3 +1,4 @@
+import logging
 import re
 from collections.abc import Iterable
 from typing import Optional
@@ -115,6 +116,8 @@ class VCS:
         return self._gitlab_instance.get_commit_sha(ref=ref, repo_url=repo_url)
 
     def close_app_interface_mr(self, mr: ProjectMergeRequest, comment: str) -> None:
+        if not self._allow_deleting_mrs:
+            logging.info("Deleting MRs is disabled. Skipping.")
         if not self._dry_run and self._allow_deleting_mrs:
             self._app_interface_api.add_comment_to_merge_request(
                 merge_request=mr,
@@ -131,6 +134,8 @@ class VCS:
         return self._app_interface_api.get_merge_requests(state=MRState.OPENED)
 
     def open_app_interface_merge_request(self, mr: MergeRequestBase) -> None:
+        if not self._allow_opening_mrs:
+            logging.info("Creating MRs is disabled. Skipping.")
         if not self._dry_run and self._allow_opening_mrs:
             mr.submit_to_gitlab(gitlab_cli=self._app_interface_api)
 

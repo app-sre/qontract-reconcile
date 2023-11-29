@@ -581,6 +581,7 @@ class ApplyOptions:
 
 def should_apply(
     current: OR,
+    desired: OR,
     ri: ResourceInventory,
     options: ApplyOptions,
     cluster: str,
@@ -608,7 +609,10 @@ def should_apply(
         )
         return False
 
-    logging.debug("CURRENT: " + OR.serialize(OR.canonicalize(current.body)))
+    if logging.getLogger().isEnabledFor(logging.DEBUG):
+        logging.debug("CURRENT: " + OR.serialize(OR.canonicalize(current.body)))
+        logging.debug("DESIRED: " + OR.serialize(OR.canonicalize(desired.body)))
+
     return True
 
 
@@ -686,6 +690,7 @@ def handle_modified_resources(
     for name, dp in modified_resources.items():
         if should_apply(
             current=dp.current,
+            desired=dp.desired,
             ri=ri,
             cluster=cluster,
             name=name,
