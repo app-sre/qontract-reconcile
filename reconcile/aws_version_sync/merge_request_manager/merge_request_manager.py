@@ -15,7 +15,10 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request import (
 )
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
-from reconcile.utils.mr.labels import AUTO_MERGE
+from reconcile.utils.mr.labels import (
+    AUTO_MERGE,
+    SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
+)
 from reconcile.utils.vcs import VCS
 
 
@@ -223,6 +226,8 @@ class MergeRequestManager:
         mr_labels = [AVS_LABEL]
         if self._auto_merge_enabled:
             mr_labels.append(AUTO_MERGE)
+        else:
+            mr_labels.append(SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE)
         self._vcs.open_app_interface_merge_request(
             mr=AVSMR(
                 path=namespace_file,
