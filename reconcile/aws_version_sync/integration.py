@@ -250,6 +250,12 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
         for diff_pair in diff.change.values():
             aws_resource = diff_pair.desired
             app_interface_resource = diff_pair.current
+            if (
+                aws_resource.resource_engine_version
+                <= app_interface_resource.resource_engine_version
+            ):
+                # do not downgrade the version
+                continue
             # make mypy happy
             assert app_interface_resource.namespace_file
             assert app_interface_resource.provisioner.path
