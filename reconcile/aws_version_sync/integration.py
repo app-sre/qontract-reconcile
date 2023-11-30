@@ -87,7 +87,7 @@ class ExternalResource(BaseModel):
             self.resource_engine,
         )
 
-    @validator("resource_engine_version")
+    @validator("resource_engine_version", pre=True)
     def parse_resource_engine_version(  # pylint: disable=no-self-argument
         cls, v: str | semver.VersionInfo
     ) -> semver.VersionInfo:
