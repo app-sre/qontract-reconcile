@@ -640,7 +640,6 @@ def test_export_model(
                 "selfServiceRoles": None,
                 "serviceOwners": None,
             },
-            "skipSuccessfulDeployNotifications": None,
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -812,7 +811,6 @@ def test_export_model(
                 "selfServiceRoles": None,
                 "serviceOwners": None,
             },
-            "skipSuccessfulDeployNotifications": None,
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
@@ -984,7 +982,6 @@ def test_export_model(
                 "selfServiceRoles": None,
                 "serviceOwners": None,
             },
-            "skipSuccessfulDeployNotifications": None,
             "pipelinesProvider": {
                 "name": "pipeline-provider-01",
                 "provider": "tekton",
