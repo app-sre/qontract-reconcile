@@ -72,7 +72,7 @@ class ExternalResource(BaseModel):
     resource_provider: str
     resource_identifier: str
     resource_engine: str
-    resource_engine_version: semver.VersionInfo | str
+    resource_engine_version: semver.VersionInfo
 
     class Config:
         arbitrary_types_allowed = True
