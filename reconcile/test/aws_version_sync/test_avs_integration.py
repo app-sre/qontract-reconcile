@@ -258,6 +258,26 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         resource_engine="postgres",
         resource_engine_version="13.5",
     )
+    no_downgrade_aws = ExternalResource(
+        namespace_file=None,
+        provider="aws",
+        provisioner=ExternalResourceProvisioner(uid="no_downgrade", path=None),
+        resource_provider="rds",
+        resource_identifier="no_downgrade",
+        resource_engine="postgres",
+        resource_engine_version="13.5",
+    )
+    no_downgrade_ai = ExternalResource(
+        namespace_file="/no_downgrade_ai-namespace-file.yml",
+        provider="aws",
+        provisioner=ExternalResourceProvisioner(
+            uid="no_downgrade", path="no_downgrade.yml"
+        ),
+        resource_provider="rds",
+        resource_identifier="no_downgrade",
+        resource_engine="postgres",
+        resource_engine_version="13.10",
+    )
     version_update_aws = ExternalResource(
         namespace_file=None,
         provider="aws",
@@ -311,6 +331,7 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         no_change_aws,
         version_update_aws,
         aws_only,
+        no_downgrade_aws,
     ]
 
     external_resources_app_interface = [
@@ -318,6 +339,7 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         version_update_ai,
         same_name_different_account,
         ai_only,
+        no_downgrade_ai,
     ]
     # randomize the order of the external resources
     random.shuffle(external_resources_aws)
