@@ -131,7 +131,9 @@ def openshift_resource_secet() -> OpenshiftResource:
 def _assert_create_script(script: str) -> None:
     assert 'CREATE DATABASE "test"' in script
     assert "REVOKE ALL ON DATABASE" in script
-    assert 'CREATE ROLE "test"  WITH LOGIN PASSWORD' in script
+    assert 'CREATE ROLE "test"' in script
+    assert 'ALTER ROLE "test" WITH LOGIN' in script
+    assert 'GRANT CONNECT ON DATABASE "test" to "test"' in script
     assert "CREATE SCHEMA IF NOT EXISTS" in script
     assert 'GRANT "test" to "admin";' in script
 
