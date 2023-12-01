@@ -1701,17 +1701,10 @@ def aws_version_sync(
     "--output-file",
     help="Specify where to place the output of the integration",
 )
-@click.option(
-    "--ignore-state-errors",
-    is_flag=True,
-    help="Instructs terraform-repo to ignore state load errors and re-create repo states",
-)
 @click.argument("gitlab-project-id", required=False)
 @click.argument("gitlab-merge-request-id", required=False)
 @click.pass_context
-def terraform_repo(
-    ctx, output_file, ignore_state_errors, gitlab_project_id, gitlab_merge_request_id
-):
+def terraform_repo(ctx, output_file, gitlab_project_id, gitlab_merge_request_id):
     from reconcile import terraform_repo
 
     run_class_integration(
@@ -1719,7 +1712,6 @@ def terraform_repo(
             terraform_repo.TerraformRepoIntegrationParams(
                 output_file=output_file,
                 validate_git=True,
-                ignore_state_errors=ignore_state_errors,
                 gitlab_project_id=gitlab_project_id,
                 gitlab_merge_request_id=gitlab_merge_request_id,
             )

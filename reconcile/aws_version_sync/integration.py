@@ -5,7 +5,11 @@ from collections.abc import (
 )
 from typing import Any
 
-from pydantic import BaseModel
+import semver
+from pydantic import (
+    BaseModel,
+    validator,
+)
 
 from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     Parser,
@@ -42,6 +46,7 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
 
@@ -67,7 +72,10 @@ class ExternalResource(BaseModel):
     resource_provider: str
     resource_identifier: str
     resource_engine: str
-    resource_engine_version: str
+    resource_engine_version: semver.VersionInfo
+
+    class Config:
+        arbitrary_types_allowed = True
 
     @property
     def key(self) -> tuple:
@@ -78,6 +86,14 @@ class ExternalResource(BaseModel):
             self.resource_identifier,
             self.resource_engine,
         )
+
+    @validator("resource_engine_version", pre=True)
+    def parse_resource_engine_version(  # pylint: disable=no-self-argument
+        cls, v: str | semver.VersionInfo
+    ) -> semver.VersionInfo:
+        if isinstance(v, semver.VersionInfo):
+            return v
+        return parse_semver(v, optional_minor_and_patch=True)
 
 
 AwsExternalResources = list[ExternalResource]
@@ -228,12 +244,18 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             current=external_resources_app_interface,
             desired=external_resources_aws,
             key=lambda r: r.key,
-            equal=lambda r1, r2: r1.resource_engine_version
-            == r2.resource_engine_version,
+            equal=lambda external_resources_app_interface, external_resources_aws: external_resources_app_interface.resource_engine_version
+            == external_resources_aws.resource_engine_version,
         )
         for diff_pair in diff.change.values():
             aws_resource = diff_pair.desired
             app_interface_resource = diff_pair.current
+            if (
+                aws_resource.resource_engine_version
+                <= app_interface_resource.resource_engine_version
+            ):
+                # do not downgrade the version
+                continue
             # make mypy happy
             assert app_interface_resource.namespace_file
             assert app_interface_resource.provisioner.path

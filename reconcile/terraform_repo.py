@@ -66,7 +66,6 @@ class OutputFile(BaseModel):
 class TerraformRepoIntegrationParams(PydanticRunParams):
     output_file: Optional[str]
     validate_git: bool
-    ignore_state_errors: bool
     gitlab_project_id: Optional[str]
     gitlab_merge_request_id: Optional[int]
 
@@ -97,14 +96,35 @@ class TerraformRepoIntegration(
             defer(state.cleanup)
 
         desired = self.get_repos(query_func=gqlapi.query)
-        existing = self.get_existing_state(state)
+        try:
+            existing = self.get_existing_state(state)
 
-        repo_diff_result = self.calculate_diff(
-            existing_state=existing, desired_state=desired, dry_run=dry_run, state=state
-        )
+            repo_diff_result = self.calculate_diff(
+                existing_state=existing,
+                desired_state=desired,
+                dry_run=dry_run,
+                state=state,
+                recreate_state=False,
+            )
 
-        if repo_diff_result:
-            self.print_output(repo_diff_result, dry_run)
+            if repo_diff_result:
+                self.print_output(repo_diff_result, dry_run)
+        except ValidationError as err:
+            # when updating TerraformRepoV1 GQL schema, Pydantic does not gracefully handle these changes and fails to parse
+            # the existing state stored in S3. This is due to a behavior in Pydantic V1 that has since been addressed in V2
+            # https://docs.pydantic.dev/latest/blog/pydantic-v2/#required-vs-nullable-cleanup
+            # so in this case, tf-repo will just recreate all of those state files in S3 and not actually do a plan or apply
+            logging.error(err)
+            logging.info(
+                "Unable to parse existing Terraform-Repo state from S3. Note that this is separate from the actual .tfstate files. Terraform Repo will re-create its own state upon merge and will not update any infrastructure. This typically occurs with changes to the Terraform Repo schema files and is normally resolved once state is re-created."
+            )
+            repo_diff_result = self.calculate_diff(
+                existing_state=[],
+                desired_state=desired,
+                dry_run=dry_run,
+                state=state,
+                recreate_state=True,
+            )
 
     def print_output(self, diff: list[TerraformRepoV1], dry_run: bool) -> None:
         """Parses and prints the output of a Terraform Repo diff for the executor
@@ -182,15 +202,8 @@ class TerraformRepoIntegration(
         keys = state.ls()
         for key in keys:
             if value := state.get(key.lstrip("/"), None):
-                try:
-                    repo = TerraformRepoV1.parse_obj(value)
-                    repo_list.append(repo)
-                except ValidationError as err:
-                    logging.error(
-                        f"{err}\nUnable to parse existing state for repo: '{key}'"
-                    )
-                    if self.params.ignore_state_errors:
-                        logging.info("Ignoring state load error")
+                repo = TerraformRepoV1.parse_obj(value)
+                repo_list.append(repo)
 
         return repo_list
 
@@ -281,6 +294,7 @@ class TerraformRepoIntegration(
         desired_state: list[TerraformRepoV1],
         dry_run: bool,
         state: Optional[State],
+        recreate_state: bool,
     ) -> Optional[list[TerraformRepoV1]]:
         """Calculated the difference between existing and desired state
         to determine what actions the executor will need to take
@@ -293,6 +307,8 @@ class TerraformRepoIntegration(
         :type dry_run: bool
         :param state: AWS S3 state
         :type state: Optional[State]
+        :param recreate_state: whether we are recreating our own state
+        :type recreate_state: bool
         :raises ParameterError: if there is an invalid operation performed like trying to delete
         a representation in A-I before setting the delete flag
         :return: the terraform repo to act on
@@ -304,7 +320,7 @@ class TerraformRepoIntegration(
 
         # validate that only one repo is being modified in each MR
         # this lets us fail early and avoid multiple GL requests we don't need to make
-        if dry_run and len(merged) > 1 and not self.params.ignore_state_errors:
+        if dry_run and len(merged) > 1 and not recreate_state:
             raise Exception(
                 "Only one repository can be modified per merge request, please split your change out into multiple MRs. Hint: try rebasing your merge request"
             )
