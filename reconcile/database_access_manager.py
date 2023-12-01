@@ -102,8 +102,12 @@ REVOKE ALL ON DATABASE "{self._get_db()}" FROM public;
 
 \\c "{self._get_db()}"
 
-select 'CREATE ROLE "{self._get_user()}"  WITH LOGIN PASSWORD ''{self.connection_parameter.password}'' VALID UNTIL ''infinity'''
+select 'CREATE ROLE "{self._get_user()}"'
 WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{self._get_db()}');\\gexec
+
+ALTER ROLE "{self._get_user()}" WITH LOGIN  PASSWORD '{self.connection_parameter.password}' VALID UNTIL 'infinity';
+
+GRANT CONNECT ON DATABASE "{self._get_db()}" to "{self._get_user()}";
 
 -- rds specific, grant role to admin or create schema fails
 GRANT "{self._get_user()}" to "{self._get_admin_user()}";
@@ -272,7 +276,7 @@ def get_job_spec(job_data: JobData) -> OpenshiftResource:
                                 command,
                             ],
                             "args": [
-                                "-ae",
+                                "-b",
                                 "--host=$(db.host)",
                                 "--port=$(db.port)",
                                 "--username=$(db.user)",
