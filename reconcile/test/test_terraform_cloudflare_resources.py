@@ -33,7 +33,10 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     NamespaceV1,
     TerraformCloudflareResourcesQueryData,
 )
-from reconcile.utils.secret_reader import SecretNotFound
+from reconcile.utils.secret_reader import (
+    SecretNotFound,
+    SecretReaderBase,
+)
 
 
 @pytest.fixture
@@ -151,12 +154,51 @@ def mock_gql(mocker):
 
 
 @pytest.fixture
-def mock_vault_secret(mocker):
-    mocked_vault_secret = mocker.patch(
+def mock_app_interface_vault_settings(mocker):
+    mocked_app_interface_vault_settings = mocker.patch(
         "reconcile.terraform_cloudflare_resources.get_app_interface_vault_settings",
         autospec=True,
     )
-    mocked_vault_secret.return_value = AppInterfaceSettingsV1(vault=False)
+    mocked_app_interface_vault_settings.return_value = AppInterfaceSettingsV1(
+        vault=True
+    )
+
+
+def secret_reader_side_effect(*args):
+    if {
+        "path": "aws-account-path",
+        "field": "token",
+        "version": 1,
+        "q_format": "plain",
+    } == args[0]:
+        aws_acct_creds = {}
+        aws_acct_creds["aws_access_key_id"] = "key_id"
+        aws_acct_creds["aws_secret_access_key"] = "access_key"
+        return aws_acct_creds
+
+    if {
+        "path": "cf-account-path",
+        "field": "key",
+        "version": 1,
+        "q_format": "plain",
+    } == args[0]:
+        cf_acct_creds = {}
+        cf_acct_creds["api_token"] = "api_token"
+        cf_acct_creds["account_id"] = "account_id"
+        return cf_acct_creds
+
+
+@pytest.fixture
+def mock_create_secret_reader(mocker):
+    secret_reader = mocker.Mock(SecretReaderBase)
+    secret_reader.read_all_secret.side_effect = secret_reader_side_effect
+
+    mocked_create_secret_reader = mocker.patch(
+        "reconcile.terraform_cloudflare_resources.create_secret_reader",
+        autospec=True,
+    )
+
+    mocked_create_secret_reader.return_value = secret_reader
 
 
 @pytest.fixture
@@ -172,18 +214,18 @@ def mock_cloudflare_accounts(mocker):
                     name="cfaccount",
                     providerVersion="0.33.x",
                     apiCredentials=VaultSecret(
-                        path="somepath",
+                        path="cf-account-path",
                         field="key",
                         version=1,
-                        format="??",
+                        format="plain",
                     ),
                     terraformStateAccount=AWSAccountV1(
                         name="awsaccoutn",
                         automationToken=VaultSecret(
-                            path="someotherpath",
+                            path="aws-account-path",
                             field="token",
                             version=1,
-                            format="",
+                            format="plain",
                         ),
                         terraformState=TerraformStateAWSV1(
                             provider="",
@@ -217,7 +259,11 @@ def mock_cloudflare_resources(mocker, query_data):
 
 
 def test_cloudflare_accounts_validation(
-    mocker, caplog, mock_gql, mock_vault_secret, mock_cloudflare_resources
+    mocker,
+    caplog,
+    mock_gql,
+    mock_app_interface_vault_settings,
+    mock_cloudflare_resources,
 ):
     # Mocking accounts with an empty response
     mocked_cloudflare_accounts = mocker.patch(
@@ -237,7 +283,11 @@ def test_cloudflare_accounts_validation(
 
 
 def test_namespace_validation(
-    mocker, caplog, mock_gql, mock_vault_secret, mock_cloudflare_accounts
+    mocker,
+    caplog,
+    mock_gql,
+    mock_app_interface_vault_settings,
+    mock_cloudflare_accounts,
 ):
     # Mocking resources without namespaces
     mocked_resources = mocker.patch(
@@ -258,7 +308,11 @@ def test_namespace_validation(
 
 
 def test_cloudflare_namespace_validation(
-    mocker, caplog, mock_gql, mock_vault_secret, mock_cloudflare_accounts
+    mocker,
+    caplog,
+    mock_gql,
+    mock_app_interface_vault_settings,
+    mock_cloudflare_accounts,
 ):
     # Mocking resources without cloudflare namespaces
     mocked_resources = mocker.patch(
@@ -299,9 +353,11 @@ def test_cloudflare_namespace_validation(
 def test_cloudflare_custom_ssl_secret_validation(
     mocker,
     mock_gql,
-    mock_vault_secret,
+    mock_app_interface_vault_settings,
     mock_cloudflare_accounts,
     mock_cloudflare_resources,
 ):
-    with pytest.raises(SecretNotFound):
+    with pytest.raises(SecretNotFound) as e:
         integ.run(True, None, False, 10)
+    assert "Secret path some/path not found" == str(e.value)
+
