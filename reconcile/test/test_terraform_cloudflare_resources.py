@@ -78,7 +78,7 @@ def external_resources(provisioner_config):
         provisioner=provisioner_config,
         resources=[
             NamespaceTerraformResourceCloudflareZoneV1(
-                provider="cloudflare_zone",
+                provider="zone",
                 identifier="testzone-com",
                 zone="testzone.com",
                 plan="enterprise",
@@ -228,12 +228,12 @@ def mock_cloudflare_accounts(mocker):
                             format="plain",
                         ),
                         terraformState=TerraformStateAWSV1(
-                            provider="",
-                            bucket="",
-                            region="",
+                            provider="s3",
+                            bucket="app-interface",
+                            region="us-east-1",
                             integrations=[
                                 AWSTerraformStateIntegrationsV1(
-                                    integration="terraform-cloudflare-resources", key=""
+                                    integration="terraform-cloudflare-resources", key="somekey.tfstate"
                                 )
                             ],
                         ),
