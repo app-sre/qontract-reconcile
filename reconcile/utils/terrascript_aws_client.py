@@ -2854,8 +2854,56 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
         tf_resources.append(bucket_policy_tf_resource)
 
-        # cloud front distribution
         values = common_values.get("distribution_config", {})
+        # aws_s3_bucket_acl
+        if "logging_config" in values.keys():
+            # we could set this at a global level with a standard name like "cloudfront"
+            # but we need all aws accounts upgraded to aws provider >3.60 first
+            tf_resources.append(
+                aws_cloudfront_log_delivery_canonical_user_id(identifier)
+            )
+
+            logging_config_bucket = values["logging_config"]
+            acl_values = {}
+            access_control_policy = {
+                "owner": {
+                    "id": "${data.aws_canonical_user_id.current.id}",
+                },
+                "grant": [
+                    {
+                        "grantee": {
+                            "id": "${data.aws_canonical_user_id.current.id}",
+                            "type": "CanonicalUser",
+                        },
+                        "permission": "FULL_CONTROL",
+                    },
+                    {
+                        "grantee": {
+                            # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/AccessLogs.html#AccessLogsBucketAndFileOwnership
+                            "id": f"${{data.aws_cloudfront_log_delivery_canonical_user_id.{identifier}.id}}",
+                            "type": "CanonicalUser",
+                        },
+                        "permission": "FULL_CONTROL",
+                    },
+                ],
+            }
+            external_account_id = logging_config_bucket.pop("external_account_id")
+            if external_account_id:
+                external_account_policy = {
+                    "grantee": {
+                        "id": external_account_id,
+                        "type": "CanonicalUser",
+                    },
+                    "permission": "FULL_CONTROL",
+                }
+                access_control_policy["grant"].append(external_account_policy)
+            acl_values["access_control_policy"] = access_control_policy
+            acl_values["bucket"] = logging_config_bucket.get("bucket").split(".")[0]
+
+            aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **acl_values)
+            tf_resources.append(aws_s3_bucket_acl_resource)
+
+        # cloud front distribution
         values["tags"] = common_values["tags"]
         values.setdefault("default_cache_behavior", {}).setdefault(
             "target_origin_id", "default"
@@ -2893,45 +2941,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "origin-access-identity/cloudfront/" + "${" + cf_oai_tf_resource.id + "}"
         )
         tf_resources.append(Output(output_name_0_13, value=output_value))
-
-        # aws_s3_bucket_acl
-        values = common_values.get("distribution_config", {})
-        if "logging_config" in values.keys():
-            # we could set this at a global level with a standard name like "cloudfront"
-            # but we need all aws accounts upgraded to aws provider >3.60 first
-            tf_resources.append(
-                aws_cloudfront_log_delivery_canonical_user_id(identifier)
-            )
-
-            logging_config_bucket = values["logging_config"]
-            values = {}
-            access_control_policy = {
-                "owner": {
-                    "id": "${data.aws_canonical_user_id.current.id}",
-                },
-                "grant": [
-                    {
-                        "grantee": {
-                            "id": "${data.aws_canonical_user_id.current.id}",
-                            "type": "CanonicalUser",
-                        },
-                        "permission": "FULL_CONTROL",
-                    },
-                    {
-                        "grantee": {
-                            # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/AccessLogs.html#AccessLogsBucketAndFileOwnership
-                            "id": f"${{data.aws_cloudfront_log_delivery_canonical_user_id.{identifier}.id}}",
-                            "type": "CanonicalUser",
-                        },
-                        "permission": "FULL_CONTROL",
-                    },
-                ],
-            }
-            values["access_control_policy"] = access_control_policy
-            values["bucket"] = logging_config_bucket.get("bucket").split(".")[0]
-
-            aws_s3_bucket_acl_resource = aws_s3_bucket_acl(identifier, **values)
-            tf_resources.append(aws_s3_bucket_acl_resource)
 
         self.add_resources(account, tf_resources)
 
