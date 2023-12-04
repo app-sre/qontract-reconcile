@@ -2000,6 +2000,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         event_notifications = common_values.get("event_notifications")
         sns_notifications = []
         sqs_notifications = []
+        lambda_notifications = []
 
         if event_notifications:
             for event_notification in event_notifications:
@@ -2013,22 +2014,32 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 elif destination_type == "sqs":
                     notification_type = "queue"
                     resource_arn_data = "data.aws_sqs_queue"
+                elif destination_type == "lambda":
+                    notification_type = "lambda_function"
+                    resource_arn_data = "data.aws_lambda_function"
 
                 if destination_identifier.startswith("arn:"):
                     resource_name = destination_identifier.split(":")[-1]
                     resource_arn = destination_identifier
                 else:
                     resource_name = destination_identifier
-                    resource_values = {"name": resource_name}
+                    resource_values = {}
                     resource_provider = values.get("provider")
                     if resource_provider:
                         resource_values["provider"] = resource_provider
                     if destination_type == "sns":
+                        resource_values["name"] = resource_name
                         resource_data = data.aws_sns_topic(
                             resource_name, **resource_values
                         )
                     elif destination_type == "sqs":
+                        resource_values["name"] = resource_name
                         resource_data = data.aws_sqs_queue(
+                            resource_name, **resource_values
+                        )
+                    elif destination_type == "lambda":
+                        resource_values["function_name"] = resource_name
+                        resource_data = data.aws_lambda_function(
                             resource_name, **resource_values
                         )
                     tf_resources.append(resource_data)
@@ -2057,12 +2068,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     sns_notifications.append(notification_config)
                 elif destination_type == "sqs":
                     sqs_notifications.append(notification_config)
+                elif destination_type == "lambda":
+                    lambda_notifications.append(notification_config)
 
             notifications = {"bucket": "${" + bucket_tf_resource.id + "}"}
             if sns_notifications:
                 notifications["topic"] = sns_notifications
             if sqs_notifications:
                 notifications["queue"] = sqs_notifications
+            if lambda_notifications:
+                notifications["lambda_function"] = lambda_notifications
 
             notification_tf_resource = aws_s3_bucket_notification(
                 identifier + "-event-notifications", **notifications
