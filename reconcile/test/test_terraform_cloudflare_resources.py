@@ -1,6 +1,8 @@
 import logging
+from unittest.mock import call
 
 import pytest
+from reconcile.status import ExitCodes
 
 import reconcile.terraform_cloudflare_resources as integ
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
@@ -362,3 +364,22 @@ def test_cloudflare_custom_ssl_secret_validation(
         integ.run(True, None, False, 10)
     assert "Secret path some/path not found" == str(e.value)
 
+
+def test_terraform_cloudflare_resources_dry_run(
+    mocker,
+    mock_gql,
+    mock_create_secret_reader,
+    mock_app_interface_vault_settings,
+    mock_cloudflare_accounts,
+    mock_cloudflare_resources,
+):
+    mocked_tf_client = mocker.patch(
+        "reconcile.terraform_cloudflare_resources.TerraformClient", autospec=True
+    )
+    mocked_tf_client.return_value.plan.return_value = False, None
+    with pytest.raises(SystemExit) as sample:
+        integ.run(True, None, False, 10)
+    assert sample.value.code == ExitCodes.SUCCESS
+    assert mocked_tf_client.called == True
+    assert call().apply() not in mocked_tf_client.method_calls
+    assert True
