@@ -211,6 +211,8 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                     ),
                     workloads=",".join(cluster_upgrade_spec.upgrade_policy.workloads),
                     addon=cluster_upgrade_spec.addon.id,
+                    product=cluster_upgrade_spec.cluster.product.id,
+                    hypershift=cluster_upgrade_spec.cluster.hypershift.enabled,
                 ),
             )
 
