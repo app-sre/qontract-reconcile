@@ -233,7 +233,8 @@ def mock_cloudflare_accounts(mocker):
                             region="us-east-1",
                             integrations=[
                                 AWSTerraformStateIntegrationsV1(
-                                    integration="terraform-cloudflare-resources", key="somekey.tfstate"
+                                    integration="terraform-cloudflare-resources",
+                                    key="somekey.tfstate",
                                 )
                             ],
                         ),
