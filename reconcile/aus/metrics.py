@@ -66,6 +66,8 @@ class AUSClusterUpgradePolicyInfoMetric(AUSBaseMetric, InfoMetric):
     mutexes: str
     soak_days: str
     workloads: str
+    product: str
+    hypershift: bool
 
     @classmethod
     def name(cls) -> str:

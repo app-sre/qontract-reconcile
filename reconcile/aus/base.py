@@ -296,6 +296,8 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                         cluster_upgrade_spec.upgrade_policy.conditions.soak_days or 0
                     ),
                     workloads=",".join(cluster_upgrade_spec.upgrade_policy.workloads),
+                    product=cluster_upgrade_spec.cluster.product.id,
+                    hypershift=cluster_upgrade_spec.cluster.hypershift.enabled,
                 ),
             )
 
