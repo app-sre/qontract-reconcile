@@ -34728,7 +34728,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "cloudflare_custom_ssl_certificates",
+                            "name": "custom_ssl_certificates",
                             "description": null,
                             "args": [],
                             "type": {

@@ -129,7 +129,7 @@ query TerraformCloudflareResources {
               cloudflare_branding
               wait_for_active_status
             }
-            cloudflare_custom_ssl_certificates {
+            custom_ssl_certificates {
               identifier
               type
               bundle_method
@@ -286,9 +286,7 @@ class CloudflareCustomSSLCertificateV1(ConfiguredBaseModel):
     certificate_secret: CertificateSecretV1 = Field(..., alias="certificate_secret")
 
 
-class NamespaceTerraformResourceCloudflareZoneV1(
-    NamespaceTerraformResourceCloudflareV1
-):
+class NamespaceTerraformResourceCloudflareZoneV1(NamespaceTerraformResourceCloudflareV1):
     identifier: str = Field(..., alias="identifier")
     zone: str = Field(..., alias="zone")
     plan: Optional[str] = Field(..., alias="plan")
@@ -299,12 +297,8 @@ class NamespaceTerraformResourceCloudflareZoneV1(
     cache_reserve: Optional[CloudflareZoneCacheReserveV1] = Field(..., alias="cache_reserve")
     records: Optional[list[CloudflareDnsRecordV1]] = Field(..., alias="records")
     workers: Optional[list[CloudflareZoneWorkerV1]] = Field(..., alias="workers")
-    certificates: Optional[list[CloudflareZoneCertificateV1]] = Field(
-        ..., alias="certificates"
-    )
-    cloudflare_custom_ssl_certificates: Optional[
-        list[CloudflareCustomSSLCertificateV1]
-    ] = Field(..., alias="cloudflare_custom_ssl_certificates")
+    certificates: Optional[list[CloudflareZoneCertificateV1]] = Field(..., alias="certificates")
+    custom_ssl_certificates: Optional[list[CloudflareCustomSSLCertificateV1]] = Field(..., alias="custom_ssl_certificates")
 
 
 class NamespaceTerraformResourceLogpushOwnershipChallengeV1(NamespaceTerraformResourceCloudflareV1):
