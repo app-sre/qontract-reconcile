@@ -88,7 +88,7 @@ query TerraformCloudflareResources {
               cloudflare_branding
               wait_for_active_status
             }
-            cloudflare_custom_ssl_certificates {
+            custom_ssl_certificates {
               identifier
               type
               bundle_method

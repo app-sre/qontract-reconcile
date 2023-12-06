@@ -2,7 +2,6 @@ import logging
 from unittest.mock import call
 
 import pytest
-from reconcile.status import ExitCodes
 
 import reconcile.terraform_cloudflare_resources as integ
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
@@ -35,6 +34,7 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     NamespaceV1,
     TerraformCloudflareResourcesQueryData,
 )
+from reconcile.status import ExitCodes
 from reconcile.utils.secret_reader import (
     SecretNotFound,
     SecretReaderBase,
@@ -123,7 +123,7 @@ def external_resources(provisioner_config):
                         wait_for_active_status=False,
                     )
                 ],
-                cloudflare_custom_ssl_certificates=[
+                custom_ssl_certificates=[
                     CloudflareCustomSSLCertificateV1(
                         identifier="testcustomssl",
                         type="legacy_custom",
@@ -261,6 +261,15 @@ def mock_cloudflare_resources(mocker, query_data):
     mocked_cloudflare_resources.query.return_value = query_data
 
 
+@pytest.fixture
+def mock_terraform_client(mocker):
+    mocked_tf_client = mocker.patch(
+        "reconcile.terraform_cloudflare_resources.TerraformClient", autospec=True
+    )
+    mocked_tf_client.return_value.plan.return_value = False, None
+    return mocked_tf_client
+
+
 def test_cloudflare_accounts_validation(
     mocker,
     caplog,
@@ -353,9 +362,11 @@ def test_cloudflare_namespace_validation(
     ]
 
 
-def test_cloudflare_custom_ssl_secret_validation(
+def test_custom_ssl_secret_validation(
     mocker,
     mock_gql,
+    mock_create_secret_reader,
+    mock_terraform_client,
     mock_app_interface_vault_settings,
     mock_cloudflare_accounts,
     mock_cloudflare_resources,
@@ -369,17 +380,14 @@ def test_terraform_cloudflare_resources_dry_run(
     mocker,
     mock_gql,
     mock_create_secret_reader,
+    mock_terraform_client,
     mock_app_interface_vault_settings,
     mock_cloudflare_accounts,
     mock_cloudflare_resources,
 ):
-    mocked_tf_client = mocker.patch(
-        "reconcile.terraform_cloudflare_resources.TerraformClient", autospec=True
-    )
-    mocked_tf_client.return_value.plan.return_value = False, None
     with pytest.raises(SystemExit) as sample:
         integ.run(True, None, False, 10)
     assert sample.value.code == ExitCodes.SUCCESS
-    assert mocked_tf_client.called == True
-    assert call().apply() not in mocked_tf_client.method_calls
+    assert mock_terraform_client.called == True
+    assert call().apply() not in mock_terraform_client.method_calls
     assert True

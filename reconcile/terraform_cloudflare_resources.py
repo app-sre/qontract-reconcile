@@ -309,7 +309,7 @@ def _filter_cloudflare_namespaces(
     return cloudflare_namespaces
 
 
-def _filter_cloudflare_custom_ssl_certificate(
+def _filter_custom_ssl_certificate(
     namespaces: Iterable[NamespaceV1],
 ) -> list[CloudflareCustomSSLCertificateV1]:
     certificates: list[CloudflareCustomSSLCertificateV1] = []
@@ -326,9 +326,9 @@ def _filter_cloudflare_custom_ssl_certificate(
                     for zone in zones:
                         if (
                             isinstance(zone, NamespaceTerraformResourceCloudflareZoneV1)
-                            and zone.cloudflare_custom_ssl_certificates
+                            and zone.custom_ssl_certificates
                         ):
-                            certificates += zone.cloudflare_custom_ssl_certificates
+                            certificates += zone.custom_ssl_certificates
     return certificates
 
 
@@ -370,7 +370,7 @@ def run(
         logging.info("No cloudflare namespaces were detected, nothing to do.")
         sys.exit(ExitCodes.SUCCESS)
 
-    cloudflare_custom_ssl_certificates = _filter_cloudflare_custom_ssl_certificate(
+    custom_ssl_certificates = _filter_custom_ssl_certificate(
         cloudflare_namespaces
     )
 
