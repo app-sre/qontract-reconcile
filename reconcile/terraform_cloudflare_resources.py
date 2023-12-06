@@ -370,9 +370,7 @@ def run(
         logging.info("No cloudflare namespaces were detected, nothing to do.")
         sys.exit(ExitCodes.SUCCESS)
 
-    custom_ssl_certificates = _filter_custom_ssl_certificate(
-        cloudflare_namespaces
-    )
+    custom_ssl_certificates = _filter_custom_ssl_certificate(cloudflare_namespaces)
 
     # Build Cloudflare clients
     cf_clients = TerraformConfigClientCollection()
