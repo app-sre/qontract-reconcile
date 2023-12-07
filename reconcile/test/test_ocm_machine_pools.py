@@ -19,6 +19,7 @@ from reconcile.gql_definitions.common.clusters import (
 from reconcile.ocm_machine_pools import (
     AbstractPool,
     AWSNodePool,
+    ClusterType,
     DesiredMachinePool,
     InvalidUpdateError,
     MachinePool,
@@ -63,7 +64,7 @@ def test_pool() -> TestPool:
         labels=None,
         taints=None,
         cluster="cluster1",
-        cluster_product="osd",
+        cluster_type=ClusterType.OSD,
     )
 
 
@@ -78,7 +79,7 @@ def current_with_pool() -> Mapping[str, list[AbstractPool]]:
                 labels=None,
                 taints=None,
                 cluster="cluster1",
-                cluster_product="osd",
+                cluster_type=ClusterType.OSD,
             )
         ]
     }
@@ -92,7 +93,7 @@ def node_pool() -> NodePool:
         labels=None,
         taints=None,
         cluster="cluster1",
-        cluster_product="rosa",
+        cluster_type=ClusterType.ROSA_HCP,
         subnet="subnet1",
         aws_node_pool=AWSNodePool(
             instance_type="m5.xlarge",
@@ -108,8 +109,7 @@ def machine_pool() -> MachinePool:
         labels=None,
         taints=None,
         cluster="cluster1",
-        cluster_product="osd",
-        subnet="subnet1",
+        cluster_type=ClusterType.OSD,
         instance_type="m5.xlarge",
     )
 
@@ -133,7 +133,7 @@ def ocm_mock():
 
 
 def test_diff__has_diff_autoscale(cluster_machine_pool: ClusterMachinePoolV1):
-    pool = TestPool(id="pool1", cluster="cluster1", cluster_product="osd")
+    pool = TestPool(id="pool1", cluster="cluster1", cluster_type=ClusterType.OSD)
 
     assert cluster_machine_pool.autoscale is None
     assert not pool._has_diff_autoscale(cluster_machine_pool)
@@ -169,8 +169,7 @@ def test_calculate_diff_create():
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
-            cluster_product="osd",
-            hypershift=False,
+            cluster_type=ClusterType.OSD,
             pools=[
                 ClusterMachinePoolV1(
                     id="pool1",
@@ -195,8 +194,7 @@ def test_calculate_diff_noop(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
-            cluster_product="osd",
-            hypershift=False,
+            cluster_type=ClusterType.OSD,
             pools=[
                 ClusterMachinePoolV1(
                     id="pool1",
@@ -219,8 +217,7 @@ def test_calculate_diff_update(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
-            cluster_product="osd",
-            hypershift=False,
+            cluster_type=ClusterType.OSD,
             pools=[
                 ClusterMachinePoolV1(
                     id="pool1",
@@ -252,7 +249,7 @@ def current_with_2_pools() -> Mapping[str, list[AbstractPool]]:
                 labels=None,
                 taints=None,
                 cluster="cluster1",
-                cluster_product="osd",
+                cluster_type=ClusterType.OSD,
             ),
             MachinePool(
                 id="workers",
@@ -261,7 +258,7 @@ def current_with_2_pools() -> Mapping[str, list[AbstractPool]]:
                 labels=None,
                 taints=None,
                 cluster="cluster1",
-                cluster_product="osd",
+                cluster_type=ClusterType.OSD,
             ),
         ]
     }
@@ -271,8 +268,7 @@ def test_calculate_diff_delete(current_with_2_pools):
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
-            cluster_product="osd",
-            hypershift=False,
+            cluster_type=ClusterType.OSD,
             pools=[
                 ClusterMachinePoolV1(
                     id="pool1",
@@ -297,8 +293,7 @@ def test_calculate_diff_delete_all_fail_validation(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
-            cluster_product="osd",
-            hypershift=False,
+            cluster_type=ClusterType.OSD,
             pools=[],
         ),
     }
@@ -905,6 +900,7 @@ def hypershift_cluster_builder(
                     },
                 },
                 "spec": {
+                    "product": "rosa",
                     "hypershift": True,
                 },
                 "machinePools": machine_pools,

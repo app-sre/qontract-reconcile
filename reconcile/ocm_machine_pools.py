@@ -4,6 +4,7 @@ from abc import (
     abstractmethod,
 )
 from collections.abc import Mapping
+from enum import Enum
 from typing import (
     Iterable,
     Optional,
@@ -31,6 +32,12 @@ from reconcile.utils.ocm import (
 )
 
 QONTRACT_INTEGRATION = "ocm-machine-pools"
+
+
+class ClusterType(Enum):
+    OSD = "osd"
+    ROSA_CLASSIC = "rosa"
+    ROSA_HCP = "hypershift"
 
 
 class InvalidUpdateError(Exception):
@@ -97,7 +104,7 @@ class AbstractPool(ABC, BaseModel):
     taints: Optional[list[Mapping[str, str]]]
     labels: Optional[Mapping[str, str]]
     cluster: str
-    cluster_product: str = Field(..., exclude=True)
+    cluster_type: ClusterType = Field(..., exclude=True)
     autoscaling: Optional[AbstractAutoscaling]
 
     @root_validator()
@@ -185,7 +192,8 @@ class MachinePool(AbstractPool):
     def deletable(self) -> bool:
         # OSD NON CCS clusters can't delete default worker machine pool
         return not (
-            self.cluster_product == "osd" and self.id == DEFAULT_OCM_MACHINE_POOL_ID
+            self.cluster_type == ClusterType.OSD
+            and self.id == DEFAULT_OCM_MACHINE_POOL_ID
         )
 
     @classmethod
@@ -193,7 +201,7 @@ class MachinePool(AbstractPool):
         cls,
         pool: ClusterMachinePoolV1,
         cluster: str,
-        cluster_product: str,
+        cluster_type: ClusterType,
     ):
         autoscaling: Optional[MachinePoolAutoscaling] = None
         if pool.autoscale:
@@ -209,7 +217,7 @@ class MachinePool(AbstractPool):
             taints=[p.dict(by_alias=True) for p in pool.taints or []],
             labels=pool.labels,
             cluster=cluster,
-            cluster_product=cluster_product,
+            cluster_type=cluster_type,
         )
 
 
@@ -274,7 +282,7 @@ class NodePool(AbstractPool):
         cls,
         pool: ClusterMachinePoolV1,
         cluster: str,
-        cluster_product: str,
+        cluster_type: ClusterType,
     ):
         autoscaling: Optional[NodePoolAutoscaling] = None
         if pool.autoscale:
@@ -294,7 +302,7 @@ class NodePool(AbstractPool):
             labels=pool.labels,
             subnet=pool.subnet,
             cluster=cluster,
-            cluster_product=cluster_product,
+            cluster_type=cluster_type,
         )
 
 
@@ -321,8 +329,7 @@ class PoolHandler(BaseModel):
 
 class DesiredMachinePool(BaseModel):
     cluster_name: str
-    cluster_product: str
-    hypershift: bool
+    cluster_type: ClusterType
     pools: list[ClusterMachinePoolV1]
 
     def build_pool_handler(
@@ -331,11 +338,13 @@ class DesiredMachinePool(BaseModel):
         pool: ClusterMachinePoolV1,
     ) -> PoolHandler:
         pool_builder = (
-            NodePool.create_from_gql if self.hypershift else MachinePool.create_from_gql
+            NodePool.create_from_gql
+            if self.cluster_type == ClusterType.ROSA_HCP
+            else MachinePool.create_from_gql
         )
         return PoolHandler(
             action=action,
-            pool=pool_builder(pool, self.cluster_name, self.cluster_product),
+            pool=pool_builder(pool, self.cluster_name, self.cluster_type),
         )
 
 
@@ -349,12 +358,24 @@ def fetch_current_state(
     }
 
 
-def _is_hypershift(cluster: ClusterV1) -> bool:
-    return bool(cluster.spec and cluster.spec.hypershift)
+def _classify_cluster_type(cluster: ClusterV1) -> ClusterType:
+    assert cluster.spec  # cluster.spec is required
+    match cluster.spec.product:
+        case "osd":
+            return ClusterType.OSD
+        case "rosa":
+            return (
+                ClusterType.ROSA_HCP
+                if cluster.spec.hypershift
+                else ClusterType.ROSA_CLASSIC
+            )
+        case _:
+            raise ValueError(f"unknown cluster type for cluster {cluster.name}")
 
 
 def fetch_current_state_for_cluster(cluster, ocm):
-    if _is_hypershift(cluster):
+    cluster_type = _classify_cluster_type(cluster)
+    if cluster_type == ClusterType.ROSA_HCP:
         return [
             NodePool(
                 id=node_pool["id"],
@@ -373,7 +394,7 @@ def fetch_current_state_for_cluster(cluster, ocm):
                 labels=node_pool.get("labels"),
                 subnet=node_pool.get("subnet"),
                 cluster=cluster.name,
-                cluster_product=cluster.spec.product,
+                cluster_type=cluster_type,
             )
             for node_pool in ocm.get_node_pools(cluster.name)
         ]
@@ -391,7 +412,7 @@ def fetch_current_state_for_cluster(cluster, ocm):
             taints=machine_pool.get("taints"),
             labels=machine_pool.get("labels"),
             cluster=cluster.name,
-            cluster_product=cluster.spec.product,
+            cluster_type=cluster_type,
         )
         for machine_pool in ocm.get_machine_pools(cluster.name)
     ]
@@ -403,8 +424,7 @@ def create_desired_state_from_gql(
     return {
         cluster.name: DesiredMachinePool(
             cluster_name=cluster.name,
-            cluster_product=cluster.spec and cluster.spec.product,
-            hypershift=_is_hypershift(cluster),
+            cluster_type=_classify_cluster_type(cluster),
             pools=cluster.machine_pools,
         )
         for cluster in clusters
