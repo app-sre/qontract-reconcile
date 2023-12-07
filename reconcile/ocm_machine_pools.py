@@ -11,6 +11,7 @@ from typing import (
 
 from pydantic import (
     BaseModel,
+    Field,
     root_validator,
 )
 
@@ -24,6 +25,7 @@ from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
+    DEFAULT_OCM_MACHINE_POOL_ID,
     OCM,
     OCMMap,
 )
@@ -95,6 +97,7 @@ class AbstractPool(ABC, BaseModel):
     taints: Optional[list[Mapping[str, str]]]
     labels: Optional[Mapping[str, str]]
     cluster: str
+    cluster_product: str = Field(..., exclude=True)
     autoscaling: Optional[AbstractAutoscaling]
 
     @root_validator()
@@ -180,10 +183,18 @@ class MachinePool(AbstractPool):
         return None
 
     def deletable(self) -> bool:
-        return True
+        # OSD NON CCS clusters can't delete default worker machine pool
+        return not (
+            self.cluster_product == "osd" and self.id == DEFAULT_OCM_MACHINE_POOL_ID
+        )
 
     @classmethod
-    def create_from_gql(cls, pool: ClusterMachinePoolV1, cluster: str):
+    def create_from_gql(
+        cls,
+        pool: ClusterMachinePoolV1,
+        cluster: str,
+        cluster_product: str,
+    ):
         autoscaling: Optional[MachinePoolAutoscaling] = None
         if pool.autoscale:
             autoscaling = MachinePoolAutoscaling(
@@ -198,6 +209,7 @@ class MachinePool(AbstractPool):
             taints=[p.dict(by_alias=True) for p in pool.taints or []],
             labels=pool.labels,
             cluster=cluster,
+            cluster_product=cluster_product,
         )
 
 
@@ -258,7 +270,12 @@ class NodePool(AbstractPool):
         return not self.id.startswith("workers")
 
     @classmethod
-    def create_from_gql(cls, pool: ClusterMachinePoolV1, cluster: str):
+    def create_from_gql(
+        cls,
+        pool: ClusterMachinePoolV1,
+        cluster: str,
+        cluster_product: str,
+    ):
         autoscaling: Optional[NodePoolAutoscaling] = None
         if pool.autoscale:
             autoscaling = NodePoolAutoscaling(
@@ -277,6 +294,7 @@ class NodePool(AbstractPool):
             labels=pool.labels,
             subnet=pool.subnet,
             cluster=cluster,
+            cluster_product=cluster_product,
         )
 
 
@@ -303,6 +321,7 @@ class PoolHandler(BaseModel):
 
 class DesiredMachinePool(BaseModel):
     cluster_name: str
+    cluster_product: str
     hypershift: bool
     pools: list[ClusterMachinePoolV1]
 
@@ -316,7 +335,7 @@ class DesiredMachinePool(BaseModel):
         )
         return PoolHandler(
             action=action,
-            pool=pool_builder(pool, self.cluster_name),
+            pool=pool_builder(pool, self.cluster_name, self.cluster_product),
         )
 
 
@@ -354,6 +373,7 @@ def fetch_current_state_for_cluster(cluster, ocm):
                 labels=node_pool.get("labels"),
                 subnet=node_pool.get("subnet"),
                 cluster=cluster.name,
+                cluster_product=cluster.spec.product,
             )
             for node_pool in ocm.get_node_pools(cluster.name)
         ]
@@ -371,6 +391,7 @@ def fetch_current_state_for_cluster(cluster, ocm):
             taints=machine_pool.get("taints"),
             labels=machine_pool.get("labels"),
             cluster=cluster.name,
+            cluster_product=cluster.spec.product,
         )
         for machine_pool in ocm.get_machine_pools(cluster.name)
     ]
@@ -382,6 +403,7 @@ def create_desired_state_from_gql(
     return {
         cluster.name: DesiredMachinePool(
             cluster_name=cluster.name,
+            cluster_product=cluster.spec and cluster.spec.product,
             hypershift=_is_hypershift(cluster),
             pools=cluster.machine_pools,
         )
@@ -450,6 +472,12 @@ def calculate_diff(
                 PoolHandler(
                     action="delete",
                     pool=current_machine_pool,
+                )
+            )
+        else:
+            errors.append(
+                InvalidUpdateError(
+                    f"can not delete machine pool {current_machine_pool.id} for cluster {cluster_name}"
                 )
             )
 

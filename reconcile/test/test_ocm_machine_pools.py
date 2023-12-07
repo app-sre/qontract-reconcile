@@ -63,6 +63,7 @@ def test_pool() -> TestPool:
         labels=None,
         taints=None,
         cluster="cluster1",
+        cluster_product="osd",
     )
 
 
@@ -77,6 +78,7 @@ def current_with_pool() -> Mapping[str, list[AbstractPool]]:
                 labels=None,
                 taints=None,
                 cluster="cluster1",
+                cluster_product="osd",
             )
         ]
     }
@@ -90,6 +92,7 @@ def node_pool() -> NodePool:
         labels=None,
         taints=None,
         cluster="cluster1",
+        cluster_product="rosa",
         subnet="subnet1",
         aws_node_pool=AWSNodePool(
             instance_type="m5.xlarge",
@@ -105,6 +108,7 @@ def machine_pool() -> MachinePool:
         labels=None,
         taints=None,
         cluster="cluster1",
+        cluster_product="osd",
         subnet="subnet1",
         instance_type="m5.xlarge",
     )
@@ -129,7 +133,7 @@ def ocm_mock():
 
 
 def test_diff__has_diff_autoscale(cluster_machine_pool: ClusterMachinePoolV1):
-    pool = TestPool(id="pool1", cluster="cluster1")
+    pool = TestPool(id="pool1", cluster="cluster1", cluster_product="osd")
 
     assert cluster_machine_pool.autoscale is None
     assert not pool._has_diff_autoscale(cluster_machine_pool)
@@ -165,6 +169,7 @@ def test_calculate_diff_create():
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
+            cluster_product="osd",
             hypershift=False,
             pools=[
                 ClusterMachinePoolV1(
@@ -190,6 +195,7 @@ def test_calculate_diff_noop(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
+            cluster_product="osd",
             hypershift=False,
             pools=[
                 ClusterMachinePoolV1(
@@ -213,6 +219,7 @@ def test_calculate_diff_update(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
+            cluster_product="osd",
             hypershift=False,
             pools=[
                 ClusterMachinePoolV1(
@@ -245,6 +252,7 @@ def current_with_2_pools() -> Mapping[str, list[AbstractPool]]:
                 labels=None,
                 taints=None,
                 cluster="cluster1",
+                cluster_product="osd",
             ),
             MachinePool(
                 id="workers",
@@ -253,6 +261,7 @@ def current_with_2_pools() -> Mapping[str, list[AbstractPool]]:
                 labels=None,
                 taints=None,
                 cluster="cluster1",
+                cluster_product="osd",
             ),
         ]
     }
@@ -262,6 +271,7 @@ def test_calculate_diff_delete(current_with_2_pools):
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
+            cluster_product="osd",
             hypershift=False,
             pools=[
                 ClusterMachinePoolV1(
@@ -287,6 +297,7 @@ def test_calculate_diff_delete_all_fail_validation(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
+            cluster_product="osd",
             hypershift=False,
             pools=[],
         ),
@@ -450,7 +461,7 @@ def test_run_no_action(mocker: MockerFixture) -> None:
 
 
 @pytest.fixture
-def ocm_cluster_builder(
+def osd_cluster_builder(
     gql_class_factory: Callable[..., ClusterV1],
 ) -> Callable[..., ClusterV1]:
     def builder(machine_pools: list[dict]) -> ClusterV1:
@@ -459,6 +470,35 @@ def ocm_cluster_builder(
             {
                 "name": "ocm-cluster",
                 "auth": [],
+                "spec": {
+                    "product": "osd",
+                },
+                "ocm": {
+                    "name": "ocm-name",
+                    "environment": {
+                        "accessTokenClientSecret": {},
+                    },
+                },
+                "machinePools": machine_pools,
+            },
+        )
+
+    return builder
+
+
+@pytest.fixture
+def rosa_cluster_builder(
+    gql_class_factory: Callable[..., ClusterV1],
+) -> Callable[..., ClusterV1]:
+    def builder(machine_pools: list[dict]) -> ClusterV1:
+        return gql_class_factory(
+            ClusterV1,
+            {
+                "name": "ocm-cluster",
+                "auth": [],
+                "spec": {
+                    "product": "rosa",
+                },
                 "ocm": {
                     "name": "ocm-name",
                     "environment": {
@@ -482,11 +522,19 @@ def default_worker_machine_pool() -> dict:
 
 
 @pytest.fixture
-def ocm_cluster_with_default_machine_pool(
-    ocm_cluster_builder: Callable[..., ClusterV1],
+def osd_cluster_with_default_machine_pool(
+    osd_cluster_builder,
     default_worker_machine_pool: dict,
 ) -> ClusterV1:
-    return ocm_cluster_builder([default_worker_machine_pool])
+    return osd_cluster_builder([default_worker_machine_pool])
+
+
+@pytest.fixture
+def rosa_cluster_with_default_machine_pool(
+    rosa_cluster_builder,
+    default_worker_machine_pool: dict,
+) -> ClusterV1:
+    return rosa_cluster_builder([default_worker_machine_pool])
 
 
 @pytest.fixture
@@ -499,12 +547,26 @@ def new_workers_machine_pool() -> dict:
 
 
 @pytest.fixture
-def ocm_cluster_with_default_and_new_machine_pools(
-    ocm_cluster_builder: Callable[..., ClusterV1],
+def osd_cluster_with_default_and_new_machine_pools(
+    osd_cluster_builder,
     default_worker_machine_pool: dict,
     new_workers_machine_pool: dict,
 ) -> ClusterV1:
-    return ocm_cluster_builder(
+    return osd_cluster_builder(
+        [
+            default_worker_machine_pool,
+            new_workers_machine_pool,
+        ]
+    )
+
+
+@pytest.fixture
+def rosa_cluster_with_default_and_new_machine_pools(
+    rosa_cluster_builder,
+    default_worker_machine_pool: dict,
+    new_workers_machine_pool: dict,
+) -> ClusterV1:
+    return rosa_cluster_builder(
         [
             default_worker_machine_pool,
             new_workers_machine_pool,
@@ -525,22 +587,42 @@ def expected_ocm_machine_pool_create_payload() -> dict:
     }
 
 
-def test_run_create_machine_pool(
+def test_run_create_machine_pool_for_osd_cluster(
     mocker: MockerFixture,
-    ocm_cluster_with_default_and_new_machine_pools: ClusterV1,
+    osd_cluster_with_default_and_new_machine_pools: ClusterV1,
     default_worker_machine_pool: dict,
     expected_ocm_machine_pool_create_payload: dict,
 ) -> None:
     mocks = setup_mocks(
         mocker,
-        clusters=[ocm_cluster_with_default_and_new_machine_pools],
+        clusters=[osd_cluster_with_default_and_new_machine_pools],
         machine_pools=[default_worker_machine_pool],
     )
 
     run(False)
 
     mocks["OCM"].create_machine_pool.assert_called_once_with(
-        ocm_cluster_with_default_and_new_machine_pools.name,
+        osd_cluster_with_default_and_new_machine_pools.name,
+        expected_ocm_machine_pool_create_payload,
+    )
+
+
+def test_run_create_machine_pool_for_rosa_cluster(
+    mocker: MockerFixture,
+    rosa_cluster_with_default_and_new_machine_pools: ClusterV1,
+    default_worker_machine_pool: dict,
+    expected_ocm_machine_pool_create_payload: dict,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        clusters=[rosa_cluster_with_default_and_new_machine_pools],
+        machine_pools=[default_worker_machine_pool],
+    )
+
+    run(False)
+
+    mocks["OCM"].create_machine_pool.assert_called_once_with(
+        rosa_cluster_with_default_and_new_machine_pools.name,
         expected_ocm_machine_pool_create_payload,
     )
 
@@ -564,22 +646,42 @@ def expected_ocm_machine_pool_update_payload() -> dict:
     }
 
 
-def test_run_update_machine_pool(
+def test_run_update_machine_pool_for_osd_cluster(
     mocker: MockerFixture,
-    ocm_cluster_with_default_machine_pool: ClusterV1,
+    osd_cluster_with_default_machine_pool: ClusterV1,
     existing_updated_default_machine_pool: dict,
     expected_ocm_machine_pool_update_payload: dict,
 ) -> None:
     mocks = setup_mocks(
         mocker,
-        clusters=[ocm_cluster_with_default_machine_pool],
+        clusters=[osd_cluster_with_default_machine_pool],
         machine_pools=[existing_updated_default_machine_pool],
     )
 
     run(False)
 
     mocks["OCM"].update_machine_pool.assert_called_once_with(
-        ocm_cluster_with_default_machine_pool.name,
+        osd_cluster_with_default_machine_pool.name,
+        expected_ocm_machine_pool_update_payload,
+    )
+
+
+def test_run_update_machine_pool_for_rosa_cluster(
+    mocker: MockerFixture,
+    rosa_cluster_with_default_machine_pool: ClusterV1,
+    existing_updated_default_machine_pool: dict,
+    expected_ocm_machine_pool_update_payload: dict,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        clusters=[rosa_cluster_with_default_machine_pool],
+        machine_pools=[existing_updated_default_machine_pool],
+    )
+
+    run(False)
+
+    mocks["OCM"].update_machine_pool.assert_called_once_with(
+        rosa_cluster_with_default_machine_pool.name,
         expected_ocm_machine_pool_update_payload,
     )
 
@@ -593,14 +695,32 @@ def existing_default_machine_pool_with_different_instance_type() -> dict:
     }
 
 
-def test_run_update_machine_pool_error(
+def test_run_update_machine_pool_error_for_osd_cluster(
     mocker: MockerFixture,
-    ocm_cluster_with_default_machine_pool: ClusterV1,
+    osd_cluster_with_default_machine_pool: ClusterV1,
     existing_default_machine_pool_with_different_instance_type: dict,
 ) -> None:
     setup_mocks(
         mocker,
-        clusters=[ocm_cluster_with_default_machine_pool],
+        clusters=[osd_cluster_with_default_machine_pool],
+        machine_pools=[existing_default_machine_pool_with_different_instance_type],
+    )
+
+    with pytest.raises(ExceptionGroup) as eg:
+        run(False)
+
+    assert len(eg.value.exceptions) == 1
+    assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
+
+
+def test_run_update_machine_pool_error_for_rosa_cluster(
+    mocker: MockerFixture,
+    rosa_cluster_with_default_machine_pool: ClusterV1,
+    existing_default_machine_pool_with_different_instance_type: dict,
+) -> None:
+    setup_mocks(
+        mocker,
+        clusters=[rosa_cluster_with_default_machine_pool],
         machine_pools=[existing_default_machine_pool_with_different_instance_type],
     )
 
@@ -624,42 +744,70 @@ def expected_ocm_machine_pool_delete_payload() -> dict:
     }
 
 
-def test_run_delete_machine_pool(
+def test_run_delete_machine_pool_for_osd_cluster(
     mocker: MockerFixture,
-    ocm_cluster_with_default_machine_pool: ClusterV1,
-    default_worker_machine_pool,
+    osd_cluster_with_default_machine_pool: ClusterV1,
+    default_worker_machine_pool: dict,
     new_workers_machine_pool: dict,
     expected_ocm_machine_pool_delete_payload: dict,
 ) -> None:
     mocks = setup_mocks(
         mocker,
-        clusters=[ocm_cluster_with_default_machine_pool],
+        clusters=[osd_cluster_with_default_machine_pool],
         machine_pools=[default_worker_machine_pool, new_workers_machine_pool],
     )
 
     run(False)
 
     mocks["OCM"].delete_machine_pool.assert_called_once_with(
-        ocm_cluster_with_default_machine_pool.name,
+        osd_cluster_with_default_machine_pool.name,
+        expected_ocm_machine_pool_delete_payload,
+    )
+
+
+def test_run_delete_machine_pool_for_rosa_cluster(
+    mocker: MockerFixture,
+    rosa_cluster_with_default_machine_pool: ClusterV1,
+    default_worker_machine_pool: dict,
+    new_workers_machine_pool: dict,
+    expected_ocm_machine_pool_delete_payload: dict,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        clusters=[rosa_cluster_with_default_machine_pool],
+        machine_pools=[default_worker_machine_pool, new_workers_machine_pool],
+    )
+
+    run(False)
+
+    mocks["OCM"].delete_machine_pool.assert_called_once_with(
+        rosa_cluster_with_default_machine_pool.name,
         expected_ocm_machine_pool_delete_payload,
     )
 
 
 @pytest.fixture
-def ocm_cluster_without_machine_pools(
-    ocm_cluster_builder: Callable[..., ClusterV1],
+def osd_cluster_without_machine_pools(
+    osd_cluster_builder,
 ) -> ClusterV1:
-    return ocm_cluster_builder([])
+    return osd_cluster_builder([])
 
 
-def test_run_delete_machine_pool_fail_validation(
+@pytest.fixture
+def rosa_cluster_without_machine_pools(
+    rosa_cluster_builder,
+) -> ClusterV1:
+    return rosa_cluster_builder([])
+
+
+def test_run_delete_machine_pool_fail_validation_for_osd_cluster(
     mocker: MockerFixture,
-    ocm_cluster_without_machine_pools: ClusterV1,
-    default_worker_machine_pool,
+    osd_cluster_without_machine_pools: ClusterV1,
+    default_worker_machine_pool: dict,
 ) -> None:
     setup_mocks(
         mocker,
-        clusters=[ocm_cluster_without_machine_pools],
+        clusters=[osd_cluster_without_machine_pools],
         machine_pools=[default_worker_machine_pool],
     )
 
@@ -668,6 +816,76 @@ def test_run_delete_machine_pool_fail_validation(
 
     assert len(eg.value.exceptions) == 1
     assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
+
+
+def test_run_delete_machine_pool_fail_validation_for_rosa_cluster(
+    mocker: MockerFixture,
+    rosa_cluster_without_machine_pools: ClusterV1,
+    default_worker_machine_pool: dict,
+) -> None:
+    setup_mocks(
+        mocker,
+        clusters=[rosa_cluster_without_machine_pools],
+        machine_pools=[default_worker_machine_pool],
+    )
+
+    with pytest.raises(ExceptionGroup) as eg:
+        run(False)
+
+    assert len(eg.value.exceptions) == 1
+    assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
+
+
+@pytest.fixture
+def osd_cluster_with_new_machine_pool(
+    osd_cluster_builder,
+    new_workers_machine_pool: dict,
+) -> ClusterV1:
+    return osd_cluster_builder([new_workers_machine_pool])
+
+
+@pytest.fixture
+def rosa_cluster_with_new_machine_pool(
+    rosa_cluster_builder,
+    new_workers_machine_pool: dict,
+) -> ClusterV1:
+    return rosa_cluster_builder([new_workers_machine_pool])
+
+
+def test_run_delete_default_machine_pool_fail_validation_for_osd_cluster(
+    mocker: MockerFixture,
+    osd_cluster_with_new_machine_pool: ClusterV1,
+    default_worker_machine_pool: dict,
+    new_workers_machine_pool: dict,
+) -> None:
+    setup_mocks(
+        mocker,
+        clusters=[osd_cluster_with_new_machine_pool],
+        machine_pools=[default_worker_machine_pool, new_workers_machine_pool],
+    )
+
+    with pytest.raises(ExceptionGroup) as eg:
+        run(False)
+
+    assert len(eg.value.exceptions) == 1
+    assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
+
+
+def test_run_delete_default_machine_pool_success_for_rosa_cluster(
+    mocker: MockerFixture,
+    rosa_cluster_with_new_machine_pool: ClusterV1,
+    default_worker_machine_pool: dict,
+    new_workers_machine_pool: dict,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        clusters=[rosa_cluster_with_new_machine_pool],
+        machine_pools=[default_worker_machine_pool, new_workers_machine_pool],
+    )
+
+    run(False)
+
+    mocks["OCM"].delete_machine_pool.assert_called_once()
 
 
 @pytest.fixture
