@@ -1094,7 +1094,7 @@ def existing_multiple_hypershift_node_pools_with_defaults() -> list[dict]:
     ]
 
 
-def test_run_delete_node_pool_skip_workers_ones(
+def test_run_delete_default_node_pool(
     mocker: MockerFixture,
     hypershift_cluster_without_default_worker_machine_pools: ClusterV1,
     existing_multiple_hypershift_node_pools_with_defaults: list[dict],
@@ -1107,4 +1107,4 @@ def test_run_delete_node_pool_skip_workers_ones(
 
     run(False)
 
-    mocks["OCM"].delete_node_pool.assert_not_called()
+    mocks["OCM"].delete_node_pool.assert_called()

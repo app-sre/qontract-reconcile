@@ -274,8 +274,7 @@ class NodePool(AbstractPool):
         return None
 
     def deletable(self) -> bool:
-        # As of now, you can not delete the first worker pool(s)
-        return not self.id.startswith("workers")
+        return True
 
     @classmethod
     def create_from_gql(
