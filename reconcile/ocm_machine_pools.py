@@ -358,7 +358,8 @@ def fetch_current_state(
 
 
 def _classify_cluster_type(cluster: ClusterV1) -> ClusterType:
-    assert cluster.spec  # cluster.spec is required
+    if cluster.spec is None:
+        raise ValueError(f"cluster {cluster.name} is missing spec")
     match cluster.spec.product:
         case "osd":
             return ClusterType.OSD
