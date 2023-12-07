@@ -884,11 +884,38 @@ def jenkins_webhooks_cleaner(ctx):
 
 
 @integration.command(short_help="Validate permissions in Jira.")
+@click.option(
+    "--exit-on-permission-errors/--no-exit-on-permission-errors",
+    help="Throw and error in case of board permission errors. Useful for PR checks.",
+    default=False,
+)
+@click.option(
+    "--jira-boards",
+    help="A comma seperated list of Jira board names to operator on. If none is specified, all boards are considered.",
+    required=False,
+)
+@click.option(
+    "--ignored-jira-boards",
+    help="A comma seperated list of Jira board names to be ignored.",
+    required=False,
+)
 @click.pass_context
-def jira_permissions_validator(ctx):
+def jira_permissions_validator(
+    ctx, exit_on_permission_errors=False, jira_boards=None, ignored_jira_boards=None
+):
     import reconcile.jira_permissions_validator
 
-    run_integration(reconcile.jira_permissions_validator, ctx.obj)
+    parsed_jira_boards = set(jira_boards.split(",")) if jira_boards else []
+    parsed_ignored_jira_boards = (
+        set(ignored_jira_boards.split(",")) if ignored_jira_boards else []
+    )
+    run_integration(
+        reconcile.jira_permissions_validator,
+        ctx.obj,
+        exit_on_permission_errors,
+        parsed_jira_boards,
+        parsed_ignored_jira_boards,
+    )
 
 
 @integration.command(short_help="Watch for changes in Jira boards and notify on Slack.")

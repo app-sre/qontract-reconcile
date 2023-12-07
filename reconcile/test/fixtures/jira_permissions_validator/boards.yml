@@ -1,0 +1,35 @@
+
+jira_boards:
+- name: jira-board-default
+  server:
+    serverUrl: 'https://jira-server.com'
+    token:
+      path: vault/path/token
+      field: token
+  issueType: null
+  issueResolveState: Closed
+  issueReopenState: null
+  issueSecurityId: null
+  severityPriorityMappings:
+    name: major-major
+    mappings:
+    - priority: Minor
+    - priority: Major
+    - priority: Critical
+- name: jira-board-custom
+  server:
+    serverUrl: 'https://jira-server.com'
+    token:
+      path: vault/path/token
+      field: token
+  issueType: bug
+  issueResolveState: Closed
+  issueReopenState: Open
+  issueSecurityId: "32168"
+  severityPriorityMappings:
+    name: major-major
+    mappings:
+    - priority: Minor
+    - priority: Major
+    - priority: Major
+    - priority: Critical

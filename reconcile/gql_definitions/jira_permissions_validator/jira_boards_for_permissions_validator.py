@@ -38,6 +38,16 @@ query JiraBoardsForPermissionValidation {
         ... VaultSecret
       }
     }
+    issueType
+    issueResolveState
+    issueReopenState
+    issueSecurityId
+    severityPriorityMappings {
+      name
+      mappings {
+        priority
+      }
+    }
   }
 }
 """
@@ -54,10 +64,24 @@ class JiraServerV1(ConfiguredBaseModel):
     token: VaultSecret = Field(..., alias="token")
 
 
+class SeverityPriorityMappingV1(ConfiguredBaseModel):
+    priority: str = Field(..., alias="priority")
+
+
+class JiraSeverityPriorityMappingsV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    mappings: list[SeverityPriorityMappingV1] = Field(..., alias="mappings")
+
+
 class JiraBoardV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     server: JiraServerV1 = Field(..., alias="server")
+    issue_type: Optional[str] = Field(..., alias="issueType")
+    issue_resolve_state: Optional[str] = Field(..., alias="issueResolveState")
+    issue_reopen_state: Optional[str] = Field(..., alias="issueReopenState")
+    issue_security_id: Optional[str] = Field(..., alias="issueSecurityId")
+    severity_priority_mappings: JiraSeverityPriorityMappingsV1 = Field(..., alias="severityPriorityMappings")
 
 
 class JiraBoardsForPermissionValidationQueryData(ConfiguredBaseModel):

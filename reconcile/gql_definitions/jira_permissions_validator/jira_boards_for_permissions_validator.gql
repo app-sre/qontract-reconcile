@@ -10,5 +10,15 @@ query JiraBoardsForPermissionValidation {
         ... VaultSecret
       }
     }
+    issueType
+    issueResolveState
+    issueReopenState
+    issueSecurityId
+    severityPriorityMappings {
+      name
+      mappings {
+        priority
+      }
+    }
   }
 }

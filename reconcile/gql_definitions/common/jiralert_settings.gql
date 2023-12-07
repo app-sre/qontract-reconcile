@@ -1,0 +1,10 @@
+# qenerate: plugin=pydantic_v1
+
+query JiralertSettings {
+  settings: app_interface_settings_v1 {
+    jiralert {
+      defaultIssueType
+      defaultReopenState
+    }
+  }
+}

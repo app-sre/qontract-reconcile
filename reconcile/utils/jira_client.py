@@ -16,6 +16,7 @@ from jira import (
     Issue,
 )
 from jira.client import ResultList
+from pydantic import BaseModel
 
 from reconcile.utils.secret_reader import SecretReader
 
@@ -23,6 +24,28 @@ from reconcile.utils.secret_reader import SecretReader
 class JiraWatcherSettings(Protocol):
     read_timeout: int
     connect_timeout: int
+
+
+class SecurityLevel(BaseModel):
+    """Jira security level."""
+
+    id: str
+    name: str
+
+
+class Priority(BaseModel):
+    """Jira priority."""
+
+    id: str
+    name: str
+
+
+class IssueType(BaseModel):
+    """Jira issue type."""
+
+    id: str
+    name: str
+    statuses: list[str]
 
 
 class JiraClient:
@@ -156,3 +179,29 @@ class JiraClient:
 
     def can_create_issues(self) -> bool:
         return self.can_i("CREATE_ISSUES")
+
+    def can_transition_issues(self) -> bool:
+        return self.can_i("TRANSITION_ISSUES")
+
+    def project_issue_types(self, project: str) -> list[IssueType]:
+        return [
+            IssueType(id=t.id, name=t.name, statuses=[s.name for s in t.statuses])
+            for t in self.jira.issue_types_for_project(project)
+        ]
+
+    def security_levels(self) -> list[SecurityLevel]:
+        """Return a list of all available security levels for the project.
+
+        This API endpoint needs admin/owner project permissions.
+        """
+        scheme = self.jira.project_issue_security_level_scheme(self.project)
+        return [SecurityLevel(id=level.id, name=level.name) for level in scheme.levels]
+
+    def priorities(self) -> list[Priority]:
+        """Return a list of all available Jira priorities."""
+        return [Priority(id=p.id, name=p.name) for p in self.jira.priorities()]
+
+    def project_priority_scheme(self) -> list[str]:
+        """Return a list of all priority IDs for the project."""
+        scheme = self.jira.project_priority_scheme(self.project)
+        return scheme.optionIds
