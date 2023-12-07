@@ -186,6 +186,14 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
 
         return resources
 
+    def _create_cloudflare_custom_ssl_certificates(
+        self, zone: Resource, zone_custom_ssl: Iterable[MutableMapping[str, Any]]
+    ) -> list[Union[Resource, Output]]:
+        resources = []
+        for cert_values in zone_custom_ssl:
+            safe_resource_id(cert_values.pop("identifier"))
+        return resources
+
     def populate(self) -> list[Union[Resource, Output]]:
         resources = []
 
@@ -202,6 +210,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         zone_records = values.pop("records", [])
         zone_workers = values.pop("workers", [])
         zone_certs = values.pop("certificates", [])
+        zone_custom_sll = values.pop("custom_ssl_certificates", [])
 
         zone_values = {
             "account_id": "${var.account_id}",
@@ -267,6 +276,9 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
             resources.append(cloudflare_worker_route(identifier, **worker_route_values))
 
         resources.extend(self._create_cloudflare_certificate_pack(zone, zone_certs))
+        resources.extend(
+            self._create_cloudflare_custom_ssl_certificates(zone, zone_custom_sll)
+        )
 
         return resources
 

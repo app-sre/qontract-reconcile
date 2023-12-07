@@ -20,7 +20,6 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     TerraformCloudflareAccountsQueryData,
 )
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
-    CloudflareCustomSSLCertificateV1,
     NamespaceTerraformProviderResourceCloudflareV1,
     NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceV1,
@@ -309,11 +308,10 @@ def _filter_cloudflare_namespaces(
     return cloudflare_namespaces
 
 
-def _filter_custom_ssl_certificate(
+def _populate_custom_ssl_certificate(
     namespaces: Iterable[NamespaceV1],
-) -> list[CloudflareCustomSSLCertificateV1]:
-    certificates: list[CloudflareCustomSSLCertificateV1] = []
-
+    secret_reader: SecretReaderBase,
+) -> None:
     for ns in namespaces:
         if ns.external_resources:
             for ext_resource in ns.external_resources:
@@ -328,8 +326,13 @@ def _filter_custom_ssl_certificate(
                             isinstance(zone, NamespaceTerraformResourceCloudflareZoneV1)
                             and zone.custom_ssl_certificates
                         ):
-                            certificates += zone.custom_ssl_certificates
-    return certificates
+                            for cert in zone.custom_ssl_certificates:
+                                cert_data = secret_reader.read_secret(
+                                    cert.certificate_secret.certificate
+                                )
+                                key_data = secret_reader.read_secret(
+                                    cert.certificate_secret.key
+                                )
 
 
 @defer
@@ -370,7 +373,7 @@ def run(
         logging.info("No cloudflare namespaces were detected, nothing to do.")
         sys.exit(ExitCodes.SUCCESS)
 
-    custom_ssl_certificates = _filter_custom_ssl_certificate(cloudflare_namespaces)
+    # _filter_custom_ssl_certificate(cloudflare_namespaces, secret_reader)
 
     # Build Cloudflare clients
     cf_clients = TerraformConfigClientCollection()
