@@ -388,6 +388,6 @@ def test_terraform_cloudflare_resources_dry_run(
     with pytest.raises(SystemExit) as sample:
         integ.run(True, None, False, 10)
     assert sample.value.code == ExitCodes.SUCCESS
-    assert mock_terraform_client.called == True
+    assert mock_terraform_client.called is True
     assert call().apply() not in mock_terraform_client.method_calls
     assert True
