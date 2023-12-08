@@ -2887,7 +2887,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     },
                 ],
             }
-            external_account_id = logging_config_bucket.pop("external_account_id")
+            external_account_id = logging_config_bucket.pop("external_account_id", None)
             if external_account_id:
                 external_account_policy = {
                     "grantee": {
