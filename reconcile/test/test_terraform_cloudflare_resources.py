@@ -10,14 +10,12 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
     AWSAccountV1,
     AWSTerraformStateIntegrationsV1,
-)
-from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
-    CloudflareAccountV1 as CFAccountV1,
-)
-from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
     DeletionApprovalV1,
     TerraformCloudflareAccountsQueryData,
     TerraformStateAWSV1,
+)
+from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
+    CloudflareAccountV1 as CFAccountV1,
 )
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
     CloudflareAccountV1,

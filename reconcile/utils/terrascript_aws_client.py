@@ -952,7 +952,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 )
                 vault_values: list[str] = []
                 for rec in records_from_vault:
-                    if not rec["path"] in allowed_vault_secret_paths:
+                    if rec["path"] not in allowed_vault_secret_paths:
                         raise UnapprovedSecretPathError(
                             "'{}' is not in the list of approved Vault secret paths. Add this path to 'allowed_vault_secret_paths'.".format(
                                 rec["path"]
@@ -4854,7 +4854,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "port": 443,
                     "depends_on": self.get_dependencies([lbt_tf_resource]),
                 }
-                if not ip_address(ip) in ip_network(vpc_cidr_block):
+                if ip_address(ip) not in ip_network(vpc_cidr_block):
                     values["availability_zone"] = "all"
                 ip_slug = ip.replace(".", "_")
                 lbta_identifier = f"{lbt_identifier}-{ip_slug}"
@@ -4963,7 +4963,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "depends_on": self.get_dependencies([forward_lbl_tf_resource]),
             }
 
-            lblr_identifier = f"{identifier}-rule-{rule_num+1:02d}"
+            lblr_identifier = f"{identifier}-rule-{rule_num + 1:02d}"
             lblr_tf_resource = aws_lb_listener_rule(lblr_identifier, **values)
 
             tf_resources.append(lblr_tf_resource)

@@ -56,7 +56,7 @@ def calculate_diff(server, current_state, previous_state):
 
     updated_issues = [
         format_message(
-            server, key, data, "status change", previous_state[key], current_state[key]
+            server, key, data, "status change", previous_state[key], data
         )
         for key, data in current_state.items()
         if key in previous_state and data["status"] != previous_state[key]["status"]

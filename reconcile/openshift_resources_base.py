@@ -54,14 +54,14 @@ from reconcile.utils.oc import (
     OCLogMsg,
     StatusCodeError,
 )
-from reconcile.utils.openshift_resource import ConstructResourceError
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import (
+    ConstructResourceError,
     ResourceInventory,
     ResourceKeyExistsError,
     ResourceNotManagedError,
     base64_encode_secret_field_value,
 )
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver

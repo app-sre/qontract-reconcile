@@ -26,14 +26,14 @@ from reconcile.gql_definitions.slack_usergroups.permissions import (
     PermissionSlackUsergroupV1,
     ScheduleEntryV1,
 )
-from reconcile.gql_definitions.slack_usergroups.users import AccessV1
-from reconcile.gql_definitions.slack_usergroups.users import ClusterV1 as AccessCluster
 from reconcile.gql_definitions.slack_usergroups.users import (
+    AccessV1,
     NamespaceV1,
     NamespaceV1_ClusterV1,
     RoleV1,
     UserV1,
 )
+from reconcile.gql_definitions.slack_usergroups.users import ClusterV1 as AccessCluster
 from reconcile.slack_usergroups import (
     SlackMap,
     SlackObject,

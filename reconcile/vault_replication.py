@@ -372,7 +372,7 @@ def _get_start_end_secret(path: str) -> tuple[str, str]:
     if start[-1] != "/":
         start = start.rsplit("/", 1)[0] + "/"
     try:
-        end = path[path[path.rindex("}") : :].index("/") + path.rindex("}") : :]
+        end = path[path[path.rindex("}") :].index("/") + path.rindex("}") :]
     except ValueError:
         end = ""
 
