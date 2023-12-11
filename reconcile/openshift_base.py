@@ -113,16 +113,13 @@ class HasOrgAndGithubUsername(Protocol):
 class ClusterMap(Protocol):
     """An OCMap protocol."""
 
-    def get(self, cluster: str, privileged: bool = False) -> Union[OCCli, OCLogMsg]:
-        ...
+    def get(self, cluster: str, privileged: bool = False) -> Union[OCCli, OCLogMsg]: ...
 
-    def get_cluster(self, cluster: str, privileged: bool = False) -> OCCli:
-        ...
+    def get_cluster(self, cluster: str, privileged: bool = False) -> OCCli: ...
 
     def clusters(
         self, include_errors: bool = False, privileged: bool = False
-    ) -> list[str]:
-        ...
+    ) -> list[str]: ...
 
 
 def init_specs_to_fetch(
@@ -482,15 +479,13 @@ def apply(
             if resource_type != "StatefulSet":
                 raise
 
-            logging.info(
-                [
-                    "delete_sts_and_apply",
-                    cluster,
-                    namespace,
-                    resource_type,
-                    resource.name,
-                ]
-            )
+            logging.info([
+                "delete_sts_and_apply",
+                cluster,
+                namespace,
+                resource_type,
+                resource.name,
+            ])
             current_resource = oc.get(namespace, resource_type, resource.name)
             current_storage = oc.get_storage(current_resource)
             desired_storage = oc.get_storage(resource.body)

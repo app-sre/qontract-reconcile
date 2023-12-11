@@ -838,9 +838,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         identifier,
                         user=user_name,
                         policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
-                        depends_on=self.get_dependencies(
-                            [tf_iam_user, tf_aws_iam_policy]
-                        ),
+                        depends_on=self.get_dependencies([
+                            tf_iam_user,
+                            tf_aws_iam_policy,
+                        ]),
                     )
                     self.add_resource(account_name, tf_iam_user_policy_attachment)
 
@@ -958,13 +959,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                                 rec["path"]
                             )
                         )
-                    value = self.secret_reader.read(
-                        {
-                            "path": rec["path"],
-                            "field": rec["field"],
-                            "version": rec["version"],
-                        }
-                    )
+                    value = self.secret_reader.read({
+                        "path": rec["path"],
+                        "field": rec["field"],
+                        "version": rec["version"],
+                    })
                     # 'key' is only set when the secret data is in JSON format and a
                     # specific item from the object needs to be selected, otherwise the
                     # value is used as-is.
@@ -1922,9 +1921,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 # Terraform resource reference:
                 # https://www.terraform.io/docs/providers/aws/r/iam_policy_attachment.html
                 rc_values.clear()
-                rc_values["depends_on"] = self.get_dependencies(
-                    [role_resource, policy_resource]
-                )
+                rc_values["depends_on"] = self.get_dependencies([
+                    role_resource,
+                    policy_resource,
+                ])
                 rc_values["role"] = "${aws_iam_role." + id + ".name}"
                 rc_values["policy_arn"] = "${aws_iam_policy." + id + ".arn}"
                 tf_resource = aws_iam_role_policy_attachment(id, **rc_values)
@@ -2554,9 +2554,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             values = {}
             values["user"] = identifier
             values["policy_arn"] = "${" + policy_tf_resource.arn + "}"
-            values["depends_on"] = self.get_dependencies(
-                [user_tf_resource, policy_tf_resource]
-            )
+            values["depends_on"] = self.get_dependencies([
+                user_tf_resource,
+                policy_tf_resource,
+            ])
             tf_resource = aws_iam_user_policy_attachment(policy_identifier, **values)
             tf_resources.append(tf_resource)
 
@@ -3129,9 +3130,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         values = {}
         values["user"] = sqs_identifier
         values["policy_arn"] = "${" + policy_tf_resource.arn + "}"
-        values["depends_on"] = self.get_dependencies(
-            [user_tf_resource, policy_tf_resource]
-        )
+        values["depends_on"] = self.get_dependencies([
+            user_tf_resource,
+            policy_tf_resource,
+        ])
         user_policy_attachment_tf_resource = aws_iam_user_policy_attachment(
             sqs_identifier, **values
         )
@@ -3516,11 +3518,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             attachment_values = {
                 "role": role_tf_resource.name,
                 "policy_arn": "${" + policy_tf_resource.arn + "}",
-                "depends_on": self.get_dependencies(
-                    [
-                        role_tf_resource,
-                    ]
-                ),
+                "depends_on": self.get_dependencies([
+                    role_tf_resource,
+                ]),
             }
             attachment_tf_resource = aws_iam_role_policy_attachment(
                 policy_identifier, **attachment_values
@@ -4064,13 +4064,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         for t in ElasticSearchLogGroupType:
             log_type = t.value
             if log_type not in publish_log_types:
-                publishing_options.append(
-                    {
-                        "log_type": log_type,
-                        "enabled": False,
-                        "cloudwatch_log_group_arn": "",
-                    }
-                )
+                publishing_options.append({
+                    "log_type": log_type,
+                    "enabled": False,
+                    "cloudwatch_log_group_arn": "",
+                })
                 continue
 
             log_type_identifier = TerrascriptClient.elasticsearch_log_group_identifier(
@@ -4104,13 +4102,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             output_value = log_type_identifier
             tf_resources.append(Output(output_name_0_13, value=output_value))
-            publishing_options.append(
-                {
-                    "log_type": log_type,
-                    "enabled": True,
-                    "cloudwatch_log_group_arn": arn,
-                }
-            )
+            publishing_options.append({
+                "log_type": log_type,
+                "enabled": True,
+                "cloudwatch_log_group_arn": arn,
+            })
 
         return tf_resources, publishing_options
 
@@ -4929,9 +4925,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
                     target_resource = valid_targets[target_name]
 
-                    action_values["forward"]["target_group"].append(
-                        {"arn": f"${{{target_resource.arn}}}", "weight": a["weight"]}
-                    )
+                    action_values["forward"]["target_group"].append({
+                        "arn": f"${{{target_resource.arn}}}",
+                        "weight": a["weight"],
+                    })
                     weight_sum += a["weight"]
                 if weight_sum != 100:
                     raise ValueError(
@@ -5155,13 +5152,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 # https://www.terraform.io/docs/language/expressions/strings.html#escape-sequences
                 content = content.replace("${", "$${")
                 content = content.replace("%{", "%%{")
-                part.append(
-                    {
-                        "filename": c.get("filename"),
-                        "content_type": c.get("content_type"),
-                        "content": content,
-                    }
-                )
+                part.append({
+                    "filename": c.get("filename"),
+                    "content_type": c.get("content_type"),
+                    "content": content,
+                })
             cloudinit_value = {"gzip": True, "base64_encode": True, "part": part}
             cloudinit_data = data.template_cloudinit_config(
                 identifier, **cloudinit_value
@@ -5679,7 +5674,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         api_gateway_vpc_link_resource = aws_api_gateway_vpc_link(
             "vpc_link",
             name=f"{identifier}-vpc-link",
-            target_arns=[openshift_ingress_load_balancer_arn]
+            target_arns=[openshift_ingress_load_balancer_arn],
             # future: use data source to get vpc arn by annotation
         )
         tf_resources.append(api_gateway_vpc_link_resource)
@@ -5906,26 +5901,24 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(api_gateway_stage_resource)
 
-        rest_api_policy = json.dumps(
-            {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Principal": "*",
-                        "Action": "execute-api:Invoke",
-                        "Resource": "${aws_api_gateway_rest_api.gw_api.execution_arn}/*",
-                    },
-                    {
-                        "Effect": "Deny",
-                        "Principal": "*",
-                        "Action": "execute-api:Invoke",
-                        "Resource": "${aws_api_gateway_rest_api.gw_api.execution_arn}/*",
-                        "Condition": {"StringNotEquals": {"aws:SourceVpce": vpce_id}},
-                    },
-                ],
-            }
-        )
+        rest_api_policy = json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": "*",
+                    "Action": "execute-api:Invoke",
+                    "Resource": "${aws_api_gateway_rest_api.gw_api.execution_arn}/*",
+                },
+                {
+                    "Effect": "Deny",
+                    "Principal": "*",
+                    "Action": "execute-api:Invoke",
+                    "Resource": "${aws_api_gateway_rest_api.gw_api.execution_arn}/*",
+                    "Condition": {"StringNotEquals": {"aws:SourceVpce": vpce_id}},
+                },
+            ],
+        })
 
         # REST API POLICY
         api_gateway_rest_api_policy_resource = aws_api_gateway_rest_api_policy(
@@ -6275,20 +6268,18 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
                 secret_policy_values = {
                     "secret_arn": "${" + secret_resource.arn + "}",
-                    "policy": json.dumps(
-                        {
-                            "Version": "2012-10-17",
-                            "Statement": [
-                                {
-                                    "Sid": "AWSKafkaResourcePolicy",
-                                    "Effect": "Allow",
-                                    "Principal": {"Service": "kafka.amazonaws.com"},
-                                    "Action": "secretsmanager:getSecretValue",
-                                    "Resource": "${" + secret_resource.arn + "}",
-                                }
-                            ],
-                        }
-                    ),
+                    "policy": json.dumps({
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Sid": "AWSKafkaResourcePolicy",
+                                "Effect": "Allow",
+                                "Principal": {"Service": "kafka.amazonaws.com"},
+                                "Action": "secretsmanager:getSecretValue",
+                                "Resource": "${" + secret_resource.arn + "}",
+                            }
+                        ],
+                    }),
                 }
                 secret_policy = aws_secretsmanager_secret_policy(
                     secret_identifier, **secret_policy_values

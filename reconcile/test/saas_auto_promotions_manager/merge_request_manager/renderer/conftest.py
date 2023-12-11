@@ -43,7 +43,7 @@ def file_contents() -> Callable[[str], tuple[str, str]]:
 
 @pytest.fixture
 def subscriber_builder(
-    saas_target_namespace_builder: Callable[..., SaasTargetNamespace]
+    saas_target_namespace_builder: Callable[..., SaasTargetNamespace],
 ) -> Callable[[Mapping], Subscriber]:
     def builder(data: Mapping) -> Subscriber:
         subscriber = Subscriber(

@@ -56,12 +56,10 @@ class GlitchtipClient:  # pylint: disable=too-many-public-methods
             self._thread_local.session.mount(
                 "http://", requests.adapters.HTTPAdapter(max_retries=self.max_retries)
             )
-            self._thread_local.session.headers.update(
-                {
-                    "Authorization": f"Bearer {self.token}",
-                    "Content-Type": "application/json",
-                }
-            )
+            self._thread_local.session.headers.update({
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
+            })
             return self._thread_local.session
 
     def _get(self, url: str) -> dict[str, Any]:

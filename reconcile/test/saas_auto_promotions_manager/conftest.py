@@ -25,7 +25,7 @@ from reconcile.utils.vcs import VCS
 
 @pytest.fixture
 def saas_files_builder(
-    gql_class_factory: Callable[[type[SaasFile], Mapping], SaasFile]
+    gql_class_factory: Callable[[type[SaasFile], Mapping], SaasFile],
 ) -> Callable[[Iterable[MutableMapping]], list[SaasFile]]:
     def builder(data: Iterable[MutableMapping]) -> list[SaasFile]:
         for d in data:
@@ -78,7 +78,7 @@ def gql_client_builder() -> Callable[..., GitLabApi]:
 
 @pytest.fixture
 def saas_target_namespace_builder(
-    gql_class_factory: Callable[..., SaasTargetNamespace]
+    gql_class_factory: Callable[..., SaasTargetNamespace],
 ) -> Callable[..., SaasTargetNamespace]:
     def builder(data: MutableMapping) -> SaasTargetNamespace:
         if "environment" not in data:

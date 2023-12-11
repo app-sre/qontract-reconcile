@@ -43,20 +43,18 @@ def test_skupper_network_reconciler_delete_skupper_resources(
         assert oc.delete.call_count == 0
     else:
         assert oc.delete.call_count == 2
-        oc.delete.assert_has_calls(
-            [
-                call(
-                    site.namespace.name,
-                    "ConfigMap",
-                    another_fake_configmap["metadata"]["name"],
-                ),
-                call(
-                    site.namespace.name,
-                    "ConfigMap",
-                    fake_site_configmap["metadata"]["name"],
-                ),
-            ]
-        )
+        oc.delete.assert_has_calls([
+            call(
+                site.namespace.name,
+                "ConfigMap",
+                another_fake_configmap["metadata"]["name"],
+            ),
+            call(
+                site.namespace.name,
+                "ConfigMap",
+                fake_site_configmap["metadata"]["name"],
+            ),
+        ])
 
 
 def test_skupper_network_reconciler_get_token(

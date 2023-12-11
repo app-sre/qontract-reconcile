@@ -254,44 +254,42 @@ def test_delete_repo_without_flag(existing_repo, int_params):
 
 
 def test_get_repo_state(s3_state_builder, int_params, existing_repo):
-    state = s3_state_builder(
-        {
-            "ls": [
-                "/a_repo",
-            ],
-            "get": {
-                "a_repo": {
-                    "name": "a_repo",
-                    "repository": A_REPO,
-                    "ref": A_REPO_SHA,
-                    "projectPath": "tf",
-                    "delete": False,
-                    "requireFips": True,
-                    "account": {
-                        "name": "foo",
-                        "uid": AWS_UID,
-                        "automationToken": {
-                            "path": AUTOMATION_TOKEN_PATH,
-                            "field": "all",
-                            "version": 1,
-                            "format": None,
-                        },
-                        "terraformState": {
-                            "provider": "s3",
-                            "region": "us-east-1",
-                            "bucket": "app-sre",
-                            "integrations": [
-                                {
-                                    "integration": "terraform-repo",
-                                    "key": "tf-repo",
-                                }
-                            ],
-                        },
+    state = s3_state_builder({
+        "ls": [
+            "/a_repo",
+        ],
+        "get": {
+            "a_repo": {
+                "name": "a_repo",
+                "repository": A_REPO,
+                "ref": A_REPO_SHA,
+                "projectPath": "tf",
+                "delete": False,
+                "requireFips": True,
+                "account": {
+                    "name": "foo",
+                    "uid": AWS_UID,
+                    "automationToken": {
+                        "path": AUTOMATION_TOKEN_PATH,
+                        "field": "all",
+                        "version": 1,
+                        "format": None,
                     },
-                }
-            },
-        }
-    )
+                    "terraformState": {
+                        "provider": "s3",
+                        "region": "us-east-1",
+                        "bucket": "app-sre",
+                        "integrations": [
+                            {
+                                "integration": "terraform-repo",
+                                "key": "tf-repo",
+                            }
+                        ],
+                    },
+                },
+            }
+        },
+    })
 
     integration = TerraformRepoIntegration(params=int_params)
 

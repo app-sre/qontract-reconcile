@@ -47,19 +47,15 @@ def test_parse_valid_code_components():
         },
     ]
     expected = github_repo_invites.CodeComponents(
-        urls=set(
-            [
-                "https://github.com/org1/project1",
-                "https://github.com/org2/project1",
-                "https://github.com/org2/project2",
-            ]
-        ),
-        known_orgs=set(
-            [
-                "https://github.com/org1",
-                "https://github.com/org2",
-            ]
-        ),
+        urls=set([
+            "https://github.com/org1/project1",
+            "https://github.com/org2/project1",
+            "https://github.com/org2/project2",
+        ]),
+        known_orgs=set([
+            "https://github.com/org1",
+            "https://github.com/org2",
+        ]),
     )
     assert github_repo_invites._parse_code_components(raw_code_components) == expected
 

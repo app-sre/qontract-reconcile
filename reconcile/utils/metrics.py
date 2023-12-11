@@ -269,12 +269,10 @@ class MetricsContainer:
 
         unfiltered_results = [
             (
-                metric_class(
-                    **{
-                        key: labels[i]
-                        for i, key in enumerate(metric_class.__fields__.keys())
-                    }
-                ),
+                metric_class(**{
+                    key: labels[i]
+                    for i, key in enumerate(metric_class.__fields__.keys())
+                }),
                 value,
             )
             for labels, value in metrics.items()

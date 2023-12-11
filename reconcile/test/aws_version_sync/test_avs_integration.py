@@ -184,12 +184,10 @@ def test_avs_get_external_resource_specs(
         supported_providers=intg.params.supported_providers,
     )
     assert gql_mock.get_resource.call_count == 2
-    gql_mock.get_resource.assert_has_calls(
-        [
-            mocker.call("defaults.yml"),
-            mocker.call("defaults-2.yml"),
-        ]
-    )
+    gql_mock.get_resource.assert_has_calls([
+        mocker.call("defaults.yml"),
+        mocker.call("defaults-2.yml"),
+    ])
     assert eres == [
         ExternalResource(
             namespace_file="/namespace-file.yml",

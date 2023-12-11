@@ -4,6 +4,7 @@ The checks are defined in
 https://gitlab.cee.redhat.com/app-sre/contract/-/blob/master/content/process/sre_checkpoints.md
 
 """
+
 import logging
 import re
 from collections.abc import (

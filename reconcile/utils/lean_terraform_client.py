@@ -21,7 +21,7 @@ def state_rm_access_key(working_dirs, account, user):
 
 
 def _compute_terraform_env(
-    env: Optional[Mapping[str, str]] = None
+    env: Optional[Mapping[str, str]] = None,
 ) -> Mapping[str, str]:
     default_env = os.environ.copy()
     return default_env if env is None else {**default_env, **env}

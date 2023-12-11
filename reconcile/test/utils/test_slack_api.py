@@ -42,17 +42,15 @@ def slack_api(mocker):
 @pytest.fixture
 def conversation_history(slack_api):
     fixture = Fixtures("slack_api").get_anymarkup("conversations_history_messages.yaml")
-    response = new_slack_response(
-        {
-            "ok": True,
-            "messages": fixture,
-            "has_more": False,
-            "pin_count": 1,
-            "channel_actions_ts": None,
-            "channel_actions_count": 0,
-            "response_metadata": {"next_cursor": "bmV4dF90czoxNjg3NTIyMjA5MDMyMTM5"},
-        }
-    )
+    response = new_slack_response({
+        "ok": True,
+        "messages": fixture,
+        "has_more": False,
+        "pin_count": 1,
+        "channel_actions_ts": None,
+        "channel_actions_count": 0,
+        "response_metadata": {"next_cursor": "bmV4dF90czoxNjg3NTIyMjA5MDMyMTM5"},
+    })
     slack_api.mock_slack_client.return_value.conversations_history.side_effect = (
         response
     )
@@ -311,12 +309,10 @@ def test_create_usergroup(slack_api):
     ],
 )
 def test_get_users_by_ids(slack_api, user, ids, expected):
-    slack_response = new_slack_response(
-        {
-            "members": [user],
-            "response_metadata": {"next_cursor": ""},
-        }
-    )
+    slack_response = new_slack_response({
+        "members": [user],
+        "response_metadata": {"next_cursor": ""},
+    })
     slack_api.mock_slack_client.return_value.api_call.return_value = slack_response
 
     assert slack_api.client.get_users_by_ids(ids) == expected

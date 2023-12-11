@@ -98,18 +98,15 @@ def collect_state(saas_files: list[SaasFile]) -> list[State]:
                 parameters.update(resource_template.parameters or {})
                 parameters.update(target.parameters or {})
                 secret_parameters: dict[str, VaultSecret] = {}
-                secret_parameters.update(
-                    {s.name: s.secret for s in saas_file.secret_parameters or []}
-                )
-                secret_parameters.update(
-                    {
-                        s.name: s.secret
-                        for s in resource_template.secret_parameters or []
-                    }
-                )
-                secret_parameters.update(
-                    {s.name: s.secret for s in target.secret_parameters or []}
-                )
+                secret_parameters.update({
+                    s.name: s.secret for s in saas_file.secret_parameters or []
+                })
+                secret_parameters.update({
+                    s.name: s.secret for s in resource_template.secret_parameters or []
+                })
+                secret_parameters.update({
+                    s.name: s.secret for s in target.secret_parameters or []
+                })
                 state.append(
                     State(
                         saas_file_path=saas_file.path,
@@ -194,9 +191,9 @@ def update_mr_with_ref_diffs(
             current_state, desired_state, changed_paths
         )
         if compare_diffs:
-            compare_diffs_comment_body = "Diffs:\n" + "\n".join(
-                [f"- {d}" for d in compare_diffs]
-            )
+            compare_diffs_comment_body = "Diffs:\n" + "\n".join([
+                f"- {d}" for d in compare_diffs
+            ])
             gl.delete_merge_request_comments(merge_request, startswith="Diffs:")
             gl.add_comment_to_merge_request(merge_request, compare_diffs_comment_body)
 

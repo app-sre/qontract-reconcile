@@ -140,9 +140,9 @@ def test_ocm_labels_fetch_desired_state(
     clusters: list[ClusterV1],
     subscription_label_desired_state: LabelState,
 ) -> None:
-    desired_state = ocm_labels.fetch_desired_state(
-        [init_cluster_subscription_label_source(clusters)]
-    )
+    desired_state = ocm_labels.fetch_desired_state([
+        init_cluster_subscription_label_source(clusters)
+    ])
     assert desired_state == subscription_label_desired_state
 
 

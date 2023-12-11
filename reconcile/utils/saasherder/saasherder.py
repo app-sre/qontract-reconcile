@@ -429,8 +429,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 self.valid = False
                 # This should never be possible theoretically ...
                 logging.error(
-                    "Non-unique resource template reference {} in "
-                    "channel {}".format(rt_ref, channel)
+                    "Non-unique resource template reference {} in " "channel {}".format(
+                        rt_ref, channel
+                    )
                 )
                 continue
             publications[channel].add(rt_ref)

@@ -106,25 +106,21 @@ class QontractServerBundleDiffDataBuilder:
     ) -> "QontractServerBundleDiffDataBuilder":
         entry = QontractServerResourcefileDiff(resourcepath=path)
         if old_content:
-            entry.old = QontractServerResourcefileDiffState(
-                **{
-                    "path": path,
-                    "content": old_content,
-                    "$schema": schema,
-                    "sha256sum": _sha256_sum(old_content),
-                    "backrefs": old_backrefs,
-                }
-            )
+            entry.old = QontractServerResourcefileDiffState(**{
+                "path": path,
+                "content": old_content,
+                "$schema": schema,
+                "sha256sum": _sha256_sum(old_content),
+                "backrefs": old_backrefs,
+            })
         if new_content:
-            entry.new = QontractServerResourcefileDiffState(
-                **{
-                    "path": path,
-                    "content": new_content,
-                    "$schema": schema,
-                    "sha256sum": _sha256_sum(new_content),
-                    "backrefs": new_backrefs,
-                }
-            )
+            entry.new = QontractServerResourcefileDiffState(**{
+                "path": path,
+                "content": new_content,
+                "$schema": schema,
+                "sha256sum": _sha256_sum(new_content),
+                "backrefs": new_backrefs,
+            })
         self._diff.resources[path] = entry
 
         return self

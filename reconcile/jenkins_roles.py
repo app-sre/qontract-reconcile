@@ -86,9 +86,11 @@ def get_current_state(jenkins_map):
                 continue
 
             for user in users:
-                current_state.append(
-                    {"instance": instance, "role": role_name, "user": user}
-                )
+                current_state.append({
+                    "instance": instance,
+                    "role": role_name,
+                    "user": user,
+                })
 
     return current_state
 
@@ -104,24 +106,20 @@ def get_desired_state():
                 continue
 
             for u in r["users"]:
-                desired_state.append(
-                    {
-                        "instance": p["instance"]["name"],
-                        "role": p["role"],
-                        "user": u["org_username"],
-                    }
-                )
+                desired_state.append({
+                    "instance": p["instance"]["name"],
+                    "role": p["role"],
+                    "user": u["org_username"],
+                })
             for u in r["bots"]:
                 if u["org_username"] is None:
                     continue
 
-                desired_state.append(
-                    {
-                        "instance": p["instance"]["name"],
-                        "role": p["role"],
-                        "user": u["org_username"],
-                    }
-                )
+                desired_state.append({
+                    "instance": p["instance"]["name"],
+                    "role": p["role"],
+                    "user": u["org_username"],
+                })
 
     return desired_state
 
@@ -151,14 +149,12 @@ def subtract_states(from_state, subtract_state, action):
             found = True
             break
         if not found:
-            result.append(
-                {
-                    "action": action,
-                    "instance": f_user["instance"],
-                    "role": f_user["role"],
-                    "user": f_user["user"],
-                }
-            )
+            result.append({
+                "action": action,
+                "instance": f_user["instance"],
+                "role": f_user["role"],
+                "user": f_user["user"],
+            })
 
     return result
 

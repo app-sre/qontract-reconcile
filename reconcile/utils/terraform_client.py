@@ -120,9 +120,12 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             for user_name, enc_password in user_passwords.items():
                 if AccountUser(account, user_name) not in self.created_users:
                     continue
-                new_users.append(
-                    (account, console_urls[account], user_name, enc_password)
-                )
+                new_users.append((
+                    account,
+                    console_urls[account],
+                    user_name,
+                    enc_password,
+                ))
         return new_users
 
     def init_specs(self):
@@ -329,15 +332,13 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                         )
                         continue
                 with self._log_lock:
-                    logging.info(
-                        [
-                            action,
-                            name,
-                            resource_type,
-                            resource_name,
-                            self._resource_diff_changed_fields(action, resource_change),
-                        ]
-                    )
+                    logging.info([
+                        action,
+                        name,
+                        resource_type,
+                        resource_name,
+                        self._resource_diff_changed_fields(action, resource_change),
+                    ])
                     self.should_apply = True
                 if action == "create":
                     if resource_type == "aws_iam_user_login_profile":

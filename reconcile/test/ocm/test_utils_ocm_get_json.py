@@ -22,9 +22,9 @@ def build_paged_ocm_response(nr_of_items: int, page_size: int) -> list[dict[str,
     paged_responses = []
     item_range = range(0, nr_of_items)
     page_nr = 0
-    for page_nr, page in enumerate(
-        [item_range[i : i + page_size] for i in range(0, nr_of_items, page_size)]
-    ):
+    for page_nr, page in enumerate([
+        item_range[i : i + page_size] for i in range(0, nr_of_items, page_size)
+    ]):
         items = [{"id": x} for x in page]
         paged_responses.append(buid_ocm_item_page(page_nr + 1, items, nr_of_items))
     paged_responses.append(buid_ocm_item_page(page_nr + 1, [], nr_of_items))
@@ -42,17 +42,15 @@ def test_get_json_pagination(
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
     find_all_ocm_http_requests: Callable[[str, str], list[HTTPrettyRequest]],
 ) -> None:
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri="/api",
-                responses=build_paged_ocm_response(
-                    nr_of_items=nr_of_items, page_size=page_size
-                ),
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri="/api",
+            responses=build_paged_ocm_response(
+                nr_of_items=nr_of_items, page_size=page_size
+            ),
+        )
+    ])
 
     resp = ocm._get_json("/api", page_size=page_size)
 
@@ -70,15 +68,13 @@ def test_get_json_empty_list(
     ocm: OCM,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
 ) -> None:
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri="/api",
-                responses=build_paged_ocm_response(nr_of_items=0, page_size=10),
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri="/api",
+            responses=build_paged_ocm_response(nr_of_items=0, page_size=10),
+        )
+    ])
 
     resp = ocm._get_json("/api", page_size=10)
 
@@ -91,15 +87,13 @@ def test_get_json(
     ocm: OCM,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
 ) -> None:
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri="/api",
-                responses=[{"kind": "test", "id": 1}],
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri="/api",
+            responses=[{"kind": "test", "id": 1}],
+        )
+    ])
 
     x = ocm._get_json("/api")
     assert x["id"] == 1

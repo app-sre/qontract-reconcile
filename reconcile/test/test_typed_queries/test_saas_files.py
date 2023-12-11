@@ -272,16 +272,14 @@ def test_create_targets_for_namespace_selector(
                 "parameters": '{"FOO": "BAR"}',
             },
         ),
-        namespace_selector=SaasResourceTemplateTargetNamespaceSelectorV1(
-            **{
-                "jsonPathSelectors": {
-                    "include": [
-                        'namespace[?@.app.name="example"]',
-                    ],
-                    "exclude": [],
-                }
+        namespace_selector=SaasResourceTemplateTargetNamespaceSelectorV1(**{
+            "jsonPathSelectors": {
+                "include": [
+                    'namespace[?@.app.name="example"]',
+                ],
+                "exclude": [],
             }
-        ),
+        }),
     )
     assert len(items) == 2
     assert items[0].namespace.name == "example-01"  # type: ignore
@@ -609,7 +607,7 @@ def test_get_saas_files(
 
 
 def test_get_saasherder_settings(
-    query_func_from_fixture: Callable[..., Callable]
+    query_func_from_fixture: Callable[..., Callable],
 ) -> None:
     setting = get_saasherder_settings(
         query_func=query_func_from_fixture(

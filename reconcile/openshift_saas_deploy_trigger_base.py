@@ -374,12 +374,10 @@ def _construct_tekton_trigger_resource(
                 "reason must be provided if include_trigger_trace is True"
             )
 
-        parameters.extend(
-            [
-                {"name": "trigger_integration", "value": integration},
-                {"name": "trigger_reason", "value": reason},
-            ]
-        )
+        parameters.extend([
+            {"name": "trigger_integration", "value": integration},
+            {"name": "trigger_reason", "value": reason},
+        ])
     body: dict[str, Any] = {
         "apiVersion": "tekton.dev/v1",
         "kind": "PipelineRun",

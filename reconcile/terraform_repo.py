@@ -246,14 +246,18 @@ class TerraformRepoIntegration(
             output.append(add_val)
         for change_key, change_val in diff_result.change.items():
             if change_val.desired.delete:
-                logging.info(
-                    ["delete_repo", change_val.desired.account.name, change_key]
-                )
+                logging.info([
+                    "delete_repo",
+                    change_val.desired.account.name,
+                    change_key,
+                ])
                 output.append(change_val.desired)
             else:
-                logging.info(
-                    ["update_repo", change_val.desired.account.name, change_key]
-                )
+                logging.info([
+                    "update_repo",
+                    change_val.desired.account.name,
+                    change_key,
+                ])
                 output.append(change_val.desired)
         return output
 
@@ -390,9 +394,9 @@ class TerraformRepoIntegration(
                         )
 
                 if len(diff_urls) > 0:
-                    comment_body = "tf-repo diffs:\n" + "\n".join(
-                        [f"- {d}" for d in diff_urls]
-                    )
+                    comment_body = "tf-repo diffs:\n" + "\n".join([
+                        f"- {d}" for d in diff_urls
+                    ])
                     gl.delete_merge_request_comments(mr, startswith="tf-repo diffs:")
                     gl.add_comment_to_merge_request(mr, comment_body)
 

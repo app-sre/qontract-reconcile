@@ -11,18 +11,16 @@ from reconcile.utils.state import State
 
 
 def test_key_exists_v1(s3_state_builder: Callable[[Mapping], State]):
-    state = s3_state_builder(
-        {
-            "ls": ["/promotions_v2/channel/uid/sha"],
-            "get": {
-                "promotions_v2/channel/uid/sha": {
-                    "success": True,
-                    "target_config_hash": "hash",
-                    "saas_file": "saas_file",
-                }
-            },
-        }
-    )
+    state = s3_state_builder({
+        "ls": ["/promotions_v2/channel/uid/sha"],
+        "get": {
+            "promotions_v2/channel/uid/sha": {
+                "success": True,
+                "target_config_hash": "hash",
+                "saas_file": "saas_file",
+            }
+        },
+    })
     deployment_state = PromotionState(state=state)
     deployment_state.cache_commit_shas_from_s3()
     deployment_info = deployment_state.get_promotion_data(
@@ -36,18 +34,16 @@ def test_key_exists_v1(s3_state_builder: Callable[[Mapping], State]):
 
 
 def test_key_exists_v2(s3_state_builder: Callable[[Mapping], State]):
-    state = s3_state_builder(
-        {
-            "ls": ["/promotions_v2/channel/uid/sha"],
-            "get": {
-                "promotions_v2/channel/uid/sha": {
-                    "success": True,
-                    "target_config_hash": "hash",
-                    "saas_file": "saas_file",
-                }
-            },
-        }
-    )
+    state = s3_state_builder({
+        "ls": ["/promotions_v2/channel/uid/sha"],
+        "get": {
+            "promotions_v2/channel/uid/sha": {
+                "success": True,
+                "target_config_hash": "hash",
+                "saas_file": "saas_file",
+            }
+        },
+    })
     deployment_state = PromotionState(state=state)
     deployment_state.cache_commit_shas_from_s3()
     deployment_info = deployment_state.get_promotion_data(
@@ -61,12 +57,10 @@ def test_key_exists_v2(s3_state_builder: Callable[[Mapping], State]):
 
 
 def test_key_does_not_exist(s3_state_builder: Callable[[Mapping], State]):
-    state = s3_state_builder(
-        {
-            "ls": [],
-            "get": {},
-        }
-    )
+    state = s3_state_builder({
+        "ls": [],
+        "get": {},
+    })
     deployment_state = PromotionState(state=state)
     deployment_state.cache_commit_shas_from_s3()
     deployment_info = deployment_state.get_promotion_data(
@@ -76,18 +70,16 @@ def test_key_does_not_exist(s3_state_builder: Callable[[Mapping], State]):
 
 
 def test_key_does_not_exist_locally(s3_state_builder: Callable[[Mapping], State]):
-    state = s3_state_builder(
-        {
-            "ls": [],
-            "get": {
-                "promotions_v2/channel/uid/sha": {
-                    "success": True,
-                    "target_config_hash": "hash",
-                    "saas_file": "saas_file",
-                }
-            },
-        }
-    )
+    state = s3_state_builder({
+        "ls": [],
+        "get": {
+            "promotions_v2/channel/uid/sha": {
+                "success": True,
+                "target_config_hash": "hash",
+                "saas_file": "saas_file",
+            }
+        },
+    })
     deployment_state = PromotionState(state=state)
     deployment_info = deployment_state.get_promotion_data(
         channel="channel", sha="sha", target_uid="uid", local_lookup=False
@@ -98,12 +90,10 @@ def test_key_does_not_exist_locally(s3_state_builder: Callable[[Mapping], State]
 
 
 def test_publish_info(s3_state_builder: Callable[[Mapping], State]):
-    state = s3_state_builder(
-        {
-            "ls": [],
-            "get": {},
-        }
-    )
+    state = s3_state_builder({
+        "ls": [],
+        "get": {},
+    })
     deployment_state = PromotionState(state=state)
     promotion_info = PromotionData(
         success=True,

@@ -19,7 +19,7 @@ from reconcile.utils import (
 
 @pytest.fixture
 def saas_file_builder(
-    gql_class_factory: Callable[..., SaasFile]
+    gql_class_factory: Callable[..., SaasFile],
 ) -> Callable[..., SaasFile]:
     def builder(saas_name: str) -> SaasFile:
         return gql_class_factory(

@@ -26,17 +26,15 @@ def test_build_sre_capability_label_key() -> None:
 
 @pytest.fixture
 def label_container() -> LabelContainer:
-    return build_label_container(
-        [
-            build_label(sre_capability_label_key("c", "str_label"), "str"),
-            build_label(sre_capability_label_key("c", "int_label"), "5"),
-            build_label(sre_capability_label_key("c", "bool_label"), "true"),
-            build_label(sre_capability_label_key("c", "csv_label"), "a,b,c"),
-            build_label(sre_capability_label_key("c", "group.a"), "a"),
-            build_label(sre_capability_label_key("c", "group.b"), "b"),
-            build_label(sre_capability_label_key("c", "group.c"), "c"),
-        ]
-    )
+    return build_label_container([
+        build_label(sre_capability_label_key("c", "str_label"), "str"),
+        build_label(sre_capability_label_key("c", "int_label"), "5"),
+        build_label(sre_capability_label_key("c", "bool_label"), "true"),
+        build_label(sre_capability_label_key("c", "csv_label"), "a,b,c"),
+        build_label(sre_capability_label_key("c", "group.a"), "a"),
+        build_label(sre_capability_label_key("c", "group.b"), "b"),
+        build_label(sre_capability_label_key("c", "group.c"), "c"),
+    ])
 
 
 class SimpleLabelSet(BaseModel):

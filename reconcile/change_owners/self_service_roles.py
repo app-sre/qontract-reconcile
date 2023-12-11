@@ -159,54 +159,46 @@ def change_type_contexts_for_self_service_roles(
                 for ct_lineage in change_types_by_name[
                     ownership.change_type.name
                 ].lineage:
-                    owning_roles.update(
-                        {
-                            role.name: role
-                            for role in role_lookup[
-                                (
-                                    ownership.owned_file_ref.file_type,
-                                    ownership.owned_file_ref.path,
-                                    ct_lineage,
-                                )
-                            ]
-                        }
-                    )
-                owning_roles.update(
-                    {
+                    owning_roles.update({
                         role.name: role
-                        for role in (
-                            schema_role_lookup[
-                                (
-                                    ownership.owned_file_ref.schema,
-                                    ownership.change_type.name,
-                                )
-                            ]
-                            if ownership.owned_file_ref.schema
-                            else []
-                        )
-                    }
-                )
-                for role in owning_roles.values():
-                    change_type_contexts.append(
-                        (
-                            bc,
-                            ChangeTypeContext(
-                                change_type_processor=ctp,
-                                context=f"RoleV1 - {role.name}",
-                                origin=ownership.change_type.name,
-                                approvers=[
-                                    approver
-                                    for rm in resolved_approvers.get(role.name, [])
-                                    if (approver := build_approver(rm)) is not None
-                                ],
-                                approver_reachability=approver_reachability_from_role(
-                                    role
-                                ),
-                                change_owner_labels=change_type_labels_from_role(role),
-                                context_file=ownership.context_file_ref,
-                            ),
-                        )
+                        for role in role_lookup[
+                            (
+                                ownership.owned_file_ref.file_type,
+                                ownership.owned_file_ref.path,
+                                ct_lineage,
+                            )
+                        ]
+                    })
+                owning_roles.update({
+                    role.name: role
+                    for role in (
+                        schema_role_lookup[
+                            (
+                                ownership.owned_file_ref.schema,
+                                ownership.change_type.name,
+                            )
+                        ]
+                        if ownership.owned_file_ref.schema
+                        else []
                     )
+                })
+                for role in owning_roles.values():
+                    change_type_contexts.append((
+                        bc,
+                        ChangeTypeContext(
+                            change_type_processor=ctp,
+                            context=f"RoleV1 - {role.name}",
+                            origin=ownership.change_type.name,
+                            approvers=[
+                                approver
+                                for rm in resolved_approvers.get(role.name, [])
+                                if (approver := build_approver(rm)) is not None
+                            ],
+                            approver_reachability=approver_reachability_from_role(role),
+                            change_owner_labels=change_type_labels_from_role(role),
+                            context_file=ownership.context_file_ref,
+                        ),
+                    ))
     return change_type_contexts
 
 
@@ -225,8 +217,7 @@ def build_approver(role_member: RoleMember) -> Optional[Approver]:
                 if role_member.org_username
                 else None
             )
-        case _:
-            return None
+    return None
 
 
 def change_type_labels_from_role(role: RoleV1) -> set[str]:

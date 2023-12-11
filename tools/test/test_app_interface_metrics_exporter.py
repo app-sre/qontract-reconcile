@@ -12,11 +12,9 @@ from tools.app_interface_metrics_exporter import (
 
 @pytest.fixture
 def onbaoarding_status() -> Counter:
-    return Counter(
-        {
-            "OnBoarded": 2,
-        }
-    )
+    return Counter({
+        "OnBoarded": 2,
+    })
 
 
 def test_app_interface_metrics_exporter_main(

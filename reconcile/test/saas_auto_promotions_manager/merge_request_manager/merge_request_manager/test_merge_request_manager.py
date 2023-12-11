@@ -29,27 +29,23 @@ def test_close_old_content(
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
     subscribers = [
-        subscriber_builder(
-            {
-                SUBSCRIBER_TARGET_NAMESPACE: {"path": "namespace1"},
-                SUBSCRIBER_TARGET_PATH: "target1",
-                SUBSCRIBER_DESIRED_REF: "new_sha",
-                SUBSCRIBER_DESIRED_CONFIG_HASHES: [],
-                SUBSCRIBER_CHANNELS: ["channel-a", "channel-b"],
-            }
-        )
+        subscriber_builder({
+            SUBSCRIBER_TARGET_NAMESPACE: {"path": "namespace1"},
+            SUBSCRIBER_TARGET_PATH: "target1",
+            SUBSCRIBER_DESIRED_REF: "new_sha",
+            SUBSCRIBER_DESIRED_CONFIG_HASHES: [],
+            SUBSCRIBER_CHANNELS: ["channel-a", "channel-b"],
+        })
     ]
 
-    vcs = vcs_builder(
-        {
-            OPEN_MERGE_REQUESTS: [
-                {
-                    SUBSCRIBER_CONTENT_HASH: "oldcontent",
-                    SUBSCRIBER_CHANNELS: "channel-a,channel-b",
-                }
-            ]
-        }
-    )
+    vcs = vcs_builder({
+        OPEN_MERGE_REQUESTS: [
+            {
+                SUBSCRIBER_CONTENT_HASH: "oldcontent",
+                SUBSCRIBER_CHANNELS: "channel-a,channel-b",
+            }
+        ]
+    })
 
     merge_request_manager = MergeRequestManager(
         vcs=vcs,
@@ -71,28 +67,24 @@ def test_merge_request_already_opened(
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
     subscribers = [
-        subscriber_builder(
-            {
-                SUBSCRIBER_TARGET_NAMESPACE: {"path": "namespace1"},
-                SUBSCRIBER_TARGET_PATH: "target1",
-                SUBSCRIBER_DESIRED_REF: "new_sha",
-                SUBSCRIBER_DESIRED_CONFIG_HASHES: [],
-                SUBSCRIBER_CHANNELS: ["channel-a"],
-            }
-        )
+        subscriber_builder({
+            SUBSCRIBER_TARGET_NAMESPACE: {"path": "namespace1"},
+            SUBSCRIBER_TARGET_PATH: "target1",
+            SUBSCRIBER_DESIRED_REF: "new_sha",
+            SUBSCRIBER_DESIRED_CONFIG_HASHES: [],
+            SUBSCRIBER_CHANNELS: ["channel-a"],
+        })
     ]
     content_hash = Subscriber.combined_content_hash(subscribers=subscribers)
 
-    vcs = vcs_builder(
-        {
-            OPEN_MERGE_REQUESTS: [
-                {
-                    SUBSCRIBER_CONTENT_HASH: content_hash,
-                    SUBSCRIBER_CHANNELS: "channel-a",
-                }
-            ]
-        }
-    )
+    vcs = vcs_builder({
+        OPEN_MERGE_REQUESTS: [
+            {
+                SUBSCRIBER_CONTENT_HASH: content_hash,
+                SUBSCRIBER_CHANNELS: "channel-a",
+            }
+        ]
+    })
 
     merge_request_manager = MergeRequestManager(
         vcs=vcs,
@@ -114,28 +106,24 @@ def test_ignore_unrelated_channels(
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
     subscribers = [
-        subscriber_builder(
-            {
-                SUBSCRIBER_TARGET_NAMESPACE: {"path": "namespace1"},
-                SUBSCRIBER_TARGET_PATH: "target1",
-                SUBSCRIBER_DESIRED_REF: "new_sha",
-                SUBSCRIBER_DESIRED_CONFIG_HASHES: [],
-                SUBSCRIBER_CHANNELS: ["channel-a"],
-            }
-        )
+        subscriber_builder({
+            SUBSCRIBER_TARGET_NAMESPACE: {"path": "namespace1"},
+            SUBSCRIBER_TARGET_PATH: "target1",
+            SUBSCRIBER_DESIRED_REF: "new_sha",
+            SUBSCRIBER_DESIRED_CONFIG_HASHES: [],
+            SUBSCRIBER_CHANNELS: ["channel-a"],
+        })
     ]
     content_hash = Subscriber.combined_content_hash(subscribers=subscribers)
 
-    vcs = vcs_builder(
-        {
-            OPEN_MERGE_REQUESTS: [
-                {
-                    SUBSCRIBER_CONTENT_HASH: content_hash,
-                    SUBSCRIBER_CHANNELS: "other-channel",
-                }
-            ]
-        }
-    )
+    vcs = vcs_builder({
+        OPEN_MERGE_REQUESTS: [
+            {
+                SUBSCRIBER_CONTENT_HASH: content_hash,
+                SUBSCRIBER_CHANNELS: "other-channel",
+            }
+        ]
+    })
 
     merge_request_manager = MergeRequestManager(
         vcs=vcs,

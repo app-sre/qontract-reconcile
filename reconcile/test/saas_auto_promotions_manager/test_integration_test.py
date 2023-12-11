@@ -37,71 +37,67 @@ def test_integration_test(
     These saas files and states should result in a single
     merge request being opened.
     """
-    saas_files = saas_files_builder(
-        [
-            {
-                "path": "/saas1.yml",
-                "name": "saas_1",
-                "resourceTemplates": [
-                    {
-                        "name": "template_1",
-                        "url": "repo1/url",
-                        "targets": [
-                            {
-                                "ref": "main",
-                                "namespace": {"path": "/namespace1.yml"},
-                                "promotion": {
-                                    "publish": ["channel-1"],
-                                },
+    saas_files = saas_files_builder([
+        {
+            "path": "/saas1.yml",
+            "name": "saas_1",
+            "resourceTemplates": [
+                {
+                    "name": "template_1",
+                    "url": "repo1/url",
+                    "targets": [
+                        {
+                            "ref": "main",
+                            "namespace": {"path": "/namespace1.yml"},
+                            "promotion": {
+                                "publish": ["channel-1"],
                             },
-                            {
-                                "ref": "main",
-                                "namespace": {"path": "/namespace2.yml"},
-                                "promotion": {
-                                    "publish": ["channel-2"],
-                                },
+                        },
+                        {
+                            "ref": "main",
+                            "namespace": {"path": "/namespace2.yml"},
+                            "promotion": {
+                                "publish": ["channel-2"],
                             },
-                        ],
-                    }
-                ],
-            },
-            {
-                "path": "/saas2.yml",
-                "name": "saas_2",
-                "resourceTemplates": [
-                    {
-                        "name": "template_2",
-                        "url": "repo1/url",
-                        "targets": [
-                            {
-                                "ref": "current_sha",
-                                "namespace": {"path": "/namespace3.yml"},
-                                "promotion": {
-                                    "subscribe": ["channel-1", "channel-2"],
-                                    "auto": True,
-                                },
-                            }
-                        ],
-                    }
-                ],
-            },
-        ]
-    )
+                        },
+                    ],
+                }
+            ],
+        },
+        {
+            "path": "/saas2.yml",
+            "name": "saas_2",
+            "resourceTemplates": [
+                {
+                    "name": "template_2",
+                    "url": "repo1/url",
+                    "targets": [
+                        {
+                            "ref": "current_sha",
+                            "namespace": {"path": "/namespace3.yml"},
+                            "promotion": {
+                                "subscribe": ["channel-1", "channel-2"],
+                                "auto": True,
+                            },
+                        }
+                    ],
+                }
+            ],
+        },
+    ])
     vcs = vcs_builder()
-    deployment_state = promotion_state_builder(
-        [
-            PromotionData(
-                success=True,
-                target_config_hash="new_hash",
-                saas_file="saas_1",
-            ),
-            PromotionData(
-                success=True,
-                target_config_hash="new_hash",
-                saas_file="saas_1",
-            ),
-        ]
-    )
+    deployment_state = promotion_state_builder([
+        PromotionData(
+            success=True,
+            target_config_hash="new_hash",
+            saas_file="saas_1",
+        ),
+        PromotionData(
+            success=True,
+            target_config_hash="new_hash",
+            saas_file="saas_1",
+        ),
+    ])
     renderer = create_autospec(spec=Renderer)
     merge_request_manager = MergeRequestManager(
         vcs=vcs,

@@ -300,9 +300,12 @@ def test_close_item_with_enable_closing(
     gl_h.close_item(False, mocked_gl, True, "issue", mocked_issue)
 
     mocked_gl.close.assert_called_once_with(mocked_issue)
-    mocked_logging.info.assert_called_once_with(
-        ["close_item", project.name, "issue", 1]
-    )
+    mocked_logging.info.assert_called_once_with([
+        "close_item",
+        project.name,
+        "issue",
+        1,
+    ])
     mocked_logging.debug.assert_not_called()
 
 
@@ -319,7 +322,10 @@ def test_close_item_without_enable_closing(
     gl_h.close_item(False, mocked_gl, False, "issue", mocked_issue)
 
     mocked_gl.close.assert_not_called()
-    mocked_logging.debug.assert_called_once_with(
-        ["'enable_closing' is not enabled to close item", project.name, "issue", 1]
-    )
+    mocked_logging.debug.assert_called_once_with([
+        "'enable_closing' is not enabled to close item",
+        project.name,
+        "issue",
+        1,
+    ])
     mocked_logging.info.assert_not_called()

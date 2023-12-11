@@ -35,11 +35,9 @@ AN = "auth_name"
 IURL = "https://issuer-url.com/foo/bar"
 VID = f"{CLN}-{ORG}-{AN}-issuer-url.com"
 EXPECTED_SECRET = VaultSecret(path=f"{VI}/{VID}", field="", version=None, format=None)
-RHIDP_LABELS_CONTAINER = build_label_container(
-    [
-        build_label(common.STATUS_LABEL_KEY, "enabled"),
-    ]
-)
+RHIDP_LABELS_CONTAINER = build_label_container([
+    build_label(common.STATUS_LABEL_KEY, "enabled"),
+])
 ORG_ID_1 = "org-id-1"
 ORG_ID_2 = "org-id-2"
 CLUSTER_DETAILS_1 = build_cluster_details(
@@ -178,9 +176,9 @@ def test_rhidp_common_build_cluster_objects() -> None:
     # status disabled
     cluster_disabled = build_cluster_details(
         cluster_name="disabled",
-        subscription_labels=build_label_container(
-            [build_label(STATUS_LABEL_KEY, StatusValue.DISABLED.value)]
-        ),
+        subscription_labels=build_label_container([
+            build_label(STATUS_LABEL_KEY, StatusValue.DISABLED.value)
+        ]),
         org_id=ORG,
     )
     cluster_disabled_expected = Cluster(
@@ -192,9 +190,9 @@ def test_rhidp_common_build_cluster_objects() -> None:
     # status enforced
     cluster_enforced = build_cluster_details(
         cluster_name="enforced",
-        subscription_labels=build_label_container(
-            [build_label(STATUS_LABEL_KEY, StatusValue.ENFORCED.value)]
-        ),
+        subscription_labels=build_label_container([
+            build_label(STATUS_LABEL_KEY, StatusValue.ENFORCED.value)
+        ]),
         org_id=ORG,
     )
     cluster_enforced_expected = Cluster(
@@ -206,9 +204,9 @@ def test_rhidp_common_build_cluster_objects() -> None:
     # sso-client-only
     cluster_sso_client_only = build_cluster_details(
         cluster_name="sso-client-only",
-        subscription_labels=build_label_container(
-            [build_label(STATUS_LABEL_KEY, StatusValue.RHIDP_ONLY.value)]
-        ),
+        subscription_labels=build_label_container([
+            build_label(STATUS_LABEL_KEY, StatusValue.RHIDP_ONLY.value)
+        ]),
         org_id=ORG,
     )
     cluster_sso_client_only_expected = Cluster(
@@ -220,9 +218,9 @@ def test_rhidp_common_build_cluster_objects() -> None:
     # deprecated rhidp label
     cluster_deprecated_rhidp = build_cluster_details(
         cluster_name="deprecated-rhidp",
-        subscription_labels=build_label_container(
-            [build_label(common.RHIDP_NAMESPACE_LABEL_KEY, StatusValue.ENABLED.value)]
-        ),
+        subscription_labels=build_label_container([
+            build_label(common.RHIDP_NAMESPACE_LABEL_KEY, StatusValue.ENABLED.value)
+        ]),
         org_id=ORG,
     )
     cluster_deprecated_rhidp_expected = Cluster(
@@ -234,9 +232,9 @@ def test_rhidp_common_build_cluster_objects() -> None:
     # deprecated rhidp label with disabled status
     cluster_deprecated_rhidp_disabled = build_cluster_details(
         cluster_name="deprecated-rhidp-disabled",
-        subscription_labels=build_label_container(
-            [build_label(common.RHIDP_NAMESPACE_LABEL_KEY, StatusValue.DISABLED.value)]
-        ),
+        subscription_labels=build_label_container([
+            build_label(common.RHIDP_NAMESPACE_LABEL_KEY, StatusValue.DISABLED.value)
+        ]),
         org_id=ORG,
     )
     cluster_deprecated_rhidp_disabled_expected = Cluster(
@@ -248,12 +246,10 @@ def test_rhidp_common_build_cluster_objects() -> None:
     # with auth name
     cluster_auth_name = build_cluster_details(
         cluster_name="auth-name",
-        subscription_labels=build_label_container(
-            [
-                build_label(STATUS_LABEL_KEY, "enabled"),
-                build_label(AUTH_NAME_LABEL_KEY, "foobar-auth"),
-            ]
-        ),
+        subscription_labels=build_label_container([
+            build_label(STATUS_LABEL_KEY, "enabled"),
+            build_label(AUTH_NAME_LABEL_KEY, "foobar-auth"),
+        ]),
         org_id=ORG,
     )
     cluster_auth_name_expected = Cluster(
@@ -267,12 +263,10 @@ def test_rhidp_common_build_cluster_objects() -> None:
     # with issuer_url
     cluster_issuer_url = build_cluster_details(
         cluster_name="issuer-url",
-        subscription_labels=build_label_container(
-            [
-                build_label(STATUS_LABEL_KEY, "enabled"),
-                build_label(ISSUER_LABEL_KEY, "https://foobar.com"),
-            ]
-        ),
+        subscription_labels=build_label_container([
+            build_label(STATUS_LABEL_KEY, "enabled"),
+            build_label(ISSUER_LABEL_KEY, "https://foobar.com"),
+        ]),
         org_id=ORG,
     )
     cluster_issuer_url_expected = Cluster(
@@ -401,21 +395,19 @@ def test_rhidp_common_expose_base_metrics(
 ) -> None:
     metrics_container_mock = mocker.create_autospec(MetricsContainer)
     expose_base_metrics(metrics_container_mock, "integration", "stage", clusters)
-    metrics_container_mock.set_gauge.assert_has_calls(
-        [
-            call(
-                RhIdpClusterCounter(
-                    integration="integration", ocm_environment="stage", org_id=ORG_ID_1
-                ),
-                value=1,
+    metrics_container_mock.set_gauge.assert_has_calls([
+        call(
+            RhIdpClusterCounter(
+                integration="integration", ocm_environment="stage", org_id=ORG_ID_1
             ),
-            call(
-                RhIdpClusterCounter(
-                    integration="integration",
-                    ocm_environment="stage",
-                    org_id=ORG_ID_2,
-                ),
-                value=2,
+            value=1,
+        ),
+        call(
+            RhIdpClusterCounter(
+                integration="integration",
+                ocm_environment="stage",
+                org_id=ORG_ID_2,
             ),
-        ]
-    )
+            value=2,
+        ),
+    ])

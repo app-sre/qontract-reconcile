@@ -825,9 +825,12 @@ class OCCli:  # pylint: disable=too-many-public-methods
 
     @retry(max_attempts=20)
     def validate_pod_ready(self, namespace, name):
-        logging.info(
-            [self.validate_pod_ready.__name__, self.cluster_name, namespace, name]
-        )
+        logging.info([
+            self.validate_pod_ready.__name__,
+            self.cluster_name,
+            namespace,
+            name,
+        ])
         pod = self.get(namespace, "Pod", name)
         for status in pod["status"]["containerStatuses"]:
             if not status["ready"]:
@@ -843,14 +846,12 @@ class OCCli:  # pylint: disable=too-many-public-methods
 
         supported_kinds = ["Secret", "ConfigMap"]
         if dep_kind not in supported_kinds:
-            logging.debug(
-                [
-                    "skipping_pod_recycle_unsupported",
-                    self.cluster_name,
-                    namespace,
-                    dep_kind,
-                ]
-            )
+            logging.debug([
+                "skipping_pod_recycle_unsupported",
+                self.cluster_name,
+                namespace,
+                dep_kind,
+            ])
             return
 
         dep_annotations = dep_resource.body["metadata"].get("annotations", {})
@@ -858,14 +859,12 @@ class OCCli:  # pylint: disable=too-many-public-methods
         if qontract_recycle is True:
             raise RecyclePodsInvalidAnnotationValue('should be "true"')
         if qontract_recycle != "true":
-            logging.debug(
-                [
-                    "skipping_pod_recycle_no_annotation",
-                    self.cluster_name,
-                    namespace,
-                    dep_kind,
-                ]
-            )
+            logging.debug([
+                "skipping_pod_recycle_no_annotation",
+                self.cluster_name,
+                namespace,
+                dep_kind,
+            ])
             return
 
         dep_name = dep_resource.name

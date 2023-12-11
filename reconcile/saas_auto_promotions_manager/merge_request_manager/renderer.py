@@ -116,18 +116,16 @@ class Renderer:
                         applied_desired_hash = True
                 if not applied_desired_hash:
                     # This data block is not part of the promotion data yet -> add it
-                    cur_promotion_data.append(
-                        {
-                            "channel": desired_config_hash.channel,
-                            "data": [
-                                {
-                                    "parent_saas": desired_config_hash.parent_saas,
-                                    "target_config_hash": desired_config_hash.target_config_hash,
-                                    "type": "parent_saas_config",
-                                }
-                            ],
-                        }
-                    )
+                    cur_promotion_data.append({
+                        "channel": desired_config_hash.channel,
+                        "data": [
+                            {
+                                "parent_saas": desired_config_hash.parent_saas,
+                                "target_config_hash": desired_config_hash.target_config_hash,
+                                "type": "parent_saas_config",
+                            }
+                        ],
+                    })
             if cur_promotion_data:
                 target["promotion"]["promotion_data"] = cur_promotion_data
         new_content = "---\n"

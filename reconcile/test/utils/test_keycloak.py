@@ -27,12 +27,10 @@ def keycloak_openid_configuration_fake(
     httpretty.register_uri(
         httpretty.GET,
         f"{keycloak_url}/.well-known/openid-configuration",
-        body=json.dumps(
-            {
-                # no other fields are in use currently
-                "registration_endpoint": f"{keycloak_url}/clients-registrations/openid-connect",
-            }
-        ),
+        body=json.dumps({
+            # no other fields are in use currently
+            "registration_endpoint": f"{keycloak_url}/clients-registrations/openid-connect",
+        }),
         content_type="text/json",
     )
 
@@ -54,24 +52,22 @@ def test_keycloak_register_client(
     httpretty.register_uri(
         httpretty.POST,
         f"{keycloak_api._openid_configuration['registration_endpoint']}",  # type: ignore[index]
-        body=json.dumps(
-            {
-                "client_id": "test-client",
-                "client_id_issued_at": 0,
-                "client_name": "str",
-                "client_secret": "str",
-                "client_secret_expires_at": 0,
-                "grant_types": ["just-a-string"],
-                "redirect_uris": ["just-a-string"],
-                "registration_access_token": "str",
-                "registration_client_uri": "str",
-                "request_uris": ["just-a-string"],
-                "response_types": ["just-a-string"],
-                "subject_type": "str",
-                "tls_client_certificate_bound_access_tokens": False,
-                "token_endpoint_auth_method": "str",
-            }
-        ),
+        body=json.dumps({
+            "client_id": "test-client",
+            "client_id_issued_at": 0,
+            "client_name": "str",
+            "client_secret": "str",
+            "client_secret_expires_at": 0,
+            "grant_types": ["just-a-string"],
+            "redirect_uris": ["just-a-string"],
+            "registration_access_token": "str",
+            "registration_client_uri": "str",
+            "request_uris": ["just-a-string"],
+            "response_types": ["just-a-string"],
+            "subject_type": "str",
+            "tls_client_certificate_bound_access_tokens": False,
+            "token_endpoint_auth_method": "str",
+        }),
         content_type="text/json",
     )
     sso_client = keycloak_api.register_client(

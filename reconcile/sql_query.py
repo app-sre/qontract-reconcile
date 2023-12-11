@@ -140,9 +140,7 @@ metadata:
     integration: {{ QONTRACT_INTEGRATION }}
     query-name: {{ QUERY_NAME }}
 %s
-""" % (
-    JOB_SPEC
-)
+""" % (JOB_SPEC)
 
 
 CRONJOB_TEMPLATE = """
@@ -159,9 +157,7 @@ spec:
   concurrencyPolicy: "Forbid"
   jobTemplate:
     %s
-""" % (
-    indent(JOB_SPEC, 4 * " ")
-)
+""" % (indent(JOB_SPEC, 4 * " "))
 
 
 def get_tf_resource_info(

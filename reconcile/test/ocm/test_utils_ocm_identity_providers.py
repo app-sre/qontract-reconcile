@@ -40,19 +40,15 @@ def test_utils_get_subscription_labels(
 ) -> None:
     ocm_cluster = build_ocm_cluster("cluster")
     ocm_cluster.identity_providers.href = "/api/foobar"
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET", uri=ocm_cluster.identity_providers.href
-            ).add_list_response(
-                [
-                    IDP_OIDC.dict(by_alias=True),
-                    IDP_GH.dict(by_alias=True),
-                    IDP_OTHER.dict(by_alias=True),
-                ]
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET", uri=ocm_cluster.identity_providers.href
+        ).add_list_response([
+            IDP_OIDC.dict(by_alias=True),
+            IDP_GH.dict(by_alias=True),
+            IDP_OTHER.dict(by_alias=True),
+        ])
+    ])
 
     assert list(get_identity_providers(ocm_api, ocm_cluster)) == [
         IDP_OIDC,
@@ -68,9 +64,9 @@ def test_add_identity_provider(
 ) -> None:
     ocm_cluster = build_ocm_cluster("cluster")
     ocm_cluster.identity_providers.href = "/api/foobar"
-    register_ocm_url_responses(
-        [OcmUrl(method="POST", uri=ocm_cluster.identity_providers.href)]
-    )
+    register_ocm_url_responses([
+        OcmUrl(method="POST", uri=ocm_cluster.identity_providers.href)
+    ])
     add_identity_provider(ocm_api, ocm_cluster, IDP_OIDC)
     ocm_calls = find_all_ocm_http_requests("POST")
     assert len(ocm_calls) == 1

@@ -22,19 +22,17 @@ def test_content_single_target(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
-    subscriber = subscriber_builder(
-        {
-            NAMESPACE: {"path": "/some/namespace.yml"},
-            REF: "new_sha",
-            CONFIG_HASHES: [
-                ConfigHash(
-                    channel="channel-a",
-                    target_config_hash="new_hash",
-                    parent_saas="parent_saas",
-                )
-            ],
-        }
-    )
+    subscriber = subscriber_builder({
+        NAMESPACE: {"path": "/some/namespace.yml"},
+        REF: "new_sha",
+        CONFIG_HASHES: [
+            ConfigHash(
+                channel="channel-a",
+                target_config_hash="new_hash",
+                parent_saas="parent_saas",
+            )
+        ],
+    })
     saas_content, expected = file_contents("single_target")
     renderer = Renderer()
     result = renderer.render_merge_request_content(
@@ -49,19 +47,17 @@ def test_must_not_line_wrap(
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
     namespace_name = "/services/sosososolong/namespaces/loooooooooooooooooooooooooooooooooooooooooooooooooooooooooong.yml"
-    subscriber = subscriber_builder(
-        {
-            NAMESPACE: {"path": namespace_name},
-            REF: "new_sha",
-            CONFIG_HASHES: [
-                ConfigHash(
-                    channel="channel-a",
-                    target_config_hash="new_hash",
-                    parent_saas="parent_saas",
-                )
-            ],
-        }
-    )
+    subscriber = subscriber_builder({
+        NAMESPACE: {"path": namespace_name},
+        REF: "new_sha",
+        CONFIG_HASHES: [
+            ConfigHash(
+                channel="channel-a",
+                target_config_hash="new_hash",
+                parent_saas="parent_saas",
+            )
+        ],
+    })
     saas_content, expected = file_contents("single_target_long_name")
     renderer = Renderer()
     result = renderer.render_merge_request_content(

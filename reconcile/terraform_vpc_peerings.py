@@ -47,7 +47,7 @@ def find_matching_peering(from_cluster, to_cluster, desired_provider):
 
 
 def _get_default_management_account(
-    cluster: dict[str, Any]
+    cluster: dict[str, Any],
 ) -> Optional[dict[str, Any]]:
     cluster_infra_accounts = cluster["awsInfrastructureManagementAccounts"]
     for infra_account_def in cluster_infra_accounts or []:

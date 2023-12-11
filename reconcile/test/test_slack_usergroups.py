@@ -55,20 +55,18 @@ from .fixtures import Fixtures
 
 @pytest.fixture
 def base_state():
-    state = SlackState(
-        {
-            "slack-workspace": {
-                "usergroup-1": State(
-                    workspace="slack-workspace",
-                    usergroup="usergroup-1",
-                    usergroup_id="USERGA",
-                    users={SlackObject(name="username", pk="USERA")},
-                    channels={SlackObject(name="channelname", pk="CHANA")},
-                    description="Some description",
-                )
-            }
+    state = SlackState({
+        "slack-workspace": {
+            "usergroup-1": State(
+                workspace="slack-workspace",
+                usergroup="usergroup-1",
+                usergroup_id="USERGA",
+                users={SlackObject(name="username", pk="USERA")},
+                channels={SlackObject(name="channelname", pk="CHANA")},
+                description="Some description",
+            )
         }
-    )
+    })
 
     return state
 

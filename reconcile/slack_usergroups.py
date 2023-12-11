@@ -492,13 +492,11 @@ def get_desired_state_cluster_usergroups(
             for u in openshift_users_desired_state
             if u["cluster"] == cluster.name
         ]
-        cluster_usernames = list(
-            {
-                get_slack_username(u)
-                for u in users
-                if include_user_to_cluster_usergroup(u, cluster, desired_cluster_users)
-            }
-        )
+        cluster_usernames = list({
+            get_slack_username(u)
+            for u in users
+            if include_user_to_cluster_usergroup(u, cluster, desired_cluster_users)
+        })
         cluster_user_group = compute_cluster_user_group(cluster.name)
         for workspace, spec in slack_map.items():
             if not spec.slack.channel:
@@ -520,9 +518,9 @@ def get_desired_state_cluster_usergroups(
             }
             slack_channels = {
                 SlackObject(pk=pk, name=name)
-                for pk, name in spec.slack.get_channels_by_names(
-                    [spec.slack.channel]
-                ).items()
+                for pk, name in spec.slack.get_channels_by_names([
+                    spec.slack.channel
+                ]).items()
             }
 
             try:
@@ -553,9 +551,11 @@ def _create_usergroups(
         )
         return
 
-    logging.info(
-        ["create_usergroup", desired_ug_state.workspace, desired_ug_state.usergroup]
-    )
+    logging.info([
+        "create_usergroup",
+        desired_ug_state.workspace,
+        desired_ug_state.usergroup,
+    ])
     if not dry_run:
         try:
             usergroup_id = slack_client.create_usergroup(desired_ug_state.usergroup)
@@ -580,24 +580,20 @@ def _update_usergroup_users_from_state(
         return
 
     for user in desired_ug_state.users - current_ug_state.users:
-        logging.info(
-            [
-                "add_user_to_usergroup",
-                desired_ug_state.workspace,
-                desired_ug_state.usergroup,
-                user.name,
-            ]
-        )
+        logging.info([
+            "add_user_to_usergroup",
+            desired_ug_state.workspace,
+            desired_ug_state.usergroup,
+            user.name,
+        ])
 
     for user in current_ug_state.users - desired_ug_state.users:
-        logging.info(
-            [
-                "del_user_from_usergroup",
-                desired_ug_state.workspace,
-                desired_ug_state.usergroup,
-                user.name,
-            ]
-        )
+        logging.info([
+            "del_user_from_usergroup",
+            desired_ug_state.workspace,
+            desired_ug_state.usergroup,
+            user.name,
+        ])
 
     if not dry_run:
         try:
@@ -637,34 +633,28 @@ def _update_usergroup_from_state(
         return
 
     for channel in desired_ug_state.channels - current_ug_state.channels:
-        logging.info(
-            [
-                "add_channel_to_usergroup",
-                desired_ug_state.workspace,
-                desired_ug_state.usergroup,
-                channel.name,
-            ]
-        )
+        logging.info([
+            "add_channel_to_usergroup",
+            desired_ug_state.workspace,
+            desired_ug_state.usergroup,
+            channel.name,
+        ])
 
     for channel in current_ug_state.channels - desired_ug_state.channels:
-        logging.info(
-            [
-                "del_channel_from_usergroup",
-                desired_ug_state.workspace,
-                desired_ug_state.usergroup,
-                channel.name,
-            ]
-        )
+        logging.info([
+            "del_channel_from_usergroup",
+            desired_ug_state.workspace,
+            desired_ug_state.usergroup,
+            channel.name,
+        ])
 
     if current_ug_state.description != desired_ug_state.description:
-        logging.info(
-            [
-                "update_usergroup_description",
-                desired_ug_state.workspace,
-                desired_ug_state.usergroup,
-                desired_ug_state.description,
-            ]
-        )
+        logging.info([
+            "update_usergroup_description",
+            desired_ug_state.workspace,
+            desired_ug_state.usergroup,
+            desired_ug_state.description,
+        ])
 
     if not dry_run:
         try:
@@ -675,9 +665,9 @@ def _update_usergroup_from_state(
                 return
             slack_client.update_usergroup(
                 id=desired_ug_state.usergroup_id,
-                channels_list=sorted(
-                    [channel.pk for channel in desired_ug_state.channels]
-                ),
+                channels_list=sorted([
+                    channel.pk for channel in desired_ug_state.channels
+                ]),
                 description=desired_ug_state.description,
             )
         except SlackApiError as error:

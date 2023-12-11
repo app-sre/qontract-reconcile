@@ -72,18 +72,16 @@ def change_type_contexts_for_implicit_ownership(
                         )
                     )
                     if implicit_approvers:
-                        change_type_contexts.append(
-                            (
-                                bc,
-                                ChangeTypeContext(
-                                    change_type_processor=ctp,
-                                    context=f"implicit ownership - (via {ownership.change_type.name})",
-                                    origin=ownership.change_type.name,
-                                    approvers=implicit_approvers,
-                                    context_file=ownership.context_file_ref,
-                                ),
-                            )
-                        )
+                        change_type_contexts.append((
+                            bc,
+                            ChangeTypeContext(
+                                change_type_processor=ctp,
+                                context=f"implicit ownership - (via {ownership.change_type.name})",
+                                origin=ownership.change_type.name,
+                                approvers=implicit_approvers,
+                                context_file=ownership.context_file_ref,
+                            ),
+                        ))
 
     return change_type_contexts
 

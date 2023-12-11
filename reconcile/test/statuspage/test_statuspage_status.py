@@ -78,13 +78,11 @@ def test_manual_status_provider_inactive_period():
 def test_build_manual_status_provider_from_desired_state() -> None:
     config = ManualStatusProviderV1(
         provider="manual",
-        manual=ManualStatusProviderConfigV1(
-            **{
-                "componentStatus": "operational",
-                "from": "2021-01-01T00:00:00Z",
-                "until": "2021-01-02T00:00:00Z",
-            }
-        ),
+        manual=ManualStatusProviderConfigV1(**{
+            "componentStatus": "operational",
+            "from": "2021-01-01T00:00:00Z",
+            "until": "2021-01-02T00:00:00Z",
+        }),
     )
     manual_provider = build_status_provider_config(config)
     assert isinstance(manual_provider, ManualStatusProvider)

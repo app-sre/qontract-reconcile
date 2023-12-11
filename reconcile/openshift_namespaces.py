@@ -49,13 +49,11 @@ def get_desired_state(namespaces: Iterable[NamespaceV1]) -> list[dict[str, str]]
         if ns.delete:
             state = NS_STATE_ABSENT
 
-        desired_state.append(
-            {
-                "cluster": ns.cluster.name,
-                "namespace": ns.name,
-                "desired_state": state,
-            }
-        )
+        desired_state.append({
+            "cluster": ns.cluster.name,
+            "namespace": ns.name,
+            "desired_state": state,
+        })
 
     return desired_state
 

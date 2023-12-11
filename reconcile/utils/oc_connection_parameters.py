@@ -34,8 +34,7 @@ class Jumphost(Protocol):
     user: str
 
     @property
-    def identity(self) -> HasSecret:
-        ...
+    def identity(self) -> HasSecret: ...
 
 
 @runtime_checkable
@@ -46,28 +45,23 @@ class Cluster(Protocol):
     insecure_skip_tls_verify: Optional[bool]
 
     @property
-    def jump_host(self) -> Optional[Jumphost]:
-        ...
+    def jump_host(self) -> Optional[Jumphost]: ...
 
     @property
-    def automation_token(self) -> Optional[HasSecret]:
-        ...
+    def automation_token(self) -> Optional[HasSecret]: ...
 
     @property
-    def cluster_admin_automation_token(self) -> Optional[HasSecret]:
-        ...
+    def cluster_admin_automation_token(self) -> Optional[HasSecret]: ...
 
     @property
-    def disable(self) -> Optional[Disable]:
-        ...
+    def disable(self) -> Optional[Disable]: ...
 
 
 class Namespace(Protocol):
     cluster_admin: Optional[bool]
 
     @property
-    def cluster(self) -> Cluster:
-        ...
+    def cluster(self) -> Cluster: ...
 
 
 @dataclass

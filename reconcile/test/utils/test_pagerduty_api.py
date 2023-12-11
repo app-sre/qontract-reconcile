@@ -256,9 +256,7 @@ def test_get_escalation_policy_users(mocker: Mock, pypd_escalation_policy: Mock)
     pd_api = pagerduty_api.PagerDutyApi(token="secret", init_users=False)
     assert sorted(
         pd_api.get_escalation_policy_users(escalation_policy_id="foo", now=dt.now())
-    ) == sorted(
-        [
-            "username_get_user",
-            "username_get_schedule_users",
-        ]
-    )
+    ) == sorted([
+        "username_get_user",
+        "username_get_schedule_users",
+    ])

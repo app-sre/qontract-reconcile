@@ -20,7 +20,7 @@ class HasDisableIntegrations(Protocol):
 
 
 def disabled_integrations(
-    disable_obj: Optional[Union[Mapping[str, Any], HasDisableIntegrations]]
+    disable_obj: Optional[Union[Mapping[str, Any], HasDisableIntegrations]],
 ) -> list[str]:
     """Returns all disabled integrations"""
     if not disable_obj:

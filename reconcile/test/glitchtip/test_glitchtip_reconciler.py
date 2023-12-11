@@ -74,9 +74,9 @@ def test_glitchtip_reconciler_reconcile_users(
     desired_users = [User(**i) for i in fixture["desired_users"]]
     expected_return_value = [User(**i) for i in fixture["expected_return_value"]]
     gtr = GlitchtipReconciler(client=glitchtip_client_minimal, dry_run=False)
-    request_count = configure_httpretty(
-        [GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]]
-    )
+    request_count = configure_httpretty([
+        GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]
+    ])
 
     assert (
         gtr._reconcile_users(
@@ -110,9 +110,9 @@ def test_glitchtip_reconciler_reconcile_teams(
     desired_teams = [Team(**i) for i in fixture["desired_teams"]]
     expected_return_value = [Team(**i) for i in fixture["expected_return_value"]]
     gtr = GlitchtipReconciler(client=glitchtip_client_minimal, dry_run=False)
-    request_count = configure_httpretty(
-        [GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]]
-    )
+    request_count = configure_httpretty([
+        GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]
+    ])
 
     assert (
         gtr._reconcile_teams(
@@ -147,9 +147,9 @@ def test_glitchtip_reconciler_reconcile_projects(
     desired_projects = [Project(**i) for i in fixture["desired_projects"]]
     expected_return_value = [Project(**i) for i in fixture["expected_return_value"]]
     gtr = GlitchtipReconciler(client=glitchtip_client_minimal, dry_run=False)
-    request_count = configure_httpretty(
-        [GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]]
-    )
+    request_count = configure_httpretty([
+        GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]
+    ])
 
     assert (
         gtr._reconcile_projects(
@@ -190,9 +190,9 @@ def test_glitchtip_reconciler_reconcile_organization(
     reconcile_users_mock = mocker.patch.object(gtr, "_reconcile_users")
     reconcile_teams_mock = mocker.patch.object(gtr, "_reconcile_teams")
     reconcile_projects_mock = mocker.patch.object(gtr, "_reconcile_projects")
-    request_count = configure_httpretty(
-        [GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]]
-    )
+    request_count = configure_httpretty([
+        GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]
+    ])
 
     gtr.reconcile(
         current=current_organizations,

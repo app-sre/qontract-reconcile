@@ -130,7 +130,7 @@ def vpc_connection_account(
 
 @pytest.fixture
 def additional_tgw_account(
-    account_builder: Callable[..., AWSAccountV1]
+    account_builder: Callable[..., AWSAccountV1],
 ) -> AWSAccountV1:
     return account_builder(
         name="additional_tgw_account",
@@ -266,7 +266,7 @@ def peering_builder(
                 ClusterPeeringConnectionClusterRequesterV1,
                 ClusterPeeringConnectionV1,
             ]
-        ]
+        ],
     ) -> ClusterPeeringV1:
         return gql_class_factory(
             ClusterPeeringV1,
@@ -292,11 +292,9 @@ def cluster_with_tgw_connection(
         },
         region="us-east-1",
         vpc_cidr="10.0.0.0/16",
-        peering=peering_builder(
-            [
-                account_tgw_connection,
-            ]
-        ),
+        peering=peering_builder([
+            account_tgw_connection,
+        ]),
     )
 
 
@@ -315,12 +313,10 @@ def cluster_with_2_tgw_connections(
         },
         region="us-east-1",
         vpc_cidr="10.0.0.0/16",
-        peering=peering_builder(
-            [
-                account_tgw_connection,
-                additional_account_tgw_connection,
-            ]
-        ),
+        peering=peering_builder([
+            account_tgw_connection,
+            additional_account_tgw_connection,
+        ]),
     )
 
 
@@ -338,11 +334,9 @@ def additional_cluster_with_tgw_connection(
         },
         region="us-east-1",
         vpc_cidr="10.0.0.0/16",
-        peering=peering_builder(
-            [
-                additional_account_tgw_connection,
-            ]
-        ),
+        peering=peering_builder([
+            additional_account_tgw_connection,
+        ]),
     )
 
 
@@ -360,12 +354,10 @@ def cluster_with_duplicate_tgw_connections(
         },
         region="us-east-1",
         vpc_cidr="10.0.0.0/16",
-        peering=peering_builder(
-            [
-                account_tgw_connection,
-                account_tgw_connection,
-            ]
-        ),
+        peering=peering_builder([
+            account_tgw_connection,
+            account_tgw_connection,
+        ]),
     )
 
 
@@ -383,11 +375,9 @@ def cluster_with_vpc_connection(
         },
         region="us-east-1",
         vpc_cidr="10.0.0.1/16",
-        peering=peering_builder(
-            [
-                account_vpc_connection,
-            ]
-        ),
+        peering=peering_builder([
+            account_vpc_connection,
+        ]),
     )
 
 
@@ -406,12 +396,10 @@ def cluster_with_mixed_connections(
         },
         region="us-east-1",
         vpc_cidr="10.0.0.2/16",
-        peering=peering_builder(
-            [
-                account_tgw_connection,
-                account_vpc_connection,
-            ]
-        ),
+        peering=peering_builder([
+            account_tgw_connection,
+            account_vpc_connection,
+        ]),
     )
 
 
@@ -548,9 +536,7 @@ def _setup_mocks(
     mocked_ocm = mocker.patch(
         "reconcile.terraform_tgw_attachments.OCMMap", autospec=True
     )
-    mocked_ocm.return_value.get.return_value.get_aws_infrastructure_access_terraform_assume_role.return_value = (
-        assume_role
-    )
+    mocked_ocm.return_value.get.return_value.get_aws_infrastructure_access_terraform_assume_role.return_value = assume_role
     mocked_ts = mocker.patch(
         "reconcile.terraform_tgw_attachments.Terrascript", autospec=True
     ).return_value
@@ -701,12 +687,12 @@ def test_run_when_cluster_with_tgw_connection(
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
-    mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account]
-    )
-    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
-        [expected_desired_state_item]
-    )
+    mocks["ts"].populate_additional_providers.assert_called_once_with([
+        expected_tgw_account
+    ])
+    mocks["ts"].populate_tgw_attachments.assert_called_once_with([
+        expected_desired_state_item
+    ])
 
 
 def test_run_when_cluster_with_mixed_connections(
@@ -756,12 +742,12 @@ def test_run_when_cluster_with_mixed_connections(
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
-    mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account]
-    )
-    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
-        [expected_desired_state_item]
-    )
+    mocks["ts"].populate_additional_providers.assert_called_once_with([
+        expected_tgw_account
+    ])
+    mocks["ts"].populate_tgw_attachments.assert_called_once_with([
+        expected_desired_state_item
+    ])
 
 
 def test_run_when_cluster_with_vpc_connection_only(
@@ -836,12 +822,12 @@ def test_run_with_multiple_clusters(
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
-    mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account]
-    )
-    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
-        [expected_desired_state_item]
-    )
+    mocks["ts"].populate_additional_providers.assert_called_once_with([
+        expected_tgw_account
+    ])
+    mocks["ts"].populate_tgw_attachments.assert_called_once_with([
+        expected_desired_state_item
+    ])
 
 
 def test_run_with_account_name_for_multiple_clusters(
@@ -894,12 +880,12 @@ def test_run_with_account_name_for_multiple_clusters(
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
-    mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account]
-    )
-    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
-        [expected_desired_state_item]
-    )
+    mocks["ts"].populate_additional_providers.assert_called_once_with([
+        expected_tgw_account
+    ])
+    mocks["ts"].populate_tgw_attachments.assert_called_once_with([
+        expected_desired_state_item
+    ])
 
 
 def test_run_with_account_name_for_multiple_connections(
@@ -951,12 +937,12 @@ def test_run_with_account_name_for_multiple_connections(
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
-    mocks["ts"].populate_additional_providers.assert_called_once_with(
-        [expected_tgw_account]
-    )
-    mocks["ts"].populate_tgw_attachments.assert_called_once_with(
-        [expected_desired_state_item]
-    )
+    mocks["ts"].populate_additional_providers.assert_called_once_with([
+        expected_tgw_account
+    ])
+    mocks["ts"].populate_tgw_attachments.assert_called_once_with([
+        expected_desired_state_item
+    ])
 
 
 def test_duplicate_tgw_connection_names(

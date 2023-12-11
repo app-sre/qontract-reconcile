@@ -92,9 +92,10 @@ def test_gpg_encrypt_from_vault_with_version(get_users_by_mock, gpg_encrypt_mock
 
     command.execute()
 
-    secret_reader_mock.assert_called_once_with(
-        {"path": vault_secret_path, "version": str(version)}
-    )
+    secret_reader_mock.assert_called_once_with({
+        "path": vault_secret_path,
+        "version": str(version),
+    })
     get_users_by_mock.assert_called_once_with(
         refs=False,
         filter=UserFilter(

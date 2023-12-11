@@ -244,7 +244,8 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             current=external_resources_app_interface,
             desired=external_resources_aws,
             key=lambda r: r.key,
-            equal=lambda external_resources_app_interface, external_resources_aws: external_resources_app_interface.resource_engine_version
+            equal=lambda external_resources_app_interface,
+            external_resources_aws: external_resources_app_interface.resource_engine_version
             == external_resources_aws.resource_engine_version,
         )
         for diff_pair in diff.change.values():

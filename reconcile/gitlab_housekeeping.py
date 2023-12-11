@@ -181,25 +181,21 @@ def close_item(
     item: Union[ProjectIssue, ProjectMergeRequest],
 ):
     if enable_closing:
-        logging.info(
-            [
-                "close_item",
-                gl.project.name,
-                item_type,
-                item.attributes.get("iid"),
-            ]
-        )
+        logging.info([
+            "close_item",
+            gl.project.name,
+            item_type,
+            item.attributes.get("iid"),
+        ])
         if not dry_run:
             gl.close(item)
     else:
-        logging.debug(
-            [
-                "'enable_closing' is not enabled to close item",
-                gl.project.name,
-                item_type,
-                item.attributes.get("iid"),
-            ]
-        )
+        logging.debug([
+            "'enable_closing' is not enabled to close item",
+            gl.project.name,
+            item_type,
+            item.attributes.get("iid"),
+        ])
 
 
 def handle_stale_items(
@@ -257,9 +253,13 @@ def handle_stale_items(
             # days_interval - remove 'stale' label
             current_interval = now.date() - latest_cancel_note_date.date()
             if current_interval <= timedelta(days=days_interval):
-                logging.info(
-                    ["remove_label", gl.project.name, item_type, item_iid, LABEL]
-                )
+                logging.info([
+                    "remove_label",
+                    gl.project.name,
+                    item_type,
+                    item_iid,
+                    LABEL,
+                ])
                 if not dry_run:
                     gl.remove_label(item, LABEL)
 
@@ -436,14 +436,12 @@ def rebase_merge_requests(
             except gitlab.exceptions.GitlabMRRebaseError as e:
                 logging.error("unable to rebase {}: {}".format(mr.iid, e))
         else:
-            logging.info(
-                [
-                    "rebase",
-                    gl.project.name,
-                    mr.iid,
-                    "rebase limit reached for this reconcile loop. will try next time",
-                ]
-            )
+            logging.info([
+                "rebase",
+                gl.project.name,
+                mr.iid,
+                "rebase limit reached for this reconcile loop. will try next time",
+            ])
 
 
 # TODO: this retry is catching all exceptions, which isn't good. _log_exceptions is
