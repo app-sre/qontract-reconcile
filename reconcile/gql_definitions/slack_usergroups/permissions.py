@@ -98,8 +98,8 @@ query SlackUsergroupPermission {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class PermissionV1(ConfiguredBaseModel):
@@ -142,12 +142,8 @@ class SlackWorkspaceApiClientMethodConfigV1(ConfiguredBaseModel):
 
 
 class SlackWorkspaceApiClientV1(ConfiguredBaseModel):
-    q_global: Optional[SlackWorkspaceApiClientGlobalConfigV1] = Field(
-        ..., alias="global"
-    )
-    methods: Optional[list[SlackWorkspaceApiClientMethodConfigV1]] = Field(
-        ..., alias="methods"
-    )
+    q_global: Optional[SlackWorkspaceApiClientGlobalConfigV1] = Field(..., alias="global")
+    methods: Optional[list[SlackWorkspaceApiClientMethodConfigV1]] = Field(..., alias="methods")
 
 
 class SlackWorkspaceIntegrationV1(ConfiguredBaseModel):
@@ -159,9 +155,7 @@ class SlackWorkspaceIntegrationV1(ConfiguredBaseModel):
 class SlackWorkspaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     api_client: Optional[SlackWorkspaceApiClientV1] = Field(..., alias="api_client")
-    integrations: Optional[list[SlackWorkspaceIntegrationV1]] = Field(
-        ..., alias="integrations"
-    )
+    integrations: Optional[list[SlackWorkspaceIntegrationV1]] = Field(..., alias="integrations")
     managed_usergroups: list[str] = Field(..., alias="managedUsergroups")
 
 
@@ -179,9 +173,7 @@ class PermissionSlackUsergroupV1(PermissionV1):
 
 
 class SlackUsergroupPermissionQueryData(ConfiguredBaseModel):
-    permissions: list[Union[PermissionSlackUsergroupV1, PermissionV1]] = Field(
-        ..., alias="permissions"
-    )
+    permissions: list[Union[PermissionSlackUsergroupV1, PermissionV1]] = Field(..., alias="permissions")
 
 
 def query(query_func: Callable, **kwargs: Any) -> SlackUsergroupPermissionQueryData:

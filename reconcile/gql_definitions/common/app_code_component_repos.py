@@ -31,8 +31,8 @@ query AppCodeComponentRepos {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AppCodeComponentsV1(ConfiguredBaseModel):
@@ -40,9 +40,7 @@ class AppCodeComponentsV1(ConfiguredBaseModel):
 
 
 class AppV1(ConfiguredBaseModel):
-    code_components: Optional[list[AppCodeComponentsV1]] = Field(
-        ..., alias="codeComponents"
-    )
+    code_components: Optional[list[AppCodeComponentsV1]] = Field(..., alias="codeComponents")
 
 
 class AppCodeComponentReposQueryData(ConfiguredBaseModel):

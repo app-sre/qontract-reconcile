@@ -61,8 +61,8 @@ query Permission {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class PermissionV1(ConfiguredBaseModel):
@@ -103,9 +103,7 @@ class PermissionGitlabGroupMembershipV1(PermissionV1):
 
 
 class PermissionQueryData(ConfiguredBaseModel):
-    permissions: list[Union[PermissionGitlabGroupMembershipV1, PermissionV1]] = Field(
-        ..., alias="permissions"
-    )
+    permissions: list[Union[PermissionGitlabGroupMembershipV1, PermissionV1]] = Field(..., alias="permissions")
 
 
 def query(query_func: Callable, **kwargs: Any) -> PermissionQueryData:

@@ -52,8 +52,8 @@ query GlitchtipInstance {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class GlitchtipInstanceV1(ConfiguredBaseModel):
@@ -64,12 +64,8 @@ class GlitchtipInstanceV1(ConfiguredBaseModel):
     read_timeout: Optional[int] = Field(..., alias="readTimeout")
     max_retries: Optional[int] = Field(..., alias="maxRetries")
     mail_domain: Optional[str] = Field(..., alias="mailDomain")
-    glitchtip_jira_bridge_alert_url: Optional[str] = Field(
-        ..., alias="glitchtipJiraBridgeAlertUrl"
-    )
-    glitchtip_jira_bridge_token: Optional[VaultSecret] = Field(
-        ..., alias="glitchtipJiraBridgeToken"
-    )
+    glitchtip_jira_bridge_alert_url: Optional[str] = Field(..., alias="glitchtipJiraBridgeAlertUrl")
+    glitchtip_jira_bridge_token: Optional[VaultSecret] = Field(..., alias="glitchtipJiraBridgeToken")
 
 
 class GlitchtipInstanceQueryData(ConfiguredBaseModel):

@@ -58,8 +58,8 @@ query AVSNamespaces {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ExternalResourcesProvisionerV1(ConfiguredBaseModel):
@@ -74,9 +74,7 @@ class AWSAccountV1(ExternalResourcesProvisionerV1):
 
 class NamespaceExternalResourceV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
-    provisioner: Union[AWSAccountV1, ExternalResourcesProvisionerV1] = Field(
-        ..., alias="provisioner"
-    )
+    provisioner: Union[AWSAccountV1, ExternalResourcesProvisionerV1] = Field(..., alias="provisioner")
 
 
 class NamespaceTerraformResourceAWSV1(ConfiguredBaseModel):
@@ -90,9 +88,7 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
-    resources: list[
-        Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceAWSV1]
-    ] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
@@ -108,14 +104,8 @@ class NamespaceV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     delete: Optional[bool] = Field(..., alias="delete")
-    managed_external_resources: Optional[bool] = Field(
-        ..., alias="managedExternalResources"
-    )
-    external_resources: Optional[
-        list[
-            Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]
-        ]
-    ] = Field(..., alias="externalResources")
+    managed_external_resources: Optional[bool] = Field(..., alias="managedExternalResources")
+    external_resources: Optional[list[Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]]] = Field(..., alias="externalResources")
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 

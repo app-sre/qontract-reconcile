@@ -17,9 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.saas_target_namespace import (
-    SaasTargetNamespace,
-)
+from reconcile.gql_definitions.fragments.saas_target_namespace import SaasTargetNamespace
 
 
 DEFINITION = """
@@ -111,8 +109,8 @@ query SaasFileTargetNamespaces {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class SaasFileTargetNamespacesQueryData(ConfiguredBaseModel):

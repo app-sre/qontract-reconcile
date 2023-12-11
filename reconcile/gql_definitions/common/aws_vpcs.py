@@ -57,8 +57,8 @@ query AWSVPCs {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AWSVPCsQueryData(ConfiguredBaseModel):

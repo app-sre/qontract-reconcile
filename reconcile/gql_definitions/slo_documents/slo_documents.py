@@ -61,8 +61,8 @@ query SloDocuments {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AppV1_AppV1(ConfiguredBaseModel):

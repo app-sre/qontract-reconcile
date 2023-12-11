@@ -22,8 +22,8 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class OCMEnvironment(ConfiguredBaseModel):
@@ -31,6 +31,4 @@ class OCMEnvironment(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
     access_token_client_id: str = Field(..., alias="accessTokenClientId")
     access_token_url: str = Field(..., alias="accessTokenUrl")
-    access_token_client_secret: VaultSecret = Field(
-        ..., alias="accessTokenClientSecret"
-    )
+    access_token_client_secret: VaultSecret = Field(..., alias="accessTokenClientSecret")

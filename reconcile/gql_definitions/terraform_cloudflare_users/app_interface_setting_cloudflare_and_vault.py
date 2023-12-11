@@ -30,14 +30,12 @@ query AppInterfaceSettingCloudflareAndVault{
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AppInterfaceSettingsV1(ConfiguredBaseModel):
-    cloudflare_email_domain_allow_list: Optional[list[str]] = Field(
-        ..., alias="cloudflareEmailDomainAllowList"
-    )
+    cloudflare_email_domain_allow_list: Optional[list[str]] = Field(..., alias="cloudflareEmailDomainAllowList")
     vault: bool = Field(..., alias="vault")
 
 
@@ -45,9 +43,7 @@ class AppInterfaceSettingCloudflareAndVaultQueryData(ConfiguredBaseModel):
     settings: Optional[list[AppInterfaceSettingsV1]] = Field(..., alias="settings")
 
 
-def query(
-    query_func: Callable, **kwargs: Any
-) -> AppInterfaceSettingCloudflareAndVaultQueryData:
+def query(query_func: Callable, **kwargs: Any) -> AppInterfaceSettingCloudflareAndVaultQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.

@@ -49,8 +49,8 @@ query AcsRbac  {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class OidcPermissionV1(ConfiguredBaseModel):
@@ -80,9 +80,7 @@ class OidcPermissionAcsV1(OidcPermissionV1):
 
 class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    oidc_permissions: Optional[
-        list[Union[OidcPermissionAcsV1, OidcPermissionV1]]
-    ] = Field(..., alias="oidc_permissions")
+    oidc_permissions: Optional[list[Union[OidcPermissionAcsV1, OidcPermissionV1]]] = Field(..., alias="oidc_permissions")
 
 
 class UserV1(ConfiguredBaseModel):

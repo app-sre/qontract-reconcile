@@ -19,17 +19,15 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
 from reconcile.gql_definitions.fragments.disable import DisableAutomations
-from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
-    MinimalOCMOrganization,
-)
+from reconcile.gql_definitions.fragments.minimal_ocm_organization import MinimalOCMOrganization
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ClusterAddonV1(ConfiguredBaseModel):
@@ -47,41 +45,29 @@ class AddonUpgradeTestV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
-class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1(
-    ConfiguredBaseModel
-):
+class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
 class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     org_id: str = Field(..., alias="orgId")
-    environment: OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1 = Field(
-        ..., alias="environment"
-    )
-    publish_version_data: Optional[list[MinimalOCMOrganization]] = Field(
-        ..., alias="publishVersionData"
-    )
+    environment: OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1 = Field(..., alias="environment")
+    publish_version_data: Optional[list[MinimalOCMOrganization]] = Field(..., alias="publishVersionData")
 
 
-class OpenShiftClusterManagerSectorDependenciesV1_OpenShiftClusterManagerV1(
-    ConfiguredBaseModel
-):
+class OpenShiftClusterManagerSectorDependenciesV1_OpenShiftClusterManagerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
 class OpenShiftClusterManagerSectorDependenciesV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    ocm: Optional[
-        OpenShiftClusterManagerSectorDependenciesV1_OpenShiftClusterManagerV1
-    ] = Field(..., alias="ocm")
+    ocm: Optional[OpenShiftClusterManagerSectorDependenciesV1_OpenShiftClusterManagerV1] = Field(..., alias="ocm")
 
 
 class OpenShiftClusterManagerSectorV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    dependencies: Optional[list[OpenShiftClusterManagerSectorDependenciesV1]] = Field(
-        ..., alias="dependencies"
-    )
+    dependencies: Optional[list[OpenShiftClusterManagerSectorDependenciesV1]] = Field(..., alias="dependencies")
 
 
 class OpenShiftClusterManagerUpgradePolicyClusterV1(ConfiguredBaseModel):
@@ -95,27 +81,13 @@ class AUSOCMOrganization(ConfiguredBaseModel):
     org_id: str = Field(..., alias="orgId")
     access_token_client_id: Optional[str] = Field(..., alias="accessTokenClientId")
     access_token_url: Optional[str] = Field(..., alias="accessTokenUrl")
-    access_token_client_secret: Optional[VaultSecret] = Field(
-        ..., alias="accessTokenClientSecret"
-    )
+    access_token_client_secret: Optional[VaultSecret] = Field(..., alias="accessTokenClientSecret")
     disable: Optional[DisableAutomations] = Field(..., alias="disable")
     blocked_versions: Optional[list[str]] = Field(..., alias="blockedVersions")
     addon_managed_upgrades: Optional[bool] = Field(..., alias="addonManagedUpgrades")
-    addon_upgrade_tests: Optional[list[AddonUpgradeTestV1]] = Field(
-        ..., alias="addonUpgradeTests"
-    )
-    inherit_version_data: Optional[
-        list[OpenShiftClusterManagerV1_OpenShiftClusterManagerV1]
-    ] = Field(..., alias="inheritVersionData")
-    publish_version_data: Optional[list[MinimalOCMOrganization]] = Field(
-        ..., alias="publishVersionData"
-    )
-    sectors: Optional[list[OpenShiftClusterManagerSectorV1]] = Field(
-        ..., alias="sectors"
-    )
-    upgrade_policy_allowed_workloads: Optional[list[str]] = Field(
-        ..., alias="upgradePolicyAllowedWorkloads"
-    )
-    upgrade_policy_clusters: Optional[
-        list[OpenShiftClusterManagerUpgradePolicyClusterV1]
-    ] = Field(..., alias="upgradePolicyClusters")
+    addon_upgrade_tests: Optional[list[AddonUpgradeTestV1]] = Field(..., alias="addonUpgradeTests")
+    inherit_version_data: Optional[list[OpenShiftClusterManagerV1_OpenShiftClusterManagerV1]] = Field(..., alias="inheritVersionData")
+    publish_version_data: Optional[list[MinimalOCMOrganization]] = Field(..., alias="publishVersionData")
+    sectors: Optional[list[OpenShiftClusterManagerSectorV1]] = Field(..., alias="sectors")
+    upgrade_policy_allowed_workloads: Optional[list[str]] = Field(..., alias="upgradePolicyAllowedWorkloads")
+    upgrade_policy_clusters: Optional[list[OpenShiftClusterManagerUpgradePolicyClusterV1]] = Field(..., alias="upgradePolicyClusters")

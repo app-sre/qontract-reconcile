@@ -17,9 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
-)
+from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.fragments.resource_values import ResourceValues
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -160,8 +158,8 @@ query Namespaces {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class OwnerV1(ConfiguredBaseModel):
@@ -209,13 +207,7 @@ class NamespaceTerraformResourceECRV1(NamespaceTerraformResourceAWSV1):
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
-    resources: list[
-        Union[
-            NamespaceTerraformResourceRDSV1,
-            NamespaceTerraformResourceECRV1,
-            NamespaceTerraformResourceAWSV1,
-        ]
-    ] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
@@ -228,9 +220,7 @@ class ClusterV1(ConfiguredBaseModel):
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
-    cluster_admin_automation_token: Optional[VaultSecret] = Field(
-        ..., alias="clusterAdminAutomationToken"
-    )
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
@@ -244,9 +234,7 @@ class LimitRangeItemV1(ConfiguredBaseModel):
     default: Optional[ResourceValues] = Field(..., alias="default")
     default_request: Optional[ResourceValues] = Field(..., alias="defaultRequest")
     max: Optional[ResourceValues] = Field(..., alias="max")
-    max_limit_request_ratio: Optional[ResourceValues] = Field(
-        ..., alias="maxLimitRequestRatio"
-    )
+    max_limit_request_ratio: Optional[ResourceValues] = Field(..., alias="maxLimitRequestRatio")
     min: Optional[ResourceValues] = Field(..., alias="min")
     q_type: Optional[str] = Field(..., alias="type")
 
@@ -279,18 +267,10 @@ class NamespaceV1(ConfiguredBaseModel):
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     managed_roles: Optional[bool] = Field(..., alias="managedRoles")
     app: AppV1 = Field(..., alias="app")
-    managed_external_resources: Optional[bool] = Field(
-        ..., alias="managedExternalResources"
-    )
-    external_resources: Optional[
-        list[
-            Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]
-        ]
-    ] = Field(..., alias="externalResources")
+    managed_external_resources: Optional[bool] = Field(..., alias="managedExternalResources")
+    external_resources: Optional[list[Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]]] = Field(..., alias="externalResources")
     cluster: ClusterV1 = Field(..., alias="cluster")
-    managed_resource_names: Optional[list[ManagedResourceNamesV1]] = Field(
-        ..., alias="managedResourceNames"
-    )
+    managed_resource_names: Optional[list[ManagedResourceNamesV1]] = Field(..., alias="managedResourceNames")
     limit_ranges: Optional[LimitRangeV1] = Field(..., alias="limitRanges")
     quota: Optional[ResourceQuotaV1] = Field(..., alias="quota")
 

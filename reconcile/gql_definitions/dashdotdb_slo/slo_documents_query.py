@@ -78,8 +78,8 @@ query SLODocuments {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class SLOExternalPrometheusAccessV1(ConfiguredBaseModel):
@@ -114,13 +114,9 @@ class SLONamespacesV1_NamespaceV1(ConfiguredBaseModel):
 
 
 class SLONamespacesV1(ConfiguredBaseModel):
-    prometheus_access: Optional[SLOExternalPrometheusAccessV1] = Field(
-        ..., alias="prometheusAccess"
-    )
+    prometheus_access: Optional[SLOExternalPrometheusAccessV1] = Field(..., alias="prometheusAccess")
     namespace: NamespaceV1 = Field(..., alias="namespace")
-    slo_namespace: Optional[SLONamespacesV1_NamespaceV1] = Field(
-        ..., alias="SLONamespace"
-    )
+    slo_namespace: Optional[SLONamespacesV1_NamespaceV1] = Field(..., alias="SLONamespace")
 
 
 class SLODocumentSLOSLOParametersV1(ConfiguredBaseModel):

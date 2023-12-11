@@ -64,8 +64,8 @@ query TerraformCloudflareAccounts {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AWSTerraformStateIntegrationsV1(ConfiguredBaseModel):
@@ -77,9 +77,7 @@ class TerraformStateAWSV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
     bucket: str = Field(..., alias="bucket")
     region: str = Field(..., alias="region")
-    integrations: list[AWSTerraformStateIntegrationsV1] = Field(
-        ..., alias="integrations"
-    )
+    integrations: list[AWSTerraformStateIntegrationsV1] = Field(..., alias="integrations")
 
 
 class AWSAccountV1(ConfiguredBaseModel):
@@ -99,9 +97,7 @@ class CloudflareAccountV1(ConfiguredBaseModel):
     provider_version: str = Field(..., alias="providerVersion")
     api_credentials: VaultSecret = Field(..., alias="apiCredentials")
     terraform_state_account: AWSAccountV1 = Field(..., alias="terraformStateAccount")
-    deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(
-        ..., alias="deletionApprovals"
-    )
+    deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(..., alias="deletionApprovals")
     enforce_twofactor: Optional[bool] = Field(..., alias="enforceTwofactor")
     q_type: Optional[str] = Field(..., alias="type")
 

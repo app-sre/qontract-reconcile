@@ -45,8 +45,8 @@ query JiraBoardsForPermissionValidation {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class JiraServerV1(ConfiguredBaseModel):
@@ -64,9 +64,7 @@ class JiraBoardsForPermissionValidationQueryData(ConfiguredBaseModel):
     jira_boards: Optional[list[JiraBoardV1]] = Field(..., alias="jira_boards")
 
 
-def query(
-    query_func: Callable, **kwargs: Any
-) -> JiraBoardsForPermissionValidationQueryData:
+def query(query_func: Callable, **kwargs: Any) -> JiraBoardsForPermissionValidationQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.

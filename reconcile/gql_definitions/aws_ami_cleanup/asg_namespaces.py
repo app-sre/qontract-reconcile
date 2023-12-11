@@ -55,8 +55,8 @@ query ASGNamespaces {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ExternalResourcesProvisionerV1(ConfiguredBaseModel):
@@ -89,24 +89,16 @@ class ASGImageStaticV1(ASGImageV1):
 
 class NamespaceTerraformResourceASGV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
-    image: list[Union[ASGImageGitV1, ASGImageStaticV1, ASGImageV1]] = Field(
-        ..., alias="image"
-    )
+    image: list[Union[ASGImageGitV1, ASGImageStaticV1, ASGImageV1]] = Field(..., alias="image")
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
-    resources: list[
-        Union[NamespaceTerraformResourceASGV1, NamespaceTerraformResourceAWSV1]
-    ] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceASGV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    external_resources: Optional[
-        list[
-            Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]
-        ]
-    ] = Field(..., alias="externalResources")
+    external_resources: Optional[list[Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]]] = Field(..., alias="externalResources")
 
 
 class ASGNamespacesQueryData(ConfiguredBaseModel):

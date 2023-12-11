@@ -41,8 +41,8 @@ query PagerduytInstances {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class PagerDutyInstanceV1(ConfiguredBaseModel):
@@ -51,9 +51,7 @@ class PagerDutyInstanceV1(ConfiguredBaseModel):
 
 
 class PagerduytInstancesQueryData(ConfiguredBaseModel):
-    pagerduty_instances: Optional[list[PagerDutyInstanceV1]] = Field(
-        ..., alias="pagerduty_instances"
-    )
+    pagerduty_instances: Optional[list[PagerDutyInstanceV1]] = Field(..., alias="pagerduty_instances")
 
 
 def query(query_func: Callable, **kwargs: Any) -> PagerduytInstancesQueryData:
