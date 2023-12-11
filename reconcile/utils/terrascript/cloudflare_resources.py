@@ -16,6 +16,7 @@ from terrascript import (
 from terrascript.resource import (
     cloudflare_account_member,
     cloudflare_argo,
+    cloudflare_custom_ssl,
     cloudflare_logpull_retention,
     cloudflare_logpush_job,
     cloudflare_logpush_ownership_challenge,
@@ -53,6 +54,15 @@ class cloudflare_account(Resource):
 class cloudflare_certificate_pack(Resource):
     """
     https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/certificate_pack
+
+    This resource isn't supported directly by Terrascript, which is why it needs to be
+    defined like this as a Resource.
+    """
+
+
+class cloudflare_custom_sll(Resource):
+    """
+    https://registry.terraform.io/providers/cloudflare/cloudflare/3.32.0/docs/resources/custom_ssl
 
     This resource isn't supported directly by Terrascript, which is why it needs to be
     defined like this as a Resource.
@@ -187,11 +197,32 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         return resources
 
     def _create_cloudflare_custom_ssl_certificates(
-        self, zone: Resource, zone_custom_ssl: Iterable[MutableMapping[str, Any]]
+        self,
+        zone: Resource,
+        zone_custom_ssl: Iterable[MutableMapping[str, Any]],
     ) -> list[Union[Resource, Output]]:
+        vault_settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+
         resources = []
         for cert_values in zone_custom_ssl:
-            safe_resource_id(cert_values.pop("identifier"))
+            identifier = safe_resource_id(cert_values.pop("identifier"))
+            certificate_secret = cert_values.pop("certificate_secret")
+            certificate = secret_reader.read(certificate_secret.pop("certificate"))
+            key = secret_reader.read(certificate_secret.pop("key"))
+            custom_ssl_values = {
+                "zone_id": f"{{{zone.id}}}",
+                "depends_on": self._get_dependencies([zone]),
+                "custom_ssl_options": {
+                    "bundle_method": cert_values["bundle_method"],
+                    "geo_restrictions": cert_values["geo_restrictions"],
+                    "type": cert_values["type"],
+                    "certificate": certificate,
+                    "private_key": key,
+                },
+            }
+            custom_ssl = cloudflare_custom_ssl(identifier, **custom_ssl_values)
+            resources.append(custom_ssl)
         return resources
 
     def populate(self) -> list[Union[Resource, Output]]:
@@ -276,9 +307,11 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
             resources.append(cloudflare_worker_route(identifier, **worker_route_values))
 
         resources.extend(self._create_cloudflare_certificate_pack(zone, zone_certs))
-        resources.extend(
-            self._create_cloudflare_custom_ssl_certificates(zone, zone_custom_sll)
-        )
+
+        if zone_custom_sll:
+            resources.extend(
+                self._create_cloudflare_custom_ssl_certificates(zone, zone_custom_sll)
+            )
 
         return resources
 
