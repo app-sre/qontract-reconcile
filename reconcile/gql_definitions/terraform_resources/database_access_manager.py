@@ -69,8 +69,8 @@ query DatabaseAccessManager {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class VaultSecretV1(ConfiguredBaseModel):
@@ -122,25 +122,17 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     defaults: str = Field(..., alias="defaults")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
-    database_access: Optional[list[DatabaseAccessV1]] = Field(
-        ..., alias="database_access"
-    )
+    database_access: Optional[list[DatabaseAccessV1]] = Field(..., alias="database_access")
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
-    resources: list[
-        Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceAWSV1]
-    ] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     cluster: ClusterV1 = Field(..., alias="cluster")
-    external_resources: Optional[
-        list[
-            Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]
-        ]
-    ] = Field(..., alias="externalResources")
+    external_resources: Optional[list[Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]]] = Field(..., alias="externalResources")
 
 
 class DatabaseAccessManagerQueryData(ConfiguredBaseModel):

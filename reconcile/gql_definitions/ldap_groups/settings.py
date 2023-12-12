@@ -43,8 +43,8 @@ query LdapGroupsAppInterfaceSettings {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class LdapGroupsSettingsV1(ConfiguredBaseModel):
@@ -60,9 +60,7 @@ class LdapGroupsAppInterfaceSettingsQueryData(ConfiguredBaseModel):
     settings: Optional[list[AppInterfaceSettingsV1]] = Field(..., alias="settings")
 
 
-def query(
-    query_func: Callable, **kwargs: Any
-) -> LdapGroupsAppInterfaceSettingsQueryData:
+def query(query_func: Callable, **kwargs: Any) -> LdapGroupsAppInterfaceSettingsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.

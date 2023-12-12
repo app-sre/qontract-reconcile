@@ -429,8 +429,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 self.valid = False
                 # This should never be possible theoretically ...
                 logging.error(
-                    "Non-unique resource template reference {} in "
-                    "channel {}".format(rt_ref, channel)
+                    "Non-unique resource template reference {} in " "channel {}".format(
+                        rt_ref, channel
+                    )
                 )
                 continue
             publications[channel].add(rt_ref)
@@ -762,7 +763,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     ) -> tuple[str, str]:
         [url, sha] = trigger_reason.split(" ")[0].split("/commit/")
         repo_name = urlparse(url).path.strip("/")
-        file_name = f"{repo_name.replace('/','-')}-{sha}.tar.gz"
+        file_name = f"{repo_name.replace('/', '-')}-{sha}.tar.gz"
         if "github" in url:
             github = self._initiate_github(saas_file, base_url="https://api.github.com")
             repo = github.get_repo(repo_name)

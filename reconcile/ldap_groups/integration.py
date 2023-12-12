@@ -41,8 +41,7 @@ from reconcile.utils.state import (
 QONTRACT_INTEGRATION = "ldap-groups"
 
 
-class LdapGroupsIntegrationParams(PydanticRunParams):
-    ...
+class LdapGroupsIntegrationParams(PydanticRunParams): ...
 
 
 class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationParams]):
@@ -187,13 +186,11 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         self._managed_groups = {g.name for g in current_groups}
 
         for group_to_add in diff_result.add.values():
-            logging.info(
-                [
-                    "create_ldap_group",
-                    group_to_add.name,
-                    f"users={', '.join(u.id for u in group_to_add.members)}",
-                ]
-            )
+            logging.info([
+                "create_ldap_group",
+                group_to_add.name,
+                f"users={', '.join(u.id for u in group_to_add.members)}",
+            ])
             if not dry_run:
                 internal_groups_client.create_group(group_to_add)
                 self._managed_groups.add(group_to_add.name)
@@ -209,12 +206,10 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
 
         for diff_pair in diff_result.change.values():
             group_to_update = diff_pair.desired
-            logging.info(
-                [
-                    "update_ldap_group",
-                    group_to_update.name,
-                    f"users={', '.join(u.id for u in group_to_update.members)}",
-                ]
-            )
+            logging.info([
+                "update_ldap_group",
+                group_to_update.name,
+                f"users={', '.join(u.id for u in group_to_update.members)}",
+            ])
             if not dry_run:
                 internal_groups_client.update_group(group_to_update)

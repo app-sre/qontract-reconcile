@@ -41,8 +41,8 @@ query DynatraceEnvironment {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class DynatraceEnvironmentV1(ConfiguredBaseModel):
@@ -51,9 +51,7 @@ class DynatraceEnvironmentV1(ConfiguredBaseModel):
 
 
 class DynatraceEnvironmentQueryData(ConfiguredBaseModel):
-    environments: Optional[list[DynatraceEnvironmentV1]] = Field(
-        ..., alias="environments"
-    )
+    environments: Optional[list[DynatraceEnvironmentV1]] = Field(..., alias="environments")
 
 
 def query(query_func: Callable, **kwargs: Any) -> DynatraceEnvironmentQueryData:

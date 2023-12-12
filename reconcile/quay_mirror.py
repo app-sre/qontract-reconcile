@@ -181,13 +181,11 @@ class QuayMirror:
                         sys.exit(ExitCodes.ERROR)
 
                     org_key = OrgKey(instance, org)
-                    summary[org_key].append(
-                        {
-                            "name": item["name"],
-                            "mirror": item["mirror"],
-                            "server_url": server_url,
-                        }
-                    )
+                    summary[org_key].append({
+                        "name": item["name"],
+                        "mirror": item["mirror"],
+                        "server_url": server_url,
+                    })
         return summary
 
     @staticmethod
@@ -322,13 +320,11 @@ class QuayMirror:
                     _LOG.debug(
                         "Image %s and mirror %s are out of sync", downstream, upstream
                     )
-                    sync_tasks[org_key].append(
-                        {
-                            "mirror_url": str(upstream),
-                            "mirror_creds": mirror_creds,
-                            "image_url": str(downstream),
-                        }
-                    )
+                    sync_tasks[org_key].append({
+                        "mirror_url": str(upstream),
+                        "mirror_creds": mirror_creds,
+                        "image_url": str(downstream),
+                    })
 
         return sync_tasks
 

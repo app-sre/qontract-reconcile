@@ -17,9 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.service_dependencies.jenkins_instance_fragment import (
-    ServiceDependenciesJenkinsInstance,
-)
+from reconcile.gql_definitions.service_dependencies.jenkins_instance_fragment import ServiceDependenciesJenkinsInstance
 
 
 DEFINITION = """
@@ -76,8 +74,8 @@ query ServiceDependencies {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class DependencyV1(ConfiguredBaseModel):
@@ -101,9 +99,7 @@ class SaasResourceTemplateTargetUpstreamV1(ConfiguredBaseModel):
 
 
 class SaasResourceTemplateTargetV2(ConfiguredBaseModel):
-    upstream: Optional[SaasResourceTemplateTargetUpstreamV1] = Field(
-        ..., alias="upstream"
-    )
+    upstream: Optional[SaasResourceTemplateTargetUpstreamV1] = Field(..., alias="upstream")
 
 
 class SaasResourceTemplateV2(ConfiguredBaseModel):
@@ -112,9 +108,7 @@ class SaasResourceTemplateV2(ConfiguredBaseModel):
 
 class SaasFileV2(ConfiguredBaseModel):
     pipelines_provider: PipelinesProviderV1 = Field(..., alias="pipelinesProvider")
-    resource_templates: list[SaasResourceTemplateV2] = Field(
-        ..., alias="resourceTemplates"
-    )
+    resource_templates: list[SaasResourceTemplateV2] = Field(..., alias="resourceTemplates")
 
 
 class QuayInstanceV1(ConfiguredBaseModel):
@@ -135,23 +129,15 @@ class NamespaceExternalResourceV1(ConfiguredBaseModel):
 
 
 class NamespaceV1(ConfiguredBaseModel):
-    managed_external_resources: Optional[bool] = Field(
-        ..., alias="managedExternalResources"
-    )
-    external_resources: Optional[list[NamespaceExternalResourceV1]] = Field(
-        ..., alias="externalResources"
-    )
+    managed_external_resources: Optional[bool] = Field(..., alias="managedExternalResources")
+    external_resources: Optional[list[NamespaceExternalResourceV1]] = Field(..., alias="externalResources")
 
 
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     dependencies: Optional[list[DependencyV1]] = Field(..., alias="dependencies")
-    code_components: Optional[list[AppCodeComponentsV1]] = Field(
-        ..., alias="codeComponents"
-    )
-    jenkins_configs: Optional[list[JenkinsConfigV1]] = Field(
-        ..., alias="jenkinsConfigs"
-    )
+    code_components: Optional[list[AppCodeComponentsV1]] = Field(..., alias="codeComponents")
+    jenkins_configs: Optional[list[JenkinsConfigV1]] = Field(..., alias="jenkinsConfigs")
     saas_files: Optional[list[SaasFileV2]] = Field(..., alias="saasFiles")
     quay_repos: Optional[list[AppQuayReposV1]] = Field(..., alias="quayRepos")
     namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")

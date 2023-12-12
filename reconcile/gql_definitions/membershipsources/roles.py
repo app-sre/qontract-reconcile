@@ -53,8 +53,8 @@ query MembershipSourceRolesQuery($filter: JSON) {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class UserV1(ConfiguredBaseModel):
@@ -77,9 +77,7 @@ class BotV1(ConfiguredBaseModel):
     org_username: Optional[str] = Field(..., alias="org_username")
     github_username: Optional[str] = Field(..., alias="github_username")
     gitlab_username: Optional[str] = Field(..., alias="gitlab_username")
-    openshift_serviceaccount: Optional[str] = Field(
-        ..., alias="openshift_serviceaccount"
-    )
+    openshift_serviceaccount: Optional[str] = Field(..., alias="openshift_serviceaccount")
     quay_username: Optional[str] = Field(..., alias="quay_username")
 
 

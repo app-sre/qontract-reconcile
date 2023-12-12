@@ -17,9 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.aws_infra_management_account import (
-    AWSInfrastructureManagementAccount,
-)
+from reconcile.gql_definitions.fragments.aws_infra_management_account import AWSInfrastructureManagementAccount
 from reconcile.gql_definitions.fragments.aws_vpc import AWSVPC
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
@@ -190,8 +188,8 @@ query ClustersWithPeering {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class OpenShiftClusterManagerV1(ConfiguredBaseModel):
@@ -200,9 +198,7 @@ class OpenShiftClusterManagerV1(ConfiguredBaseModel):
     org_id: str = Field(..., alias="orgId")
     access_token_client_id: Optional[str] = Field(..., alias="accessTokenClientId")
     access_token_url: Optional[str] = Field(..., alias="accessTokenUrl")
-    access_token_client_secret: Optional[VaultSecret] = Field(
-        ..., alias="accessTokenClientSecret"
-    )
+    access_token_client_secret: Optional[VaultSecret] = Field(..., alias="accessTokenClientSecret")
     blocked_versions: Optional[list[str]] = Field(..., alias="blockedVersions")
 
 
@@ -247,33 +243,23 @@ class ClusterPeeringConnectionAccountTGWV1_AWSAccountV1(ConfiguredBaseModel):
 
 
 class ClusterPeeringConnectionAccountTGWV1(ClusterPeeringConnectionV1):
-    account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1 = Field(
-        ..., alias="account"
-    )
+    account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1 = Field(..., alias="account")
     tags: Optional[Json] = Field(..., alias="tags")
     cidr_block: Optional[str] = Field(..., alias="cidrBlock")
     manage_security_groups: Optional[bool] = Field(..., alias="manageSecurityGroups")
-    manage_route53_associations: Optional[bool] = Field(
-        ..., alias="manageRoute53Associations"
-    )
+    manage_route53_associations: Optional[bool] = Field(..., alias="manageRoute53Associations")
     assume_role: Optional[str] = Field(..., alias="assumeRole")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1(
-    ConfiguredBaseModel
-):
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1(ConfiguredBaseModel):
     vpc: str = Field(..., alias="vpc")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1(
-    ConfiguredBaseModel
-):
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1(ConfiguredBaseModel):
     region: str = Field(..., alias="region")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1(
-    ConfiguredBaseModel
-):
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     provider: str = Field(..., alias="provider")
     manage_routes: Optional[bool] = Field(..., alias="manageRoutes")
@@ -290,61 +276,30 @@ class ClusterPeeringConnectionClusterAccepterV1_AWSAccountV1(ConfiguredBaseModel
     automation_token: VaultSecret = Field(..., alias="automationToken")
 
 
-class ClusterPeeringConnectionClusterAccepterV1(
-    ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1
-):
+class ClusterPeeringConnectionClusterAccepterV1(ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1):
     name: str = Field(..., alias="name")
-    cluster: ClusterPeeringConnectionClusterAccepterV1_ClusterV1 = Field(
-        ..., alias="cluster"
-    )
-    aws_infrastructure_management_account: Optional[
-        ClusterPeeringConnectionClusterAccepterV1_AWSAccountV1
-    ] = Field(..., alias="awsInfrastructureManagementAccount")
+    cluster: ClusterPeeringConnectionClusterAccepterV1_ClusterV1 = Field(..., alias="cluster")
+    aws_infrastructure_management_account: Optional[ClusterPeeringConnectionClusterAccepterV1_AWSAccountV1] = Field(..., alias="awsInfrastructureManagementAccount")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1(
-    ConfiguredBaseModel
-):
-    connections: list[
-        Union[
-            ClusterPeeringConnectionClusterAccepterV1,
-            ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1,
-        ]
-    ] = Field(..., alias="connections")
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1(ConfiguredBaseModel):
+    connections: list[Union[ClusterPeeringConnectionClusterAccepterV1, ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1]] = Field(..., alias="connections")
 
 
 class ClusterPeeringConnectionClusterRequesterV1_ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    network: Optional[
-        ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1
-    ] = Field(..., alias="network")
-    spec: Optional[
-        ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1
-    ] = Field(..., alias="spec")
-    aws_infrastructure_management_accounts: Optional[
-        list[AWSInfrastructureManagementAccount]
-    ] = Field(..., alias="awsInfrastructureManagementAccounts")
-    peering: Optional[
-        ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1
-    ] = Field(..., alias="peering")
+    network: Optional[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1] = Field(..., alias="network")
+    spec: Optional[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1] = Field(..., alias="spec")
+    aws_infrastructure_management_accounts: Optional[list[AWSInfrastructureManagementAccount]] = Field(..., alias="awsInfrastructureManagementAccounts")
+    peering: Optional[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1] = Field(..., alias="peering")
 
 
 class ClusterPeeringConnectionClusterRequesterV1(ClusterPeeringConnectionV1):
-    cluster: ClusterPeeringConnectionClusterRequesterV1_ClusterV1 = Field(
-        ..., alias="cluster"
-    )
+    cluster: ClusterPeeringConnectionClusterRequesterV1_ClusterV1 = Field(..., alias="cluster")
 
 
 class ClusterPeeringV1(ConfiguredBaseModel):
-    connections: list[
-        Union[
-            ClusterPeeringConnectionAccountTGWV1,
-            ClusterPeeringConnectionAccountV1,
-            ClusterPeeringConnectionAccountVPCMeshV1,
-            ClusterPeeringConnectionClusterRequesterV1,
-            ClusterPeeringConnectionV1,
-        ]
-    ] = Field(..., alias="connections")
+    connections: list[Union[ClusterPeeringConnectionAccountTGWV1, ClusterPeeringConnectionAccountV1, ClusterPeeringConnectionAccountVPCMeshV1, ClusterPeeringConnectionClusterRequesterV1, ClusterPeeringConnectionV1]] = Field(..., alias="connections")
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
@@ -355,9 +310,7 @@ class ClusterV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
-    aws_infrastructure_management_accounts: Optional[
-        list[AWSInfrastructureManagementAccount]
-    ] = Field(..., alias="awsInfrastructureManagementAccounts")
+    aws_infrastructure_management_accounts: Optional[list[AWSInfrastructureManagementAccount]] = Field(..., alias="awsInfrastructureManagementAccounts")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     network: Optional[ClusterNetworkV1] = Field(..., alias="network")
     peering: Optional[ClusterPeeringV1] = Field(..., alias="peering")

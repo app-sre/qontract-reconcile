@@ -318,7 +318,8 @@ def _is_tgw_cluster(
     account_name: Optional[str] = None,
 ) -> bool:
     return any(
-        _is_tgw_peer_connection(pc, account_name) for pc in cluster.peering.connections  # type: ignore[union-attr]
+        _is_tgw_peer_connection(pc, account_name)
+        for pc in cluster.peering.connections  # type: ignore[union-attr]
     )
 
 

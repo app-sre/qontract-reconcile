@@ -27,9 +27,7 @@ QUERY_VALIDATIONS_QUERY = """
     }
   }
 }
-""" % (
-    indent(OPENSHIFT_RESOURCE, 6 * " "),
-)
+""" % (indent(OPENSHIFT_RESOURCE, 6 * " "),)
 
 
 def run(dry_run):

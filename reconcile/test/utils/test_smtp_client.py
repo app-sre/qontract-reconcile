@@ -54,12 +54,10 @@ def test_smtp_client_send_mail(smtp_client: SmtpClient, smtpd):
 
 
 def test_smtp_client_send_mails(smtp_client: SmtpClient, smtpd):
-    smtp_client.send_mails(
-        [
-            ("benturner", "subject_subject", "body_body_body"),
-            ("2benturner2", "2subject_subject2", "2body_body_body2"),
-        ]
-    )
+    smtp_client.send_mails([
+        ("benturner", "subject_subject", "body_body_body"),
+        ("2benturner2", "2subject_subject2", "2body_body_body2"),
+    ])
     assert len(smtpd.messages) == 2
 
     msg = smtpd.messages[0]

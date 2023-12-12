@@ -269,22 +269,18 @@ def test_qontract_server_datafile_diff_data_cleanup(
 def resourcefile_diff() -> QontractServerResourcefileDiff:
     return QontractServerResourcefileDiff(
         resourcepath="/my/resourcefile.yml",
-        old=QontractServerResourcefileDiffState(
-            **{
-                "path": "/my/resourcefile.yml",
-                "content": "old content",
-                "$schema": None,
-                "sha256sum": "old_sha",
-            }
-        ),
-        new=QontractServerResourcefileDiffState(
-            **{
-                "path": "/new/resourcefile.yml",
-                "content": "new content",
-                "$schema": None,
-                "sha256sum": "new_sha",
-            }
-        ),
+        old=QontractServerResourcefileDiffState(**{
+            "path": "/my/resourcefile.yml",
+            "content": "old content",
+            "$schema": None,
+            "sha256sum": "old_sha",
+        }),
+        new=QontractServerResourcefileDiffState(**{
+            "path": "/new/resourcefile.yml",
+            "content": "new content",
+            "$schema": None,
+            "sha256sum": "new_sha",
+        }),
     )
 
 

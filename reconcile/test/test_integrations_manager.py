@@ -159,17 +159,15 @@ def test_collect_parameters_namespace_environment_parameter(mocker) -> None:
     os.environ["IMAGE_TAG"] = "env override"
     environment = EnvironmentV1(
         name="env",
-        parameters=json.dumps(
-            {
-                "IMAGE_TAG": "env-file-general-override",
-                INTEGRATION_UPSTREAM_REPOS_PARAM: [
-                    {
-                        "repo": upstream,
-                        "ref": "master",
-                    }
-                ],
-            }
-        ),
+        parameters=json.dumps({
+            "IMAGE_TAG": "env-file-general-override",
+            INTEGRATION_UPSTREAM_REPOS_PARAM: [
+                {
+                    "repo": upstream,
+                    "ref": "master",
+                }
+            ],
+        }),
     )
     mocker.patch(
         "reconcile.integrations_manager.get_image_tag_from_ref", return_value="f44e417"
@@ -301,7 +299,7 @@ def test_build_helm_values(
 
 @pytest.fixture
 def aws_accounts(
-    gql_class_factory: Callable[..., sharding_aws_accounts.AWSAccountV1]
+    gql_class_factory: Callable[..., sharding_aws_accounts.AWSAccountV1],
 ) -> list[sharding_aws_accounts.AWSAccountV1]:
     a1 = gql_class_factory(sharding_aws_accounts.AWSAccountV1, {"name": "acc-1"})
     a2 = gql_class_factory(
@@ -425,7 +423,7 @@ def openshift_cluster_sharding_strategy(
 
 @pytest.fixture
 def ocm_organizations(
-    gql_class_factory: Callable[..., MinimalOCMOrganization]
+    gql_class_factory: Callable[..., MinimalOCMOrganization],
 ) -> list[MinimalOCMOrganization]:
     return [
         gql_class_factory(

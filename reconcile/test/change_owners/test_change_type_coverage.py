@@ -30,9 +30,9 @@ from reconcile.test.change_owners.fixtures import (
 def test_cover_changes_one_file(
     saas_file_changetype: ChangeTypeV1, saas_file: StubFile
 ) -> None:
-    saas_file_change = saas_file.create_bundle_change(
-        {"resourceTemplates[0].targets[0].ref": "new-ref"}
-    )
+    saas_file_change = saas_file.create_bundle_change({
+        "resourceTemplates[0].targets[0].ref": "new-ref"
+    })
     ctx = ChangeTypeContext(
         change_type_processor=change_type_to_processor(saas_file_changetype),
         context="RoleV1 - some-role",
@@ -52,9 +52,9 @@ def test_uncovered_change_because_change_type_is_disabled(
     saas_file_changetype: ChangeTypeV1, saas_file: StubFile
 ) -> None:
     saas_file_changetype.disabled = True
-    saas_file_change = saas_file.create_bundle_change(
-        {"resourceTemplates[0].targets[0].ref": "new-ref"}
-    )
+    saas_file_change = saas_file.create_bundle_change({
+        "resourceTemplates[0].targets[0].ref": "new-ref"
+    })
     ctx = ChangeTypeContext(
         change_type_processor=change_type_to_processor(saas_file_changetype),
         context="RoleV1 - some-role",

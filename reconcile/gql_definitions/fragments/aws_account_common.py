@@ -22,8 +22,8 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class OwnerV1(ConfiguredBaseModel):
@@ -48,17 +48,13 @@ class AWSAccountCommon(ConfiguredBaseModel):
     terraform_username: Optional[str] = Field(..., alias="terraformUsername")
     console_url: str = Field(..., alias="consoleUrl")
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
-    supported_deployment_regions: Optional[list[str]] = Field(
-        ..., alias="supportedDeploymentRegions"
-    )
+    supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
     provider_version: str = Field(..., alias="providerVersion")
     account_owners: list[OwnerV1] = Field(..., alias="accountOwners")
     automation_token: VaultSecret = Field(..., alias="automationToken")
     garbage_collection: Optional[bool] = Field(..., alias="garbageCollection")
     enable_deletion: Optional[bool] = Field(..., alias="enableDeletion")
-    deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(
-        ..., alias="deletionApprovals"
-    )
+    deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(..., alias="deletionApprovals")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
     delete_keys: Optional[list[str]] = Field(..., alias="deleteKeys")
     premium_support: bool = Field(..., alias="premiumSupport")

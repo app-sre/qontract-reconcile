@@ -43,7 +43,7 @@ def namespace_factory(
     gql_class_factory: Callable[
         [type[NamespaceV1], MutableMapping[str, Any]],
         NamespaceV1,
-    ]
+    ],
 ) -> NamespaceFactory:
     def _namespace_factory(
         name: str,

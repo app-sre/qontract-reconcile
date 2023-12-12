@@ -137,7 +137,7 @@ def fetch_tkn_providers(saas_file_name: Optional[str]) -> dict[str, Any]:
 
 
 def fetch_desired_resources(
-    tkn_providers: dict[str, Any]
+    tkn_providers: dict[str, Any],
 ) -> list[dict[str, Union[str, OR]]]:
     """Create an array of dicts that will be used as args of ri.add_desired
     This will also add resourceNames inside tkn_providers['namespace']
@@ -213,7 +213,7 @@ def fetch_desired_resources(
 
 
 def build_one_per_namespace_task(
-    task_template_config: dict[str, str]
+    task_template_config: dict[str, str],
 ) -> dict[str, Any]:
     """Builds onePerNamespace Task objects. The name of the task template
     will be used as Task name and there won't be any resource configuration"""

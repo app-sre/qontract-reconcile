@@ -62,14 +62,16 @@ class AggregatedList:
             update_delete = [i for i in l_items if i not in r_items]
 
             if update_insert:
-                diff["update-insert"].append(
-                    {"params": left["params"], "items": update_insert}
-                )
+                diff["update-insert"].append({
+                    "params": left["params"],
+                    "items": update_insert,
+                })
 
             if update_delete:
-                diff["update-delete"].append(
-                    {"params": left["params"], "items": update_delete}
-                )
+                diff["update-delete"].append({
+                    "params": left["params"],
+                    "items": update_delete,
+                })
 
         return diff
 

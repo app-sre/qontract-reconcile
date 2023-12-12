@@ -133,13 +133,11 @@ def fetch_desired_state(
                     if username is None:
                         continue
 
-                    desired_state.append(
-                        {
-                            "cluster": a.cluster.name,
-                            "group": a.group,
-                            "user": username,
-                        }
-                    )
+                    desired_state.append({
+                        "cluster": a.cluster.name,
+                        "group": a.group,
+                        "user": username,
+                    })
 
     return desired_state
 
@@ -191,14 +189,12 @@ def subtract_states(
                 }
                 if item not in result:
                     result.append(item)
-            result.append(
-                {
-                    "action": user_action,
-                    "cluster": f_user["cluster"],
-                    "group": f_user["group"],
-                    "user": f_user["user"],
-                }
-            )
+            result.append({
+                "action": user_action,
+                "cluster": f_user["cluster"],
+                "group": f_user["group"],
+                "user": f_user["user"],
+            })
 
     return result
 

@@ -22,8 +22,8 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class MembershipProviderSourceV1(ConfiguredBaseModel):
@@ -39,9 +39,7 @@ class AppInterfaceMembershipProviderSourceV1(MembershipProviderSourceV1):
 class MembershipProviderV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     has_audit_trail: bool = Field(..., alias="hasAuditTrail")
-    source: Union[
-        AppInterfaceMembershipProviderSourceV1, MembershipProviderSourceV1
-    ] = Field(..., alias="source")
+    source: Union[AppInterfaceMembershipProviderSourceV1, MembershipProviderSourceV1] = Field(..., alias="source")
 
 
 class RoleMembershipSource(ConfiguredBaseModel):

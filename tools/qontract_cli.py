@@ -428,14 +428,12 @@ def get_upgrade_policies_data(
             if by_workload:
                 for w, soaking in workload_soaking_upgrades.items():
                     i = item.copy()
-                    i.update(
-                        {
-                            "workload": w,
-                            "soaking_upgrades": soaking_str(
-                                soaking, upgrade_policy, upgradeable_version
-                            ),
-                        }
-                    )
+                    i.update({
+                        "workload": w,
+                        "soaking_upgrades": soaking_str(
+                            soaking, upgrade_policy, upgradeable_version
+                        ),
+                    })
                     results.append(i)
             else:
                 workloads = sorted(upgrade_spec.upgrade_policy.workloads)
@@ -446,14 +444,12 @@ def get_upgrade_policies_data(
                     min_soaks = min(soaks)
                     if not show_only_soaking_upgrades or min_soaks > 0:
                         soaking[v] = min_soaks
-                item.update(
-                    {
-                        "workload": w,
-                        "soaking_upgrades": soaking_str(
-                            soaking, upgrade_policy, upgradeable_version
-                        ),
-                    }
-                )
+                item.update({
+                    "workload": w,
+                    "soaking_upgrades": soaking_str(
+                        soaking, upgrade_policy, upgradeable_version
+                    ),
+                })
                 results.append(item)
 
     return results
@@ -677,23 +673,19 @@ def ocm_addon_upgrade_policies(ctx: click.core.Context) -> None:
                 next_version = (
                     available_upgrades[-1] if len(available_upgrades) > 0 else ""
                 )
-                ocm_output.append(
-                    {
-                        "cluster": spec.cluster.name,
-                        "addon_id": spec.addon.id,
-                        "current_version": spec.current_version,
-                        "schedule": spec.upgrade_policy.schedule,
-                        "sector": spec.upgrade_policy.conditions.sector,
-                        "mutexes": ", ".join(
-                            spec.upgrade_policy.conditions.mutexes or []
-                        ),
-                        "soak_days": spec.upgrade_policy.conditions.soak_days,
-                        "workloads": ", ".join(spec.upgrade_policy.workloads),
-                        "next_version": next_version
-                        if next_version != spec.current_version
-                        else "",
-                    }
-                )
+                ocm_output.append({
+                    "cluster": spec.cluster.name,
+                    "addon_id": spec.addon.id,
+                    "current_version": spec.current_version,
+                    "schedule": spec.upgrade_policy.schedule,
+                    "sector": spec.upgrade_policy.conditions.sector,
+                    "mutexes": ", ".join(spec.upgrade_policy.conditions.mutexes or []),
+                    "soak_days": spec.upgrade_policy.conditions.soak_days,
+                    "workloads": ", ".join(spec.upgrade_policy.workloads),
+                    "next_version": next_version
+                    if next_version != spec.current_version
+                    else "",
+                })
 
     fields = [
         {"key": "cluster", "sortable": True},
@@ -784,7 +776,8 @@ def sd_app_sre_alert_report(
     )
     alerts = report.group_alerts(
         slack.get_flat_conversation_history(
-            from_timestamp=from_timestamp, to_timestamp=to_timestamp  # type: ignore[arg-type]
+            from_timestamp=from_timestamp,  # type: ignore[arg-type]
+            to_timestamp=to_timestamp,
         )
     )
     alert_stats = report.gen_alert_stats(alerts)
@@ -804,14 +797,12 @@ def sd_app_sre_alert_report(
             seconds = round(median(data.elapsed_times))
             median_elapsed = str(timedelta(seconds=seconds))
 
-        table_data.append(
-            {
-                "Alert name": alert_name,
-                "Triggered": str(data.triggered_alerts),
-                "Resolved": str(data.resolved_alerts),
-                "Median time to resolve (h:mm:ss)": median_elapsed,
-            }
-        )
+        table_data.append({
+            "Alert name": alert_name,
+            "Triggered": str(data.triggered_alerts),
+            "Resolved": str(data.resolved_alerts),
+            "Median time to resolve (h:mm:ss)": median_elapsed,
+        })
 
     # TODO(mafriedm, rporres): Fix this
     ctx.obj["options"]["sort"] = False
@@ -938,13 +929,11 @@ def clusters_network(ctx, name):
             # This is a CCS/ROSA cluster.
             # We can access the account directly, without assuming a network-mgmt role
             account = cluster["spec"]["account"]
-            account.update(
-                {
-                    "assume_role": "",
-                    "assume_region": cluster["spec"]["region"],
-                    "assume_cidr": cluster["network"]["vpc"],
-                }
-            )
+            account.update({
+                "assume_role": "",
+                "assume_region": cluster["spec"]["region"],
+                "assume_cidr": cluster["network"]["vpc"],
+            })
         else:
             account = tfvpc._build_infrastructure_assume_role(
                 management_account,
@@ -1534,60 +1523,50 @@ def roles(ctx, org_username):
             if "team" in p:
                 r_name += "/" + p["team"]
 
-            add(
-                {
-                    "type": "permission",
-                    "name": p["name"],
-                    "resource": r_name,
-                    "ref": role_name,
-                }
-            )
+            add({
+                "type": "permission",
+                "name": p["name"],
+                "resource": r_name,
+                "ref": role_name,
+            })
 
         for aws in role.get("aws_groups") or []:
             for policy in aws["policies"]:
-                add(
-                    {
-                        "type": "aws",
-                        "name": policy,
-                        "resource": aws["account"]["name"],
-                        "ref": aws["path"],
-                    }
-                )
+                add({
+                    "type": "aws",
+                    "name": policy,
+                    "resource": aws["account"]["name"],
+                    "ref": aws["path"],
+                })
 
         for a in role.get("access") or []:
             if a["cluster"]:
                 cluster_name = a["cluster"]["name"]
-                add(
-                    {
-                        "type": "cluster",
-                        "name": a["clusterRole"],
-                        "resource": cluster_name,
-                        "ref": role_name,
-                    }
-                )
+                add({
+                    "type": "cluster",
+                    "name": a["clusterRole"],
+                    "resource": cluster_name,
+                    "ref": role_name,
+                })
             elif a["namespace"]:
                 ns_name = a["namespace"]["name"]
-                add(
-                    {
-                        "type": "namespace",
-                        "name": a["role"],
-                        "resource": ns_name,
-                        "ref": role_name,
-                    }
-                )
+                add({
+                    "type": "namespace",
+                    "name": a["role"],
+                    "resource": ns_name,
+                    "ref": role_name,
+                })
 
         for s in role.get("self_service") or []:
             for d in s.get("datafiles") or []:
                 name = d.get("name")
                 if name:
-                    add(
-                        {
-                            "type": "saas_file",
-                            "name": "owner",
-                            "resource": name,
-                            "ref": role_name,
-                        }
-                    )
+                    add({
+                        "type": "saas_file",
+                        "name": "owner",
+                        "resource": name,
+                        "ref": role_name,
+                    })
 
     columns = ["type", "name", "resource", "ref"]
     print_output(ctx.obj["options"], roles, columns)
@@ -1637,13 +1616,11 @@ def quay_mirrors(ctx):
                 url = item["mirror"]["url"]
                 public = item["public"]
 
-                mirrors.append(
-                    {
-                        "repo": f"quay.io/{org_name}/{name}",
-                        "public": public,
-                        "upstream": url,
-                    }
-                )
+                mirrors.append({
+                    "repo": f"quay.io/{org_name}/{name}",
+                    "public": public,
+                    "upstream": url,
+                })
 
     columns = ["repo", "upstream", "public"]
     print_output(ctx.obj["options"], mirrors, columns)
@@ -1955,14 +1932,12 @@ def change_types(ctx) -> None:
             usage_statistics[ss.change_type.name] += nr_files
     data = []
     for ct in change_types:
-        data.append(
-            {
-                "name": ct.name,
-                "description": ct.description,
-                "applicable to": f"{ct.context_type.value} {ct.context_schema or '' }",
-                "# usages": usage_statistics[ct.name],
-            }
-        )
+        data.append({
+            "name": ct.name,
+            "description": ct.description,
+            "applicable to": f"{ct.context_type.value} {ct.context_schema or '' }",
+            "# usages": usage_statistics[ct.name],
+        })
     columns = ["name", "description", "applicable to", "# usages"]
     print_output(ctx.obj["options"], data, columns)
 

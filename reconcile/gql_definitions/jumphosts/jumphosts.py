@@ -17,9 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
-)
+from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 
 
 DEFINITION = """
@@ -57,8 +55,8 @@ query Jumphosts ($hostname: String) {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ClusterNetworkV1(ConfiguredBaseModel):

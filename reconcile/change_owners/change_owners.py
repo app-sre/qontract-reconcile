@@ -137,9 +137,9 @@ def write_coverage_report_to_mr(
             for cr in d.change_responsibles
         ]
         for cr in d.change_responsibles:
-            approver_reachability.update(
-                {ar.render_for_mr_report() for ar in cr.approver_reachability or []}
-            )
+            approver_reachability.update({
+                ar.render_for_mr_report() for ar in cr.approver_reachability or []
+            })
         if not approvers:
             approvers = ["[- not self-serviceable -]"]
         item = {
@@ -171,9 +171,9 @@ def write_coverage_report_to_mr(
 
     approver_reachability_hint = "Reach out to approvers for reviews"
     if approver_reachability:
-        approver_reachability_hint += " on\n" + "\n".join(
-            [f"* {ar}" for ar in approver_reachability or []]
-        )
+        approver_reachability_hint += " on\n" + "\n".join([
+            f"* {ar}" for ar in approver_reachability or []
+        ])
     gl.add_comment_to_merge_request(
         merge_request,
         f"{change_coverage_report_header}<br/>"
@@ -189,31 +189,25 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
     for d in change_decisions:
         if d.coverage:
             for ctx in d.coverage:
-                results.append(
-                    {
-                        "file": d.file.path,
-                        "schema": d.file.schema,
-                        "changed path": d.diff.path,
-                        "change type": ctx.change_type_processor.name,
-                        "origin": ctx.origin,
-                        "context": ctx.context,
-                        "approver_reachability": ", ".join(
-                            [
-                                ar.render_for_mr_report()
-                                for ar in ctx.approver_reachability or []
-                            ]
-                        ),
-                        "disabled": str(ctx.disabled),
-                    }
-                )
-        else:
-            results.append(
-                {
+                results.append({
                     "file": d.file.path,
                     "schema": d.file.schema,
                     "changed path": d.diff.path,
-                }
-            )
+                    "change type": ctx.change_type_processor.name,
+                    "origin": ctx.origin,
+                    "context": ctx.context,
+                    "approver_reachability": ", ".join([
+                        ar.render_for_mr_report()
+                        for ar in ctx.approver_reachability or []
+                    ]),
+                    "disabled": str(ctx.disabled),
+                })
+        else:
+            results.append({
+                "file": d.file.path,
+                "schema": d.file.schema,
+                "changed path": d.diff.path,
+            })
 
     print(
         format_table(
@@ -365,14 +359,12 @@ def run(
 
             # priority labels
             mr_priority = get_priority_for_changes(changes)
-            conditional_labels.update(
-                {
-                    prioritized_approval_label(p.value): self_serviceable
-                    and approved
-                    and p == mr_priority
-                    for p in ChangeTypePriority
-                }
-            )
+            conditional_labels.update({
+                prioritized_approval_label(p.value): self_serviceable
+                and approved
+                and p == mr_priority
+                for p in ChangeTypePriority
+            })
             labels = manage_conditional_label(
                 current_labels=merge_request.labels,
                 conditional_labels=conditional_labels,

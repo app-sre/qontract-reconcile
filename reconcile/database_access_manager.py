@@ -15,9 +15,8 @@ from typing import (
 
 from pydantic import BaseModel
 
-from reconcile import openshift_base
+from reconcile import openshift_base, queries
 from reconcile import openshift_resources_base as orb
-from reconcile import queries
 from reconcile.gql_definitions.terraform_resources.database_access_manager import (
     DatabaseAccessV1,
     NamespaceTerraformProviderResourceAWSV1,

@@ -137,12 +137,10 @@ def test_add_label_with_note_to_merge_request(
 
     assert mocked_gitlab_request.labels.return_value.inc.call_count == 3
     assert mr.labels == [existing_label, new_label]
-    mr.notes.create.assert_called_once_with(
-        {
-            "body": f"item has been marked as {new_label}. "
-            f"to remove say `/{new_label} cancel`",
-        }
-    )
+    mr.notes.create.assert_called_once_with({
+        "body": f"item has been marked as {new_label}. "
+        f"to remove say `/{new_label} cancel`",
+    })
     mr.save.assert_called_once()
 
 
@@ -164,12 +162,10 @@ def test_add_label_with_note_to_issue(
 
     assert mocked_gitlab_request.labels.return_value.inc.call_count == 3
     assert issue.labels == [existing_label, new_label]
-    issue.notes.create.assert_called_once_with(
-        {
-            "body": f"item has been marked as {new_label}. "
-            f"to remove say `/{new_label} cancel`",
-        }
-    )
+    issue.notes.create.assert_called_once_with({
+        "body": f"item has been marked as {new_label}. "
+        f"to remove say `/{new_label} cancel`",
+    })
     issue.save.assert_called_once()
 
 
@@ -241,11 +237,9 @@ def test_add_comment_to_merge_request(
     GitLabApi.add_comment_to_merge_request(mr, body)
 
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
-    mr.notes.create.assert_called_once_with(
-        {
-            "body": body,
-        }
-    )
+    mr.notes.create.assert_called_once_with({
+        "body": body,
+    })
 
 
 def test_get_merge_request_comments(

@@ -29,9 +29,9 @@ class TestProcess(TestCase):
     def test_changes_to_spec(self, cancel):
         cli = MagicMock()
         cli.project.files.get.return_value = self.raw_clusters.encode()
-        c = sut.CreateClustersUpdates(
-            {"cluster1": {"spec": {"id": "42"}, "root": {}, "path": "/a/path"}}
-        )
+        c = sut.CreateClustersUpdates({
+            "cluster1": {"spec": {"id": "42"}, "root": {}, "path": "/a/path"}
+        })
         c.branch = "abranch"
         c.process(cli)
         self.clusters[0]["spec"]["id"] = "42"
@@ -49,15 +49,13 @@ class TestProcess(TestCase):
     def test_changes_to_root(self, cancel):
         cli = MagicMock()
         cli.project.files.get.return_value = self.raw_clusters.encode()
-        c = sut.CreateClustersUpdates(
-            {
-                "cluster1": {
-                    "spec": {},
-                    "root": {"prometheusUrl": "aprometheusurl"},
-                    "path": "/a/path",
-                }
+        c = sut.CreateClustersUpdates({
+            "cluster1": {
+                "spec": {},
+                "root": {"prometheusUrl": "aprometheusurl"},
+                "path": "/a/path",
             }
-        )
+        })
         c.branch = "abranch"
         c.process(cli)
         self.clusters[0]["prometheusUrl"] = "aprometheusurl"

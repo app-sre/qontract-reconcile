@@ -185,9 +185,12 @@ def act(
 
     for sso_client_id in sso_client_ids_to_add:
         cluster = desired_sso_clients[sso_client_id]
-        logging.info(
-            ["create_sso_client", cluster.name, cluster.auth.name, sso_client_id]
-        )
+        logging.info([
+            "create_sso_client",
+            cluster.name,
+            cluster.auth.name,
+            sso_client_id,
+        ])
         if not dry_run:
             create_sso_client(
                 keycloak_map=keycloak_map,

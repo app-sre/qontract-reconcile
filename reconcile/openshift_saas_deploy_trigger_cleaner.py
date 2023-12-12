@@ -85,14 +85,12 @@ def run(
             if pp.retention.days and within_retention_days(pr, pp.retention.days):
                 continue
 
-            logging.info(
-                [
-                    "delete_trigger",
-                    pp.namespace.cluster.name,
-                    pp.namespace.name,
-                    "PipelineRun",
-                    name,
-                ]
-            )
+            logging.info([
+                "delete_trigger",
+                pp.namespace.cluster.name,
+                pp.namespace.name,
+                "PipelineRun",
+                name,
+            ])
             if not dry_run:
                 oc.delete(pp.namespace.name, "PipelineRun", name)

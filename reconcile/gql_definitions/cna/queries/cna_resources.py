@@ -44,8 +44,8 @@ query CNAssets {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ExternalResourcesProvisionerV1(ConfiguredBaseModel):
@@ -72,9 +72,7 @@ class NamespaceCNAssetV1(NamespaceExternalResourceV1):
 
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    external_resources: Optional[
-        list[Union[NamespaceCNAssetV1, NamespaceExternalResourceV1]]
-    ] = Field(..., alias="externalResources")
+    external_resources: Optional[list[Union[NamespaceCNAssetV1, NamespaceExternalResourceV1]]] = Field(..., alias="externalResources")
 
 
 class CNAssetsQueryData(ConfiguredBaseModel):

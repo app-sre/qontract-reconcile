@@ -63,13 +63,11 @@ def example_service_log(
         "cluster_uuid",
         severity=OCMServiceLogSeverity.Error,
     )
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET", uri=CLUSTER_SERVICE_LOGS_LIST_ENDPOINT
-            ).add_list_response([expected_service_log])
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(method="GET", uri=CLUSTER_SERVICE_LOGS_LIST_ENDPOINT).add_list_response([
+            expected_service_log
+        ])
+    ])
 
     return expected_service_log
 
@@ -119,24 +117,22 @@ def test_create_service_log(
     find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
 ) -> None:
     timestamp = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc)
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="POST",
-                uri=CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT,
-                responses=[
-                    build_service_log(
-                        cluster_uuid="cluster_uuid",
-                        summary="something happened",
-                        description="something happenes",
-                        service_name="some-service",
-                        severity=OCMServiceLogSeverity.Info,
-                        timestamp=timestamp,
-                    ),
-                ],
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="POST",
+            uri=CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT,
+            responses=[
+                build_service_log(
+                    cluster_uuid="cluster_uuid",
+                    summary="something happened",
+                    description="something happenes",
+                    service_name="some-service",
+                    severity=OCMServiceLogSeverity.Info,
+                    timestamp=timestamp,
+                ),
+            ],
+        )
+    ])
     result = create_service_log(
         ocm_api=ocm_api,
         service_log=OCMClusterServiceLogCreateModel(
@@ -158,16 +154,14 @@ def test_create_service_log_dedup_timedelta_filter(
     get_service_logs_mock = mocker.patch.object(
         service_log, "get_service_logs_for_cluster_uuid"
     )
-    get_service_logs_mock.return_value = iter(
-        [
-            build_service_log(
-                "some error",
-                "description",
-                "cluster_uuid",
-                severity=OCMServiceLogSeverity.Error,
-            )
-        ]
-    )
+    get_service_logs_mock.return_value = iter([
+        build_service_log(
+            "some error",
+            "description",
+            "cluster_uuid",
+            severity=OCMServiceLogSeverity.Error,
+        )
+    ])
 
     dedup_interval = timedelta(days=1)
     create_service_log(
@@ -220,18 +214,16 @@ def test_create_service_log_dedup_no_dup(
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
     find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
 ) -> None:
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET", uri=CLUSTER_SERVICE_LOGS_LIST_ENDPOINT
-            ).add_list_response([]),
-            OcmUrl(
-                method="POST",
-                uri=CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT,
-                responses=[build_service_log()],
-            ),
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET", uri=CLUSTER_SERVICE_LOGS_LIST_ENDPOINT
+        ).add_list_response([]),
+        OcmUrl(
+            method="POST",
+            uri=CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT,
+            responses=[build_service_log()],
+        ),
+    ])
 
     create_service_log(
         ocm_api=ocm_api,

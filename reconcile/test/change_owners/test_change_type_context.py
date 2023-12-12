@@ -23,9 +23,9 @@ def test_extract_context_file_refs_from_bundle_change(
     of the change type, so the change type is directly relevant for the changed
     datafile
     """
-    bundle_change = saas_file.create_bundle_change(
-        {"resourceTemplates[0].targets[0].ref": "new-ref"}
-    )
+    bundle_change = saas_file.create_bundle_change({
+        "resourceTemplates[0].targets[0].ref": "new-ref"
+    })
     ctp = change_type_to_processor(saas_file_changetype)
     file_refs = ctp.find_context_file_refs(
         FileChange(
@@ -46,9 +46,9 @@ def test_extract_context_file_refs_from_bundle_change_schema_mismatch(
     change types do not match and hence no file context is extracted.
     """
     saas_file.fileschema = "/some/other/schema.yml"
-    bundle_change = saas_file.create_bundle_change(
-        {"resourceTemplates[0].targets[0].ref": "new-ref"}
-    )
+    bundle_change = saas_file.create_bundle_change({
+        "resourceTemplates[0].targets[0].ref": "new-ref"
+    })
     ctp = change_type_to_processor(saas_file_changetype)
     file_refs = ctp.find_context_file_refs(
         FileChange(

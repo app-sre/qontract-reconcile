@@ -32,8 +32,8 @@ query JiraSettings {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class JiraWatcherSettingsV1(ConfiguredBaseModel):
@@ -46,9 +46,7 @@ class AppInterfaceSettingsV1(ConfiguredBaseModel):
 
 
 class JiraSettingsQueryData(ConfiguredBaseModel):
-    jira_settings: Optional[list[AppInterfaceSettingsV1]] = Field(
-        ..., alias="jira_settings"
-    )
+    jira_settings: Optional[list[AppInterfaceSettingsV1]] = Field(..., alias="jira_settings")
 
 
 def query(query_func: Callable, **kwargs: Any) -> JiraSettingsQueryData:

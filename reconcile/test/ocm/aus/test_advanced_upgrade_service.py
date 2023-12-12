@@ -623,33 +623,27 @@ def test_build_version_data_inheritance_network() -> None:
     org_2 = "org-id-2"
     org_3 = "org-id-3"
     labels_per_org = {
-        OrgRef(org_id=org_1, env_name="ocm-prod"): build_label_container(
-            [
-                build_organization_label(
-                    org_id=org_1,
-                    key=aus_label_key("version-data.inherit"),
-                    value=f"{org_2},{org_3},unknown_org",
-                )
-            ]
-        ),
-        OrgRef(org_id=org_2, env_name="ocm-stage"): build_label_container(
-            [
-                build_organization_label(
-                    org_id=org_2,
-                    key=aus_label_key("version-data.publish"),
-                    value=org_1,
-                )
-            ]
-        ),
-        OrgRef(org_id=org_3, env_name="ocm-stage"): build_label_container(
-            [
-                build_organization_label(
-                    org_id=org_3,
-                    key=aus_label_key("version-data.publish"),
-                    value=org_2,
-                )
-            ]
-        ),
+        OrgRef(org_id=org_1, env_name="ocm-prod"): build_label_container([
+            build_organization_label(
+                org_id=org_1,
+                key=aus_label_key("version-data.inherit"),
+                value=f"{org_2},{org_3},unknown_org",
+            )
+        ]),
+        OrgRef(org_id=org_2, env_name="ocm-stage"): build_label_container([
+            build_organization_label(
+                org_id=org_2,
+                key=aus_label_key("version-data.publish"),
+                value=org_1,
+            )
+        ]),
+        OrgRef(org_id=org_3, env_name="ocm-stage"): build_label_container([
+            build_organization_label(
+                org_id=org_3,
+                key=aus_label_key("version-data.publish"),
+                value=org_2,
+            )
+        ]),
     }
     inheritance_network = build_version_data_inheritance_network(labels_per_org)
     org_1_inheritance = inheritance_network[OrgRef(org_id=org_1, env_name="ocm-prod")]

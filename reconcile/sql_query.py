@@ -17,12 +17,12 @@ from typing import (
 import jinja2
 from ruamel import yaml
 
-from reconcile import openshift_base
-from reconcile import openshift_resources_base as orb
 from reconcile import (
+    openshift_base,
     queries,
     typed_queries,
 )
+from reconcile import openshift_resources_base as orb
 from reconcile.status import ExitCodes
 from reconcile.utils.defer import defer
 from reconcile.utils.external_resources import get_external_resource_specs
@@ -140,9 +140,7 @@ metadata:
     integration: {{ QONTRACT_INTEGRATION }}
     query-name: {{ QUERY_NAME }}
 %s
-""" % (
-    JOB_SPEC
-)
+""" % (JOB_SPEC)
 
 
 CRONJOB_TEMPLATE = """
@@ -159,9 +157,7 @@ spec:
   concurrencyPolicy: "Forbid"
   jobTemplate:
     %s
-""" % (
-    indent(JOB_SPEC, 4 * " ")
-)
+""" % (indent(JOB_SPEC, 4 * " "))
 
 
 def get_tf_resource_info(

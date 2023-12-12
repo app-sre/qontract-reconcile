@@ -446,48 +446,42 @@ def test_conditions_met_deep_deps_mix_versions(
     )
 
     # all clusters with higher version in deps: upgrade ok
-    sector_1.set_specs(
-        [
-            build_cluster_upgrade_spec(
-                name="high-version-cluster",
-                current_version="2.0.0",
-                workloads=[workload],
-            )
-        ]
-    )
+    sector_1.set_specs([
+        build_cluster_upgrade_spec(
+            name="high-version-cluster",
+            current_version="2.0.0",
+            workloads=[workload],
+        )
+    ])
     assert base.version_conditions_met(
         "1.2.3", empty_version_data, upgrade_policy, sector=sector_3
     )
 
     # no cluster with higher version in deps: upgrade not ok
-    sector_1.set_specs(
-        [
-            build_cluster_upgrade_spec(
-                name="low-version-cluster",
-                current_version="1.0.0",
-                workloads=[workload],
-            )
-        ]
-    )
+    sector_1.set_specs([
+        build_cluster_upgrade_spec(
+            name="low-version-cluster",
+            current_version="1.0.0",
+            workloads=[workload],
+        )
+    ])
     assert not base.version_conditions_met(
         "1.2.3", empty_version_data, upgrade_policy, sector=sector_3
     )
 
     # not all clusters with higher version in deps: upgrade not ok
-    sector_1.set_specs(
-        [
-            build_cluster_upgrade_spec(
-                name="low-version-cluster",
-                current_version="1.0.0",
-                workloads=[workload],
-            ),
-            build_cluster_upgrade_spec(
-                name="low-version-cluster",
-                current_version="1.0.0",
-                workloads=[workload],
-            ),
-        ]
-    )
+    sector_1.set_specs([
+        build_cluster_upgrade_spec(
+            name="low-version-cluster",
+            current_version="1.0.0",
+            workloads=[workload],
+        ),
+        build_cluster_upgrade_spec(
+            name="low-version-cluster",
+            current_version="1.0.0",
+            workloads=[workload],
+        ),
+    ])
     assert not base.version_conditions_met(
         "1.2.3", empty_version_data, upgrade_policy, sector=sector_3
     )

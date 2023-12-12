@@ -17,13 +17,9 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
-)
+from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
-from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
-    MinimalOCMOrganization,
-)
+from reconcile.gql_definitions.fragments.minimal_ocm_organization import MinimalOCMOrganization
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -202,8 +198,8 @@ query Integrations {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class EnvironmentV1(ConfiguredBaseModel):
@@ -248,9 +244,7 @@ class IntegrationSpecV1(ConfiguredBaseModel):
     internal_certificates: Optional[bool] = Field(..., alias="internalCertificates")
     logs: Optional[IntegrationSpecLogsV1] = Field(..., alias="logs")
     resources: Optional[DeployResourcesFields] = Field(..., alias="resources")
-    fluentd_resources: Optional[DeployResourcesFields] = Field(
-        ..., alias="fluentdResources"
-    )
+    fluentd_resources: Optional[DeployResourcesFields] = Field(..., alias="fluentdResources")
     sleep_duration_secs: Optional[str] = Field(..., alias="sleepDurationSecs")
     state: Optional[bool] = Field(..., alias="state")
     storage: Optional[str] = Field(..., alias="storage")
@@ -259,9 +253,7 @@ class IntegrationSpecV1(ConfiguredBaseModel):
     dashdotdb: Optional[bool] = Field(..., alias="dashdotdb")
     concurrency_policy: Optional[str] = Field(..., alias="concurrencyPolicy")
     restart_policy: Optional[str] = Field(..., alias="restartPolicy")
-    successful_job_history_limit: Optional[int] = Field(
-        ..., alias="successfulJobHistoryLimit"
-    )
+    successful_job_history_limit: Optional[int] = Field(..., alias="successfulJobHistoryLimit")
     failed_job_history_limit: Optional[int] = Field(..., alias="failedJobHistoryLimit")
     image_ref: Optional[str] = Field(..., alias="imageRef")
     enable_pushgateway: Optional[bool] = Field(..., alias="enablePushgateway")
@@ -292,15 +284,11 @@ class OpenshiftClusterShardSpecOverrideV1(ConfiguredBaseModel):
     image_ref: Optional[str] = Field(..., alias="imageRef")
     disabled: Optional[bool] = Field(..., alias="disabled")
     resources: Optional[DeployResourcesFields] = Field(..., alias="resources")
-    sub_sharding: Optional[Union[StaticSubShardingV1, SubShardingV1]] = Field(
-        ..., alias="subSharding"
-    )
+    sub_sharding: Optional[Union[StaticSubShardingV1, SubShardingV1]] = Field(..., alias="subSharding")
 
 
 class OpenshiftClusterShardingV1(IntegrationShardingV1):
-    shard_spec_overrides: Optional[list[OpenshiftClusterShardSpecOverrideV1]] = Field(
-        ..., alias="shardSpecOverrides"
-    )
+    shard_spec_overrides: Optional[list[OpenshiftClusterShardSpecOverrideV1]] = Field(..., alias="shardSpecOverrides")
 
 
 class OCMOrganizationShardSpecOverrideV1(ConfiguredBaseModel):
@@ -311,9 +299,7 @@ class OCMOrganizationShardSpecOverrideV1(ConfiguredBaseModel):
 
 
 class OCMOrganizationShardingV1(IntegrationShardingV1):
-    shard_spec_overrides: Optional[list[OCMOrganizationShardSpecOverrideV1]] = Field(
-        ..., alias="shardSpecOverrides"
-    )
+    shard_spec_overrides: Optional[list[OCMOrganizationShardSpecOverrideV1]] = Field(..., alias="shardSpecOverrides")
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
@@ -333,9 +319,7 @@ class AWSAccountShardSpecOverrideV1(ConfiguredBaseModel):
 
 
 class AWSAccountShardingV1(IntegrationShardingV1):
-    shard_spec_overrides: Optional[list[AWSAccountShardSpecOverrideV1]] = Field(
-        ..., alias="shardSpecOverrides"
-    )
+    shard_spec_overrides: Optional[list[AWSAccountShardSpecOverrideV1]] = Field(..., alias="shardSpecOverrides")
 
 
 class CloudflareDnsZoneV1(ConfiguredBaseModel):
@@ -351,24 +335,13 @@ class CloudflareDNSZoneShardSpecOverrideV1(ConfiguredBaseModel):
 
 
 class CloudflareDNSZoneShardingV1(IntegrationShardingV1):
-    shard_spec_overrides: Optional[list[CloudflareDNSZoneShardSpecOverrideV1]] = Field(
-        ..., alias="shardSpecOverrides"
-    )
+    shard_spec_overrides: Optional[list[CloudflareDNSZoneShardSpecOverrideV1]] = Field(..., alias="shardSpecOverrides")
 
 
 class IntegrationManagedV1(ConfiguredBaseModel):
     namespace: NamespaceV1 = Field(..., alias="namespace")
     spec: IntegrationSpecV1 = Field(..., alias="spec")
-    sharding: Optional[
-        Union[
-            StaticShardingV1,
-            OpenshiftClusterShardingV1,
-            OCMOrganizationShardingV1,
-            AWSAccountShardingV1,
-            CloudflareDNSZoneShardingV1,
-            IntegrationShardingV1,
-        ]
-    ] = Field(..., alias="sharding")
+    sharding: Optional[Union[StaticShardingV1, OpenshiftClusterShardingV1, OCMOrganizationShardingV1, AWSAccountShardingV1, CloudflareDNSZoneShardingV1, IntegrationShardingV1]] = Field(..., alias="sharding")
 
 
 class IntegrationV1(ConfiguredBaseModel):

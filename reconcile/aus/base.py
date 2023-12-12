@@ -236,19 +236,16 @@ class AdvancedUpgradeSchedulerBaseIntegration(
     @abstractmethod
     def process_upgrade_policies_in_org(
         self, dry_run: bool, org_upgrade_spec: OrganizationUpgradeSpec
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @abstractmethod
     def get_ocm_env_upgrade_specs(
         self, ocm_env: OCMEnvironment
-    ) -> dict[str, OrganizationUpgradeSpec]:
-        ...
+    ) -> dict[str, OrganizationUpgradeSpec]: ...
 
     def signal_validation_issues(
         self, dry_run: bool, org_upgrade_spec: OrganizationUpgradeSpec
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def signal_reconcile_issues(
         self,
@@ -318,8 +315,9 @@ class GateAgreement(BaseModel):
 
 
 class RemainingSoakDayMetricsBuilder(Protocol):
-    def __call__(self, cluster_uuid: str, soaking_version: str) -> metrics.GaugeMetric:
-        ...
+    def __call__(
+        self, cluster_uuid: str, soaking_version: str
+    ) -> metrics.GaugeMetric: ...
 
 
 class AbstractUpgradePolicy(ABC, BaseModel):
@@ -751,7 +749,8 @@ def gates_to_agree(
         #       until this is solved, we can't do automated upgrades for STS clusters that cross a version gate
         #       once we have proper and secure handling get gate agreements for STS clusters, we can use this condition:
         #       `and (not g.sts_only or g.sts_only == cluster.is_sts())`
-        and not g.sts_only and semver_cluster.match(f"<{g.version_raw_id_prefix}.0")
+        and not g.sts_only
+        and semver_cluster.match(f"<{g.version_raw_id_prefix}.0")
     ]
 
     if applicable_gates:

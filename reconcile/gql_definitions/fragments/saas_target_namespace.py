@@ -17,16 +17,14 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
-)
+from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class SaasSecretParametersV1(ConfiguredBaseModel):
@@ -38,9 +36,7 @@ class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     labels: Optional[Json] = Field(..., alias="labels")
     parameters: Optional[Json] = Field(..., alias="parameters")
-    secret_parameters: Optional[list[SaasSecretParametersV1]] = Field(
-        ..., alias="secretParameters"
-    )
+    secret_parameters: Optional[list[SaasSecretParametersV1]] = Field(..., alias="secretParameters")
 
 
 class AppV1_AppV1(ConfiguredBaseModel):
@@ -84,14 +80,10 @@ class ClusterV1(ConfiguredBaseModel):
     labels: Optional[Json] = Field(..., alias="labels")
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
-    cluster_admin_automation_token: Optional[VaultSecret] = Field(
-        ..., alias="clusterAdminAutomationToken"
-    )
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
-    external_configuration: Optional[ClusterExternalConfigurationV1] = Field(
-        ..., alias="externalConfiguration"
-    )
+    external_configuration: Optional[ClusterExternalConfigurationV1] = Field(..., alias="externalConfiguration")
 
 
 class NamespaceSkupperSiteConfigV1(ConfiguredBaseModel):
@@ -106,6 +98,4 @@ class SaasTargetNamespace(ConfiguredBaseModel):
     environment: EnvironmentV1 = Field(..., alias="environment")
     app: AppV1 = Field(..., alias="app")
     cluster: ClusterV1 = Field(..., alias="cluster")
-    skupper_site: Optional[NamespaceSkupperSiteConfigV1] = Field(
-        ..., alias="skupperSite"
-    )
+    skupper_site: Optional[NamespaceSkupperSiteConfigV1] = Field(..., alias="skupperSite")

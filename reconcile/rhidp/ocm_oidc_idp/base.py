@@ -169,14 +169,12 @@ def act(
     diff_result = diff_iterables(
         current_state,
         desired_state,
-        key=lambda idp_state: (
-            (
-                idp_state.cluster.organization_id,
-                idp_state.cluster.name,
-                idp_state.idp.type,
-                idp_state.idp.name,
-            )
-        ),
+        key=lambda idp_state: ((
+            idp_state.cluster.organization_id,
+            idp_state.cluster.name,
+            idp_state.idp.type,
+            idp_state.idp.name,
+        )),
         equal=lambda idp1, idp2: idp1 == idp2,
     )
 
@@ -214,8 +212,10 @@ def act(
                 f"Identity provider {desired_idp.name} is not an OIDC identity provider."
             )
             continue
-        logging.info(
-            ["update_oidc_idp", desired_idp_state.cluster.name, desired_idp.name]
-        )
+        logging.info([
+            "update_oidc_idp",
+            desired_idp_state.cluster.name,
+            desired_idp.name,
+        ])
         if not dry_run:
             update_identity_provider(ocm_api, desired_idp)

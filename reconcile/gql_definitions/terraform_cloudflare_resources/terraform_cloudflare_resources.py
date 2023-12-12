@@ -17,9 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
-)
+from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -167,8 +165,8 @@ query TerraformCloudflareResources {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ClusterSpecV1(ConfiguredBaseModel):
@@ -185,9 +183,7 @@ class ClusterV1(ConfiguredBaseModel):
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
-    cluster_admin_automation_token: Optional[VaultSecret] = Field(
-        ..., alias="clusterAdminAutomationToken"
-    )
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
@@ -216,14 +212,10 @@ class CloudflareZoneWorkerScriptVarsV1(ConfiguredBaseModel):
     text: str = Field(..., alias="text")
 
 
-class NamespaceTerraformResourceCloudflareWorkerScriptV1(
-    NamespaceTerraformResourceCloudflareV1
-):
+class NamespaceTerraformResourceCloudflareWorkerScriptV1(NamespaceTerraformResourceCloudflareV1):
     identifier: str = Field(..., alias="identifier")
     name: str = Field(..., alias="name")
-    content_from_github: Optional[
-        CloudflareZoneWorkerScriptContentFromGithubV1
-    ] = Field(..., alias="content_from_github")
+    content_from_github: Optional[CloudflareZoneWorkerScriptContentFromGithubV1] = Field(..., alias="content_from_github")
     vars: Optional[list[CloudflareZoneWorkerScriptVarsV1]] = Field(..., alias="vars")
 
 
@@ -266,31 +258,21 @@ class CloudflareZoneCertificateV1(ConfiguredBaseModel):
     wait_for_active_status: Optional[bool] = Field(..., alias="wait_for_active_status")
 
 
-class NamespaceTerraformResourceCloudflareZoneV1(
-    NamespaceTerraformResourceCloudflareV1
-):
+class NamespaceTerraformResourceCloudflareZoneV1(NamespaceTerraformResourceCloudflareV1):
     identifier: str = Field(..., alias="identifier")
     zone: str = Field(..., alias="zone")
     plan: Optional[str] = Field(..., alias="plan")
     q_type: Optional[str] = Field(..., alias="type")
     settings: Optional[Json] = Field(..., alias="settings")
     argo: Optional[CloudflareZoneArgoV1] = Field(..., alias="argo")
-    tiered_cache: Optional[CloudflareZoneTieredCacheV1] = Field(
-        ..., alias="tiered_cache"
-    )
-    cache_reserve: Optional[CloudflareZoneCacheReserveV1] = Field(
-        ..., alias="cache_reserve"
-    )
+    tiered_cache: Optional[CloudflareZoneTieredCacheV1] = Field(..., alias="tiered_cache")
+    cache_reserve: Optional[CloudflareZoneCacheReserveV1] = Field(..., alias="cache_reserve")
     records: Optional[list[CloudflareDnsRecordV1]] = Field(..., alias="records")
     workers: Optional[list[CloudflareZoneWorkerV1]] = Field(..., alias="workers")
-    certificates: Optional[list[CloudflareZoneCertificateV1]] = Field(
-        ..., alias="certificates"
-    )
+    certificates: Optional[list[CloudflareZoneCertificateV1]] = Field(..., alias="certificates")
 
 
-class NamespaceTerraformResourceLogpushOwnershipChallengeV1(
-    NamespaceTerraformResourceCloudflareV1
-):
+class NamespaceTerraformResourceLogpushOwnershipChallengeV1(NamespaceTerraformResourceCloudflareV1):
     destination_conf: str = Field(..., alias="destination_conf")
     zone_name: Optional[str] = Field(..., alias="zone_name")
     identifier: str = Field(..., alias="identifier")
@@ -310,9 +292,7 @@ class NamespaceTerraformResourceLogpushJobV1(NamespaceTerraformResourceCloudflar
     kind: Optional[str] = Field(..., alias="kind")
 
 
-class NamespaceTerraformResourceLogpullRetentionV1(
-    NamespaceTerraformResourceCloudflareV1
-):
+class NamespaceTerraformResourceLogpullRetentionV1(NamespaceTerraformResourceCloudflareV1):
     zone: str = Field(..., alias="zone")
     enabled_flag: bool = Field(..., alias="enabled_flag")
     identifier: str = Field(..., alias="identifier")
@@ -321,33 +301,15 @@ class NamespaceTerraformResourceLogpullRetentionV1(
 class NamespaceTerraformProviderResourceCloudflareV1(NamespaceExternalResourceV1):
     provider: str = Field(..., alias="provider")
     provisioner: CloudflareAccountV1 = Field(..., alias="provisioner")
-    resources: list[
-        Union[
-            NamespaceTerraformResourceCloudflareZoneV1,
-            NamespaceTerraformResourceLogpushJobV1,
-            NamespaceTerraformResourceCloudflareWorkerScriptV1,
-            NamespaceTerraformResourceLogpushOwnershipChallengeV1,
-            NamespaceTerraformResourceLogpullRetentionV1,
-            NamespaceTerraformResourceCloudflareV1,
-        ]
-    ] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceCloudflareZoneV1, NamespaceTerraformResourceLogpushJobV1, NamespaceTerraformResourceCloudflareWorkerScriptV1, NamespaceTerraformResourceLogpushOwnershipChallengeV1, NamespaceTerraformResourceLogpullRetentionV1, NamespaceTerraformResourceCloudflareV1]] = Field(..., alias="resources")
 
 
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     cluster: ClusterV1 = Field(..., alias="cluster")
-    managed_external_resources: Optional[bool] = Field(
-        ..., alias="managedExternalResources"
-    )
-    external_resources: Optional[
-        list[
-            Union[
-                NamespaceTerraformProviderResourceCloudflareV1,
-                NamespaceExternalResourceV1,
-            ]
-        ]
-    ] = Field(..., alias="externalResources")
+    managed_external_resources: Optional[bool] = Field(..., alias="managedExternalResources")
+    external_resources: Optional[list[Union[NamespaceTerraformProviderResourceCloudflareV1, NamespaceExternalResourceV1]]] = Field(..., alias="externalResources")
 
 
 class TerraformCloudflareResourcesQueryData(ConfiguredBaseModel):

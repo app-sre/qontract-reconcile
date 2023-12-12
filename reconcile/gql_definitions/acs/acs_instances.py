@@ -45,8 +45,8 @@ query AcsInstance {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AcsInstanceAuthProviderV1(ConfiguredBaseModel):

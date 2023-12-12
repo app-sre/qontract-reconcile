@@ -141,13 +141,11 @@ class Report:
 
         for cluster, namespaces in container_vulnerabilities.items():
             for namespace, severities in namespaces.items():
-                parsed_metrics.append(
-                    {
-                        "cluster": cluster,
-                        "namespace": namespace,
-                        "vulnerabilities": severities,
-                    }
-                )
+                parsed_metrics.append({
+                    "cluster": cluster,
+                    "namespace": namespace,
+                    "vulnerabilities": severities,
+                })
         return parsed_metrics
 
     @staticmethod
@@ -158,13 +156,11 @@ class Report:
 
         for cluster, namespaces in post_deploy_jobs.items():
             for namespace, post_deploy_job in namespaces.items():
-                results.append(
-                    {
-                        "cluster": cluster,
-                        "namespace": namespace,
-                        "post_deploy_job": post_deploy_job,
-                    }
-                )
+                results.append({
+                    "cluster": cluster,
+                    "namespace": namespace,
+                    "post_deploy_job": post_deploy_job,
+                })
         return results
 
     @staticmethod
@@ -175,13 +171,11 @@ class Report:
 
         for cluster, namespaces in deployment_validations.items():
             for namespace, validations in namespaces.items():
-                parsed_metrics.append(
-                    {
-                        "cluster": cluster,
-                        "namespace": namespace,
-                        "validations": validations,
-                    }
-                )
+                parsed_metrics.append({
+                    "cluster": cluster,
+                    "namespace": namespace,
+                    "validations": validations,
+                })
         return parsed_metrics
 
     @staticmethod
@@ -291,9 +285,10 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                         {"branch": job["branch"], **history}
                     ]
                 else:
-                    app["merge_activity"][repo_url].append(
-                        {"branch": job["branch"], **history}
-                    )
+                    app["merge_activity"][repo_url].append({
+                        "branch": job["branch"],
+                        **history,
+                    })
 
         logging.info(f"collecting dashdotdb information for {app_name}")
         app_namespaces = []
@@ -342,16 +337,10 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                             validt_mx[cluster][namespace] = {}
                         if validation not in validt_mx[cluster][namespace]:
                             validt_mx[cluster][namespace][validation] = {}
-                        if (
-                            status not in validt_mx[cluster][namespace][validation]
-                        ):  # noqa: E501
-                            validt_mx[cluster][namespace][validation][
-                                status
-                            ] = {}  # noqa: E501
+                        if status not in validt_mx[cluster][namespace][validation]:  # noqa: E501
+                            validt_mx[cluster][namespace][validation][status] = {}  # noqa: E501
                         value = int(sample.value)
-                        validt_mx[cluster][namespace][validation][
-                            status
-                        ] = value  # noqa: E501
+                        validt_mx[cluster][namespace][validation][status] = value  # noqa: E501
         for family in text_string_to_metric_families(slo_metrics):
             for sample in family.samples:
                 if sample.name == "serviceslometrics":
@@ -368,24 +357,16 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                             slo_mx[cluster] = {}
                         if namespace not in slo_mx[cluster]:
                             slo_mx[cluster][namespace] = {}
-                        if (
-                            slo_doc_name not in slo_mx[cluster][namespace]
-                        ):  # pylint: disable=line-too-long # noqa: E501
+                        if slo_doc_name not in slo_mx[cluster][namespace]:  # pylint: disable=line-too-long # noqa: E501
                             slo_mx[cluster][namespace][slo_doc_name] = {}
-                        if (
-                            slo_name not in slo_mx[cluster][namespace][slo_doc_name]
-                        ):  # noqa: E501
-                            slo_mx[cluster][namespace][slo_doc_name][
-                                slo_name
-                            ] = {  # noqa: E501
+                        if slo_name not in slo_mx[cluster][namespace][slo_doc_name]:  # noqa: E501
+                            slo_mx[cluster][namespace][slo_doc_name][slo_name] = {  # noqa: E501
                                 sample.labels["type"]: sample.value
                             }
                         else:
-                            slo_mx[cluster][namespace][slo_doc_name][slo_name].update(
-                                {  # pylint: disable=line-too-long # noqa: E501
-                                    sample.labels["type"]: sample.value
-                                }
-                            )
+                            slo_mx[cluster][namespace][slo_doc_name][slo_name].update({  # pylint: disable=line-too-long # noqa: E501
+                                sample.labels["type"]: sample.value
+                            })
         app["container_vulnerabilities"] = vuln_mx
         app["deployment_validations"] = validt_mx
         app["service_slo"] = slo_mx

@@ -146,17 +146,15 @@ def extract_diffs(old_file_content: Any, new_file_content: Any) -> list[Diff]:
         )
 
         # handle changed values
-        diffs.extend(
-            [
-                Diff(
-                    path=deepdiff_path_to_jsonpath(path),
-                    diff_type=DiffType.CHANGED,
-                    old=change.get("old_value"),
-                    new=change.get("new_value"),
-                )
-                for path, change in deep_diff.get("values_changed", {}).items()
-            ]
-        )
+        diffs.extend([
+            Diff(
+                path=deepdiff_path_to_jsonpath(path),
+                diff_type=DiffType.CHANGED,
+                old=change.get("old_value"),
+                new=change.get("new_value"),
+            )
+            for path, change in deep_diff.get("values_changed", {}).items()
+        ])
         # handle property added
         for path in deep_diff.get("dictionary_item_added", []):
             jpath = deepdiff_path_to_jsonpath(path)
@@ -184,42 +182,36 @@ def extract_diffs(old_file_content: Any, new_file_content: Any) -> list[Diff]:
                 )
             )
         # handle added items
-        diffs.extend(
-            [
-                Diff(
-                    path=deepdiff_path_to_jsonpath(path),
-                    diff_type=DiffType.ADDED,
-                    old=None,
-                    new=change,
-                )
-                for path, change in deep_diff.get("iterable_item_added", {}).items()
-            ]
-        )
+        diffs.extend([
+            Diff(
+                path=deepdiff_path_to_jsonpath(path),
+                diff_type=DiffType.ADDED,
+                old=None,
+                new=change,
+            )
+            for path, change in deep_diff.get("iterable_item_added", {}).items()
+        ])
         # handle removed items
-        diffs.extend(
-            [
-                Diff(
-                    path=deepdiff_path_to_jsonpath(path),
-                    diff_type=DiffType.REMOVED,
-                    old=change,
-                    new=None,
-                )
-                for path, change in deep_diff.get("iterable_item_removed", {}).items()
-            ]
-        )
+        diffs.extend([
+            Diff(
+                path=deepdiff_path_to_jsonpath(path),
+                diff_type=DiffType.REMOVED,
+                old=change,
+                new=None,
+            )
+            for path, change in deep_diff.get("iterable_item_removed", {}).items()
+        ])
 
         # handle type changes
-        diffs.extend(
-            [
-                Diff(
-                    path=deepdiff_path_to_jsonpath(path),
-                    diff_type=DiffType.CHANGED,
-                    old=change.get("old_value"),
-                    new=change.get("new_value"),
-                )
-                for path, change in deep_diff.get("type_changes", {}).items()
-            ]
-        )
+        diffs.extend([
+            Diff(
+                path=deepdiff_path_to_jsonpath(path),
+                diff_type=DiffType.CHANGED,
+                old=change.get("old_value"),
+                new=change.get("new_value"),
+            )
+            for path, change in deep_diff.get("type_changes", {}).items()
+        ])
 
     elif old_file_content:
         # file was deleted

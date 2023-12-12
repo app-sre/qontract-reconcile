@@ -392,14 +392,14 @@ class TestRun(testslide.TestCase):
         )
         self.ocmmap = testslide.StrictMock(ocm.OCMMap)
         self.mock_constructor(ocm, "OCMMap").to_return_value(self.ocmmap)
-        self.mock_callable(queries, "get_aws_accounts").to_return_value(
-            [{"name": "desired_account"}]
-        )
+        self.mock_callable(queries, "get_aws_accounts").to_return_value([
+            {"name": "desired_account"}
+        ])
         self.clusters = (
             self.mock_callable(queries, "get_clusters_with_peering_settings")
-            .to_return_value(
-                [{"name": "aname", "ocm": "aocm", "peering": {"apeering"}}]
-            )
+            .to_return_value([
+                {"name": "aname", "ocm": "aocm", "peering": {"apeering"}}
+            ])
             .and_assert_called_once()
         )
         self.settings = (
@@ -411,75 +411,68 @@ class TestRun(testslide.TestCase):
         self.mock_callable(self.terrascript, "populate_vpc_peerings").to_return_value(
             None
         ).and_assert_called_once()
-        self.mock_callable(self.terrascript, "dump").to_return_value(
-            {"some_account": "/some/dir"}
-        ).and_assert_called_once()
+        self.mock_callable(self.terrascript, "dump").to_return_value({
+            "some_account": "/some/dir"
+        }).and_assert_called_once()
         # Sigh...
         self.exit = self.mock_callable(sys, "exit").to_raise(OSError("Exit called!"))
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
 
     def initialize_desired_states(self, error_code):
-        self.build_desired_state_vpc.to_return_value(
-            (
-                [
-                    {
-                        "connection_name": "desired_vpc_conn",
-                        "requester": {"account": {"name": "desired_account"}},
-                        "accepter": {"account": {"name": "desired_account"}},
-                    },
-                ],
-                error_code,
-            )
-        )
-        self.build_desired_state_all_clusters.to_return_value(
-            (
-                [
-                    {
-                        "connection_name": "all_clusters_vpc_conn",
-                        "requester": {"account": {"name": "all_clusters_account"}},
-                        "accepter": {
-                            "account": {
-                                "name": "all_clusters_account",
-                            }
-                        },
-                    }
-                ],
-                error_code,
-            )
-        )
-        self.build_desired_state_vpc_mesh.to_return_value(
-            (
-                [
-                    {
-                        "connection_name": "mesh_vpc_conn",
-                        "requester": {
-                            "account": {"name": "mesh_account"},
-                        },
-                        "accepter": {
-                            "account": {"name": "mesh_account"},
-                        },
-                    }
-                ],
-                error_code,
-            )
-        )
-
-        self.mock_callable(self.terrascript, "populate_additional_providers").for_call(
+        self.build_desired_state_vpc.to_return_value((
             [
-                {"name": "desired_account"},
-                {"name": "mesh_account"},
-                {"name": "all_clusters_account"},
-                {"name": "desired_account"},
-                {"name": "mesh_account"},
-                {"name": "all_clusters_account"},
-            ]
-        ).to_return_value(None).and_assert_called_once()
+                {
+                    "connection_name": "desired_vpc_conn",
+                    "requester": {"account": {"name": "desired_account"}},
+                    "accepter": {"account": {"name": "desired_account"}},
+                },
+            ],
+            error_code,
+        ))
+        self.build_desired_state_all_clusters.to_return_value((
+            [
+                {
+                    "connection_name": "all_clusters_vpc_conn",
+                    "requester": {"account": {"name": "all_clusters_account"}},
+                    "accepter": {
+                        "account": {
+                            "name": "all_clusters_account",
+                        }
+                    },
+                }
+            ],
+            error_code,
+        ))
+        self.build_desired_state_vpc_mesh.to_return_value((
+            [
+                {
+                    "connection_name": "mesh_vpc_conn",
+                    "requester": {
+                        "account": {"name": "mesh_account"},
+                    },
+                    "accepter": {
+                        "account": {"name": "mesh_account"},
+                    },
+                }
+            ],
+            error_code,
+        ))
+
+        self.mock_callable(self.terrascript, "populate_additional_providers").for_call([
+            {"name": "desired_account"},
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+            {"name": "desired_account"},
+            {"name": "mesh_account"},
+            {"name": "all_clusters_account"},
+        ]).to_return_value(None).and_assert_called_once()
 
     def test_all_fine(self):
         self.initialize_desired_states(False)
-        self.mock_callable(self.terraform, "plan").to_return_value(
-            (False, False)
-        ).and_assert_called_once()
+        self.mock_callable(self.terraform, "plan").to_return_value((
+            False,
+            False,
+        )).and_assert_called_once()
         self.mock_callable(self.terraform, "cleanup").to_return_value(
             None
         ).and_assert_called_once()
@@ -493,9 +486,10 @@ class TestRun(testslide.TestCase):
     def test_fail_state(self):
         """Ensure we don't change the world if there are failures"""
         self.initialize_desired_states(True)
-        self.mock_callable(self.terraform, "plan").to_return_value(
-            (False, False)
-        ).and_assert_not_called()
+        self.mock_callable(self.terraform, "plan").to_return_value((
+            False,
+            False,
+        )).and_assert_not_called()
         self.mock_callable(self.terraform, "cleanup").to_return_value(
             None
         ).and_assert_not_called()
@@ -509,9 +503,10 @@ class TestRun(testslide.TestCase):
     def test_dry_run(self):
         self.initialize_desired_states(False)
 
-        self.mock_callable(self.terraform, "plan").to_return_value(
-            (False, False)
-        ).and_assert_called_once()
+        self.mock_callable(self.terraform, "plan").to_return_value((
+            False,
+            False,
+        )).and_assert_called_once()
         self.mock_callable(self.terraform, "cleanup").to_return_value(
             None
         ).and_assert_called_once()
@@ -525,9 +520,10 @@ class TestRun(testslide.TestCase):
     def test_dry_run_with_failures(self):
         """This is what we do during PR checks and new clusters!"""
         self.initialize_desired_states(True)
-        self.mock_callable(self.terraform, "plan").to_return_value(
-            (False, False)
-        ).and_assert_not_called()
+        self.mock_callable(self.terraform, "plan").to_return_value((
+            False,
+            False,
+        )).and_assert_not_called()
         self.mock_callable(self.terraform, "apply").to_return_value(
             None
         ).and_assert_not_called()
@@ -538,9 +534,10 @@ class TestRun(testslide.TestCase):
     def test_dry_run_print_only_with_failures(self):
         """This is what we do during PR checks and new clusters!"""
         self.initialize_desired_states(True)
-        self.mock_callable(self.terraform, "plan").to_return_value(
-            (False, False)
-        ).and_assert_not_called()
+        self.mock_callable(self.terraform, "plan").to_return_value((
+            False,
+            False,
+        )).and_assert_not_called()
         self.mock_callable(self.terraform, "apply").to_return_value(
             None
         ).and_assert_not_called()

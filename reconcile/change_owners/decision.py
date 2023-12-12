@@ -34,7 +34,7 @@ class Decision:
 
 
 def get_approver_decisions_from_mr_comments(
-    comments: Iterable[Mapping[str, Any]]
+    comments: Iterable[Mapping[str, Any]],
 ) -> list[Decision]:
     decisions: list[Decision] = []
     for c in sorted(comments, key=lambda k: k["created_at"]):

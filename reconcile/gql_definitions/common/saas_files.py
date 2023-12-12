@@ -17,12 +17,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.oc_connection_cluster import (
-    OcConnectionCluster,
-)
-from reconcile.gql_definitions.fragments.saas_target_namespace import (
-    SaasTargetNamespace,
-)
+from reconcile.gql_definitions.fragments.oc_connection_cluster import OcConnectionCluster
+from reconcile.gql_definitions.fragments.saas_target_namespace import SaasTargetNamespace
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -306,8 +302,8 @@ query SaasFiles {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AppV1_AppV1(ConfiguredBaseModel):
@@ -349,37 +345,25 @@ class PipelinesProviderTektonObjectTemplateV1(ConfiguredBaseModel):
 
 
 class PipelinesProviderPipelineTemplatesV1(ConfiguredBaseModel):
-    openshift_saas_deploy: PipelinesProviderTektonObjectTemplateV1 = Field(
-        ..., alias="openshiftSaasDeploy"
-    )
+    openshift_saas_deploy: PipelinesProviderTektonObjectTemplateV1 = Field(..., alias="openshiftSaasDeploy")
 
 
 class PipelinesProviderTektonProviderDefaultsV1(ConfiguredBaseModel):
-    pipeline_templates: PipelinesProviderPipelineTemplatesV1 = Field(
-        ..., alias="pipelineTemplates"
-    )
+    pipeline_templates: PipelinesProviderPipelineTemplatesV1 = Field(..., alias="pipelineTemplates")
 
 
-class PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1(
-    ConfiguredBaseModel
-):
+class PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
-class PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1(
-    ConfiguredBaseModel
-):
-    openshift_saas_deploy: PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1 = Field(
-        ..., alias="openshiftSaasDeploy"
-    )
+class PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1(ConfiguredBaseModel):
+    openshift_saas_deploy: PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1 = Field(..., alias="openshiftSaasDeploy")
 
 
 class PipelinesProviderTektonV1(PipelinesProviderV1):
     namespace: NamespaceV1 = Field(..., alias="namespace")
     defaults: PipelinesProviderTektonProviderDefaultsV1 = Field(..., alias="defaults")
-    pipeline_templates: Optional[
-        PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1
-    ] = Field(..., alias="pipelineTemplates")
+    pipeline_templates: Optional[PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1] = Field(..., alias="pipelineTemplates")
 
 
 class ResourceRequestsRequirementsV1(ConfiguredBaseModel):
@@ -407,9 +391,7 @@ class SlackWorkspaceIntegrationV1(ConfiguredBaseModel):
 
 class SlackWorkspaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    integrations: Optional[list[SlackWorkspaceIntegrationV1]] = Field(
-        ..., alias="integrations"
-    )
+    integrations: Optional[list[SlackWorkspaceIntegrationV1]] = Field(..., alias="integrations")
 
 
 class SlackOutputNotificationsV1(ConfiguredBaseModel):
@@ -420,9 +402,7 @@ class SlackOutputV1(ConfiguredBaseModel):
     output: Optional[str] = Field(..., alias="output")
     workspace: SlackWorkspaceV1 = Field(..., alias="workspace")
     channel: Optional[str] = Field(..., alias="channel")
-    notifications: Optional[SlackOutputNotificationsV1] = Field(
-        ..., alias="notifications"
-    )
+    notifications: Optional[SlackOutputNotificationsV1] = Field(..., alias="notifications")
 
 
 class ManagedResourceNamesV1(ConfiguredBaseModel):
@@ -465,9 +445,7 @@ class ParentSaasPromotionV1(PromotionChannelDataV1):
 
 class PromotionDataV1(ConfiguredBaseModel):
     channel: Optional[str] = Field(..., alias="channel")
-    data: Optional[list[Union[ParentSaasPromotionV1, PromotionChannelDataV1]]] = Field(
-        ..., alias="data"
-    )
+    data: Optional[list[Union[ParentSaasPromotionV1, PromotionChannelDataV1]]] = Field(..., alias="data")
 
 
 class SaasResourceTemplateTargetPromotionV1(ConfiguredBaseModel):
@@ -510,21 +488,13 @@ class SaasResourceTemplateTargetV2(ConfiguredBaseModel):
     path: Optional[str] = Field(..., alias="path")
     name: Optional[str] = Field(..., alias="name")
     namespace: Optional[SaasTargetNamespace] = Field(..., alias="namespace")
-    namespace_selector: Optional[SaasResourceTemplateTargetNamespaceSelectorV1] = Field(
-        ..., alias="namespaceSelector"
-    )
+    namespace_selector: Optional[SaasResourceTemplateTargetNamespaceSelectorV1] = Field(..., alias="namespaceSelector")
     provider: Optional[str] = Field(..., alias="provider")
     ref: str = Field(..., alias="ref")
-    promotion: Optional[SaasResourceTemplateTargetPromotionV1] = Field(
-        ..., alias="promotion"
-    )
+    promotion: Optional[SaasResourceTemplateTargetPromotionV1] = Field(..., alias="promotion")
     parameters: Optional[Json] = Field(..., alias="parameters")
-    secret_parameters: Optional[
-        list[SaasResourceTemplateTargetV2_SaasSecretParametersV1]
-    ] = Field(..., alias="secretParameters")
-    upstream: Optional[SaasResourceTemplateTargetUpstreamV1] = Field(
-        ..., alias="upstream"
-    )
+    secret_parameters: Optional[list[SaasResourceTemplateTargetV2_SaasSecretParametersV1]] = Field(..., alias="secretParameters")
+    upstream: Optional[SaasResourceTemplateTargetUpstreamV1] = Field(..., alias="upstream")
     image: Optional[SaasResourceTemplateTargetImageV1] = Field(..., alias="image")
     disable: Optional[bool] = Field(..., alias="disable")
     delete: Optional[bool] = Field(..., alias="delete")
@@ -537,9 +507,7 @@ class SaasResourceTemplateV2(ConfiguredBaseModel):
     provider: Optional[str] = Field(..., alias="provider")
     hash_length: Optional[int] = Field(..., alias="hash_length")
     parameters: Optional[Json] = Field(..., alias="parameters")
-    secret_parameters: Optional[
-        list[SaasResourceTemplateV2_SaasSecretParametersV1]
-    ] = Field(..., alias="secretParameters")
+    secret_parameters: Optional[list[SaasResourceTemplateV2_SaasSecretParametersV1]] = Field(..., alias="secretParameters")
     targets: list[SaasResourceTemplateTargetV2] = Field(..., alias="targets")
 
 
@@ -552,45 +520,27 @@ class SaasFileV2(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     labels: Optional[Json] = Field(..., alias="labels")
     app: AppV1 = Field(..., alias="app")
-    pipelines_provider: Union[PipelinesProviderTektonV1, PipelinesProviderV1] = Field(
-        ..., alias="pipelinesProvider"
-    )
+    pipelines_provider: Union[PipelinesProviderTektonV1, PipelinesProviderV1] = Field(..., alias="pipelinesProvider")
     deploy_resources: Optional[DeployResourcesV1] = Field(..., alias="deployResources")
     slack: Optional[SlackOutputV1] = Field(..., alias="slack")
     managed_resource_types: list[str] = Field(..., alias="managedResourceTypes")
-    managed_resource_names: Optional[list[ManagedResourceNamesV1]] = Field(
-        ..., alias="managedResourceNames"
-    )
+    managed_resource_names: Optional[list[ManagedResourceNamesV1]] = Field(..., alias="managedResourceNames")
     takeover: Optional[bool] = Field(..., alias="takeover")
     deprecated: Optional[bool] = Field(..., alias="deprecated")
     compare: Optional[bool] = Field(..., alias="compare")
     timeout: Optional[str] = Field(..., alias="timeout")
-    skip_successful_deploy_notifications: Optional[bool] = Field(
-        ..., alias="skipSuccessfulDeployNotifications"
-    )
+    skip_successful_deploy_notifications: Optional[bool] = Field(..., alias="skipSuccessfulDeployNotifications")
     publish_job_logs: Optional[bool] = Field(..., alias="publishJobLogs")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     image_patterns: list[str] = Field(..., alias="imagePatterns")
-    allowed_secret_parameter_paths: Optional[list[str]] = Field(
-        ..., alias="allowedSecretParameterPaths"
-    )
-    use_channel_in_image_tag: Optional[bool] = Field(
-        ..., alias="use_channel_in_image_tag"
-    )
-    authentication: Optional[SaasFileAuthenticationV1] = Field(
-        ..., alias="authentication"
-    )
+    allowed_secret_parameter_paths: Optional[list[str]] = Field(..., alias="allowedSecretParameterPaths")
+    use_channel_in_image_tag: Optional[bool] = Field(..., alias="use_channel_in_image_tag")
+    authentication: Optional[SaasFileAuthenticationV1] = Field(..., alias="authentication")
     parameters: Optional[Json] = Field(..., alias="parameters")
-    secret_parameters: Optional[list[SaasSecretParametersV1]] = Field(
-        ..., alias="secretParameters"
-    )
+    secret_parameters: Optional[list[SaasSecretParametersV1]] = Field(..., alias="secretParameters")
     validate_targets_in_app: Optional[bool] = Field(..., alias="validateTargetsInApp")
-    resource_templates: list[SaasResourceTemplateV2] = Field(
-        ..., alias="resourceTemplates"
-    )
-    self_service_roles: Optional[list[SaasFileV2_RoleV1]] = Field(
-        ..., alias="selfServiceRoles"
-    )
+    resource_templates: list[SaasResourceTemplateV2] = Field(..., alias="resourceTemplates")
+    self_service_roles: Optional[list[SaasFileV2_RoleV1]] = Field(..., alias="selfServiceRoles")
 
 
 class SaasFilesQueryData(ConfiguredBaseModel):

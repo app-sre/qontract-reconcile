@@ -14,8 +14,7 @@ class Namespace(Protocol):
     name: str
 
     @property
-    def cluster(self) -> Cluster:
-        ...
+    def cluster(self) -> Cluster: ...
 
 
 NS = TypeVar("NS", bound=Namespace)

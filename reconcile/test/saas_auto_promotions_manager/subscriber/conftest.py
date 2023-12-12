@@ -37,7 +37,7 @@ from .data_keys import (
 
 @pytest.fixture
 def subscriber_builder(
-    saas_target_namespace_builder: Callable[..., SaasTargetNamespace]
+    saas_target_namespace_builder: Callable[..., SaasTargetNamespace],
 ) -> Callable[[Mapping[str, Any]], Subscriber]:
     def builder(data: Mapping[str, Any]) -> Subscriber:
         channels: list[Channel] = []

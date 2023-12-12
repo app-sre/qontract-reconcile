@@ -190,12 +190,10 @@ class GlitchtipProjectAlertsIntegration(
                 )
 
                 for alert_to_add in diff_result.add.values():
-                    logging.info(
-                        [
-                            "create_project_alert",
-                            f"{org.name}/{desired_project.slug}/{alert_to_add.name}",
-                        ]
-                    )
+                    logging.info([
+                        "create_project_alert",
+                        f"{org.name}/{desired_project.slug}/{alert_to_add.name}",
+                    ])
                     if not dry_run:
                         glitchtip_client.create_project_alert(
                             organization_slug=org.slug,
@@ -207,12 +205,10 @@ class GlitchtipProjectAlertsIntegration(
                     if not alert_to_remove.pk:
                         # this can't happend - just make mypy happy
                         continue
-                    logging.info(
-                        [
-                            "delete_project_alert",
-                            f"{org.name}/{desired_project.slug}/{alert_to_remove.name}",
-                        ]
-                    )
+                    logging.info([
+                        "delete_project_alert",
+                        f"{org.name}/{desired_project.slug}/{alert_to_remove.name}",
+                    ])
                     if not dry_run:
                         glitchtip_client.delete_project_alert(
                             organization_slug=org.slug,
@@ -223,12 +219,10 @@ class GlitchtipProjectAlertsIntegration(
                 for diff_pair in diff_result.change.values():
                     alert_to_update = diff_pair.desired
                     alert_to_update.pk = diff_pair.current.pk
-                    logging.info(
-                        [
-                            "update_project_alert",
-                            f"{org.name}/{desired_project.slug}/{alert_to_update.name}",
-                        ]
-                    )
+                    logging.info([
+                        "update_project_alert",
+                        f"{org.name}/{desired_project.slug}/{alert_to_update.name}",
+                    ])
                     if not dry_run:
                         glitchtip_client.update_project_alert(
                             organization_slug=org.slug,

@@ -113,9 +113,13 @@ def run(dry_run):
                                 repo_name, team_name
                             )
                             if current_role != role:
-                                logging.info(
-                                    ["update_role", org_key, repo_name, team_name, role]
-                                )
+                                logging.info([
+                                    "update_role",
+                                    org_key,
+                                    repo_name,
+                                    team_name,
+                                    role,
+                                ])
                                 if not dry_run:
                                     quay_api.set_repo_team_permissions(
                                         repo_name, team_name, role

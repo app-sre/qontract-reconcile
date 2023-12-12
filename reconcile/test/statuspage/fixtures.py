@@ -43,9 +43,11 @@ def construct_status_page_v1(
             status_config=[
                 ManualStatusProviderV1(
                     provider="manual",
-                    manual=ManualStatusProviderConfigV1(
-                        **{"componentStatus": status, "from": None, "until": None}
-                    ),
+                    manual=ManualStatusProviderConfigV1(**{
+                        "componentStatus": status,
+                        "from": None,
+                        "until": None,
+                    }),
                 )
             ]
             if status
@@ -118,15 +120,13 @@ def describe_atlassian_component(
 
 
 def construct_binding_state(
-    component_repr: Iterable[tuple[str, str, Optional[str], str, Optional[str]]]
+    component_repr: Iterable[tuple[str, str, Optional[str], str, Optional[str]]],
 ) -> ComponentBindingState:
-    return DictComponentBindingState(
-        {
-            bound_to_component: id
-            for id, _, _, _, bound_to_component in component_repr
-            if bound_to_component
-        }
-    )
+    return DictComponentBindingState({
+        bound_to_component: id
+        for id, _, _, _, bound_to_component in component_repr
+        if bound_to_component
+    })
 
 
 def construct_atlassian_api(

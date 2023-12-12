@@ -270,13 +270,11 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         for env_name, ocm_api in self.ocm_apis.items():
             for cluster_details in discover_clusters_for_organizations(
                 ocm_api=ocm_api,
-                organization_ids=list(
-                    {
-                        c.ocm.org_id
-                        for c in clusters
-                        if c.ocm and c.ocm.environment.name == env_name
-                    }
-                ),
+                organization_ids=list({
+                    c.ocm.org_id
+                    for c in clusters
+                    if c.ocm and c.ocm.environment.name == env_name
+                }),
             ):
                 if cluster_details.ocm_cluster.id not in cluster_ids:
                     # there might be more clusters in an organization than we care about
@@ -330,13 +328,11 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
             diff_result = diff_mappings(current_labels, desired_labels)
 
             for label_to_add, value in diff_result.add.items():
-                logging.info(
-                    [
-                        f"create_{scope}_label",
-                        *label_owner_ref.identity_labels(),
-                        f"{label_to_add}={value}",
-                    ]
-                )
+                logging.info([
+                    f"create_{scope}_label",
+                    *label_owner_ref.identity_labels(),
+                    f"{label_to_add}={value}",
+                ])
                 if not dry_run:
                     add_label(
                         ocm_api=ocm_api,
@@ -345,13 +341,11 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
                         value=value,
                     )
             for label_to_rm, value in diff_result.delete.items():
-                logging.info(
-                    [
-                        f"delete_{scope}_label",
-                        *label_owner_ref.identity_labels(),
-                        f"{label_to_rm}={value}",
-                    ]
-                )
+                logging.info([
+                    f"delete_{scope}_label",
+                    *label_owner_ref.identity_labels(),
+                    f"{label_to_rm}={value}",
+                ])
                 if not dry_run:
                     delete_label(
                         ocm_api=ocm_api,
@@ -360,13 +354,11 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
                     )
             for label_to_update, diff_pair in diff_result.change.items():
                 value = diff_pair.desired
-                logging.info(
-                    [
-                        f"update_{scope}_label",
-                        *label_owner_ref.identity_labels(),
-                        f"{label_to_update}={value}",
-                    ]
-                )
+                logging.info([
+                    f"update_{scope}_label",
+                    *label_owner_ref.identity_labels(),
+                    f"{label_to_update}={value}",
+                ])
                 if not dry_run:
                     update_label(
                         ocm_api=ocm_api,

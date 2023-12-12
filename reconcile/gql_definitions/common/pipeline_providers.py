@@ -17,18 +17,10 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
-)
-from reconcile.gql_definitions.fragments.pipeline_provider_retention import (
-    PipelineProviderRetention,
-)
-from reconcile.gql_definitions.fragments.resource_limits_requirements import (
-    ResourceLimitsRequirements,
-)
-from reconcile.gql_definitions.fragments.resource_requests_requirements import (
-    ResourceRequestsRequirements,
-)
+from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
+from reconcile.gql_definitions.fragments.pipeline_provider_retention import PipelineProviderRetention
+from reconcile.gql_definitions.fragments.resource_limits_requirements import ResourceLimitsRequirements
+from reconcile.gql_definitions.fragments.resource_requests_requirements import ResourceRequestsRequirements
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -157,8 +149,8 @@ query PipelineProviders {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class PipelinesProviderV1(ConfiguredBaseModel):
@@ -170,18 +162,14 @@ class PipelinesProviderTektonObjectTemplateV1(ConfiguredBaseModel):
     ...
 
 
-class PipelinesProviderTektonObjectTemplateV1_PipelinesProviderTektonObjectTemplateV1(
-    PipelinesProviderTektonObjectTemplateV1
-):
+class PipelinesProviderTektonObjectTemplateV1_PipelinesProviderTektonObjectTemplateV1(PipelinesProviderTektonObjectTemplateV1):
     name: str = Field(..., alias="name")
     q_type: str = Field(..., alias="type")
     path: str = Field(..., alias="path")
     variables: Optional[Json] = Field(..., alias="variables")
 
 
-class PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1(
-    ConfiguredBaseModel
-):
+class PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     q_type: str = Field(..., alias="type")
     path: str = Field(..., alias="path")
@@ -189,9 +177,7 @@ class PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplate
 
 
 class PipelinesProviderPipelineTemplatesV1(ConfiguredBaseModel):
-    openshift_saas_deploy: PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1 = Field(
-        ..., alias="openshiftSaasDeploy"
-    )
+    openshift_saas_deploy: PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1 = Field(..., alias="openshiftSaasDeploy")
 
 
 class DeployResourcesV1(ConfiguredBaseModel):
@@ -201,15 +187,8 @@ class DeployResourcesV1(ConfiguredBaseModel):
 
 class PipelinesProviderTektonProviderDefaultsV1(ConfiguredBaseModel):
     retention: PipelineProviderRetention = Field(..., alias="retention")
-    task_templates: list[
-        Union[
-            PipelinesProviderTektonObjectTemplateV1_PipelinesProviderTektonObjectTemplateV1,
-            PipelinesProviderTektonObjectTemplateV1,
-        ]
-    ] = Field(..., alias="taskTemplates")
-    pipeline_templates: PipelinesProviderPipelineTemplatesV1 = Field(
-        ..., alias="pipelineTemplates"
-    )
+    task_templates: list[Union[PipelinesProviderTektonObjectTemplateV1_PipelinesProviderTektonObjectTemplateV1, PipelinesProviderTektonObjectTemplateV1]] = Field(..., alias="taskTemplates")
+    pipeline_templates: PipelinesProviderPipelineTemplatesV1 = Field(..., alias="pipelineTemplates")
     deploy_resources: Optional[DeployResourcesV1] = Field(..., alias="deployResources")
 
 
@@ -223,9 +202,7 @@ class ClusterV1(ConfiguredBaseModel):
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
-    cluster_admin_automation_token: Optional[VaultSecret] = Field(
-        ..., alias="clusterAdminAutomationToken"
-    )
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
@@ -236,36 +213,26 @@ class NamespaceV1(ConfiguredBaseModel):
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 
-class PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1(
-    ConfiguredBaseModel
-):
+class PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1(ConfiguredBaseModel):
     ...
 
 
-class PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1_PipelinesProviderTektonObjectTemplateV1(
-    PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1
-):
+class PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1_PipelinesProviderTektonObjectTemplateV1(PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1):
     name: str = Field(..., alias="name")
     q_type: str = Field(..., alias="type")
     path: str = Field(..., alias="path")
     variables: Optional[Json] = Field(..., alias="variables")
 
 
-class PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1(
-    ConfiguredBaseModel
-):
+class PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     q_type: str = Field(..., alias="type")
     path: str = Field(..., alias="path")
     variables: Optional[Json] = Field(..., alias="variables")
 
 
-class PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1(
-    ConfiguredBaseModel
-):
-    openshift_saas_deploy: PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1 = Field(
-        ..., alias="openshiftSaasDeploy"
-    )
+class PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1(ConfiguredBaseModel):
+    openshift_saas_deploy: PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1_PipelinesProviderTektonObjectTemplateV1 = Field(..., alias="openshiftSaasDeploy")
 
 
 class PipelinesProviderTektonV1_DeployResourcesV1(ConfiguredBaseModel):
@@ -277,26 +244,13 @@ class PipelinesProviderTektonV1(PipelinesProviderV1):
     defaults: PipelinesProviderTektonProviderDefaultsV1 = Field(..., alias="defaults")
     namespace: NamespaceV1 = Field(..., alias="namespace")
     retention: Optional[PipelineProviderRetention] = Field(..., alias="retention")
-    task_templates: Optional[
-        list[
-            Union[
-                PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1_PipelinesProviderTektonObjectTemplateV1,
-                PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1,
-            ]
-        ]
-    ] = Field(..., alias="taskTemplates")
-    pipeline_templates: Optional[
-        PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1
-    ] = Field(..., alias="pipelineTemplates")
-    deploy_resources: Optional[PipelinesProviderTektonV1_DeployResourcesV1] = Field(
-        ..., alias="deployResources"
-    )
+    task_templates: Optional[list[Union[PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1_PipelinesProviderTektonObjectTemplateV1, PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1]]] = Field(..., alias="taskTemplates")
+    pipeline_templates: Optional[PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1] = Field(..., alias="pipelineTemplates")
+    deploy_resources: Optional[PipelinesProviderTektonV1_DeployResourcesV1] = Field(..., alias="deployResources")
 
 
 class PipelineProvidersQueryData(ConfiguredBaseModel):
-    pipelines_providers: Optional[
-        list[Union[PipelinesProviderTektonV1, PipelinesProviderV1]]
-    ] = Field(..., alias="pipelines_providers")
+    pipelines_providers: Optional[list[Union[PipelinesProviderTektonV1, PipelinesProviderV1]]] = Field(..., alias="pipelines_providers")
 
 
 def query(query_func: Callable, **kwargs: Any) -> PipelineProvidersQueryData:

@@ -100,8 +100,8 @@ print-files-modified-in-last-30-days:
 	@git log --since '$(shell date --date='-30 day' +"%m/%d/%y")' --until '$(shell date +"%m/%d/%y")' --oneline --name-only --pretty=format: | sort | uniq | grep -E '.py$$'
 
 format:
-	@$(VENV_CMD) isort reconcile tools release dockerfiles/hack setup.py
-	@$(VENV_CMD) black reconcile tools release dockerfiles/hack setup.py
+	@$(VENV_CMD) ruff format
+	@$(VENV_CMD) ruff check
 
 gql-introspection:
 	# TODO: make url configurable
@@ -111,6 +111,5 @@ gql-query-classes:
 	@$(VENV_CMD) qenerate --version | grep -q $(EXPECTED_QENERATE_VERSION) || (echo "Bad qenerate version. Make sure you have version $(EXPECTED_QENERATE_VERSION) installed" && exit 1)
 	@$(VENV_CMD) qenerate code -i reconcile/gql_definitions/introspection.json reconcile/gql_definitions
 	find reconcile/gql_definitions -path '*/__pycache__' -prune -o -type d -exec touch "{}/__init__.py" \;
-	@$(VENV_CMD) black reconcile/gql_definitions
 
 qenerate: gql-introspection gql-query-classes

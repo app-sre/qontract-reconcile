@@ -225,14 +225,12 @@ class MockGroupMemberProvider(GroupMemberProvider):
 
 @pytest.fixture
 def mock_group_member_provider() -> MockGroupMemberProvider:
-    return MockGroupMemberProvider(
-        {
-            "group-1": {"user-1", "user-2"},
-            "group-2": {"user-3", "user-4"},
-            "group-3": {"user-5", "user-6"},
-            "group-4": {"user-7", "user-8"},
-        }
-    )
+    return MockGroupMemberProvider({
+        "group-1": {"user-1", "user-2"},
+        "group-2": {"user-3", "user-4"},
+        "group-3": {"user-5", "user-6"},
+        "group-4": {"user-7", "user-8"},
+    })
 
 
 def build_org_config(
@@ -413,8 +411,7 @@ class MockOCMUserManagementIntegration(OCMUserManagementIntegration):
         ocm_api: OCMBaseClient,
         spec: ClusterUserManagementSpec,
         message: str,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def signal_cluster_validation_error(
         self,
@@ -422,8 +419,7 @@ class MockOCMUserManagementIntegration(OCMUserManagementIntegration):
         ocm_api: OCMBaseClient,
         spec: ClusterUserManagementSpec,
         error: Exception,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def signal_cluster_reconcile_error(
         self,
@@ -431,8 +427,7 @@ class MockOCMUserManagementIntegration(OCMUserManagementIntegration):
         ocm_api: OCMBaseClient,
         spec: ClusterUserManagementSpec,
         error: Exception,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 @pytest.fixture

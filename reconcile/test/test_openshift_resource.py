@@ -1,12 +1,12 @@
 import pytest
 
-from reconcile.utils.openshift_resource import ConstructResourceError
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import (
+    ConstructResourceError,
     ResourceInventory,
     ResourceNotManagedError,
     build_secret,
 )
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.semver_helper import make_semver
 
 from .fixtures import Fixtures

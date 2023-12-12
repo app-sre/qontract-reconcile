@@ -30,8 +30,8 @@ query SaasherderSettings {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AppInterfaceSettingsV1(ConfiguredBaseModel):

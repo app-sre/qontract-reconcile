@@ -248,11 +248,9 @@ class PathExpression:
         if self.parsed_jsonpath:
             return self.parsed_jsonpath
 
-        expr = self.template.render(
-            {
-                self.CTX_FILE_PATH_VAR_NAME: ctx.context_file.path,
-            }
-        )
+        expr = self.template.render({
+            self.CTX_FILE_PATH_VAR_NAME: ctx.context_file.path,
+        })
         return parse_jsonpath(expr)
 
     def __eq__(self, obj: object) -> bool:
@@ -277,8 +275,7 @@ class OwnershipContext(ABC):
         self,
         context_schema: Optional[str],
         change: FileChange,
-    ) -> list[FileRef]:
-        ...
+    ) -> list[FileRef]: ...
 
 
 @dataclass
@@ -436,8 +433,7 @@ class ChangeDetector(ABC):
     def find_context_file_refs(
         self,
         change: FileChange,
-    ) -> list[FileRef]:
-        ...
+    ) -> list[FileRef]: ...
 
 
 @dataclass
@@ -649,14 +645,12 @@ class ChangeTypeProcessor:
             for change_type_path_expression in self._expressions_by_file_type_schema[
                 (file_type, file_schema)
             ]:
-                paths.extend(
-                    [
-                        p.full_path
-                        for p in change_type_path_expression.jsonpath_for_context(
-                            ctx
-                        ).find(file_content)
-                    ]
-                )
+                paths.extend([
+                    p.full_path
+                    for p in change_type_path_expression.jsonpath_for_context(ctx).find(
+                        file_content
+                    )
+                ])
         return paths
 
     def add_change_detector(

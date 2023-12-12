@@ -656,9 +656,11 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
         }
         self.mock_callable(self.awsapi, "get_cluster_vpc_details").for_call(
             req_account, route_tables=True
-        ).to_return_value(
-            ("vpc_id", ["route_table_id"], "subnet_id")
-        ).and_assert_called_once()
+        ).to_return_value((
+            "vpc_id",
+            ["route_table_id"],
+            "subnet_id",
+        )).and_assert_called_once()
 
         self.mock_callable(self.awsapi, "get_vpcs_details").for_call(
             req_account, tags=["tag1"], route_tables=True
@@ -718,9 +720,11 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
         self.assertEqual(rs, [])
 
     def test_no_peer_vpc_id(self):
-        self.mock_callable(self.awsapi, "get_cluster_vpc_details").to_return_value(
-            (None, [None], None)
-        ).and_assert_called_once()
+        self.mock_callable(self.awsapi, "get_cluster_vpc_details").to_return_value((
+            None,
+            [None],
+            None,
+        )).and_assert_called_once()
 
         with self.assertRaises(sut.BadTerraformPeeringState):
             sut.build_desired_state_vpc_mesh_single_cluster(
@@ -1017,18 +1021,18 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
         self.mock_callable(
             self.awsapi,
             "get_cluster_vpc_details",
-        ).for_call(
-            self.aws_account, route_tables=True
-        ).to_return_value(("vpcid", ["routetableid"], {})).and_assert_called_once()
+        ).for_call(self.aws_account, route_tables=True).to_return_value((
+            "vpcid",
+            ["routetableid"],
+            {},
+        )).and_assert_called_once()
         self.mock_callable(
             self.ocm, "get_aws_infrastructure_access_terraform_assume_role"
         ).for_call(
             self.cluster["name"],
             self.aws_account["uid"],
             self.aws_account["terraformUsername"],
-        ).to_return_value(
-            "this:wonderful:role:hell:yeah"
-        ).and_assert_called_once()
+        ).to_return_value("this:wonderful:role:hell:yeah").and_assert_called_once()
         rs = sut.build_desired_state_vpc_single_cluster(
             self.cluster, self.ocm, self.awsapi, None
         )
@@ -1044,9 +1048,11 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
         )
 
     def test_no_vpc_id(self):
-        self.mock_callable(self.awsapi, "get_cluster_vpc_details").to_return_value(
-            (None, None, None)
-        ).and_assert_called_once()
+        self.mock_callable(self.awsapi, "get_cluster_vpc_details").to_return_value((
+            None,
+            None,
+            None,
+        )).and_assert_called_once()
 
         self.mock_callable(
             self.ocm, "get_aws_infrastructure_access_terraform_assume_role"

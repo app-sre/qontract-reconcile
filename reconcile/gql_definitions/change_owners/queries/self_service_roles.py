@@ -93,8 +93,8 @@ query SelfServiceRolesQuery($name: String) {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ChangeTypeV1(ConfiguredBaseModel):
@@ -148,18 +148,8 @@ class RoleV1(ConfiguredBaseModel):
     self_service: Optional[list[SelfServiceConfigV1]] = Field(..., alias="self_service")
     users: list[UserV1] = Field(..., alias="users")
     bots: list[BotV1] = Field(..., alias="bots")
-    permissions: Optional[
-        list[
-            Union[
-                PermissionSlackUsergroupV1,
-                PermissionGitlabGroupMembershipV1,
-                PermissionV1,
-            ]
-        ]
-    ] = Field(..., alias="permissions")
-    member_sources: Optional[list[RoleMembershipSource]] = Field(
-        ..., alias="memberSources"
-    )
+    permissions: Optional[list[Union[PermissionSlackUsergroupV1, PermissionGitlabGroupMembershipV1, PermissionV1]]] = Field(..., alias="permissions")
+    member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
 
 
 class SelfServiceRolesQueryQueryData(ConfiguredBaseModel):

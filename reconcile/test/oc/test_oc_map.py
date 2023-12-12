@@ -49,19 +49,15 @@ def oc_cls() -> type[OC]:
 
 
 def test_oc_map_with_errors(oc_cls: type[OC]):
-    params_1 = make_connection_parameter(
-        {
-            "cluster_name": "test-1",
-            "server_url": "http://localhost",
-        }
-    )
-    params_2 = make_connection_parameter(
-        {
-            "cluster_name": "test-2",
-            "server_url": "http://localhost",
-            "automation_token": "blub",
-        }
-    )
+    params_1 = make_connection_parameter({
+        "cluster_name": "test-1",
+        "server_url": "http://localhost",
+    })
+    params_2 = make_connection_parameter({
+        "cluster_name": "test-2",
+        "server_url": "http://localhost",
+        "automation_token": "blub",
+    })
 
     cluster_names = [params_1.cluster_name, params_2.cluster_name]
 
@@ -73,21 +69,17 @@ def test_oc_map_with_errors(oc_cls: type[OC]):
 
 
 def test_privileged_clusters(oc_cls: type[OC]):
-    param_1 = make_connection_parameter(
-        {
-            "cluster_name": "cluster-1",
-            "is_cluster_admin": True,
-            "server_url": "http://localhost",
-            "cluster_admin_automation_token": "abc",
-        }
-    )
-    param_2 = make_connection_parameter(
-        {
-            "cluster_name": "cluster-2",
-            "server_url": "http://localhost",
-            "automation_token": "abc",
-        }
-    )
+    param_1 = make_connection_parameter({
+        "cluster_name": "cluster-1",
+        "is_cluster_admin": True,
+        "server_url": "http://localhost",
+        "cluster_admin_automation_token": "abc",
+    })
+    param_2 = make_connection_parameter({
+        "cluster_name": "cluster-2",
+        "server_url": "http://localhost",
+        "automation_token": "abc",
+    })
 
     oc_map = OCMap(connection_parameters=[param_1, param_2], oc_cls=oc_cls)
     assert oc_map.clusters() == [param_2.cluster_name]
@@ -102,31 +94,25 @@ def test_privileged_clusters(oc_cls: type[OC]):
     "parameters, error_message",
     [
         (
-            make_connection_parameter(
-                {
-                    "cluster_name": "test",
-                    "automation_token": "abc",
-                }
-            ),
+            make_connection_parameter({
+                "cluster_name": "test",
+                "automation_token": "abc",
+            }),
             "[test] has no serverUrl",
         ),
         (
-            make_connection_parameter(
-                {
-                    "cluster_name": "test",
-                    "server_url": "localhost",
-                }
-            ),
+            make_connection_parameter({
+                "cluster_name": "test",
+                "server_url": "localhost",
+            }),
             "[test] has no automationToken",
         ),
         (
-            make_connection_parameter(
-                {
-                    "cluster_name": "test",
-                    "server_url": "localhost",
-                    "is_cluster_admin": True,
-                }
-            ),
+            make_connection_parameter({
+                "cluster_name": "test",
+                "server_url": "localhost",
+                "is_cluster_admin": True,
+            }),
             "[test] has no clusterAdminAutomationToken",
         ),
     ],

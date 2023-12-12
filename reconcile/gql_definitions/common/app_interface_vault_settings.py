@@ -29,8 +29,8 @@ query AppInterfaceVaultSettings {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AppInterfaceSettingsV1(ConfiguredBaseModel):
@@ -38,9 +38,7 @@ class AppInterfaceSettingsV1(ConfiguredBaseModel):
 
 
 class AppInterfaceVaultSettingsQueryData(ConfiguredBaseModel):
-    vault_settings: Optional[list[AppInterfaceSettingsV1]] = Field(
-        ..., alias="vault_settings"
-    )
+    vault_settings: Optional[list[AppInterfaceSettingsV1]] = Field(..., alias="vault_settings")
 
 
 def query(query_func: Callable, **kwargs: Any) -> AppInterfaceVaultSettingsQueryData:

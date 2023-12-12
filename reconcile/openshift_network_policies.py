@@ -48,9 +48,7 @@ NAMESPACES_QUERY = """
     }
   }
 }
-""" % (
-    indent(queries.JUMPHOST_FIELDS, 8 * " "),
-)
+""" % (indent(queries.JUMPHOST_FIELDS, 8 * " "),)
 
 QONTRACT_INTEGRATION = "openshift-network-policies"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

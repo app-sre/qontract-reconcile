@@ -64,8 +64,8 @@ query StatusPages {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AppV1(ConfiguredBaseModel):
@@ -93,9 +93,7 @@ class StatusPageComponentV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     group_name: Optional[str] = Field(..., alias="groupName")
     app: AppV1 = Field(..., alias="app")
-    status_config: Optional[
-        list[Union[ManualStatusProviderV1, StatusProviderV1]]
-    ] = Field(..., alias="status_config")
+    status_config: Optional[list[Union[ManualStatusProviderV1, StatusProviderV1]]] = Field(..., alias="status_config")
 
 
 class StatusPageV1(ConfiguredBaseModel):

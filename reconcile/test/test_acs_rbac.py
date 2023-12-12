@@ -470,41 +470,33 @@ def test_add_rbac(
         dry_run=dry_run,
     )
 
-    acs_mock.create_access_scope.assert_has_calls(
-        [
-            mocker.call(
-                desired[2].access_scope.name,
-                desired[2].access_scope.description,
-                desired[2].access_scope.clusters,
-                desired[2].access_scope.namespaces,
-            ),
-        ]
-    )
-    acs_mock.create_role.assert_has_calls(
-        [
-            mocker.call(
-                desired[2].name,
-                desired[2].description,
-                api_response_permission_sets[2].id,
-                api_response_access_scopes[2].id,
-            ),
-        ]
-    )
-    acs_mock.create_group_batch.assert_has_calls(
-        [
-            mocker.call(
-                [
-                    acs_api.AcsApi.GroupAdd(
-                        role_name=desired[2].name,
-                        key=a.key,
-                        value=a.value,
-                        auth_provider_id=AUTH_PROVIDER_ID,
-                    )
-                    for a in desired[2].assignments
-                ]
+    acs_mock.create_access_scope.assert_has_calls([
+        mocker.call(
+            desired[2].access_scope.name,
+            desired[2].access_scope.description,
+            desired[2].access_scope.clusters,
+            desired[2].access_scope.namespaces,
+        ),
+    ])
+    acs_mock.create_role.assert_has_calls([
+        mocker.call(
+            desired[2].name,
+            desired[2].description,
+            api_response_permission_sets[2].id,
+            api_response_access_scopes[2].id,
+        ),
+    ])
+    acs_mock.create_group_batch.assert_has_calls([
+        mocker.call([
+            acs_api.AcsApi.GroupAdd(
+                role_name=desired[2].name,
+                key=a.key,
+                value=a.value,
+                auth_provider_id=AUTH_PROVIDER_ID,
             )
-        ]
-    )
+            for a in desired[2].assignments
+        ])
+    ])
 
 
 def test_delete_rbac_dry_run(
@@ -579,12 +571,12 @@ def test_delete_rbac(
     )
 
     acs_mock.delete_role.assert_has_calls([mocker.call(current[1].name)])
-    acs_mock.delete_group_batch.assert_has_calls(
-        [mocker.call([api_response_groups[2], api_response_groups[3]])]
-    )
-    acs_mock.delete_access_scope.assert_has_calls(
-        [mocker.call(api_response_access_scopes[1].id)]
-    )
+    acs_mock.delete_group_batch.assert_has_calls([
+        mocker.call([api_response_groups[2], api_response_groups[3]])
+    ])
+    acs_mock.delete_access_scope.assert_has_calls([
+        mocker.call(api_response_access_scopes[1].id)
+    ])
 
 
 def test_update_rbac_groups_only(
@@ -625,21 +617,19 @@ def test_update_rbac_groups_only(
         dry_run=dry_run,
     )
 
-    acs_mock.update_group_batch.assert_has_calls(
-        [
-            mocker.call(
-                [current_groups[0]],
-                [
-                    acs_api.AcsApi.GroupAdd(
-                        role_name=desired[0].name,
-                        key=desired[0].assignments[0].key,
-                        value=desired[0].assignments[0].value,
-                        auth_provider_id=AUTH_PROVIDER_ID,
-                    )
-                ],
-            )
-        ]
-    )
+    acs_mock.update_group_batch.assert_has_calls([
+        mocker.call(
+            [current_groups[0]],
+            [
+                acs_api.AcsApi.GroupAdd(
+                    role_name=desired[0].name,
+                    key=desired[0].assignments[0].key,
+                    value=desired[0].assignments[0].value,
+                    auth_provider_id=AUTH_PROVIDER_ID,
+                )
+            ],
+        )
+    ])
 
     acs_mock.update_access_scope.assert_not_called()
     acs_mock.update_role.assert_not_called()
@@ -710,62 +700,52 @@ def test_full_reconcile(
         dry_run=dry_run,
     )
 
-    acs_mock.create_role.assert_has_calls(
-        [
-            mocker.call(
-                desired[2].name,
-                desired[2].description,
-                api_response_permission_sets[0].id,
-                api_response_access_scopes[0].id,
-            ),
-        ]
-    )
-    acs_mock.create_group_batch.assert_has_calls(
-        [
-            mocker.call(
-                [
-                    acs_api.AcsApi.GroupAdd(
-                        role_name=desired[2].name,
-                        key=a.key,
-                        value=a.value,
-                        auth_provider_id=AUTH_PROVIDER_ID,
-                    )
-                    for a in desired[2].assignments
-                ]
+    acs_mock.create_role.assert_has_calls([
+        mocker.call(
+            desired[2].name,
+            desired[2].description,
+            api_response_permission_sets[0].id,
+            api_response_access_scopes[0].id,
+        ),
+    ])
+    acs_mock.create_group_batch.assert_has_calls([
+        mocker.call([
+            acs_api.AcsApi.GroupAdd(
+                role_name=desired[2].name,
+                key=a.key,
+                value=a.value,
+                auth_provider_id=AUTH_PROVIDER_ID,
             )
-        ]
-    )
+            for a in desired[2].assignments
+        ])
+    ])
 
     acs_mock.delete_role.assert_has_calls([mocker.call(current[2].name)])
-    acs_mock.delete_group_batch.assert_has_calls(
-        [mocker.call([api_response_groups[4]])]
-    )
-    acs_mock.delete_access_scope.assert_has_calls(
-        [mocker.call(api_response_access_scopes[2].id)]
-    )
+    acs_mock.delete_group_batch.assert_has_calls([
+        mocker.call([api_response_groups[4]])
+    ])
+    acs_mock.delete_access_scope.assert_has_calls([
+        mocker.call(api_response_access_scopes[2].id)
+    ])
 
-    acs_mock.update_role.assert_has_calls(
-        [
-            mocker.call(
-                desired[1].name,
-                desired[1].description,
-                # use originals
-                api_response_permission_sets[1].id,
-                api_response_access_scopes[1].id,
-            )
-        ]
-    )
-    acs_mock.update_access_scope.assert_has_calls(
-        [
-            mocker.call(
-                api_response_access_scopes[1].id,
-                desired[1].access_scope.name,
-                desired[1].access_scope.description,
-                desired[1].access_scope.clusters,
-                desired[1].access_scope.namespaces,
-            )
-        ]
-    )
+    acs_mock.update_role.assert_has_calls([
+        mocker.call(
+            desired[1].name,
+            desired[1].description,
+            # use originals
+            api_response_permission_sets[1].id,
+            api_response_access_scopes[1].id,
+        )
+    ])
+    acs_mock.update_access_scope.assert_has_calls([
+        mocker.call(
+            api_response_access_scopes[1].id,
+            desired[1].access_scope.name,
+            desired[1].access_scope.description,
+            desired[1].access_scope.clusters,
+            desired[1].access_scope.namespaces,
+        )
+    ])
 
     # new desired role is admin scope. Should use existing 'Unrestricted' system default
     acs_mock.create_access_scope.assert_not_called()
@@ -842,47 +822,41 @@ def test_full_reconcile_with_errors(
         )
 
     # call to 'create_role' failed. remaining create logic should be skipped
-    acs_mock.create_role.assert_has_calls(
-        [
-            mocker.call(
-                desired[2].name,
-                desired[2].description,
-                api_response_permission_sets[0].id,
-                api_response_access_scopes[0].id,
-            ),
-        ]
-    )
+    acs_mock.create_role.assert_has_calls([
+        mocker.call(
+            desired[2].name,
+            desired[2].description,
+            api_response_permission_sets[0].id,
+            api_response_access_scopes[0].id,
+        ),
+    ])
     acs_mock.create_group_batch.assert_not_called()
 
-    acs_mock.delete_group_batch.assert_has_calls(
-        [mocker.call([api_response_groups[4]])]
-    )
+    acs_mock.delete_group_batch.assert_has_calls([
+        mocker.call([api_response_groups[4]])
+    ])
     # call to 'delete_group_batch' failed. remaining delete logic should be skipped
     acs_mock.delete_role.assert_not_called()
     acs_mock.delete_access_scope.assert_not_called()
 
-    acs_mock.update_role.assert_has_calls(
-        [
-            mocker.call(
-                desired[1].name,
-                desired[1].description,
-                # use originals
-                api_response_permission_sets[1].id,
-                api_response_access_scopes[1].id,
-            )
-        ]
-    )
-    acs_mock.update_access_scope.assert_has_calls(
-        [
-            mocker.call(
-                api_response_access_scopes[1].id,
-                desired[1].access_scope.name,
-                desired[1].access_scope.description,
-                desired[1].access_scope.clusters,
-                desired[1].access_scope.namespaces,
-            )
-        ]
-    )
+    acs_mock.update_role.assert_has_calls([
+        mocker.call(
+            desired[1].name,
+            desired[1].description,
+            # use originals
+            api_response_permission_sets[1].id,
+            api_response_access_scopes[1].id,
+        )
+    ])
+    acs_mock.update_access_scope.assert_has_calls([
+        mocker.call(
+            api_response_access_scopes[1].id,
+            desired[1].access_scope.name,
+            desired[1].access_scope.description,
+            desired[1].access_scope.clusters,
+            desired[1].access_scope.namespaces,
+        )
+    ])
 
     # new desired role is admin scope. Should use existing 'Unrestricted' system default
     acs_mock.create_access_scope.assert_not_called()

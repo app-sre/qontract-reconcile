@@ -26,14 +26,14 @@ from reconcile.gql_definitions.slack_usergroups.permissions import (
     PermissionSlackUsergroupV1,
     ScheduleEntryV1,
 )
-from reconcile.gql_definitions.slack_usergroups.users import AccessV1
-from reconcile.gql_definitions.slack_usergroups.users import ClusterV1 as AccessCluster
 from reconcile.gql_definitions.slack_usergroups.users import (
+    AccessV1,
     NamespaceV1,
     NamespaceV1_ClusterV1,
     RoleV1,
     UserV1,
 )
+from reconcile.gql_definitions.slack_usergroups.users import ClusterV1 as AccessCluster
 from reconcile.slack_usergroups import (
     SlackMap,
     SlackObject,
@@ -55,20 +55,18 @@ from .fixtures import Fixtures
 
 @pytest.fixture
 def base_state():
-    state = SlackState(
-        {
-            "slack-workspace": {
-                "usergroup-1": State(
-                    workspace="slack-workspace",
-                    usergroup="usergroup-1",
-                    usergroup_id="USERGA",
-                    users={SlackObject(name="username", pk="USERA")},
-                    channels={SlackObject(name="channelname", pk="CHANA")},
-                    description="Some description",
-                )
-            }
+    state = SlackState({
+        "slack-workspace": {
+            "usergroup-1": State(
+                workspace="slack-workspace",
+                usergroup="usergroup-1",
+                usergroup_id="USERGA",
+                users={SlackObject(name="username", pk="USERA")},
+                channels={SlackObject(name="channelname", pk="CHANA")},
+                description="Some description",
+            )
         }
-    )
+    })
 
     return state
 

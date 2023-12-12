@@ -71,16 +71,13 @@ class StatusPageProvider(ABC):
     """
 
     @abstractmethod
-    def get_current_page(self) -> "StatusPage":
-        ...
+    def get_current_page(self) -> "StatusPage": ...
 
     @abstractmethod
-    def apply_component(self, dry_run: bool, desired: StatusComponent) -> None:
-        ...
+    def apply_component(self, dry_run: bool, desired: StatusComponent) -> None: ...
 
     @abstractmethod
-    def delete_component(self, dry_run: bool, component_name: str) -> None:
-        ...
+    def delete_component(self, dry_run: bool, component_name: str) -> None: ...
 
 
 def build_status_page(

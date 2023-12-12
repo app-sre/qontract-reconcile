@@ -472,13 +472,11 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
                 spec: ExternalResourceSpec, resource: Optional[dict[str, Any]]
             ) -> None:
                 if resource:
-                    resources.append(
-                        {
-                            IDENTIFIER_FIELD_NAME: f"{spec.cluster_name}/{spec.namespace_name}/{spec.provisioner_name}/{spec.provider}/{spec.identifier}/{resource.get('path')}",
-                            "content_sha": resource.get("sha256sum"),
-                            "provisioner": spec.provisioner_name,
-                        }
-                    )
+                    resources.append({
+                        IDENTIFIER_FIELD_NAME: f"{spec.cluster_name}/{spec.namespace_name}/{spec.provisioner_name}/{spec.provider}/{spec.identifier}/{resource.get('path')}",
+                        "content_sha": resource.get("sha256sum"),
+                        "provisioner": spec.provisioner_name,
+                    })
 
             defaults = spec.resource.get("defaults")
             if defaults:

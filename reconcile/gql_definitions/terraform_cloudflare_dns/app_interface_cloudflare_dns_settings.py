@@ -30,14 +30,12 @@ query AppInterfaceSettingCloudflareDNS{
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AppInterfaceSettingsV1(ConfiguredBaseModel):
-    cloudflare_dns_zone_max_records: Optional[int] = Field(
-        ..., alias="cloudflareDNSZoneMaxRecords"
-    )
+    cloudflare_dns_zone_max_records: Optional[int] = Field(..., alias="cloudflareDNSZoneMaxRecords")
     vault: bool = Field(..., alias="vault")
 
 
@@ -45,9 +43,7 @@ class AppInterfaceSettingCloudflareDNSQueryData(ConfiguredBaseModel):
     settings: Optional[list[AppInterfaceSettingsV1]] = Field(..., alias="settings")
 
 
-def query(
-    query_func: Callable, **kwargs: Any
-) -> AppInterfaceSettingCloudflareDNSQueryData:
+def query(query_func: Callable, **kwargs: Any) -> AppInterfaceSettingCloudflareDNSQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.

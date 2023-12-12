@@ -127,14 +127,12 @@ query AUSOrganizations($name: String) {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AUSOrganizationsQueryData(ConfiguredBaseModel):
-    organizations: Optional[list[AUSOCMOrganization]] = Field(
-        ..., alias="organizations"
-    )
+    organizations: Optional[list[AUSOCMOrganization]] = Field(..., alias="organizations")
 
 
 def query(query_func: Callable, **kwargs: Any) -> AUSOrganizationsQueryData:

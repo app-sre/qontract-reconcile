@@ -17,14 +17,10 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.aws_infra_management_account import (
-    AWSInfrastructureManagementAccount,
-)
+from reconcile.gql_definitions.fragments.aws_infra_management_account import AWSInfrastructureManagementAccount
 from reconcile.gql_definitions.fragments.aws_vpc import AWSVPC
 from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
-)
+from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -360,8 +356,8 @@ query Clusters($name: String) {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ClusterAuthV1(ConfiguredBaseModel):
@@ -377,39 +373,27 @@ class ClusterAuthGithubOrgTeamV1(ClusterAuthV1):
     team: str = Field(..., alias="team")
 
 
-class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(
-    ConfiguredBaseModel
-):
+class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
 class OpenShiftClusterManagerV1_OpenShiftClusterManagerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    publish_version_data: Optional[
-        list[
-            OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1
-        ]
-    ] = Field(..., alias="publishVersionData")
+    publish_version_data: Optional[list[OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerV1]] = Field(..., alias="publishVersionData")
 
 
-class OpenShiftClusterManagerSectorDependenciesV1_OpenShiftClusterManagerV1(
-    ConfiguredBaseModel
-):
+class OpenShiftClusterManagerSectorDependenciesV1_OpenShiftClusterManagerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
 class OpenShiftClusterManagerSectorDependenciesV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    ocm: Optional[
-        OpenShiftClusterManagerSectorDependenciesV1_OpenShiftClusterManagerV1
-    ] = Field(..., alias="ocm")
+    ocm: Optional[OpenShiftClusterManagerSectorDependenciesV1_OpenShiftClusterManagerV1] = Field(..., alias="ocm")
 
 
 class OpenShiftClusterManagerSectorV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    dependencies: Optional[list[OpenShiftClusterManagerSectorDependenciesV1]] = Field(
-        ..., alias="dependencies"
-    )
+    dependencies: Optional[list[OpenShiftClusterManagerSectorDependenciesV1]] = Field(..., alias="dependencies")
 
 
 class OpenShiftClusterManagerV1(ConfiguredBaseModel):
@@ -418,16 +402,10 @@ class OpenShiftClusterManagerV1(ConfiguredBaseModel):
     org_id: str = Field(..., alias="orgId")
     access_token_client_id: Optional[str] = Field(..., alias="accessTokenClientId")
     access_token_url: Optional[str] = Field(..., alias="accessTokenUrl")
-    access_token_client_secret: Optional[VaultSecret] = Field(
-        ..., alias="accessTokenClientSecret"
-    )
+    access_token_client_secret: Optional[VaultSecret] = Field(..., alias="accessTokenClientSecret")
     blocked_versions: Optional[list[str]] = Field(..., alias="blockedVersions")
-    inherit_version_data: Optional[
-        list[OpenShiftClusterManagerV1_OpenShiftClusterManagerV1]
-    ] = Field(..., alias="inheritVersionData")
-    sectors: Optional[list[OpenShiftClusterManagerSectorV1]] = Field(
-        ..., alias="sectors"
-    )
+    inherit_version_data: Optional[list[OpenShiftClusterManagerV1_OpenShiftClusterManagerV1]] = Field(..., alias="inheritVersionData")
+    sectors: Optional[list[OpenShiftClusterManagerSectorV1]] = Field(..., alias="sectors")
 
 
 class AWSAccountV1(ConfiguredBaseModel):
@@ -468,9 +446,7 @@ class ClusterSpecV1(ConfiguredBaseModel):
     multi_az: bool = Field(..., alias="multi_az")
     private: bool = Field(..., alias="private")
     provision_shard_id: Optional[str] = Field(..., alias="provision_shard_id")
-    disable_user_workload_monitoring: Optional[bool] = Field(
-        ..., alias="disable_user_workload_monitoring"
-    )
+    disable_user_workload_monitoring: Optional[bool] = Field(..., alias="disable_user_workload_monitoring")
 
 
 class ClusterSpecOSDV1(ClusterSpecV1):
@@ -492,9 +468,7 @@ class RosaOcmAwsSpecV1(ConfiguredBaseModel):
 
 
 class RosaOcmSpecV1(ConfiguredBaseModel):
-    ocm_environments: Optional[list[RosaOcmAwsSpecV1]] = Field(
-        ..., alias="ocm_environments"
-    )
+    ocm_environments: Optional[list[RosaOcmAwsSpecV1]] = Field(..., alias="ocm_environments")
 
 
 class ClusterSpecROSAV1_AWSAccountV1(ConfiguredBaseModel):
@@ -565,9 +539,7 @@ class ClusterPeeringConnectionAccountVPCMeshV1_AWSAccountV1(ConfiguredBaseModel)
 
 
 class ClusterPeeringConnectionAccountVPCMeshV1(ClusterPeeringConnectionV1):
-    account: ClusterPeeringConnectionAccountVPCMeshV1_AWSAccountV1 = Field(
-        ..., alias="account"
-    )
+    account: ClusterPeeringConnectionAccountVPCMeshV1_AWSAccountV1 = Field(..., alias="account")
     tags: Optional[Json] = Field(..., alias="tags")
 
 
@@ -579,56 +551,38 @@ class ClusterPeeringConnectionAccountTGWV1_AWSAccountV1(ConfiguredBaseModel):
 
 
 class ClusterPeeringConnectionAccountTGWV1(ClusterPeeringConnectionV1):
-    account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1 = Field(
-        ..., alias="account"
-    )
+    account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1 = Field(..., alias="account")
     tags: Optional[Json] = Field(..., alias="tags")
     cidr_block: Optional[str] = Field(..., alias="cidrBlock")
     manage_security_groups: Optional[bool] = Field(..., alias="manageSecurityGroups")
     assume_role: Optional[str] = Field(..., alias="assumeRole")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1(
-    ConfiguredBaseModel
-):
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1(ConfiguredBaseModel):
     vpc: str = Field(..., alias="vpc")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1(
-    ConfiguredBaseModel
-):
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1(ConfiguredBaseModel):
     region: str = Field(..., alias="region")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1_AWSAccountV1(
-    ConfiguredBaseModel
-):
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1_AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
     terraform_username: Optional[str] = Field(..., alias="terraformUsername")
     automation_token: VaultSecret = Field(..., alias="automationToken")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1(
-    ConfiguredBaseModel
-):
-    account: ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1_AWSAccountV1 = Field(
-        ..., alias="account"
-    )
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1(ConfiguredBaseModel):
+    account: ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1_AWSAccountV1 = Field(..., alias="account")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1(
-    ConfiguredBaseModel
-):
-    aws_group: ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1 = Field(
-        ..., alias="awsGroup"
-    )
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1(ConfiguredBaseModel):
+    aws_group: ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1 = Field(..., alias="awsGroup")
     access_level: str = Field(..., alias="accessLevel")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1(
-    ConfiguredBaseModel
-):
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     provider: str = Field(..., alias="provider")
     manage_routes: Optional[bool] = Field(..., alias="manageRoutes")
@@ -645,66 +599,31 @@ class ClusterPeeringConnectionClusterAccepterV1_AWSAccountV1(ConfiguredBaseModel
     automation_token: VaultSecret = Field(..., alias="automationToken")
 
 
-class ClusterPeeringConnectionClusterAccepterV1(
-    ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1
-):
+class ClusterPeeringConnectionClusterAccepterV1(ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1):
     name: str = Field(..., alias="name")
-    cluster: ClusterPeeringConnectionClusterAccepterV1_ClusterV1 = Field(
-        ..., alias="cluster"
-    )
-    aws_infrastructure_management_account: Optional[
-        ClusterPeeringConnectionClusterAccepterV1_AWSAccountV1
-    ] = Field(..., alias="awsInfrastructureManagementAccount")
+    cluster: ClusterPeeringConnectionClusterAccepterV1_ClusterV1 = Field(..., alias="cluster")
+    aws_infrastructure_management_account: Optional[ClusterPeeringConnectionClusterAccepterV1_AWSAccountV1] = Field(..., alias="awsInfrastructureManagementAccount")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1(
-    ConfiguredBaseModel
-):
-    connections: list[
-        Union[
-            ClusterPeeringConnectionClusterAccepterV1,
-            ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1,
-        ]
-    ] = Field(..., alias="connections")
+class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1(ConfiguredBaseModel):
+    connections: list[Union[ClusterPeeringConnectionClusterAccepterV1, ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1_ClusterPeeringConnectionV1]] = Field(..., alias="connections")
 
 
 class ClusterPeeringConnectionClusterRequesterV1_ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    network: Optional[
-        ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1
-    ] = Field(..., alias="network")
-    spec: Optional[
-        ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1
-    ] = Field(..., alias="spec")
-    aws_infrastructure_access: Optional[
-        list[
-            ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1
-        ]
-    ] = Field(..., alias="awsInfrastructureAccess")
-    aws_infrastructure_management_accounts: Optional[
-        list[AWSInfrastructureManagementAccount]
-    ] = Field(..., alias="awsInfrastructureManagementAccounts")
-    peering: Optional[
-        ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1
-    ] = Field(..., alias="peering")
+    network: Optional[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1] = Field(..., alias="network")
+    spec: Optional[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1] = Field(..., alias="spec")
+    aws_infrastructure_access: Optional[list[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1]] = Field(..., alias="awsInfrastructureAccess")
+    aws_infrastructure_management_accounts: Optional[list[AWSInfrastructureManagementAccount]] = Field(..., alias="awsInfrastructureManagementAccounts")
+    peering: Optional[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1] = Field(..., alias="peering")
 
 
 class ClusterPeeringConnectionClusterRequesterV1(ClusterPeeringConnectionV1):
-    cluster: ClusterPeeringConnectionClusterRequesterV1_ClusterV1 = Field(
-        ..., alias="cluster"
-    )
+    cluster: ClusterPeeringConnectionClusterRequesterV1_ClusterV1 = Field(..., alias="cluster")
 
 
 class ClusterPeeringV1(ConfiguredBaseModel):
-    connections: list[
-        Union[
-            ClusterPeeringConnectionAccountTGWV1,
-            ClusterPeeringConnectionAccountV1,
-            ClusterPeeringConnectionAccountVPCMeshV1,
-            ClusterPeeringConnectionClusterRequesterV1,
-            ClusterPeeringConnectionV1,
-        ]
-    ] = Field(..., alias="connections")
+    connections: list[Union[ClusterPeeringConnectionAccountTGWV1, ClusterPeeringConnectionAccountV1, ClusterPeeringConnectionAccountVPCMeshV1, ClusterPeeringConnectionClusterRequesterV1, ClusterPeeringConnectionV1]] = Field(..., alias="connections")
 
 
 class ClusterAddonParametersV1(ConfiguredBaseModel):
@@ -714,9 +633,7 @@ class ClusterAddonParametersV1(ConfiguredBaseModel):
 
 class ClusterAddonV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    parameters: Optional[list[ClusterAddonParametersV1]] = Field(
-        ..., alias="parameters"
-    )
+    parameters: Optional[list[ClusterAddonParametersV1]] = Field(..., alias="parameters")
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
@@ -735,37 +652,21 @@ class ClusterV1(ConfiguredBaseModel):
     managed_cluster_roles: Optional[bool] = Field(..., alias="managedClusterRoles")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
-    auth: list[
-        Union[ClusterAuthGithubOrgTeamV1, ClusterAuthGithubOrgV1, ClusterAuthV1]
-    ] = Field(..., alias="auth")
+    auth: list[Union[ClusterAuthGithubOrgTeamV1, ClusterAuthGithubOrgV1, ClusterAuthV1]] = Field(..., alias="auth")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
-    aws_infrastructure_access: Optional[list[AWSInfrastructureAccessV1]] = Field(
-        ..., alias="awsInfrastructureAccess"
-    )
-    aws_infrastructure_management_accounts: Optional[
-        list[AWSInfrastructureManagementAccount]
-    ] = Field(..., alias="awsInfrastructureManagementAccounts")
-    spec: Optional[Union[ClusterSpecROSAV1, ClusterSpecOSDV1, ClusterSpecV1]] = Field(
-        ..., alias="spec"
-    )
-    external_configuration: Optional[ClusterExternalConfigurationV1] = Field(
-        ..., alias="externalConfiguration"
-    )
+    aws_infrastructure_access: Optional[list[AWSInfrastructureAccessV1]] = Field(..., alias="awsInfrastructureAccess")
+    aws_infrastructure_management_accounts: Optional[list[AWSInfrastructureManagementAccount]] = Field(..., alias="awsInfrastructureManagementAccounts")
+    spec: Optional[Union[ClusterSpecROSAV1, ClusterSpecOSDV1, ClusterSpecV1]] = Field(..., alias="spec")
+    external_configuration: Optional[ClusterExternalConfigurationV1] = Field(..., alias="externalConfiguration")
     upgrade_policy: Optional[ClusterUpgradePolicyV1] = Field(..., alias="upgradePolicy")
-    additional_routers: Optional[list[ClusterAdditionalRouterV1]] = Field(
-        ..., alias="additionalRouters"
-    )
+    additional_routers: Optional[list[ClusterAdditionalRouterV1]] = Field(..., alias="additionalRouters")
     network: Optional[ClusterNetworkV1] = Field(..., alias="network")
-    machine_pools: Optional[list[ClusterMachinePoolV1]] = Field(
-        ..., alias="machinePools"
-    )
+    machine_pools: Optional[list[ClusterMachinePoolV1]] = Field(..., alias="machinePools")
     peering: Optional[ClusterPeeringV1] = Field(..., alias="peering")
     addons: Optional[list[ClusterAddonV1]] = Field(..., alias="addons")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
-    cluster_admin_automation_token: Optional[VaultSecret] = Field(
-        ..., alias="clusterAdminAutomationToken"
-    )
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 

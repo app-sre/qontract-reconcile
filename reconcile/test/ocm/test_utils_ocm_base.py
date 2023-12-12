@@ -29,17 +29,15 @@ def test_get_json_pagination(
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
     find_all_ocm_http_requests: Callable[[str, str], list[HTTPrettyRequest]],
 ) -> None:
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri="/api",
-                responses=build_paged_ocm_response(
-                    nr_of_items=nr_of_items, page_size=page_size
-                ),
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri="/api",
+            responses=build_paged_ocm_response(
+                nr_of_items=nr_of_items, page_size=page_size
+            ),
+        )
+    ])
 
     resp = list(ocm_api.get_paginated("/api", max_page_size=page_size))
 
@@ -58,17 +56,15 @@ def test_get_json_pagination_max_pages(
     nr_of_items = 10
     page_size = 3
     max_pages = 2
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri="/api",
-                responses=build_paged_ocm_response(
-                    nr_of_items=nr_of_items, page_size=page_size
-                ),
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri="/api",
+            responses=build_paged_ocm_response(
+                nr_of_items=nr_of_items, page_size=page_size
+            ),
+        )
+    ])
     resp = list(
         ocm_api.get_paginated("/api", max_page_size=page_size, max_pages=max_pages)
     )

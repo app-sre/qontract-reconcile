@@ -2963,7 +2963,11 @@ def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
         integration_cmd = integration.get_command(None, integration_name)  # type: ignore
         integration_meta[integration_name] = IntegrationMeta(
             name=integration_name,
-            args=[p.opts[0] for p in integration_cmd.params if p.opts and len(p.opts) > 0],  # type: ignore
+            args=[
+                p.opts[0]
+                for p in integration_cmd.params  # type: ignore
+                if p.opts and len(p.opts) > 0
+            ],
             short_help=integration_cmd.short_help,  # type: ignore
         )
     return integration_meta

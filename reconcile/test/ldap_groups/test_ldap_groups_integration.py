@@ -206,9 +206,12 @@ def test_ldap_groups_integration_reconcile(
     internal_groups_client.delete_group.assert_called_once_with(cerritos_crew.name)
     internal_groups_client.update_group.assert_called_once_with(love_couples_new)
 
-    assert sorted(intg._managed_groups) == sorted(
-        ["officers", "medical-crew", "love-couples", "the-deleted-ones"]
-    )
+    assert sorted(intg._managed_groups) == sorted([
+        "officers",
+        "medical-crew",
+        "love-couples",
+        "the-deleted-ones",
+    ])
 
 
 def test_ldap_groups_integration_reconcile_sorted_members(

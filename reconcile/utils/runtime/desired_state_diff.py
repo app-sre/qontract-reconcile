@@ -69,19 +69,13 @@ def find_changed_shards(
             shard_path = apply_constraint_to_path(parse(shard_path_spec), d.path)
             if shard_path:
                 if d.diff_type in {DiffType.CHANGED, d.diff_type.REMOVED}:
-                    affected_shards.update(
-                        {
-                            shard.value
-                            for shard in shard_path.find(previous_desired_state)
-                        }
-                    )
+                    affected_shards.update({
+                        shard.value for shard in shard_path.find(previous_desired_state)
+                    })
                 if d.diff_type in {DiffType.CHANGED, d.diff_type.ADDED}:
-                    affected_shards.update(
-                        {
-                            shard.value
-                            for shard in shard_path.find(current_desired_state)
-                        }
-                    )
+                    affected_shards.update({
+                        shard.value for shard in shard_path.find(current_desired_state)
+                    })
     return affected_shards
 
 

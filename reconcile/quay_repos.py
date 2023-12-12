@@ -132,28 +132,24 @@ def get_repo_from_state(state, repo_info):
 
 
 def act_delete(dry_run, quay_api_store, current_repo):
-    logging.info(
-        [
-            "delete_repo",
-            current_repo.org_key.instance,
-            current_repo.org_key.org_name,
-            current_repo.name,
-        ]
-    )
+    logging.info([
+        "delete_repo",
+        current_repo.org_key.instance,
+        current_repo.org_key.org_name,
+        current_repo.name,
+    ])
     if not dry_run:
         api = quay_api_store[current_repo.org_key]["api"]
         api.repo_delete(current_repo.name)
 
 
 def act_create(dry_run, quay_api_store, desired_repo):
-    logging.info(
-        [
-            "create_repo",
-            desired_repo.org_key.instance,
-            desired_repo.org_key.org_name,
-            desired_repo.name,
-        ]
-    )
+    logging.info([
+        "create_repo",
+        desired_repo.org_key.instance,
+        desired_repo.org_key.org_name,
+        desired_repo.name,
+    ])
     if not dry_run:
         api = quay_api_store[desired_repo.org_key]["api"]
         api.repo_create(
@@ -162,28 +158,24 @@ def act_create(dry_run, quay_api_store, desired_repo):
 
 
 def act_description(dry_run, quay_api_store, desired_repo):
-    logging.info(
-        [
-            "update_desc",
-            desired_repo.org_key.instance,
-            desired_repo.org_key.org_name,
-            desired_repo.description,
-        ]
-    )
+    logging.info([
+        "update_desc",
+        desired_repo.org_key.instance,
+        desired_repo.org_key.org_name,
+        desired_repo.description,
+    ])
     if not dry_run:
         api = quay_api_store[desired_repo.org_key]["api"]
         api.repo_update_description(desired_repo.name, desired_repo.description)
 
 
 def act_public(dry_run, quay_api_store, desired_repo):
-    logging.info(
-        [
-            "update_public",
-            desired_repo.org_key.instance,
-            desired_repo.org_key.org_name,
-            desired_repo.name,
-        ]
-    )
+    logging.info([
+        "update_public",
+        desired_repo.org_key.instance,
+        desired_repo.org_key.org_name,
+        desired_repo.name,
+    ])
     if not dry_run:
         api = quay_api_store[desired_repo.org_key]["api"]
         if desired_repo.public:

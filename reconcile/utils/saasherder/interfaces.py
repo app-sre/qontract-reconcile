@@ -24,16 +24,14 @@ class SaasFileSecretParameters(Protocol):
     name: str
 
     @property
-    def secret(self) -> HasSecret:
-        ...
+    def secret(self) -> HasSecret: ...
 
     def dict(
         self,
         *,
         by_alias: bool = False,
         include: Optional[Union[AbstractSetIntStr, MappingIntStrAny]] = None,
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
 
 SaasSecretParameters = Optional[Sequence[SaasFileSecretParameters]]
@@ -45,8 +43,7 @@ MappingIntStrAny = Mapping[Union[int, str], Any]
 @runtime_checkable
 class HasSecretParameters(Protocol):
     @property
-    def secret_parameters(self) -> SaasSecretParameters:
-        ...
+    def secret_parameters(self) -> SaasSecretParameters: ...
 
 
 class SaasParentApp(Protocol):
@@ -58,16 +55,13 @@ class SaasApp(Protocol):
     name: str
 
     @property
-    def parent_app(self) -> Optional[SaasParentApp]:
-        ...
+    def parent_app(self) -> Optional[SaasParentApp]: ...
 
     @property
-    def self_service_roles(self) -> Optional[Sequence[SaasRole]]:
-        ...
+    def self_service_roles(self) -> Optional[Sequence[SaasRole]]: ...
 
     @property
-    def service_owners(self) -> Optional[Sequence[SaasServiceOwner]]:
-        ...
+    def service_owners(self) -> Optional[Sequence[SaasServiceOwner]]: ...
 
 
 class SaasPipelinesProvider(Protocol):
@@ -85,8 +79,7 @@ class SaasPipelinesProviderTektonNamespace(Protocol):
     name: str
 
     @property
-    def cluster(self) -> SaasPipelinesProviderTektonNamespaceCluster:
-        ...
+    def cluster(self) -> SaasPipelinesProviderTektonNamespaceCluster: ...
 
 
 class SaasPipelinesProviderTektonObjectTemplate(Protocol):
@@ -95,14 +88,12 @@ class SaasPipelinesProviderTektonObjectTemplate(Protocol):
 
 class SaasPipelinesProviderPipelineTemplates(Protocol):
     @property
-    def openshift_saas_deploy(self) -> SaasPipelinesProviderTektonObjectTemplate:
-        ...
+    def openshift_saas_deploy(self) -> SaasPipelinesProviderTektonObjectTemplate: ...
 
 
 class SaasPipelinesProviderTektonProviderDefaults(Protocol):
     @property
-    def pipeline_templates(self) -> SaasPipelinesProviderPipelineTemplates:
-        ...
+    def pipeline_templates(self) -> SaasPipelinesProviderPipelineTemplates: ...
 
 
 class SaasPipelinesProviderTekton_PipelinesProviderPipelineTemplates_PipelinesProviderTektonObjectTemplate(
@@ -115,8 +106,7 @@ class SaasPipelinesProviderTekton_PipelinesProviderPipelineTemplates(Protocol):
     @property
     def openshift_saas_deploy(
         self,
-    ) -> SaasPipelinesProviderTekton_PipelinesProviderPipelineTemplates_PipelinesProviderTektonObjectTemplate:
-        ...
+    ) -> SaasPipelinesProviderTekton_PipelinesProviderPipelineTemplates_PipelinesProviderTektonObjectTemplate: ...
 
 
 @runtime_checkable
@@ -125,18 +115,15 @@ class SaasPipelinesProviderTekton(Protocol):
     provider: str
 
     @property
-    def namespace(self) -> SaasPipelinesProviderTektonNamespace:
-        ...
+    def namespace(self) -> SaasPipelinesProviderTektonNamespace: ...
 
     @property
-    def defaults(self) -> SaasPipelinesProviderTektonProviderDefaults:
-        ...
+    def defaults(self) -> SaasPipelinesProviderTektonProviderDefaults: ...
 
     @property
     def pipeline_templates(
         self,
-    ) -> Optional[SaasPipelinesProviderTekton_PipelinesProviderPipelineTemplates]:
-        ...
+    ) -> Optional[SaasPipelinesProviderTekton_PipelinesProviderPipelineTemplates]: ...
 
 
 class SaasResourceRequestsRequirements(Protocol):
@@ -151,12 +138,10 @@ class SaasResourceLimitsRequirements(Protocol):
 
 class SaasDeployResources(Protocol):
     @property
-    def requests(self) -> SaasResourceRequestsRequirements:
-        ...
+    def requests(self) -> SaasResourceRequestsRequirements: ...
 
     @property
-    def limits(self) -> SaasResourceLimitsRequirements:
-        ...
+    def limits(self) -> SaasResourceLimitsRequirements: ...
 
 
 class SaasSlackWorkspaceIntegration(Protocol):
@@ -166,16 +151,14 @@ class SaasSlackWorkspaceIntegration(Protocol):
     username: str
 
     @property
-    def token(self) -> HasSecret:
-        ...
+    def token(self) -> HasSecret: ...
 
 
 class SaasSlackWorkspace(Protocol):
     name: str
 
     @property
-    def integrations(self) -> Optional[Sequence[SaasSlackWorkspaceIntegration]]:
-        ...
+    def integrations(self) -> Optional[Sequence[SaasSlackWorkspaceIntegration]]: ...
 
 
 class SaasSlackOutputNotifications(Protocol):
@@ -187,30 +170,25 @@ class SaasSlackOutput(Protocol):
     channel: Optional[str]
 
     @property
-    def workspace(self) -> SaasSlackWorkspace:
-        ...
+    def workspace(self) -> SaasSlackWorkspace: ...
 
     @property
-    def notifications(self) -> Optional[SaasSlackOutputNotifications]:
-        ...
+    def notifications(self) -> Optional[SaasSlackOutputNotifications]: ...
 
 
 class SaasFileAuthentication(Protocol):
     @property
-    def code(self) -> Optional[HasSecret]:
-        ...
+    def code(self) -> Optional[HasSecret]: ...
 
     @property
-    def image(self) -> Optional[HasSecret]:
-        ...
+    def image(self) -> Optional[HasSecret]: ...
 
 
 class SaasEnvironment_SaasSecretParameters(Protocol):
     name: str
 
     @property
-    def secret(self) -> HasSecret:
-        ...
+    def secret(self) -> HasSecret: ...
 
 
 @runtime_checkable
@@ -222,24 +200,20 @@ class SaasResourceTemplateTargetNamespace(Protocol):
     name: str
 
     @property
-    def environment(self) -> SaasEnvironment:
-        ...
+    def environment(self) -> SaasEnvironment: ...
 
     @property
-    def app(self) -> SaasApp:
-        ...
+    def app(self) -> SaasApp: ...
 
     @property
-    def cluster(self) -> oc_connection_parameters.Cluster:
-        ...
+    def cluster(self) -> oc_connection_parameters.Cluster: ...
 
     def dict(
         self,
         *,
         by_alias: bool = False,
         include: Optional[Union[AbstractSetIntStr, MappingIntStrAny]] = None,
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
 
 class SaasPromotionChannelData(Protocol):
@@ -259,8 +233,9 @@ class SaasPromotionData(Protocol):
     @property
     def data(
         self,
-    ) -> Optional[Sequence[Union[SaasParentSaasPromotion, SaasPromotionChannelData]]]:
-        ...
+    ) -> Optional[
+        Sequence[Union[SaasParentSaasPromotion, SaasPromotionChannelData]]
+    ]: ...
 
 
 class SaasResourceTemplateTargetPromotion(Protocol):
@@ -269,8 +244,7 @@ class SaasResourceTemplateTargetPromotion(Protocol):
     subscribe: Optional[list[str]]
 
     @property
-    def promotion_data(self) -> Optional[Sequence[SaasPromotionData]]:
-        ...
+    def promotion_data(self) -> Optional[Sequence[SaasPromotionData]]: ...
 
 
 class Channel(Protocol):
@@ -289,23 +263,19 @@ class SaasPromotion(Protocol):
     target_paths: Optional[list[str]] = None
 
     @property
-    def promotion_data(self) -> Optional[Sequence[SaasPromotionData]]:
-        ...
+    def promotion_data(self) -> Optional[Sequence[SaasPromotionData]]: ...
 
     @property
-    def subscribe(self) -> Optional[list[Channel]]:
-        ...
+    def subscribe(self) -> Optional[list[Channel]]: ...
 
-    def dict(self, *, by_alias: bool = False) -> dict[str, Any]:
-        ...
+    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class SaasResourceTemplateTarget_SaasSecretParameters(Protocol):
     name: str
 
     @property
-    def secret(self) -> HasSecret:
-        ...
+    def secret(self) -> HasSecret: ...
 
 
 class SaasJenkinsInstance(Protocol):
@@ -317,8 +287,7 @@ class SaasResourceTemplateTargetUpstream(Protocol):
     name: str
 
     @property
-    def instance(self) -> SaasJenkinsInstance:
-        ...
+    def instance(self) -> SaasJenkinsInstance: ...
 
 
 class SaasQuayInstance(Protocol):
@@ -329,16 +298,14 @@ class SaasQuayOrg(Protocol):
     name: str
 
     @property
-    def instance(self) -> SaasQuayInstance:
-        ...
+    def instance(self) -> SaasQuayInstance: ...
 
 
 class SaasResourceTemplateTargetImage(Protocol):
     name: str
 
     @property
-    def org(self) -> SaasQuayOrg:
-        ...
+    def org(self) -> SaasQuayOrg: ...
 
 
 class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
@@ -349,28 +316,22 @@ class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
     ref: str
 
     @property
-    def namespace(self) -> SaasResourceTemplateTargetNamespace:
-        ...
+    def namespace(self) -> SaasResourceTemplateTargetNamespace: ...
 
     @property
-    def promotion(self) -> Optional[SaasResourceTemplateTargetPromotion]:
-        ...
+    def promotion(self) -> Optional[SaasResourceTemplateTargetPromotion]: ...
 
     @property
-    def upstream(self) -> Optional[SaasResourceTemplateTargetUpstream]:
-        ...
+    def upstream(self) -> Optional[SaasResourceTemplateTargetUpstream]: ...
 
     @property
-    def image(self) -> Optional[SaasResourceTemplateTargetImage]:
-        ...
+    def image(self) -> Optional[SaasResourceTemplateTargetImage]: ...
 
     def uid(
         self, parent_saas_file_name: str, parent_resource_template_name: str
-    ) -> str:
-        ...
+    ) -> str: ...
 
-    def dict(self, *, by_alias: bool = False) -> dict[str, Any]:
-        ...
+    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class SaasResourceTemplate(HasParameters, HasSecretParameters, Protocol):
@@ -381,8 +342,7 @@ class SaasResourceTemplate(HasParameters, HasSecretParameters, Protocol):
     hash_length: Optional[int]
 
     @property
-    def targets(self) -> Sequence[SaasResourceTemplateTarget]:
-        ...
+    def targets(self) -> Sequence[SaasResourceTemplateTarget]: ...
 
 
 class SaasRole(Protocol):
@@ -420,33 +380,25 @@ class SaasFile(HasParameters, HasSecretParameters, Protocol):
     validate_targets_in_app: Optional[bool]
 
     @property
-    def app(self) -> SaasApp:
-        ...
+    def app(self) -> SaasApp: ...
 
     @property
-    def pipelines_provider(self) -> SaasPipelinesProviders:
-        ...
+    def pipelines_provider(self) -> SaasPipelinesProviders: ...
 
     @property
-    def deploy_resources(self) -> Optional[SaasDeployResources]:
-        ...
+    def deploy_resources(self) -> Optional[SaasDeployResources]: ...
 
     @property
-    def slack(self) -> Optional[SaasSlackOutput]:
-        ...
+    def slack(self) -> Optional[SaasSlackOutput]: ...
 
     @property
-    def authentication(self) -> Optional[SaasFileAuthentication]:
-        ...
+    def authentication(self) -> Optional[SaasFileAuthentication]: ...
 
     @property
-    def resource_templates(self) -> Sequence[SaasResourceTemplate]:
-        ...
+    def resource_templates(self) -> Sequence[SaasResourceTemplate]: ...
 
     @property
-    def self_service_roles(self) -> Optional[Sequence[SaasRole]]:
-        ...
+    def self_service_roles(self) -> Optional[Sequence[SaasRole]]: ...
 
     @property
-    def managed_resource_names(self) -> Optional[Sequence[ManagedResourceName]]:
-        ...
+    def managed_resource_names(self) -> Optional[Sequence[ManagedResourceName]]: ...

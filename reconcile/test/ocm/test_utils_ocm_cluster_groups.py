@@ -39,22 +39,20 @@ def test_get_cluster_groups(
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
 ) -> None:
     cluster_id = "cluster_id"
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET", uri=build_cluster_groups_url(cluster_id)
-            ).add_list_response(
-                [
-                    build_ocm_cluster_group(
-                        OCMClusterGroupId.DEDICATED_ADMINS, {"user-1", "user-2"}
-                    ),
-                    build_ocm_cluster_group(
-                        OCMClusterGroupId.CLUSTER_ADMINS, {"user-3", "user-4"}
-                    ),
-                ],
-            ),
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET", uri=build_cluster_groups_url(cluster_id)
+        ).add_list_response(
+            [
+                build_ocm_cluster_group(
+                    OCMClusterGroupId.DEDICATED_ADMINS, {"user-1", "user-2"}
+                ),
+                build_ocm_cluster_group(
+                    OCMClusterGroupId.CLUSTER_ADMINS, {"user-3", "user-4"}
+                ),
+            ],
+        ),
+    ])
     groups = get_cluster_groups(
         ocm_api=ocm_api,
         cluster_id=cluster_id,

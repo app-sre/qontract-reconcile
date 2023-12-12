@@ -17,9 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
-    MinimalOCMOrganization,
-)
+from reconcile.gql_definitions.fragments.minimal_ocm_organization import MinimalOCMOrganization
 
 
 DEFINITION = """
@@ -38,14 +36,12 @@ query OCMOrganizationSharding {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class OCMOrganizationShardingQueryData(ConfiguredBaseModel):
-    ocm_organizations: Optional[list[MinimalOCMOrganization]] = Field(
-        ..., alias="ocm_organizations"
-    )
+    ocm_organizations: Optional[list[MinimalOCMOrganization]] = Field(..., alias="ocm_organizations")
 
 
 def query(query_func: Callable, **kwargs: Any) -> OCMOrganizationShardingQueryData:

@@ -70,7 +70,7 @@ def mr_builder() -> Callable[[Mapping], ProjectMergeRequest]:
 
 @pytest.fixture
 def vcs_builder(
-    mr_builder: Callable[[Mapping], ProjectMergeRequest]
+    mr_builder: Callable[[Mapping], ProjectMergeRequest],
 ) -> Callable[[Mapping], VCS]:
     def builder(data: Mapping) -> VCS:
         vcs = create_autospec(spec=VCS)
@@ -85,7 +85,7 @@ def vcs_builder(
 
 @pytest.fixture
 def subscriber_builder(
-    saas_target_namespace_builder: Callable[..., SaasTargetNamespace]
+    saas_target_namespace_builder: Callable[..., SaasTargetNamespace],
 ):
     def builder(data: Mapping) -> Subscriber:
         subscriber = Subscriber(

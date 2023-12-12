@@ -18,3 +18,4 @@ config.*.toml
 .idea
 
 GIT_VERSION
+.ruff_cache

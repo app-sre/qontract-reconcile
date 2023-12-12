@@ -79,15 +79,13 @@ def run(dry_run: bool, defer: Optional[Callable] = None) -> None:
                 # now trigger the job already, people are waiting!
                 instance = aut["instance"]
                 job_name = aut["name"]
-                logging.info(
-                    [
-                        "trigger_job",
-                        instance["name"],
-                        job_name,
-                        addon_name,
-                        addon_org_version,
-                    ]
-                )
+                logging.info([
+                    "trigger_job",
+                    instance["name"],
+                    job_name,
+                    addon_name,
+                    addon_org_version,
+                ])
                 if not dry_run:
                     jenkins = JenkinsApi.init_jenkins_from_secret(
                         secret_reader, instance["token"]

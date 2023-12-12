@@ -47,8 +47,8 @@ query AppInterfaceStateSettings {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AppInterfaceStateConfigurationV1(ConfiguredBaseModel):
@@ -62,9 +62,7 @@ class AppInterfaceStateConfigurationS3V1(AppInterfaceStateConfigurationV1):
 
 
 class AppInterfaceSettingsV1(ConfiguredBaseModel):
-    state: Optional[
-        Union[AppInterfaceStateConfigurationS3V1, AppInterfaceStateConfigurationV1]
-    ] = Field(..., alias="state")
+    state: Optional[Union[AppInterfaceStateConfigurationS3V1, AppInterfaceStateConfigurationV1]] = Field(..., alias="state")
 
 
 class AppInterfaceStateSettingsQueryData(ConfiguredBaseModel):

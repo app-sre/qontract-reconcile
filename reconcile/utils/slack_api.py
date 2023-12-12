@@ -54,26 +54,22 @@ class HasClientGlobalConfig(Protocol):
     max_retries: Optional[int]
     timeout: Optional[int]
 
-    def dict(self) -> dict[str, Optional[int]]:
-        ...
+    def dict(self) -> dict[str, Optional[int]]: ...
 
 
 class HasClientMethodConfig(Protocol):
     name: str
     args: Any
 
-    def dict(self) -> dict[str, str]:
-        ...
+    def dict(self) -> dict[str, str]: ...
 
 
 class HasClientConfig(Protocol):
     @property
-    def q_global(self) -> Optional[HasClientGlobalConfig]:
-        ...
+    def q_global(self) -> Optional[HasClientGlobalConfig]: ...
 
     @property
-    def methods(self) -> Optional[Sequence[HasClientMethodConfig]]:
-        ...
+    def methods(self) -> Optional[Sequence[HasClientMethodConfig]]: ...
 
 
 class SlackApiConfig:

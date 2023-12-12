@@ -1,9 +1,8 @@
+from release import version
 from setuptools import (
     find_packages,
     setup,
 )
-
-from release import version
 
 setup(
     name="qontract-reconcile",
