@@ -21,7 +21,6 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
 )
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
     NamespaceTerraformProviderResourceCloudflareV1,
-    NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceV1,
     TerraformCloudflareResourcesQueryData,
 )
@@ -306,33 +305,6 @@ def _filter_cloudflare_namespaces(
                     ):
                         cloudflare_namespaces.append(ns)
     return cloudflare_namespaces
-
-
-def _populate_custom_ssl_certificate(
-    namespaces: Iterable[NamespaceV1],
-    secret_reader: SecretReaderBase,
-) -> None:
-    for ns in namespaces:
-        if ns.external_resources:
-            for ext_resource in ns.external_resources:
-                if isinstance(
-                    ext_resource, NamespaceTerraformProviderResourceCloudflareV1
-                ):
-                    zones = [
-                        res for res in ext_resource.resources if res.provider == "zone"
-                    ]
-                    for zone in zones:
-                        if (
-                            isinstance(zone, NamespaceTerraformResourceCloudflareZoneV1)
-                            and zone.custom_ssl_certificates
-                        ):
-                            for cert in zone.custom_ssl_certificates:
-                                cert_data = secret_reader.read_secret(
-                                    cert.certificate_secret.certificate
-                                )
-                                key_data = secret_reader.read_secret(
-                                    cert.certificate_secret.key
-                                )
 
 
 @defer
