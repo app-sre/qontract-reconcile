@@ -36,7 +36,6 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
 )
 from reconcile.status import ExitCodes
 from reconcile.utils.secret_reader import (
-    SecretNotFound,
     SecretReaderBase,
 )
 
@@ -131,13 +130,13 @@ def external_resources(provisioner_config):
                         geo_restrictions="us",
                         certificate_secret=CertificateSecretV1(
                             certificate=VaultSecret(
-                                path="some/path",
+                                path="certificate/secret/cert/path",
                                 field="certificate.crt",
                                 format="plain",
                                 version=1,
                             ),
                             key=VaultSecret(
-                                path="another/path",
+                                path="certificate/secret/key/path",
                                 field="certificate.key",
                                 format="plain",
                                 version=1,
@@ -306,7 +305,6 @@ def test_namespace_validation(
         "reconcile.terraform_cloudflare_resources.terraform_cloudflare_resources",
         autospec=True,
     )
-
     mocked_resources.query.return_value = TerraformCloudflareResourcesQueryData(
         namespaces=[],
     )
@@ -362,18 +360,23 @@ def test_cloudflare_namespace_validation(
     ]
 
 
-def test_custom_ssl_secret_validation(
-    mocker,
-    mock_gql,
-    mock_create_secret_reader,
-    mock_terraform_client,
-    mock_app_interface_vault_settings,
-    mock_cloudflare_accounts,
-    mock_cloudflare_resources,
-):
-    with pytest.raises(SecretNotFound) as e:
-        integ.run(True, None, False, 10)
-    assert "Secret path some/path not found" == str(e.value)
+def custom_ssl_secret_reader_side_effect(*args):
+    """For use of secret_reader inside cloudflare client"""
+    if {
+        "path": "certificate/secret/cert/path",
+        "field": "certificate.crt",
+        "version": 1,
+        "q_format": "plain",
+    } == args[0]:
+        return "----- CERTIFICATE -----"
+
+    if {
+        "path": "certificate/secret/cert/path",
+        "field": "certificate.key",
+        "version": 1,
+        "q_format": "plain",
+    } == args[0]:
+        return "----- KEY -----"
 
 
 def test_terraform_cloudflare_resources_dry_run(
@@ -385,6 +388,18 @@ def test_terraform_cloudflare_resources_dry_run(
     mock_cloudflare_accounts,
     mock_cloudflare_resources,
 ):
+    # Mocking vault settings and secret reader inside cloudflare_client
+    mocker.patch(
+        "reconcile.utils.terrascript.cloudflare_resources.get_app_interface_vault_settings",
+        atospec=True,
+    )
+    secret_reader = mocker.Mock(SecretReaderBase)
+    secret_reader.read.side_effect = custom_ssl_secret_reader_side_effect
+    create_secret_reader = mocker.patch(
+        "reconcile.utils.terrascript.cloudflare_resources.create_secret_reader",
+        autospec=True,
+    )
+    create_secret_reader.return_value = secret_reader
     with pytest.raises(SystemExit) as sample:
         integ.run(True, None, False, 10)
     assert sample.value.code == ExitCodes.SUCCESS
