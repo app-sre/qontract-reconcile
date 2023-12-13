@@ -41,7 +41,7 @@ def test_get_file_default():
     )
     content = api.get_file(path="some/path")
     assert content == b"test"
-    api._repo.get_contents.assert_called_once_with(  # type: ignore[attr-defined]
+    api._repo.get_contents.assert_called_once_with(
         path="some/path",
         ref="master",
     )
@@ -53,7 +53,7 @@ def test_get_file_with_ref():
     )
     content = api.get_file(path="some/path", ref="some-ref")
     assert content == b"test"
-    api._repo.get_contents.assert_called_once_with(  # type: ignore[attr-defined]
+    api._repo.get_contents.assert_called_once_with(
         path="some/path",
         ref="some-ref",
     )
@@ -67,7 +67,7 @@ def test_get_file_list_returned():
     )
     content = api.get_file(path="some/path")
     assert content is None
-    api._repo.get_contents.assert_called_once_with(  # type: ignore[attr-defined]
+    api._repo.get_contents.assert_called_once_with(
         path="some/path",
         ref="master",
     )

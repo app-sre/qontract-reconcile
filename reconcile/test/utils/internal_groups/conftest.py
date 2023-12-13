@@ -86,7 +86,7 @@ def internal_groups_api_minimal(
         client_id=client_id,
         client_secret=client_secret,
     )
-    api._client = requests.Session()
+    api._client = requests.Session()  # type: ignore[assignment]
     return api
 
 
