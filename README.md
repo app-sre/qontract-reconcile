@@ -407,10 +407,8 @@ GQL definitions and generated classes can be found [here](reconcile/gql_definiti
 Qontract-reconcile uses [PEP8](https://peps.python.org/pep-0008/) as the code style guide.
 The style is enforced via [PR checks](#ci-tooling) with the help of the following utilities:
 
-* [Black - The uncompromising code formatter](https://black.readthedocs.io/en/stable/)
-* [Isort - sort your imports](https://pycqa.github.io/isort/)
-* [Flake8: Your Tool For Style Guide Enforcement](https://flake8.pycqa.org/en/latest/)
-* [Pylint - a static code analyser](https://pylint.pycqa.org/en/latest/)
+* [Ruff - An extremely fast Python linter and code formatter, written in Rust.](https://docs.astral.sh/ruff/)
+* [Mypy](https://mypy.readthedocs.io/en/stable/)
 
 Run `make format` before you commit your changes to keep the code compliant.
 
