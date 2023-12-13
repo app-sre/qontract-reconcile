@@ -747,6 +747,7 @@ CLUSTERS_QUERY = """
       ... on ClusterSpecROSA_v1 {
         subnet_ids
         availability_zones
+        oidc_endpoint_url
         account {
           name
           uid

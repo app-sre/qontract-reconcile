@@ -16566,6 +16566,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "issueSecurityId",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "escalationPolicies",
                             "description": null,
                             "args": [],
@@ -31675,6 +31687,18 @@
                                         "ofType": null
                                     }
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "oidc_endpoint_url",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null

@@ -85,6 +85,7 @@ SPEC_ATTR_LOAD_BALANCERS = "load_balancers"
 SPEC_ATTR_STORAGE = "storage"
 SPEC_ATTR_ID = "id"
 SPEC_ATTR_EXTERNAL_ID = "external_id"
+SPEC_ATTR_OIDC_ENDPONT_URL = "oidc_endpoint_url"
 SPEC_ATTR_PROVISION_SHARD_ID = "provision_shard_id"
 SPEC_ATTR_VERSION = "version"
 SPEC_ATTR_INITIAL_VERSION = "initial_version"
@@ -341,6 +342,7 @@ class OCMProductRosa(OCMProduct):
         SPEC_ATTR_HYPERSHIFT,
         SPEC_ATTR_SUBNET_IDS,
         SPEC_ATTR_AVAILABILITY_ZONES,
+        SPEC_ATTR_OIDC_ENDPONT_URL,
     }
 
     @staticmethod
@@ -380,6 +382,7 @@ class OCMProductRosa(OCMProduct):
             provision_shard_id = None
 
         sts = None
+        oidc_endpoint_url = None
         if cluster["aws"].get("sts", None):
             sts = ROSAOcmAwsStsAttrs(
                 installer_role_arn=cluster["aws"]["sts"]["role_arn"],
@@ -391,6 +394,7 @@ class OCMProductRosa(OCMProduct):
                     "worker_role_arn"
                 ],
             )
+            oidc_endpoint_url = cluster["aws"]["sts"]["oidc_endpoint_url"]
         account = ROSAClusterAWSAccount(
             uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
             rosa=ROSAOcmAwsAttrs(
@@ -417,6 +421,7 @@ class OCMProductRosa(OCMProduct):
             hypershift=cluster["hypershift"]["enabled"],
             subnet_ids=cluster["aws"].get("subnet_ids"),
             availability_zones=cluster["nodes"].get("availability_zones"),
+            oidc_endpoint_url=oidc_endpoint_url,
         )
 
         machine_pools = [
