@@ -60,15 +60,6 @@ class cloudflare_certificate_pack(Resource):
     """
 
 
-class cloudflare_custom_sll(Resource):
-    """
-    https://registry.terraform.io/providers/cloudflare/cloudflare/3.32.0/docs/resources/custom_ssl
-
-    This resource isn't supported directly by Terrascript, which is why it needs to be
-    defined like this as a Resource.
-    """
-
-
 class cloudflare_tiered_cache(Resource):
     """
     https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/tiered_cache
@@ -241,7 +232,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         zone_records = values.pop("records", [])
         zone_workers = values.pop("workers", [])
         zone_certs = values.pop("certificates", [])
-        zone_custom_sll = values.pop("custom_ssl_certificates", [])
+        zone_custom_ssl = values.pop("custom_ssl_certificates", [])
 
         zone_values = {
             "account_id": "${var.account_id}",
@@ -308,9 +299,9 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
 
         resources.extend(self._create_cloudflare_certificate_pack(zone, zone_certs))
 
-        if zone_custom_sll:
+        if zone_custom_ssl:
             resources.extend(
-                self._create_cloudflare_custom_ssl_certificates(zone, zone_custom_sll)
+                self._create_cloudflare_custom_ssl_certificates(zone, zone_custom_ssl)
             )
 
         return resources
