@@ -345,8 +345,6 @@ def run(
         logging.info("No cloudflare namespaces were detected, nothing to do.")
         sys.exit(ExitCodes.SUCCESS)
 
-    # _filter_custom_ssl_certificate(cloudflare_namespaces, secret_reader)
-
     # Build Cloudflare clients
     cf_clients = TerraformConfigClientCollection()
     for client in build_clients(secret_reader, query_accounts, selected_account):
