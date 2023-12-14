@@ -5,7 +5,7 @@ kubernetes~=24.0
 pytest~=7.2
 pytest-cov~=4.0.0
 pytest-mock~=3.6
-responses
+responses==0.23.1
 testslide~=2.7
 typeguard==2.13.3
 moto~=2.2
