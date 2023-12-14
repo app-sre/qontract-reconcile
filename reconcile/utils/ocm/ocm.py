@@ -584,6 +584,7 @@ class OCMProductHypershift(OCMProduct):
         SPEC_ATTR_HYPERSHIFT,
         SPEC_ATTR_SUBNET_IDS,
         SPEC_ATTR_AVAILABILITY_ZONES,
+        SPEC_ATTR_OIDC_ENDPONT_URL,
     }
 
     @staticmethod
@@ -612,6 +613,7 @@ class OCMProductHypershift(OCMProduct):
             provision_shard_id = None
 
         sts = None
+        oidc_endpoint_url = None
         if cluster["aws"].get("sts", None):
             sts = ROSAOcmAwsStsAttrs(
                 installer_role_arn=cluster["aws"]["sts"]["role_arn"],
@@ -623,6 +625,7 @@ class OCMProductHypershift(OCMProduct):
                     "worker_role_arn"
                 ],
             )
+            oidc_endpoint_url = cluster["aws"]["sts"]["oidc_endpoint_url"]
         account = ROSAClusterAWSAccount(
             uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
             rosa=ROSAOcmAwsAttrs(
@@ -649,6 +652,7 @@ class OCMProductHypershift(OCMProduct):
             subnet_ids=cluster["aws"].get("subnet_ids"),
             availability_zones=cluster["nodes"].get("availability_zones"),
             hypershift=cluster["hypershift"]["enabled"],
+            oidc_endpoint_url=oidc_endpoint_url,
         )
 
         network = OCMClusterNetwork(
