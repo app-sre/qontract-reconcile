@@ -405,4 +405,3 @@ def test_terraform_cloudflare_resources_dry_run(
     assert sample.value.code == ExitCodes.SUCCESS
     assert mock_terraform_client.called is True
     assert call().apply() not in mock_terraform_client.method_calls
-    assert True
