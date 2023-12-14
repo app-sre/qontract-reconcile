@@ -189,7 +189,7 @@ def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite(mocker):
         requester_cluster,
         accepter_connection,
         accepter_cluster,
-        ocm,  # type: ignore
+        ocm,
     )
 
     expected_req_aws = {
@@ -240,7 +240,7 @@ def test_c2c_vpc_peering_assume_role_acc_overwrite_fail(mocker):
             requester_cluster,
             accepter_connection,
             accepter_cluster,
-            ocm,  # type: ignore
+            ocm,
         )
     assert str(ex.value).startswith("[account_not_allowed]")
 
@@ -269,7 +269,7 @@ def test_c2c_vpc_peering_assume_role_accepter_cluster_account(mocker):
         requester_cluster,
         accepter_connection,
         accepter_cluster,
-        ocm,  # type: ignore
+        ocm,
     )
 
     expected_req_aws = {
@@ -313,7 +313,7 @@ def test_c2c_vpc_peering_missing_ocm_assume_role(mocker):
             requester_cluster,
             accepter_connection,
             accepter_cluster,
-            ocm,  # type: ignore
+            ocm,
         )
     assert str(ex.value).startswith("[assume_role_not_found]")
 
@@ -335,7 +335,7 @@ def test_c2c_vpc_peering_missing_account(mocker):
             requester_cluster,
             accepter_connection,
             accepter_cluster,
-            ocm,  # type: ignore
+            ocm,
         )
     assert str(ex.value).startswith("[no_account_available]")
 
