@@ -33,7 +33,6 @@ ignore = [
     "PLR6301", # Method XXX could be a function, class method, or static method
     "PLW1641", # Object does not implement `__hash__` method
     "PLW2901", # `for` loop variable `v` overwritten by assignment target
-    "PLW3201", # Bad or misspelled dunder method name
 ]
 [tool.ruff.format]
 preview = true

@@ -86,7 +86,7 @@ class CSV(list[str]):
     """
 
     @classmethod
-    def __get_validators__(cls) -> Generator[Callable, None, None]:
+    def __get_validators__(cls) -> Generator[Callable, None, None]:  # noqa: PLW3201
         yield cls.validate
         yield cls.length_validator
 
