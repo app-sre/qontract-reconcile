@@ -387,9 +387,9 @@ def get_build_history(job):
 
 def get_build_history_pool(jenkins_map, jobs, timestamp_limit, thread_pool_size):
     history_to_get = []
-    for instance, jobs in jobs.items():
+    for instance, _jobs in jobs.items():
         jenkins = jenkins_map[instance]
-        for job in jobs:
+        for job in _jobs:
             job["jenkins"] = jenkins
             job["timestamp_limit"] = timestamp_limit
             history_to_get.append(job)

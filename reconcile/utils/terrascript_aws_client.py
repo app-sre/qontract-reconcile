@@ -2432,9 +2432,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         specs = common_values.get("specs")
         all_queues_per_spec = []
         kms_keys = set()
-        for spec in specs:
-            defaults = self.get_values(spec["defaults"])
-            queues = spec.pop("queues", [])
+        for _spec in specs:
+            defaults = self.get_values(_spec["defaults"])
+            queues = _spec.pop("queues", [])
             all_queues = []
             for queue_kv in queues:
                 queue_key = queue_kv["key"]
@@ -2624,10 +2624,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         region = common_values.get("region") or self.default_regions.get(account)
         specs = common_values.get("specs")
         all_tables = []
-        for spec in specs:
-            defaults = self.get_values(spec["defaults"])
+        for _spec in specs:
+            defaults = self.get_values(_spec["defaults"])
             attributes = defaults.pop("attributes")
-            tables = spec["tables"]
+            tables = _spec["tables"]
             for table_kv in tables:
                 table_key = table_kv["key"]
                 table = table_kv["value"]
