@@ -477,9 +477,9 @@ def get_desired_state_cluster_usergroups(
 ) -> SlackState:
     """Get the desired state of Slack usergroups."""
     desired_state: SlackState = {}
-    openshift_users_desired_state: list[
-        dict[str, str]
-    ] = openshift_users.fetch_desired_state(oc_map=None)
+    openshift_users_desired_state: list[dict[str, str]] = (
+        openshift_users.fetch_desired_state(oc_map=None)
+    )
     for cluster in clusters:
         if not integration_is_enabled(QONTRACT_INTEGRATION, cluster):
             logging.debug(

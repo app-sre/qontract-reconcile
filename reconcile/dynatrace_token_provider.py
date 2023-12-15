@@ -169,9 +169,9 @@ class DynatraceTokenProviderIntegration(
                                 continue
 
                             if tenant_id not in existing_dtp_tokens:
-                                existing_dtp_tokens[
-                                    tenant_id
-                                ] = self.get_all_dtp_tokens(dt_clients[tenant_id])
+                                existing_dtp_tokens[tenant_id] = (
+                                    self.get_all_dtp_tokens(dt_clients[tenant_id])
+                                )
 
                             self.process_cluster(
                                 dry_run,

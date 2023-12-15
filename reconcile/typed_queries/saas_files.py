@@ -95,9 +95,9 @@ class SaasResourceTemplate(ConfiguredBaseModel):
     provider: Optional[str] = Field(..., alias="provider")
     hash_length: Optional[int] = Field(..., alias="hash_length")
     parameters: Optional[Json] = Field(..., alias="parameters")
-    secret_parameters: Optional[
-        list[SaasResourceTemplateV2_SaasSecretParametersV1]
-    ] = Field(..., alias="secretParameters")
+    secret_parameters: Optional[list[SaasResourceTemplateV2_SaasSecretParametersV1]] = (
+        Field(..., alias="secretParameters")
+    )
     targets: list[SaasResourceTemplateTarget] = Field(..., alias="targets")
 
 

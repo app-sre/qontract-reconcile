@@ -237,10 +237,10 @@ class MergeRequestManager:
             for sub in subs:
                 if sub.target_file_path not in content_by_path:
                     try:
-                        content_by_path[
-                            sub.target_file_path
-                        ] = self._vcs.get_file_content_from_app_interface_master(
-                            file_path=sub.target_file_path
+                        content_by_path[sub.target_file_path] = (
+                            self._vcs.get_file_content_from_app_interface_master(
+                                file_path=sub.target_file_path
+                            )
                         )
                     except GitlabGetError as e:
                         if e.response_code == 404:
@@ -251,11 +251,11 @@ class MergeRequestManager:
                             has_error = True
                             break
                         raise e
-                content_by_path[
-                    sub.target_file_path
-                ] = self._renderer.render_merge_request_content(
-                    subscriber=sub,
-                    current_content=content_by_path[sub.target_file_path],
+                content_by_path[sub.target_file_path] = (
+                    self._renderer.render_merge_request_content(
+                        subscriber=sub,
+                        current_content=content_by_path[sub.target_file_path],
+                    )
                 )
             if has_error:
                 continue

@@ -304,13 +304,13 @@ def get_cloudflare_users(
                                 user.cloudflare_user
                             ].roles.update(set(cf_role.roles))
                         else:
-                            users[cf_role.account.name][
-                                user.cloudflare_user
-                            ] = CloudflareUser(
-                                user.cloudflare_user,
-                                cf_role.account.name,
-                                user.org_username,
-                                set(cf_role.roles),
+                            users[cf_role.account.name][user.cloudflare_user] = (
+                                CloudflareUser(
+                                    user.cloudflare_user,
+                                    cf_role.account.name,
+                                    user.org_username,
+                                    set(cf_role.roles),
+                                )
                             )
 
                     else:

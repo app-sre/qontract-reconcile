@@ -298,10 +298,10 @@ def build_desired_state_vpc_mesh_single_cluster(
         if provided_assume_role:
             account["assume_role"] = provided_assume_role
         elif ocm is not None:
-            account[
-                "assume_role"
-            ] = ocm.get_aws_infrastructure_access_terraform_assume_role(
-                cluster, account["uid"], account["terraformUsername"]
+            account["assume_role"] = (
+                ocm.get_aws_infrastructure_access_terraform_assume_role(
+                    cluster, account["uid"], account["terraformUsername"]
+                )
             )
         account["assume_region"] = requester["region"]
         account["assume_cidr"] = requester["cidr_block"]
@@ -418,12 +418,12 @@ def build_desired_state_vpc_single_cluster(
         if provided_assume_role:
             account["assume_role"] = provided_assume_role
         elif ocm is not None:
-            account[
-                "assume_role"
-            ] = ocm.get_aws_infrastructure_access_terraform_assume_role(
-                cluster,
-                peer_vpc["account"]["uid"],
-                peer_vpc["account"]["terraformUsername"],
+            account["assume_role"] = (
+                ocm.get_aws_infrastructure_access_terraform_assume_role(
+                    cluster,
+                    peer_vpc["account"]["uid"],
+                    peer_vpc["account"]["terraformUsername"],
+                )
             )
         else:
             raise KeyError(

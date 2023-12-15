@@ -58,37 +58,13 @@ if TYPE_CHECKING:
         ResourceRecordTypeDef,
     )
 else:
-    EC2Client = (
-        EC2ServiceResource
-    ) = (
-        RouteTableTypeDef
-    ) = (
-        SubnetTypeDef
-    ) = (
+    EC2Client = EC2ServiceResource = RouteTableTypeDef = SubnetTypeDef = (
         TransitGatewayTypeDef
-    ) = (
-        TransitGatewayVpcAttachmentTypeDef
-    ) = (
-        VpcTypeDef
-    ) = (
-        IAMClient
-    ) = (
+    ) = TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = (
         AccessKeyMetadataTypeDef
-    ) = (
-        ImageTypeDef
-    ) = (
-        TagTypeDef
-    ) = (
-        LaunchPermissionModificationsTypeDef
-    ) = (
+    ) = ImageTypeDef = TagTypeDef = LaunchPermissionModificationsTypeDef = (
         FilterTypeDef
-    ) = (
-        Route53Client
-    ) = (
-        ResourceRecordSetTypeDef
-    ) = (
-        ResourceRecordTypeDef
-    ) = (
+    ) = Route53Client = ResourceRecordSetTypeDef = ResourceRecordTypeDef = (
         HostedZoneTypeDef
     ) = RDSClient = DBInstanceMessageTypeDef = UpgradeTargetTypeDef = object
 

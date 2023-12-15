@@ -1803,9 +1803,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 )
 
                 # add managed resource types to target config
-                desired_target_config[
-                    "saas_file_managed_resource_types"
-                ] = saas_file.managed_resource_types
+                desired_target_config["saas_file_managed_resource_types"] = (
+                    saas_file.managed_resource_types
+                )
                 desired_target_config["url"] = rt.url
                 desired_target_config["path"] = rt.path
                 # before the GQL classes are introduced, the parameters attribute

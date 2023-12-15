@@ -603,10 +603,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             with self.jenkins_lock:
                 # this may have already happened, so we check again
                 if not self.jenkins_map.get(instance_name):
-                    self.jenkins_map[
-                        instance_name
-                    ] = JenkinsApi.init_jenkins_from_secret(
-                        SecretReader(self.settings), instance["token"]
+                    self.jenkins_map[instance_name] = (
+                        JenkinsApi.init_jenkins_from_secret(
+                            SecretReader(self.settings), instance["token"]
+                        )
                     )
         return self.jenkins_map[instance_name]
 
@@ -1796,9 +1796,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             common_values.get("server_side_encryption_configuration")
             or DEFAULT_S3_SSE_CONFIGURATION
         )
-        values[
-            "server_side_encryption_configuration"
-        ] = server_side_encryption_configuration
+        values["server_side_encryption_configuration"] = (
+            server_side_encryption_configuration
+        )
         # Support static website hosting [rosa-authenticator]
         website = common_values.get("website")
         if website:
@@ -3604,9 +3604,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "starting_position_timestamp", None
                 )
                 if not starting_position_timestamp:
-                    source_vaules[
-                        "starting_position_timestamp"
-                    ] = starting_position_timestamp
+                    source_vaules["starting_position_timestamp"] = (
+                        starting_position_timestamp
+                    )
 
             batch_size = common_values.get("batch_size", 100)
             source_vaules["batch_size"] = batch_size
@@ -4353,19 +4353,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         auth_options = values.get("auth", {})
         # TODO: @fishi0x01 make mandatory after migration APPSRE-3409
         if auth_options:
-            es_values[
-                "advanced_security_options"
-            ] = self._build_es_advanced_security_options(auth_options)
+            es_values["advanced_security_options"] = (
+                self._build_es_advanced_security_options(auth_options)
+            )
 
         # TODO: @fishi0x01 remove after migration APPSRE-3409
         # ++++++++ START: REMOVE +++++++++
         else:
             advanced_security_options = values.get("advanced_security_options", {})
             if advanced_security_options:
-                es_values[
-                    "advanced_security_options"
-                ] = self._build_es_advanced_security_options_deprecated(
-                    advanced_security_options
+                es_values["advanced_security_options"] = (
+                    self._build_es_advanced_security_options_deprecated(
+                        advanced_security_options
+                    )
                 )
         # ++++++++ END: REMOVE ++++++++++
 
@@ -4624,12 +4624,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         account = self.accounts[account_name]
         cluster = namespace_info["cluster"]
         ocm = ocm_map.get(cluster["name"])
-        account[
-            "assume_role"
-        ] = ocm.get_aws_infrastructure_access_terraform_assume_role(
-            cluster["name"],
-            account["uid"],
-            account["terraformUsername"],
+        account["assume_role"] = (
+            ocm.get_aws_infrastructure_access_terraform_assume_role(
+                cluster["name"],
+                account["uid"],
+                account["terraformUsername"],
+            )
         )
         account["assume_region"] = cluster["spec"]["region"]
         service_name = f"{namespace_info['name']}/{openshift_service}"
@@ -5198,9 +5198,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if instance_requirements:
             override += [{"instance_requirements": instance_requirements}]
         if override:
-            asg_value["mixed_instances_policy"]["launch_template"][
-                "override"
-            ] = override
+            asg_value["mixed_instances_policy"]["launch_template"]["override"] = (
+                override
+            )
 
         asg_value["tags"] = [
             {"key": k, "value": v, "propagate_at_launch": True} for k, v in tags.items()
@@ -6219,9 +6219,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             del values["logging_info"]["broker_logs"]["cloudwatch_logs"][
                 "retention_in_days"
             ]
-            values["logging_info"]["broker_logs"]["cloudwatch_logs"][
-                "log_group"
-            ] = log_group_tf_resource.name
+            values["logging_info"]["broker_logs"]["cloudwatch_logs"]["log_group"] = (
+                log_group_tf_resource.name
+            )
 
         # resource - secret manager for SCRAM client credentials
         if scram_enabled and scram_users:

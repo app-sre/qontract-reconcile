@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 88
 target-version = 'py311'
-required-version = "0.1.7"
+required-version = "0.1.8"
 
 src = ["reconcile", "tools", "release", "dockerfiles/hack", "setup.py"]
 extend-exclude = ["reconcile/gql_definitions"]

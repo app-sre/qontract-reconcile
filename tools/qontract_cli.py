@@ -2208,9 +2208,9 @@ def slo_document_services(ctx, status_board_instance):
         print(f"Status-board instance '{status_board_instance}' not found.")
         sys.exit(1)
 
-    desired_product_apps: dict[
-        str, set[str]
-    ] = StatusBoardExporterIntegration.get_product_apps(sb)
+    desired_product_apps: dict[str, set[str]] = (
+        StatusBoardExporterIntegration.get_product_apps(sb)
+    )
 
     slodocs = []
     for slodoc in get_slo_documents():
