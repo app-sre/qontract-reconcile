@@ -20,6 +20,7 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request_manager impo
 )
 from reconcile.aws_version_sync.utils import (
     get_values,
+    node_name_to_cache_name,
     override_values,
     prom_get,
     uniquify,
@@ -29,6 +30,7 @@ from reconcile.gql_definitions.aws_version_sync.clusters import query as cluster
 from reconcile.gql_definitions.aws_version_sync.namespaces import (
     AWSAccountV1,
     NamespaceTerraformProviderResourceAWSV1,
+    NamespaceTerraformResourceElastiCacheV1,
     NamespaceTerraformResourceRDSV1,
     NamespaceV1,
 )
@@ -73,6 +75,8 @@ class ExternalResource(BaseModel):
     resource_identifier: str
     resource_engine: str
     resource_engine_version: semver.VersionInfo
+    # used to map AWS cache name to resource_identifier
+    redis_replication_group_id: str | None = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -147,6 +151,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
         self,
         clusters: Iterable[ClusterV1],
         timeout: int,
+        elasticache_replication_group_id_to_identifier: dict[str, str],
         prom_get_func: Callable = prom_get,
     ) -> list[ExternalResource]:
         metrics: list[ExternalResource] = []
@@ -158,6 +163,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                 else None
             )
             try:
+                # RDS resources
                 metrics += [
                     ExternalResource(
                         provider="aws",
@@ -170,8 +176,34 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                         resource_engine_version=m["engine_version"],
                     )
                     for m in prom_get_func(
-                        cluster.prometheus_url,
-                        {"query": "aws_resources_exporter_rds_engineversion"},
+                        url=cluster.prometheus_url,
+                        params={"query": "aws_resources_exporter_rds_engineversion"},
+                        token=token,
+                        timeout=timeout,
+                    )
+                ]
+                # ElastiCache resources
+                metrics += [
+                    ExternalResource(
+                        provider="aws",
+                        provisioner=ExternalResourceProvisioner(
+                            uid=m["aws_account_id"]
+                        ),
+                        resource_provider="elasticache",
+                        # cache_name is the ElastiCache node name, which derived from replication_group_id not resource_identifier!
+                        resource_identifier=elasticache_replication_group_id_to_identifier.get(
+                            node_name_to_cache_name(m["cache_name"]),
+                            node_name_to_cache_name(m["cache_name"]),
+                        ),
+                        resource_engine=m["engine"],
+                        resource_engine_version=m["engine_version"],
+                    )
+                    for m in prom_get_func(
+                        url=cluster.prometheus_url,
+                        params={
+                            # use the first Redis node of the cluster to get the version
+                            "query": "aws_resources_exporter_elasticache_redisversion{cache_name=~'.*1$'}"
+                        },
                         token=token,
                         timeout=timeout,
                     )
@@ -202,7 +234,11 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                         continue
 
                     # make mypy happy
-                    assert isinstance(resource, NamespaceTerraformResourceRDSV1)
+                    assert isinstance(
+                        resource,
+                        NamespaceTerraformResourceElastiCacheV1
+                        | NamespaceTerraformResourceRDSV1,
+                    )
 
                     values = {}
                     # get/set the defaults file values from/to cache
@@ -214,6 +250,13 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                             )
                             _defaults_cache[resource.defaults] = values
                     values = override_values(values, resource.overrides)
+                    if resource.provider.lower() == "elasticache" and values[
+                        "engine_version"
+                    ].lower().endswith("x"):
+                        # see https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/app-sre/sop/upgrade-redis-minor-version.md
+                        # minor version not managed by app-interface anymore. skip it
+                        continue
+
                     external_resources.append(
                         ExternalResource(
                             namespace_file=ns.path,
@@ -225,6 +268,11 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                             resource_identifier=resource.identifier,
                             resource_engine=values["engine"],
                             resource_engine_version=values["engine_version"],
+                            redis_replication_group_id=values.get(
+                                "replication_group_id", resource.identifier
+                            )
+                            if resource.provider.lower() == "elasticache"
+                            else None,
                         )
                     )
 
@@ -268,7 +316,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                 resource_provider=app_interface_resource.resource_provider,
                 resource_identifier=app_interface_resource.resource_identifier,
                 resource_engine=app_interface_resource.resource_engine,
-                resource_engine_version=aws_resource.resource_engine_version,
+                resource_engine_version=str(aws_resource.resource_engine_version),
             )
 
     @defer
@@ -303,15 +351,21 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             gql_api.query,
             self.params.aws_resource_exporter_clusters,
         )
-        external_resources_aws = self.get_aws_metrics(
-            aws_resource_exporter_clusters,
-            timeout=self.params.prometheus_timeout,
-        )
         external_resources_app_interface = self.get_external_resource_specs(
             gql_api.get_resource,
             namespaces,
             supported_providers=self.params.supported_providers,
         )
+        external_resources_aws = self.get_aws_metrics(
+            aws_resource_exporter_clusters,
+            timeout=self.params.prometheus_timeout,
+            elasticache_replication_group_id_to_identifier={
+                external_resource.redis_replication_group_id: external_resource.resource_identifier
+                for external_resource in external_resources_app_interface
+                if external_resource.redis_replication_group_id
+            },
+        )
+
         self.reconcile(
             merge_request_manager=merge_request_manager,
             external_resources_aws=external_resources_aws,

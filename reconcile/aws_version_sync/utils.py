@@ -62,3 +62,8 @@ def override_values(values: Mapping, overrides: Mapping | None) -> dict:
     if overrides is None:
         return {**values}
     return {**values, **overrides}
+
+
+def node_name_to_cache_name(node_name: str) -> str:
+    # node name is in the format <identifier>-<number-postfix>
+    return "-".join(node_name.split("-")[:-1])

@@ -10,6 +10,7 @@ import pytest
 
 from reconcile.aws_version_sync.utils import (
     get_values,
+    node_name_to_cache_name,
     override_values,
     prom_get,
     uniquify,
@@ -138,3 +139,16 @@ def test_override_values(
     values: Mapping, overrides: Mapping, expected: Mapping
 ) -> None:
     assert override_values(values, overrides) == expected
+
+
+@pytest.mark.parametrize(
+    "node_name, expected",
+    [
+        ("foo-1", "foo"),
+        ("foo-1-bar", "foo-1"),
+        ("foo-1-bar-2", "foo-1-bar"),
+        ("foo-1-bar-001", "foo-1-bar"),
+    ],
+)
+def test_node_name_to_cache_name(node_name: str, expected: str) -> None:
+    assert node_name_to_cache_name(node_name) == expected

@@ -16,6 +16,11 @@
       identifier: rds-2
       defaults: defaults-2.yml
     - provider: elasticache
+      identifier: elasticache-1
+      defaults: ec-defaults.yml
+    - provider: elasticache
+      identifier: elasticache-2
+      defaults: ec-defaults-2.yml
   - provider: aws
     provisioner:
       path: account-1a.yml
@@ -25,6 +30,9 @@
     - provider: rds
       identifier: rds-1
       defaults: defaults.yml
+    - provider: elasticache
+      identifier: elasticache-1
+      defaults: ec-defaults.yml
   cluster:
     name: cluster-1
 
