@@ -153,20 +153,19 @@ class OCConnectionParameters:
                 logging.debug(
                     f"No admin automation token set for cluster '{cluster.name}', but privileged access requested."
                 )
+        elif cluster.automation_token:
+            try:
+                automation_token = OCConnectionParameters._get_automation_token(
+                    secret_reader, cluster.automation_token, cluster
+                )
+            except SecretNotFound:
+                logging.error(
+                    f"[{cluster.name}] automation token {cluster.automation_token} not found"
+                )
         else:
-            if cluster.automation_token:
-                try:
-                    automation_token = OCConnectionParameters._get_automation_token(
-                        secret_reader, cluster.automation_token, cluster
-                    )
-                except SecretNotFound:
-                    logging.error(
-                        f"[{cluster.name}] automation token {cluster.automation_token} not found"
-                    )
-            else:
-                # Note, that currently OCMap uses OCLogMsg if a token is missing, i.e.,
-                # for now this is valid behavior.
-                logging.debug(f"No automation token for cluster '{cluster.name}'.")
+            # Note, that currently OCMap uses OCLogMsg if a token is missing, i.e.,
+            # for now this is valid behavior.
+            logging.debug(f"No automation token for cluster '{cluster.name}'.")
 
         disabled_integrations = []
         if cluster.disable:

@@ -68,12 +68,11 @@ def guess_onboarding_status(
                 else:
                     app = apps[app_name]
                     labels.add(app["onboardingStatus"])
+            elif app_name in apps:
+                app = apps[app_name]
+                labels.add(app["onboardingStatus"])
             else:
-                if app_name in apps:
-                    app = apps[app_name]
-                    labels.add(app["onboardingStatus"])
-                else:
-                    logging.debug("Error getting app name " + path)
+                logging.debug("Error getting app name " + path)
 
     if len(labels) == 1:
         return labels.pop()

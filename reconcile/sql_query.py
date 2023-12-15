@@ -681,10 +681,9 @@ def _get_query_status(
         # CronJob
         if query.get("delete"):
             return QueryStatus.PENDING_DELETION
-    else:
+    elif time.time() >= query_state + JOB_TTL:
         # Job
-        if time.time() >= query_state + JOB_TTL:
-            return QueryStatus.PENDING_DELETION
+        return QueryStatus.PENDING_DELETION
     return QueryStatus.ACTIVE
 
 
