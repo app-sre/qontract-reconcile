@@ -12,7 +12,6 @@ class SecretNotFound(Exception):
 
 
 def get_config():
-    global _config
     return _config
 
 
