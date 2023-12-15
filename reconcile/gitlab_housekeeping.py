@@ -129,7 +129,7 @@ def get_timed_out_pipelines(
 ) -> list[dict]:
     now = datetime.utcnow()
 
-    pending_pipelines = [p for p in pipelines if p["status"] in ["pending", "running"]]
+    pending_pipelines = [p for p in pipelines if p["status"] in {"pending", "running"}]
 
     if not pending_pipelines:
         return []
@@ -299,10 +299,10 @@ def preprocess_merge_requests(
 ) -> list[dict[str, Any]]:
     results = []
     for mr in project_merge_requests:
-        if mr.merge_status in [
+        if mr.merge_status in {
             MRStatus.CANNOT_BE_MERGED,
             MRStatus.CANNOT_BE_MERGED_RECHECK,
-        ]:
+        }:
             continue
         if mr.work_in_progress:
             continue

@@ -58,10 +58,10 @@ def validate_no_cidr_overlap(
                         "cidr_block": cidr_block,
                     }
                     peerings_entries.append(vpc_peering_info)
-                if peering.provider in (
+                if peering.provider in {
                     "cluster-vpc-requester",
                     "cluster-vpc-accepter",
-                ):
+                }:
                     vpc_peering_info = {
                         "provider": peering.provider,
                         "vpc_name": peering.cluster.name,  # type: ignore[union-attr]
@@ -101,10 +101,10 @@ def validate_no_internal_to_public_peerings(
         if not cluster.internal or not cluster.peering:
             continue
         for connection in cluster.peering.connections:
-            if connection.provider not in [
+            if connection.provider not in {
                 "cluster-vpc-accepter",
                 "cluster-vpc-requester",
-            ]:
+            }:
                 continue
             connection = cast(
                 Union[
@@ -144,10 +144,10 @@ def validate_no_public_to_public_peerings(
         ):
             continue
         for connection in cluster.peering.connections:
-            if connection.provider not in [
+            if connection.provider not in {
                 "cluster-vpc-accepter",
                 "cluster-vpc-requester",
-            ]:
+            }:
                 continue
             connection = cast(
                 Union[

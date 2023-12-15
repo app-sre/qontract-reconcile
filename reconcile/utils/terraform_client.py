@@ -502,10 +502,10 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 data[resource_name] = {}
             data[resource_name][field_key] = field_value
 
-        if len(data) == 1 and type in (
+        if len(data) == 1 and type in {
             self.OUTPUT_TYPE_PASSWORDS,
             self.OUTPUT_TYPE_CONSOLEURLS,
-        ):
+        }:
             return data[list(data.keys())[0]]
         return data
 

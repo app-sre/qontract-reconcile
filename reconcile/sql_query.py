@@ -356,7 +356,7 @@ def make_mysql_command(sqlqueries_file: str) -> str:
 
 
 def make_output_cmd(output: str, recipient: str) -> str:
-    if output in ("filesystem", "encrypted"):
+    if output in {"filesystem", "encrypted"}:
         command = filesystem_redir_stdout()
     else:
         # stdout

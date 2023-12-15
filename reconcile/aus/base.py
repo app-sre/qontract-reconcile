@@ -1137,7 +1137,7 @@ def remaining_soak_day_metric_values_for_cluster(
         if current_upgrade and current_upgrade.version == version:
             if current_upgrade.state == "scheduled":
                 remaining_soakdays[idx] = UPGRADE_SCHEDULED_METRIC_VALUE
-            elif current_upgrade.state in ("started", "delayed"):
+            elif current_upgrade.state in {"started", "delayed"}:
                 remaining_soakdays[idx] = UPGRADE_STARTED_METRIC_VALUE
                 if current_upgrade.next_run:
                     # if an upgrade runs for over 6 hours, we mark it as a long running upgrade
@@ -1157,12 +1157,12 @@ def remaining_soak_day_metric_values_for_cluster(
         # for an upgrade over the older one anyways.
         if remaining_soakdays[idx] >= 0 and any(
             later_version_remaining_soak_days
-            in (
+            in {
                 0,
                 UPGRADE_SCHEDULED_METRIC_VALUE,
                 UPGRADE_STARTED_METRIC_VALUE,
                 UPGRADE_LONG_RUNNING_METRIC_VALUE,
-            )
+            }
             for later_version_remaining_soak_days in remaining_soakdays[idx + 1 :]
         ):
             continue

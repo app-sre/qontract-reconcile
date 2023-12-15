@@ -416,7 +416,7 @@ def apply(
         except FieldIsImmutableError:
             # Add more resources types to the list when you're
             # sure they're safe.
-            if resource_type not in ["Route", "Service", "Secret"]:
+            if resource_type not in {"Route", "Service", "Secret"}:
                 raise
             oc.delete(namespace=namespace, kind=resource_type, name=resource.name)
             oc.apply(namespace=namespace, resource=annotated)
@@ -470,7 +470,7 @@ def apply(
                 obsolete_rs["metadata"]["ownerReferences"] = owner_references
                 oc.apply(namespace=namespace, resource=OR(obsolete_rs, "", ""))
         except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
-            if resource_type not in ["Service"]:
+            if resource_type not in {"Service"}:
                 raise
 
             oc.delete(namespace=namespace, kind=resource_type, name=resource.name)
@@ -1075,10 +1075,10 @@ def _validate_resources_used_exist(
                 )
                 # we found one! does it's value (secret name) match the
                 # using resource's?
-                if used_name in (
+                if used_name in {
                     serving_cert_alpha_secret_name,
                     serving_cert_beta_secret_name,
-                ):
+                }:
                     # found a match. we assume the serving cert secret will
                     # be present at some point soon after the Service is deployed
                     resource = service
@@ -1115,7 +1115,7 @@ def validate_planned_data(ri: ResourceInventory, oc_map: ClusterMap) -> None:
         oc = oc_map.get_cluster(cluster)
 
         for name, d_item in data["desired"].items():
-            if kind in ("Deployment", "DeploymentConfig"):
+            if kind in {"Deployment", "DeploymentConfig"}:
                 spec = d_item.body["spec"]["template"]["spec"]
                 _validate_resources_used_exist(
                     ri, oc, spec, cluster, namespace, kind, name, "Secret"
@@ -1162,7 +1162,7 @@ def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: ClusterMap
             if not status:
                 raise ValidationError("status")
             # add elif to validate additional resource kinds
-            if kind in ["Deployment", "DeploymentConfig", "StatefulSet"]:
+            if kind in {"Deployment", "DeploymentConfig", "StatefulSet"}:
                 desired_replicas = resource["spec"]["replicas"]
                 if desired_replicas == 0:
                     continue

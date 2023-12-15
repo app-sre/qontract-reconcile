@@ -85,7 +85,7 @@ def run(dry_run, thread_pool_size=10):
 
     for diff in diffs:
         # we do not need to create/delete groups in OCM
-        if diff["action"] in ["create_group", "delete_group"]:
+        if diff["action"] in {"create_group", "delete_group"}:
             continue
         logging.info(list(diff.values()))
 

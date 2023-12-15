@@ -85,7 +85,7 @@ class Endpoint:
 
 def parse_prober_url(url: str) -> dict[str, str]:
     parsed_url = urlparse(url)
-    if parsed_url.scheme not in ["http", "https"]:
+    if parsed_url.scheme not in {"http", "https"}:
         raise ValueError(
             "the prober URL needs to be an http:// or https:// one " f"but is {url}"
         )

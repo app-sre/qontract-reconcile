@@ -382,7 +382,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
 
         self.is_log_slow_oc_reconcile = os.environ.get(
             "LOG_SLOW_OC_RECONCILE", ""
-        ).lower() in ["true", "yes"]
+        ).lower() in {"true", "yes"}
 
     def _init(
         self,
@@ -454,7 +454,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
 
         self.is_log_slow_oc_reconcile = os.environ.get(
             "LOG_SLOW_OC_RECONCILE", ""
-        ).lower() in ["true", "yes"]
+        ).lower() in {"true", "yes"}
 
     def whoami(self):
         return self._run(["whoami"])
@@ -719,7 +719,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         ready_pods = [
             pod
             for pod in pods
-            if pod["status"].get("phase") in ("Running", "Succeeded")
+            if pod["status"].get("phase") in {"Running", "Succeeded"}
         ]
 
         if not ready_pods:
@@ -983,7 +983,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         kind: str,
         include_optional: bool = True,
     ) -> dict[str, set[str]]:
-        if kind not in ("Secret", "ConfigMap"):
+        if kind not in {"Secret", "ConfigMap"}:
             raise KeyError(f"unsupported resource kind: {kind}")
         optional = "optional"
         if kind == "Secret":
@@ -1389,7 +1389,7 @@ class OC:
         use_native_env = os.environ.get("USE_NATIVE_CLIENT", "")
         use_native = True
         if len(use_native_env) > 0:
-            use_native = use_native_env.lower() in ["true", "yes"]
+            use_native = use_native_env.lower() in {"true", "yes"}
         else:
             enable_toggle = "openshift-resources-native-client"
             use_native = get_feature_toggle_state(
@@ -1756,7 +1756,7 @@ def validate_labels(labels: dict[str, str]) -> Iterable[str]:
                     f"Label key prefix is invalid, it needs to match "
                     f"'{k_prefix_pattern}'': {prefix}"
                 )
-            if prefix in ("kubernetes.io", "k8s.io"):
+            if prefix in {"kubernetes.io", "k8s.io"}:
                 err.append(f"Label key prefix is reserved: {prefix}")
 
     return err

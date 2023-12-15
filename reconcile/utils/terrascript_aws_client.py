@@ -1056,7 +1056,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "Name": connection_name,
                 },
             }
-            if connection_provider in ["account-vpc", "account-vpc-mesh"]:
+            if connection_provider in {"account-vpc", "account-vpc-mesh"}:
                 if self._multiregion_account(acc_account_name):
                     values["provider"] = "aws." + accepter["region"]
             else:
@@ -1075,7 +1075,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         + identifier
                         + ".id}",
                     }
-                    if connection_provider in ["account-vpc", "account-vpc-mesh"]:
+                    if connection_provider in {"account-vpc", "account-vpc-mesh"}:
                         if self._multiregion_account(acc_account_name):
                             values["provider"] = "aws." + accepter["region"]
                     else:
@@ -5281,7 +5281,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         lambda_managed_policy_arn = (
             "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         )
-        if region in ("us-gov-west-1", "us-gov-east-1"):
+        if region in {"us-gov-west-1", "us-gov-east-1"}:
             lambda_managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         vpc_id = common_values.get("vpc_id")
         subnet_ids = common_values.get("subnet_ids")

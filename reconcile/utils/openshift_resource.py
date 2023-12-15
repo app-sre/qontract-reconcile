@@ -104,7 +104,7 @@ class OpenshiftResource:
             for obj1_k, obj1_v in obj1.items():
                 obj2_v = obj2.get(obj1_k, None)
                 if obj2_v is None:
-                    if obj1_v not in [None, ""]:
+                    if obj1_v:
                         return False
                 if self.ignorable_field(obj1_k):
                     pass
@@ -123,7 +123,7 @@ class OpenshiftResource:
                     ]
                     if diff or not self.obj_intersect_equal(obj1_v, obj2_v, depth + 1):
                         return False
-                elif obj1_k in ["data", "matchLabels"]:
+                elif obj1_k in {"data", "matchLabels"}:
                     diff = [
                         k
                         for k in obj2_v
@@ -244,12 +244,12 @@ class OpenshiftResource:
             )
             raise ConstructResourceError(msg)
 
-        if self.kind not in [
+        if self.kind not in {
             "Role",
             "RoleBinding",
             "ClusterRole",
             "ClusterRoleBinding",
-        ] and (
+        } and (
             not DNS_SUBDOMAIN_RE.match(self.name)
             or not len(self.name) <= DNS_SUBDOMAIN_MAX_LENGTH
         ):
@@ -414,7 +414,7 @@ class OpenshiftResource:
 
         # Default fields for specific resource types
         # ConfigMaps and Secrets are by default Opaque
-        if body["kind"] in ("ConfigMap", "Secret") and body.get("type") == "Opaque":
+        if body["kind"] in {"ConfigMap", "Secret"} and body.get("type") == "Opaque":
             body.pop("type")
 
         if body["kind"] == "Secret":

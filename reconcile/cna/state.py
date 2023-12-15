@@ -85,7 +85,7 @@ class State:
                 if asset_name not in self._assets[kind]:
                     continue
                 asset = self._assets[kind][asset_name]
-                if asset.status in (AssetStatus.TERMINATED, AssetStatus.PENDING):
+                if asset.status in {AssetStatus.TERMINATED, AssetStatus.PENDING}:
                     continue
                 if asset == other_asset:
                     # There is no diff - no need to update
@@ -106,7 +106,7 @@ class State:
         ans = State()
         for kind in AssetType:
             for asset_name, asset in self._assets[kind].items():
-                if asset.status in (AssetStatus.TERMINATED, AssetStatus.PENDING):
+                if asset.status in {AssetStatus.TERMINATED, AssetStatus.PENDING}:
                     continue
                 if other_asset := other._assets[kind].get(asset_name):
                     if other_asset.status == AssetStatus.TERMINATED:

@@ -308,7 +308,7 @@ class SaasFileList:
 def convert_parameters_to_json_string(root: dict[str, Any]) -> dict[str, Any]:
     """Find all parameter occurrences and convert them to a json string."""
     for key, value in root.items():
-        if key in ["parameters", "labels"]:
+        if key in {"parameters", "labels"}:
             root[key] = json.dumps(value) if value is not None else None
         elif isinstance(value, dict):
             root[key] = convert_parameters_to_json_string(value)

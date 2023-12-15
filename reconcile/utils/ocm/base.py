@@ -207,7 +207,7 @@ class OCMCluster(BaseModel):
         return (
             self.managed
             and self.state == OCMClusterState.READY
-            and self.product.id in [PRODUCT_ID_OSD, PRODUCT_ID_ROSA]
+            and self.product.id in {PRODUCT_ID_OSD, PRODUCT_ID_ROSA}
         )
 
     @property
