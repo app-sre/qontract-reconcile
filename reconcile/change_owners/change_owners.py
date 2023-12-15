@@ -231,7 +231,7 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
 
 
-def assert_restrictive(changes: list[BundleFileChange], user: str):
+def assert_restrictive(changes: list[BundleFileChange], user: str) -> None:
     for change in changes:
         for dc in change.diff_coverage:
             for c in dc.coverage:
