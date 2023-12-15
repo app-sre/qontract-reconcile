@@ -443,7 +443,7 @@ def main(
             except FileExistsError:
                 pass
 
-            with open(report_file, "w") as f:
+            with open(report_file, "w", encoding="locale") as f:
                 f.write(report["content"])
 
     if not dry_run:

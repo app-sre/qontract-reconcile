@@ -316,7 +316,7 @@ def run(
         emails = " ".join([o.email for o in owners])
         file, url = saasherder.get_archive_info(saas_file, trigger_reason)
         sast_file = os.path.join(io_dir, "sast")
-        with open(sast_file, "w") as f:
+        with open(sast_file, "w", encoding="locale") as f:
             f.write(file + "\n")
             f.write(url + "\n")
             f.write(emails + "\n")

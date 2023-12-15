@@ -731,7 +731,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         if follow:
             cmd.append("-f")
         # pylint: disable=consider-using-with
-        output_file = open(os.path.join(output, name), "w")
+        output_file = open(os.path.join(output, name), "w", encoding="locale")
         # collect logs to file async
         Popen(self.oc_base_cmd + cmd, stdout=output_file)
 

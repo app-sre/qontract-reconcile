@@ -87,7 +87,7 @@ def render_template(
     template: Path, name: str, path: str, field: str, bad_value: str
 ) -> str:
     """Render the template with all its fields."""
-    with open(template) as f:
+    with open(template, encoding="locale") as f:
         t = Template(f.read(), keep_trailing_newline=True, trim_blocks=True)
         return t.render(
             app_name=name, app_path=path, field=field, field_value=bad_value

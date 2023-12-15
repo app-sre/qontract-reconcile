@@ -349,7 +349,7 @@ class QuayMirror:
     @staticmethod
     def check_compare_tags_elapsed_time(path, interval) -> bool:
         try:
-            with open(path, "r") as file_obj:
+            with open(path, "r", encoding="locale") as file_obj:
                 last_compare_tags = float(file_obj.read())
         except FileNotFoundError:
             return True
@@ -362,7 +362,7 @@ class QuayMirror:
 
     @staticmethod
     def record_timestamp(path) -> None:
-        with open(path, "w") as file_object:
+        with open(path, "w", encoding="locale") as file_object:
             file_object.write(str(time.time()))
 
     def _get_push_creds(self):

@@ -151,7 +151,7 @@ class AppInterfaceRepo:
             for file in files:
                 if file.endswith(".yml") or file.endswith(".yaml"):
                     filepath = os.path.join(root, file)
-                    with open(filepath, "r") as f:
+                    with open(filepath, "r", encoding="locale") as f:
                         parsed_yaml = yaml.safe_load(f)
                         if parsed_yaml.get("$schema") == schema:
                             relative_path = filepath[len(self.data_dir()) :]
@@ -166,7 +166,7 @@ class AppInterfaceRepo:
         self, file_type: BundleFileType, path: str
     ) -> BundleFileChange:
         if file_type == BundleFileType.DATAFILE:
-            with open(f"{self.data_dir()}{path}", "r") as f:
+            with open(f"{self.data_dir()}{path}", "r", encoding="locale") as f:
                 parsed_yaml = yaml.safe_load(f)
                 return BundleFileChange(
                     fileref=FileRef(
@@ -181,7 +181,7 @@ class AppInterfaceRepo:
                     diffs=[],
                 )
         elif file_type == BundleFileType.RESOURCEFILE:
-            with open(f"{self.resource_dir()}{path}", "r") as f:
+            with open(f"{self.resource_dir()}{path}", "r", encoding="locale") as f:
                 content = f.read()
                 parsed_content, schema = parse_resource_file_content(content)
                 return BundleFileChange(

@@ -14,7 +14,7 @@ class Fixtures:
         )
 
     def get(self, fixture):
-        with open(self.path(fixture), "r") as f:
+        with open(self.path(fixture), "r", encoding="locale") as f:
             return f.read().strip()
 
     def get_anymarkup(self, fixture):

@@ -221,7 +221,7 @@ class QuayMirror:
         control_file_name = "qontract-reconcile-gcr-mirror.timestamp"
         control_file_path = os.path.join(tempfile.gettempdir(), control_file_name)
         try:
-            with open(control_file_path, "r") as file_obj:
+            with open(control_file_path, "r", encoding="locale") as file_obj:
                 last_deep_sync = float(file_obj.read())
         except FileNotFoundError:
             self._record_timestamp(control_file_path)
@@ -236,7 +236,7 @@ class QuayMirror:
 
     @staticmethod
     def _record_timestamp(path):
-        with open(path, "w") as file_object:
+        with open(path, "w", encoding="locale") as file_object:
             file_object.write(str(time.time()))
 
     def _get_push_creds(self):

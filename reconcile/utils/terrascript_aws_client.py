@@ -3796,7 +3796,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         for name, ts in self.tss.items():
             if print_to_file:
-                with open(print_to_file, "a") as f:
+                with open(print_to_file, "a", encoding="locale") as f:
                     f.write(f"##### {name} #####\n")
                     f.write(str(ts))
                     f.write("\n")
@@ -3804,7 +3804,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 wd = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
             else:
                 wd = working_dirs[name]
-            with open(wd + "/config.tf.json", "w") as f:
+            with open(wd + "/config.tf.json", "w", encoding="locale") as f:
                 f.write(str(ts))
             working_dirs[name] = wd
 

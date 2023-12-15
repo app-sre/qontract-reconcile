@@ -51,7 +51,9 @@ class TestIsCompareTags:
         self.tmp_dir = (
             tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         )
-        with open(os.path.join(self.tmp_dir.name, CONTROL_FILE_NAME), "w") as fh:
+        with open(
+            os.path.join(self.tmp_dir.name, CONTROL_FILE_NAME), "w", encoding="locale"
+        ) as fh:
             fh.write(str(NOW - 100.0))
 
     def teardown_method(self):

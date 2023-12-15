@@ -100,7 +100,7 @@ class GPGEncryptCommand:
         return GPGEncryptCommand._format(secret)
 
     def _fetch_local_file_secret(self) -> str:
-        with open(self._command_data.secret_file_path) as f:
+        with open(self._command_data.secret_file_path, encoding="locale") as f:
             return f.read()
 
     def _fetch_secret(self) -> str:
@@ -140,7 +140,7 @@ class GPGEncryptCommand:
         if not output:
             print(content)
             return
-        with open(output, "w") as f:
+        with open(output, "w", encoding="locale") as f:
             f.write(content)
 
     def execute(self):

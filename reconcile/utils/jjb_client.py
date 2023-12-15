@@ -64,7 +64,7 @@ class JJB:  # pylint: disable=too-many-public-methods
                 ini = ini.replace('"', "")
                 ini = ini.replace("false", "False")
             ini_file_path = "{}/{}.ini".format(wd, name)
-            with open(ini_file_path, "w") as f:
+            with open(ini_file_path, "w", encoding="locale") as f:
                 f.write(ini)
                 f.write("\n")
             working_dirs[name] = wd
@@ -81,12 +81,12 @@ class JJB:  # pylint: disable=too-many-public-methods
                 if c["type"] == "jobs":
                     for item in content:
                         item["project"]["app_name"] = c["app"]["name"]
-                with open(config_file_path, "a") as f:
+                with open(config_file_path, "a", encoding="locale") as f:
                     yaml.dump(content, f)
                     f.write("\n")
             else:
                 config = c["config_path"]["content"]
-                with open(config_file_path, "a") as f:
+                with open(config_file_path, "a", encoding="locale") as f:
                     f.write(config)
                     f.write("\n")
 
@@ -100,7 +100,7 @@ class JJB:  # pylint: disable=too-many-public-methods
         the supplied configs"""
         for name, wd in self.working_dirs.items():
             config_path = "{}/config.yaml".format(wd)
-            with open(config_path, "w") as f:
+            with open(config_path, "w", encoding="locale") as f:
                 f.write(configs[name])
 
     def sort(self, configs):
@@ -136,7 +136,7 @@ class JJB:  # pylint: disable=too-many-public-methods
         configs = {}
         for name, wd in self.working_dirs.items():
             config_path = "{}/config.yaml".format(wd)
-            with open(config_path, "r") as f:
+            with open(config_path, "r", encoding="locale") as f:
                 configs[name] = f.read()
 
         return configs
@@ -196,7 +196,7 @@ class JJB:  # pylint: disable=too-many-public-methods
             logging.info([action, item_type, instance, item])
 
             if action == "update":
-                with open(ft) as c, open(f) as d:
+                with open(ft, encoding="locale") as c, open(f, encoding="locale") as d:
                     clines = c.readlines()
                     dlines = d.readlines()
 

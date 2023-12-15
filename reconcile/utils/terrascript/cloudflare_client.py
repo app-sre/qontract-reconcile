@@ -171,7 +171,9 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
             working_dir = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
         else:
             working_dir = existing_dir
-        with open(working_dir + "/config.tf.json", "w") as terraform_config_file:
+        with open(
+            working_dir + "/config.tf.json", "w", encoding="locale"
+        ) as terraform_config_file:
             terraform_config_file.write(self.dumps())
 
         return working_dir

@@ -57,7 +57,7 @@ class CreateDeleteAwsAccessKey(MergeRequestBase):
         )
 
         # add a new email to be picked up by email-sender
-        with open(BODY_TEMPLATE) as file_obj:
+        with open(BODY_TEMPLATE, encoding="locale") as file_obj:
             body_template = Template(
                 file_obj.read(), keep_trailing_newline=True, trim_blocks=True
             )
