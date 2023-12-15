@@ -600,7 +600,8 @@ def should_apply(
     ):
         ri.register_error()
         logging.error(
-            f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present and managed by another caller: {current.caller}"
+            f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present and "
+            f"managed by another caller: {current.caller}"
         )
         return False
 
@@ -667,6 +668,74 @@ def handle_new_resources(
             options=options,
         )
 
+    return actions
+
+
+def should_take_over(
+    current: OR,
+    ri: ResourceInventory,
+    options: ApplyOptions,
+    cluster: str,
+    name: str,
+    namespace: str,
+    resource_type: str,
+) -> bool:
+    if options.caller and options.caller != current.caller:
+        # The resources are identical but the caller is different
+        if options.take_over or (
+            options.all_callers and current.caller not in options.all_callers
+        ):
+            return True
+        else:
+            ri.register_error()
+            logging.error(
+                f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present "
+                f" and managed by another caller: {current.caller}"
+            )
+    return False
+
+
+def handle_identical_resources(
+    oc_map: ClusterMap,
+    ri: ResourceInventory,
+    identical_resources: Mapping[Any, Any],
+    cluster: str,
+    namespace: str,
+    resource_type: str,
+    data: Mapping[Any, Any],
+    options: ApplyOptions,
+) -> list[dict[str, Any]]:
+    actions: list[dict[str, Any]] = []
+
+    for name, dp in identical_resources.items():
+        if should_take_over(
+            current=dp.current,
+            ri=ri,
+            cluster=cluster,
+            name=name,
+            namespace=namespace,
+            resource_type=resource_type,
+            options=options,
+        ):
+            options.privileged = data["use_admin_token"].get(name, False)
+            action = {
+                "action": ACTION_APPLIED,
+                "cluster": cluster,
+                "namespace": namespace,
+                "kind": resource_type,
+                "name": name,
+                "privileged": options.privileged,
+            }
+            actions.append(action)
+            apply_action(
+                oc_map=oc_map,
+                ri=ri,
+                cluster=cluster,
+                namespace=namespace,
+                resource_type=resource_type,
+                resource=dp.desired,
+                options=options,
+            )
     return actions
 
 
@@ -873,6 +942,21 @@ def _realize_resource_data_3way_diff(
 
     diff_result = differ.diff_mappings(
         data["current"], data["desired"], equal=three_way_diff_using_hash
+    )
+
+    # identical resources need to be checked
+    # for take_overs and saas file deprecations
+    actions.extend(
+        handle_identical_resources(
+            oc_map=oc_map,
+            ri=ri,
+            identical_resources=diff_result.identical,
+            cluster=cluster,
+            namespace=namespace,
+            resource_type=resource_type,
+            data=data,
+            options=options,
+        )
     )
 
     actions.extend(

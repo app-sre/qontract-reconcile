@@ -742,8 +742,8 @@ def apply_options() -> sut.ApplyOptions:
         recycle_pods=True,
         take_over=False,
         override_enable_deletion=False,
-        caller=None,
-        all_callers=None,
+        caller="saas-test",
+        all_callers=["saas-test"],
         privileged=False,
         enable_deletion=False,
     )
@@ -763,9 +763,7 @@ def build_openshift_resource(
     body = {
         "kind": kind,
         "apiVersion": api_version,
-        "metadata": {
-            "name": name,
-        },
+        "metadata": {"name": name},
     }
     if extra_body:
         body = body | extra_body
@@ -783,14 +781,22 @@ def build_openshift_resource(
 def build_openshift_resource_1() -> resource.OpenshiftResource:
     spec = {"spec": {"test-attr": "test-value-1"}}
     return build_openshift_resource(
-        kind="test-kind", api_version="v1", name="test-resource", extra_body=spec
+        kind="test-kind",
+        api_version="v1",
+        name="test-resource",
+        extra_body=spec,
+        caller_name="saas-test",
     )
 
 
 def build_openshift_resource_2() -> resource.OpenshiftResource:
-    spec = {"spec": {"test-attr": "test-value-1"}}
+    spec = {"spec": {"test-attr": "test-value-2"}}
     return build_openshift_resource(
-        kind="test-kind", api_version="v1", name="test-resource", extra_body=spec
+        kind="test-kind",
+        api_version="v1",
+        name="test-resource",
+        extra_body=spec,
+        caller_name="saas-test",
     )
 
 
@@ -802,7 +808,7 @@ def diff_result() -> DiffResult:
         add={"test-resource": r1},
         change={"test-resource": DiffPair(r1, r2)},
         delete={"test-resource": r1},
-        identical={},
+        identical={"test-resource": DiffPair(r1, r1)},
     )
 
 
@@ -845,12 +851,86 @@ def test_handle_new_resources(
     apply_mock.assert_called_with(**apply_expected_args)
 
 
+@pytest.mark.parametrize(
+    "apply_options, should_apply, should_error_ri",
+    [
+        (  # Same Caller. The resource should be updated
+            sut.ApplyOptions(
+                dry_run=True,
+                no_dry_run_skip_compare=False,
+                wait_for_namespace=True,
+                recycle_pods=True,
+                take_over=False,
+                override_enable_deletion=False,
+                caller="saas-test",
+                all_callers=["saas-test"],
+                privileged=False,
+                enable_deletion=False,
+            ),
+            True,
+            False,
+        ),
+        (  # The resource is owned by "saas-test" but is present in "different".
+            # An error must be raised
+            sut.ApplyOptions(
+                dry_run=True,
+                no_dry_run_skip_compare=False,
+                wait_for_namespace=True,
+                recycle_pods=True,
+                take_over=False,
+                override_enable_deletion=False,
+                caller="different",
+                all_callers=["saas-test", "different"],
+                privileged=False,
+                enable_deletion=False,
+            ),
+            False,
+            True,
+        ),
+        (  # The Resource is owned by "saas-test" and is being deployed by "different"
+            # Since "saas-test" is not in all_callers it means it has been
+            # deprecated. The Resource needs to be taken over by "different"
+            sut.ApplyOptions(
+                dry_run=True,
+                no_dry_run_skip_compare=False,
+                wait_for_namespace=True,
+                recycle_pods=True,
+                take_over=False,
+                override_enable_deletion=False,
+                caller="different",
+                all_callers=["different"],
+                privileged=False,
+                enable_deletion=False,
+            ),
+            True,
+            False,
+        ),
+        (  # Take over resources from another Saas-file
+            sut.ApplyOptions(
+                dry_run=True,
+                no_dry_run_skip_compare=False,
+                wait_for_namespace=True,
+                recycle_pods=True,
+                take_over=True,
+                override_enable_deletion=False,
+                caller="different",
+                all_callers=["saas-test", "different"],
+                privileged=False,
+                enable_deletion=False,
+            ),
+            True,
+            False,
+        ),
+    ],
+)
 def test_handle_modified_resources(
     mocker: MockerFixture,
     oc_map: oc.OC_Map,
     resource_inventory: resource.ResourceInventory,
     diff_result: DiffResult,
     apply_options: sut.ApplyOptions,
+    should_apply: bool,
+    should_error_ri: bool,
 ):
     apply_mock = mocker.patch.object(sut, "apply", autospec=True)
     cluster = "test-cluster"
@@ -871,19 +951,143 @@ def test_handle_modified_resources(
         options=apply_options,
     )
 
-    assert len(actions) == 1
-    apply_expected_args = {
-        "dry_run": True,
-        "oc_map": oc_map,
-        "cluster": "test-cluster",
-        "namespace": "test-namespace",
-        "resource_type": "test-Kind",
-        "resource": diff_result.change["test-resource"].desired,
-        "wait_for_namespace": True,
-        "recycle_pods": True,
-        "privileged": False,
-    }
-    apply_mock.assert_called_with(**apply_expected_args)
+    if should_apply:
+        assert len(actions) == 1
+        apply_expected_args = {
+            "dry_run": True,
+            "oc_map": oc_map,
+            "cluster": "test-cluster",
+            "namespace": "test-namespace",
+            "resource_type": "test-Kind",
+            "resource": diff_result.change["test-resource"].desired,
+            "wait_for_namespace": True,
+            "recycle_pods": True,
+            "privileged": False,
+        }
+        apply_mock.assert_called_with(**apply_expected_args)
+    else:
+        assert len(actions) == 0
+
+    if should_error_ri:
+        assert resource_inventory._error_registered
+
+
+@pytest.mark.parametrize(
+    "apply_options, should_take_over, should_error_ri",
+    [
+        (  # Same Caller and Identical Resource. Nothing should happen
+            sut.ApplyOptions(
+                dry_run=True,
+                no_dry_run_skip_compare=False,
+                wait_for_namespace=True,
+                recycle_pods=True,
+                take_over=False,
+                override_enable_deletion=False,
+                caller="saas-test",
+                all_callers=["saas-test"],
+                privileged=False,
+                enable_deletion=False,
+            ),
+            False,
+            False,
+        ),
+        (  # The resource is owned by "saas-test" but is present in "different".
+            # An error must be raised
+            sut.ApplyOptions(
+                dry_run=True,
+                no_dry_run_skip_compare=False,
+                wait_for_namespace=True,
+                recycle_pods=True,
+                take_over=False,
+                override_enable_deletion=False,
+                caller="different",
+                all_callers=["saas-test", "different"],
+                privileged=False,
+                enable_deletion=False,
+            ),
+            False,
+            True,
+        ),
+        (  # The Resource is owned by "saas-test" and is being deployed by "different"
+            # Since "saas-test" is not in all_callers it means it has been
+            # deprecated. The Resource needs to be taken over by "different"
+            sut.ApplyOptions(
+                dry_run=True,
+                no_dry_run_skip_compare=False,
+                wait_for_namespace=True,
+                recycle_pods=True,
+                take_over=False,
+                override_enable_deletion=False,
+                caller="different",
+                all_callers=["different"],
+                privileged=False,
+                enable_deletion=False,
+            ),
+            True,
+            False,
+        ),
+        (  # Take over resources from another Saas-file
+            sut.ApplyOptions(
+                dry_run=True,
+                no_dry_run_skip_compare=False,
+                wait_for_namespace=True,
+                recycle_pods=True,
+                take_over=True,
+                override_enable_deletion=False,
+                caller="different",
+                all_callers=["saas-test", "different"],
+                privileged=False,
+                enable_deletion=False,
+            ),
+            True,
+            False,
+        ),
+    ],
+)
+def test_handle_identical_resources(
+    mocker: MockerFixture,
+    oc_map: oc.OC_Map,
+    resource_inventory: resource.ResourceInventory,
+    diff_result: DiffResult,
+    apply_options: sut.ApplyOptions,
+    should_take_over: bool,
+    should_error_ri: bool,
+):
+    apply_mock = mocker.patch.object(sut, "apply", autospec=True)
+    cluster = "test-cluster"
+    namespace = "test-namespace"
+    resource_type = "test-Kind"
+    data = {"use_admin_token": {"test-resource": False}}
+
+    actions = sut.handle_identical_resources(
+        oc_map=oc_map,
+        ri=resource_inventory,
+        identical_resources=diff_result.identical,
+        cluster=cluster,
+        namespace=namespace,
+        resource_type=resource_type,
+        data=data,
+        options=apply_options,
+    )
+
+    if should_take_over:
+        assert len(actions) == 1
+        apply_expected_args = {
+            "dry_run": True,
+            "oc_map": oc_map,
+            "cluster": "test-cluster",
+            "namespace": "test-namespace",
+            "resource_type": "test-Kind",
+            "resource": diff_result.identical["test-resource"].desired,
+            "wait_for_namespace": True,
+            "recycle_pods": True,
+            "privileged": False,
+        }
+        apply_mock.assert_called_with(**apply_expected_args)
+    else:
+        assert len(actions) == 0
+    if should_error_ri:
+        assert resource_inventory._error_registered
 
 
 def test_handle_deleted_resources(
