@@ -38,7 +38,7 @@ def scan_history(repo_url, existing_keys):
 def get_suspected_files(error):
     suspects = []
     for e in error.split("\n"):
-        if e == "":
+        if not e:
             break
         if e.startswith("warning"):
             continue

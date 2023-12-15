@@ -87,7 +87,7 @@ def build_desired_state(
                 # get_a_record is used here to validate the record and reused later
                 target_cluster_elb_value = dnsutils.get_a_records(target_cluster_elb)
 
-                if target_cluster_elb is None or target_cluster_elb == "":
+                if not target_cluster_elb:
                     msg = (
                         f"{zone_name}: field `_target_cluster` for record "
                         f"{record_name} of type {record_type} points to a "

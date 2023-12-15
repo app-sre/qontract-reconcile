@@ -429,7 +429,7 @@ class SlackApi:
 
             cursor = result["response_metadata"]["next_cursor"]
 
-            if cursor == "":
+            if not cursor:
                 break
 
             additional_kwargs["cursor"] = cursor
@@ -478,7 +478,7 @@ class SlackApi:
                 break
 
             cursor = response["response_metadata"]["next_cursor"]
-            if cursor == "":
+            if not cursor:
                 break
 
         return responses

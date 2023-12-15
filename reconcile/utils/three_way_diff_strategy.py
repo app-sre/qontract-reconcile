@@ -95,7 +95,7 @@ def is_empty_env_value(current: OR, desired: OR, patch: Mapping[str, Any]) -> bo
     pointer = patch["path"]
     if (
         patch["op"] == "add"
-        and patch["value"] == ""
+        and not patch["value"]
         and re.match(EMPTY_ENV_VALUE, pointer)
     ):
         return True

@@ -114,7 +114,7 @@ class State(BaseModel):
     usergroup_id: Optional[str] = None
 
     def __bool__(self) -> bool:
-        return self.workspace != ""
+        return self.workspace != ""  # noqa: PLC1901
 
 
 SlackState = dict[str, dict[str, State]]

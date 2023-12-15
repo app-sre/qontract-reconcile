@@ -58,7 +58,7 @@ def dhms_to_seconds(time_str: str) -> int:
         if s.isnumeric():
             previous_number += s
         else:
-            if previous_number == "":
+            if not previous_number:
                 raise BadHDMSDurationError(f"Invalid time duration {time_str}")
 
             if s in HANDLE_UNIT_MAP:

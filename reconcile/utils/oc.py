@@ -1117,7 +1117,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
             find = False
             for gv in self.api_resources[kind]:
                 if apigroup_override == gv.group:
-                    if gv.group == "":
+                    if not gv.group:
                         group_version = gv.api_version
                     else:
                         group_version = f"{gv.group}/{gv.api_version}"

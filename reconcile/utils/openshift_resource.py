@@ -444,7 +444,7 @@ class OpenshiftResource:
                     tls.pop("key", None)
                     tls.pop("certificate", None)
             subdomain = body["spec"].get("subdomain", None)
-            if subdomain == "":
+            if not subdomain:
                 body["spec"].pop("subdomain", None)
 
         if body["kind"] == "ServiceAccount":
@@ -497,8 +497,7 @@ class OpenshiftResource:
                 if "namespace" in subject:
                     subject.pop("namespace")
                 if "apiGroup" in subject and (
-                    subject["apiGroup"] == ""
-                    or subject["apiGroup"] in body["apiVersion"]
+                    not subject["apiGroup"] or subject["apiGroup"] in body["apiVersion"]
                 ):
                     subject.pop("apiGroup")
             # TODO: remove this once we have no 3.11 clusters
@@ -714,6 +713,6 @@ def build_secret(
 
 
 def base64_encode_secret_field_value(value: str) -> str:
-    if value == "":
+    if not value:
         return ""
     return base64.b64encode(str(value).encode()).decode("utf-8")
