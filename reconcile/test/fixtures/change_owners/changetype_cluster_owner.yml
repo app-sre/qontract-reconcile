@@ -6,6 +6,8 @@ contextSchema: /openshift/cluster-1.yml
 
 disabled: false
 
+restrictive: false
+
 inherit: null
 implicitOwnership: null
 

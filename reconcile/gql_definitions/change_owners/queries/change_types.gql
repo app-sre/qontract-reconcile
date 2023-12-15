@@ -8,6 +8,7 @@ query ChangeTypes($name: String) {
     contextType
     contextSchema
     disabled
+    restrictive
     changes {
       provider
       changeSchema

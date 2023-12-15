@@ -26,6 +26,7 @@ def namespace_change_type() -> ChangeTypeV1:
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="namespace-1.yml",
         disabled=False,
+        restrictive=None,
         priority=ChangeTypePriority.HIGH.value,
         changes=[
             build_jsonpath_change(
@@ -53,6 +54,7 @@ def rds_defaults_change_type() -> ChangeTypeV1:
         contextType=BundleFileType.RESOURCEFILE.value,
         contextSchema="rds-defaults-1.yml",
         disabled=False,
+        restrictive=None,
         priority=ChangeTypePriority.HIGH.value,
         changes=[
             build_jsonpath_change(
@@ -72,6 +74,7 @@ def app_hierarchy_change_type() -> ChangeTypeV1:
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="app-1.yml",
         disabled=False,
+        restrictive=None,
         priority=ChangeTypePriority.HIGH.value,
         changes=[
             build_change_type_change(
@@ -94,6 +97,7 @@ def saas_file_change_type() -> ChangeTypeV1:
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="namespace-1.yml",
         disabled=False,
+        restrictive=None,
         priority=ChangeTypePriority.HIGH.value,
         changes=[
             build_jsonpath_change(
@@ -115,6 +119,7 @@ def app_change_type() -> ChangeTypeV1:
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="app-1.yml",
         disabled=False,
+        restrictive=None,
         priority=ChangeTypePriority.HIGH.value,
         changes=[
             build_change_type_change(

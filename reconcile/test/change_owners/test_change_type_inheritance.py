@@ -36,6 +36,7 @@ def build_def_change_type(
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="context-schema",
         disabled=False,
+        restrictive=None,
         priority=ChangeTypePriority.HIGH.value,
         changes=[
             build_jsonpath_change(
