@@ -247,7 +247,7 @@ class JJB:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def get_jjb(args):
-        from jenkins_jobs.cli.entry import JenkinsJobs
+        from jenkins_jobs.cli.entry import JenkinsJobs  # noqa: PLC0415
 
         return JenkinsJobs(args)
 

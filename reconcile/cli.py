@@ -1,3 +1,4 @@
+# ruff: noqa: PLC0415 - `import` should be at the top-level of a file
 import faulthandler
 import json
 import logging

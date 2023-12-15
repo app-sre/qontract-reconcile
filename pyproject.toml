@@ -23,7 +23,6 @@ extend-select = [
 
 ]
 ignore = [
-    "PLC0415", # `import` should be at the top-level of a file
     "PLC1901", # ... can be simplified to `...` as an empty string is falsey
     "PLR0904", # Too many public methods
     "PLR0911", # Too many return statements

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: PLC0415 - `import` should be at the top-level of a file
 
 import base64
 import json
