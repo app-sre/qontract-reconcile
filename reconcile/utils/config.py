@@ -16,7 +16,7 @@ def get_config():
 
 
 def init(config):
-    global _config
+    global _config  # noqa: PLW0603
     _config = config
     return _config
 

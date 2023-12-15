@@ -65,7 +65,7 @@ class EnableClusterStrategy(ClusterStrategy):
 
 
 def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
-    global client
+    global client  # noqa: PLW0603
     with client_lock:
         if client is None:
             logging.getLogger("apscheduler").setLevel(logging.ERROR)
