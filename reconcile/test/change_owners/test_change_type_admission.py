@@ -47,7 +47,7 @@ def test_assert_restrictive_missing_approver(
 ) -> None:
     exit = mocker.patch("sys.exit")
 
-    assert_restrictive(restrictive_change, "baz")
+    assert_restrictive(restrictive_change, "baz", [])
     exit.assert_called_once_with(1)
 
 
@@ -55,7 +55,7 @@ def test_assert_restrictive_approved(
     restrictive_change: list[BundleFileChange], mocker: MockerFixture
 ) -> None:
     exit = mocker.patch("sys.exit")
-    assert_restrictive(restrictive_change, "foo")
+    assert_restrictive(restrictive_change, "foo", [])
     exit.assert_not_called()
 
 
@@ -86,5 +86,23 @@ def test_assert_restrictive_non_restrictive(
 
     changes = [b]
 
-    assert_restrictive(changes, "baz")
+    assert_restrictive(changes, "baz", [])
     exit.assert_not_called()
+
+
+def test_assert_restrictive_good_to_test(
+    restrictive_change: list[BundleFileChange], mocker: MockerFixture
+) -> None:
+    exit = mocker.patch("sys.exit")
+    assert_restrictive(restrictive_change, "baz", [{"username": "foo"}])
+
+    exit.assert_not_called()
+
+
+def test_assert_restrictive_not_good_to_test(
+    restrictive_change: list[BundleFileChange], mocker: MockerFixture
+) -> None:
+    exit = mocker.patch("sys.exit")
+    assert_restrictive(restrictive_change, "baz", [{"username": "baz"}])
+
+    exit.assert_called_once_with(1)

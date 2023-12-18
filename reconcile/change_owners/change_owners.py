@@ -1,6 +1,7 @@
 import logging
 import sys
 import traceback
+from typing import Any
 
 from gitlab.v4.objects import ProjectMergeRequest
 
@@ -231,12 +232,23 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
 
 
-def assert_restrictive(changes: list[BundleFileChange], user: str) -> None:
+def assert_restrictive(
+    changes: list[BundleFileChange], user: str, approval_comments: list[dict[str, Any]]
+) -> None:
     for change in changes:
         for dc in change.diff_coverage:
             for c in dc.coverage:
                 if c.change_type_processor.restrictive:
                     approvers = {a.org_username for a in c.approvers}
+                    good_to_test_approvers = {a["username"] for a in approval_comments}
+
+                    for gttapprover in good_to_test_approvers:
+                        if gttapprover in approvers:
+                            logging.info(
+                                f"Restrictive change approved by {gttapprover}"
+                            )
+                            return
+
                     if user not in approvers:
                         logging.error(
                             f"change type {c.change_type_processor.name} is restrictive"
@@ -329,8 +341,14 @@ def run(
 
         with init_gitlab(gitlab_project_id) as gl:
             merge_request = gl.get_merge_request(gitlab_merge_request_id)
+
+            comments = gl.get_merge_request_comments(merge_request)
+            approval_comments = [c for c in comments if c["body"] == "/good-to-test"]
+
             assert_restrictive(
-                changes, gl.get_merge_request_author_username(merge_request)
+                changes,
+                gl.get_merge_request_author_username(merge_request),
+                approval_comments,
             )
             approver_decisions = get_approver_decisions_from_mr_comments(
                 gl.get_merge_request_comments(merge_request, include_description=True)
