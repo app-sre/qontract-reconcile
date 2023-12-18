@@ -9,6 +9,7 @@ from reconcile.glitchtip_project_alerts.integration import (
     GJB_ALERT_NAME,
     GlitchtipProjectAlertsIntegration,
     GlitchtipProjectAlertsIntegrationParams,
+    webhook_urls_are_unique,
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import (
@@ -56,6 +57,61 @@ def projects(
         return fx.get_anymarkup("project_alerts.yml")
 
     return intg.get_projects(q)
+
+
+def test_glitchtip_project_alerts_webhook_urls_are_unique() -> None:
+    assert webhook_urls_are_unique([
+        ProjectAlert(
+            name="example-1",
+            quantity=2,
+            timespan_minutes=2,
+            recipients=[
+                ProjectAlertRecipient(recipient_type=RecipientType.EMAIL),
+                ProjectAlertRecipient(
+                    recipient_type=RecipientType.WEBHOOK,
+                    url="https://example.com",
+                ),
+            ],
+        ),
+        ProjectAlert(
+            name="example-1",
+            quantity=2,
+            timespan_minutes=2,
+            recipients=[
+                ProjectAlertRecipient(recipient_type=RecipientType.EMAIL),
+                ProjectAlertRecipient(
+                    recipient_type=RecipientType.WEBHOOK,
+                    url="https://another-example.com",
+                ),
+            ],
+        ),
+    ])
+    assert not webhook_urls_are_unique([
+        ProjectAlert(
+            name="example-1",
+            quantity=2,
+            timespan_minutes=2,
+            recipients=[
+                ProjectAlertRecipient(recipient_type=RecipientType.EMAIL),
+                ProjectAlertRecipient(
+                    recipient_type=RecipientType.WEBHOOK,
+                    url="https://example.com",
+                ),
+            ],
+        ),
+        ProjectAlert(
+            name="example-1",
+            quantity=2,
+            timespan_minutes=2,
+            recipients=[
+                ProjectAlertRecipient(recipient_type=RecipientType.EMAIL),
+                ProjectAlertRecipient(
+                    recipient_type=RecipientType.WEBHOOK,
+                    url="https://example.com",
+                ),
+            ],
+        ),
+    ])
 
 
 def test_glitchtip_project_alerts_get_projects(
@@ -240,6 +296,18 @@ def test_glitchtip_project_alerts_fetch_desire_state(
             ],
         )
     ]
+
+
+def test_glitchtip_project_alerts_fetch_desire_state_duplicated_webhook(
+    intg: GlitchtipProjectAlertsIntegration,
+    projects: Sequence[GlitchtipProjectsV1],
+) -> None:
+    # duplicate first alert with webhook
+    projects[0].alerts.append(projects[0].alerts[0])  # type: ignore
+    with pytest.raises(ValueError):
+        intg.fetch_desired_state(
+            projects, gjb_alert_url="http://gjb.com", gjb_token="secret"
+        )
 
 
 def test_glitchtip_project_alerts_fetch_current_state(
