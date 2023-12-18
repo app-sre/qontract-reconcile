@@ -6179,6 +6179,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 user["name"]: self.secret_reader.read_all(user["secret"])
                 for user in spec.resource["users"]
             }
+            # validate user objects
+            for user, secret in scram_users.items():
+                if secret.keys() != {"password", "username"}:
+                    raise ValueError(
+                        f"MSK user '{user}' secret must contain only 'username' and 'password' keys!"
+                    )
 
         # resource - msk config
         msk_config = aws_msk_configuration(
