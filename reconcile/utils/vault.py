@@ -27,6 +27,10 @@ class SecretNotFound(Exception):
     pass
 
 
+class SecretFormatProblem(Exception):
+    pass
+
+
 class SecretAccessForbidden(Exception):
     pass
 
@@ -188,6 +192,13 @@ class _VaultClient:
 
         if data is None:
             raise SecretNotFound
+
+        # Check the keys to ensure that they do not have any whitespace around them.
+        for k in data:
+            if k.strip() != k:
+                raise SecretFormatProblem(
+                    f"Secret key has whitespace. Expected '{k.strip()}' but got '{k}'"
+                )
 
         return data, version
 

@@ -9,6 +9,7 @@ from unittest.mock import (
 import pytest
 
 from reconcile.utils import vault
+from reconcile.utils.vault import SecretFormatProblem
 
 
 class SleepCalled(Exception):
@@ -45,3 +46,54 @@ class TestVaultUtils:
 
         with pytest.raises(SleepCalled):
             client._auto_refresh_client_auth()
+
+
+def test_key_has_leading_space():
+    with pytest.raises(
+        SecretFormatProblem,
+        match="Secret key has whitespace. Expected 'leading_space' but got ' leading_space'",
+    ):
+        vc = testVaultClient()
+        vc._get_mount_version_by_secret_path = MagicMock(return_value=2)
+        vc._read_all_v2 = MagicMock(
+            return_value=({" leading_space": "leadingspace"}, 2)
+        )
+
+        vc.read_all({"path": "/secret", "version": 2})
+
+
+def test_key_has_trailing_space():
+    with pytest.raises(
+        SecretFormatProblem,
+        match="Secret key has whitespace. Expected 'trailing_space' but got 'trailing_space '",
+    ):
+        vc = testVaultClient()
+        vc._get_mount_version_by_secret_path = MagicMock(return_value=2)
+        vc._read_all_v2 = MagicMock(
+            return_value=({"trailing_space ": "trailingspace"}, 2)
+        )
+
+        vc.read_all({"path": "/secret", "version": 2})
+
+
+def test_key_has_nospace():
+    vc = testVaultClient()
+    vc._get_mount_version_by_secret_path = MagicMock(return_value=2)
+    vc._read_all_v2 = MagicMock(return_value=({"nospaces": "nospaces"}, 2))
+
+    k = vc.read_all({"path": "/secret", "version": 2})
+    assert k["nospaces"] == "nospaces"
+
+
+def test_key_has_padded_spaces():
+    with pytest.raises(
+        SecretFormatProblem,
+        match="Secret key has whitespace. Expected 'padding_spaces' but got ' padding_spaces '",
+    ):
+        vc = testVaultClient()
+        vc._get_mount_version_by_secret_path = MagicMock(return_value=2)
+        vc._read_all_v2 = MagicMock(
+            return_value=({" padding_spaces ": "padding_spaces"}, 2)
+        )
+
+        vc.read_all({"path": "/secret", "version": 2})
