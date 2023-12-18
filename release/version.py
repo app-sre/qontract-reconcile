@@ -26,13 +26,17 @@ def git() -> str:
         # tox is running setup.py sdist from the git repo, and then runs again outside
         # of the git repo. At this second step, we cannot run git commands.
         # So we save the git version in a file and include it in the source distribution
-        with open(GIT_VERSION_FILE, "w", encoding=locale.getpreferredencoding(False)) as f:
+        with open(
+            GIT_VERSION_FILE, "w", encoding=locale.getpreferredencoding(False)
+        ) as f:
             f.write(v)
         return v
     except subprocess.CalledProcessError as e:
         # if we're not in a git repo, try reading out from the GIT_VERSION file
         if os.path.exists(GIT_VERSION_FILE):
-            with open(GIT_VERSION_FILE, "r", encoding=locale.getpreferredencoding(False)) as f:
+            with open(
+                GIT_VERSION_FILE, "r", encoding=locale.getpreferredencoding(False)
+            ) as f:
                 return f.read()
         print(e.stderr)
         raise e
