@@ -44,7 +44,7 @@ def query_func(
 
 @pytest.fixture
 def boards(query_func: Callable) -> list[JiraBoardV1]:
-    return get_jira_boards(query_func, jira_boards=[], ignored_jira_boards=[])
+    return get_jira_boards(query_func)
 
 
 def test_jira_permissions_validator_get_jira_boards(
@@ -86,19 +86,9 @@ def test_jira_permissions_validator_get_jira_boards(
             ],
         },
     }
-    assert get_jira_boards(query_func, jira_boards=[], ignored_jira_boards=[]) == [
+    assert get_jira_boards(query_func) == [
         gql_class_factory(JiraBoardV1, default),
         gql_class_factory(JiraBoardV1, custom),
-    ]
-    assert get_jira_boards(
-        query_func, jira_boards=["jira-board-default"], ignored_jira_boards=[]
-    ) == [
-        gql_class_factory(JiraBoardV1, default),
-    ]
-    assert get_jira_boards(
-        query_func, jira_boards=[], ignored_jira_boards=["jira-board-custom"]
-    ) == [
-        gql_class_factory(JiraBoardV1, default),
     ]
 
 

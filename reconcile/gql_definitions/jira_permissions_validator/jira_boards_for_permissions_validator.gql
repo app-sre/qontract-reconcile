@@ -20,5 +20,8 @@ query JiraBoardsForPermissionValidation {
         priority
       }
     }
+    disable {
+      integrations
+    }
   }
 }

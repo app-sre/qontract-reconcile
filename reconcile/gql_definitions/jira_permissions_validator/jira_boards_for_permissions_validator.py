@@ -48,6 +48,9 @@ query JiraBoardsForPermissionValidation {
         priority
       }
     }
+    disable {
+      integrations
+    }
   }
 }
 """
@@ -73,6 +76,10 @@ class JiraSeverityPriorityMappingsV1(ConfiguredBaseModel):
     mappings: list[SeverityPriorityMappingV1] = Field(..., alias="mappings")
 
 
+class DisableJiraBoardAutomationsV1(ConfiguredBaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+
+
 class JiraBoardV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
@@ -82,6 +89,7 @@ class JiraBoardV1(ConfiguredBaseModel):
     issue_reopen_state: Optional[str] = Field(..., alias="issueReopenState")
     issue_security_id: Optional[str] = Field(..., alias="issueSecurityId")
     severity_priority_mappings: JiraSeverityPriorityMappingsV1 = Field(..., alias="severityPriorityMappings")
+    disable: Optional[DisableJiraBoardAutomationsV1] = Field(..., alias="disable")
 
 
 class JiraBoardsForPermissionValidationQueryData(ConfiguredBaseModel):

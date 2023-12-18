@@ -23,6 +23,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 from reconcile.typed_queries.jira_settings import get_jira_settings
 from reconcile.typed_queries.jiralert_settings import get_jiralert_settings
 from reconcile.utils import gql, metrics
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.jira_client import JiraClient, JiraWatcherSettings
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 
@@ -213,38 +214,21 @@ def validate_boards(
     return error
 
 
-def get_jira_boards(
-    query_func: Callable, jira_boards: Iterable[str], ignored_jira_boards: Iterable[str]
-) -> list[JiraBoardV1]:
-    filtered_boards = []
-    for board in query_jira_boards(query_func=query_func).jira_boards or []:
-        if jira_boards:
-            if board.name in jira_boards:
-                filtered_boards.append(board)
-        elif ignored_jira_boards:
-            if board.name not in ignored_jira_boards:
-                filtered_boards.append(board)
-        else:
-            filtered_boards.append(board)
-    return filtered_boards
+def get_jira_boards(query_func: Callable) -> list[JiraBoardV1]:
+    return [
+        board
+        for board in query_jira_boards(query_func=query_func).jira_boards or []
+        if integration_is_enabled(QONTRACT_INTEGRATION, board)
+    ]
 
 
-def run(
-    dry_run: bool,
-    exit_on_permission_errors: bool,
-    jira_boards: Iterable[str],
-    ignored_jira_boards: Iterable[str],
-) -> None:
+def run(dry_run: bool, exit_on_permission_errors: bool) -> None:
     gql_api = gql.get_api()
     settings = get_jira_settings(gql_api=gql_api)
     jiralert_settings = get_jiralert_settings(gql_api=gql_api)
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    boards = get_jira_boards(
-        query_func=gql_api.query,
-        jira_boards=jira_boards,
-        ignored_jira_boards=ignored_jira_boards,
-    )
+    boards = get_jira_boards(query_func=gql_api.query)
 
     with metrics.transactional_metrics("jira-boards") as metrics_container:
         error = validate_boards(

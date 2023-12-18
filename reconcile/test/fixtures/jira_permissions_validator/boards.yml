@@ -33,3 +33,23 @@ jira_boards:
     - priority: Major
     - priority: Major
     - priority: Critical
+- name: disabled
+  server:
+    serverUrl: 'https://jira-server.com'
+    token:
+      path: vault/path/token
+      field: token
+  issueType: bug
+  issueResolveState: Closed
+  issueReopenState: Open
+  issueSecurityId: "32168"
+  severityPriorityMappings:
+    name: major-major
+    mappings:
+    - priority: Minor
+    - priority: Major
+    - priority: Major
+    - priority: Critical
+  disable:
+    integrations:
+    - jira-permissions-validator
