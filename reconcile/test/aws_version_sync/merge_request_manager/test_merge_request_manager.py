@@ -103,12 +103,10 @@ def test_merge_request_manager_fetch_avs_managed_open_merge_requests(
         tuple[MergeRequestManager, MagicMock, MagicMock, MagicMock],
     ],
 ) -> None:
-    mrm, vcs_mock, _, _ = mrm_builder(
-        [
-            mr_builder(labels=[AVS_LABEL]),
-            mr_builder(labels=["OtherLabel"]),
-        ]
-    )
+    mrm, vcs_mock, _, _ = mrm_builder([
+        mr_builder(labels=[AVS_LABEL]),
+        mr_builder(labels=["OtherLabel"]),
+    ])
     mrm.fetch_avs_managed_open_merge_requests()
     assert len(mrm._open_raw_mrs) == 1
     vcs_mock.get_open_app_interface_merge_requests.assert_called_once()

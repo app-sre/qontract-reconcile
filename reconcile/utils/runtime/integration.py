@@ -157,8 +157,7 @@ class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
 
     @property
     @abstractmethod
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
     @property
     def secret_reader(self) -> SecretReaderBase:
@@ -232,13 +231,11 @@ class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
             self.get_desired_state_shard_config()
         )
         if sharding_config:
-            sharded_params = self.params.copy_and_update(
-                {
-                    sharding_config.shard_arg_name: [shard]
-                    if sharding_config.shard_arg_is_collection
-                    else shard
-                }
-            )
+            sharded_params = self.params.copy_and_update({
+                sharding_config.shard_arg_name: [shard]
+                if sharding_config.shard_arg_is_collection
+                else shard
+            })
             return type(self)(sharded_params)
 
         raise NotImplementedError(

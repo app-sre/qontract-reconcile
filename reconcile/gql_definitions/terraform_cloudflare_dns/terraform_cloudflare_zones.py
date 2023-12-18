@@ -93,8 +93,8 @@ query CloudflareDnsZone {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AWSTerraformStateIntegrationsV1(ConfiguredBaseModel):
@@ -106,9 +106,7 @@ class TerraformStateAWSV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
     bucket: str = Field(..., alias="bucket")
     region: str = Field(..., alias="region")
-    integrations: list[AWSTerraformStateIntegrationsV1] = Field(
-        ..., alias="integrations"
-    )
+    integrations: list[AWSTerraformStateIntegrationsV1] = Field(..., alias="integrations")
 
 
 class AWSAccountV1(ConfiguredBaseModel):
@@ -133,9 +131,7 @@ class CloudflareAccountV1(ConfiguredBaseModel):
     enforce_twofactor: Optional[bool] = Field(..., alias="enforceTwofactor")
     api_credentials: VaultSecret = Field(..., alias="apiCredentials")
     terraform_state_account: AWSAccountV1 = Field(..., alias="terraformStateAccount")
-    deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(
-        ..., alias="deletionApprovals"
-    )
+    deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(..., alias="deletionApprovals")
 
 
 class CloudflareDnsRecordDataSettingsV1(ConfiguredBaseModel):

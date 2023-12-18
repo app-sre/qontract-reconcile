@@ -289,9 +289,7 @@ INTEGRATIONS_QUERY = """
     }
   }
 }
-""" % (
-    indent(JUMPHOST_FIELDS, 12 * " "),
-)
+""" % (indent(JUMPHOST_FIELDS, 12 * " "),)
 
 
 def get_integrations(managed=False):
@@ -653,7 +651,6 @@ CLUSTERS_QUERY = """
     name
     serverUrl
     consoleUrl
-    kibanaUrl
     elbFQDN
     prometheusUrl
     managedGroups
@@ -749,6 +746,7 @@ CLUSTERS_QUERY = """
       ... on ClusterSpecROSA_v1 {
         subnet_ids
         availability_zones
+        oidc_endpoint_url
         account {
           name
           uid
@@ -969,7 +967,6 @@ CLUSTERS_MINIMAL_QUERY = """
     name
     serverUrl
     consoleUrl
-    kibanaUrl
     prometheusUrl
     insecureSkipTLSVerify
     jumpHost {
@@ -1455,9 +1452,7 @@ NAMESPACES_QUERY = """
     }
   }
 }
-""" % (
-    indent(JUMPHOST_FIELDS, 8 * " "),
-)
+""" % (indent(JUMPHOST_FIELDS, 8 * " "),)
 
 NAMESPACES_MINIMAL_QUERY = """
 {
@@ -1485,9 +1480,7 @@ NAMESPACES_MINIMAL_QUERY = """
     }
   }
 }
-""" % (
-    indent(JUMPHOST_FIELDS, 8 * " "),
-)
+""" % (indent(JUMPHOST_FIELDS, 8 * " "),)
 
 
 def get_namespaces(minimal=False):
@@ -1522,15 +1515,14 @@ namespace {
   }
 }
 serviceAccountName
-""" % (
-    indent(JUMPHOST_FIELDS, 6 * " "),
-)
+""" % (indent(JUMPHOST_FIELDS, 6 * " "),)
 
 
 SERVICEACCOUNT_TOKENS_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    delete
     cluster {
       name
       serverUrl
@@ -2165,9 +2157,7 @@ PIPELINES_PROVIDERS_QUERY = """
     }
   }
 }
-""" % (
-    indent(JUMPHOST_FIELDS, 12 * " "),
-)
+""" % (indent(JUMPHOST_FIELDS, 12 * " "),)
 
 
 def get_pipelines_providers():
@@ -2406,9 +2396,7 @@ DNS_ZONES_QUERY = """
     }
   }
 }
-""" % (
-    indent(DNS_RECORD, 6 * " "),
-)
+""" % (indent(DNS_RECORD, 6 * " "),)
 
 
 def get_dns_zones(account_name=None):
@@ -2594,9 +2582,7 @@ GABI_INSTANCES_QUERY = """
     expirationDate
   }
 }
-""" % (
-    indent(JUMPHOST_FIELDS, 12 * " "),
-)
+""" % (indent(JUMPHOST_FIELDS, 12 * " "),)
 
 
 def get_gabi_instances():

@@ -69,8 +69,8 @@ query CloudflareAccountRole {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class UserV1(ConfiguredBaseModel):
@@ -91,9 +91,7 @@ class TerraformStateAWSV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
     bucket: str = Field(..., alias="bucket")
     region: str = Field(..., alias="region")
-    integrations: list[AWSTerraformStateIntegrationsV1] = Field(
-        ..., alias="integrations"
-    )
+    integrations: list[AWSTerraformStateIntegrationsV1] = Field(..., alias="integrations")
 
 
 class AWSAccountV1(ConfiguredBaseModel):
@@ -119,9 +117,7 @@ class CloudflareAccountRoleV1(ConfiguredBaseModel):
 
 
 class CloudflareAccountRoleQueryData(ConfiguredBaseModel):
-    cloudflare_account_roles: Optional[list[CloudflareAccountRoleV1]] = Field(
-        ..., alias="cloudflare_account_roles"
-    )
+    cloudflare_account_roles: Optional[list[CloudflareAccountRoleV1]] = Field(..., alias="cloudflare_account_roles")
 
 
 def query(query_func: Callable, **kwargs: Any) -> CloudflareAccountRoleQueryData:

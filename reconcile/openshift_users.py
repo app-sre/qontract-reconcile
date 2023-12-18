@@ -141,9 +141,11 @@ def subtract_states(
             found = True
             break
         if not found:
-            result.append(
-                {"action": action, "cluster": f_user["cluster"], "user": f_user["user"]}
-            )
+            result.append({
+                "action": action,
+                "cluster": f_user["cluster"],
+                "user": f_user["user"],
+            })
 
     return result
 

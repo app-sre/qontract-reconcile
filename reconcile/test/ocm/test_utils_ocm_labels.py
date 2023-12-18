@@ -65,19 +65,17 @@ def test_utils_build_ocm_organization_label_from_dict() -> None:
     key = "some_key"
     value = "some_value"
     organization_id = "some_org_id"
-    ocm_label = build_label_from_dict(
-        {
-            "id": "some_id",
-            "internal": False,
-            "updated_at": "2021-09-01T00:00:00Z",
-            "created_at": "2021-09-01T00:00:00Z",
-            "href": "some_href",
-            "key": key,
-            "value": value,
-            "type": "Organization",
-            "organization_id": organization_id,
-        }
-    )
+    ocm_label = build_label_from_dict({
+        "id": "some_id",
+        "internal": False,
+        "updated_at": "2021-09-01T00:00:00Z",
+        "created_at": "2021-09-01T00:00:00Z",
+        "href": "some_href",
+        "key": key,
+        "value": value,
+        "type": "Organization",
+        "organization_id": organization_id,
+    })
     assert isinstance(ocm_label, OCMOrganizationLabel)
     assert ocm_label.key == key
     assert ocm_label.value == value
@@ -88,19 +86,17 @@ def test_utils_build_ocm_subscription_label_from_dict() -> None:
     key = "some_key"
     value = "some_value"
     subscription_id = "some_sub_id"
-    ocm_label = build_label_from_dict(
-        {
-            "id": "some_id",
-            "internal": False,
-            "updated_at": "2021-09-01T00:00:00Z",
-            "created_at": "2021-09-01T00:00:00Z",
-            "href": "some_href",
-            "key": key,
-            "value": value,
-            "type": "Subscription",
-            "subscription_id": subscription_id,
-        }
-    )
+    ocm_label = build_label_from_dict({
+        "id": "some_id",
+        "internal": False,
+        "updated_at": "2021-09-01T00:00:00Z",
+        "created_at": "2021-09-01T00:00:00Z",
+        "href": "some_href",
+        "key": key,
+        "value": value,
+        "type": "Subscription",
+        "subscription_id": subscription_id,
+    })
     assert isinstance(ocm_label, OCMSubscriptionLabel)
     assert ocm_label.key == key
     assert ocm_label.value == value
@@ -111,19 +107,17 @@ def test_utils_build_ocm_account_label_from_dict() -> None:
     key = "some_key"
     value = "some_value"
     account_id = "some_account_id"
-    ocm_label = build_label_from_dict(
-        {
-            "id": "some_id",
-            "internal": False,
-            "updated_at": "2021-09-01T00:00:00Z",
-            "created_at": "2021-09-01T00:00:00Z",
-            "href": "some_href",
-            "key": key,
-            "value": value,
-            "type": "Account",
-            "account_id": account_id,
-        }
-    )
+    ocm_label = build_label_from_dict({
+        "id": "some_id",
+        "internal": False,
+        "updated_at": "2021-09-01T00:00:00Z",
+        "created_at": "2021-09-01T00:00:00Z",
+        "href": "some_href",
+        "key": key,
+        "value": value,
+        "type": "Account",
+        "account_id": account_id,
+    })
     assert isinstance(ocm_label, OCMAccountLabel)
     assert ocm_label.key == key
     assert ocm_label.value == value
@@ -132,11 +126,9 @@ def test_utils_build_ocm_account_label_from_dict() -> None:
 
 def test_utils_build_ocm_unknown_label_from_dict() -> None:
     with pytest.raises(ValueError):
-        build_label_from_dict(
-            {
-                "type": "Unknown",
-            }
-        )
+        build_label_from_dict({
+            "type": "Unknown",
+        })
 
 
 def test_utils_get_organization_labels(
@@ -147,17 +139,11 @@ def test_utils_get_organization_labels(
     get_labels_call_recorder = mocker.patch.object(
         labels, "get_labels", wraps=labels.get_labels
     )
-    register_ocm_url_responses(
-        [
-            OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels").add_list_response(
-                [
-                    build_organization_label("label", "value", "org_id").dict(
-                        by_alias=True
-                    )
-                ]
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels").add_list_response([
+            build_organization_label("label", "value", "org_id").dict(by_alias=True)
+        ])
+    ])
 
     filter = Filter().eq("additional", "filter")
     org_labels = list(
@@ -186,17 +172,11 @@ def test_utils_get_subscription_labels(
     get_labels_call_recorder = mocker.patch.object(
         labels, "get_labels", wraps=labels.get_labels
     )
-    register_ocm_url_responses(
-        [
-            OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels").add_list_response(
-                [
-                    build_subscription_label("label", "value", "sub_id").dict(
-                        by_alias=True
-                    )
-                ]
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels").add_list_response([
+            build_subscription_label("label", "value", "sub_id").dict(by_alias=True)
+        ])
+    ])
 
     filter = Filter().eq("additional", "filter")
     org_labels = list(
@@ -257,14 +237,12 @@ def test_build_label_container_empty() -> None:
 
 @pytest.fixture
 def label_container() -> LabelContainer:
-    return build_label_container(
-        [
-            build_organization_label(key="a.a", value="a", org_id="org_id"),
-            build_organization_label(key="a.b", value="b", org_id="org_id"),
-            build_organization_label(key="a.c", value="c", org_id="org_id"),
-            build_organization_label(key="another_label", value="v", org_id="org_id"),
-        ]
-    )
+    return build_label_container([
+        build_organization_label(key="a.a", value="a", org_id="org_id"),
+        build_organization_label(key="a.b", value="b", org_id="org_id"),
+        build_organization_label(key="a.c", value="c", org_id="org_id"),
+        build_organization_label(key="another_label", value="v", org_id="org_id"),
+    ])
 
 
 def test_label_container_get_label(label_container: LabelContainer) -> None:
@@ -351,9 +329,9 @@ def test_add_subscription_labels(
     cluster = build_cluster_details()
     cluster.ocm_cluster.subscription.href = "/api/foobar/sub"
 
-    register_ocm_url_responses(
-        [OcmUrl(method="POST", uri=f"{cluster.ocm_cluster.subscription.href}/labels")]
-    )
+    register_ocm_url_responses([
+        OcmUrl(method="POST", uri=f"{cluster.ocm_cluster.subscription.href}/labels")
+    ])
 
     add_subscription_label(ocm_api, cluster.ocm_cluster, "label", "value")
 
@@ -368,11 +346,9 @@ def test_update_ocm_labels(
 ) -> None:
     cluster = build_cluster_details(subs_labels=[("label", "value")])
 
-    register_ocm_url_responses(
-        [
-            OcmUrl(method="PATCH", uri="/label/label_id"),
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(method="PATCH", uri="/label/label_id"),
+    ])
 
     update_ocm_label(ocm_api, cluster.labels["label"], "value2")
 
@@ -387,11 +363,9 @@ def test_delete_ocm_labels(
 ) -> None:
     cluster = build_cluster_details(subs_labels=[("label", "value")])
 
-    register_ocm_url_responses(
-        [
-            OcmUrl(method="DELETE", uri="/label/label_id"),
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(method="DELETE", uri="/label/label_id"),
+    ])
 
     delete_ocm_label(ocm_api, cluster.labels["label"])
 

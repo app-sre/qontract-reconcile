@@ -8,7 +8,7 @@ from reconcile.typed_queries.status_board import get_selected_app_names
 
 @pytest.fixture
 def status_board_product(
-    gql_class_factory: Callable[..., StatusBoardProductV1]
+    gql_class_factory: Callable[..., StatusBoardProductV1],
 ) -> StatusBoardProductV1:
     return gql_class_factory(
         StatusBoardProductV1,

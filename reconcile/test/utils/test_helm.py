@@ -24,7 +24,7 @@ fxt = Fixtures("helm")
 
 @pytest.fixture
 def helm_integration_specs(
-    gql_class_factory: Callable[..., HelmIntegrationSpec]
+    gql_class_factory: Callable[..., HelmIntegrationSpec],
 ) -> list[HelmIntegrationSpec]:
     i1 = gql_class_factory(
         HelmIntegrationSpec,
@@ -187,7 +187,7 @@ def test_template_aws_account_shards(
 
 @pytest.fixture
 def aws_shard_spec_override(
-    gql_class_factory: Callable[..., AWSAccountShardSpecOverrideV1]
+    gql_class_factory: Callable[..., AWSAccountShardSpecOverrideV1],
 ) -> AWSAccountShardSpecOverrideV1:
     return gql_class_factory(
         AWSAccountShardSpecOverrideV1,
@@ -332,7 +332,7 @@ def test_template_environment_aware(
 
 @pytest.fixture
 def helm_integration_specs_cron(
-    gql_class_factory: Callable[..., HelmIntegrationSpec]
+    gql_class_factory: Callable[..., HelmIntegrationSpec],
 ) -> list[HelmIntegrationSpec]:
     c1 = gql_class_factory(
         HelmIntegrationSpec,

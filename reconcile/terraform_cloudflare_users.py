@@ -91,9 +91,9 @@ class TerraformCloudflareUsers(
             raise RuntimeError("App interface setting not defined")
 
         early_exit_desired_state = cloudflare_roles.dict()
-        early_exit_desired_state.update(
-            {CLOUDFLARE_EMAIL_DOMAIN_ALLOW_LIST_KEY: settings.settings}
-        )
+        early_exit_desired_state.update({
+            CLOUDFLARE_EMAIL_DOMAIN_ALLOW_LIST_KEY: settings.settings
+        })
         return early_exit_desired_state
 
     def _get_desired_state(
@@ -327,7 +327,7 @@ def get_cloudflare_users(
 
 
 def build_external_resource_spec_from_cloudflare_users(
-    cloudflare_users: Mapping[str, Mapping[str, CloudflareUser]]
+    cloudflare_users: Mapping[str, Mapping[str, CloudflareUser]],
 ) -> Iterable[ExternalResourceSpec]:
     """
     This method transforms :param cloudflare_users: into a list of ExternalResourceSpec

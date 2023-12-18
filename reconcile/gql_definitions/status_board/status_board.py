@@ -70,8 +70,8 @@ query StatusBoard {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class VaultSecretV1(ConfiguredBaseModel):
@@ -85,9 +85,7 @@ class OpenShiftClusterManagerEnvironmentV1(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
     access_token_url: str = Field(..., alias="accessTokenUrl")
     access_token_client_id: str = Field(..., alias="accessTokenClientId")
-    access_token_client_secret: VaultSecretV1 = Field(
-        ..., alias="accessTokenClientSecret"
-    )
+    access_token_client_secret: VaultSecretV1 = Field(..., alias="accessTokenClientSecret")
 
 
 class StatusBoardAppSelectorV1(ConfiguredBaseModel):
@@ -132,17 +130,13 @@ class StatusBoardProductV1_StatusBoardAppSelectorV1(ConfiguredBaseModel):
 
 class StatusBoardProductV1(ConfiguredBaseModel):
     product_environment: EnvironmentV1 = Field(..., alias="productEnvironment")
-    app_selectors: Optional[StatusBoardProductV1_StatusBoardAppSelectorV1] = Field(
-        ..., alias="appSelectors"
-    )
+    app_selectors: Optional[StatusBoardProductV1_StatusBoardAppSelectorV1] = Field(..., alias="appSelectors")
 
 
 class StatusBoardV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     ocm: OpenShiftClusterManagerEnvironmentV1 = Field(..., alias="ocm")
-    global_app_selectors: Optional[StatusBoardAppSelectorV1] = Field(
-        ..., alias="globalAppSelectors"
-    )
+    global_app_selectors: Optional[StatusBoardAppSelectorV1] = Field(..., alias="globalAppSelectors")
     products: list[StatusBoardProductV1] = Field(..., alias="products")
 
 

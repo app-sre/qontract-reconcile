@@ -245,9 +245,10 @@ class TestSaasFileValid(TestCase):
     def test_check_saas_file_upstream_used_with_image(self) -> None:
         self.saas_file.resource_templates[0].targets[
             0
-        ].image = SaasResourceTemplateTargetImageV1(
-            **{"name": "image", "org": {"name": "org", "instance": {"url": "url"}}}
-        )
+        ].image = SaasResourceTemplateTargetImageV1(**{
+            "name": "image",
+            "org": {"name": "org", "instance": {"url": "url"}},
+        })
         saasherder = SaasHerder(
             [self.saas_file],
             secret_reader=MockSecretReader(),
@@ -267,9 +268,10 @@ class TestSaasFileValid(TestCase):
         ].ref = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
         self.saas_file.resource_templates[0].targets[
             0
-        ].image = SaasResourceTemplateTargetImageV1(
-            **{"name": "image", "org": {"name": "org", "instance": {"url": "url"}}}
-        )
+        ].image = SaasResourceTemplateTargetImageV1(**{
+            "name": "image",
+            "org": {"name": "org", "instance": {"url": "url"}},
+        })
         saasherder = SaasHerder(
             [self.saas_file],
             secret_reader=MockSecretReader(),
@@ -1075,7 +1077,7 @@ class TestRemoveNoneAttributes(TestCase):
 
 
 def test_render_templated_parameters(
-    gql_class_factory: Callable[..., SaasFileInterface]
+    gql_class_factory: Callable[..., SaasFileInterface],
 ) -> None:
     saas_file = gql_class_factory(
         SaasFile,
@@ -1129,7 +1131,7 @@ def test_render_templated_parameters(
 
 
 def test_render_templated_parameters_in_init(
-    gql_class_factory: Callable[..., SaasFile]
+    gql_class_factory: Callable[..., SaasFile],
 ) -> None:
     saas_file = gql_class_factory(
         SaasFile,

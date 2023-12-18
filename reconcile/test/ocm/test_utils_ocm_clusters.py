@@ -49,9 +49,9 @@ def build_cluster_details(
     return ClusterDetails(
         ocm_cluster=ocm_cluster,
         organization_id=org_id,
-        organization_labels=build_label_container(
-            [build_organization_label(k, v, org_id) for k, v in org_labels or []]
-        ),
+        organization_labels=build_label_container([
+            build_organization_label(k, v, org_id) for k, v in org_labels or []
+        ]),
         subscription_labels=build_label_container(
             [
                 build_subscription_label(k, v, ocm_cluster.subscription.id)
@@ -142,35 +142,25 @@ def test_discover_clusters_by_labels(
     get_clusters_for_subscriptions_mock = mocker.patch.object(
         clusters, "get_cluster_details_for_subscriptions"
     )
-    get_clusters_for_subscriptions_mock.return_value = iter(
-        [
-            build_cluster_details(
-                ocm_cluster=build_ocm_cluster("cluster_id", sub_id),
-                org_id=org_id,
-            )
-        ]
-    )
+    get_clusters_for_subscriptions_mock.return_value = iter([
+        build_cluster_details(
+            ocm_cluster=build_ocm_cluster("cluster_id", sub_id),
+            org_id=org_id,
+        )
+    ])
 
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri="/api/accounts_mgmt/v1/labels",
-            ).add_list_response(
-                [
-                    build_subscription_label("label", "subs_value", sub_id).dict(
-                        by_alias=True
-                    ),
-                    build_subscription_label("label", "subs_value", "sub_id_2").dict(
-                        by_alias=True
-                    ),
-                    build_organization_label("label", "org_value", org_id).dict(
-                        by_alias=True
-                    ),
-                ]
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri="/api/accounts_mgmt/v1/labels",
+        ).add_list_response([
+            build_subscription_label("label", "subs_value", sub_id).dict(by_alias=True),
+            build_subscription_label("label", "subs_value", "sub_id_2").dict(
+                by_alias=True
+            ),
+            build_organization_label("label", "org_value", org_id).dict(by_alias=True),
+        ])
+    ])
 
     # call discovery
     discovered_clusters = discover_clusters_by_labels(
@@ -219,27 +209,19 @@ def test_get_clusters_for_subscriptions(
     get_organization_labels_mock = mocker.patch.object(
         clusters, "get_organization_labels"
     )
-    get_organization_labels_mock.return_value = iter(
-        [
-            organization_label,
-            build_organization_label("org_label", "value", "another_org_id"),
-        ]
-    )
+    get_organization_labels_mock.return_value = iter([
+        organization_label,
+        build_organization_label("org_label", "value", "another_org_id"),
+    ])
 
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET", uri="/api/clusters_mgmt/v1/clusters"
-            ).add_list_response(
-                [
-                    build_ocm_cluster(
-                        name="cl1",
-                        subs_id=subscription_id,
-                    )
-                ]
+    register_ocm_url_responses([
+        OcmUrl(method="GET", uri="/api/clusters_mgmt/v1/clusters").add_list_response([
+            build_ocm_cluster(
+                name="cl1",
+                subs_id=subscription_id,
             )
-        ]
-    )
+        ])
+    ])
 
     subscription_filter = Filter().eq("id", subscription_id)
     discoverd_clusters = list(

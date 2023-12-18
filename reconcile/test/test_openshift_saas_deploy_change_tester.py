@@ -203,88 +203,86 @@ def test_collect_state(saas_files: list[SaasFile]) -> None:
     - collect_state collects from 2), 3), 4)
     """
     state = collect_state(saas_files)
-    expected = State(
-        **{
-            "saas_file_path": "/path.yml",
-            "saas_file_name": "saas-file-name",
-            "saas_file_deploy_resources": {
-                "requests": {"cpu": "1500m", "memory": "700Mi"},
-                "limits": {"cpu": "2000m", "memory": "1Gi"},
+    expected = State(**{
+        "saas_file_path": "/path.yml",
+        "saas_file_name": "saas-file-name",
+        "saas_file_deploy_resources": {
+            "requests": {"cpu": "1500m", "memory": "700Mi"},
+            "limits": {"cpu": "2000m", "memory": "1Gi"},
+        },
+        "resource_template_name": "tmpl",
+        "namespace": "namespace",
+        "environment": "env-name",
+        "cluster": "cluster",
+        "url": "https://github.com/some-org/some-repo.git",
+        "ref": "master",
+        "parameters": {
+            "SAAS_DEFAULT_1": "target",
+            "SAAS_DEFAULT_2": "saas",
+            "ENV_DEFAULT_1": "target",
+            # "ENV_DEFAULT_2": "env", # todo - check if it is a bug or on purpose that environment-1 params are not loaded
+            "TMPL_DEFAULT_1": "target",
+            "TMPL_DEFAULT_2": "tmpl",
+            "TARGET": "target",
+        },
+        "secret_parameters": {
+            "target_default": {
+                "field": "target_field",
+                "path": "target_path",
+                "version": 1,
+                "format": None,
             },
-            "resource_template_name": "tmpl",
-            "namespace": "namespace",
-            "environment": "env-name",
-            "cluster": "cluster",
-            "url": "https://github.com/some-org/some-repo.git",
-            "ref": "master",
-            "parameters": {
-                "SAAS_DEFAULT_1": "target",
-                "SAAS_DEFAULT_2": "saas",
-                "ENV_DEFAULT_1": "target",
-                # "ENV_DEFAULT_2": "env", # todo - check if it is a bug or on purpose that environment-1 params are not loaded
-                "TMPL_DEFAULT_1": "target",
-                "TMPL_DEFAULT_2": "tmpl",
-                "TARGET": "target",
+            "saas_default_1": {
+                "field": "target_field",
+                "path": "target_path",
+                "version": 1,
+                "format": None,
             },
-            "secret_parameters": {
-                "target_default": {
-                    "field": "target_field",
-                    "path": "target_path",
-                    "version": 1,
-                    "format": None,
-                },
-                "saas_default_1": {
-                    "field": "target_field",
-                    "path": "target_path",
-                    "version": 1,
-                    "format": None,
-                },
-                "saas_default_2": {
-                    "field": "saas_field_2",
-                    "path": "saas_path_2",
-                    "version": 1,
-                    "format": None,
-                },
-                "env_default_1": {
-                    "field": "target_field",
-                    "path": "target_path",
-                    "version": 1,
-                    "format": None,
-                },
-                # environment-1 secrets should be present since saasherder uses them but collect_state does sadly not
-                # "env_default_2": {
-                #    "field": "env_field_2",
-                #    "path": "env_path_2",
-                #    "version": 1,
-                #    "format": None,
-                # },
-                "tmpl_default_1": {
-                    "field": "target_field",
-                    "path": "target_path",
-                    "version": 1,
-                    "format": None,
-                },
-                "tmpl_default_2": {
-                    "field": "tmpl_field_2",
-                    "path": "tmpl_path_2",
-                    "version": 1,
-                    "format": None,
-                },
+            "saas_default_2": {
+                "field": "saas_field_2",
+                "path": "saas_path_2",
+                "version": 1,
+                "format": None,
             },
-            "upstream": {
-                "instance": {"name": "ci", "serverUrl": "https://ci.example.net"},
-                "name": "job-name",
+            "env_default_1": {
+                "field": "target_field",
+                "path": "target_path",
+                "version": 1,
+                "format": None,
             },
-            "saas_file_definitions": {
-                "managed_resource_types": ["Deployment"],
-                "image_patterns": ["quay.io/some-org"],
-                "use_channel_in_image_tag": False,
+            # environment-1 secrets should be present since saasherder uses them but collect_state does sadly not
+            # "env_default_2": {
+            #    "field": "env_field_2",
+            #    "path": "env_path_2",
+            #    "version": 1,
+            #    "format": None,
+            # },
+            "tmpl_default_1": {
+                "field": "target_field",
+                "path": "target_path",
+                "version": 1,
+                "format": None,
             },
-            "disable": None,
-            "delete": None,
-            "target_path": None,
-        }
-    )
+            "tmpl_default_2": {
+                "field": "tmpl_field_2",
+                "path": "tmpl_path_2",
+                "version": 1,
+                "format": None,
+            },
+        },
+        "upstream": {
+            "instance": {"name": "ci", "serverUrl": "https://ci.example.net"},
+            "name": "job-name",
+        },
+        "saas_file_definitions": {
+            "managed_resource_types": ["Deployment"],
+            "image_patterns": ["quay.io/some-org"],
+            "use_channel_in_image_tag": False,
+        },
+        "disable": None,
+        "delete": None,
+        "target_path": None,
+    })
     assert state == [expected]
 
 

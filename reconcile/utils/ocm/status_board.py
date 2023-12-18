@@ -22,9 +22,9 @@ def get_product_applications(
             application.get("metadata", {}).get(METADATA_MANAGED_BY_KEY, "")
             == METADATA_MANAGED_BY_VALUE
         ):
-            results.append(
-                {k: v for k, v in application.items() if k in APPLICATION_DESIRED_KEYS}
-            )
+            results.append({
+                k: v for k, v in application.items() if k in APPLICATION_DESIRED_KEYS
+            })
 
     return results
 
@@ -36,9 +36,9 @@ def get_managed_products(ocm_api: OCMBaseClient) -> list[dict[str, Any]]:
             product.get("metadata", {}).get(METADATA_MANAGED_BY_KEY, "")
             == METADATA_MANAGED_BY_VALUE
         ):
-            results.append(
-                {k: v for k, v in product.items() if k in PRODUCTS_DESIRED_KEYS}
-            )
+            results.append({
+                k: v for k, v in product.items() if k in PRODUCTS_DESIRED_KEYS
+            })
     return results
 
 

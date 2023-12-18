@@ -53,9 +53,9 @@ def test_recommended_version(versions, version_set):
 def test_get_version_weights():
     assert get_version_weights({}) == (1, 1)
     assert get_version_weights({"recommendedVersionWeight": {"majority": 0}}) == (1, 0)
-    assert get_version_weights(
-        {"recommendedVersionWeight": {"majority": 2, "highest": 4}}
-    ) == (4, 2)
+    assert get_version_weights({
+        "recommendedVersionWeight": {"majority": 2, "highest": 4}
+    }) == (4, 2)
 
 
 def add_cluster(

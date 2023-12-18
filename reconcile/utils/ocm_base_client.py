@@ -62,12 +62,10 @@ class OCMBaseClient:
         self._access_token = r.json().get("access_token")
 
     def _init_request_headers(self):
-        self._session.headers.update(
-            {
-                "Authorization": f"Bearer {self._access_token}",
-                "accept": "application/json",
-            }
-        )
+        self._session.headers.update({
+            "Authorization": f"Bearer {self._access_token}",
+            "accept": "application/json",
+        })
 
     def get(self, api_path: str, params: Optional[Mapping[str, str]] = None) -> Any:
         ocm_request.labels(verb="GET", client_id=self._access_token_client_id).inc()
@@ -157,8 +155,7 @@ class OCMAPIClientConfigurationProtocol(Protocol):
     access_token_url: str
 
     @property
-    def access_token_client_secret(self) -> HasSecret:
-        ...
+    def access_token_client_secret(self) -> HasSecret: ...
 
 
 class OCMAPIClientConfiguration(BaseModel, arbitrary_types_allowed=True):

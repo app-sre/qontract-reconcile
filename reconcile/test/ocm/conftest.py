@@ -53,16 +53,14 @@ def ocm_api(
     clusters: list[dict[str, Any]],
     version_gates: list[dict[str, Any]],
 ) -> OCMBaseClient:
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET", uri="/api/clusters_mgmt/v1/clusters"
-            ).add_list_response(clusters),
-            OcmUrl(
-                method="GET", uri="/api/clusters_mgmt/v1/version_gates"
-            ).add_list_response(version_gates),
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(method="GET", uri="/api/clusters_mgmt/v1/clusters").add_list_response(
+            clusters
+        ),
+        OcmUrl(
+            method="GET", uri="/api/clusters_mgmt/v1/version_gates"
+        ).add_list_response(version_gates),
+    ])
     return OCMBaseClient(
         access_token_client_id="some_client_id",
         access_token_client_secret="some_client_secret",

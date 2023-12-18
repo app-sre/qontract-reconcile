@@ -22,8 +22,8 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class CommonJumphostFields(ConfiguredBaseModel):

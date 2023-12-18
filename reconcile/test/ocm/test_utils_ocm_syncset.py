@@ -33,14 +33,12 @@ def test_utils_get_syncsets(
     cluster_id = "123abc"
     syncset_id = "xyz"
     syncset_kind_value = "Syncset"
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri=f"/api/clusters_mgmt/v1/clusters/{cluster_id}/external_configuration/syncsets/{syncset_id}",
-            ).add_get_response(id=syncset_id, resources=[], kind=syncset_kind_value)
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri=f"/api/clusters_mgmt/v1/clusters/{cluster_id}/external_configuration/syncsets/{syncset_id}",
+        ).add_get_response(id=syncset_id, resources=[], kind=syncset_kind_value)
+    ])
 
     response = syncsets.get_syncset(
         ocm_client=ocm_api, cluster_id=cluster_id, syncset_id=syncset_id
@@ -60,14 +58,12 @@ def test_create_syncset(
 ) -> None:
     cluster_id = "123abc"
     syncset_id = "xyz"
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="POST",
-                uri=f"/api/clusters_mgmt/v1/clusters/{cluster_id}/external_configuration/syncsets",
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="POST",
+            uri=f"/api/clusters_mgmt/v1/clusters/{cluster_id}/external_configuration/syncsets",
+        )
+    ])
 
     create_syncset(ocm_api, cluster_id, build_syncset(cluster_id, syncset_id))
 
@@ -84,14 +80,12 @@ def test_patch_syncset(
     syncset_id = "xyz"
     syncset = build_syncset(cluster_id, syncset_id)
 
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="PATCH",
-                uri=f"/api/clusters_mgmt/v1/clusters/{cluster_id}/external_configuration/syncsets/{syncset_id}",
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="PATCH",
+            uri=f"/api/clusters_mgmt/v1/clusters/{cluster_id}/external_configuration/syncsets/{syncset_id}",
+        )
+    ])
 
     syncset["resources"] = [{"kind": "Secret"}]
     patch_syncset(ocm_api, cluster_id, syncset_id, syncset)

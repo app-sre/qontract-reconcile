@@ -8,6 +8,8 @@ from reconcile.utils.mr.base import MergeRequestBase
 
 yaml = YAML()
 yaml.explicit_start = True
+# Lets prevent line wraps
+yaml.width = 4096
 
 
 class CreateClustersUpdates(MergeRequestBase):

@@ -20,30 +20,28 @@ def test_get_repo_ref_for_sha(mocker: MockerFixture):
 
     # mock gl_app_interface_get_file
     d.gl_app_interface_get_file = MagicMock(
-        return_value=yaml.safe_dump(
-            {
-                "resourceTemplates": [
-                    {
-                        "name": "rt0",
-                        "url": "url0",
-                        "ref": "ref0",
-                        "targets": [
-                            {"namespace": {"$ref": "ns0"}, "ref": "ref0"},
-                            {"namespace": {"$ref": "ns3"}, "ref": "ref3"},
-                        ],
-                    },
-                    {
-                        "name": "rt1",
-                        "url": "url1",
-                        "ref": "ref1",
-                        "targets": [
-                            {"namespace": {"$ref": "ns0"}, "ref": "ref0"},
-                            {"namespace": {"$ref": "ns1"}, "ref": "ref1"},
-                        ],
-                    },
-                ]
-            }
-        ).encode("utf-8")
+        return_value=yaml.safe_dump({
+            "resourceTemplates": [
+                {
+                    "name": "rt0",
+                    "url": "url0",
+                    "ref": "ref0",
+                    "targets": [
+                        {"namespace": {"$ref": "ns0"}, "ref": "ref0"},
+                        {"namespace": {"$ref": "ns3"}, "ref": "ref3"},
+                    ],
+                },
+                {
+                    "name": "rt1",
+                    "url": "url1",
+                    "ref": "ref1",
+                    "targets": [
+                        {"namespace": {"$ref": "ns0"}, "ref": "ref0"},
+                        {"namespace": {"$ref": "ns1"}, "ref": "ref1"},
+                    ],
+                },
+            ]
+        }).encode("utf-8")
     )
 
     saastarget = SaasTarget("app1", "env1", "/path1", "rt1", "ns1", "pipeline1")
@@ -58,30 +56,28 @@ def test_get_repo_ref_for_sha_none(mocker: MockerFixture):
 
     # mock gl_app_interface_get_file
     d.gl_app_interface_get_file = MagicMock(
-        return_value=yaml.safe_dump(
-            {
-                "resourceTemplates": [
-                    {
-                        "name": "rt10",
-                        "url": "url0",
-                        "ref": "ref0",
-                        "targets": [
-                            {"namespace": {"$ref": "ns0"}, "ref": "ref0"},
-                            {"namespace": {"$ref": "ns3"}, "ref": "ref3"},
-                        ],
-                    },
-                    {
-                        "name": "rt11",
-                        "url": "url1",
-                        "ref": "ref1",
-                        "targets": [
-                            {"namespace": {"$ref": "ns0"}, "ref": "ref0"},
-                            {"namespace": {"$ref": "ns1"}, "ref": "ref1"},
-                        ],
-                    },
-                ]
-            }
-        ).encode("utf-8")
+        return_value=yaml.safe_dump({
+            "resourceTemplates": [
+                {
+                    "name": "rt10",
+                    "url": "url0",
+                    "ref": "ref0",
+                    "targets": [
+                        {"namespace": {"$ref": "ns0"}, "ref": "ref0"},
+                        {"namespace": {"$ref": "ns3"}, "ref": "ref3"},
+                    ],
+                },
+                {
+                    "name": "rt11",
+                    "url": "url1",
+                    "ref": "ref1",
+                    "targets": [
+                        {"namespace": {"$ref": "ns0"}, "ref": "ref0"},
+                        {"namespace": {"$ref": "ns1"}, "ref": "ref1"},
+                    ],
+                },
+            ]
+        }).encode("utf-8")
     )
 
     saastarget = SaasTarget("app1", "env1", "/path1", "rt1", "ns1", "pipeline1")

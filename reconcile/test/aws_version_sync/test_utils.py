@@ -22,16 +22,14 @@ def test_prom_get(httpretty: httpretty_module) -> None:
         "GET",
         f"{url}/api/v1/query",
         status=200,
-        body=json.dumps(
-            {
-                "data": {
-                    "result": [
-                        {"metric": "data1"},
-                        {"metric": "data2"},
-                    ],
-                }
+        body=json.dumps({
+            "data": {
+                "result": [
+                    {"metric": "data1"},
+                    {"metric": "data2"},
+                ],
             }
-        ),
+        }),
         content_type="text/json",
     )
 

@@ -139,9 +139,10 @@ class DeploymentDB:
             cur.execute(query)
 
             for record in cur:
-                deployments.append(
-                    (AppEnv(record[0], record[1]), Deployment(record[2], record[3]))
-                )
+                deployments.append((
+                    AppEnv(record[0], record[1]),
+                    Deployment(record[2], record[3]),
+                ))
 
         if not deployments:
             LOG.info("No deployments found")

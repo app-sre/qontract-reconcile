@@ -5,7 +5,6 @@ labels:
 name: tst-jpr-rosa
 description: A test cluster
 consoleUrl: "https://console-openshift-console.tst-jpr-rosa.0000.p1.openshiftapps.com"
-kibanaUrl: ""
 prometheusUrl: ""
 alertmanagerUrl: ""
 serverUrl: "https://api.tst-jpr-rosa.0000.p1.openshiftapps.com:6443"
@@ -54,6 +53,7 @@ spec:
   private: false
   provision_shard_id: provision_shard_id
   disable_user_workload_monitoring: false
+  oidc_endpoint_url: "https://rh-oidc.s3.us-east-1.amazonaws.com/rosa-cluster-id"
 machinePools:
 - id: worker
   instance_type: m5.xlarge

@@ -34,8 +34,7 @@ from reconcile.utils.ocm.labels import (
 
 class OcmResponse(BaseModel, ABC):
     @abstractmethod
-    def render(self) -> str:
-        ...
+    def render(self) -> str: ...
 
 
 class OcmRawResponse(OcmResponse):
@@ -54,15 +53,13 @@ class OcmUrl(BaseModel):
     def add_list_response(
         self, items: list[Any], kind: Optional[str] = None
     ) -> "OcmUrl":
-        self.responses.append(
-            {
-                "kind": f"{kind}List" if kind else "List",
-                "items": items,
-                "page": 1,
-                "size": len(items),
-                "total": len(items),
-            }
-        )
+        self.responses.append({
+            "kind": f"{kind}List" if kind else "List",
+            "items": items,
+            "page": 1,
+            "size": len(items),
+            "total": len(items),
+        })
         return self
 
     def add_get_response(
@@ -71,13 +68,11 @@ class OcmUrl(BaseModel):
         resources: list[Any],
         kind: Optional[str] = None,
     ) -> "OcmUrl":
-        self.responses.append(
-            {
-                "kind": f"{kind}",
-                "id": f"{id}",
-                "resources": resources,
-            }
-        )
+        self.responses.append({
+            "kind": f"{kind}",
+            "id": f"{id}",
+            "resources": resources,
+        })
         return self
 
 

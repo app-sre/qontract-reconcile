@@ -103,14 +103,12 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
                 org_to_env[label.organization_id] = env
 
         # ... and build the inheritance network
-        return build_version_data_inheritance_network(
-            {
-                OrgRef(
-                    org_id=org_id, env_name=org_to_env[org_id].name
-                ): build_label_container(labels)
-                for org_id, labels in labels_by_org.items()
-            }
-        )
+        return build_version_data_inheritance_network({
+            OrgRef(
+                org_id=org_id, env_name=org_to_env[org_id].name
+            ): build_label_container(labels)
+            for org_id, labels in labels_by_org.items()
+        })
 
     def _build_ocm_env_upgrade_specs(
         self,
@@ -391,18 +389,16 @@ def build_cluster_upgrade_policy_label_set(
     sector: Optional[str] = None,
     blocked_versions: Optional[list[str]] = None,
 ) -> ClusterUpgradePolicyLabelSet:
-    return ClusterUpgradePolicyLabelSet(
-        **{
-            aus_label_key("workloads"): ",".join(workloads),
-            aus_label_key("schedule"): schedule,
-            aus_label_key("soak-days"): soak_days,
-            aus_label_key("mutexes"): ",".join(mutexes) if mutexes else None,
-            aus_label_key("sector"): sector,
-            aus_label_key("blocked-versions"): ",".join(blocked_versions)
-            if blocked_versions
-            else None,
-        }
-    )
+    return ClusterUpgradePolicyLabelSet(**{
+        aus_label_key("workloads"): ",".join(workloads),
+        aus_label_key("schedule"): schedule,
+        aus_label_key("soak-days"): soak_days,
+        aus_label_key("mutexes"): ",".join(mutexes) if mutexes else None,
+        aus_label_key("sector"): sector,
+        aus_label_key("blocked-versions"): ",".join(blocked_versions)
+        if blocked_versions
+        else None,
+    })
 
 
 def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicyV1:
@@ -457,7 +453,7 @@ class VersionDataInheritance(BaseModel):
 
 
 def build_version_data_inheritance_network(
-    labels_per_org: dict[OrgRef, LabelContainer]
+    labels_per_org: dict[OrgRef, LabelContainer],
 ) -> dict[OrgRef, VersionDataInheritance]:
     """
     Validates publish/inherit relationships between OCM organizations and environments from the

@@ -148,13 +148,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         """
 
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        self.project.commits.create(
-            {
-                "branch": branch_name,
-                "commit_message": commit_message,
-                "actions": actions,
-            }
-        )
+        self.project.commits.create({
+            "branch": branch_name,
+            "commit_message": commit_message,
+            "actions": actions,
+        })
 
     def create_file(self, branch_name, file_path, commit_message, content):
         data = {
@@ -271,9 +269,10 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             if user is not None:
                 gitlab_request.labels(integration=INTEGRATION_NAME).inc()
                 try:
-                    group.members.create(
-                        {"user_id": user.id, "access_level": access_level}
-                    )
+                    group.members.create({
+                        "user_id": user.id,
+                        "access_level": access_level,
+                    })
                 except gitlab.exceptions.GitlabCreateError:
                     gitlab_request.labels(integration=INTEGRATION_NAME).inc()
                     member = group.members.get(user.id)
@@ -392,26 +391,22 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     ) -> list[dict[str, Any]]:
         comments = []
         if include_description:
-            comments.append(
-                {
-                    "username": merge_request.author["username"],
-                    "body": merge_request.description,
-                    "created_at": merge_request.created_at,
-                    "id": MR_DESCRIPTION_COMMENT_ID,
-                }
-            )
+            comments.append({
+                "username": merge_request.author["username"],
+                "body": merge_request.description,
+                "created_at": merge_request.created_at,
+                "id": MR_DESCRIPTION_COMMENT_ID,
+            })
         for note in GitLabApi.get_items(merge_request.notes.list):
             if note.system:
                 continue
-            comments.append(
-                {
-                    "username": note.author["username"],
-                    "body": note.body,
-                    "created_at": note.created_at,
-                    "id": note.id,
-                    "note": note,
-                }
-            )
+            comments.append({
+                "username": note.author["username"],
+                "body": note.body,
+                "created_at": note.created_at,
+                "id": note.id,
+                "note": note,
+            })
         return comments
 
     @staticmethod

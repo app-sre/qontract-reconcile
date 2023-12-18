@@ -1,11 +1,406 @@
-[tool.black]
+[tool.ruff]
 line-length = 88
-target-version = ['py311']
-include = '^.*\.py$'
+target-version = 'py311'
+required-version = "0.1.7"
 
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-force_grid_wrap = 2
-float_to_top = true
-skip_glob = ["reconcile/gql_definitions/*"]
+src = ["reconcile", "tools", "release", "dockerfiles/hack", "setup.py"]
+extend-exclude = ["reconcile/gql_definitions"]
+fix = true
+
+[tool.ruff.lint]
+preview = true
+
+# defaults are ["E4", "E7", "E9", "F"]
+extend-select = [
+    # flake8 default rules
+    "E1", # preview rule
+    "E2", # preview rule
+    "W",
+    # isort
+    "I",
+    # pylint
+    "PL",
+
+]
+ignore = [
+    "PLC0415", # `import` should be at the top-level of a file
+    "PLC1901", # ... can be simplified to `...` as an empty string is falsey
+    "PLR0904", # Too many public methods
+    "PLR0911", # Too many return statements
+    "PLR0912", # Too many branches
+    "PLR0913", # Too many arguments
+    "PLR0915", # Too many statements
+    "PLR0917", # Too many positional arguments
+    "PLR1704", # Redefining argument with the local name
+    "PLR2004", # Magic value used in comparison
+    "PLR5501", # Use `elif` instead of `else` then `if`, to reduce indentation
+    "PLR6201", # Use a `set` literal when testing for membership
+    "PLR6301", # Method XXX could be a function, class method, or static method
+    "PLW0602", # Using global for %r but no assigment is done
+    "PLW0603", # global-statement
+    "PLW1510", # `subprocess.run` without explicit `check` argument
+    "PLW1514", # `open` in text mode without explicit `encoding` argument
+    "PLW1641", # Object does not implement `__hash__` method
+    "PLW2901", # `for` loop variable `v` overwritten by assignment target
+    "PLW3201", # Bad or misspelled dunder method name
+]
+[tool.ruff.format]
+preview = true
+
+[tool.ruff.lint.isort]
+known-first-party = ["reconcile", "tools"]
+
+
+[tool.mypy]
+files = ["reconcile", "tools", "release", "dockerfiles/hack", "setup.py"]
+plugins = ["pydantic.mypy"]
+# More context here: https://github.com/python/mypy/issues/9091
+# Ensure that methods without type definitions are still checked
+# Ensure that ignore statements that are no longer doing anything are detected for cleanup
+# Enable error codes in Mypy so that specific error codes can be ignored if needed
+# Ensure that Python type hints have been defined
+enable_error_code = ["truthy-bool", "redundant-expr"]
+no_implicit_optional = true
+check_untyped_defs = true
+warn_unused_ignores = true
+show_error_codes = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+
+[[tool.mypy.overrides]]
+# Untyped modules
+module = [
+    "reconcile.aws_ami_share",
+    "reconcile.aws_ecr_image_pull_secrets",
+    "reconcile.aws_garbage_collector",
+    "reconcile.aws_iam_keys",
+    "reconcile.aws_iam_password_reset",
+    "reconcile.aws_support_cases_sos",
+    "reconcile.cli",
+    "reconcile.closedbox_endpoint_monitoring_base",
+    "reconcile.cna.client",
+    "reconcile.cna.integration",
+    "reconcile.cna.state",
+    "reconcile.email_sender",
+    "reconcile.gabi_authorized_users",
+    "reconcile.gcr_mirror",
+    "reconcile.github_org",
+    "reconcile.github_owners",
+    "reconcile.github_repo_invites",
+    "reconcile.github_repo_permissions_validator",
+    "reconcile.github_users",
+    "reconcile.github_validator",
+    "reconcile.gitlab_fork_compliance",
+    "reconcile.gitlab_housekeeping",
+    "reconcile.gitlab_labeler",
+    "reconcile.gitlab_mr_sqs_consumer",
+    "reconcile.gitlab_owners",
+    "reconcile.gitlab_permissions",
+    "reconcile.gitlab_projects",
+    "reconcile.integrations_manager",
+    "reconcile.jenkins_base",
+    "reconcile.jenkins_job_builder",
+    "reconcile.jenkins_job_builds_cleaner",
+    "reconcile.jenkins_job_cleaner",
+    "reconcile.jenkins_roles",
+    "reconcile.jenkins_webhooks_cleaner",
+    "reconcile.jenkins_webhooks",
+    "reconcile.jira_watcher",
+    "reconcile.ldap_users",
+    "reconcile.mr_client_gateway",
+    "reconcile.ocm_additional_routers",
+    "reconcile.ocm_addons",
+    "reconcile.ocm_aws_infrastructure_access",
+    "reconcile.ocm_clusters",
+    "reconcile.ocm_external_configuration_labels",
+    "reconcile.ocm_github_idp",
+    "reconcile.ocm_groups",
+    "reconcile.ocm_machine_pools",
+    "reconcile.ocm_upgrade_scheduler_org_updater",
+    "reconcile.openshift_base",
+    "reconcile.openshift_clusterrolebindings",
+    "reconcile.openshift_limitranges",
+    "reconcile.openshift_namespace_labels",
+    "reconcile.openshift_network_policies",
+    "reconcile.openshift_resourcequotas",
+    "reconcile.openshift_resources_base",
+    "reconcile.openshift_resources",
+    "reconcile.openshift_rolebindings",
+    "reconcile.openshift_routes",
+    "reconcile.openshift_serviceaccount_tokens",
+    "reconcile.openshift_vault_secrets",
+    "reconcile.quay_base",
+    "reconcile.quay_membership",
+    "reconcile.quay_mirror_org",
+    "reconcile.quay_mirror",
+    "reconcile.quay_permissions",
+    "reconcile.quay_repos",
+    "reconcile.queries",
+    "reconcile.query_validator",
+    "reconcile.requests_sender",
+    "reconcile.sendgrid_teammates",
+    "reconcile.service_dependencies",
+    "reconcile.sql_query",
+    "reconcile.status_page_components",
+    "reconcile.status",
+    "reconcile.statuspage.atlassian",
+    "reconcile.template_tester",
+    "reconcile.terraform_aws_route53",
+    "reconcile.terraform_cloudflare_resources",
+    "reconcile.terraform_users",
+    "reconcile.terraform_vpc_peerings",
+    "reconcile.utils.aggregated_list",
+    "reconcile.utils.aws_api",
+    "reconcile.utils.aws_helper",
+    "reconcile.utils.binary",
+    "reconcile.utils.config",
+    "reconcile.utils.data_structures",
+    "reconcile.utils.defer",
+    "reconcile.utils.dnsutils",
+    "reconcile.utils.elasticsearch_exceptions",
+    "reconcile.utils.environ",
+    "reconcile.utils.exceptions",
+    "reconcile.utils.git_secrets",
+    "reconcile.utils.git",
+    "reconcile.utils.gitlab_api",
+    "reconcile.utils.gpg",
+    "reconcile.utils.gql",
+    "reconcile.utils.helpers",
+    "reconcile.utils.imap_client",
+    "reconcile.utils.instrumented_wrappers",
+    "reconcile.utils.jenkins_api",
+    "reconcile.utils.jinja2_ext",
+    "reconcile.utils.jjb_client",
+    "reconcile.utils.ldap_client",
+    "reconcile.utils.lean_terraform_client",
+    "reconcile.utils.mr.app_interface_reporter",
+    "reconcile.utils.mr.aws_access",
+    "reconcile.utils.mr.base",
+    "reconcile.utils.mr.clusters_updates",
+    "reconcile.utils.mr.ocm_upgrade_scheduler_org_updates",
+    "reconcile.utils.mr.user_maintenance",
+    "reconcile.utils.mr",
+    "reconcile.utils.oc",
+    "reconcile.utils.ocm_base_client",
+    "reconcile.utils.ocm.ocm",
+    "reconcile.utils.openshift_resource",
+    "reconcile.utils.openssl",
+    "reconcile.utils.output",
+    "reconcile.utils.password_validator",
+    "reconcile.utils.quay_api",
+    "reconcile.utils.raw_github_api",
+    "reconcile.utils.repo_owners",
+    "reconcile.utils.runtime.meta",
+    "reconcile.utils.sharding",
+    "reconcile.utils.sqs_gateway",
+    "reconcile.utils.state",
+    "reconcile.utils.statuspage.atlassian",
+    "reconcile.utils.statuspage.models",
+    "reconcile.utils.structs",
+    "reconcile.utils.template",
+    "reconcile.utils.terraform_client",
+    "reconcile.utils.terrascript_aws_client",
+    "reconcile.utils.throughput",
+    "reconcile.utils.unleash",
+    "reconcile.utils.vault",
+    "reconcile.utils.vaultsecretref",
+    "reconcile.vpc_peerings_validator",
+    "tools.app_interface_reporter",
+    "tools.cli_commands.gpg_encrypt",
+    "tools.cli_commands.test.test_gpg_encrypt",
+    "tools.qontract_cli",
+    "tools.sre_checkpoints.util",
+    # untyped tests
+    "reconcile.test.cna.test_integration",
+    "reconcile.test.cna.test_state_assembly",
+    "reconcile.test.cna.test_state_diff",
+    "reconcile.test.cna.test_state_overrides",
+    "reconcile.test.conftest",
+    "reconcile.test.fixtures",
+    "reconcile.test.oc.test_oc_connection_parameters",
+    "reconcile.test.oc.test_oc_map",
+    "reconcile.test.ocm_labels.test_ocm_labels_integration",
+    "reconcile.test.runtime.demo_integration_early_exit",
+    "reconcile.test.runtime.test_utils_desired_state_diff",
+    "reconcile.test.runtime.test_utils_integration",
+    "reconcile.test.runtime.test_utils_runtime_environment",
+    "reconcile.test.runtime.test_utils_runtime_runner",
+    "reconcile.test.saas_auto_promotions_manager.merge_request_manager.merge_request_manager.conftest",
+    "reconcile.test.saas_auto_promotions_manager.merge_request_manager.merge_request_manager.test_housekeeping",
+    "reconcile.test.saas_auto_promotions_manager.merge_request_manager.merge_request_manager.test_merge_request_manager",
+    "reconcile.test.saas_auto_promotions_manager.merge_request_manager.renderer.test_content_multiple_namespaces",
+    "reconcile.test.saas_auto_promotions_manager.merge_request_manager.renderer.test_content_single_namespace",
+    "reconcile.test.saas_auto_promotions_manager.merge_request_manager.renderer.test_content_single_target",
+    "reconcile.test.saas_auto_promotions_manager.merge_request_manager.renderer.test_json_path_selector",
+    "reconcile.test.saas_auto_promotions_manager.subscriber.test_content_hash",
+    "reconcile.test.saas_auto_promotions_manager.subscriber.test_multiple_channels_config_hash",
+    "reconcile.test.saas_auto_promotions_manager.subscriber.test_multiple_channels_moving_ref",
+    "reconcile.test.saas_auto_promotions_manager.subscriber.test_multiple_publishers_moving_ref",
+    "reconcile.test.saas_auto_promotions_manager.subscriber.test_single_channel_with_single_publisher",
+    "reconcile.test.saas_auto_promotions_manager.test_integration_test",
+    "reconcile.test.saas_auto_promotions_manager.utils.saas_files_inventory.test_multiple_publishers_for_single_channel",
+    "reconcile.test.saas_auto_promotions_manager.utils.saas_files_inventory.test_saas_files_use_target_config_hash",
+    "reconcile.test.saas_auto_promotions_manager.utils.saas_files_inventory.test_saas_files_with_auto_promote",
+    "reconcile.test.saas_auto_promotions_manager.utils.saas_files_inventory.test_saas_files_without_auto_promote",
+    "reconcile.test.statuspage.fixtures",
+    "reconcile.test.statuspage.test_statuspage_atlassian",
+    "reconcile.test.statuspage.test_statuspage_page",
+    "reconcile.test.statuspage.test_statuspage_state",
+    "reconcile.test.statuspage.test_statuspage_status",
+    "reconcile.test.test_acs_rbac",
+    "reconcile.test.test_aggregated_list",
+    "reconcile.test.test_aws_ami_share",
+    "reconcile.test.test_aws_iam_keys",
+    "reconcile.test.test_aws_iam_password_reset",
+    "reconcile.test.test_aws_support_cases_sos",
+    "reconcile.test.test_checkpoint",
+    "reconcile.test.test_cli",
+    "reconcile.test.test_closedbox_endpoint_monitoring",
+    "reconcile.test.test_dashdotdb_dora",
+    "reconcile.test.test_database_access_manager",
+    "reconcile.test.test_github_org",
+    "reconcile.test.test_github_repo_invites",
+    "reconcile.test.test_gitlab_housekeeping",
+    "reconcile.test.test_gitlab_labeler",
+    "reconcile.test.test_gitlab_members",
+    "reconcile.test.test_instrumented_wrappers",
+    "reconcile.test.test_integrations_manager",
+    "reconcile.test.test_jenkins_worker_fleets",
+    "reconcile.test.test_jump_host",
+    "reconcile.test.test_ldap_users",
+    "reconcile.test.test_make",
+    "reconcile.test.test_ocm_additional_routers",
+    "reconcile.test.test_ocm_clusters_manifest_updates",
+    "reconcile.test.test_ocm_clusters",
+    "reconcile.test.test_ocm_machine_pools",
+    "reconcile.test.test_ocm_update_recommended_version",
+    "reconcile.test.test_ocm_upgrade_scheduler_org_updater",
+    "reconcile.test.test_openshift_base",
+    "reconcile.test.test_openshift_namespace_labels",
+    "reconcile.test.test_openshift_namespaces",
+    "reconcile.test.test_openshift_resource",
+    "reconcile.test.test_openshift_resources_base",
+    "reconcile.test.test_openshift_saas_deploy_change_tester",
+    "reconcile.test.test_openshift_saas_deploy",
+    "reconcile.test.test_openshift_upgrade_watcher",
+    "reconcile.test.test_prometheus_rules_tester",
+    "reconcile.test.test_quay_membership",
+    "reconcile.test.test_quay_mirror_org",
+    "reconcile.test.test_quay_mirror",
+    "reconcile.test.test_quay_repos",
+    "reconcile.test.test_repo_owners",
+    "reconcile.test.test_requests_sender",
+    "reconcile.test.test_saasherder_allowed_secret_paths",
+    "reconcile.test.test_secret_reader",
+    "reconcile.test.test_slack_base",
+    "reconcile.test.test_slack_usergroups",
+    "reconcile.test.test_sql_query",
+    "reconcile.test.test_terraform_cloudflare_dns",
+    "reconcile.test.test_terraform_cloudflare_resources",
+    "reconcile.test.test_terraform_cloudflare_users",
+    "reconcile.test.test_terraform_repo",
+    "reconcile.test.test_terraform_resources",
+    "reconcile.test.test_terraform_users",
+    "reconcile.test.test_terraform_vpc_peerings_build_desired_state",
+    "reconcile.test.test_terraform_vpc_peerings",
+    "reconcile.test.test_three_way_diff_strategy",
+    "reconcile.test.test_typed_queries.conftest",
+    "reconcile.test.test_typed_queries.test_clusters_with_peering",
+    "reconcile.test.test_typed_queries.test_status_board",
+    "reconcile.test.test_unleash",
+    "reconcile.test.test_vault_replication",
+    "reconcile.test.test_vault_utils",
+    "reconcile.test.test_version_bump",
+    "reconcile.test.test_vpc_peerings_validator",
+    "reconcile.test.test_wrong_region",
+    "reconcile.test.utils.internal_groups.test_internal_groups_client",
+    "reconcile.test.utils.test_aws_api",
+    "reconcile.test.utils.test_aws_helper",
+    "reconcile.test.utils.test_aws_rds",
+    "reconcile.test.utils.test_data_structures",
+    "reconcile.test.utils.test_expiration",
+    "reconcile.test.utils.test_external_resource_spec",
+    "reconcile.test.utils.test_external_resources",
+    "reconcile.test.utils.test_github_api",
+    "reconcile.test.utils.test_gitlab_api",
+    "reconcile.test.utils.test_gpg",
+    "reconcile.test.utils.test_gql",
+    "reconcile.test.utils.test_grouping",
+    "reconcile.test.utils.test_helm",
+    "reconcile.test.utils.test_helpers",
+    "reconcile.test.utils.test_imap_client",
+    "reconcile.test.utils.test_jira_client",
+    "reconcile.test.utils.test_jjb_client",
+    "reconcile.test.utils.test_jsonpath",
+    "reconcile.test.utils.test_models",
+    "reconcile.test.utils.test_mr_clusters_updates",
+    "reconcile.test.utils.test_mr",
+    "reconcile.test.utils.test_oc",
+    "reconcile.test.utils.test_ocm",
+    "reconcile.test.utils.test_pagerduty_api",
+    "reconcile.test.utils.test_parse_dhms_duration",
+    "reconcile.test.utils.test_password_validator",
+    "reconcile.test.utils.test_promotion_state",
+    "reconcile.test.utils.test_quay_api",
+    "reconcile.test.utils.test_semver_helper",
+    "reconcile.test.utils.test_sharding",
+    "reconcile.test.utils.test_slack_api",
+    "reconcile.test.utils.test_smtp_client",
+    "reconcile.test.utils.test_state",
+    "reconcile.test.utils.test_terraform_client",
+    "reconcile.test.utils.test_terraform_config_client",
+    "reconcile.test.utils.test_terraform",
+    "reconcile.test.utils.test_terrascript_aws_client",
+    "reconcile.test.utils.test_terrascript_cloudflare_client",
+    "reconcile.test.utils.test_terrascript_cloudflare_resources",
+    "tools.test.test_qontract_cli",
+    "tools.test.test_sd_app_sre_alert_report",
+    "tools.test.test_sre_checkpoints",
+]
+check_untyped_defs = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+
+[[tool.mypy.overrides]]
+# Below are all of the packages that don't implement stub packages. Mypy will throw an error if we don't ignore the
+# missing imports. See: https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+module = [
+    "anymarkup.*",
+    "deepdiff.*",
+    "dns.*",
+    "dynatrace.*",
+    "filetype.*",
+    "github.*",
+    "gitlab.*",
+    "graphqlclient.*",
+    "httpretty.*",
+    "hvac.*",
+    "jenkins_jobs.*",
+    "jira.*",
+    "jsonpath_ng.*",
+    "kubernetes.*",
+    "moto.*",
+    "networkx.*",
+    "openshift.*",
+    "parse.*",
+    "prometheus_client.*",
+    "pygments.*",
+    "pypd.*",
+    "pytest_mock.*",
+    "pytest.*",
+    "python_terraform.*",
+    "responses.*",
+    "ruamel.*",
+    "semver.*",
+    "sendgrid.*",
+    "sentry_sdk.*",
+    "sretoolbox.*",
+    "sshtunnel.*",
+    "terrascript.*",
+    "testslide.*",
+    "UnleashClient.*",
+    "urllib3.*",
+]
+ignore_missing_imports = true

@@ -35,8 +35,8 @@ query SlackUsergroupCluster {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ClusterAuthV1(ConfiguredBaseModel):

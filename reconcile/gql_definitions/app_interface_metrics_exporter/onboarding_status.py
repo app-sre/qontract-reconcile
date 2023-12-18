@@ -30,8 +30,8 @@ query OnboardingStatus {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AppV1(ConfiguredBaseModel):

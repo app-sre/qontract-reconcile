@@ -17,9 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
-)
+from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -110,8 +108,8 @@ query Projects {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class GlitchtipOrganizationV1(ConfiguredBaseModel):
@@ -129,9 +127,7 @@ class UserV1(ConfiguredBaseModel):
 
 
 class RoleV1(ConfiguredBaseModel):
-    glitchtip_roles: Optional[list[GlitchtipRoleV1]] = Field(
-        ..., alias="glitchtip_roles"
-    )
+    glitchtip_roles: Optional[list[GlitchtipRoleV1]] = Field(..., alias="glitchtip_roles")
     users: list[UserV1] = Field(..., alias="users")
 
 
@@ -139,9 +135,7 @@ class GlitchtipTeamV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     roles: list[RoleV1] = Field(..., alias="roles")
     ldap_groups: Optional[list[str]] = Field(..., alias="ldapGroups")
-    members_organization_role: Optional[str] = Field(
-        ..., alias="membersOrganizationRole"
-    )
+    members_organization_role: Optional[str] = Field(..., alias="membersOrganizationRole")
 
 
 class GlitchtipInstanceV1(ConfiguredBaseModel):
@@ -169,9 +163,7 @@ class ClusterV1(ConfiguredBaseModel):
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
-    cluster_admin_automation_token: Optional[VaultSecret] = Field(
-        ..., alias="clusterAdminAutomationToken"
-    )
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
@@ -192,17 +184,13 @@ class GlitchtipProjectsV1(ConfiguredBaseModel):
     platform: str = Field(..., alias="platform")
     project_id: Optional[str] = Field(..., alias="projectId")
     teams: list[GlitchtipTeamV1] = Field(..., alias="teams")
-    organization: GlitchtipProjectsV1_GlitchtipOrganizationV1 = Field(
-        ..., alias="organization"
-    )
+    organization: GlitchtipProjectsV1_GlitchtipOrganizationV1 = Field(..., alias="organization")
     namespaces: list[NamespaceV1] = Field(..., alias="namespaces")
     app: Optional[AppV1] = Field(..., alias="app")
 
 
 class ProjectsQueryData(ConfiguredBaseModel):
-    glitchtip_projects: Optional[list[GlitchtipProjectsV1]] = Field(
-        ..., alias="glitchtip_projects"
-    )
+    glitchtip_projects: Optional[list[GlitchtipProjectsV1]] = Field(..., alias="glitchtip_projects")
 
 
 def query(query_func: Callable, **kwargs: Any) -> ProjectsQueryData:

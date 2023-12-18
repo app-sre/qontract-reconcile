@@ -33,8 +33,8 @@ query OcmOrganizations {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class OpenShiftClusterManagerEnvironmentV1(ConfiguredBaseModel):
@@ -48,9 +48,7 @@ class OpenShiftClusterManagerV1(ConfiguredBaseModel):
 
 
 class OcmOrganizationsQueryData(ConfiguredBaseModel):
-    organizations: Optional[list[OpenShiftClusterManagerV1]] = Field(
-        ..., alias="organizations"
-    )
+    organizations: Optional[list[OpenShiftClusterManagerV1]] = Field(..., alias="organizations")
 
 
 def query(query_func: Callable, **kwargs: Any) -> OcmOrganizationsQueryData:

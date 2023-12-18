@@ -27,7 +27,7 @@ class CodeComponents:
 
 
 def _parse_code_components(
-    raw: Optional[Iterable[Mapping[str, Any]]]
+    raw: Optional[Iterable[Mapping[str, Any]]],
 ) -> CodeComponents:
     urls = set()
     known_orgs = set()

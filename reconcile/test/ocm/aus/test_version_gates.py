@@ -61,23 +61,19 @@ def cluster_version_gate_agreement_4_13_ocp(
     version_gate_4_13_ocp: dict[str, Any],
 ) -> str:
     gate_agreement_id = "cluster-1-4-13-ocp"
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri=f"/api/clusters_mgmt/v1/clusters/{cluster.id}/gate_agreements",
-            ).add_list_response(
-                [
-                    {
-                        "kind": "VersionGateAgreement",
-                        "id": gate_agreement_id,
-                        "href": f"/api/clusters_mgmt/v1/clusters/{cluster.id}/gate_agreements/{gate_agreement_id}",
-                        "version_gate": version_gate_4_13_ocp,
-                    }
-                ]
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri=f"/api/clusters_mgmt/v1/clusters/{cluster.id}/gate_agreements",
+        ).add_list_response([
+            {
+                "kind": "VersionGateAgreement",
+                "id": gate_agreement_id,
+                "href": f"/api/clusters_mgmt/v1/clusters/{cluster.id}/gate_agreements/{gate_agreement_id}",
+                "version_gate": version_gate_4_13_ocp,
+            }
+        ])
+    ])
     return gate_agreement_id
 
 
@@ -88,23 +84,19 @@ def cluster_version_gate_agreement_4_13_sts(
     version_gate_4_13_sts: dict[str, Any],
 ) -> str:
     gate_agreement_id = "cluster-1-4-13-sts"
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri=f"/api/clusters_mgmt/v1/clusters/{cluster.id}/gate_agreements",
-            ).add_list_response(
-                [
-                    {
-                        "kind": "VersionGateAgreement",
-                        "id": gate_agreement_id,
-                        "href": f"/api/clusters_mgmt/v1/clusters/{cluster.id}/gate_agreements/{gate_agreement_id}",
-                        "version_gate": version_gate_4_13_sts,
-                    }
-                ]
-            )
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri=f"/api/clusters_mgmt/v1/clusters/{cluster.id}/gate_agreements",
+        ).add_list_response([
+            {
+                "kind": "VersionGateAgreement",
+                "id": gate_agreement_id,
+                "href": f"/api/clusters_mgmt/v1/clusters/{cluster.id}/gate_agreements/{gate_agreement_id}",
+                "version_gate": version_gate_4_13_sts,
+            }
+        ])
+    ])
     return gate_agreement_id
 
 
@@ -115,14 +107,12 @@ def cluster_version_gate_agreement_none(
     version_gate_4_13_sts: dict[str, Any],
 ) -> str:
     gate_agreement_id = "cluster-1-4-13-sts"
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET",
-                uri=f"/api/clusters_mgmt/v1/clusters/{cluster.id}/gate_agreements",
-            ).add_list_response([])
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri=f"/api/clusters_mgmt/v1/clusters/{cluster.id}/gate_agreements",
+        ).add_list_response([])
+    ])
     return gate_agreement_id
 
 

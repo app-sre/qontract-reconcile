@@ -47,8 +47,8 @@ query QuayMembership {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class PermissionV1(ConfiguredBaseModel):
@@ -85,9 +85,7 @@ class PermissionQuayOrgTeamV1(PermissionV1):
 
 
 class QuayMembershipQueryData(ConfiguredBaseModel):
-    permissions: list[Union[PermissionQuayOrgTeamV1, PermissionV1]] = Field(
-        ..., alias="permissions"
-    )
+    permissions: list[Union[PermissionQuayOrgTeamV1, PermissionV1]] = Field(..., alias="permissions")
 
 
 def query(query_func: Callable, **kwargs: Any) -> QuayMembershipQueryData:

@@ -274,13 +274,11 @@ def test_get_inventory_count_combinations():
     ] = ExternalResourceSpec("pp3", {}, {}, {})
 
     count_combinations = uer.get_inventory_count_combinations(inventory)
-    expected_count_combinations = Counter(
-        {
-            ("pp1", "pn1", "rds"): 2,
-            ("pp2", "pn2", "rds"): 1,
-            ("pp2", "pn3", "s3"): 1,
-            ("pp3", "pn4", "s3"): 1,
-            ("pp3", "pn4", "asg"): 1,
-        }
-    )
+    expected_count_combinations = Counter({
+        ("pp1", "pn1", "rds"): 2,
+        ("pp2", "pn2", "rds"): 1,
+        ("pp2", "pn3", "s3"): 1,
+        ("pp3", "pn4", "s3"): 1,
+        ("pp3", "pn4", "asg"): 1,
+    })
     assert expected_count_combinations == count_combinations

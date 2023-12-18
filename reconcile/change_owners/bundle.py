@@ -160,8 +160,7 @@ class FileDiffResolver(Protocol):
     @abstractmethod
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
-        ...
+    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]: ...
 
 
 @dataclass

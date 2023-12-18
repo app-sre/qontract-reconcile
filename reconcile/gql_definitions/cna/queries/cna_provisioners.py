@@ -62,8 +62,8 @@ query CNAProvisioners {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class OpenShiftClusterManagerV1(ConfiguredBaseModel):
@@ -71,9 +71,7 @@ class OpenShiftClusterManagerV1(ConfiguredBaseModel):
     org_id: str = Field(..., alias="orgId")
     access_token_url: Optional[str] = Field(..., alias="accessTokenUrl")
     access_token_client_id: Optional[str] = Field(..., alias="accessTokenClientId")
-    access_token_client_secret: Optional[VaultSecret] = Field(
-        ..., alias="accessTokenClientSecret"
-    )
+    access_token_client_secret: Optional[VaultSecret] = Field(..., alias="accessTokenClientSecret")
     environment: OCMEnvironment = Field(..., alias="environment")
 
 
@@ -84,9 +82,7 @@ class CNAExperimentalProvisionerV1(ConfiguredBaseModel):
 
 
 class CNAProvisionersQueryData(ConfiguredBaseModel):
-    cna_provisioners: Optional[list[CNAExperimentalProvisionerV1]] = Field(
-        ..., alias="cna_provisioners"
-    )
+    cna_provisioners: Optional[list[CNAExperimentalProvisionerV1]] = Field(..., alias="cna_provisioners")
 
 
 def query(query_func: Callable, **kwargs: Any) -> CNAProvisionersQueryData:

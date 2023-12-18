@@ -30,24 +30,20 @@ def delete_skupper_site(
 
     for kind in integration_managed_kinds:
         # delete everything labeled by us
-        to_delete.update(
-            {
-                f'{item["kind"]}-{item["metadata"]["name"]}': item
-                for item in oc.get_items(
-                    kind=kind,
-                    namespace=site.namespace.name,
-                    labels=labels,
-                )
-            }
-        )
+        to_delete.update({
+            f'{item["kind"]}-{item["metadata"]["name"]}': item
+            for item in oc.get_items(
+                kind=kind,
+                namespace=site.namespace.name,
+                labels=labels,
+            )
+        })
         # delete everything else that starts with 'skupper-'
-        to_delete.update(
-            {
-                f'{item["kind"]}-{item["metadata"]["name"]}': item
-                for item in oc.get_items(kind=kind, namespace=site.namespace.name)
-                if item["metadata"]["name"].startswith("skupper-")
-            }
-        )
+        to_delete.update({
+            f'{item["kind"]}-{item["metadata"]["name"]}': item
+            for item in oc.get_items(kind=kind, namespace=site.namespace.name)
+            if item["metadata"]["name"].startswith("skupper-")
+        })
 
     for item in to_delete.values():
         qontract_integration = (
@@ -57,15 +53,13 @@ def delete_skupper_site(
             # don't delete resources managed by other integrations
             continue
 
-        logging.info(
-            [
-                "delete",
-                site.cluster.name,
-                site.namespace.name,
-                item["kind"],
-                item["metadata"]["name"],
-            ]
-        )
+        logging.info([
+            "delete",
+            site.cluster.name,
+            site.namespace.name,
+            item["kind"],
+            item["metadata"]["name"],
+        ])
         if not dry_run:
             oc.delete(site.namespace.name, item["kind"], item["metadata"]["name"])
 
@@ -140,15 +134,13 @@ def _transfer_token(
         integration_version=integration_version,
     ).annotate()
     if not dry_run:
-        logging.info(
-            [
-                "apply",
-                site.cluster.name,
-                site.namespace.name,
-                "Secret",
-                connection_token.name,
-            ]
-        )
+        logging.info([
+            "apply",
+            site.cluster.name,
+            site.namespace.name,
+            "Secret",
+            connection_token.name,
+        ])
         oc.apply(site.namespace.name, connection_token)
 
 

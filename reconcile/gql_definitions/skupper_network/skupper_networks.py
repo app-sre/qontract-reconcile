@@ -17,12 +17,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
-)
-from reconcile.gql_definitions.skupper_network.site_controller_template import (
-    SkupperSiteControllerTemplate,
-)
+from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
+from reconcile.gql_definitions.skupper_network.site_controller_template import SkupperSiteControllerTemplate
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -110,15 +106,13 @@ query SkupperNetworks {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class NamespaceSkupperSiteConfigV1(ConfiguredBaseModel):
     delete: Optional[bool] = Field(..., alias="delete")
-    site_controller_templates: Optional[list[SkupperSiteControllerTemplate]] = Field(
-        ..., alias="siteControllerTemplates"
-    )
+    site_controller_templates: Optional[list[SkupperSiteControllerTemplate]] = Field(..., alias="siteControllerTemplates")
 
 
 class ClusterSpecV1(ConfiguredBaseModel):
@@ -138,9 +132,7 @@ class ClusterPeeringConnectionClusterRequesterV1_ClusterV1(ConfiguredBaseModel):
 
 
 class ClusterPeeringConnectionClusterRequesterV1(ClusterPeeringConnectionV1):
-    cluster: ClusterPeeringConnectionClusterRequesterV1_ClusterV1 = Field(
-        ..., alias="cluster"
-    )
+    cluster: ClusterPeeringConnectionClusterRequesterV1_ClusterV1 = Field(..., alias="cluster")
 
 
 class ClusterPeeringConnectionClusterAccepterV1_ClusterV1(ConfiguredBaseModel):
@@ -148,19 +140,11 @@ class ClusterPeeringConnectionClusterAccepterV1_ClusterV1(ConfiguredBaseModel):
 
 
 class ClusterPeeringConnectionClusterAccepterV1(ClusterPeeringConnectionV1):
-    cluster: ClusterPeeringConnectionClusterAccepterV1_ClusterV1 = Field(
-        ..., alias="cluster"
-    )
+    cluster: ClusterPeeringConnectionClusterAccepterV1_ClusterV1 = Field(..., alias="cluster")
 
 
 class ClusterPeeringV1(ConfiguredBaseModel):
-    connections: list[
-        Union[
-            ClusterPeeringConnectionClusterRequesterV1,
-            ClusterPeeringConnectionClusterAccepterV1,
-            ClusterPeeringConnectionV1,
-        ]
-    ] = Field(..., alias="connections")
+    connections: list[Union[ClusterPeeringConnectionClusterRequesterV1, ClusterPeeringConnectionClusterAccepterV1, ClusterPeeringConnectionV1]] = Field(..., alias="connections")
 
 
 class ClusterV1(ConfiguredBaseModel):
@@ -170,9 +154,7 @@ class ClusterV1(ConfiguredBaseModel):
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
-    cluster_admin_automation_token: Optional[VaultSecret] = Field(
-        ..., alias="clusterAdminAutomationToken"
-    )
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
     peering: Optional[ClusterPeeringV1] = Field(..., alias="peering")
@@ -181,25 +163,19 @@ class ClusterV1(ConfiguredBaseModel):
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     delete: Optional[bool] = Field(..., alias="delete")
-    skupper_site: Optional[NamespaceSkupperSiteConfigV1] = Field(
-        ..., alias="skupperSite"
-    )
+    skupper_site: Optional[NamespaceSkupperSiteConfigV1] = Field(..., alias="skupperSite")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 
 class SkupperNetworkV1(ConfiguredBaseModel):
     identifier: str = Field(..., alias="identifier")
-    site_controller_templates: list[SkupperSiteControllerTemplate] = Field(
-        ..., alias="siteControllerTemplates"
-    )
+    site_controller_templates: list[SkupperSiteControllerTemplate] = Field(..., alias="siteControllerTemplates")
     namespaces: list[NamespaceV1] = Field(..., alias="namespaces")
 
 
 class SkupperNetworksQueryData(ConfiguredBaseModel):
-    skupper_networks: Optional[list[SkupperNetworkV1]] = Field(
-        ..., alias="skupper_networks"
-    )
+    skupper_networks: Optional[list[SkupperNetworkV1]] = Field(..., alias="skupper_networks")
 
 
 def query(query_func: Callable, **kwargs: Any) -> SkupperNetworksQueryData:

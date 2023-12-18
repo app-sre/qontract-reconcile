@@ -28,8 +28,7 @@ class StatusProvider(ABC):
     """
 
     @abstractmethod
-    def get_status(self) -> Optional[str]:
-        ...
+    def get_status(self) -> Optional[str]: ...
 
 
 class ManualStatusProvider(StatusProvider, BaseModel):

@@ -547,12 +547,10 @@ def osd_cluster_with_default_and_new_machine_pools(
     default_worker_machine_pool: dict,
     new_workers_machine_pool: dict,
 ) -> ClusterV1:
-    return osd_cluster_builder(
-        [
-            default_worker_machine_pool,
-            new_workers_machine_pool,
-        ]
-    )
+    return osd_cluster_builder([
+        default_worker_machine_pool,
+        new_workers_machine_pool,
+    ])
 
 
 @pytest.fixture
@@ -561,12 +559,10 @@ def rosa_cluster_with_default_and_new_machine_pools(
     default_worker_machine_pool: dict,
     new_workers_machine_pool: dict,
 ) -> ClusterV1:
-    return rosa_cluster_builder(
-        [
-            default_worker_machine_pool,
-            new_workers_machine_pool,
-        ]
-    )
+    return rosa_cluster_builder([
+        default_worker_machine_pool,
+        new_workers_machine_pool,
+    ])
 
 
 @pytest.fixture

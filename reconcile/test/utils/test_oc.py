@@ -328,9 +328,10 @@ class TestValidateLabels(TestCase):
         key_prefix = "b@d." + longstr + ".com"
         key_name = "b@d-" + longstr
         value = "b@d-" + longstr
-        r = validate_labels(
-            {f"{key_prefix}/{key_name}": value, "kubernetes.io/b@d": value}
-        )
+        r = validate_labels({
+            f"{key_prefix}/{key_name}": value,
+            "kubernetes.io/b@d": value,
+        })
         self.assertEqual(len(r), 10)
 
 

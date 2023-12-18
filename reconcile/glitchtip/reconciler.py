@@ -35,9 +35,12 @@ class GlitchtipReconciler:
             equal=lambda p1, p2: not p1.diff(p2),
         )
         for project in project_diff.delete.values():
-            logging.info(
-                ["delete_project", organization_slug, project.name, self.client.host]
-            )
+            logging.info([
+                "delete_project",
+                organization_slug,
+                project.name,
+                self.client.host,
+            ])
             del organization_projects[organization_projects.index(project)]
             if not self.dry_run:
                 self.client.delete_project(
@@ -46,9 +49,12 @@ class GlitchtipReconciler:
                 )
 
         for project in project_diff.add.values():
-            logging.info(
-                ["create_project", organization_slug, project.name, self.client.host]
-            )
+            logging.info([
+                "create_project",
+                organization_slug,
+                project.name,
+                self.client.host,
+            ])
             if not self.dry_run:
                 new_project = self.client.create_project(
                     organization_slug=organization_slug,
@@ -62,9 +68,12 @@ class GlitchtipReconciler:
             organization_projects.append(new_project)
 
         for project in (p.desired for p in project_diff.change.values()):
-            logging.info(
-                ["update_project", organization_slug, project.name, self.client.host]
-            )
+            logging.info([
+                "update_project",
+                organization_slug,
+                project.name,
+                self.client.host,
+            ])
             if not self.dry_run:
                 updated_project = self.client.update_project(
                     organization_slug=organization_slug,
@@ -82,15 +91,13 @@ class GlitchtipReconciler:
             ]
 
             for team in set(current_project.teams).difference(desired_project.teams):
-                logging.info(
-                    [
-                        "remove_project_from_team",
-                        organization_slug,
-                        team.slug,
-                        desired_project.slug,
-                        self.client.host,
-                    ]
-                )
+                logging.info([
+                    "remove_project_from_team",
+                    organization_slug,
+                    team.slug,
+                    desired_project.slug,
+                    self.client.host,
+                ])
                 del current_project.teams[current_project.teams.index(team)]
                 if not self.dry_run:
                     self.client.remove_project_from_team(
@@ -107,15 +114,13 @@ class GlitchtipReconciler:
                     )
                     continue
 
-                logging.info(
-                    [
-                        "add_project_to_team",
-                        organization_slug,
-                        org_team.slug,
-                        current_project.slug,
-                        self.client.host,
-                    ]
-                )
+                logging.info([
+                    "add_project_to_team",
+                    organization_slug,
+                    org_team.slug,
+                    current_project.slug,
+                    self.client.host,
+                ])
                 current_project.teams.append(team)
                 if not self.dry_run:
                     self.client.add_project_to_team(
@@ -138,18 +143,24 @@ class GlitchtipReconciler:
         """
         organization_teams = list(current_teams)
         for team in set(current_teams).difference(desired_teams):
-            logging.info(
-                ["delete_team", organization_slug, team.slug, self.client.host]
-            )
+            logging.info([
+                "delete_team",
+                organization_slug,
+                team.slug,
+                self.client.host,
+            ])
             del organization_teams[organization_teams.index(team)]
             if not self.dry_run:
                 self.client.delete_team(
                     organization_slug=organization_slug, slug=team.slug
                 )
         for team in set(desired_teams).difference(current_teams):
-            logging.info(
-                ["create_team", organization_slug, team.slug, self.client.host]
-            )
+            logging.info([
+                "create_team",
+                organization_slug,
+                team.slug,
+                self.client.host,
+            ])
             if not self.dry_run:
                 new_team = self.client.create_team(
                     organization_slug=organization_slug, slug=team.slug
@@ -162,15 +173,13 @@ class GlitchtipReconciler:
             current_team = organization_teams[organization_teams.index(desired_team)]
 
             for user in set(current_team.users).difference(desired_team.users):
-                logging.info(
-                    [
-                        "remove_user_from_team",
-                        organization_slug,
-                        user.email,
-                        desired_team.slug,
-                        self.client.host,
-                    ]
-                )
+                logging.info([
+                    "remove_user_from_team",
+                    organization_slug,
+                    user.email,
+                    desired_team.slug,
+                    self.client.host,
+                ])
                 del current_team.users[current_team.users.index(user)]
                 if not self.dry_run:
                     if user.pk is None:
@@ -181,15 +190,13 @@ class GlitchtipReconciler:
                         user_pk=user.pk,
                     )
             for user in set(desired_team.users).difference(current_team.users):
-                logging.info(
-                    [
-                        "add_user_to_team",
-                        organization_slug,
-                        user.email,
-                        current_team.slug,
-                        self.client.host,
-                    ]
-                )
+                logging.info([
+                    "add_user_to_team",
+                    organization_slug,
+                    user.email,
+                    current_team.slug,
+                    self.client.host,
+                ])
                 current_team.users.append(user)
                 if not self.dry_run:
                     try:
@@ -219,9 +226,12 @@ class GlitchtipReconciler:
         """
         organization_users = list(current_users)
         for user in set(current_users).difference(desired_users):
-            logging.info(
-                ["delete_user", organization_slug, user.email, self.client.host]
-            )
+            logging.info([
+                "delete_user",
+                organization_slug,
+                user.email,
+                self.client.host,
+            ])
             del organization_users[organization_users.index(user)]
             if not self.dry_run:
                 if user.pk is None:
@@ -242,15 +252,13 @@ class GlitchtipReconciler:
         for desired_user in desired_users:
             org_user = organization_users[organization_users.index(desired_user)]
             if desired_user.role != org_user.role:
-                logging.info(
-                    [
-                        "update_user_role",
-                        organization_slug,
-                        desired_user.email,
-                        desired_user.role,
-                        self.client.host,
-                    ]
-                )
+                logging.info([
+                    "update_user_role",
+                    organization_slug,
+                    desired_user.email,
+                    desired_user.role,
+                    self.client.host,
+                ])
                 if not self.dry_run:
                     if org_user.pk is None:
                         continue
@@ -269,9 +277,11 @@ class GlitchtipReconciler:
     ) -> None:
         for desired_org in desired:
             if desired_org not in current:
-                logging.info(
-                    ["create_organization", desired_org.name, self.client.host]
-                )
+                logging.info([
+                    "create_organization",
+                    desired_org.name,
+                    self.client.host,
+                ])
                 if not self.dry_run:
                     current_org = self.client.create_organization(name=desired_org.name)
                 else:

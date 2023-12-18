@@ -18,9 +18,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.aws_vpc import AWSVPC
-from reconcile.gql_definitions.fragments.jumphost_common_fields import (
-    CommonJumphostFields,
-)
+from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -495,8 +493,8 @@ query TerraformResourcesNamespaces {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class ExternalResourcesProvisionerV1(ConfiguredBaseModel):
@@ -512,19 +510,12 @@ class NamespaceTerraformResourceOutputFormatV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
 
 
-class NamespaceTerraformResourceGenericSecretOutputFormatV1(
-    NamespaceTerraformResourceOutputFormatV1
-):
+class NamespaceTerraformResourceGenericSecretOutputFormatV1(NamespaceTerraformResourceOutputFormatV1):
     data: Optional[str] = Field(..., alias="data")
 
 
 class NamespaceTerraformResourceAWSV1(ConfiguredBaseModel):
-    output_format: Optional[
-        Union[
-            NamespaceTerraformResourceGenericSecretOutputFormatV1,
-            NamespaceTerraformResourceOutputFormatV1,
-        ]
-    ] = Field(..., alias="output_format")
+    output_format: Optional[Union[NamespaceTerraformResourceGenericSecretOutputFormatV1, NamespaceTerraformResourceOutputFormatV1]] = Field(..., alias="output_format")
     provider: str = Field(..., alias="provider")
 
 
@@ -553,12 +544,8 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     reset_password: Optional[str] = Field(..., alias="reset_password")
     ca_cert: Optional[VaultSecret] = Field(..., alias="ca_cert")
     annotations: Optional[str] = Field(..., alias="annotations")
-    event_notifications: Optional[list[AWSRDSEventNotificationV1]] = Field(
-        ..., alias="event_notifications"
-    )
-    data_classification: Optional[AWSRDSDataClassificationV1] = Field(
-        ..., alias="data_classification"
-    )
+    event_notifications: Optional[list[AWSRDSEventNotificationV1]] = Field(..., alias="event_notifications")
+    data_classification: Optional[AWSRDSDataClassificationV1] = Field(..., alias="data_classification")
 
 
 class AWSS3EventNotificationV1(ConfiguredBaseModel):
@@ -576,9 +563,7 @@ class NamespaceTerraformResourceS3V1(NamespaceTerraformResourceAWSV1):
     overrides: Optional[str] = Field(..., alias="overrides")
     sqs_identifier: Optional[str] = Field(..., alias="sqs_identifier")
     s3_events: Optional[list[str]] = Field(..., alias="s3_events")
-    event_notifications: Optional[list[AWSS3EventNotificationV1]] = Field(
-        ..., alias="event_notifications"
-    )
+    event_notifications: Optional[list[AWSS3EventNotificationV1]] = Field(..., alias="event_notifications")
     bucket_policy: Optional[str] = Field(..., alias="bucket_policy")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     storage_class: Optional[str] = Field(..., alias="storage_class")
@@ -599,9 +584,7 @@ class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
-class NamespaceTerraformResourceServiceAccountAWSInfrastructureAccessV1(
-    ConfiguredBaseModel
-):
+class NamespaceTerraformResourceServiceAccountAWSInfrastructureAccessV1(ConfiguredBaseModel):
     cluster: Optional[ClusterV1] = Field(..., alias="cluster")
     access_level: Optional[str] = Field(..., alias="access_level")
     assume_role: Optional[str] = Field(..., alias="assume_role")
@@ -614,14 +597,10 @@ class NamespaceTerraformResourceServiceAccountV1(NamespaceTerraformResourceAWSV1
     user_policy: Optional[str] = Field(..., alias="user_policy")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
-    aws_infrastructure_access: Optional[
-        NamespaceTerraformResourceServiceAccountAWSInfrastructureAccessV1
-    ] = Field(..., alias="aws_infrastructure_access")
+    aws_infrastructure_access: Optional[NamespaceTerraformResourceServiceAccountAWSInfrastructureAccessV1] = Field(..., alias="aws_infrastructure_access")
 
 
-class NamespaceTerraformResourceSecretsManagerServiceAccountV1(
-    NamespaceTerraformResourceAWSV1
-):
+class NamespaceTerraformResourceSecretsManagerServiceAccountV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     secrets_prefix: str = Field(..., alias="secrets_prefix")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
@@ -675,9 +654,7 @@ class NamespaceTerraformResourceSNSTopicV1(NamespaceTerraformResourceAWSV1):
     fifo_topic: Optional[bool] = Field(..., alias="fifo_topic")
     inline_policy: Optional[str] = Field(..., alias="inline_policy")
     annotations: Optional[str] = Field(..., alias="annotations")
-    subscriptions: Optional[list[NamespaceTerraformResourceSNSSubscriptionV1]] = Field(
-        ..., alias="subscriptions"
-    )
+    subscriptions: Optional[list[NamespaceTerraformResourceSNSSubscriptionV1]] = Field(..., alias="subscriptions")
 
 
 class DynamoDBTableSpecsV1_KeyValueV1(ConfiguredBaseModel):
@@ -776,9 +753,7 @@ class NamespaceTerraformResourceKinesisV1(NamespaceTerraformResourceAWSV1):
     annotations: Optional[str] = Field(..., alias="annotations")
 
 
-class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(
-    NamespaceTerraformResourceAWSV1
-):
+class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
     secret: Optional[VaultSecret] = Field(..., alias="secret")
@@ -799,27 +774,19 @@ class NamespaceTerraformResourceALBConditionV1(ConfiguredBaseModel):
     q_type: str = Field(..., alias="type")
 
 
-class NamespaceTerraformResourceALBConditionHostHeaderV1(
-    NamespaceTerraformResourceALBConditionV1
-):
+class NamespaceTerraformResourceALBConditionHostHeaderV1(NamespaceTerraformResourceALBConditionV1):
     host_header: list[str] = Field(..., alias="host_header")
 
 
-class NamespaceTerraformResourceALBConditionHTTPRequestMethodV1(
-    NamespaceTerraformResourceALBConditionV1
-):
+class NamespaceTerraformResourceALBConditionHTTPRequestMethodV1(NamespaceTerraformResourceALBConditionV1):
     http_request_method: list[str] = Field(..., alias="http_request_method")
 
 
-class NamespaceTerraformResourceALBConditionPathPatternV1(
-    NamespaceTerraformResourceALBConditionV1
-):
+class NamespaceTerraformResourceALBConditionPathPatternV1(NamespaceTerraformResourceALBConditionV1):
     path_pattern: list[str] = Field(..., alias="path_pattern")
 
 
-class NamespaceTerraformResourceALBConditionSourceIPV1(
-    NamespaceTerraformResourceALBConditionV1
-):
+class NamespaceTerraformResourceALBConditionSourceIPV1(NamespaceTerraformResourceALBConditionV1):
     source_ip: list[str] = Field(..., alias="source_ip")
 
 
@@ -833,17 +800,11 @@ class NamespaceTerraformResourceALBTargetGroupV1(ConfiguredBaseModel):
 
 
 class NamespaceTerraformResourceALBActionForwardSettingsV1(ConfiguredBaseModel):
-    target_group: list[NamespaceTerraformResourceALBTargetGroupV1] = Field(
-        ..., alias="target_group"
-    )
+    target_group: list[NamespaceTerraformResourceALBTargetGroupV1] = Field(..., alias="target_group")
 
 
-class NamespaceTerraformResourceALBActionForwardV1(
-    NamespaceTerraformResourceALBActionV1
-):
-    forward: NamespaceTerraformResourceALBActionForwardSettingsV1 = Field(
-        ..., alias="forward"
-    )
+class NamespaceTerraformResourceALBActionForwardV1(NamespaceTerraformResourceALBActionV1):
+    forward: NamespaceTerraformResourceALBActionForwardSettingsV1 = Field(..., alias="forward")
 
 
 class NamespaceTerraformResourceALBActionFixedResponseSettingsV1(ConfiguredBaseModel):
@@ -852,29 +813,13 @@ class NamespaceTerraformResourceALBActionFixedResponseSettingsV1(ConfiguredBaseM
     status_code: str = Field(..., alias="status_code")
 
 
-class NamespaceTerraformResourceALBActionFixedResponseV1(
-    NamespaceTerraformResourceALBActionV1
-):
-    fixed_response: NamespaceTerraformResourceALBActionFixedResponseSettingsV1 = Field(
-        ..., alias="fixed_response"
-    )
+class NamespaceTerraformResourceALBActionFixedResponseV1(NamespaceTerraformResourceALBActionV1):
+    fixed_response: NamespaceTerraformResourceALBActionFixedResponseSettingsV1 = Field(..., alias="fixed_response")
 
 
 class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
-    condition: list[
-        Union[
-            NamespaceTerraformResourceALBConditionHostHeaderV1,
-            NamespaceTerraformResourceALBConditionHTTPRequestMethodV1,
-            NamespaceTerraformResourceALBConditionPathPatternV1,
-            NamespaceTerraformResourceALBConditionSourceIPV1,
-            NamespaceTerraformResourceALBConditionV1,
-        ]
-    ] = Field(..., alias="condition")
-    action: Union[
-        NamespaceTerraformResourceALBActionForwardV1,
-        NamespaceTerraformResourceALBActionFixedResponseV1,
-        NamespaceTerraformResourceALBActionV1,
-    ] = Field(..., alias="action")
+    condition: list[Union[NamespaceTerraformResourceALBConditionHostHeaderV1, NamespaceTerraformResourceALBConditionHTTPRequestMethodV1, NamespaceTerraformResourceALBConditionPathPatternV1, NamespaceTerraformResourceALBConditionSourceIPV1, NamespaceTerraformResourceALBConditionV1]] = Field(..., alias="condition")
+    action: Union[NamespaceTerraformResourceALBActionForwardV1, NamespaceTerraformResourceALBActionFixedResponseV1, NamespaceTerraformResourceALBActionV1] = Field(..., alias="action")
 
 
 class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):
@@ -925,9 +870,7 @@ class ASGImageGitV1(ASGImageV1):
     tag_name: str = Field(..., alias="tag_name")
     url: str = Field(..., alias="url")
     ref: str = Field(..., alias="ref")
-    upstream: Optional[SaasResourceTemplateTargetUpstreamV1] = Field(
-        ..., alias="upstream"
-    )
+    upstream: Optional[SaasResourceTemplateTargetUpstreamV1] = Field(..., alias="upstream")
 
 
 class ASGImageStaticV1(ASGImageV1):
@@ -939,15 +882,11 @@ class NamespaceTerraformResourceASGV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
     defaults: str = Field(..., alias="defaults")
-    cloudinit_configs: Optional[list[CloudinitConfigV1]] = Field(
-        ..., alias="cloudinit_configs"
-    )
+    cloudinit_configs: Optional[list[CloudinitConfigV1]] = Field(..., alias="cloudinit_configs")
     variables: Optional[str] = Field(..., alias="variables")
     overrides: Optional[str] = Field(..., alias="overrides")
     extra_tags: Optional[str] = Field(..., alias="extra_tags")
-    image: list[Union[ASGImageGitV1, ASGImageStaticV1, ASGImageV1]] = Field(
-        ..., alias="image"
-    )
+    image: list[Union[ASGImageGitV1, ASGImageStaticV1, ASGImageV1]] = Field(..., alias="image")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
 
@@ -973,12 +912,8 @@ class DnsRecordV1(ConfiguredBaseModel):
     q_type: str = Field(..., alias="type")
     ttl: Optional[int] = Field(..., alias="ttl")
     alias: Optional[DnsRecordAliasV1] = Field(..., alias="alias")
-    weighted_routing_policy: Optional[DnsRecordWeightedRoutingPolicyV1] = Field(
-        ..., alias="weighted_routing_policy"
-    )
-    geolocation_routing_policy: Optional[DnsRecordGeolocationRoutingPolicyV1] = Field(
-        ..., alias="geolocation_routing_policy"
-    )
+    weighted_routing_policy: Optional[DnsRecordWeightedRoutingPolicyV1] = Field(..., alias="weighted_routing_policy")
+    geolocation_routing_policy: Optional[DnsRecordGeolocationRoutingPolicyV1] = Field(..., alias="geolocation_routing_policy")
     set_identifier: Optional[str] = Field(..., alias="set_identifier")
     records: Optional[list[str]] = Field(..., alias="records")
 
@@ -999,15 +934,9 @@ class NamespaceTerraformResourceRosaAuthenticatorV1(NamespaceTerraformResourceAW
     cognito_callback_bucket_name: str = Field(..., alias="cognito_callback_bucket_name")
     certificate_arn: str = Field(..., alias="certificate_arn")
     domain_name: str = Field(..., alias="domain_name")
-    network_interface_ids: Optional[list[str]] = Field(
-        ..., alias="network_interface_ids"
-    )
-    openshift_ingress_load_balancer_arn: Optional[str] = Field(
-        ..., alias="openshift_ingress_load_balancer_arn"
-    )
-    insights_callback_urls: Optional[list[str]] = Field(
-        ..., alias="insights_callback_urls"
-    )
+    network_interface_ids: Optional[list[str]] = Field(..., alias="network_interface_ids")
+    openshift_ingress_load_balancer_arn: Optional[str] = Field(..., alias="openshift_ingress_load_balancer_arn")
+    insights_callback_urls: Optional[list[str]] = Field(..., alias="insights_callback_urls")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
     vpc_id: str = Field(..., alias="vpc_id")
@@ -1016,9 +945,7 @@ class NamespaceTerraformResourceRosaAuthenticatorV1(NamespaceTerraformResourceAW
     defaults: str = Field(..., alias="defaults")
 
 
-class NamespaceTerraformResourceRosaAuthenticatorVPCEV1(
-    NamespaceTerraformResourceAWSV1
-):
+class NamespaceTerraformResourceRosaAuthenticatorVPCEV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
     subnet_ids: list[str] = Field(..., alias="subnet_ids")
@@ -1043,36 +970,7 @@ class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
-    resources: list[
-        Union[
-            NamespaceTerraformResourceRDSV1,
-            NamespaceTerraformResourceRosaAuthenticatorV1,
-            NamespaceTerraformResourceALBV1,
-            NamespaceTerraformResourceS3V1,
-            NamespaceTerraformResourceASGV1,
-            NamespaceTerraformResourceSNSTopicV1,
-            NamespaceTerraformResourceElastiCacheV1,
-            NamespaceTerraformResourceServiceAccountV1,
-            NamespaceTerraformResourceRoleV1,
-            NamespaceTerraformResourceS3SQSV1,
-            NamespaceTerraformResourceCloudWatchV1,
-            NamespaceTerraformResourceRosaAuthenticatorVPCEV1,
-            NamespaceTerraformResourceS3CloudFrontV1,
-            NamespaceTerraformResourceKMSV1,
-            NamespaceTerraformResourceElasticSearchV1,
-            NamespaceTerraformResourceACMV1,
-            NamespaceTerraformResourceKinesisV1,
-            NamespaceTerraformResourceRoute53ZoneV1,
-            NamespaceTerraformResourceMskV1,
-            NamespaceTerraformResourceSQSV1,
-            NamespaceTerraformResourceDynamoDBV1,
-            NamespaceTerraformResourceECRV1,
-            NamespaceTerraformResourceS3CloudFrontPublicKeyV1,
-            NamespaceTerraformResourceSecretsManagerV1,
-            NamespaceTerraformResourceSecretsManagerServiceAccountV1,
-            NamespaceTerraformResourceAWSV1,
-        ]
-    ] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class EnvironmentV1(ConfiguredBaseModel):
@@ -1097,9 +995,7 @@ class NamespaceV1_ClusterV1(ConfiguredBaseModel):
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
-    cluster_admin_automation_token: Optional[VaultSecret] = Field(
-        ..., alias="clusterAdminAutomationToken"
-    )
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
@@ -1109,14 +1005,8 @@ class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     delete: Optional[bool] = Field(..., alias="delete")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
-    managed_external_resources: Optional[bool] = Field(
-        ..., alias="managedExternalResources"
-    )
-    external_resources: Optional[
-        list[
-            Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]
-        ]
-    ] = Field(..., alias="externalResources")
+    managed_external_resources: Optional[bool] = Field(..., alias="managedExternalResources")
+    external_resources: Optional[list[Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]]] = Field(..., alias="externalResources")
     environment: EnvironmentV1 = Field(..., alias="environment")
     app: AppV1 = Field(..., alias="app")
     cluster: NamespaceV1_ClusterV1 = Field(..., alias="cluster")

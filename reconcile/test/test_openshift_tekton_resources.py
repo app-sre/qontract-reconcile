@@ -146,12 +146,10 @@ class TestOpenshiftTektonResources:
         self.test_data.providers = [self.provider1]
         desired_resources = otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
 
-        expected_task_names = set(
-            [
-                "o-push-gateway-openshift-saas-deploy-task-status-metric",
-                "o-openshift-saas-deploy-saas1",
-            ]
-        )
+        expected_task_names = set([
+            "o-push-gateway-openshift-saas-deploy-task-status-metric",
+            "o-openshift-saas-deploy-saas1",
+        ])
         expected_pipeline_name = "o-saas-deploy-saas1"
 
         task_names = set()

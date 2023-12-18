@@ -54,14 +54,14 @@ from reconcile.utils.oc import (
     OCLogMsg,
     StatusCodeError,
 )
-from reconcile.utils.openshift_resource import ConstructResourceError
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import (
+    ConstructResourceError,
     ResourceInventory,
     ResourceKeyExistsError,
     ResourceNotManagedError,
     base64_encode_secret_field_value,
 )
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
@@ -410,14 +410,12 @@ def compile_jinja2_template(body, extra_curly: bool = False):
         undefined=jinja2.StrictUndefined,
         **env,
     )
-    jinja_env.filters.update(
-        {
-            "json_to_dict": json_to_dict,
-            "urlescape": urlescape,
-            "urlunescape": urlunescape,
-            "eval": eval_filter,
-        }
-    )
+    jinja_env.filters.update({
+        "json_to_dict": json_to_dict,
+        "urlescape": urlescape,
+        "urlunescape": urlunescape,
+        "eval": eval_filter,
+    })
 
     return jinja_env.from_string(body)
 
@@ -425,23 +423,19 @@ def compile_jinja2_template(body, extra_curly: bool = False):
 def process_jinja2_template(body, vars=None, extra_curly: bool = False, settings=None):
     if vars is None:
         vars = {}
-    vars.update(
-        {
-            "vault": lambda p, k, v=None: lookup_secret(
-                path=p, key=k, version=v, tvars=vars, settings=settings
-            ),
-            "github": lambda u, p, r, v=None: lookup_github_file_content(
-                repo=u, path=p, ref=r, tvars=vars, settings=settings
-            ),
-            "urlescape": lambda u, s="/", e=None: urlescape(
-                string=u, safe=s, encoding=e
-            ),
-            "urlunescape": lambda u, e=None: urlunescape(string=u, encoding=e),
-            "hash_list": hash_list,
-            "query": lookup_graphql_query_results,
-            "url": url_makes_sense,
-        }
-    )
+    vars.update({
+        "vault": lambda p, k, v=None: lookup_secret(
+            path=p, key=k, version=v, tvars=vars, settings=settings
+        ),
+        "github": lambda u, p, r, v=None: lookup_github_file_content(
+            repo=u, path=p, ref=r, tvars=vars, settings=settings
+        ),
+        "urlescape": lambda u, s="/", e=None: urlescape(string=u, safe=s, encoding=e),
+        "urlunescape": lambda u, e=None: urlunescape(string=u, encoding=e),
+        "hash_list": hash_list,
+        "query": lookup_graphql_query_results,
+        "url": url_makes_sense,
+    })
     try:
         template = compile_jinja2_template(body, extra_curly)
         r = template.render(vars)
@@ -1352,8 +1346,16 @@ def early_exit_monkey_patch():
 
     try:
         yield _early_exit_monkey_patch_assign(
-            lambda path, key, version=None, tvars=None, settings=None: f"vault({path}, {key}, {version})",
-            lambda repo, path, ref, tvars=None, settings=None: f"github({repo}, {path}, {ref})",
+            lambda path,
+            key,
+            version=None,
+            tvars=None,
+            settings=None: f"vault({path}, {key}, {version})",
+            lambda repo,
+            path,
+            ref,
+            tvars=None,
+            settings=None: f"github({repo}, {path}, {ref})",
             lambda url: False,
             lambda data, path, alertmanager_config_key, decode_base64=False: True,
         )

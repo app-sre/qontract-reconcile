@@ -70,8 +70,8 @@ query GlitchtipProjectsWithAlerts {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class GlitchtipInstanceV1(ConfiguredBaseModel):
@@ -101,13 +101,7 @@ class GlitchtipProjectAlertV1(ConfiguredBaseModel):
     description: str = Field(..., alias="description")
     quantity: int = Field(..., alias="quantity")
     timespan_minutes: int = Field(..., alias="timespanMinutes")
-    recipients: list[
-        Union[
-            GlitchtipProjectAlertRecipientWebhookV1,
-            GlitchtipProjectAlertRecipientEmailV1,
-            GlitchtipProjectAlertRecipientV1,
-        ]
-    ] = Field(..., alias="recipients")
+    recipients: list[Union[GlitchtipProjectAlertRecipientWebhookV1, GlitchtipProjectAlertRecipientEmailV1, GlitchtipProjectAlertRecipientV1]] = Field(..., alias="recipients")
 
 
 class JiraBoardV1(ConfiguredBaseModel):
@@ -129,9 +123,7 @@ class GlitchtipProjectsV1(ConfiguredBaseModel):
 
 
 class GlitchtipProjectsWithAlertsQueryData(ConfiguredBaseModel):
-    glitchtip_projects: Optional[list[GlitchtipProjectsV1]] = Field(
-        ..., alias="glitchtip_projects"
-    )
+    glitchtip_projects: Optional[list[GlitchtipProjectsV1]] = Field(..., alias="glitchtip_projects")
 
 
 def query(query_func: Callable, **kwargs: Any) -> GlitchtipProjectsWithAlertsQueryData:

@@ -75,9 +75,12 @@ def run(dry_run, gitlab_project_id):
                     match_labels: dict[str, str] = json.loads(default["matchLabels"])
                     if match_labels.items() <= ocm_cluster_labels.items():
                         create_update_mr = True
-                        logging.info(
-                            ["add_cluster", ocm_name, ocm_cluster_name, default_name]
-                        )
+                        logging.info([
+                            "add_cluster",
+                            ocm_name,
+                            ocm_cluster_name,
+                            default_name,
+                        ])
                         policy = default["upgradePolicy"]
                         if not policy:
                             template = default["upgradePolicyTemplate"]

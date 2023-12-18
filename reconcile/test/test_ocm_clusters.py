@@ -602,6 +602,25 @@ def test_ocm_rosa_update_cluster(
     assert cluster_updates_mr_mock.call_count == 0
 
 
+def test_ocm_rosa_update_cluster_dont_update_ocm_on_oidc_drift(
+    get_json_mock,
+    queries_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+    ocm_rosa_cluster_raw_spec,
+    ocm_rosa_cluster_ai_spec,
+):
+    ocm_rosa_cluster_ai_spec["spec"]["oidc_endpoint_url"] = "some-other-oidc-url"
+    get_json_mock.return_value = {"items": [ocm_rosa_cluster_raw_spec]}
+    queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
+    with pytest.raises(SystemExit):
+        occ.run(dry_run=False)
+    _post, _patch = ocm_mock
+    assert _post.call_count == 0
+    assert _patch.call_count == 0
+    assert cluster_updates_mr_mock.call_count == 1
+
+
 def test_ocm_rosa_update_cluster_with_machine_pools_change(
     get_json_mock,
     queries_mock,

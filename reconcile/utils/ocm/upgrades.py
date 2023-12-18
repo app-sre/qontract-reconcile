@@ -202,9 +202,9 @@ def get_node_pool_upgrade_policies(
     for policy in ocm_api.get_paginated(
         f"{build_cluster_url(cluster_id)}/node_pools/{node_pool}/upgrade_policies"
     ):
-        results.append(
-            {k: v for k, v in policy.items() if k in UPGRADE_POLICY_DESIRED_KEYS}
-        )
+        results.append({
+            k: v for k, v in policy.items() if k in UPGRADE_POLICY_DESIRED_KEYS
+        })
     return results
 
 

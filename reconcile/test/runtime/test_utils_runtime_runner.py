@@ -332,9 +332,9 @@ def test_run_configuration_dry_run_diff_no_early_exit_sharding(
         c[0][0].params for c in integration_run_func.call_args_list
     ]
     for shard in affected_shards:
-        sharded_params = shardable_test_integration.params.copy_and_update(
-            {"shard": shard}
-        )
+        sharded_params = shardable_test_integration.params.copy_and_update({
+            "shard": shard
+        })
         assert sharded_params in called_sharded_params
 
 
@@ -400,9 +400,9 @@ def test_run_configuration_dry_run_diff_no_early_exit_shard_err(mocker: MockerFi
         c[0][0].params for c in integration_run_func_mock.call_args_list
     ]
     for shard in affected_shards:
-        sharded_params = shardable_test_integration.params.copy_and_update(
-            {"shard": shard}
-        )
+        sharded_params = shardable_test_integration.params.copy_and_update({
+            "shard": shard
+        })
         assert sharded_params in called_sharded_params
 
 

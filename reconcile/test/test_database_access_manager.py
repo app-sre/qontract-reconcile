@@ -46,7 +46,7 @@ def db_access(gql_class_factory: Callable[..., DatabaseAccessV1]) -> DatabaseAcc
 
 @pytest.fixture
 def db_access_access(
-    gql_class_factory: Callable[..., DatabaseAccessAccessV1]
+    gql_class_factory: Callable[..., DatabaseAccessAccessV1],
 ) -> DatabaseAccessAccessV1:
     return gql_class_factory(
         DatabaseAccessAccessV1,

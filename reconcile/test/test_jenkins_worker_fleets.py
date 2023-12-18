@@ -38,15 +38,13 @@ def test_jenkins_worker_fleets(mocker: MockerFixture, caplog):
         act(False, instance["name"], current_state, desired_state, jenkins)
     mock_apply.assert_called_with(fixture.get_anymarkup("jcasc-apply.yml"))
 
-    assert sorted([rec.message for rec in caplog.records]) == sorted(
-        [
-            "['create_jenkins_worker_fleet', 'ci-int', 'ci-int-jenkins-worker-app-interface']",
-            "['delete_jenkins_worker_fleet', 'ci-int', 'ci-int-jenkins-worker-rhel8']",
-            "['update_jenkins_worker_fleet', 'ci-int', 'ci-int-jenkins-worker-app-sre']",
-            "['update_jenkins_worker_fleet', 'ci-int', 'test-remove-sshConnector-attrs']",
-            "['update_jenkins_worker_fleet', 'ci-int', 'test-add-sshConnector-JVMOpts']",
-        ]
-    )
+    assert sorted([rec.message for rec in caplog.records]) == sorted([
+        "['create_jenkins_worker_fleet', 'ci-int', 'ci-int-jenkins-worker-app-interface']",
+        "['delete_jenkins_worker_fleet', 'ci-int', 'ci-int-jenkins-worker-rhel8']",
+        "['update_jenkins_worker_fleet', 'ci-int', 'ci-int-jenkins-worker-app-sre']",
+        "['update_jenkins_worker_fleet', 'ci-int', 'test-remove-sshConnector-attrs']",
+        "['update_jenkins_worker_fleet', 'ci-int', 'test-add-sshConnector-JVMOpts']",
+    ])
 
 
 def test_jenkins_worker_fleets_error():

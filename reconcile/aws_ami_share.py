@@ -62,14 +62,12 @@ def run(dry_run, defer=None):
                 src_ami_id = src_ami["image_id"]
                 found_dst_amis = [d for d in dst_amis if d["image_id"] == src_ami_id]
                 if not found_dst_amis:
-                    logging.info(
-                        [
-                            "share_ami",
-                            src_account["name"],
-                            dst_account["name"],
-                            src_ami_id,
-                        ]
-                    )
+                    logging.info([
+                        "share_ami",
+                        src_account["name"],
+                        dst_account["name"],
+                        src_ami_id,
+                    ])
                     if not dry_run:
                         aws_api.share_ami(
                             src_account, dst_account["uid"], src_ami_id, region
@@ -81,16 +79,22 @@ def run(dry_run, defer=None):
                 dst_ami_id = dst_ami["image_id"]
                 dst_ami_tags = dst_ami["tags"]
                 if MANAGED_TAG not in dst_ami_tags:
-                    logging.info(
-                        ["tag_shared_ami", dst_account["name"], dst_ami_id, MANAGED_TAG]
-                    )
+                    logging.info([
+                        "tag_shared_ami",
+                        dst_account["name"],
+                        dst_ami_id,
+                        MANAGED_TAG,
+                    ])
                     if not dry_run:
                         aws_api.create_tag(dst_account, dst_ami_id, MANAGED_TAG)
                 src_ami_tags = src_ami["tags"]
                 for src_tag in src_ami_tags:
                     if src_tag not in dst_ami_tags:
-                        logging.info(
-                            ["tag_shared_ami", dst_account["name"], dst_ami_id, src_tag]
-                        )
+                        logging.info([
+                            "tag_shared_ami",
+                            dst_account["name"],
+                            dst_ami_id,
+                            src_tag,
+                        ])
                         if not dry_run:
                             aws_api.create_tag(dst_account, dst_ami_id, src_tag)

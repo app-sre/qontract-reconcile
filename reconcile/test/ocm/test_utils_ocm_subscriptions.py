@@ -48,13 +48,11 @@ def test_get_subscriptions(
         labels=[("label-1", "value-1")],
         capabilities=[("capability-1", "value-1")],
     )
-    register_ocm_url_responses(
-        [
-            OcmUrl(
-                method="GET", uri="/api/accounts_mgmt/v1/subscriptions"
-            ).add_list_response([sub])
-        ]
-    )
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET", uri="/api/accounts_mgmt/v1/subscriptions"
+        ).add_list_response([sub])
+    ])
     subscriptions = get_subscriptions(ocm_api, Filter().eq("some", "condition"))
     assert len(subscriptions) == 1
     assert sub.id in subscriptions

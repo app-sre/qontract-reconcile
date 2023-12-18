@@ -34,8 +34,8 @@ query PgpReencryptionSettings {
 
 class ConfiguredBaseModel(BaseModel):
     class Config:
-        smart_union = True
-        extra = Extra.forbid
+        smart_union=True
+        extra=Extra.forbid
 
 
 class AWSAccountV1(ConfiguredBaseModel):
@@ -44,19 +44,13 @@ class AWSAccountV1(ConfiguredBaseModel):
 
 class PgpReencryptSettingsV1(ConfiguredBaseModel):
     public_gpg_key: str = Field(..., alias="public_gpg_key")
-    aws_account_output_vault_path: str = Field(
-        ..., alias="aws_account_output_vault_path"
-    )
+    aws_account_output_vault_path: str = Field(..., alias="aws_account_output_vault_path")
     reencrypt_vault_path: str = Field(..., alias="reencrypt_vault_path")
-    skip_aws_accounts: Optional[list[AWSAccountV1]] = Field(
-        ..., alias="skip_aws_accounts"
-    )
+    skip_aws_accounts: Optional[list[AWSAccountV1]] = Field(..., alias="skip_aws_accounts")
 
 
 class PgpReencryptionSettingsQueryData(ConfiguredBaseModel):
-    pgp_reencryption_settings: Optional[list[PgpReencryptSettingsV1]] = Field(
-        ..., alias="pgp_reencryption_settings"
-    )
+    pgp_reencryption_settings: Optional[list[PgpReencryptSettingsV1]] = Field(..., alias="pgp_reencryption_settings")
 
 
 def query(query_func: Callable, **kwargs: Any) -> PgpReencryptionSettingsQueryData:

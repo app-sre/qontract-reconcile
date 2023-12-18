@@ -100,9 +100,12 @@ def write_dummy_versions(
     that a secret engine stores"""
 
     write_dict = {"path": path, "data": {"dummy": "data"}}
-    logging.info(
-        ["replicate_vault_secret", "generate_dummy_data", secret_version, path]
-    )
+    logging.info([
+        "replicate_vault_secret",
+        "generate_dummy_data",
+        secret_version,
+        path,
+    ])
     if not dry_run:
         # Using force=True to write the dummy data to force the vault client
         # to write the version even if the data is the same as the previous version.
@@ -372,7 +375,7 @@ def _get_start_end_secret(path: str) -> tuple[str, str]:
     if start[-1] != "/":
         start = start.rsplit("/", 1)[0] + "/"
     try:
-        end = path[path[path.rindex("}") : :].index("/") + path.rindex("}") : :]
+        end = path[path[path.rindex("}") :].index("/") + path.rindex("}") :]
     except ValueError:
         end = ""
 

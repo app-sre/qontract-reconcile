@@ -145,14 +145,12 @@ def act(
         cluster = item["cluster"]
         user_arn = item["user_arn"]
         access_level = item["access_level"]
-        logging.info(
-            [
-                "del_user_from_aws_infrastructure_access_role_grants",
-                cluster,
-                user_arn,
-                access_level,
-            ]
-        )
+        logging.info([
+            "del_user_from_aws_infrastructure_access_role_grants",
+            cluster,
+            user_arn,
+            access_level,
+        ])
         if not dry_run:
             ocm = ocm_map.get(cluster)
             ocm.del_user_from_aws_infrastructure_access_role_grants(
@@ -163,14 +161,12 @@ def act(
         cluster = item["cluster"]
         user_arn = item["user_arn"]
         access_level = item["access_level"]
-        logging.info(
-            [
-                "add_user_to_aws_infrastructure_access_role_grants",
-                cluster,
-                user_arn,
-                access_level,
-            ]
-        )
+        logging.info([
+            "add_user_to_aws_infrastructure_access_role_grants",
+            cluster,
+            user_arn,
+            access_level,
+        ])
         if not dry_run:
             ocm = ocm_map.get(cluster)
             ocm.add_user_to_aws_infrastructure_access_role_grants(

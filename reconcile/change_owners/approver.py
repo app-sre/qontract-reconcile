@@ -21,8 +21,7 @@ class Approver:
 
 
 class ApproverResolver(Protocol):
-    def lookup_approver_by_path(self, path: str) -> Optional[Approver]:
-        ...
+    def lookup_approver_by_path(self, path: str) -> Optional[Approver]: ...
 
 
 class GqlApproverResolver:
@@ -62,8 +61,7 @@ class GqlApproverResolver:
 
 
 class ApproverReachability(Protocol):
-    def render_for_mr_report(self) -> str:
-        ...
+    def render_for_mr_report(self) -> str: ...
 
 
 @dataclass
