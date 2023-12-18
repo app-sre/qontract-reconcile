@@ -167,7 +167,7 @@ class _VaultClient:
         else:
             self._client.auth_approle(self.role_id, self.secret_id)
 
-    @retry()
+    @retry(no_retry_exceptions=(SecretFormatProblem))
     def read_all_with_version(self, secret: Mapping) -> tuple[Mapping, Optional[str]]:
         """Returns a dictionary of keys and values in a Vault secret and the
         version of the secret, for V1 secrets, version will be None.
