@@ -10,6 +10,7 @@ import pytest
 
 from reconcile.utils import vault
 
+
 class SleepCalled(Exception):
     pass
 
@@ -17,6 +18,7 @@ class SleepCalled(Exception):
 class testVaultClient(vault._VaultClient):  # pylint: disable=W0223
     def __init__(self):  # pylint: disable=W0231
         pass
+
 
 class TestVaultUtils:
     @staticmethod
@@ -52,6 +54,7 @@ def test_key_has_leading_space():
     # "undo" the import. Thus, the import will be done in each test method that
     # uses the exception.
     from reconcile.utils.vault import SecretFormatProblem
+
     with pytest.raises(
         SecretFormatProblem,
         match="Secret key has whitespace. Expected 'leading_space' but got ' leading_space'",
@@ -67,6 +70,7 @@ def test_key_has_leading_space():
 
 def test_key_has_trailing_space():
     from reconcile.utils.vault import SecretFormatProblem
+
     with pytest.raises(
         SecretFormatProblem,
         match="Secret key has whitespace. Expected 'trailing_space' but got 'trailing_space '",
@@ -91,6 +95,7 @@ def test_key_has_nospace():
 
 def test_key_has_padded_spaces():
     from reconcile.utils.vault import SecretFormatProblem
+
     with pytest.raises(
         SecretFormatProblem,
         match="Secret key has whitespace. Expected 'padding_spaces' but got ' padding_spaces '",
