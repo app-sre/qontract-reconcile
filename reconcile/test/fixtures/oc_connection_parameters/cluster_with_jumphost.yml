@@ -34,7 +34,6 @@ jumpHost:
   port: null
   remotePort: 8888
   user: jumphost-user
-kibanaUrl: ''
 machinePools:
 - id: worker
   instance_type: m5.xlarge

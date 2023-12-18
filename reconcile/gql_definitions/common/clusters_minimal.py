@@ -45,7 +45,6 @@ query ClustersMinimal($name: String) {
     name
     serverUrl
     consoleUrl
-    kibanaUrl
     prometheusUrl
     insecureSkipTLSVerify
     jumpHost {
@@ -126,7 +125,6 @@ class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     server_url: str = Field(..., alias="serverUrl")
     console_url: str = Field(..., alias="consoleUrl")
-    kibana_url: str = Field(..., alias="kibanaUrl")
     prometheus_url: str = Field(..., alias="prometheusUrl")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")

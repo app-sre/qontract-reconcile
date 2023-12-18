@@ -5,7 +5,6 @@ query ClustersMinimal($name: String) {
     name
     serverUrl
     consoleUrl
-    kibanaUrl
     prometheusUrl
     insecureSkipTLSVerify
     jumpHost {

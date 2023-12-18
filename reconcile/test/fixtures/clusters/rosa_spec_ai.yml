@@ -5,7 +5,6 @@ labels:
 name: tst-jpr-rosa
 description: A test cluster
 consoleUrl: "https://console-openshift-console.tst-jpr-rosa.0000.p1.openshiftapps.com"
-kibanaUrl: ""
 prometheusUrl: ""
 alertmanagerUrl: ""
 serverUrl: "https://api.tst-jpr-rosa.0000.p1.openshiftapps.com:6443"

@@ -24,7 +24,6 @@ externalConfiguration: null
 insecureSkipTLSVerify: null
 internal: false
 jumpHost: null
-kibanaUrl: ''
 machinePools:
 - id: worker
   instance_type: m5.xlarge

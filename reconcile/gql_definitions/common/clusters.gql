@@ -6,7 +6,6 @@ query Clusters($name: String) {
     name
     serverUrl
     consoleUrl
-    kibanaUrl
     elbFQDN
     prometheusUrl
     managedGroups
