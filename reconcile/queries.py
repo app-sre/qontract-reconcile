@@ -651,7 +651,6 @@ CLUSTERS_QUERY = """
     name
     serverUrl
     consoleUrl
-    kibanaUrl
     elbFQDN
     prometheusUrl
     managedGroups
@@ -968,7 +967,6 @@ CLUSTERS_MINIMAL_QUERY = """
     name
     serverUrl
     consoleUrl
-    kibanaUrl
     prometheusUrl
     insecureSkipTLSVerify
     jumpHost {

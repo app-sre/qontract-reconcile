@@ -5,7 +5,6 @@ labels:
 name: cluster1
 description: A test cluster
 consoleUrl: ''
-kibanaUrl: ''
 prometheusUrl: ''
 alertmanagerUrl: ''
 serverUrl: ''
