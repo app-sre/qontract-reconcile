@@ -9,8 +9,6 @@ from unittest.mock import (
 import pytest
 
 from reconcile.utils import vault
-from reconcile.utils.vault import SecretFormatProblem
-
 
 class SleepCalled(Exception):
     pass
@@ -19,7 +17,6 @@ class SleepCalled(Exception):
 class testVaultClient(vault._VaultClient):  # pylint: disable=W0223
     def __init__(self):  # pylint: disable=W0231
         pass
-
 
 class TestVaultUtils:
     @staticmethod
@@ -49,6 +46,12 @@ class TestVaultUtils:
 
 
 def test_key_has_leading_space():
+    # The natural thing to do to gain access to the SecretFormatProblem custom
+    # Exception would be to rehome its import to the top of this test file.
+    # However, the TestVaultUtils class will reimport the vault library and
+    # "undo" the import. Thus, the import will be done in each test method that
+    # uses the exception.
+    from reconcile.utils.vault import SecretFormatProblem
     with pytest.raises(
         SecretFormatProblem,
         match="Secret key has whitespace. Expected 'leading_space' but got ' leading_space'",
@@ -63,6 +66,7 @@ def test_key_has_leading_space():
 
 
 def test_key_has_trailing_space():
+    from reconcile.utils.vault import SecretFormatProblem
     with pytest.raises(
         SecretFormatProblem,
         match="Secret key has whitespace. Expected 'trailing_space' but got 'trailing_space '",
@@ -86,6 +90,7 @@ def test_key_has_nospace():
 
 
 def test_key_has_padded_spaces():
+    from reconcile.utils.vault import SecretFormatProblem
     with pytest.raises(
         SecretFormatProblem,
         match="Secret key has whitespace. Expected 'padding_spaces' but got ' padding_spaces '",
