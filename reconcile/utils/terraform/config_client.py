@@ -122,7 +122,7 @@ class TerraformConfigClientCollection:
             working_dirs[account_name] = client.dump()
 
             if print_to_file:
-                with open(print_to_file, "a") as f:
+                with open(print_to_file, "a", encoding="locale") as f:
                     f.write(f"##### {account_name} #####\n")
                     f.write(client.dumps())
                     f.write("\n")

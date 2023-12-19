@@ -198,7 +198,7 @@ def fetch_desired_state(infer_clusters=True):
     for role in roles:
         permissions = list(
             filter(
-                lambda p: p.get("service") in ["github-org", "github-org-team"],
+                lambda p: p.get("service") in {"github-org", "github-org-team"},
                 role["permissions"],
             )
         )
@@ -238,7 +238,7 @@ def fetch_desired_state(infer_clusters=True):
     )
     for cluster in clusters:
         for auth in cluster["auth"]:
-            if auth["service"] not in ["github-org", "github-org-team"]:
+            if auth["service"] not in {"github-org", "github-org-team"}:
                 continue
 
             cluster_name = cluster["name"]

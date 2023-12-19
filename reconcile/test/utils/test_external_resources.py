@@ -254,24 +254,24 @@ def test_resource_value_resolver_overrides_and_defaults(mocker):
 
 def test_get_inventory_count_combinations():
     inventory: ExternalResourceSpecInventory = {}
-    inventory[
-        ExternalResourceUniqueKey("pp1", "pn1", "id1", "rds")
-    ] = ExternalResourceSpec("pp1", {}, {}, {})
-    inventory[
-        ExternalResourceUniqueKey("pp1", "pn1", "id2", "rds")
-    ] = ExternalResourceSpec("pp1", {}, {}, {})
-    inventory[
-        ExternalResourceUniqueKey("pp2", "pn2", "id3", "rds")
-    ] = ExternalResourceSpec("pp2", {}, {}, {})
-    inventory[
-        ExternalResourceUniqueKey("pp2", "pn3", "id4", "s3")
-    ] = ExternalResourceSpec("pp2", {}, {}, {})
-    inventory[
-        ExternalResourceUniqueKey("pp3", "pn4", "id5", "s3")
-    ] = ExternalResourceSpec("pp3", {}, {}, {})
-    inventory[
-        ExternalResourceUniqueKey("pp3", "pn4", "id6", "asg")
-    ] = ExternalResourceSpec("pp3", {}, {}, {})
+    inventory[ExternalResourceUniqueKey("pp1", "pn1", "id1", "rds")] = (
+        ExternalResourceSpec("pp1", {}, {}, {})
+    )
+    inventory[ExternalResourceUniqueKey("pp1", "pn1", "id2", "rds")] = (
+        ExternalResourceSpec("pp1", {}, {}, {})
+    )
+    inventory[ExternalResourceUniqueKey("pp2", "pn2", "id3", "rds")] = (
+        ExternalResourceSpec("pp2", {}, {}, {})
+    )
+    inventory[ExternalResourceUniqueKey("pp2", "pn3", "id4", "s3")] = (
+        ExternalResourceSpec("pp2", {}, {}, {})
+    )
+    inventory[ExternalResourceUniqueKey("pp3", "pn4", "id5", "s3")] = (
+        ExternalResourceSpec("pp3", {}, {}, {})
+    )
+    inventory[ExternalResourceUniqueKey("pp3", "pn4", "id6", "asg")] = (
+        ExternalResourceSpec("pp3", {}, {}, {})
+    )
 
     count_combinations = uer.get_inventory_count_combinations(inventory)
     expected_count_combinations = Counter({

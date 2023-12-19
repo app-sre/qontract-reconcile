@@ -26,7 +26,7 @@ def get_keys_to_delete(accounts) -> dict[str, list[str]]:
     return {
         account["name"]: account["deleteKeys"]
         for account in accounts
-        if account["deleteKeys"] not in (None, [])
+        if account["deleteKeys"]
     }
 
 

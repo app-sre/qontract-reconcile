@@ -374,7 +374,9 @@ def test_terrascript_cloudflare_client_dump(mocker):
     cloudflare_client.dump()
 
     patch_mkdtemp.assert_called_once()
-    mock_builtins_open.assert_called_once_with("/tmp/test/config.tf.json", "w")
+    mock_builtins_open.assert_called_once_with(
+        "/tmp/test/config.tf.json", "w", encoding="locale"
+    )
     mock_builtins_open.return_value.write.assert_called_once_with("some data")
 
 
@@ -396,7 +398,9 @@ def test_terrascript_cloudflare_client_dump_existing_dir(mocker):
     cloudflare_client.dump(existing_dir="/tmp/existing-dir")
 
     patch_mkdtemp.assert_not_called()
-    mock_builtins_open.assert_called_once_with("/tmp/existing-dir/config.tf.json", "w")
+    mock_builtins_open.assert_called_once_with(
+        "/tmp/existing-dir/config.tf.json", "w", encoding="locale"
+    )
     mock_builtins_open.return_value.write.assert_called_once_with("some data")
 
 

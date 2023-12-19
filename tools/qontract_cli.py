@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: PLC0415 - `import` should be at the top-level of a file
 
 import base64
 import json
@@ -1781,10 +1782,10 @@ def app_interface_review_queue(ctx) -> None:
                 continue
             if len(mr.commits()) == 0:
                 continue
-            if mr.merge_status in [
+            if mr.merge_status in {
                 MRStatus.CANNOT_BE_MERGED,
                 MRStatus.CANNOT_BE_MERGED_RECHECK,
-            ]:
+            }:
                 continue
 
             labels = mr.attributes.get("labels")
@@ -2207,9 +2208,9 @@ def slo_document_services(ctx, status_board_instance):
         print(f"Status-board instance '{status_board_instance}' not found.")
         sys.exit(1)
 
-    desired_product_apps: dict[
-        str, set[str]
-    ] = StatusBoardExporterIntegration.get_product_apps(sb)
+    desired_product_apps: dict[str, set[str]] = (
+        StatusBoardExporterIntegration.get_product_apps(sb)
+    )
 
     slodocs = []
     for slodoc in get_slo_documents():
@@ -2620,7 +2621,7 @@ def alert_to_receiver(
 @click.option("--env-name", default=None, help="environment to use for parameters.")
 @click.pass_context
 def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None) -> None:
-    if env_name in [None, ""]:
+    if not env_name:
         print("env-name must be defined")
         return
     saas_files = get_saas_files(saas_file_name, env_name, app_name)

@@ -163,17 +163,17 @@ def get_app_interface_spec_updates(
         desired_spec.spec.disable_user_workload_monitoring is None
         and current_spec.spec.disable_user_workload_monitoring
     ):
-        ocm_spec_updates[
-            ocmmod.SPEC_ATTR_DISABLE_UWM
-        ] = current_spec.spec.disable_user_workload_monitoring
+        ocm_spec_updates[ocmmod.SPEC_ATTR_DISABLE_UWM] = (
+            current_spec.spec.disable_user_workload_monitoring
+        )
 
     if (
         current_spec.spec.provision_shard_id is not None
         and desired_spec.spec.provision_shard_id != current_spec.spec.provision_shard_id
     ):
-        ocm_spec_updates[
-            ocmmod.SPEC_ATTR_PROVISION_SHARD_ID
-        ] = current_spec.spec.provision_shard_id
+        ocm_spec_updates[ocmmod.SPEC_ATTR_PROVISION_SHARD_ID] = (
+            current_spec.spec.provision_shard_id
+        )
 
     if isinstance(current_spec.spec, ROSAClusterSpec) and isinstance(
         desired_spec.spec, ROSAClusterSpec
@@ -183,9 +183,9 @@ def get_app_interface_spec_updates(
             and desired_spec.spec.oidc_endpoint_url
             != current_spec.spec.oidc_endpoint_url
         ):
-            ocm_spec_updates[
-                ocmmod.SPEC_ATTR_OIDC_ENDPONT_URL
-            ] = current_spec.spec.oidc_endpoint_url
+            ocm_spec_updates[ocmmod.SPEC_ATTR_OIDC_ENDPONT_URL] = (
+                current_spec.spec.oidc_endpoint_url
+            )
 
     if current_spec.server_url and desired_spec.server_url != current_spec.server_url:
         root_updates[ocmmod.SPEC_ATTR_SERVER_URL] = current_spec.server_url

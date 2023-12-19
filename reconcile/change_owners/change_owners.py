@@ -383,13 +383,12 @@ def run(
 
             if mr_management_enabled:
                 gl.set_labels_on_merge_request(merge_request, labels)
-            else:
+            elif SELF_SERVICEABLE in labels:
                 # if MR management is disabled, we need to make sure the self-serviceable
                 # labels is not present, because other integration react to them
                 # e.g. gitlab-housekeeper rejects direct lgtm labels and the review-queue
                 # skips MRs with this label
-                if SELF_SERVICEABLE in labels:
-                    gl.remove_label(merge_request, SELF_SERVICEABLE)
+                gl.remove_label(merge_request, SELF_SERVICEABLE)
 
     except BaseException:
         logging.error(traceback.format_exc())

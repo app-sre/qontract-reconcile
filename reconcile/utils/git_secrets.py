@@ -38,7 +38,7 @@ def scan_history(repo_url, existing_keys):
 def get_suspected_files(error):
     suspects = []
     for e in error.split("\n"):
-        if e == "":
+        if not e:
             break
         if e.startswith("warning"):
             continue
@@ -55,7 +55,7 @@ def get_leaked_keys(repo_wd, suspected_files, existing_keys):
         commit, file_relative_path = s[0], s[1]
         git.checkout(commit, repo_wd)
         file_path = os.path.join(repo_wd, file_relative_path)
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="locale") as f:
             content = f.read()
         leaked_keys = [key for key in existing_keys if key in content]
         all_leaked_keys.extend(leaked_keys)

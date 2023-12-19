@@ -95,9 +95,9 @@ class SaasResourceTemplate(ConfiguredBaseModel):
     provider: Optional[str] = Field(..., alias="provider")
     hash_length: Optional[int] = Field(..., alias="hash_length")
     parameters: Optional[Json] = Field(..., alias="parameters")
-    secret_parameters: Optional[
-        list[SaasResourceTemplateV2_SaasSecretParametersV1]
-    ] = Field(..., alias="secretParameters")
+    secret_parameters: Optional[list[SaasResourceTemplateV2_SaasSecretParametersV1]] = (
+        Field(..., alias="secretParameters")
+    )
     targets: list[SaasResourceTemplateTarget] = Field(..., alias="targets")
 
 
@@ -279,7 +279,7 @@ class SaasFileList:
         if name is None and env_name is None and app_name is None:
             return self.saas_files
 
-        if name == "" or env_name == "" or app_name == "":
+        if name == "" or env_name == "" or app_name == "":  # noqa: PLC1901
             return []
 
         filtered: list[SaasFile] = []
@@ -308,7 +308,7 @@ class SaasFileList:
 def convert_parameters_to_json_string(root: dict[str, Any]) -> dict[str, Any]:
     """Find all parameter occurrences and convert them to a json string."""
     for key, value in root.items():
-        if key in ["parameters", "labels"]:
+        if key in {"parameters", "labels"}:
             root[key] = json.dumps(value) if value is not None else None
         elif isinstance(value, dict):
             root[key] = convert_parameters_to_json_string(value)

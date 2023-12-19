@@ -48,7 +48,7 @@ def fetch_desired_state():
         permissions = [
             p
             for p in role["permissions"]
-            if p.get("service") in ["github-org", "github-org-team"]
+            if p.get("service") in {"github-org", "github-org-team"}
             and p.get("role") == "owner"
         ]
         if not permissions:

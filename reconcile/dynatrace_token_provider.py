@@ -169,9 +169,9 @@ class DynatraceTokenProviderIntegration(
                                 continue
 
                             if tenant_id not in existing_dtp_tokens:
-                                existing_dtp_tokens[
-                                    tenant_id
-                                ] = self.get_all_dtp_tokens(dt_clients[tenant_id])
+                                existing_dtp_tokens[tenant_id] = (
+                                    self.get_all_dtp_tokens(dt_clients[tenant_id])
+                                )
 
                             self.process_cluster(
                                 dry_run,
@@ -285,11 +285,10 @@ class DynatraceTokenProviderIntegration(
                         logging.info(
                             f"Operator token created in Dynatrace for cluster {cluster.ocm_cluster.external_id}."
                         )
-                else:
-                    if token_name == DYNATRACE_INGESTION_TOKEN_NAME:
-                        ingestion_token = ApiTokenCreated(raw_element=token)
-                    elif token_name == DYNATRACE_OPERATOR_TOKEN_NAME:
-                        operator_token = ApiTokenCreated(raw_element=token)
+                elif token_name == DYNATRACE_INGESTION_TOKEN_NAME:
+                    ingestion_token = ApiTokenCreated(raw_element=token)
+                elif token_name == DYNATRACE_OPERATOR_TOKEN_NAME:
+                    operator_token = ApiTokenCreated(raw_element=token)
             if need_patching:
                 if not dry_run:
                     patch_syncset_payload = self.construct_base_syncset(

@@ -66,10 +66,10 @@ class ClusterAuth(BaseModel):
 
     @property
     def oidc_enabled(self) -> bool:
-        return self.status not in (
+        return self.status not in {
             StatusValue.DISABLED.value,
             StatusValue.RHIDP_ONLY.value,
-        )
+        }
 
     @property
     def enforced(self) -> bool:

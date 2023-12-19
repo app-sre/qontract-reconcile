@@ -20,7 +20,7 @@ def get_deleted_keys(accounts):
     return {
         account["name"]: account["deleteKeys"]
         for account in accounts
-        if account["deleteKeys"] not in (None, [])
+        if account["deleteKeys"]
     }
 
 

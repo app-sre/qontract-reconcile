@@ -110,7 +110,7 @@ class StaticShardingStrategy:
     def create_sub_shards(
         base_shard: ShardSpec, sub_sharding: SubShardingV1
     ) -> list[ShardSpec]:
-        if base_shard.shard_id != "" or base_shard.shards != "":
+        if base_shard.shard_id or base_shard.shards:
             raise ValueError(
                 "Static sub_sharding can only be applied to Key based sharding"
             )

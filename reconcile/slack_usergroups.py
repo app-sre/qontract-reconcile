@@ -114,7 +114,7 @@ class State(BaseModel):
     usergroup_id: Optional[str] = None
 
     def __bool__(self) -> bool:
-        return self.workspace != ""
+        return self.workspace != ""  # noqa: PLC1901
 
 
 SlackState = dict[str, dict[str, State]]
@@ -235,7 +235,7 @@ def get_usernames_from_pagerduty(
     pagerduty_map: PagerDutyMap,
 ) -> list[str]:
     """Return list of usernames from all pagerduties."""
-    global error_occurred
+    global error_occurred  # noqa: PLW0603
     all_output_usernames = []
     all_pagerduty_names = [get_pagerduty_name(u) for u in users]
     for pagerduty in pagerduties:
@@ -477,9 +477,9 @@ def get_desired_state_cluster_usergroups(
 ) -> SlackState:
     """Get the desired state of Slack usergroups."""
     desired_state: SlackState = {}
-    openshift_users_desired_state: list[
-        dict[str, str]
-    ] = openshift_users.fetch_desired_state(oc_map=None)
+    openshift_users_desired_state: list[dict[str, str]] = (
+        openshift_users.fetch_desired_state(oc_map=None)
+    )
     for cluster in clusters:
         if not integration_is_enabled(QONTRACT_INTEGRATION, cluster):
             logging.debug(
@@ -544,7 +544,7 @@ def _create_usergroups(
     dry_run: bool = True,
 ) -> None:
     """Create Slack usergroups."""
-    global error_occurred
+    global error_occurred  # noqa: PLW0603
     if current_ug_state:
         logging.debug(
             f"[{desired_ug_state.workspace}] Usergroup exists and will not be created {desired_ug_state.usergroup}"
@@ -572,7 +572,7 @@ def _update_usergroup_users_from_state(
     dry_run: bool = True,
 ) -> None:
     """Update the users in a Slack usergroup."""
-    global error_occurred
+    global error_occurred  # noqa: PLW0603
     if current_ug_state.users == desired_ug_state.users:
         logging.debug(
             f"No usergroup user changes detected for {desired_ug_state.usergroup}"
@@ -622,7 +622,7 @@ def _update_usergroup_from_state(
     dry_run: bool = True,
 ) -> None:
     """Update a Slack usergroup."""
-    global error_occurred
+    global error_occurred  # noqa: PLW0603
     if (
         current_ug_state.channels == desired_ug_state.channels
         and current_ug_state.description == desired_ug_state.description
@@ -735,7 +735,7 @@ def run(
     workspace_name: Optional[str] = None,
     usergroup_name: Optional[str] = None,
 ) -> None:
-    global error_occurred
+    global error_occurred  # noqa: PLW0603
     error_occurred = False
 
     gqlapi = gql.get_api()

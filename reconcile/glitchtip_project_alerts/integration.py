@@ -236,9 +236,9 @@ class GlitchtipProjectAlertsIntegration(
         glitchtip_instances = glitchtip_instance_query(
             query_func=gqlapi.query
         ).instances
-        glitchtip_projects_by_instance: dict[
-            str, list[GlitchtipProjectsV1]
-        ] = defaultdict(list)
+        glitchtip_projects_by_instance: dict[str, list[GlitchtipProjectsV1]] = (
+            defaultdict(list)
+        )
         for glitchtip_project in self.get_projects(query_func=gqlapi.query):
             glitchtip_projects_by_instance[
                 glitchtip_project.organization.instance.name

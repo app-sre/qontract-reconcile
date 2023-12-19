@@ -182,18 +182,18 @@ class LabelInventory:
                     if k not in managed:
                         self.update_managed_keys(cluster, ns, k)
                     changed[k] = v
-                else:  # k in current:
-                    if k not in managed:  # conflicting labels
-                        self.add_error(
-                            cluster,
-                            ns,
-                            "Label conflict:"
-                            + f"desired {k}={v} vs "
-                            + f"current {k}={current[k]}",
-                        )
-                    else:
-                        if v != current[k]:
-                            changed[k] = v
+
+                elif k not in managed:  # conflicting labels
+                    self.add_error(
+                        cluster,
+                        ns,
+                        "Label conflict:"
+                        + f"desired {k}={v} vs "
+                        + f"current {k}={current[k]}",
+                    )
+
+                elif v != current[k]:
+                    changed[k] = v
 
             # remove old labels
             for k, v in current.items():

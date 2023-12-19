@@ -1,3 +1,4 @@
+# ruff: noqa: PLC0415 - `import` should be at the top-level of a file
 import faulthandler
 import json
 import logging
@@ -589,7 +590,7 @@ def run_class_integration(
     finally:
         if dump_schemas_file:
             gqlapi = gql.get_api()
-            with open(dump_schemas_file, "w") as f:
+            with open(dump_schemas_file, "w", encoding="locale") as f:
                 f.write(json.dumps(gqlapi.get_queried_schemas()))
 
 

@@ -184,7 +184,7 @@ def test_gpg_encrypt_from_local_file(
 
     captured = capsys.readouterr()
     assert captured.out == f"{encrypted_content}\n"
-    mock_file.assert_called_once_with(file_path)
+    mock_file.assert_called_once_with(file_path, encoding="locale")
     secret_reader_mock.read_all.assert_not_called()
 
 

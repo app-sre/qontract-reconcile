@@ -25,7 +25,7 @@ class JSONEncoder(json.JSONEncoder):
 
 def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
     try:
-        with tempfile.NamedTemporaryFile(mode="w+") as values_file:
+        with tempfile.NamedTemporaryFile(mode="w+", encoding="locale") as values_file:
             values_file.write(json.dumps(values, cls=JSONEncoder))
             values_file.flush()
             cmd = [

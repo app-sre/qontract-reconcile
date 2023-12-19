@@ -12,12 +12,11 @@ class SecretNotFound(Exception):
 
 
 def get_config():
-    global _config
     return _config
 
 
 def init(config):
-    global _config
+    global _config  # noqa: PLW0603
     _config = config
     return _config
 

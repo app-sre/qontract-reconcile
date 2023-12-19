@@ -45,7 +45,7 @@ class JumpHostBase:
         self._identity_dir = tempfile.mkdtemp()
 
         identity_file = self._identity_dir + "/id"
-        with open(identity_file, "w") as f:
+        with open(identity_file, "w", encoding="locale") as f:
             f.write(self._identity)
         os.chmod(identity_file, 0o600)
         self._identity_file = identity_file
@@ -96,7 +96,7 @@ class JumpHostSSH(JumpHostBase):
 
     def _init_known_hosts_file(self) -> None:
         known_hosts_file = self._identity_dir + "/known_hosts"
-        with open(known_hosts_file, "w") as f:
+        with open(known_hosts_file, "w", encoding="locale") as f:
             f.write(self._known_hosts)
         os.chmod(known_hosts_file, 0o600)
         self.known_hosts_file = known_hosts_file

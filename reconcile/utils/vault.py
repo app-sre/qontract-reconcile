@@ -151,7 +151,7 @@ class _VaultClient:
     def _refresh_client_auth(self):
         if self.kube_auth_enabled:
             # must read each time to account for sa token refresh
-            with open(self.kube_sa_token_path) as f:
+            with open(self.kube_sa_token_path, encoding="locale") as f:
                 try:
                     self._client.auth_kubernetes(
                         role=self.kube_auth_role,

@@ -81,9 +81,9 @@ class GlitchtipReconciler:
                     name=project.name,
                     platform=project.platform,
                 )
-                organization_projects[
-                    organization_projects.index(project)
-                ] = updated_project
+                organization_projects[organization_projects.index(project)] = (
+                    updated_project
+                )
 
         for desired_project in desired_projects:
             current_project = organization_projects[
