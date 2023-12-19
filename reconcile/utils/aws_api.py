@@ -6,6 +6,7 @@ from collections.abc import (
     Iterable,
     Iterator,
     Mapping,
+    Sequence,
 )
 from datetime import datetime
 from functools import lru_cache
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
         TransitGatewayTypeDef,
         TransitGatewayVpcAttachmentTypeDef,
         VpcTypeDef,
+        VpcEndpointTypeDef,
     )
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
@@ -1344,7 +1346,9 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     # pylint: disable=method-hidden
-    def _get_vpc_endpoints(filters: dict[str, Any], ec2: EC2Client) -> dict[str, Any]:
+    def _get_vpc_endpoints(
+        filters: Sequence[FilterTypeDef], ec2: EC2Client
+    ) -> list[VpcEndpointTypeDef]:
         atts = ec2.describe_vpc_endpoints(Filters=filters)
         return atts.get("VpcEndpoints", [])
 
