@@ -2,6 +2,7 @@ from reconcile.rhidp.common import (
     build_cluster_objects,
     discover_clusters,
     get_ocm_environments,
+    get_ocm_orgs_from_env,
 )
 from reconcile.rhidp.sso_client.base import run
 from reconcile.utils.ocm_base_client import init_ocm_base_client
@@ -18,7 +19,6 @@ class SSOClientParams(PydanticRunParams):
     keycloak_vault_paths: list[str]
     vault_input_path: str
     ocm_environment: str | None = None
-    ocm_organization_ids: set[str] | None = None
     default_auth_name: str
     default_auth_issuer_url: str
     contacts: list[str]
@@ -36,7 +36,10 @@ class SSOClient(QontractReconcileIntegration[SSOClientParams]):
         for ocm_env in get_ocm_environments(self.params.ocm_environment):
             ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
             cluster_details = discover_clusters(
-                ocm_api=ocm_api, org_ids=self.params.ocm_organization_ids
+                ocm_api=ocm_api,
+                org_ids={
+                    org.org_id for org in get_ocm_orgs_from_env(ocm_env.name, self.name)
+                },
             )
             clusters = build_cluster_objects(
                 cluster_details=cluster_details,

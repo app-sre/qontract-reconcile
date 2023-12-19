@@ -2,6 +2,7 @@ from reconcile.rhidp.common import (
     build_cluster_objects,
     discover_clusters,
     get_ocm_environments,
+    get_ocm_orgs_from_env,
 )
 from reconcile.rhidp.ocm_oidc_idp.base import run
 from reconcile.utils.ocm_base_client import init_ocm_base_client
@@ -16,7 +17,6 @@ QONTRACT_INTEGRATION = "ocm-oidc-idp"
 class OCMOidcIdpParams(PydanticRunParams):
     vault_input_path: str
     ocm_environment: str | None = None
-    ocm_organization_ids: set[str] | None = None
     default_auth_name: str
     default_auth_issuer_url: str
 
@@ -33,7 +33,10 @@ class OCMOidcIdp(QontractReconcileIntegration[OCMOidcIdpParams]):
             ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
             # data query
             cluster_details = discover_clusters(
-                ocm_api=ocm_api, org_ids=self.params.ocm_organization_ids
+                ocm_api=ocm_api,
+                org_ids={
+                    org.org_id for org in get_ocm_orgs_from_env(ocm_env.name, self.name)
+                },
             )
             clusters = build_cluster_objects(
                 cluster_details=cluster_details,
