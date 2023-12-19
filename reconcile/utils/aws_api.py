@@ -43,8 +43,8 @@ if TYPE_CHECKING:
         TagTypeDef,
         TransitGatewayTypeDef,
         TransitGatewayVpcAttachmentTypeDef,
-        VpcTypeDef,
         VpcEndpointTypeDef,
+        VpcTypeDef,
     )
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
