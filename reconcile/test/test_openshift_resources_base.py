@@ -482,3 +482,21 @@ def test_cluster_params():
 
     with pytest.raises(RuntimeError):
         orb.run(dry_run=False, cluster_name=["cluster-1", "cluster-2"])
+
+
+@pytest.mark.parametrize(
+    "test_keyname, exception_expected",
+    [
+        (" leading_space", orb.SecretKeyFormatError),
+        (" space_padding ", orb.SecretKeyFormatError),
+        ("trailing_space ", orb.SecretKeyFormatError),
+        ("no space issues", None),  # but should there be...
+        ("no_spacing", None),
+    ],
+)
+def test_secret_keys(test_keyname, exception_expected):
+    if exception_expected is not None:
+        with pytest.raises(exception_expected):
+            orb.assert_valid_secret_keys((test_keyname, "invalid"))
+    else:
+        orb.assert_valid_secret_keys((test_keyname, "valid"))

@@ -27,10 +27,6 @@ class SecretNotFound(Exception):
     pass
 
 
-class SecretFormatProblem(Exception):
-    pass
-
-
 class SecretAccessForbidden(Exception):
     pass
 
@@ -167,7 +163,7 @@ class _VaultClient:
         else:
             self._client.auth_approle(self.role_id, self.secret_id)
 
-    @retry(no_retry_exceptions=(SecretFormatProblem))
+    @retry()
     def read_all_with_version(self, secret: Mapping) -> tuple[Mapping, Optional[str]]:
         """Returns a dictionary of keys and values in a Vault secret and the
         version of the secret, for V1 secrets, version will be None.
@@ -192,13 +188,6 @@ class _VaultClient:
 
         if data is None:
             raise SecretNotFound
-
-        # Check the keys to ensure that they do not have any whitespace around them.
-        for k in data:
-            if k.strip() != k:
-                raise SecretFormatProblem(
-                    f"Secret key has whitespace. Expected '{k.strip()}' but got '{k}'"
-                )
 
         return data, version
 

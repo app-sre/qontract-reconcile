@@ -262,6 +262,10 @@ class ResourceTemplateRenderError(Exception):
     pass
 
 
+class SecretKeyFormatError(Exception):
+    pass
+
+
 class UnknownProviderError(Exception):
     def __init__(self, msg):
         super().__init__("unknown provider error: " + str(msg))
@@ -585,6 +589,8 @@ def fetch_provider_vault_secret(
     if labels:
         body["metadata"]["labels"] = labels
 
+    assert_valid_secret_keys(raw_data.items())
+
     # populate data
     for k, v in raw_data.items():
         if k.lower().endswith(QONTRACT_BASE64_SUFFIX):
@@ -598,6 +604,15 @@ def fetch_provider_vault_secret(
         return OR(body, integration, integration_version, error_details=path)
     except ConstructResourceError as e:
         raise FetchResourceError(str(e))
+
+
+# check to ensure that all of the keys are valid by looking to see if there are any white space issues. If any issues are uncovered, an exception will be raised.
+def assert_valid_secret_keys(items):
+    for k in items:
+        if k.strip() != k:
+            raise SecretKeyFormatError(
+                f"Secret key has whitespace. Expected '{k.strip()}' but got '{k}'"
+            )
 
 
 def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -> OR:
