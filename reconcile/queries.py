@@ -1069,7 +1069,10 @@ CLUSTER_PEERING_QUERY = """
     }
 
     spec {
+      id
       region
+      private
+      hypershift
     }
     network {
       vpc
@@ -1140,7 +1143,10 @@ CLUSTER_PEERING_QUERY = """
               vpc
             }
             spec {
+              id
               region
+              private
+              hypershift
             }
             awsInfrastructureManagementAccounts {
               account {

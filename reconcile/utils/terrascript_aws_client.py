@@ -988,6 +988,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.add_resource(acct_name, record_resource)
 
     def populate_vpc_peerings(self, desired_state):
+        # vpce_security_groups: dict[str, aws_security_group] = {}
         for item in desired_state:
             if item["deleted"]:
                 continue
@@ -1000,6 +1001,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             req_account = requester["account"]
             req_account_name = req_account["name"]
             req_alias = self.get_alias_name_from_assume_role(req_account["assume_role"])
+
+            acc_account = accepter["account"]
+            acc_account_name = acc_account["name"]
+            acc_alias = self.get_alias_name_from_assume_role(acc_account["assume_role"])
 
             # Requester's side of the connection - the cluster's account
             identifier = f"{requester['vpc_id']}-{accepter['vpc_id']}"
@@ -1040,9 +1045,51 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     tf_resource = aws_route(route_identifier, **values)
                     self.add_resource(req_account_name, tf_resource)
 
-            acc_account = accepter["account"]
-            acc_account_name = acc_account["name"]
-            acc_alias = self.get_alias_name_from_assume_role(acc_account["assume_role"])
+            # add security group rules for private hosted controlplane API VPC endpoint service
+            api_security_group_id = requester.get("api_security_group_id")
+            if api_security_group_id:
+                # security_group_identifier = f"{vpc_endpoint_id}-api-access-from-peerings"
+                # security_group = vpce_security_groups.get(security_group_identifier)
+                # if security_group is None:
+                #    # create security group once
+                #    security_group = aws_security_group(
+                #        security_group_identifier,
+                #        provider="aws." + req_alias,
+                #        description=f"{vpc_endpoint_id} API access from peerings",
+                #        vpc_id=requester['vpc_id'],
+                #        # todo tags
+                #    )
+                #    vpce_security_groups[security_group_identifier] = security_group
+                #    self.add_resource(req_account_name, security_group)
+
+                # create the ingress rule
+                hcp_api_ingress_rule = aws_security_group_rule(
+                    f"api-access-from-peering-{connection_name}",
+                    type="ingress",
+                    # security_group_id=f"${{{security_group.id}}}",
+                    security_group_id=api_security_group_id,
+                    cidr_blocks=[accepter["cidr_block"]],
+                    from_port=443,
+                    to_port=443,
+                    protocol="tcp",
+                    description=f"HCP API access from peering connection {connection_name}",
+                )
+                self.add_resource(req_account_name, hcp_api_ingress_rule)
+
+            if accepter.get("api_security_group_id"):
+                self.add_resource(
+                    acc_account_name,
+                    aws_security_group_rule(
+                        f"api-access-from-peering-{connection_name}",
+                        type="ingress",
+                        security_group_id=accepter.get("api_security_group_id"),
+                        cidr_blocks=[requester["cidr_block"]],
+                        from_port=443,
+                        to_port=443,
+                        protocol="tcp",
+                        description=f"HCP API access from peering connection {connection_name}",
+                    ),
+                )
 
             # Accepter's side of the connection.
             values = {

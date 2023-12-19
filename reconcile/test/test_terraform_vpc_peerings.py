@@ -50,21 +50,31 @@ class MockOCM:
 
 class MockAWSAPI:
     def __init__(self) -> None:
-        self.vpc_details: dict[str, tuple[str, list[str]]] = {}
+        self.vpc_details: dict[str, tuple[str, list[str], str]] = {}
 
-    def register(self, vpc: str, vpc_id: str, route_tables: list[str]) -> "MockAWSAPI":
-        self.vpc_details[vpc] = (vpc_id, route_tables)
+    def register(
+        self,
+        vpc: str,
+        vpc_id: str,
+        route_tables: list[str],
+        vpce_sg: Optional[str] = None,
+    ) -> "MockAWSAPI":
+        self.vpc_details[vpc] = (vpc_id, route_tables, vpce_sg)
         return self
 
     def get_cluster_vpc_details(
-        self, account: dict[str, Any], route_tables=False, subnets=False
+        self,
+        account: dict[str, Any],
+        route_tables=False,
+        subnets=False,
+        hcp_vpc_endpoint_sg=False,
     ) -> tuple:
         if account["assume_cidr"] in self.vpc_details:
-            vpc_id, rt = self.vpc_details[account["assume_cidr"]]
+            vpc_id, rt, sg_id = self.vpc_details[account["assume_cidr"]]
             if not route_tables:
-                return vpc_id, None, None
-            return vpc_id, rt, None
-        return None, None, None
+                return vpc_id, None, None, sg_id if hcp_vpc_endpoint_sg else None
+            return vpc_id, rt, None, sg_id if hcp_vpc_endpoint_sg else None
+        return None, None, None, None
 
     def auto_speced_mock(self, mocker) -> aws_api.AWSApi:
         aws_api_mock = mocker.patch(
@@ -83,12 +93,19 @@ def build_cluster(
     read_only_accounts: Optional[list[str]] = None,
     network_mgmt_accounts: Optional[list[str]] = None,
     peering_connections: Optional[list[dict[str, Any]]] = None,
+    hcp: bool = False,
+    private: bool = False,
+    sg: str = None,
 ):
     if not vpc:
         vpc = name
     cluster = {
         "name": name,
-        "spec": {"region": "region"},
+        "spec": {
+            "region": "region",
+            "private": private,
+            "hypershift": hcp,
+        },
         "network": {"vpc": vpc},
         "peering": {"connections": peering_connections or []},
         "awsInfrastructureManagementAccounts": None,

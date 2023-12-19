@@ -132,6 +132,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self.get_vpc_default_sg_id = lru_cache()(self.get_vpc_default_sg_id)
         self.get_vpc_route_tables = lru_cache()(self.get_vpc_route_tables)
         self.get_vpc_subnets = lru_cache()(self.get_vpc_subnets)
+        self._get_vpc_endpoints = lru_cache()(self._get_vpc_endpoints)
 
     def init_sessions_and_resources(self, accounts: Iterable[awsh.Account]):
         results = threaded.run(
@@ -892,12 +893,15 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
         return subnets.get("Subnets", [])
 
-    def get_cluster_vpc_details(self, account, route_tables=False, subnets=False):
+    def get_cluster_vpc_details(
+        self, account, route_tables=False, subnets=False, hcp_vpc_endpoint_sg=False
+    ):
         """
         Returns a cluster VPC details:
             - VPC ID
             - Route table IDs (optional)
             - Subnets list including Subnet ID and Subnet Availability zone
+            - VPC Endpoint default security group of the private API router (optional)
         :param account: a dictionary containing the following keys:
                         - name - name of the AWS account
                         - assume_role - role to assume to get access
@@ -917,6 +921,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         route_table_ids = None
         subnets_id_az = None
+        api_security_group_id = None
         if vpc_id:
             if route_tables:
                 vpc_route_tables = self.get_vpc_route_tables(vpc_id, assumed_ec2)
@@ -927,8 +932,55 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                     {"id": s["SubnetId"], "az": s["AvailabilityZone"]}
                     for s in vpc_subnets
                 ]
+            if hcp_vpc_endpoint_sg:
+                endpoints = AWSApi._get_vpc_endpoints(
+                    [
+                        {"Name": "vpc-id", "Values": [vpc_id]},
+                        {
+                            "Name": "tag:AWSEndpointService",
+                            "Values": ["private-router"],
+                        },
+                    ],
+                    assumed_ec2,
+                )
+                if len(endpoints) > 1:
+                    raise ValueError(
+                        f"exactly one VPC endpoint for private API router in VPC {vpc_id} expected but {len(endpoints)} found"
+                    )
+                vpc_endpoint_id = endpoints[0]["VpcEndpointId"]
+                # https://github.com/openshift/hypershift/blob/c855f68e84e78924ccc9c2132b75dc7e30c4e1d8/control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go#L4243
+                security_groups = [
+                    sg
+                    for sg in endpoints[0]["Groups"]
+                    if sg["GroupName"].endswith("-default-sg")
+                ]
+                if len(security_groups) != 1:
+                    raise ValueError(
+                        f"exactly one VPC endpoint default security group for private API router {vpc_endpoint_id} "
+                        f"in VPC {vpc_id} expected but {len(security_groups)} found"
+                    )
+                api_security_group_id = security_groups[0]["GroupId"]
 
-        return vpc_id, route_table_ids, subnets_id_az
+        return vpc_id, route_table_ids, subnets_id_az, api_security_group_id
+
+    @staticmethod
+    # pylint: disable=method-hidden
+    def _create_security_group_on_vpc_endpoint(
+        vpc_endpoint_id: str, security_group_name: str, ec2: EC2Client
+    ) -> str:
+        """
+        Creates a security group on a given VPC endpoint.
+        :param vpc_endpoint_id: VPC endpoint ID
+        :param security_group_name: name of the security group
+        :param ec2: EC2 client
+        :return: ID of the created security group
+        """
+        response = ec2.create_security_group(
+            Description=security_group_name,
+            GroupName=security_group_name,
+            VpcId=vpc_endpoint_id.split("-")[0],
+        )
+        return response["GroupId"]
 
     def get_cluster_nat_gateways_egress_ips(self, account: dict[str, Any], vpc_id: str):
         assumed_role_data = self._get_account_assume_data(account)
@@ -1308,6 +1360,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             results.append(item)
 
         return results
+
+    @staticmethod
+    # pylint: disable=method-hidden
+    def _get_vpc_endpoints(filters: dict[str, Any], ec2: EC2Client) -> dict[str, Any]:
+        atts = ec2.describe_vpc_endpoints(Filters=filters)
+        return atts.get("VpcEndpoints", [])
 
     @staticmethod
     def _get_hosted_zone_id(zone: HostedZoneTypeDef) -> str:

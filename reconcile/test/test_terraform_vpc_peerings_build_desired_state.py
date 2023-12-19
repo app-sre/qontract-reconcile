@@ -66,6 +66,7 @@ def test_c2c_all_clusters(mocker):
                 "region": "region",
                 "vpc_id": "requester_vpc_id",
                 "route_table_ids": ["requester_rt_id"],
+                "api_security_group_id": None,
                 "account": {
                     "name": "acc",
                     "uid": "acc",
@@ -82,6 +83,7 @@ def test_c2c_all_clusters(mocker):
                 "region": "region",
                 "vpc_id": "accepter_vpc_id",
                 "route_table_ids": ["accepter_rt_id"],
+                "api_security_group_id": None,
                 "account": {
                     "name": "acc",
                     "uid": "acc",
@@ -157,6 +159,129 @@ def test_c2c_one_cluster_failing_weird(mocker):
     assert str(ex.value) == SOMETHING_UNEXPECTED
 
 
+@pytest.mark.parametrize(
+    "accepter_hcp, accepter_private, requester_hcp, requester_private, expected_accepter_security_group, expected_requester_security_group",
+    [
+        (True, True, True, True, "sg-accepter", "sg-requester"),
+        (True, False, True, True, None, "sg-requester"),
+        (False, True, True, True, None, "sg-requester"),
+        (False, False, True, True, None, "sg-requester"),
+        (True, True, True, False, "sg-accepter", None),
+        (True, True, False, True, "sg-accepter", None),
+        (True, True, False, False, "sg-accepter", None),
+    ],
+)
+def test_c2c_hcp(
+    accepter_hcp,
+    accepter_private,
+    requester_hcp,
+    requester_private,
+    expected_accepter_security_group,
+    expected_requester_security_group,
+    mocker,
+):
+    accepter_cluster = build_cluster(
+        name="accepter_cluster",
+        vpc="accepter_vpc",
+        network_mgmt_accounts=["acc"],
+        peering_connections=[
+            build_accepter_connection(name="peername", cluster="requester_cluster")
+        ],
+        hcp=accepter_hcp,
+        private=accepter_private,
+    )
+    requester_cluster = build_cluster(
+        name="requester_cluster",
+        vpc="requester_vpc",
+        network_mgmt_accounts=["acc"],
+        peering_connections=[
+            build_requester_connection(name="peername", peer_cluster=accepter_cluster)
+        ],
+        hcp=requester_hcp,
+        private=requester_private,
+    )
+    ocm = (
+        MockOCM()
+        .register("requester_cluster", "acc", "terraform", "r")
+        .register("accepter_cluster", "acc", "terraform", "a")
+    )
+
+    awsapi = (
+        MockAWSAPI()
+        .register(
+            vpc="accepter_vpc",
+            vpc_id="accepter_vpc_id",
+            route_tables=["accepter_rt_id"],
+            vpce_sg=expected_accepter_security_group,
+        )
+        .register(
+            vpc="requester_vpc",
+            vpc_id="requester_vpc_id",
+            route_tables=["requester_rt_id"],
+            vpce_sg=expected_requester_security_group,
+        )
+    )
+
+    expected = [
+        {
+            "connection_provider": "cluster-vpc-requester",
+            "connection_name": "peername",
+            "requester": {
+                "cidr_block": "requester_vpc",
+                "region": "region",
+                "vpc_id": "requester_vpc_id",
+                "route_table_ids": ["requester_rt_id"],
+                "api_security_group_id": expected_requester_security_group,
+                "account": {
+                    "name": "acc",
+                    "uid": "acc",
+                    "terraformUsername": "terraform",
+                    "automationToken": {},
+                    "assume_role": "arn::::r",
+                    "assume_region": "region",
+                    "assume_cidr": "requester_vpc",
+                },
+                "peer_owner_id": "a",
+            },
+            "accepter": {
+                "cidr_block": "accepter_vpc",
+                "region": "region",
+                "vpc_id": "accepter_vpc_id",
+                "route_table_ids": ["accepter_rt_id"],
+                "api_security_group_id": expected_accepter_security_group,
+                "account": {
+                    "name": "acc",
+                    "uid": "acc",
+                    "terraformUsername": "terraform",
+                    "automationToken": {},
+                    "assume_role": "arn::::a",
+                    "assume_region": "region",
+                    "assume_cidr": "accepter_vpc",
+                },
+            },
+            "deleted": False,
+        }
+    ]
+
+    # no account filtering
+    result = sut.build_desired_state_single_cluster(
+        requester_cluster, ocm, awsapi, account_filter=None
+    )
+    assert result == expected
+
+    # correct account filtering
+    result = sut.build_desired_state_single_cluster(
+        requester_cluster, ocm, awsapi, account_filter="acc"
+    )
+    assert result == expected
+
+    # correct account filtering
+    result = sut.build_desired_state_single_cluster(
+        requester_cluster, ocm, awsapi, account_filter="another_account"
+    )
+    assert not result
+
+
 def test_c2c_base(mocker):
     """
     happy path
@@ -206,6 +331,7 @@ def test_c2c_base(mocker):
                 "region": "region",
                 "vpc_id": "requester_vpc_id",
                 "route_table_ids": ["requester_rt_id"],
+                "api_security_group_id": None,
                 "account": {
                     "name": "acc",
                     "uid": "acc",
@@ -222,6 +348,7 @@ def test_c2c_base(mocker):
                 "region": "region",
                 "vpc_id": "accepter_vpc_id",
                 "route_table_ids": ["accepter_rt_id"],
+                "api_security_group_id": None,
                 "account": {
                     "name": "acc",
                     "uid": "acc",
@@ -655,11 +782,12 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
             "assume_cidr": "172.16.0.0/12",
         }
         self.mock_callable(self.awsapi, "get_cluster_vpc_details").for_call(
-            req_account, route_tables=True
+            req_account, route_tables=True, hcp_vpc_endpoint_sg=False
         ).to_return_value((
             "vpc_id",
             ["route_table_id"],
             "subnet_id",
+            None,
         )).and_assert_called_once()
 
         self.mock_callable(self.awsapi, "get_vpcs_details").for_call(
@@ -673,6 +801,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
                 "requester": {
                     "vpc_id": "vpc_id",
                     "route_table_ids": ["route_table_id"],
+                    "api_security_group_id": None,
                     "account": self.peer_account,
                     "region": "mars-plain-1",
                     "cidr_block": "172.16.0.0/12",
@@ -692,6 +821,79 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
                 "requester": {
                     "vpc_id": "vpc_id",
                     "route_table_ids": ["route_table_id"],
+                    "api_security_group_id": None,
+                    "account": self.peer_account,
+                    "region": "mars-plain-1",
+                    "cidr_block": "172.16.0.0/12",
+                },
+                "accepter": {
+                    "vpc_id": "vpc2",
+                    "region": "mars-utopia-2",
+                    "cidr_block": "192.168.4.0/24",
+                    "route_table_ids": ["vpc2_route_table"],
+                    "account": self.peer_account,
+                },
+                "deleted": False,
+            },
+        ]
+
+        rs = sut.build_desired_state_vpc_mesh_single_cluster(
+            self.cluster, self.ocm, self.awsapi, None
+        )
+        self.assertEqual(rs, expected)
+
+    def test_one_cluster_private_hcp(self):
+        self.cluster["spec"] = {
+            "region": "mars-plain-1",
+            "hypershift": True,
+            "private": True,
+        }
+        req_account = {
+            **self.peer_account,
+            "assume_region": "mars-plain-1",
+            "assume_cidr": "172.16.0.0/12",
+        }
+        self.mock_callable(self.awsapi, "get_cluster_vpc_details").for_call(
+            req_account, route_tables=True, hcp_vpc_endpoint_sg=True
+        ).to_return_value((
+            "vpc_id",
+            ["route_table_id"],
+            "subnet_id",
+            "sg-vpce",
+        )).and_assert_called_once()
+
+        self.mock_callable(self.awsapi, "get_vpcs_details").for_call(
+            req_account, tags=["tag1"], route_tables=True
+        ).to_return_value(self.account_vpcs).and_assert_called_once()
+
+        expected = [
+            {
+                "connection_provider": "account-vpc-mesh",
+                "connection_name": "peername_peer_account-vpc1",
+                "requester": {
+                    "vpc_id": "vpc_id",
+                    "route_table_ids": ["route_table_id"],
+                    "api_security_group_id": "sg-vpce",
+                    "account": self.peer_account,
+                    "region": "mars-plain-1",
+                    "cidr_block": "172.16.0.0/12",
+                },
+                "accepter": {
+                    "vpc_id": "vpc1",
+                    "region": "moon-dark-1",
+                    "cidr_block": "192.168.3.0/24",
+                    "route_table_ids": ["vpc1_route_table"],
+                    "account": self.peer_account,
+                },
+                "deleted": False,
+            },
+            {
+                "connection_provider": "account-vpc-mesh",
+                "connection_name": "peername_peer_account-vpc2",
+                "requester": {
+                    "vpc_id": "vpc_id",
+                    "route_table_ids": ["route_table_id"],
+                    "api_security_group_id": None,
                     "account": self.peer_account,
                     "region": "mars-plain-1",
                     "cidr_block": "172.16.0.0/12",
@@ -723,6 +925,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
         self.mock_callable(self.awsapi, "get_cluster_vpc_details").to_return_value((
             None,
             [None],
+            None,
             None,
         )).and_assert_called_once()
 
@@ -1014,6 +1217,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
                     "cidr_block": "172.16.0.0/12",
                     "region": "mars-plain-1",
                     "route_table_ids": ["routetableid"],
+                    "api_security_group_id": None,
                     "vpc_id": "vpcid",
                 },
             }
@@ -1021,10 +1225,79 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
         self.mock_callable(
             self.awsapi,
             "get_cluster_vpc_details",
-        ).for_call(self.aws_account, route_tables=True).to_return_value((
+        ).for_call(
+            self.aws_account, route_tables=True, hcp_vpc_endpoint_sg=False
+        ).to_return_value((
             "vpcid",
             ["routetableid"],
             {},
+            None,
+        )).and_assert_called_once()
+        self.mock_callable(
+            self.ocm, "get_aws_infrastructure_access_terraform_assume_role"
+        ).for_call(
+            self.cluster["name"],
+            self.aws_account["uid"],
+            self.aws_account["terraformUsername"],
+        ).to_return_value("this:wonderful:role:hell:yeah").and_assert_called_once()
+        rs = sut.build_desired_state_vpc_single_cluster(
+            self.cluster, self.ocm, self.awsapi, None
+        )
+        self.assertEqual(rs, expected)
+
+    def test_private_hcp(self):
+        self.cluster["spec"] = {
+            "region": "mars-plain-1",
+            "hypershift": True,
+            "private": True,
+        }
+        expected = [
+            {
+                "accepter": {
+                    "account": {
+                        "assume_cidr": "172.16.0.0/12",
+                        "assume_region": "mars-plain-1",
+                        "assume_role": "this:wonderful:role:hell:yeah",
+                        "automationtoken": "anautomationtoken",
+                        "name": "accountname",
+                        "terraformUsername": "aterraformusename",
+                        "uid": "anuid",
+                    },
+                    "cidr_block": "172.30.0.0/12",
+                    "region": "mars-olympus-2",
+                    "vpc_id": "avpcid",
+                },
+                "connection_name": "peername",
+                "connection_provider": "account-vpc",
+                "deleted": False,
+                "requester": {
+                    "account": {
+                        "assume_cidr": "172.16.0.0/12",
+                        "assume_region": "mars-plain-1",
+                        "assume_role": "this:wonderful:role:hell:yeah",
+                        "automationtoken": "anautomationtoken",
+                        "name": "accountname",
+                        "terraformUsername": "aterraformusename",
+                        "uid": "anuid",
+                    },
+                    "cidr_block": "172.16.0.0/12",
+                    "region": "mars-plain-1",
+                    "route_table_ids": ["routetableid"],
+                    "api_security_group_id": "sg-vpce",
+                    "vpc_id": "vpcid",
+                },
+            }
+        ]
+        self.mock_callable(
+            self.awsapi,
+            "get_cluster_vpc_details",
+        ).for_call(
+            self.aws_account, route_tables=True, hcp_vpc_endpoint_sg=True
+        ).to_return_value((
+            "vpcid",
+            ["routetableid"],
+            {},
+            "sg-vpce",
         )).and_assert_called_once()
         self.mock_callable(
             self.ocm, "get_aws_infrastructure_access_terraform_assume_role"
@@ -1049,6 +1322,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
 
     def test_no_vpc_id(self):
         self.mock_callable(self.awsapi, "get_cluster_vpc_details").to_return_value((
+            None,
             None,
             None,
             None,
