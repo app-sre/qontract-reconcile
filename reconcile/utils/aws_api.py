@@ -963,25 +963,6 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return vpc_id, route_table_ids, subnets_id_az, api_security_group_id
 
-    @staticmethod
-    # pylint: disable=method-hidden
-    def _create_security_group_on_vpc_endpoint(
-        vpc_endpoint_id: str, security_group_name: str, ec2: EC2Client
-    ) -> str:
-        """
-        Creates a security group on a given VPC endpoint.
-        :param vpc_endpoint_id: VPC endpoint ID
-        :param security_group_name: name of the security group
-        :param ec2: EC2 client
-        :return: ID of the created security group
-        """
-        response = ec2.create_security_group(
-            Description=security_group_name,
-            GroupName=security_group_name,
-            VpcId=vpc_endpoint_id.split("-")[0],
-        )
-        return response["GroupId"]
-
     def get_cluster_nat_gateways_egress_ips(self, account: dict[str, Any], vpc_id: str):
         assumed_role_data = self._get_account_assume_data(account)
         assumed_ec2 = self._get_assumed_role_client(*assumed_role_data)
