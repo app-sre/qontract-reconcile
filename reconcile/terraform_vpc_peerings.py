@@ -489,8 +489,8 @@ def build_desired_state_vpc_single_cluster(
 
 
 def _private_hosted_control_plane(cluster_info: dict[str, Any]) -> bool:
-    return cluster_info["spec"].get("hypershift", False) and cluster_info["spec"].get(
-        "private", False
+    return bool(
+        cluster_info["spec"].get("hypershift") and cluster_info["spec"].get("private")
     )
 
 

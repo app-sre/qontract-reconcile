@@ -893,7 +893,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
                 "requester": {
                     "vpc_id": "vpc_id",
                     "route_table_ids": ["route_table_id"],
-                    "api_security_group_id": None,
+                    "api_security_group_id": "sg-vpce",
                     "account": self.peer_account,
                     "region": "mars-plain-1",
                     "cidr_block": "172.16.0.0/12",
