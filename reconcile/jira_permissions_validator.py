@@ -224,8 +224,8 @@ def get_jira_boards(query_func: Callable) -> list[JiraBoardV1]:
 
 def run(dry_run: bool, exit_on_permission_errors: bool) -> None:
     gql_api = gql.get_api()
-    settings = get_jira_settings(gql_api=gql_api)
-    jiralert_settings = get_jiralert_settings(gql_api=gql_api)
+    settings = get_jira_settings(gql_api=gql_api.query)
+    jiralert_settings = get_jiralert_settings(query_func=gql_api.query)
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     boards = get_jira_boards(query_func=gql_api.query)
