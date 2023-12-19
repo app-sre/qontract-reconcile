@@ -89,7 +89,7 @@ def fetch_desired_state(ri, oc_map):
         permissions = [
             {"cluster": a["cluster"], "cluster_role": a["clusterRole"]}
             for a in role["access"] or []
-            if None not in {a["cluster"], a["clusterRole"]}
+            if a["cluster"] and a["clusterRole"]
         ]
         if not permissions:
             continue
