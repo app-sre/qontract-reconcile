@@ -50,7 +50,7 @@ class MockOCM:
 
 class MockAWSAPI:
     def __init__(self) -> None:
-        self.vpc_details: dict[str, tuple[str, list[str], str]] = {}
+        self.vpc_details: dict[str, tuple[str, list[str], Optional[str]]] = {}
 
     def register(
         self,
@@ -59,7 +59,11 @@ class MockAWSAPI:
         route_tables: list[str],
         vpce_sg: Optional[str] = None,
     ) -> "MockAWSAPI":
-        self.vpc_details[vpc] = (vpc_id, route_tables, vpce_sg)
+        self.vpc_details[vpc] = (
+            vpc_id,
+            route_tables,
+            vpce_sg,
+        )
         return self
 
     def get_cluster_vpc_details(
@@ -95,7 +99,7 @@ def build_cluster(
     peering_connections: Optional[list[dict[str, Any]]] = None,
     hcp: bool = False,
     private: bool = False,
-    sg: str = None,
+    sg: Optional[str] = None,
 ):
     if not vpc:
         vpc = name
