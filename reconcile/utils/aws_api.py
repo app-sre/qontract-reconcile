@@ -1348,7 +1348,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     # pylint: disable=method-hidden
     def _get_vpc_endpoints(
         filters: Sequence[FilterTypeDef], ec2: EC2Client
-    ) -> list[VpcEndpointTypeDef]:
+    ) -> list["VpcEndpointTypeDef"]:
         atts = ec2.describe_vpc_endpoints(Filters=filters)
         return atts.get("VpcEndpoints", [])
 
