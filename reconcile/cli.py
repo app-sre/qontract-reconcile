@@ -887,10 +887,10 @@ def jenkins_webhooks_cleaner(ctx):
 @click.option(
     "--exit-on-permission-errors/--no-exit-on-permission-errors",
     help="Throw and error in case of board permission errors. Useful for PR checks.",
-    default=False,
+    default=True,
 )
 @click.pass_context
-def jira_permissions_validator(ctx, exit_on_permission_errors=False):
+def jira_permissions_validator(ctx, exit_on_permission_errors):
     import reconcile.jira_permissions_validator
 
     run_integration(
