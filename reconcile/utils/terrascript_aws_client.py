@@ -1045,13 +1045,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     self.add_resource(req_account_name, tf_resource)
 
             # add security group rules for private hosted controlplane API VPC endpoint service
-            api_security_group_id = requester.get("api_security_group_id")
-            if api_security_group_id:
+            if requester.get("api_security_group_id"):
                 hcp_api_ingress_rule = aws_security_group_rule(
                     f"api-access-from-peering-{connection_name}",
                     provider="aws." + req_alias,
                     type="ingress",
-                    security_group_id=api_security_group_id,
+                    security_group_id=requester.get("api_security_group_id"),
                     cidr_blocks=[accepter["cidr_block"]],
                     from_port=443,
                     to_port=443,
