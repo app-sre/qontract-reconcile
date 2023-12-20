@@ -199,8 +199,15 @@ def build_desired_state_single_cluster(
                 "are not suppored"
             )
 
-        requester_vpc_id, requester_route_table_ids, _ = awsapi.get_cluster_vpc_details(
-            req_aws, route_tables=requester_manage_routes
+        (
+            requester_vpc_id,
+            requester_route_table_ids,
+            _,
+            api_security_group_id,
+        ) = awsapi.get_cluster_vpc_details(
+            req_aws,
+            route_tables=requester_manage_routes,
+            hcp_vpc_endpoint_sg=_private_hosted_control_plane(cluster_info),
         )
         if requester_vpc_id is None:
             raise BadTerraformPeeringState(
@@ -213,10 +220,18 @@ def build_desired_state_single_cluster(
             "vpc_id": requester_vpc_id,
             "route_table_ids": requester_route_table_ids,
             "account": req_aws,
+            "api_security_group_id": api_security_group_id,
         }
 
-        accepter_vpc_id, accepter_route_table_ids, _ = awsapi.get_cluster_vpc_details(
-            acc_aws, route_tables=accepter_manage_routes
+        (
+            accepter_vpc_id,
+            accepter_route_table_ids,
+            _,
+            api_security_group_id,
+        ) = awsapi.get_cluster_vpc_details(
+            acc_aws,
+            route_tables=accepter_manage_routes,
+            hcp_vpc_endpoint_sg=_private_hosted_control_plane(peer_cluster),
         )
         if accepter_vpc_id is None:
             raise BadTerraformPeeringState(
@@ -230,6 +245,7 @@ def build_desired_state_single_cluster(
             "vpc_id": accepter_vpc_id,
             "route_table_ids": accepter_route_table_ids,
             "account": acc_aws,
+            "api_security_group_id": api_security_group_id,
         }
 
         item = {
@@ -305,8 +321,15 @@ def build_desired_state_vpc_mesh_single_cluster(
             )
         account["assume_region"] = requester["region"]
         account["assume_cidr"] = requester["cidr_block"]
-        requester_vpc_id, requester_route_table_ids, _ = awsapi.get_cluster_vpc_details(
-            account, route_tables=peer_connection.get("manageRoutes")
+        (
+            requester_vpc_id,
+            requester_route_table_ids,
+            _,
+            api_security_group_id,
+        ) = awsapi.get_cluster_vpc_details(
+            account,
+            route_tables=peer_connection.get("manageRoutes"),
+            hcp_vpc_endpoint_sg=_private_hosted_control_plane(cluster_info),
         )
 
         if requester_vpc_id is None:
@@ -317,6 +340,7 @@ def build_desired_state_vpc_mesh_single_cluster(
 
         requester["vpc_id"] = requester_vpc_id
         requester["route_table_ids"] = requester_route_table_ids
+        requester["api_security_group_id"] = api_security_group_id
         requester["account"] = account
 
         account_vpcs = awsapi.get_vpcs_details(
@@ -433,8 +457,15 @@ def build_desired_state_vpc_single_cluster(
             )
         account["assume_region"] = requester["region"]
         account["assume_cidr"] = requester["cidr_block"]
-        requester_vpc_id, requester_route_table_ids, _ = awsapi.get_cluster_vpc_details(
-            account, route_tables=peer_connection.get("manageRoutes")
+        (
+            requester_vpc_id,
+            requester_route_table_ids,
+            _,
+            api_security_group_id,
+        ) = awsapi.get_cluster_vpc_details(
+            account,
+            route_tables=peer_connection.get("manageRoutes"),
+            hcp_vpc_endpoint_sg=_private_hosted_control_plane(cluster_info),
         )
 
         if requester_vpc_id is None:
@@ -444,6 +475,7 @@ def build_desired_state_vpc_single_cluster(
         requester["vpc_id"] = requester_vpc_id
         requester["route_table_ids"] = requester_route_table_ids
         requester["account"] = account
+        requester["api_security_group_id"] = api_security_group_id
         accepter["account"] = account
         item = {
             "connection_provider": peer_connection_provider,
@@ -454,6 +486,12 @@ def build_desired_state_vpc_single_cluster(
         }
         desired_state.append(item)
     return desired_state
+
+
+def _private_hosted_control_plane(cluster_info: dict[str, Any]) -> bool:
+    return bool(
+        cluster_info["spec"].get("hypershift") and cluster_info["spec"].get("private")
+    )
 
 
 def build_desired_state_vpc(
