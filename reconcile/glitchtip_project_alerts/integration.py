@@ -46,6 +46,18 @@ class GlitchtipProjectAlertsIntegrationParams(PydanticRunParams):
     instance: Optional[str] = None
 
 
+def webhook_urls_are_unique(alerts: Iterable[ProjectAlert]) -> bool:
+    """Check that webhook URLs are unique across a project."""
+    urls = []
+    for alert in alerts:
+        for recipient in alert.recipients:
+            if recipient.recipient_type == RecipientType.WEBHOOK:
+                if recipient.url in urls:
+                    return False
+                urls.append(recipient.url)
+    return True
+
+
 class GlitchtipProjectAlertsIntegration(
     QontractReconcileIntegration[GlitchtipProjectAlertsIntegrationParams]
 ):
@@ -136,6 +148,11 @@ class GlitchtipProjectAlertsIntegration(
                             )
                         ],
                     )
+                )
+            # check for duplicates
+            if not webhook_urls_are_unique(alerts):
+                raise ValueError(
+                    "Glitchtip project alert webhook URLs must be unique across a project. Do not trigger the same webhook twice."
                 )
             project = Project(
                 name=glitchtip_project.name,
@@ -236,9 +253,9 @@ class GlitchtipProjectAlertsIntegration(
         glitchtip_instances = glitchtip_instance_query(
             query_func=gqlapi.query
         ).instances
-        glitchtip_projects_by_instance: dict[
-            str, list[GlitchtipProjectsV1]
-        ] = defaultdict(list)
+        glitchtip_projects_by_instance: dict[str, list[GlitchtipProjectsV1]] = (
+            defaultdict(list)
+        )
         for glitchtip_project in self.get_projects(query_func=gqlapi.query):
             glitchtip_projects_by_instance[
                 glitchtip_project.organization.instance.name

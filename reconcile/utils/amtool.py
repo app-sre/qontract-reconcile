@@ -25,7 +25,7 @@ class AmtoolResult:
 def check_config(yaml_config: str) -> AmtoolResult:
     """Run amtool check rules on the given yaml string"""
 
-    with tempfile.NamedTemporaryFile(mode="w+") as fp:
+    with tempfile.NamedTemporaryFile(mode="w+", encoding="locale") as fp:
         fp.write(yaml_config)
         fp.flush()
         cmd = ["amtool", "check-config", fp.name]
@@ -36,7 +36,7 @@ def check_config(yaml_config: str) -> AmtoolResult:
 
 def config_routes_test(yaml_config: str, labels: Mapping[str, str]) -> AmtoolResult:
     labels_lst = [f"{key}={value}" for key, value in labels.items()]
-    with tempfile.NamedTemporaryFile(mode="w+") as fp:
+    with tempfile.NamedTemporaryFile(mode="w+", encoding="locale") as fp:
         fp.write(yaml_config)
         fp.flush()
         cmd = ["amtool", "config", "routes", "test", "--config.file", fp.name]

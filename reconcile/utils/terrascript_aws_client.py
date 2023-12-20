@@ -603,10 +603,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             with self.jenkins_lock:
                 # this may have already happened, so we check again
                 if not self.jenkins_map.get(instance_name):
-                    self.jenkins_map[
-                        instance_name
-                    ] = JenkinsApi.init_jenkins_from_secret(
-                        SecretReader(self.settings), instance["token"]
+                    self.jenkins_map[instance_name] = (
+                        JenkinsApi.init_jenkins_from_secret(
+                            SecretReader(self.settings), instance["token"]
+                        )
                     )
         return self.jenkins_map[instance_name]
 
@@ -1001,6 +1001,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             req_account_name = req_account["name"]
             req_alias = self.get_alias_name_from_assume_role(req_account["assume_role"])
 
+            acc_account = accepter["account"]
+            acc_account_name = acc_account["name"]
+            acc_alias = self.get_alias_name_from_assume_role(acc_account["assume_role"])
+
             # Requester's side of the connection - the cluster's account
             identifier = f"{requester['vpc_id']}-{accepter['vpc_id']}"
             values = {
@@ -1040,9 +1044,36 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     tf_resource = aws_route(route_identifier, **values)
                     self.add_resource(req_account_name, tf_resource)
 
-            acc_account = accepter["account"]
-            acc_account_name = acc_account["name"]
-            acc_alias = self.get_alias_name_from_assume_role(acc_account["assume_role"])
+            # add security group rules for private hosted controlplane API VPC endpoint service
+            if requester.get("api_security_group_id"):
+                hcp_api_ingress_rule = aws_security_group_rule(
+                    f"api-access-from-peering-{connection_name}",
+                    provider="aws." + req_alias,
+                    type="ingress",
+                    security_group_id=requester.get("api_security_group_id"),
+                    cidr_blocks=[accepter["cidr_block"]],
+                    from_port=443,
+                    to_port=443,
+                    protocol="tcp",
+                    description=f"HCP API access from peering connection {connection_name}",
+                )
+                self.add_resource(req_account_name, hcp_api_ingress_rule)
+
+            if accepter.get("api_security_group_id"):
+                self.add_resource(
+                    acc_account_name,
+                    aws_security_group_rule(
+                        f"api-access-from-peering-{connection_name}",
+                        provider="aws." + acc_alias,
+                        type="ingress",
+                        security_group_id=accepter.get("api_security_group_id"),
+                        cidr_blocks=[requester["cidr_block"]],
+                        from_port=443,
+                        to_port=443,
+                        protocol="tcp",
+                        description=f"HCP API access from peering connection {connection_name}",
+                    ),
+                )
 
             # Accepter's side of the connection.
             values = {
@@ -1056,7 +1087,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "Name": connection_name,
                 },
             }
-            if connection_provider in ["account-vpc", "account-vpc-mesh"]:
+            if connection_provider in {"account-vpc", "account-vpc-mesh"}:
                 if self._multiregion_account(acc_account_name):
                     values["provider"] = "aws." + accepter["region"]
             else:
@@ -1075,7 +1106,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         + identifier
                         + ".id}",
                     }
-                    if connection_provider in ["account-vpc", "account-vpc-mesh"]:
+                    if connection_provider in {"account-vpc", "account-vpc-mesh"}:
                         if self._multiregion_account(acc_account_name):
                             values["provider"] = "aws." + accepter["region"]
                     else:
@@ -1796,9 +1827,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             common_values.get("server_side_encryption_configuration")
             or DEFAULT_S3_SSE_CONFIGURATION
         )
-        values[
-            "server_side_encryption_configuration"
-        ] = server_side_encryption_configuration
+        values["server_side_encryption_configuration"] = (
+            server_side_encryption_configuration
+        )
         # Support static website hosting [rosa-authenticator]
         website = common_values.get("website")
         if website:
@@ -2432,9 +2463,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         specs = common_values.get("specs")
         all_queues_per_spec = []
         kms_keys = set()
-        for spec in specs:
-            defaults = self.get_values(spec["defaults"])
-            queues = spec.pop("queues", [])
+        for _spec in specs:
+            defaults = self.get_values(_spec["defaults"])
+            queues = _spec.pop("queues", [])
             all_queues = []
             for queue_kv in queues:
                 queue_key = queue_kv["key"]
@@ -2624,10 +2655,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         region = common_values.get("region") or self.default_regions.get(account)
         specs = common_values.get("specs")
         all_tables = []
-        for spec in specs:
-            defaults = self.get_values(spec["defaults"])
+        for _spec in specs:
+            defaults = self.get_values(_spec["defaults"])
             attributes = defaults.pop("attributes")
-            tables = spec["tables"]
+            tables = _spec["tables"]
             for table_kv in tables:
                 table_key = table_kv["key"]
                 table = table_kv["value"]
@@ -3604,9 +3635,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "starting_position_timestamp", None
                 )
                 if not starting_position_timestamp:
-                    source_vaules[
-                        "starting_position_timestamp"
-                    ] = starting_position_timestamp
+                    source_vaules["starting_position_timestamp"] = (
+                        starting_position_timestamp
+                    )
 
             batch_size = common_values.get("batch_size", 100)
             source_vaules["batch_size"] = batch_size
@@ -3796,7 +3827,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         for name, ts in self.tss.items():
             if print_to_file:
-                with open(print_to_file, "a") as f:
+                with open(print_to_file, "a", encoding="locale") as f:
                     f.write(f"##### {name} #####\n")
                     f.write(str(ts))
                     f.write("\n")
@@ -3804,7 +3835,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 wd = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
             else:
                 wd = working_dirs[name]
-            with open(wd + "/config.tf.json", "w") as f:
+            with open(wd + "/config.tf.json", "w", encoding="locale") as f:
                 f.write(str(ts))
             working_dirs[name] = wd
 
@@ -4353,19 +4384,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         auth_options = values.get("auth", {})
         # TODO: @fishi0x01 make mandatory after migration APPSRE-3409
         if auth_options:
-            es_values[
-                "advanced_security_options"
-            ] = self._build_es_advanced_security_options(auth_options)
+            es_values["advanced_security_options"] = (
+                self._build_es_advanced_security_options(auth_options)
+            )
 
         # TODO: @fishi0x01 remove after migration APPSRE-3409
         # ++++++++ START: REMOVE +++++++++
         else:
             advanced_security_options = values.get("advanced_security_options", {})
             if advanced_security_options:
-                es_values[
-                    "advanced_security_options"
-                ] = self._build_es_advanced_security_options_deprecated(
-                    advanced_security_options
+                es_values["advanced_security_options"] = (
+                    self._build_es_advanced_security_options_deprecated(
+                        advanced_security_options
+                    )
                 )
         # ++++++++ END: REMOVE ++++++++++
 
@@ -4624,12 +4655,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         account = self.accounts[account_name]
         cluster = namespace_info["cluster"]
         ocm = ocm_map.get(cluster["name"])
-        account[
-            "assume_role"
-        ] = ocm.get_aws_infrastructure_access_terraform_assume_role(
-            cluster["name"],
-            account["uid"],
-            account["terraformUsername"],
+        account["assume_role"] = (
+            ocm.get_aws_infrastructure_access_terraform_assume_role(
+                cluster["name"],
+                account["uid"],
+                account["terraformUsername"],
+            )
         )
         account["assume_region"] = cluster["spec"]["region"]
         service_name = f"{namespace_info['name']}/{openshift_service}"
@@ -5198,9 +5229,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if instance_requirements:
             override += [{"instance_requirements": instance_requirements}]
         if override:
-            asg_value["mixed_instances_policy"]["launch_template"][
-                "override"
-            ] = override
+            asg_value["mixed_instances_policy"]["launch_template"]["override"] = (
+                override
+            )
 
         asg_value["tags"] = [
             {"key": k, "value": v, "propagate_at_launch": True} for k, v in tags.items()
@@ -5281,7 +5312,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         lambda_managed_policy_arn = (
             "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         )
-        if region in ("us-gov-west-1", "us-gov-east-1"):
+        if region in {"us-gov-west-1", "us-gov-east-1"}:
             lambda_managed_policy_arn = "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         vpc_id = common_values.get("vpc_id")
         subnet_ids = common_values.get("subnet_ids")
@@ -6179,6 +6210,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 user["name"]: self.secret_reader.read_all(user["secret"])
                 for user in spec.resource["users"]
             }
+            # validate user objects
+            for user, secret in scram_users.items():
+                if secret.keys() != {"password", "username"}:
+                    raise ValueError(
+                        f"MSK user '{user}' secret must contain only 'username' and 'password' keys!"
+                    )
 
         # resource - msk config
         msk_config = aws_msk_configuration(
@@ -6219,9 +6256,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             del values["logging_info"]["broker_logs"]["cloudwatch_logs"][
                 "retention_in_days"
             ]
-            values["logging_info"]["broker_logs"]["cloudwatch_logs"][
-                "log_group"
-            ] = log_group_tf_resource.name
+            values["logging_info"]["broker_logs"]["cloudwatch_logs"]["log_group"] = (
+                log_group_tf_resource.name
+            )
 
         # resource - secret manager for SCRAM client credentials
         if scram_enabled and scram_users:

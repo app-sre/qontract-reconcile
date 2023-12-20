@@ -1,0 +1,14 @@
+# qenerate: plugin=pydantic_v1
+
+query RhIdpOrganizations($name: String) {
+  organizations: ocm_instances_v1(name: $name) {
+    name
+    environment {
+      ...OCMEnvironment
+    }
+    orgId
+    disable {
+      ...DisableAutomations
+    }
+  }
+}

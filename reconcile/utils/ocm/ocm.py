@@ -510,9 +510,9 @@ class OCMProductRosa(OCMProduct):
 
         if isinstance(cluster.spec, ROSAClusterSpec):
             ocm_spec.setdefault("properties", {})
-            ocm_spec["properties"][
-                "rosa_creator_arn"
-            ] = cluster.spec.account.rosa.creator_role_arn
+            ocm_spec["properties"]["rosa_creator_arn"] = (
+                cluster.spec.account.rosa.creator_role_arn
+            )
 
             if not cluster.spec.account.rosa.sts:
                 raise ParameterError("STS is required for ROSA clusters")
@@ -536,14 +536,14 @@ class OCMProductRosa(OCMProduct):
             }
 
             if cluster.spec.account.rosa.sts.controlplane_role_arn:
-                rosa_spec["aws"]["sts"]["instance_iam_roles"][
-                    "master_role_arn"
-                ] = cluster.spec.account.rosa.sts.controlplane_role_arn
+                rosa_spec["aws"]["sts"]["instance_iam_roles"]["master_role_arn"] = (
+                    cluster.spec.account.rosa.sts.controlplane_role_arn
+                )
 
             if cluster.spec.hypershift:
-                ocm_spec["nodes"][
-                    "availability_zones"
-                ] = cluster.spec.availability_zones
+                ocm_spec["nodes"]["availability_zones"] = (
+                    cluster.spec.availability_zones
+                )
                 rosa_spec["aws"]["subnet_ids"] = cluster.spec.subnet_ids
 
         ocm_spec.update(rosa_spec)

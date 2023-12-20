@@ -6,6 +6,7 @@ from collections.abc import (
     Iterable,
     Iterator,
     Mapping,
+    Sequence,
 )
 from datetime import datetime
 from functools import lru_cache
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
         TagTypeDef,
         TransitGatewayTypeDef,
         TransitGatewayVpcAttachmentTypeDef,
+        VpcEndpointTypeDef,
         VpcTypeDef,
     )
     from mypy_boto3_iam import IAMClient
@@ -58,37 +60,13 @@ if TYPE_CHECKING:
         ResourceRecordTypeDef,
     )
 else:
-    EC2Client = (
-        EC2ServiceResource
-    ) = (
-        RouteTableTypeDef
-    ) = (
-        SubnetTypeDef
-    ) = (
+    EC2Client = EC2ServiceResource = RouteTableTypeDef = SubnetTypeDef = (
         TransitGatewayTypeDef
-    ) = (
-        TransitGatewayVpcAttachmentTypeDef
-    ) = (
-        VpcTypeDef
-    ) = (
-        IAMClient
-    ) = (
+    ) = TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = (
         AccessKeyMetadataTypeDef
-    ) = (
-        ImageTypeDef
-    ) = (
-        TagTypeDef
-    ) = (
-        LaunchPermissionModificationsTypeDef
-    ) = (
+    ) = ImageTypeDef = TagTypeDef = LaunchPermissionModificationsTypeDef = (
         FilterTypeDef
-    ) = (
-        Route53Client
-    ) = (
-        ResourceRecordSetTypeDef
-    ) = (
-        ResourceRecordTypeDef
-    ) = (
+    ) = Route53Client = ResourceRecordSetTypeDef = ResourceRecordTypeDef = (
         HostedZoneTypeDef
     ) = RDSClient = DBInstanceMessageTypeDef = UpgradeTargetTypeDef = object
 
@@ -156,6 +134,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self.get_vpc_default_sg_id = lru_cache()(self.get_vpc_default_sg_id)
         self.get_vpc_route_tables = lru_cache()(self.get_vpc_route_tables)
         self.get_vpc_subnets = lru_cache()(self.get_vpc_subnets)
+        self._get_vpc_endpoints = lru_cache()(self._get_vpc_endpoints)
 
     def init_sessions_and_resources(self, accounts: Iterable[awsh.Account]):
         results = threaded.run(
@@ -866,7 +845,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self, account_name: str, assume_role: str, assume_region: str, client_type="ec2"
     ) -> EC2Client:
         session = self.get_session(account_name)
-        if assume_role == "":
+        if not assume_role:
             return self.get_session_client(
                 session, client_type, region_name=assume_region
             )
@@ -916,12 +895,15 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
         return subnets.get("Subnets", [])
 
-    def get_cluster_vpc_details(self, account, route_tables=False, subnets=False):
+    def get_cluster_vpc_details(
+        self, account, route_tables=False, subnets=False, hcp_vpc_endpoint_sg=False
+    ):
         """
         Returns a cluster VPC details:
             - VPC ID
             - Route table IDs (optional)
             - Subnets list including Subnet ID and Subnet Availability zone
+            - VPC Endpoint default security group of the private API router (optional)
         :param account: a dictionary containing the following keys:
                         - name - name of the AWS account
                         - assume_role - role to assume to get access
@@ -941,6 +923,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         route_table_ids = None
         subnets_id_az = None
+        api_security_group_id = None
         if vpc_id:
             if route_tables:
                 vpc_route_tables = self.get_vpc_route_tables(vpc_id, assumed_ec2)
@@ -951,8 +934,36 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                     {"id": s["SubnetId"], "az": s["AvailabilityZone"]}
                     for s in vpc_subnets
                 ]
+            if hcp_vpc_endpoint_sg:
+                endpoints = AWSApi._get_vpc_endpoints(
+                    [
+                        {"Name": "vpc-id", "Values": [vpc_id]},
+                        {
+                            "Name": "tag:AWSEndpointService",
+                            "Values": ["private-router"],
+                        },
+                    ],
+                    assumed_ec2,
+                )
+                if len(endpoints) > 1:
+                    raise ValueError(
+                        f"exactly one VPC endpoint for private API router in VPC {vpc_id} expected but {len(endpoints)} found"
+                    )
+                vpc_endpoint_id = endpoints[0]["VpcEndpointId"]
+                # https://github.com/openshift/hypershift/blob/c855f68e84e78924ccc9c2132b75dc7e30c4e1d8/control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go#L4243
+                security_groups = [
+                    sg
+                    for sg in endpoints[0]["Groups"]
+                    if sg["GroupName"].endswith("-default-sg")
+                ]
+                if len(security_groups) != 1:
+                    raise ValueError(
+                        f"exactly one VPC endpoint default security group for private API router {vpc_endpoint_id} "
+                        f"in VPC {vpc_id} expected but {len(security_groups)} found"
+                    )
+                api_security_group_id = security_groups[0]["GroupId"]
 
-        return vpc_id, route_table_ids, subnets_id_az
+        return vpc_id, route_table_ids, subnets_id_az, api_security_group_id
 
     def get_cluster_nat_gateways_egress_ips(self, account: dict[str, Any], vpc_id: str):
         assumed_role_data = self._get_account_assume_data(account)
@@ -1332,6 +1343,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             results.append(item)
 
         return results
+
+    @staticmethod
+    # pylint: disable=method-hidden
+    def _get_vpc_endpoints(
+        filters: Sequence[FilterTypeDef], ec2: EC2Client
+    ) -> list["VpcEndpointTypeDef"]:
+        atts = ec2.describe_vpc_endpoints(Filters=filters)
+        return atts.get("VpcEndpoints", [])
 
     @staticmethod
     def _get_hosted_zone_id(zone: HostedZoneTypeDef) -> str:

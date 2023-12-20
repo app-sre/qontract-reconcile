@@ -36,7 +36,7 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
         for path_spec in self.paths:
             path_type = path_spec["type"]
             path = path_spec["path"]
-            if path_type in [PathTypes.USER, PathTypes.REQUEST, PathTypes.QUERY]:
+            if path_type in {PathTypes.USER, PathTypes.REQUEST, PathTypes.QUERY}:
                 gitlab_cli.delete_file(
                     branch_name=self.branch, file_path=path, commit_message=self.title
                 )

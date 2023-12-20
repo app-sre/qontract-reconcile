@@ -13,4 +13,4 @@ MarkupSafe==2.1.1
 smtpdfix==0.3.3
 pyfakefs~=5.1
 botocore==1.29.139
-ruff==0.1.7
+ruff==0.1.8

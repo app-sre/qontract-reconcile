@@ -1,3 +1,4 @@
+# ruff: noqa: PLC0415 - `import` should be at the top-level of a file
 import faulthandler
 import json
 import logging
@@ -589,7 +590,7 @@ def run_class_integration(
     finally:
         if dump_schemas_file:
             gqlapi = gql.get_api()
-            with open(dump_schemas_file, "w") as f:
+            with open(dump_schemas_file, "w", encoding="locale") as f:
                 f.write(json.dumps(gqlapi.get_queried_schemas()))
 
 
@@ -883,11 +884,18 @@ def jenkins_webhooks_cleaner(ctx):
 
 
 @integration.command(short_help="Validate permissions in Jira.")
+@click.option(
+    "--exit-on-permission-errors/--no-exit-on-permission-errors",
+    help="Throw and error in case of board permission errors. Useful for PR checks.",
+    default=True,
+)
 @click.pass_context
-def jira_permissions_validator(ctx):
+def jira_permissions_validator(ctx, exit_on_permission_errors):
     import reconcile.jira_permissions_validator
 
-    run_integration(reconcile.jira_permissions_validator, ctx.obj)
+    run_integration(
+        reconcile.jira_permissions_validator, ctx.obj, exit_on_permission_errors
+    )
 
 
 @integration.command(short_help="Watch for changes in Jira boards and notify on Slack.")
@@ -2262,12 +2270,6 @@ def ocm_github_idp(ctx, vault_input_path):
     envvar="RHIDP_OCM_ENV",
 )
 @click.option(
-    "--ocm-org-ids",
-    help="A comma seperated list of OCM organization IDs RHIDP should operator on. If none is specified, all organizations are considered.",
-    required=False,
-    envvar="RHIDP_OCM_ORG_IDS",
-)
-@click.option(
     "--default-auth-name",
     default="redhat-sso",
     help="The authentication name must match that one used in the redirect URL.",
@@ -2290,7 +2292,6 @@ def ocm_github_idp(ctx, vault_input_path):
 def ocm_oidc_idp(
     ctx,
     ocm_env,
-    ocm_org_ids,
     default_auth_name,
     default_auth_issuer_url,
     vault_input_path,
@@ -2300,13 +2301,11 @@ def ocm_oidc_idp(
         OCMOidcIdpParams,
     )
 
-    parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     run_class_integration(
         integration=OCMOidcIdp(
             OCMOidcIdpParams(
                 vault_input_path=vault_input_path,
                 ocm_environment=ocm_env,
-                ocm_organization_ids=parsed_ocm_org_ids,
                 default_auth_name=default_auth_name,
                 default_auth_issuer_url=default_auth_issuer_url,
             )
@@ -2341,12 +2340,6 @@ def ocm_oidc_idp(
     envvar="RHIDP_OCM_ENV",
 )
 @click.option(
-    "--ocm-org-ids",
-    help="A comma seperated list of OCM organization IDs RHIDP should operator on. If none is specified, all organizations are considered.",
-    required=False,
-    envvar="RHIDP_OCM_ORG_IDS",
-)
-@click.option(
     "--default-auth-name",
     default="redhat-sso",
     help="The authentication name must match that one used in the redirect URL.",
@@ -2367,7 +2360,6 @@ def rhidp_sso_client(
     contact_emails,
     vault_input_path,
     ocm_env,
-    ocm_org_ids,
     default_auth_name,
     default_auth_issuer_url,
 ):
@@ -2384,9 +2376,6 @@ def rhidp_sso_client(
                 ),
                 vault_input_path=vault_input_path,
                 ocm_environment=ocm_env,
-                ocm_organization_ids=set(ocm_org_ids.split(","))
-                if ocm_org_ids
-                else None,
                 default_auth_name=default_auth_name,
                 default_auth_issuer_url=default_auth_issuer_url,
                 contacts=list(set(contact_emails.split(","))),

@@ -356,7 +356,7 @@ def make_mysql_command(sqlqueries_file: str) -> str:
 
 
 def make_output_cmd(output: str, recipient: str) -> str:
-    if output in ("filesystem", "encrypted"):
+    if output in {"filesystem", "encrypted"}:
         command = filesystem_redir_stdout()
     else:
         # stdout
@@ -681,10 +681,9 @@ def _get_query_status(
         # CronJob
         if query.get("delete"):
             return QueryStatus.PENDING_DELETION
-    else:
+    elif time.time() >= query_state + JOB_TTL:
         # Job
-        if time.time() >= query_state + JOB_TTL:
-            return QueryStatus.PENDING_DELETION
+        return QueryStatus.PENDING_DELETION
     return QueryStatus.ACTIVE
 
 

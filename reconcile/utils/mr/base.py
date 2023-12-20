@@ -232,7 +232,7 @@ def app_interface_email(
     apps: Optional[list[str]] = None,
 ) -> str:
     """Render app-interface-email template."""
-    with open(EMAIL_TEMPLATE) as file_obj:
+    with open(EMAIL_TEMPLATE, encoding="locale") as file_obj:
         email_template = Template(
             file_obj.read(), keep_trailing_newline=True, trim_blocks=True
         )

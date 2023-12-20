@@ -95,7 +95,7 @@ def is_empty_env_value(current: OR, desired: OR, patch: Mapping[str, Any]) -> bo
     pointer = patch["path"]
     if (
         patch["op"] == "add"
-        and patch["value"] == ""
+        and not patch["value"]
         and re.match(EMPTY_ENV_VALUE, pointer)
     ):
         return True
@@ -105,7 +105,7 @@ def is_empty_env_value(current: OR, desired: OR, patch: Mapping[str, Any]) -> bo
 
 def is_valid_change(current: OR, desired: OR, patch: Mapping[str, Any]) -> bool:
     # Only consider added or replaced values on the Desired object
-    if patch["op"] not in ["add", "replace"]:
+    if patch["op"] not in {"add", "replace"}:
         return False
 
     # Check known mutations. Replaced values can happen if values have been

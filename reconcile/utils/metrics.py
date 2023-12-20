@@ -187,9 +187,9 @@ class MetricsContainer:
         self._gauges: dict[Type[GaugeMetric], dict[Sequence[str], float]] = defaultdict(
             dict
         )
-        self._counters: dict[
-            Type[CounterMetric], dict[Sequence[str], float]
-        ] = defaultdict(dict)
+        self._counters: dict[Type[CounterMetric], dict[Sequence[str], float]] = (
+            defaultdict(dict)
+        )
 
         self._scopes: dict[Hashable, MetricsContainer] = {}
 

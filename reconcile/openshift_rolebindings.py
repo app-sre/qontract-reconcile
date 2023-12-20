@@ -97,7 +97,8 @@ def fetch_desired_state(ri, oc_map, enforced_user_keys=None):
                 "role": a["role"],
             }
             for a in role["access"] or []
-            if None not in [a["namespace"], a["role"]]
+            if a["namespace"]
+            and a["role"]
             and a["namespace"].get("managedRoles")
             and not ob.is_namespace_deleted(a["namespace"])
         ]

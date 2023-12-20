@@ -9,7 +9,9 @@ class GitError(Exception):
 def clone(repo_url, wd):
     # pylint: disable=subprocess-run-check
     cmd = ["git", "clone", repo_url, wd]
-    result = subprocess.run(cmd, cwd=wd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(
+        cmd, cwd=wd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
+    )
     if result.returncode != 0:
         raise GitError(f"git clone failed: {repo_url}")
 
@@ -17,7 +19,9 @@ def clone(repo_url, wd):
 def checkout(commit, wd):
     # pylint: disable=subprocess-run-check
     cmd = ["git", "checkout", commit]
-    result = subprocess.run(cmd, cwd=wd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(
+        cmd, cwd=wd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
+    )
     if result.returncode != 0:
         raise GitError(f"git checkout failed: {commit}")
 
@@ -28,7 +32,7 @@ def is_file_in_git_repo(file_path):
     # pylint: disable=subprocess-run-check
     cmd = ["git", "rev-parse", "--is-inside-work-tree"]
     result = subprocess.run(
-        cmd, cwd=dir_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        cmd, cwd=dir_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
     )
     return result.returncode == 0
 

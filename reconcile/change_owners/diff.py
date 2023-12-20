@@ -60,7 +60,7 @@ class Diff:
         )
 
     def get_context_data_copy(self) -> Optional[Any]:
-        if self.diff_type in [DiffType.ADDED, DiffType.CHANGED]:
+        if self.diff_type in {DiffType.ADDED, DiffType.CHANGED}:
             return copy.deepcopy(self.new)
         if self.diff_type == DiffType.REMOVED:
             return copy.deepcopy(self.old)

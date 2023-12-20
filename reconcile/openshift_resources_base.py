@@ -543,9 +543,9 @@ def fetch_provider_resource(
                         if not annotations:
                             continue
                         # TODO(mafriedm): make this better
-                        rule["annotations"][
-                            "html_url"
-                        ] = f"{APP_INT_BASE_URL}/blob/master/resources{path}"
+                        rule["annotations"]["html_url"] = (
+                            f"{APP_INT_BASE_URL}/blob/master/resources{path}"
+                        )
             except Exception:
                 logging.warning(
                     "could not add html_url annotation to" + body["metadata"]["name"]

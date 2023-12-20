@@ -63,7 +63,7 @@ def fetch_desired_state(clusters, vault_input_path, settings):
 
 
 def sanitize(state):
-    return {k: v for k, v in state.items() if k not in ["client_secret", "id"]}
+    return {k: v for k, v in state.items() if k not in {"client_secret", "id"}}
 
 
 def act(dry_run, ocm_map, current_state, desired_state):

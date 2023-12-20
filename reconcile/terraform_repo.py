@@ -166,7 +166,9 @@ class TerraformRepoIntegration(
 
         if self.params.output_file:
             try:
-                with open(self.params.output_file, "w") as output_file:
+                with open(
+                    self.params.output_file, "w", encoding="locale"
+                ) as output_file:
                     yaml.safe_dump(
                         data=output.dict(),
                         stream=output_file,

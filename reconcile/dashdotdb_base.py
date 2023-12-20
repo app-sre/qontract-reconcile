@@ -149,9 +149,9 @@ class DashdotdbBase:
         if token:
             headers["Authorization"] = f"Bearer {token}"
         elif username and password:
-            headers[
-                "Authorization"
-            ] = f"Basic {b64encode(f'{username}:{password}'.encode()).decode('utf-8')}"
+            headers["Authorization"] = (
+                f"Basic {b64encode(f'{username}:{password}'.encode()).decode('utf-8')}"
+            )
         response = requests.get(
             url, params=params, headers=headers, verify=ssl_verify, timeout=(5, 120)
         )

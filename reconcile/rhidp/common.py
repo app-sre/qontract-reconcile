@@ -17,8 +17,15 @@ from reconcile.gql_definitions.common.ocm_environments import (
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.gql_definitions.rhidp.organizations import (
+    OpenShiftClusterManagerV1,
+)
+from reconcile.gql_definitions.rhidp.organizations import (
+    query as ocm_orgs_query,
+)
 from reconcile.rhidp.metrics import RhIdpClusterCounter
 from reconcile.utils import gql
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.metrics import MetricsContainer
 from reconcile.utils.ocm.base import OCMCluster
 from reconcile.utils.ocm.clusters import (
@@ -66,10 +73,10 @@ class ClusterAuth(BaseModel):
 
     @property
     def oidc_enabled(self) -> bool:
-        return self.status not in (
+        return self.status not in {
             StatusValue.DISABLED.value,
             StatusValue.RHIDP_ONLY.value,
-        )
+        }
 
     @property
     def enforced(self) -> bool:
@@ -192,3 +199,16 @@ def get_ocm_environments(env_name: str | None) -> list[OCMEnvironment]:
         gql.get_api().query,
         variables={"name": env_name} if env_name else None,
     ).environments
+
+
+def get_ocm_orgs_from_env(
+    env_name: str, int_name: str
+) -> list[OpenShiftClusterManagerV1]:
+    orgs = ocm_orgs_query(
+        gql.get_api().query,
+    ).organizations
+    return [
+        org
+        for org in orgs or []
+        if integration_is_enabled(int_name, org) and org.environment.name == env_name
+    ]
