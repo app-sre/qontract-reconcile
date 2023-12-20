@@ -946,7 +946,7 @@ def clusters_network(ctx, name):
                 "resourcesDefaultRegion"
             ]
         with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
-            vpc_id, _, _ = aws_api.get_cluster_vpc_details(account)
+            vpc_id, _, _, _ = aws_api.get_cluster_vpc_details(account)
             cluster["vpc_id"] = vpc_id
             egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account, vpc_id)
             cluster["egress_ips"] = ", ".join(sorted(egress_ips))

@@ -224,7 +224,7 @@ def _build_accepter(
     cidr_block: str,
     awsapi: AWSApi,
 ) -> Accepter:
-    (vpc_id, route_table_ids, subnets_id_az) = awsapi.get_cluster_vpc_details(
+    (vpc_id, route_table_ids, subnets_id_az, _) = awsapi.get_cluster_vpc_details(
         account.dict(by_alias=True),
         route_tables=peer_connection.manage_routes,
         subnets=True,
