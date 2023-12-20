@@ -61,7 +61,45 @@ def cloudflare_account_test(account_config):
     )
 
 
-def test_create_cloudflare_resources_terraform_json(account_config, backend_config):
+def custom_ssl_secret_reader_side_effect(*args):
+    """For use of secret_reader inside cloudflare client"""
+    if {
+        "path": "certificate/path",
+        "field": "cert.crt",
+        "version": 1,
+        "format": "plain",
+    } == args[0]:
+        return "----- CERTIFICATE -----"
+
+    if {
+        "path": "key/path",
+        "field": "cert.key",
+        "version": 1,
+        "format": "plain",
+    } == args[0]:
+        return "----- KEY -----"
+
+
+@pytest.fixture
+def mock_create_secret_reader(mocker):
+    mocker.patch(
+        "reconcile.utils.terrascript.cloudflare_resources.get_app_interface_vault_settings",
+        atospec=True,
+    )
+    secret_reader = mocker.Mock(SecretReaderBase)
+    secret_reader.read.side_effect = custom_ssl_secret_reader_side_effect
+
+    mocked_create_secret_reader = mocker.patch(
+        "reconcile.utils.terrascript.cloudflare_resources.create_secret_reader",
+        autospec=True,
+    )
+
+    mocked_create_secret_reader.return_value = secret_reader
+
+
+def test_create_cloudflare_resources_terraform_json(
+    mock_create_secret_reader, account_config, backend_config
+):
     """
     This test intentionally crosses many boundaries to cover most of the functionality
     from starting with an external resource spec definition to Terraform JSON config.
@@ -111,6 +149,27 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                     "certificate_authority": "lets_encrypt",
                     "cloudflare_branding": "false",
                     "wait_for_active_status": "false",
+                }
+            ],
+            "custom_ssl_certificates": [
+                {
+                    "identifier": "some-custom-ssl",
+                    "type": "legacy_custom",
+                    "bundle_method": "ubiquotous",
+                    "certificate_secret": {
+                        "certificate": {
+                            "path": "certificate/path",
+                            "field": "cert.crt",
+                            "format": "plain",
+                            "version": 1,
+                        },
+                        "key": {
+                            "path": "key/path",
+                            "field": "cert.key",
+                            "format": "plain",
+                            "version": 1,
+                        },
+                    },
                 }
             ],
         },
@@ -305,6 +364,18 @@ def test_create_cloudflare_resources_terraform_json(account_config, backend_conf
                     "wait_for_active_status": "false",
                     "depends_on": ["cloudflare_zone.domain-com"],
                 }
+            },
+            "cloudflare_custom_ssl": {
+                "some-custom-ssl": {
+                    "zone_id": "${cloudflare_zone.domain-com.id}",
+                    "depends_on": ["cloudflare_zone.domain-com"],
+                    "custom_ssl_options": {
+                        "bundle_method": "ubiquotous",
+                        "certificate": "----- CERTIFICATE -----",
+                        "private_key": "----- KEY -----",
+                        "type": "legacy_custom",
+                    },
+                },
             },
             "cloudflare_logpush_ownership_challenge": {
                 "logpush_ownership_challenge_zone": {
