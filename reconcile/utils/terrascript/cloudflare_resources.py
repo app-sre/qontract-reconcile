@@ -201,17 +201,20 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
             certificate_secret = cert_values.pop("certificate_secret")
             certificate = secret_reader.read(certificate_secret.pop("certificate"))
             key = secret_reader.read(certificate_secret.pop("key"))
-            custom_ssl_values = {
-                "zone_id": f"{{{zone.id}}}",
+            custom_ssl_values: dict[Any, Any] = {
+                "zone_id": f"${{{zone.id}}}",
                 "depends_on": self._get_dependencies([zone]),
                 "custom_ssl_options": {
-                    "bundle_method": cert_values["bundle_method"],
-                    "geo_restrictions": cert_values["geo_restrictions"],
-                    "type": cert_values["type"],
+                    "bundle_method": cert_values.pop("bundle_method", "ubiquitous"),
+                    "type": cert_values.pop("type"),
                     "certificate": certificate,
                     "private_key": key,
                 },
             }
+            if cert_values.get("geo_restrictions", None):
+                custom_ssl_values["custom_ssl_options"]["geo_restrictions"] = (
+                    cert_values.get("geo_resrtictions")
+                )
             custom_ssl = cloudflare_custom_ssl(identifier, **custom_ssl_values)
             resources.append(custom_ssl)
         return resources
