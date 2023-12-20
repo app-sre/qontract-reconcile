@@ -884,11 +884,18 @@ def jenkins_webhooks_cleaner(ctx):
 
 
 @integration.command(short_help="Validate permissions in Jira.")
+@click.option(
+    "--exit-on-permission-errors/--no-exit-on-permission-errors",
+    help="Throw and error in case of board permission errors. Useful for PR checks.",
+    default=True,
+)
 @click.pass_context
-def jira_permissions_validator(ctx):
+def jira_permissions_validator(ctx, exit_on_permission_errors):
     import reconcile.jira_permissions_validator
 
-    run_integration(reconcile.jira_permissions_validator, ctx.obj)
+    run_integration(
+        reconcile.jira_permissions_validator, ctx.obj, exit_on_permission_errors
+    )
 
 
 @integration.command(short_help="Watch for changes in Jira boards and notify on Slack.")
