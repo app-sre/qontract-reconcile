@@ -527,9 +527,10 @@ def _setup_mocks(
             vpc_details["vpc_id"],
             vpc_details["route_table_ids"],
             vpc_details["subnets_id_az"],
+            None,
         )
         if vpc_details is not None
-        else (None, None, None)
+        else (None, None, None, None)
     )
     aws_api.get_cluster_vpc_details.return_value = vpc
     aws_api.get_tgws_details.return_value = tgws or []
