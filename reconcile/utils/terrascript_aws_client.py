@@ -988,7 +988,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.add_resource(acct_name, record_resource)
 
     def populate_vpc_peerings(self, desired_state):
-        # vpce_security_groups: dict[str, aws_security_group] = {}
         for item in desired_state:
             if item["deleted"]:
                 continue
@@ -1046,12 +1045,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     self.add_resource(req_account_name, tf_resource)
 
             # add security group rules for private hosted controlplane API VPC endpoint service
-            api_security_group_id = requester.get("api_security_group_id")
-            if api_security_group_id:
+            if requester.get("api_security_group_id"):
                 hcp_api_ingress_rule = aws_security_group_rule(
                     f"api-access-from-peering-{connection_name}",
+                    provider="aws." + req_alias,
                     type="ingress",
-                    security_group_id=api_security_group_id,
+                    security_group_id=requester.get("api_security_group_id"),
                     cidr_blocks=[accepter["cidr_block"]],
                     from_port=443,
                     to_port=443,
@@ -1065,6 +1064,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     acc_account_name,
                     aws_security_group_rule(
                         f"api-access-from-peering-{connection_name}",
+                        provider="aws." + acc_alias,
                         type="ingress",
                         security_group_id=accepter.get("api_security_group_id"),
                         cidr_blocks=[requester["cidr_block"]],
