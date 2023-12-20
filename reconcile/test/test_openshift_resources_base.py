@@ -485,18 +485,25 @@ def test_cluster_params():
 
 
 @pytest.mark.parametrize(
-    "test_keyname, exception_expected",
+    "test_parameters, exception_expected",
     [
-        (" leading_space", orb.SecretKeyFormatError),
-        (" space_padding ", orb.SecretKeyFormatError),
-        ("trailing_space ", orb.SecretKeyFormatError),
-        ("no space issues", None),  # but should there be...
-        ("no_spacing", None),
+        ({" leading_space": "test"}, orb.SecretKeyFormatError),
+        ({" space_padding ": "test"}, orb.SecretKeyFormatError),
+        ({"trailing_space ": "test"}, orb.SecretKeyFormatError),
+        ({"&invalidkey": "test"}, orb.SecretKeyFormatError),
+        ({"!invalidkey": "test"}, orb.SecretKeyFormatError),
+        ({"space issues": "test"}, orb.SecretKeyFormatError),
+        ({"/etc/passwd": "test"}, orb.SecretKeyFormatError),
+        ({"": "test"}, orb.SecretKeyFormatError),
+        ({".": "test"}, None),
+        ({"0validkey": "test"}, None),
+        ({"no_spacing": "test"}, None),
+        ({"-": "test"}, None),
     ],
 )
-def test_secret_keys(test_keyname, exception_expected):
+def test_secret_keys(test_parameters, exception_expected):
     if exception_expected is not None:
         with pytest.raises(exception_expected):
-            orb.assert_valid_secret_keys((test_keyname, "invalid"))
+            orb.assert_valid_secret_keys(test_parameters)
     else:
-        orb.assert_valid_secret_keys((test_keyname, "valid"))
+        orb.assert_valid_secret_keys(test_parameters)
