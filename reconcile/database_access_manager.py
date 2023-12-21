@@ -102,7 +102,7 @@ REVOKE ALL ON DATABASE "{self._get_db()}" FROM public;
 \\c "{self._get_db()}"
 
 select 'CREATE ROLE "{self._get_user()}"'
-WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{self._get_db()}');\\gexec
+WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{self._get_user()}');\\gexec
 
 ALTER ROLE "{self._get_user()}" WITH LOGIN  PASSWORD '{self.connection_parameter.password}' VALID UNTIL 'infinity';
 
@@ -132,7 +132,7 @@ DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
             for access in self.db_access.access or []
         ]
         return "\n".join(statements)
-
+g
     def _generate_revoke_changed(self) -> str:
         if not self.current_db_access:
             return ""
