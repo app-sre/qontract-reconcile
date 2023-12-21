@@ -93,7 +93,7 @@ def test_jira_permissions_validator_get_jira_boards(
 
 
 @pytest.mark.parametrize(
-    "board_is_valid, exit_on_permission_errors, expected, metric_set",
+    "board_is_valid, exit_on_permission_errors, error_returned, metric_set",
     [
         (0, True, False, False),
         (ValidationError.CANT_CREATE_ISSUE, True, True, False),
@@ -102,6 +102,7 @@ def test_jira_permissions_validator_get_jira_boards(
         (ValidationError.INVALID_ISSUE_STATE, True, True, False),
         (ValidationError.INVALID_SECURITY_LEVEL, True, True, False),
         (ValidationError.INVALID_PRIORITY, True, True, False),
+        (ValidationError.PUBLIC_PROJECT_NO_SECURITY_LEVEL, True, True, False),
         (ValidationError.PERMISSION_ERROR, True, True, True),
         # special case: CANT_CREATE_ISSUE and PERMISSION_ERROR
         (
@@ -137,7 +138,7 @@ def test_jira_permissions_validator_validate_boards(
     secret_reader: Mock,
     board_is_valid: ValidationError,
     exit_on_permission_errors: bool,
-    expected: bool,
+    error_returned: bool,
     metric_set: bool,
 ) -> None:
     board_is_valid_mock = mocker.patch(
@@ -157,7 +158,7 @@ def test_jira_permissions_validator_validate_boards(
             default_reopen_state="new",
             jira_client_class=jira_client_class,
         )
-        == expected
+        == error_returned
     )
     if metric_set:
         metrics_container_mock.set_gauge.assert_called()
@@ -208,6 +209,7 @@ def test_jira_permissions_validator_board_is_valid_happy_path(
         default_issue_type="task",
         default_reopen_state="new",
         jira_server_priorities={"Minor": "1", "Major": "2", "Critical": "3"},
+        public_projects=[],
     ) == ValidationError(0)
 
 
@@ -251,6 +253,7 @@ def test_jira_permissions_validator_board_is_valid_all_errors(
             default_issue_type="task",
             default_reopen_state="new",
             jira_server_priorities={"Minor": "1", "Major": "2", "Critical": "3"},
+            public_projects=[],
         )
         == ValidationError.CANT_CREATE_ISSUE
         | ValidationError.CANT_TRANSITION_ISSUES
@@ -305,8 +308,59 @@ def test_jira_permissions_validator_board_is_valid_bad_issue_status(
             default_issue_type="task",
             default_reopen_state="new",
             jira_server_priorities={"Minor": "1", "Major": "2", "Critical": "3"},
+            public_projects=[],
         )
         == ValidationError.INVALID_ISSUE_STATE
+    )
+
+
+def test_jira_permissions_validator_board_is_valid_public_project(
+    mocker: MockerFixture, gql_class_factory: Callable
+) -> None:
+    board = gql_class_factory(
+        JiraBoardV1,
+        {
+            "name": "jira-board-default",
+            "server": {
+                "serverUrl": "https://jira-server.com",
+                "token": {"path": "vault/path/token", "field": "token"},
+            },
+            "issueType": "bug",
+            "issueResolveState": "Closed",
+            "issueReopenState": "Open",
+            "issueSecurityId": None,
+            "severityPriorityMappings": {
+                "name": "major-major",
+                "mappings": [
+                    {"priority": "Minor"},
+                    {"priority": "Major"},
+                    {"priority": "Critical"},
+                ],
+            },
+        },
+    )
+    jira_client = mocker.create_autospec(spec=JiraClient)
+    jira_client.can_create_issues.return_value = True
+    jira_client.can_transition_issues.return_value = True
+    jira_client.project_issue_types.return_value = [
+        IssueType(id="1", name="task", statuses=["open", "closed"]),
+        IssueType(id="2", name="bug", statuses=["open", "closed"]),
+    ]
+    jira_client.security_levels.return_value = [
+        SecurityLevel(id="32168", name="foo"),
+        SecurityLevel(id="1", name="bar"),
+    ]
+    jira_client.project_priority_scheme.return_value = ["1", "2", "3"]
+    assert (
+        board_is_valid(
+            jira=jira_client,
+            board=board,
+            default_issue_type="task",
+            default_reopen_state="new",
+            jira_server_priorities={"Minor": "1", "Major": "2", "Critical": "3"},
+            public_projects=["jira-board-default"],
+        )
+        == ValidationError.PUBLIC_PROJECT_NO_SECURITY_LEVEL
     )
 
 
@@ -344,6 +398,7 @@ def test_jira_permissions_validator_board_is_valid_permission_error(
             default_issue_type="task",
             default_reopen_state="new",
             jira_server_priorities={"Minor": "1", "Major": "2", "Critical": "3"},
+            public_projects=[],
         )
         == ValidationError.PERMISSION_ERROR
     )
@@ -383,4 +438,5 @@ def test_jira_permissions_validator_board_is_valid_exception(
             default_issue_type="task",
             default_reopen_state="new",
             jira_server_priorities={"Minor": "1", "Major": "2", "Critical": "3"},
+            public_projects=[],
         )

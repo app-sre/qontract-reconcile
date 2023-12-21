@@ -60,6 +60,7 @@ class JiraClient:
         settings: Optional[Mapping] = None,
         jira_api: Optional[JIRA] = None,
         project: Optional[str] = None,
+        server: Optional[str] = None,
     ):
         """
         Note: jira_board and settings is to be deprecated. Use JiraClient.create() instead.
@@ -77,6 +78,7 @@ class JiraClient:
             self._deprecated_init(jira_board=jira_board, settings=settings)
             return
 
+        self.server = server
         self.project = project
         self.jira = jira_api
 
@@ -94,6 +96,9 @@ class JiraClient:
         if settings and settings["jiraWatcher"]:
             read_timeout = settings["jiraWatcher"]["readTimeout"]
             connect_timeout = settings["jiraWatcher"]["connectTimeout"]
+        if not self.server:
+            raise RuntimeError("JiraClient.server is not set.")
+
         self.jira = JIRA(
             self.server,
             token_auth=token_auth,
@@ -118,6 +123,7 @@ class JiraClient:
         return JiraClient(
             jira_api=jira_api,
             project=project_name,
+            server=server_url,
         )
 
     def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:
@@ -205,3 +211,12 @@ class JiraClient:
         """Return a list of all priority IDs for the project."""
         scheme = self.jira.project_priority_scheme(self.project)
         return scheme.optionIds
+
+    def public_projects(self) -> list[str]:
+        """Return a list of all public available projects."""
+        if not self.server:
+            raise RuntimeError("JiraClient.server is not set.")
+
+        # use anonymous access to get public projects
+        jira_api_anon = JIRA(server=self.server)
+        return [project.key for project in jira_api_anon.projects()]
