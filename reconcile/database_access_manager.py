@@ -428,7 +428,6 @@ def _populate_resources(
     admin_connection: DatabaseConnectionParameters,
     current_db_access: Optional[DatabaseAccessV1] = None,
 ) -> list[DBAMResource]:
-
     if user_connection.database == admin_connection.database:
         raise ValueError(f"Can not use default database {admin_connection.database}")
 
