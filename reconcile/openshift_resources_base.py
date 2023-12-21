@@ -617,7 +617,7 @@ def assert_valid_secret_keys(secrets_data: dict[str, str]):
         matches = re.search(KUBERNETES_SECRET_DATA_KEY_RE, k)
         if not matches:
             raise SecretKeyFormatError(
-                f"Secret key has whitespace. Expected '{k.strip()}' but got '{k}'"
+                f"'{k}' is not valid key name for a Secret. a valid Secret key must consist of alphanumeric characters, '-', '_' or '.' (e.g. 'key.name',  or 'KEY_NAME',  or 'key-name', regex used for validation is '^[-._a-zA-Z0-9]+$')"
             )
 
 
