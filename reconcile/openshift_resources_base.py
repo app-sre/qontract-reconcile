@@ -591,7 +591,7 @@ def fetch_provider_vault_secret(
     if labels:
         body["metadata"]["labels"] = labels
 
-    assert_valid_secret_keys(raw_data.items())
+    assert_valid_secret_keys(raw_data)
 
     # populate data
     for k, v in raw_data.items():
@@ -612,7 +612,7 @@ def fetch_provider_vault_secret(
 # any white space issues. If any issues are uncovered, an exception will be
 # raised.
 # we're receiving the full key: value information, not simply a list of keys.
-def assert_valid_secret_keys(secrets_data: tuple):
+def assert_valid_secret_keys(secrets_data: dict[str, str]):
     for k in secrets_data:
         matches = re.search(KUBERNETES_SECRET_DATA_KEY_RE, k)
         if not matches:
