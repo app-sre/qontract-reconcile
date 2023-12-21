@@ -132,7 +132,7 @@ DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
             for access in self.db_access.access or []
         ]
         return "\n".join(statements)
-g
+
     def _generate_revoke_changed(self) -> str:
         if not self.current_db_access:
             return ""
@@ -428,6 +428,10 @@ def _populate_resources(
     admin_connection: DatabaseConnectionParameters,
     current_db_access: Optional[DatabaseAccessV1] = None,
 ) -> list[DBAMResource]:
+
+    if user_connection.database == admin_connection.database:
+        raise ValueError(f"Can not use default database {admin_connection.database}")
+
     managed_resources: list[DBAMResource] = []
     # create service account
     managed_resources.append(
