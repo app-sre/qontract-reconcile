@@ -128,16 +128,23 @@ def board_is_valid(
                 error |= ValidationError.INVALID_SECURITY_LEVEL
 
         project_priorities = jira.project_priority_scheme()
+        # get the priority names from the project priorities ids
+        project_priorities_names = [
+            p_name
+            for project_p_id in project_priorities
+            for p_name, p_id in jira_server_priorities.items()
+            if p_id == project_p_id
+        ]
         for priority in board.severity_priority_mappings.mappings:
             if priority.priority not in jira_server_priorities:
                 logging.error(
-                    f"[{board.name}] {priority.priority} is not a valid Jira priority. Valid priorities: {project_priorities}"
+                    f"[{board.name}] {priority.priority} is not a valid Jira priority. Valid priorities: {project_priorities_names}"
                 )
                 error |= ValidationError.INVALID_PRIORITY
                 continue
             if jira_server_priorities[priority.priority] not in project_priorities:
                 logging.error(
-                    f"[{board.name}] {priority.priority} is not a valid priority in project. Valid priorities: {project_priorities}"
+                    f"[{board.name}] {priority.priority} is not a valid priority in project. Valid priorities: {project_priorities_names}"
                 )
                 error |= ValidationError.INVALID_PRIORITY
     except JIRAError as e:
