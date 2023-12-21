@@ -67,6 +67,7 @@ query TerraformCloudflareResources {
     }
     managedExternalResources
     externalResources {
+      provider
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {
         provider
         provisioner {
@@ -127,6 +128,20 @@ query TerraformCloudflareResources {
               certificate_authority
               cloudflare_branding
               wait_for_active_status
+            }
+            custom_ssl_certificates {
+              identifier
+              type
+              bundle_method
+              geo_restrictions
+              certificate_secret {
+                certificate {
+                  ... VaultSecret
+                }
+                key {
+                  ... VaultSecret
+                }
+              }
             }
           }
           ... on NamespaceTerraformResourceLogpushOwnershipChallenge_v1
@@ -190,7 +205,7 @@ class ClusterV1(ConfiguredBaseModel):
 
 
 class NamespaceExternalResourceV1(ConfiguredBaseModel):
-    ...
+    provider: str = Field(..., alias="provider")
 
 
 class CloudflareAccountV1(ConfiguredBaseModel):
@@ -258,6 +273,19 @@ class CloudflareZoneCertificateV1(ConfiguredBaseModel):
     wait_for_active_status: Optional[bool] = Field(..., alias="wait_for_active_status")
 
 
+class CertificateSecretV1(ConfiguredBaseModel):
+    certificate: VaultSecret = Field(..., alias="certificate")
+    key: VaultSecret = Field(..., alias="key")
+
+
+class CloudflareCustomSSLCertificateV1(ConfiguredBaseModel):
+    identifier: str = Field(..., alias="identifier")
+    q_type: str = Field(..., alias="type")
+    bundle_method: Optional[str] = Field(..., alias="bundle_method")
+    geo_restrictions: Optional[str] = Field(..., alias="geo_restrictions")
+    certificate_secret: CertificateSecretV1 = Field(..., alias="certificate_secret")
+
+
 class NamespaceTerraformResourceCloudflareZoneV1(NamespaceTerraformResourceCloudflareV1):
     identifier: str = Field(..., alias="identifier")
     zone: str = Field(..., alias="zone")
@@ -270,6 +298,7 @@ class NamespaceTerraformResourceCloudflareZoneV1(NamespaceTerraformResourceCloud
     records: Optional[list[CloudflareDnsRecordV1]] = Field(..., alias="records")
     workers: Optional[list[CloudflareZoneWorkerV1]] = Field(..., alias="workers")
     certificates: Optional[list[CloudflareZoneCertificateV1]] = Field(..., alias="certificates")
+    custom_ssl_certificates: Optional[list[CloudflareCustomSSLCertificateV1]] = Field(..., alias="custom_ssl_certificates")
 
 
 class NamespaceTerraformResourceLogpushOwnershipChallengeV1(NamespaceTerraformResourceCloudflareV1):

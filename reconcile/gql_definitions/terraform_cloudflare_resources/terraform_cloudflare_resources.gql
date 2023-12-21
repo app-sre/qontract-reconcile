@@ -26,6 +26,7 @@ query TerraformCloudflareResources {
     }
     managedExternalResources
     externalResources {
+      provider
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {
         provider
         provisioner {
@@ -86,6 +87,20 @@ query TerraformCloudflareResources {
               certificate_authority
               cloudflare_branding
               wait_for_active_status
+            }
+            custom_ssl_certificates {
+              identifier
+              type
+              bundle_method
+              geo_restrictions
+              certificate_secret {
+                certificate {
+                  ... VaultSecret
+                }
+                key {
+                  ... VaultSecret
+                }
+              }
             }
           }
           ... on NamespaceTerraformResourceLogpushOwnershipChallenge_v1

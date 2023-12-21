@@ -1,4 +1,5 @@
 import logging
+from unittest.mock import call
 
 import pytest
 
@@ -18,7 +19,9 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     CloudflareAccountV1 as CFAccountV1,
 )
 from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_resources import (
+    CertificateSecretV1,
     CloudflareAccountV1,
+    CloudflareCustomSSLCertificateV1,
     CloudflareDnsRecordV1,
     CloudflareZoneArgoV1,
     CloudflareZoneCacheReserveV1,
@@ -30,6 +33,10 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
     NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceV1,
     TerraformCloudflareResourcesQueryData,
+)
+from reconcile.status import ExitCodes
+from reconcile.utils.secret_reader import (
+    SecretReaderBase,
 )
 
 
@@ -72,7 +79,7 @@ def external_resources(provisioner_config):
         provisioner=provisioner_config,
         resources=[
             NamespaceTerraformResourceCloudflareZoneV1(
-                provider="cloudflare_zone",
+                provider="zone",
                 identifier="testzone-com",
                 zone="testzone.com",
                 plan="enterprise",
@@ -115,6 +122,28 @@ def external_resources(provisioner_config):
                         wait_for_active_status=False,
                     )
                 ],
+                custom_ssl_certificates=[
+                    CloudflareCustomSSLCertificateV1(
+                        identifier="testcustomssl",
+                        type="legacy_custom",
+                        bundle_method="ubiquitous",
+                        geo_restrictions="us",
+                        certificate_secret=CertificateSecretV1(
+                            certificate=VaultSecret(
+                                path="certificate/secret/cert/path",
+                                field="certificate.crt",
+                                format="plain",
+                                version=1,
+                            ),
+                            key=VaultSecret(
+                                path="certificate/secret/key/path",
+                                field="certificate.key",
+                                format="plain",
+                                version=1,
+                            ),
+                        ),
+                    )
+                ],
             ),
         ],
     )
@@ -126,12 +155,51 @@ def mock_gql(mocker):
 
 
 @pytest.fixture
-def mock_vault_secret(mocker):
-    mocked_vault_secret = mocker.patch(
+def mock_app_interface_vault_settings(mocker):
+    mocked_app_interface_vault_settings = mocker.patch(
         "reconcile.terraform_cloudflare_resources.get_app_interface_vault_settings",
         autospec=True,
     )
-    mocked_vault_secret.return_value = AppInterfaceSettingsV1(vault=False)
+    mocked_app_interface_vault_settings.return_value = AppInterfaceSettingsV1(
+        vault=True
+    )
+
+
+def secret_reader_side_effect(*args):
+    if {
+        "path": "aws-account-path",
+        "field": "token",
+        "version": 1,
+        "q_format": "plain",
+    } == args[0]:
+        aws_acct_creds = {}
+        aws_acct_creds["aws_access_key_id"] = "key_id"
+        aws_acct_creds["aws_secret_access_key"] = "access_key"
+        return aws_acct_creds
+
+    if {
+        "path": "cf-account-path",
+        "field": "key",
+        "version": 1,
+        "q_format": "plain",
+    } == args[0]:
+        cf_acct_creds = {}
+        cf_acct_creds["api_token"] = "api_token"
+        cf_acct_creds["account_id"] = "account_id"
+        return cf_acct_creds
+
+
+@pytest.fixture
+def mock_create_secret_reader(mocker):
+    secret_reader = mocker.Mock(SecretReaderBase)
+    secret_reader.read_all_secret.side_effect = secret_reader_side_effect
+
+    mocked_create_secret_reader = mocker.patch(
+        "reconcile.terraform_cloudflare_resources.create_secret_reader",
+        autospec=True,
+    )
+
+    mocked_create_secret_reader.return_value = secret_reader
 
 
 @pytest.fixture
@@ -147,26 +215,27 @@ def mock_cloudflare_accounts(mocker):
                     name="cfaccount",
                     providerVersion="0.33.x",
                     apiCredentials=VaultSecret(
-                        path="somepath",
+                        path="cf-account-path",
                         field="key",
                         version=1,
-                        format="??",
+                        format="plain",
                     ),
                     terraformStateAccount=AWSAccountV1(
                         name="awsaccoutn",
                         automationToken=VaultSecret(
-                            path="someotherpath",
+                            path="aws-account-path",
                             field="token",
                             version=1,
-                            format="",
+                            format="plain",
                         ),
                         terraformState=TerraformStateAWSV1(
-                            provider="",
-                            bucket="",
-                            region="",
+                            provider="s3",
+                            bucket="app-interface",
+                            region="us-east-1",
                             integrations=[
                                 AWSTerraformStateIntegrationsV1(
-                                    integration="terraform-cloudflare-resources", key=""
+                                    integration="terraform-cloudflare-resources",
+                                    key="somekey.tfstate",
                                 )
                             ],
                         ),
@@ -183,16 +252,29 @@ def mock_cloudflare_accounts(mocker):
 
 
 @pytest.fixture
-def mock_cloudflare_resources(mocker, external_resources):
+def mock_cloudflare_resources(mocker, query_data):
     mocked_cloudflare_resources = mocker.patch(
         "reconcile.terraform_cloudflare_resources.terraform_cloudflare_resources",
         autospec=True,
     )
-    mocked_cloudflare_resources.query.return_value = external_resources
+    mocked_cloudflare_resources.query.return_value = query_data
+
+
+@pytest.fixture
+def mock_terraform_client(mocker):
+    mocked_tf_client = mocker.patch(
+        "reconcile.terraform_cloudflare_resources.TerraformClient", autospec=True
+    )
+    mocked_tf_client.return_value.plan.return_value = False, None
+    return mocked_tf_client
 
 
 def test_cloudflare_accounts_validation(
-    mocker, caplog, mock_gql, mock_vault_secret, mock_cloudflare_resources
+    mocker,
+    caplog,
+    mock_gql,
+    mock_app_interface_vault_settings,
+    mock_cloudflare_resources,
 ):
     # Mocking accounts with an empty response
     mocked_cloudflare_accounts = mocker.patch(
@@ -212,14 +294,17 @@ def test_cloudflare_accounts_validation(
 
 
 def test_namespace_validation(
-    mocker, caplog, mock_gql, mock_vault_secret, mock_cloudflare_accounts
+    mocker,
+    caplog,
+    mock_gql,
+    mock_app_interface_vault_settings,
+    mock_cloudflare_accounts,
 ):
     # Mocking resources without namespaces
     mocked_resources = mocker.patch(
         "reconcile.terraform_cloudflare_resources.terraform_cloudflare_resources",
         autospec=True,
     )
-
     mocked_resources.query.return_value = TerraformCloudflareResourcesQueryData(
         namespaces=[],
     )
@@ -233,7 +318,11 @@ def test_namespace_validation(
 
 
 def test_cloudflare_namespace_validation(
-    mocker, caplog, mock_gql, mock_vault_secret, mock_cloudflare_accounts
+    mocker,
+    caplog,
+    mock_gql,
+    mock_app_interface_vault_settings,
+    mock_cloudflare_accounts,
 ):
     # Mocking resources without cloudflare namespaces
     mocked_resources = mocker.patch(
@@ -269,3 +358,50 @@ def test_cloudflare_namespace_validation(
     assert ["No cloudflare namespaces were detected, nothing to do."] == [
         rec.message for rec in caplog.records
     ]
+
+
+def custom_ssl_secret_reader_side_effect(*args):
+    """For use of secret_reader inside cloudflare client"""
+    if {
+        "path": "certificate/secret/cert/path",
+        "field": "certificate.crt",
+        "version": 1,
+        "q_format": "plain",
+    } == args[0]:
+        return "----- CERTIFICATE -----"
+
+    if {
+        "path": "certificate/secret/cert/path",
+        "field": "certificate.key",
+        "version": 1,
+        "q_format": "plain",
+    } == args[0]:
+        return "----- KEY -----"
+
+
+def test_terraform_cloudflare_resources_dry_run(
+    mocker,
+    mock_gql,
+    mock_create_secret_reader,
+    mock_terraform_client,
+    mock_app_interface_vault_settings,
+    mock_cloudflare_accounts,
+    mock_cloudflare_resources,
+):
+    # Mocking vault settings and secret reader inside cloudflare_client
+    mocker.patch(
+        "reconcile.utils.terrascript.cloudflare_resources.get_app_interface_vault_settings",
+        atospec=True,
+    )
+    secret_reader = mocker.Mock(SecretReaderBase)
+    secret_reader.read.side_effect = custom_ssl_secret_reader_side_effect
+    create_secret_reader = mocker.patch(
+        "reconcile.utils.terrascript.cloudflare_resources.create_secret_reader",
+        autospec=True,
+    )
+    create_secret_reader.return_value = secret_reader
+    with pytest.raises(SystemExit) as sample:
+        integ.run(True, None, False, 10)
+    assert sample.value.code == ExitCodes.SUCCESS
+    assert mock_terraform_client.called is True
+    assert call().apply() not in mock_terraform_client.method_calls
