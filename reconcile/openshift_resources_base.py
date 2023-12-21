@@ -3,6 +3,7 @@ import hashlib
 import itertools
 import json
 import logging
+import re
 import sys
 from collections import defaultdict
 from collections.abc import (
@@ -224,6 +225,7 @@ QONTRACT_INTEGRATION = "openshift_resources_base"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 2)
 QONTRACT_BASE64_SUFFIX = "_qb64"
 APP_INT_BASE_URL = "https://gitlab.cee.redhat.com/service/app-interface"
+KUBERNETES_SECRET_DATA_KEY_RE = "^[-._a-zA-Z0-9]+$"
 
 _log_lock = Lock()
 
@@ -259,6 +261,10 @@ class Jinja2TemplateError(Exception):
 
 
 class ResourceTemplateRenderError(Exception):
+    pass
+
+
+class SecretKeyFormatError(Exception):
     pass
 
 
@@ -585,6 +591,8 @@ def fetch_provider_vault_secret(
     if labels:
         body["metadata"]["labels"] = labels
 
+    assert_valid_secret_keys(raw_data)
+
     # populate data
     for k, v in raw_data.items():
         if k.lower().endswith(QONTRACT_BASE64_SUFFIX):
@@ -598,6 +606,19 @@ def fetch_provider_vault_secret(
         return OR(body, integration, integration_version, error_details=path)
     except ConstructResourceError as e:
         raise FetchResourceError(str(e))
+
+
+# check to ensure that all of the keys are valid by looking to see if there are
+# any white space issues. If any issues are uncovered, an exception will be
+# raised.
+# we're receiving the full key: value information, not simply a list of keys.
+def assert_valid_secret_keys(secrets_data: dict[str, str]):
+    for k in secrets_data:
+        matches = re.search(KUBERNETES_SECRET_DATA_KEY_RE, k)
+        if not matches:
+            raise SecretKeyFormatError(
+                f"'{k}' is not valid key name for a Secret. a valid Secret key must consist of alphanumeric characters, '-', '_' or '.' (e.g. 'key.name',  or 'KEY_NAME',  or 'key-name', regex used for validation is '^[-._a-zA-Z0-9]+$')"
+            )
 
 
 def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -> OR:
