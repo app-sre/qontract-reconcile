@@ -28,6 +28,7 @@ from reconcile.test.ocm.aus.fixtures import (
     build_upgrade_policy,
 )
 from reconcile.test.ocm.fixtures import build_ocm_cluster
+from reconcile.utils.ocm.base import OCMVersionGate
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -80,11 +81,54 @@ def test_calculate_diff_empty(ocm_api: OCMBaseClient) -> None:
     )
 
 
-def test_calculate_diff_create_cluster_upgrade_no_gate(
+def test_calculate_diff_create_cluster_upgrade_no_gates(
     ocm_api: OCMBaseClient,
     cluster: OCMCluster,
     now: datetime,
 ) -> None:
+    workload = "wl"
+    org_upgrade_spec = build_organization_upgrade_spec(
+        specs=[
+            (
+                cluster,
+                build_upgrade_policy(workloads=[workload], soak_days=10),
+            ),
+        ],
+    )
+    diffs = base.calculate_diff(
+        [],
+        org_upgrade_spec,
+        ocm_api,
+        build_version_data(
+            check_in=now,
+            version=cluster.available_upgrades()[0],
+            workload=workload,
+            soak_days=11,
+        ),
+    )
+    assert diffs == []
+
+
+def test_calculate_diff_create_cluster_upgrade_all_gates_agreed(
+    ocm_api: OCMBaseClient,
+    cluster: OCMCluster,
+    now: datetime,
+    mocker: MockerFixture,
+) -> None:
+    get_version_gates_mock = mocker.patch("reconcile.aus.base.get_version_gates")
+    get_version_gates_mock.return_value = [
+        OCMVersionGate(**{
+            "kind": "VersionGate",
+            "id": "gate_id",
+            "version_raw_id_prefix": "4.12",
+            "label": "api.openshift.com/some-gate",
+            "value": "4.12",
+            "sts_only": False,
+        })
+    ]
+    gates_to_agree_mock = mocker.patch("reconcile.aus.base.gates_to_agree")
+    gates_to_agree_mock.return_value = []
+
     workload = "wl"
     org_upgrade_spec = build_organization_upgrade_spec(
         specs=[
@@ -119,9 +163,22 @@ def test_calculate_diff_create_cluster_upgrade_no_gate(
     ]
 
 
-def test_calculate_diff_create_control_plane_upgrade_no_gate(
+def test_calculate_diff_create_control_plane_upgrade_all_gates_agreed(
     ocm_api: OCMBaseClient, cluster: OCMCluster, now: datetime, mocker: MockerFixture
 ) -> None:
+    get_version_gates_mock = mocker.patch("reconcile.aus.base.get_version_gates")
+    get_version_gates_mock.return_value = [
+        OCMVersionGate(**{
+            "kind": "VersionGate",
+            "id": "gate_id",
+            "version_raw_id_prefix": "4.12",
+            "label": "api.openshift.com/some-gate",
+            "value": "4.12",
+            "sts_only": False,
+        })
+    ]
+    gates_to_agree_mock = mocker.patch("reconcile.aus.base.gates_to_agree")
+    gates_to_agree_mock.return_value = []
     cnpd = mocker.patch("reconcile.aus.base._calculate_node_pool_diffs")
     cnpd.return_value = None
     workload = "wl"
@@ -157,6 +214,35 @@ def test_calculate_diff_create_control_plane_upgrade_no_gate(
             gates_to_agree=[],
         )
     ]
+
+
+def test_calculate_diff_create_control_plane_upgrade_no_gates(
+    ocm_api: OCMBaseClient, cluster: OCMCluster, now: datetime, mocker: MockerFixture
+) -> None:
+    cnpd = mocker.patch("reconcile.aus.base._calculate_node_pool_diffs")
+    cnpd.return_value = None
+    workload = "wl"
+    cluster.hypershift.enabled = True
+    org_upgrade_spec = build_organization_upgrade_spec(
+        specs=[
+            (
+                cluster,
+                build_upgrade_policy(workloads=[workload], soak_days=10),
+            ),
+        ],
+    )
+    diffs = base.calculate_diff(
+        [],
+        org_upgrade_spec,
+        ocm_api,
+        build_version_data(
+            check_in=now,
+            version=cluster.available_upgrades()[0],
+            workload=workload,
+            soak_days=11,
+        ),
+    )
+    assert diffs == []
 
 
 def test_calculate_diff_create_control_plane_node_pool_only(
