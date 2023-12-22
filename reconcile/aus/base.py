@@ -735,12 +735,12 @@ def gates_to_agree(
     """Check via OCM if a version is agreed
 
     Args:
-        gates (OCMVersionGate): list of OCMVersionGate objects that need an
+        gates (OCMVersionGate): list of OCMVersionGate objects to check for agreements
         cluster_id (str): the cluster that needs gate agreements
         ocm_api (OCMBaseClient): used to fetch infos from OCM
 
     Returns:
-        list[OCMVersionGate]: list of gates to agree
+        list[OCMVersionGate]: list of gates a cluster has not agreed on yet
     """
     applicable_gates = [
         g
