@@ -37,7 +37,6 @@ from reconcile.test.ocm.aus.fixtures import (
     build_upgrade_policy,
 )
 from reconcile.test.ocm.fixtures import build_ocm_cluster
-from reconcile.utils.ocm.base import OCMVersionGate
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -76,14 +75,14 @@ def now(mocker: MockerFixture) -> datetime:
 @pytest.fixture
 def version_gates() -> list[dict[str, Any]]:
     return [
-        OCMVersionGate(**{
+        {
             "kind": "VersionGate",
             "id": "gate_id",
             "version_raw_id_prefix": "4.12",
             "label": "api.openshift.com/some-gate",
             "value": "4.12",
             "sts_only": False,
-        })
+        }
     ]
 
 

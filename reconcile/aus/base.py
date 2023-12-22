@@ -1025,7 +1025,7 @@ def calculate_diff(
                             GateAgreement(gate=g)
                             for g in gates_to_agree(
                                 minor_version_gates,
-                                spec.cluster,
+                                spec.cluster.id,
                                 ocm_api,
                             )
                         ],
