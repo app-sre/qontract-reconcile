@@ -23,6 +23,7 @@ from reconcile.gql_definitions.common.clusters_with_peering import (
     ClusterPeeringConnectionAccountVPCMeshV1,
     ClusterPeeringConnectionClusterRequesterV1,
     ClusterPeeringConnectionV1,
+    ClusterSpecROSAV1,
     ClusterV1,
 )
 from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
@@ -58,10 +59,10 @@ class ValidationError(Exception):
     pass
 
 
-class AccountWithAssumeRole(BaseModel):
+class AccountProviderInfo(BaseModel):
     name: str
     uid: str
-    assume_role: str
+    assume_role: Optional[str]
     assume_region: str
     assume_cidr: str
 
@@ -74,7 +75,7 @@ class Requester(BaseModel):
     rules: Optional[list[dict]]
     hostedzones: Optional[list[str]]
     cidr_block: str
-    account: AccountWithAssumeRole
+    account: AccountProviderInfo
 
 
 class Accepter(BaseModel):
@@ -83,12 +84,13 @@ class Accepter(BaseModel):
     vpc_id: Optional[str]
     route_table_ids: Optional[list[str]]
     subnets_id_az: Optional[list[dict]]
-    account: AccountWithAssumeRole
+    account: AccountProviderInfo
 
 
 class DesiredStateItem(BaseModel):
     connection_provider: str
     connection_name: str
+    infra_acount_name: str
     requester: Requester
     accepter: Accepter
     deleted: bool
@@ -150,14 +152,14 @@ def _build_desired_state_tgw_connection(
         cluster_info.network.vpc if cluster_info.network is not None else ""
     )
 
-    account = _build_account_with_assume_role(
-        peer_connection, cluster_name, cluster_region, cluster_cidr_block, ocm
+    acc_account = _build_account_with_assume_role(
+        peer_connection, cluster_info, cluster_region, cluster_cidr_block, ocm
     )
 
     # accepter is the cluster's AWS account
     accepter = _build_accepter(
         peer_connection,
-        account,
+        acc_account,
         cluster_region,
         cluster_cidr_block,
         awsapi,
@@ -167,7 +169,7 @@ def _build_desired_state_tgw_connection(
         yield None
 
     account_tgws = awsapi.get_tgws_details(
-        account.dict(by_alias=True),
+        peer_connection.account.dict(by_alias=True),
         cluster_region,
         cluster_cidr_block,
         tags=peer_connection.tags or {},
@@ -176,11 +178,14 @@ def _build_desired_state_tgw_connection(
         route53_associations=peer_connection.manage_route53_associations,
     )
     for tgw in account_tgws:
-        connection_name = f"{peer_connection.name}_{account.name}-{tgw['tgw_id']}"
-        requester = _build_requester(peer_connection, account, tgw)
+        connection_name = (
+            f"{peer_connection.name}_{peer_connection.account.name}-{tgw['tgw_id']}"
+        )
+        requester = _build_requester(peer_connection, tgw)
         item = DesiredStateItem(
             connection_provider=TGW_CONNECTION_PROVIDER,
             connection_name=connection_name,
+            infra_acount_name=peer_connection.account.name,
             requester=requester,
             accepter=accepter,
             deleted=peer_connection.delete or False,
@@ -190,11 +195,11 @@ def _build_desired_state_tgw_connection(
 
 def _build_account_with_assume_role(
     peer_connection: ClusterPeeringConnectionAccountTGWV1,
-    cluster_name: str,
+    cluster: ClusterV1,
     region: str,
     cidr_block: str,
     ocm: Optional[OCM],
-) -> AccountWithAssumeRole:
+) -> AccountProviderInfo:
     account = peer_connection.account
     # assume_role is the role to assume to provision the
     # peering connection request, through the accepter AWS account.
@@ -203,12 +208,20 @@ def _build_account_with_assume_role(
     # to get the information from OCM. it likely means that
     # there is no OCM at all.
     if not assume_role:
+        if isinstance(cluster.spec, ClusterSpecROSAV1) and cluster.spec.account:
+            return AccountProviderInfo(
+                name=cluster.spec.account.name,
+                uid=cluster.spec.account.uid,
+                assume_role=assume_role,
+                assume_region=region,
+                assume_cidr=cidr_block,
+            )
         if not ocm:
             raise ValueError("OCM is required to get assume_role data")
         assume_role = ocm.get_aws_infrastructure_access_terraform_assume_role(
-            cluster_name, account.uid, account.terraform_username
+            cluster.name, account.uid, account.terraform_username
         )
-    return AccountWithAssumeRole(
+    return AccountProviderInfo(
         name=account.name,
         uid=account.uid,
         assume_role=assume_role,
@@ -219,7 +232,7 @@ def _build_account_with_assume_role(
 
 def _build_accepter(
     peer_connection: ClusterPeeringConnectionAccountTGWV1,
-    account: AccountWithAssumeRole,
+    account: AccountProviderInfo,
     region: str,
     cidr_block: str,
     awsapi: AWSApi,
@@ -241,9 +254,14 @@ def _build_accepter(
 
 def _build_requester(
     peer_connection: ClusterPeeringConnectionAccountTGWV1,
-    account: AccountWithAssumeRole,
     tgw: Mapping,
 ) -> Requester:
+    tgw_account = AccountProviderInfo(
+        name=peer_connection.account.name,
+        uid=peer_connection.account.uid,
+        assume_region=tgw["region"],
+        assume_cidr=peer_connection.cidr_block,
+    )
     return Requester(
         tgw_id=tgw["tgw_id"],
         tgw_arn=tgw["tgw_arn"],
@@ -252,7 +270,7 @@ def _build_requester(
         rules=tgw.get("rules"),
         hostedzones=tgw.get("hostedzones"),
         cidr_block=peer_connection.cidr_block,
-        account=account,
+        account=tgw_account,
     )
 
 
@@ -286,10 +304,13 @@ def _populate_tgw_attachments_working_dirs(
     desired_state: Iterable[DesiredStateItem],
     print_to_file: Optional[str],
 ) -> dict[str, str]:
-    participating_accounts = [
-        item.requester.account.dict(by_alias=True) for item in desired_state
-    ]
-    ts.populate_additional_providers(participating_accounts)
+    accounts_by_infra_account_name: dict[str, list[dict[str, Any]]] = {}
+    for item in desired_state:
+        accounts_by_infra_account_name.setdefault(item.infra_acount_name, []).append(
+            item.accepter.account.dict(by_alias=True)
+        )
+    for infra_account_name, accounts in accounts_by_infra_account_name.items():
+        ts.populate_additional_providers(infra_account_name, accounts)
     ts.populate_tgw_attachments([item.dict(by_alias=True) for item in desired_state])
     working_dirs = ts.dump(print_to_file=print_to_file)
     return working_dirs
@@ -350,11 +371,11 @@ def _fetch_desired_state_data_source(
 ) -> DesiredStateDataSource:
     clusters = get_clusters_with_peering(gql.get_api())
     tgw_clusters = _filter_tgw_clusters(clusters, account_name)
-    accounts = get_aws_accounts(gql.get_api(), name=account_name)
-    tgw_accounts = _filter_tgw_accounts(accounts, tgw_clusters)
+    all_accounts = get_aws_accounts(gql.get_api())
+    # tgw_accounts = _filter_tgw_accounts(accounts, tgw_clusters)
     return DesiredStateDataSource(
         clusters=tgw_clusters,
-        accounts=tgw_accounts,
+        accounts=all_accounts,
     )
 
 
@@ -368,9 +389,16 @@ def run(
     defer: Optional[Callable] = None,
 ) -> None:
     desired_state_data_source = _fetch_desired_state_data_source(account_name)
-    accounts = [a.dict(by_alias=True) for a in desired_state_data_source.accounts]
+    tgw_clusters = desired_state_data_source.clusters
+    all_accounts = [a.dict(by_alias=True) for a in desired_state_data_source.accounts]
+    account_by_name = {a["name"]: a for a in all_accounts}
+    tgw_accounts = [
+        a.dict(by_alias=True)
+        for a in _filter_tgw_accounts(desired_state_data_source.accounts, tgw_clusters)
+        if not account_name or account_name == a.name
+    ]
 
-    if not accounts:
+    if not tgw_accounts:
         logging.warning(
             f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
         )
@@ -378,7 +406,7 @@ def run(
 
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(vault_settings.vault)
-    aws_api = AWSApi(1, accounts, secret_reader=secret_reader, init_users=False)
+    aws_api = AWSApi(1, all_accounts, secret_reader=secret_reader, init_users=False)
     if defer:
         defer(aws_api.cleanup)
 
@@ -398,9 +426,15 @@ def run(
         QONTRACT_INTEGRATION,
         "",
         thread_pool_size,
-        accounts,
+        tgw_accounts,
         settings=vault_settings.dict(by_alias=True),
     )
+    tgw_rosa_cluster_accounts = [
+        account_by_name[c.spec.account.name]
+        for c in tgw_clusters
+        if isinstance(c.spec, ClusterSpecROSAV1) and c.spec.account
+    ]
+    ts.populate_configs(tgw_rosa_cluster_accounts)
     working_dirs = _populate_tgw_attachments_working_dirs(
         ts,
         desired_state,
@@ -414,7 +448,7 @@ def run(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
         "",
-        accounts,
+        tgw_accounts,
         working_dirs,
         thread_pool_size,
         aws_api,
