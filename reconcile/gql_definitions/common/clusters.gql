@@ -85,6 +85,7 @@ query Clusters($name: String) {
       ... on ClusterSpecROSA_v1 {
         subnet_ids
         availability_zones
+        oidc_endpoint_url
         account {
           uid
           rosa {
