@@ -110,7 +110,7 @@ from reconcile.utils.oc import (
     OCLogMsg,
 )
 from reconcile.utils.oc_map import init_oc_map_from_clusters
-from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm import OCM_PRODUCT_ROSA, OCMMap
 from reconcile.utils.ocm_base_client import init_ocm_base_client
 from reconcile.utils.output import print_output
 from reconcile.utils.saasherder.saasherder import SaasHerder
@@ -1279,6 +1279,53 @@ def aws_creds(ctx, account_name):
     print(f"export AWS_REGION={account['resourcesDefaultRegion']}")
     print(f"export AWS_ACCESS_KEY_ID={secret['aws_access_key_id']}")
     print(f"export AWS_SECRET_ACCESS_KEY={secret['aws_secret_access_key']}")
+
+
+@get.command(short_help='obtain "rosa create cluster" command by cluster name')
+@click.argument("cluster_name")
+@click.pass_context
+def rosa_create_cluster_command(ctx, cluster_name):
+    clusters = [c for c in get_clusters() if c.name == cluster_name]
+    try:
+        cluster = clusters[0]
+    except IndexError:
+        print(f"{cluster_name} not found.")
+        sys.exit(1)
+
+    if cluster.spec.product != OCM_PRODUCT_ROSA:
+        print("must be a rosa cluster.")
+        sys.exit(1)
+
+    print(
+        " ".join([
+            "rosa create cluster",
+            f"--cluster-name {cluster.name}",
+            "--sts",
+            ("--hosted-cp" if cluster.spec.hypershift else ""),
+            f"--operator-roles-prefix {cluster.name}",
+            f"--oidc-config-id {cluster.spec.oidc_endpoint_url.split('/')[-1]}",
+            f"--subnet-ids {','.join(cluster.spec.subnet_ids)}",
+            f"--region {cluster.spec.region}",
+            f"--version {cluster.spec.initial_version}",
+            f"--machine-cidr {cluster.network.vpc}",
+            f"--service-cidr {cluster.network.service}",
+            f"--pod-cidr {cluster.network.pod}",
+            "--host-prefix 23",
+            "--replicas 3",
+            f"--compute-machine-type {cluster.machine_pools[0].instance_type}",
+            (
+                "--disable-workload-monitoring"
+                if cluster.spec.disable_user_workload_monitoring
+                else ""
+            ),
+            f"--channel-group {cluster.spec.channel}",
+            (
+                f"--properties provision_shard_id:{cluster.spec.provision_shard_id}"
+                if cluster.spec.provision_shard_id
+                else ""
+            ),
+        ])
+    )
 
 
 @get.command(

@@ -183,6 +183,7 @@ query Clusters($name: String) {
       ... on ClusterSpecROSA_v1 {
         subnet_ids
         availability_zones
+        oidc_endpoint_url
         account {
           uid
           rosa {
@@ -478,6 +479,7 @@ class ClusterSpecROSAV1_AWSAccountV1(ConfiguredBaseModel):
 class ClusterSpecROSAV1(ClusterSpecV1):
     subnet_ids: Optional[list[str]] = Field(..., alias="subnet_ids")
     availability_zones: Optional[list[str]] = Field(..., alias="availability_zones")
+    oidc_endpoint_url: Optional[str] = Field(..., alias="oidc_endpoint_url")
     account: Optional[ClusterSpecROSAV1_AWSAccountV1] = Field(..., alias="account")
 
 
