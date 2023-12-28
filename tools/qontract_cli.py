@@ -1301,7 +1301,18 @@ def rosa_create_cluster_command(ctx, cluster_name):
             "rosa create cluster",
             f"--cluster-name {cluster.name}",
             "--sts",
+            ("--private" if cluster.spec.private else ""),
             ("--hosted-cp" if cluster.spec.hypershift else ""),
+            (
+                "--private-link"
+                if cluster.spec.private and not cluster.spec.hypershift
+                else ""
+            ),
+            (
+                "--multi-az"
+                if cluster.spec.multi_az and not cluster.spec.hypershift
+                else ""
+            ),
             f"--operator-roles-prefix {cluster.name}",
             f"--oidc-config-id {cluster.spec.oidc_endpoint_url.split('/')[-1]}",
             f"--subnet-ids {','.join(cluster.spec.subnet_ids)}",
