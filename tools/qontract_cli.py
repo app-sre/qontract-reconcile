@@ -1276,15 +1276,21 @@ def login(ctx, org_name):
     )
 
 
-@get.command(
+@root.group()
+@click.pass_context
+def env(ctx):
+    pass
+
+
+@env.command(
     short_help="obtain automation credentials for "
     "aws account by name. executing this "
     "command will set up the environment: "
-    "$(aws get aws-creds --account-name foo)"
+    "$(qc env aws [ACCOUNT_NAME])"
 )
 @click.argument("account_name")
 @click.pass_context
-def aws_creds(ctx, account_name):
+def aws(ctx, account_name):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     accounts = queries.get_aws_accounts(name=account_name)
