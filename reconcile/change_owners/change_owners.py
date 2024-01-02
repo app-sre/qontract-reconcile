@@ -252,7 +252,7 @@ def assert_restrictive(
                     if user not in approvers:
                         logging.error(
                             f"change type {c.change_type_processor.name} is restrictive"
-                            f"user  {user} is not an approver"
+                            f"user {user} is not an approver"
                         )
                         sys.exit(1)
 
@@ -343,7 +343,9 @@ def run(
             merge_request = gl.get_merge_request(gitlab_merge_request_id)
 
             comments = gl.get_merge_request_comments(merge_request)
-            approval_comments = [c for c in comments if c["body"] == "/good-to-test"]
+            approval_comments = [
+                c for c in comments if c["body"].strip() == "/good-to-test"
+            ]
 
             assert_restrictive(
                 changes,
