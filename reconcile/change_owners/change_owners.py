@@ -1,7 +1,6 @@
 import logging
 import sys
 import traceback
-from typing import Any
 
 from gitlab.v4.objects import ProjectMergeRequest
 
@@ -233,14 +232,13 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
 
 
 def assert_restrictive(
-    changes: list[BundleFileChange], user: str, approval_comments: list[dict[str, Any]]
+    changes: list[BundleFileChange], user: str, good_to_test_approvers: set[str]
 ) -> None:
     for change in changes:
         for dc in change.diff_coverage:
             for c in dc.coverage:
                 if c.change_type_processor.restrictive:
                     approvers = {a.org_username for a in c.approvers}
-                    good_to_test_approvers = {a["username"] for a in approval_comments}
 
                     for gttapprover in good_to_test_approvers:
                         if gttapprover in approvers:
@@ -343,14 +341,14 @@ def run(
             merge_request = gl.get_merge_request(gitlab_merge_request_id)
 
             comments = gl.get_merge_request_comments(merge_request)
-            approval_comments = [
-                c for c in comments if c["body"].strip() == "/good-to-test"
-            ]
+            good_to_test_approvers = {
+                c["username"] for c in comments if c["body"].strip() == "/good-to-test"
+            }
 
             assert_restrictive(
                 changes,
                 gl.get_merge_request_author_username(merge_request),
-                approval_comments,
+                good_to_test_approvers,
             )
             approver_decisions = get_approver_decisions_from_mr_comments(
                 gl.get_merge_request_comments(merge_request, include_description=True)
