@@ -35,6 +35,7 @@ from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.saasherder.interfaces import SaasFile as SaasFileInterface
 from reconcile.utils.saasherder.models import (
+    TriggerSpecContainerImage,
     TriggerSpecMovingCommit,
     TriggerSpecUpstreamJob,
 )
@@ -431,7 +432,7 @@ class TestSaasFileValid(TestCase):
 class TestGetMovingCommitsDiffSaasFile(TestCase):
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas-trigger.gql.yml")
         )
 
         self.initiate_gh_patcher = patch.object(
@@ -463,7 +464,7 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
         )
         saasherder.state = MagicMock()
         saasherder.state.get.return_value = "asha"
-        self.get_commit_sha.side_effect = ("abcd4242",)
+        self.get_commit_sha.return_value = "abcd4242"
         # 2nd target is the one that will be promoted
         expected = [
             TriggerSpecMovingCommit(
@@ -473,9 +474,9 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
                 pipelines_provider=self.saas_file.pipelines_provider,
                 resource_template_name="test-saas-deployments",
                 cluster_name="appsres03ue1",
-                namespace_name="test-ns-subscriber",
+                namespace_name="test-moving-commit-trigger",
                 state_content="abcd4242",
-                ref="1234567890123456789012345678901234567890",
+                ref="main",
                 reason=None,
             )
         ]
@@ -501,7 +502,7 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
 
         saasherder.state = MagicMock()
         saasherder.state.get.return_value = "asha"
-        self.get_commit_sha.side_effect = ("abcd4242", "4242efg")
+        self.get_commit_sha.return_value = "abcd4242"
         expected = [
             TriggerSpecMovingCommit(
                 saas_file_name=self.saas_file.name,
@@ -510,9 +511,9 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
                 pipelines_provider=self.saas_file.pipelines_provider,
                 resource_template_name="test-saas-deployments",
                 cluster_name="appsres03ue1",
-                namespace_name="test-ns-subscriber",
+                namespace_name="test-moving-commit-trigger",
                 state_content="abcd4242",
-                ref="1234567890123456789012345678901234567890",
+                ref="main",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242",
             ),
         ]
@@ -547,7 +548,7 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
 class TestGetUpstreamJobsDiffSaasFile(TestCase):
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas-trigger.gql.yml")
         )
         self.maxDiff = None
 
@@ -577,7 +578,7 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
                 pipelines_provider=self.saas_file.pipelines_provider,
                 resource_template_name="test-saas-deployments",
                 cluster_name="appsres03ue1",
-                namespace_name="test-ns-publisher",
+                namespace_name="test-upstream-job-trigger",
                 instance_name="ci",
                 job_name="job",
                 state_content=state_content,
@@ -621,7 +622,7 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
                 pipelines_provider=self.saas_file.pipelines_provider,
                 resource_template_name="test-saas-deployments",
                 cluster_name="appsres03ue1",
-                namespace_name="test-ns-publisher",
+                namespace_name="test-upstream-job-trigger",
                 instance_name="ci",
                 job_name="job",
                 state_content=state_content,
@@ -636,7 +637,125 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
             expected,
         )
 
-    def test_get_archive_info(self) -> None:
+
+@pytest.mark.usefixtures("inject_gql_class_factory")
+class TestGetContainerImagesDiffSaasFile(TestCase):
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas-trigger.gql.yml")
+        )
+
+        self.initiate_gh_patcher = patch.object(
+            SaasHerder, "_initiate_github", autospec=True
+        )
+        self.get_commit_sha_patcher = patch.object(
+            SaasHerder, "_get_commit_sha", autospec=True
+        )
+        self.check_image_patcher = patch.object(
+            SaasHerder, "_check_image", autospec=True
+        )
+        self.initiate_gh = self.initiate_gh_patcher.start()
+        self.get_commit_sha = self.get_commit_sha_patcher.start()
+        self.check_image = self.check_image_patcher.start()
+        self.maxDiff = None
+
+    def tearDown(self) -> None:
+        for p in (
+            self.initiate_gh_patcher,
+            self.get_commit_sha_patcher,
+            self.check_image_patcher,
+        ):
+            p.stop()
+
+    def test_get_container_images_diff_saas_file_all_fine(self) -> None:
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+        )
+        saasherder.state = MagicMock()
+        saasherder.state.get.return_value = "asha"
+        self.get_commit_sha.return_value = "abcd4242"
+        self.check_image.return_value = None
+        expected = [
+            TriggerSpecContainerImage(
+                saas_file_name=self.saas_file.name,
+                env_name="App-SRE-stage",
+                timeout=None,
+                pipelines_provider=self.saas_file.pipelines_provider,
+                resource_template_name="test-saas-deployments",
+                cluster_name="appsres03ue1",
+                namespace_name="test-image-trigger",
+                image="quay.io/centos/centos",
+                state_content="abcd424",
+                reason=None,
+            )
+        ]
+
+        self.assertEqual(
+            saasherder.get_container_images_diff_saas_file(self.saas_file, True),
+            expected,
+        )
+
+    def test_get_container_images_diff_saas_file_all_fine_include_trigger_trace(
+        self,
+    ) -> None:
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+            include_trigger_trace=True,
+        )
+        saasherder.state = MagicMock()
+        saasherder.state.get.return_value = "asha"
+        self.get_commit_sha.return_value = "abcd4242"
+        self.check_image.return_value = None
+        expected = [
+            TriggerSpecContainerImage(
+                saas_file_name=self.saas_file.name,
+                env_name="App-SRE-stage",
+                timeout=None,
+                pipelines_provider=self.saas_file.pipelines_provider,
+                resource_template_name="test-saas-deployments",
+                cluster_name="appsres03ue1",
+                namespace_name="test-image-trigger",
+                image="quay.io/centos/centos",
+                state_content="abcd424",
+                reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424",
+            )
+        ]
+
+        self.assertEqual(
+            saasherder.get_container_images_diff_saas_file(self.saas_file, True),
+            expected,
+        )
+
+
+@pytest.mark.usefixtures("inject_gql_class_factory")
+class TestGetArchiveInfo(TestCase):
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas-trigger.gql.yml")
+        )
+        self.initiate_gh_patcher = patch.object(
+            SaasHerder, "_initiate_github", autospec=True
+        )
+        self.initiate_gh = self.initiate_gh_patcher.start()
+        self.maxDiff = None
+
+    def tearDown(self) -> None:
+        for p in (self.initiate_gh_patcher,):
+            p.stop()
+
+    def test_get_gitlab_archive_info(self) -> None:
         trigger_reason = "https://gitlab.com/app-sre/test-saas-deployments/commit/abcd4242 via https://jenkins.com/job/job/2"
         saasherder = SaasHerder(
             [self.saas_file],
@@ -650,6 +769,26 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
         )
         file_name = "app-sre-test-saas-deployments-abcd4242.tar.gz"
         archive_url = f"https://gitlab.com/app-sre/test-saas-deployments/-/archive/abcd4242/{file_name}"
+        self.assertEqual(
+            saasherder.get_archive_info(self.saas_file, trigger_reason),
+            (file_name, archive_url),
+        )
+
+    def test_get_github_archive_info(self) -> None:
+        trigger_reason = "https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424"
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+            include_trigger_trace=True,
+        )
+        file_name = "app-sre-test-saas-deployments-abcd4242.tar.gz"
+        archive_url = "https://api.github.com/repos/app-sre/test-saas-deployments/tarball/abcd4242"
+        self.initiate_gh.return_value.get_repo.return_value.get_archive_link.return_value = archive_url
         self.assertEqual(
             saasherder.get_archive_info(self.saas_file, trigger_reason),
             (file_name, archive_url),
@@ -948,8 +1087,7 @@ class TestConfigHashPromotionsValidation(TestCase):
         """Promotion is not valid if the parent target config hash set in
         the state does not match with the one set in the subscriber target
         promotion_data. This could happen if the parent target has run again
-        with the same ref before before the subscriber target promotion MR is
-        merged.
+        with the same ref before the subscriber target promotion MR is merged.
         """
         publisher_state = {
             "success": True,

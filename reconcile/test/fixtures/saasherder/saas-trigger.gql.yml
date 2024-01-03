@@ -1,0 +1,117 @@
+---
+path: /services/test-saas-deployment-pipelines/cicd/deploy.yml
+name: test-saas-deployments-deploy
+app:
+  name: app-interface
+  selfServiceRoles:
+  - name: test
+  serviceOwners:
+  - name: AppSRE
+    email: owners@example.com
+  - name: AppSRE-1
+    email: owners-1@example.com
+
+pipelinesProvider:
+  name: tekton-app-sre-pipelines-appsres03ue1
+  provider: tekton
+  namespace:
+    name: app-sre-pipelines
+    cluster:
+      name: appsres03ue1
+      serverUrl: 'https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443'
+      consoleUrl: 'https://console.appsres03ue1.5nvu.p1.openshiftapps.com:6443'
+      internal: true
+  defaults:
+    pipelineTemplates:
+      openshiftSaasDeploy:
+        name: saas-deploy
+  pipelineTemplates:
+    openshiftSaasDeploy:
+      name: saas-deploy
+
+slack:
+  workspace:
+    name: coreos
+    integrations:
+    - name: openshift-upgrade-watcher
+      token:
+        path: app-sre/creds/slack-app-sre-groups
+        field: bot_token
+      channel: sd-app-sre
+      icon_emoji: openshift
+      username: OpenShift
+    - name: qontract-cli
+      token:
+        path: app-sre/creds/slack-app-sre-groups
+        field: bot_token
+      channel: sd-app-sre
+      icon_emoji: app-sre
+      username: AppSRE
+  channel: sd-app-sre-info
+
+managedResourceTypes:
+- Job
+
+publishJobLogs: true
+
+imagePatterns:
+- 'quay.io/centos/centos:centos8'
+
+allowedSecretParameterPaths: []
+
+resourceTemplates:
+- name: test-saas-deployments
+  url: 'https://github.com/app-sre/test-saas-deployments'
+  path: /openshift/deploy-template.yml
+  parameters: '{"PARAM":"test"}'
+  targets:
+  - namespace:
+      name: test-moving-commit-trigger
+      environment:
+        name: App-SRE
+        parameters: '{"CHANNEL":"staging"}'
+      app:
+        name: test-saas-deployments
+      cluster:
+        name: appsres03ue1
+        serverUrl: 'https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443'
+        internal: true
+    ref: main
+    path: openshift/deploy-template.yml
+  - namespace:
+      name: test-upstream-job-trigger
+      environment:
+        name: App-SRE-stage
+        parameters: '{"CHANNEL":"staging"}'
+      app:
+        name: test-saas-deployments
+      cluster:
+        name: appsres03ue1
+        serverUrl: 'https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443'
+        internal: true
+    ref: main
+    path: openshift/deploy-template.yml
+    upstream:
+      instance:
+        name: ci
+        serverUrl: 'https://jenkins.com'
+      name: job
+  - namespace:
+      name: test-image-trigger
+      environment:
+        name: App-SRE-stage
+        parameters: '{"CHANNEL":"staging"}'
+      app:
+        name: test-saas-deployments
+      cluster:
+        name: appsres03ue1
+        serverUrl: 'https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443'
+        internal: true
+    ref: main
+    path: openshift/deploy-template.yml
+    image:
+      org:
+        instance:
+          url: quay.io
+        name: centos
+      name: centos
