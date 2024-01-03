@@ -102,7 +102,7 @@ REVOKE ALL ON DATABASE "{self._get_db()}" FROM public;
 \\c "{self._get_db()}"
 
 select 'CREATE ROLE "{self._get_user()}"'
-WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{self._get_db()}');\\gexec
+WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{self._get_user()}');\\gexec
 
 ALTER ROLE "{self._get_user()}" WITH LOGIN  PASSWORD '{self.connection_parameter.password}' VALID UNTIL 'infinity';
 
@@ -428,6 +428,9 @@ def _populate_resources(
     admin_connection: DatabaseConnectionParameters,
     current_db_access: Optional[DatabaseAccessV1] = None,
 ) -> list[DBAMResource]:
+    if user_connection.database == admin_connection.database:
+        raise ValueError(f"Can not use default database {admin_connection.database}")
+
     managed_resources: list[DBAMResource] = []
     # create service account
     managed_resources.append(
