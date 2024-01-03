@@ -7,6 +7,8 @@ from typing import Optional
 import reconcile.openshift_base as ob
 from reconcile import (
     jenkins_base,
+    openshift_saas_deploy_trigger_images,
+    openshift_saas_deploy_trigger_upstream_jobs,
     queries,
 )
 from reconcile.gql_definitions.common.saas_files import PipelinesProviderTektonV1
@@ -302,12 +304,16 @@ def run(
     # we only do this if:
     # - this is not a dry run
     # - there is a single saas file deployed
-    # - saas-deploy triggered by upstream-job
+    # - saas-deploy triggered by upstream job or image build
+    allowed_integration = [
+        openshift_saas_deploy_trigger_upstream_jobs.QONTRACT_INTEGRATION,
+        openshift_saas_deploy_trigger_images.QONTRACT_INTEGRATION,
+    ]
     sast = (
         not dry_run
         and len(saas_files) == 1
         and trigger_integration
-        and trigger_integration == "openshift-saas-deploy-trigger-upstream-jobs"
+        and trigger_integration in allowed_integration
         and trigger_reason
     )
     if sast:
