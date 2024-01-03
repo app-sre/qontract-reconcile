@@ -3,7 +3,7 @@ from pytest_mock import MockerFixture
 
 from reconcile.change_owners.approver import Approver
 from reconcile.change_owners.bundle import BundleFileType, FileRef
-from reconcile.change_owners.change_owners import assert_restrictive
+from reconcile.change_owners.change_owners import is_change_admitted
 from reconcile.change_owners.change_types import (
     ChangeTypeContext,
     DiffCoverage,
@@ -42,27 +42,16 @@ def restrictive_change(
     return [b]
 
 
-def test_assert_restrictive_missing_approver(
-    restrictive_change: list[BundleFileChange], mocker: MockerFixture
+@pytest.mark.parametrize(("user", "expected"), [("foo", True), ("baz", False)])
+def test_assert_restrictive(
+    restrictive_change: list[BundleFileChange], user: str, expected: bool
 ) -> None:
-    exit = mocker.patch("sys.exit")
-
-    assert_restrictive(restrictive_change, "baz", {""})
-    exit.assert_called_once_with(1)
-
-
-def test_assert_restrictive_approved(
-    restrictive_change: list[BundleFileChange], mocker: MockerFixture
-) -> None:
-    exit = mocker.patch("sys.exit")
-    assert_restrictive(restrictive_change, "foo", {""})
-    exit.assert_not_called()
+    assert expected == is_change_admitted(restrictive_change, user, {""})
 
 
 def test_assert_restrictive_non_restrictive(
     restrictive_type: ChangeTypeV1, mocker: MockerFixture
 ) -> None:
-    exit = mocker.patch("sys.exit")
     b = mocker.patch("reconcile.change_owners.changes.BundleFileChange")
     restrictive_type.restrictive = False
     b.diff_coverage = [
@@ -83,26 +72,19 @@ def test_assert_restrictive_non_restrictive(
             ],
         )
     ]
-
     changes = [b]
 
-    assert_restrictive(changes, "baz", {""})
-    exit.assert_not_called()
+    assert is_change_admitted(changes, "baz", {""})
 
 
+@pytest.mark.parametrize(
+    ("good_to_test_approver", "expected"), [({"foo"}, True), ({"baz"}, False)]
+)
 def test_assert_restrictive_good_to_test(
-    restrictive_change: list[BundleFileChange], mocker: MockerFixture
+    restrictive_change: list[BundleFileChange],
+    good_to_test_approver: set[str],
+    expected: bool,
 ) -> None:
-    exit = mocker.patch("sys.exit")
-    assert_restrictive(restrictive_change, "baz", {"foo"})
-
-    exit.assert_not_called()
-
-
-def test_assert_restrictive_not_good_to_test(
-    restrictive_change: list[BundleFileChange], mocker: MockerFixture
-) -> None:
-    exit = mocker.patch("sys.exit")
-    assert_restrictive(restrictive_change, "baz", {"baz"})
-
-    exit.assert_called_once_with(1)
+    assert expected == is_change_admitted(
+        restrictive_change, "baz", good_to_test_approver
+    )

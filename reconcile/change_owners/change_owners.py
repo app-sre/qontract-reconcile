@@ -39,6 +39,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import (
     HOLD,
     NOT_SELF_SERVICEABLE,
+    RESTRICTED,
     SELF_SERVICEABLE,
     change_owner_label,
     prioritized_approval_label,
@@ -48,6 +49,10 @@ from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "change-owners"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+
+
+class NotAdmittedError(Exception):
+    pass
 
 
 def cover_changes(
@@ -112,6 +117,7 @@ def manage_conditional_label(
 def write_coverage_report_to_mr(
     self_serviceable: bool,
     change_decisions: list[ChangeDecision],
+    change_admitted: bool,
     authoritative: bool,
     merge_request: ProjectMergeRequest,
     gl: GitLabApi,
@@ -168,6 +174,9 @@ def write_coverage_report_to_mr(
         )
     if not authoritative:
         self_serviceability_hint += "\n\nchanges outside of data and resources detected - <b>PAY EXTRA ATTENTION WHILE REVIEWING</b>\n\n"
+
+    if not change_admitted:
+        self_serviceability_hint += "\n\nchanges are not admitted. Please request /good-to-test from one of the approvers.\n\n"
 
     approver_reachability_hint = "Reach out to approvers for reviews"
     if approver_reachability:
@@ -231,9 +240,9 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
 
 
-def assert_restrictive(
+def is_change_admitted(
     changes: list[BundleFileChange], user: str, good_to_test_approvers: set[str]
-) -> None:
+) -> bool:
     for change in changes:
         for dc in change.diff_coverage:
             for c in dc.coverage:
@@ -245,14 +254,15 @@ def assert_restrictive(
                             logging.info(
                                 f"Restrictive change approved by {gttapprover}"
                             )
-                            return
+                            return True
 
                     if user not in approvers:
                         logging.error(
                             f"change type {c.change_type_processor.name} is restrictive"
                             f"user {user} is not an approver"
                         )
-                        sys.exit(1)
+                        return False
+    return True
 
 
 def run(
@@ -345,7 +355,7 @@ def run(
                 c["username"] for c in comments if c["body"].strip() == "/good-to-test"
             }
 
-            assert_restrictive(
+            change_admitted = is_change_admitted(
                 changes,
                 gl.get_merge_request_author_username(merge_request),
                 good_to_test_approvers,
@@ -374,6 +384,7 @@ def run(
                 write_coverage_report_to_mr(
                     self_serviceable,
                     change_decisions,
+                    change_admitted,
                     change_type_processing_mode
                     == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE,
                     merge_request,
@@ -390,6 +401,7 @@ def run(
                 SELF_SERVICEABLE: self_serviceable,
                 NOT_SELF_SERVICEABLE: not self_serviceable,
                 HOLD: self_serviceable and hold,
+                RESTRICTED: not change_admitted,
             }
 
             # priority labels
@@ -425,5 +437,11 @@ def run(
                 # skips MRs with this label
                 gl.remove_label(merge_request, SELF_SERVICEABLE)
 
+            if not change_admitted:
+                raise NotAdmittedError("Change not admitted")
+
+    except NotAdmittedError as e:
+        logging.error(e)
+        sys.exit(1)
     except BaseException:
         logging.error(traceback.format_exc())
