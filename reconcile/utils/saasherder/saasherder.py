@@ -1686,7 +1686,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         state_content=desired_image_tag,
                     )
                     if self.include_trigger_trace:
-                        trigger_spec.reason = image_uri
+                        trigger_spec.reason = (
+                            f"{rt.url}/commit/{commit_sha} build {image_uri}"
+                        )
                     if not self.state:
                         raise Exception("state is not initialized")
                     current_image_tag = self.state.get(trigger_spec.state_key, None)
