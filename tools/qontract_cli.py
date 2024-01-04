@@ -1895,7 +1895,7 @@ def app_interface_review_queue(ctx) -> None:
             item = {
                 "id": f"[{mr.iid}]({mr.web_url})",
                 "repo": repo,
-                "title": mr.title,
+                "title": mr.title.replace("|", "&#124;"),
                 "onboarding": "onboarding" in labels,
                 "updated_at": mr.updated_at,
                 "author": author,
