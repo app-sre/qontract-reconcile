@@ -2620,7 +2620,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         if "subscriptions" in common_values.keys():
             subscriptions = common_values.get("subscriptions")
-            for index,sub in enumerate(subscriptions):
+            for index, sub in enumerate(subscriptions):
                 sub_values = {}
                 sub_values["topic_arn"] = "${aws_sns_topic" + "." + identifier + ".arn}"
                 protocol = sub["protocol"]
