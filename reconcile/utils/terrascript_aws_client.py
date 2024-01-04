@@ -2630,7 +2630,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     raise ValueError(msg)
                 sub_values["protocol"] = protocol
                 sub_values["endpoint"] = endpoint
-                sub_identifier = f"{identifier}_{protocol}_aws_sns_topic_subscription_{index}"
+                sub_identifier = (
+                    f"{identifier}_{protocol}_aws_sns_topic_subscription_{index}"
+                )
                 sub_tf_resource = aws_sns_topic_subscription(
                     sub_identifier, **sub_values
                 )
