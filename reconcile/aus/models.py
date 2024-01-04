@@ -136,8 +136,11 @@ class OrganizationUpgradeSpec(BaseModel):
                 self.add_organization_error(
                     f"sector {spec.upgrade_policy.conditions.sector} not found in organization"
                 )
-            else:
-                self._sectors[spec.upgrade_policy.conditions.sector].add_spec(spec)
+                self.add_cluster_error(
+                    f"cluster {spec.cluster_uuid} references unknown sector {spec.upgrade_policy.conditions.sector}"
+                )
+                return
+            self._sectors[spec.upgrade_policy.conditions.sector].add_spec(spec)
         self._specs.append(spec)
         self._specs.sort(key=upgrade_spec_sort_key)
 
