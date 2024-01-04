@@ -1012,7 +1012,7 @@ def calculate_diff(
                 #
                 # this might change in the future - revisite for 4.16
                 if not minor_version_gates:
-                    logging.warning(
+                    logging.debug(
                         f"[{spec.org.org_id}/{spec.cluster.name}] no gates found for {target_version_prefix}. "
                         "Skip creation of an upgrade policy."
                     )
