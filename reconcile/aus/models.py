@@ -138,7 +138,7 @@ class OrganizationUpgradeSpec(BaseModel):
                 )
                 self.add_cluster_error(
                     spec.cluster_uuid,
-                    f"cluster {spec.cluster_uuid} references unknown sector {spec.upgrade_policy.conditions.sector}"
+                    f"cluster {spec.cluster_uuid} references unknown sector {spec.upgrade_policy.conditions.sector}",
                 )
                 return
             self._sectors[spec.upgrade_policy.conditions.sector].add_spec(spec)
