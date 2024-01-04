@@ -25,6 +25,7 @@ class DecisionCommand(Enum):
     CANCEL_APPROVED = "/lgtm cancel"
     HOLD = "/hold"
     CANCEL_HOLD = "/hold cancel"
+    GOOD_TO_TEST = "/good-to-test"
 
 
 @dataclass

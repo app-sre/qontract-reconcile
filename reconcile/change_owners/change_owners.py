@@ -153,7 +153,9 @@ def write_coverage_report_to_mr(
             "schema": d.file.schema,
             "change": d.diff.path,
         }
-        if d.is_held():
+        if not change_admitted:
+            item["status"] = "restricted"
+        elif d.is_held():
             item["status"] = "hold"
         elif d.is_approved():
             item["status"] = "approved"
@@ -176,7 +178,7 @@ def write_coverage_report_to_mr(
         self_serviceability_hint += "\n\nchanges outside of data and resources detected - <b>PAY EXTRA ATTENTION WHILE REVIEWING</b>\n\n"
 
     if not change_admitted:
-        self_serviceability_hint += "\n\nchanges are not admitted. Please request /good-to-test from one of the approvers.\n\n"
+        self_serviceability_hint += "\n\nchanges are not admitted. Please request `/good-to-test` from one of the approvers.\n\n"
 
     approver_reachability_hint = "Reach out to approvers for reviews"
     if approver_reachability:
