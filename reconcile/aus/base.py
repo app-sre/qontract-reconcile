@@ -720,43 +720,42 @@ def version_conditions_met(
     return True
 
 
+def gates_for_minor_version(
+    gates: list[OCMVersionGate],
+    target_version_prefix: str,
+) -> list[OCMVersionGate]:
+    return [g for g in gates if g.version_raw_id_prefix == target_version_prefix]
+
+
 def gates_to_agree(
     gates: list[OCMVersionGate],
-    version_prefix: str,
-    cluster: OCMCluster,
+    cluster_id: str,
     ocm_api: OCMBaseClient,
 ) -> list[OCMVersionGate]:
     """Check via OCM if a version is agreed
 
     Args:
-        gates: list of OCMVersionGate objects
-        version_prefix (string): major.minor version prefix
-        cluster (string)
-        cluster_version (string): current version of the cluster
-        sts (bool): is the cluster a STS cluster
+        gates (OCMVersionGate): list of OCMVersionGate objects to check for agreements
+        cluster_id (str): the cluster that needs gate agreements
         ocm_api (OCMBaseClient): used to fetch infos from OCM
 
     Returns:
-        list[OCMVersionGate]: list of gates to agree
+        list[OCMVersionGate]: list of gates a cluster has not agreed on yet
     """
-    semver_cluster = parse_semver(f"{cluster.version.raw_id}")
-
     applicable_gates = [
         g
         for g in gates
-        if g.version_raw_id_prefix == version_prefix
         # todo: sts version gates need special handling - https://issues.redhat.com/browse/APPSRE-7949
         #       until this is solved, we can't do automated upgrades for STS clusters that cross a version gate
         #       once we have proper and secure handling get gate agreements for STS clusters, we can use this condition:
         #       `and (not g.sts_only or g.sts_only == cluster.is_sts())`
-        and not g.sts_only
-        and semver_cluster.match(f"<{g.version_raw_id_prefix}.0")
+        if not g.sts_only
     ]
 
     if applicable_gates:
         current_agreements = {
             agreement["version_gate"]["id"]
-            for agreement in get_version_agreement(ocm_api, cluster.id)
+            for agreement in get_version_agreement(ocm_api, cluster_id)
         }
         return [gate for gate in applicable_gates if gate.id not in current_agreements]
     return []
@@ -1002,6 +1001,22 @@ def calculate_diff(
                     )
                 )
             else:
+                target_version_prefix = get_version_prefix(version)
+                minor_version_gates = gates_for_minor_version(
+                    gates, target_version_prefix
+                )
+                # skipping upgrades when there are no version gates is a safety
+                # precaution to prevent cluster upgrades being scheduled.
+                # missing version gates are an indicator that the version has not yet gone
+                # through SREP gap analysis and is not yet ready for upgrades.
+                #
+                # this might change in the future - revisite for 4.16
+                if not minor_version_gates:
+                    logging.debug(
+                        f"[{spec.org.org_id}/{spec.cluster.name}] no gates found for {target_version_prefix}. "
+                        "Skip creation of an upgrade policy."
+                    )
+                    continue
                 diffs.append(
                     UpgradePolicyHandler(
                         action="create",
@@ -1009,9 +1024,8 @@ def calculate_diff(
                         gates_to_agree=[
                             GateAgreement(gate=g)
                             for g in gates_to_agree(
-                                gates,
-                                get_version_prefix(version),
-                                spec.cluster,
+                                minor_version_gates,
+                                spec.cluster.id,
                                 ocm_api,
                             )
                         ],

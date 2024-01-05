@@ -72,14 +72,32 @@ def now(mocker: MockerFixture) -> datetime:
 #
 
 
+@pytest.fixture
+def version_gates() -> list[dict[str, Any]]:
+    return [
+        {
+            "kind": "VersionGate",
+            "id": "gate_id",
+            "version_raw_id_prefix": "4.12",
+            "label": "api.openshift.com/some-gate",
+            "value": "4.12",
+            "sts_only": False,
+        }
+    ]
+
+
 def test_calculate_diff_no_lock(
     ocm_api: OCMBaseClient,
     cluster_1: OCMCluster,
     now: datetime,
+    mocker: MockerFixture,
 ) -> None:
     """
     Test case: there is no other upgrade lock, so the cluster upgrade can be scheduled
     """
+    gates_to_agree_mock = mocker.patch("reconcile.aus.base.gates_to_agree")
+    gates_to_agree_mock.return_value = []
+
     org_upgrade_spec = build_organization_upgrade_spec(
         specs=[
             (
@@ -142,11 +160,15 @@ def test_calculate_diff_inter_lock(
     cluster_1: OCMCluster,
     cluster_2: OCMCluster,
     now: datetime,
+    mocker: MockerFixture,
 ) -> None:
     """
     Test case: two clusters need an upgrade, but define the same mutex.
     only the first one will be upgraded
     """
+    gates_to_agree_mock = mocker.patch("reconcile.aus.base.gates_to_agree")
+    gates_to_agree_mock.return_value = []
+
     upgrade_policy_spec = build_upgrade_policy(
         workloads=["workload1"], soak_days=0, mutexes=["mutex1"]
     )
