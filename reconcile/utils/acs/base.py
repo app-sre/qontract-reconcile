@@ -44,6 +44,16 @@ class AcsBaseApi:
                 raise AppInterfaceSettingsError("More than one ACS instance found!")
             return instances[0]
         raise AppInterfaceSettingsError("No ACS instance found!")
+    
+    @staticmethod
+    def check_len_attributes(attrs: list[Any], api_data: Any) -> None:
+    # generic attribute check function for expected types with valid len()
+        for attr in attrs:
+            value = api_data.get(attr)
+            if value is None or len(value) == 0:
+                raise ValueError(
+                    f"Attribute '{attr}' must exist and not be empty\n\t{api_data}"
+                )
 
     def generic_request(
         self, path: str, verb: str, json: Optional[Any] = None

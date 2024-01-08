@@ -8,7 +8,6 @@ from typing import (
 
 from pydantic import BaseModel
 
-from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
 from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1
 from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
 from reconcile.typed_queries.app_interface_vault_settings import (

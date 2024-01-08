@@ -12,7 +12,7 @@ class Role(BaseModel):
 
     def __init__(self, api_data: Any) -> None:
         # attributes defined within stackrox(ACS) API for GET /v1/roles
-        check_len_attributes(
+        AcsBaseApi.check_len_attributes(
             ["name", "permissionSetId", "accessScopeId"],
             api_data,
         )
@@ -40,14 +40,14 @@ class Group(BaseModel):
 
     def __init__(self, api_data: Any) -> None:
         # attributes defined within stackrox(ACS) API for GET /v1/groups
-        check_len_attributes(["roleName", "props"], api_data)
+        AcsBaseApi.check_len_attributes(["roleName", "props"], api_data)
         if api_data["roleName"] != "None":
-            check_len_attributes(
+            AcsBaseApi.check_len_attributes(
                 ["id", "authProviderId", "key", "value"], api_data["props"]
             )
         else:
             # it is valid for the default None group to contain empty key/value
-            check_len_attributes(["id", "authProviderId"], api_data["props"])
+            AcsBaseApi.check_len_attributes(["id", "authProviderId"], api_data["props"])
 
         super().__init__(
             role_name=api_data["roleName"],
@@ -68,12 +68,12 @@ class AccessScope(BaseModel):
     def __init__(self, api_data: Any) -> None:
         # attributes defined within stackrox(ACS) API for GET /v1/simpleaccessscopes/{id}
         unrestricted = False
-        check_len_attributes(["id", "name"], api_data)
+        AcsBaseApi.check_len_attributes(["id", "name"], api_data)
 
         # it is valid for the default Unrestricted access scope to have null 'rules'
         unrestricted = api_data["name"] == "Unrestricted"
         if not unrestricted:
-            check_len_attributes(["rules"], api_data)
+            AcsBaseApi.check_len_attributes(["rules"], api_data)
 
         super().__init__(
             id=api_data["id"],
@@ -94,7 +94,7 @@ class PermissionSet(BaseModel):
 
     def __init__(self, api_data: Any) -> None:
         # attributes defined within stackrox(ACS) API for GET /v1/permissionsets/{id}
-        check_len_attributes(["id", "name"], api_data)
+        AcsBaseApi.check_len_attributes(["id", "name"], api_data)
 
         super().__init__(id=api_data["id"], name=api_data["name"])
 
@@ -104,16 +104,6 @@ class RbacResources(BaseModel):
     access_scopes: list[AccessScope]
     groups: list[Group]
     permission_sets: list[PermissionSet]
-
-
-def check_len_attributes(attrs: list[Any], api_data: Any) -> None:
-    # generic attribute check function for expected types with valid len()
-    for attr in attrs:
-        value = api_data.get(attr)
-        if value is None or len(value) == 0:
-            raise ValueError(
-                f"Attribute '{attr}' must exist and not be empty\n\t{api_data}"
-            )
 
 
 class AcsRbacApi(AcsBaseApi):
