@@ -2631,7 +2631,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 sub_values["protocol"] = protocol
                 sub_values["endpoint"] = endpoint
                 # append suffix only in case there are multiple subscriptions
-                suffix=f"_{index+1}" if len(subscriptions)>1 else ""
+                suffix = f"_{index + 1}" if len(subscriptions) > 1 else ""
                 sub_identifier = (
                     f"{identifier}_{protocol}_aws_sns_topic_subscription{suffix}"
                 )
