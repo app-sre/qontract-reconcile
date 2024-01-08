@@ -102,6 +102,8 @@ class ExternalResource(BaseModel):
 
 AwsExternalResources = list[ExternalResource]
 AppInterfaceExternalResources = list[ExternalResource]
+UidAndReplicationGroupId = tuple[str, str]
+ReplicationGroupIdToIdentifier = dict[UidAndReplicationGroupId, str]
 
 
 class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
@@ -151,7 +153,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
         self,
         clusters: Iterable[ClusterV1],
         timeout: int,
-        elasticache_replication_group_id_to_identifier: dict[str, str],
+        elasticache_replication_group_id_to_identifier: ReplicationGroupIdToIdentifier,
         prom_get_func: Callable = prom_get,
     ) -> list[ExternalResource]:
         metrics: list[ExternalResource] = []
@@ -192,7 +194,10 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                         resource_provider="elasticache",
                         # cache_name is the ElastiCache node name, which derived from replication_group_id not resource_identifier!
                         resource_identifier=elasticache_replication_group_id_to_identifier.get(
-                            node_name_to_cache_name(m["cache_name"]),
+                            (
+                                m["aws_account_id"],
+                                node_name_to_cache_name(m["cache_name"]),
+                            ),
                             node_name_to_cache_name(m["cache_name"]),
                         ),
                         resource_engine=m["engine"],
@@ -360,7 +365,10 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             aws_resource_exporter_clusters,
             timeout=self.params.prometheus_timeout,
             elasticache_replication_group_id_to_identifier={
-                external_resource.redis_replication_group_id: external_resource.resource_identifier
+                (
+                    external_resource.provisioner.uid,
+                    external_resource.redis_replication_group_id,
+                ): external_resource.resource_identifier
                 for external_resource in external_resources_app_interface
                 if external_resource.redis_replication_group_id
             },
