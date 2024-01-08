@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from typing import (
     Any,
     Optional,
@@ -5,6 +7,11 @@ from typing import (
 )
 
 import requests
+
+from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
+from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
+
+from reconcile.utils.exceptions import AppInterfaceSettingsError
 
 class AcsBaseApi:
     def __init__(
@@ -22,6 +29,21 @@ class AcsBaseApi:
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.session.close()
+    
+    @staticmethod
+    def get_acs_instance(query_func: Callable) -> AcsInstanceV1:
+        """
+        Get an ACS instance
+
+        :param query_func: function which queries GQL Server
+        """
+        if instances := acs_instances_query(query_func=query_func).instances:
+            # mirroring logic for gitlab instances
+            # current assumption is for appsre to only utilize one instance
+            if len(instances) != 1:
+                raise AppInterfaceSettingsError("More than one ACS instance found!")
+            return instances[0]
+        raise AppInterfaceSettingsError("No ACS instance found!")
 
     def generic_request(
         self, path: str, verb: str, json: Optional[Any] = None

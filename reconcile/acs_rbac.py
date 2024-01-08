@@ -9,7 +9,6 @@ from typing import (
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
-from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
 from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1
 from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -25,7 +24,6 @@ from reconcile.utils.differ import (
     DiffPair,
     diff_iterables,
 )
-from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
@@ -142,20 +140,6 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
     @property
     def name(self) -> str:
         return self.qontract_integration.replace("_", "-")
-
-    def get_acs_instance(self, query_func: Callable) -> AcsInstanceV1:
-        """
-        Get an ACS instance
-
-        :param query_func: function which queries GQL Server
-        """
-        if instances := acs_instances_query(query_func=query_func).instances:
-            # mirroring logic for gitlab instances
-            # current assumption is for appsre to only utilize one instance
-            if len(instances) != 1:
-                raise AppInterfaceSettingsError("More than one ACS instance found!")
-            return instances[0]
-        raise AppInterfaceSettingsError("No ACS instance found!")
 
     def get_desired_state(self, query_func: Callable) -> list[AcsRole]:
         """
@@ -602,7 +586,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         dry_run: bool,
     ) -> None:
         gqlapi = gql.get_api()
-        instance = self.get_acs_instance(gqlapi.query)
+        instance = AcsRbacApi.get_acs_instance(gqlapi.query)
 
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
