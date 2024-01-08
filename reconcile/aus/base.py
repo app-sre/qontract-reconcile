@@ -163,7 +163,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
             self.process_upgrade_policies_in_org(dry_run, org_upgrade_spec)
         else:
             logging.debug(
-                f"Skip org {org_name} in {ocm_env} because it defines no upgrade policies"
+                f"Skip org {org_upgrade_spec.org.org_id}/{org_name} in {ocm_env} because it defines no upgrade policies"
             )
 
     def get_upgrade_specs(self) -> dict[str, dict[str, OrganizationUpgradeSpec]]:
@@ -806,18 +806,18 @@ def verify_current_should_skip(
         next_run = current.next_run
         if next_run and datetime.strptime(next_run, "%Y-%m-%dT%H:%M:%SZ") < now:
             logging.warning(
-                f"[{desired.org.org_id}/{desired.cluster.name}] currently upgrading to blocked version '{version}'"
+                f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] currently upgrading to blocked version '{version}'"
             )
             return True, None
         logging.debug(
-            f"[{desired.org.org_id}/{desired.cluster.name}] found planned upgrade policy "
+            f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] found planned upgrade policy "
             + f"with blocked version {version}"
         )
         return False, UpgradePolicyHandler(action="delete", policy=current)
 
     # else
     logging.debug(
-        f"[{desired.org.org_id}/{desired.cluster.name}] skipping cluster with existing upgrade policy"
+        f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster with existing upgrade policy"
     )
     return True, None
 
@@ -849,7 +849,7 @@ def verify_schedule_should_skip(
         within_upgrade_timeframe = next_schedule_in_seconds / 60 <= 10
     if not within_upgrade_timeframe:
         logging.debug(
-            f"[{desired.org.org_id}/{desired.cluster.name}] skipping cluster with no upcoming upgrade"
+            f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster with no upcoming upgrade"
         )
         return None
     return next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -862,7 +862,7 @@ def verify_lock_should_skip(
     if any(lock in locked for lock in mutexes):
         locking = {lock: locked[lock] for lock in mutexes if lock in locked}
         logging.debug(
-            f"[{desired.org.org_id}/{desired.cluster.name}] skipping cluster: locked out by {locking}"
+            f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster: locked out by {locking}"
         )
         return True
     return False
@@ -1013,7 +1013,7 @@ def calculate_diff(
                 # this might change in the future - revisite for 4.16
                 if not minor_version_gates:
                     logging.debug(
-                        f"[{spec.org.org_id}/{spec.cluster.name}] no gates found for {target_version_prefix}. "
+                        f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] no gates found for {target_version_prefix}. "
                         "Skip creation of an upgrade policy."
                     )
                     continue
