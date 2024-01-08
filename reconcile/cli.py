@@ -1728,6 +1728,17 @@ def terraform_repo(ctx, output_file, gitlab_project_id, gitlab_merge_request_id)
     )
 
 
+@integration.command(short_help="Generate app-interface data files from templates.")
+@click.pass_context
+def templating(ctx):
+    from reconcile import templating
+
+    run_class_integration(
+        integration=templating.TemplatingIntegration(PydanticRunParams()),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage AWS Resources using Terraform.")
 @print_to_file
 @vault_output_path

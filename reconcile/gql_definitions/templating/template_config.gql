@@ -1,0 +1,19 @@
+# qenerate: plugin=pydantic_v1
+
+query TemplatingConfigurationV1{
+  templating_configuration_v1{
+    name
+    parentObjects{
+      parentFile
+      parentQuery {
+        query
+        selector
+      }
+    }
+    variables
+    templates {
+      targetPath
+      template
+    }
+  }
+}
