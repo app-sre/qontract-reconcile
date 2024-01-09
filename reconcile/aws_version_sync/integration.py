@@ -20,7 +20,6 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request_manager impo
 )
 from reconcile.aws_version_sync.utils import (
     get_values,
-    node_name_to_cache_name,
     override_values,
     prom_get,
     uniquify,
@@ -192,13 +191,13 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                             uid=m["aws_account_id"]
                         ),
                         resource_provider="elasticache",
-                        # cache_name is the ElastiCache node name, which derived from replication_group_id not resource_identifier!
+                        # replication_group_id != resource_identifier!
                         resource_identifier=elasticache_replication_group_id_to_identifier.get(
                             (
                                 m["aws_account_id"],
-                                node_name_to_cache_name(m["cache_name"]),
+                                m["replication_group_id"],
                             ),
-                            node_name_to_cache_name(m["cache_name"]),
+                            m["replication_group_id"],
                         ),
                         resource_engine=m["engine"],
                         resource_engine_version=m["engine_version"],
@@ -206,8 +205,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                     for m in prom_get_func(
                         url=cluster.prometheus_url,
                         params={
-                            # use the first Redis node of the cluster to get the version
-                            "query": "aws_resources_exporter_elasticache_redisversion{cache_name=~'.*1$'}"
+                            "query": "aws_resources_exporter_elasticache_redisversion"
                         },
                         token=token,
                         timeout=timeout,

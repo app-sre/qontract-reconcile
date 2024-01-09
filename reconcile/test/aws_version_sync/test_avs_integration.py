@@ -117,21 +117,19 @@ def test_avs_get_aws_metrics(
                         "engine_version": "15.2",
                     },
                 ]
-            case {
-                "query": "aws_resources_exporter_elasticache_redisversion{cache_name=~'.*1$'}"
-            }:
+            case {"query": "aws_resources_exporter_elasticache_redisversion"}:
                 return [
                     {
                         "__name__": "aws_resources_exporter_elasticache_redisversion",
                         "aws_account_id": "aws_account_id-1",
-                        "cache_name": "elasticache-cache-foobar-001",
+                        "replication_group_id": "elasticache-cache-foobar",
                         "engine": "redis",
                         "engine_version": "6.2.4",
                     },
                     {
                         "__name__": "aws_resources_exporter_elasticache_redisversion",
                         "aws_account_id": "aws_account_id-2",
-                        "cache_name": "elasticache-2-001",
+                        "replication_group_id": "elasticache-2",
                         "engine": "redis",
                         "engine_version": "6.2.4",
                     },
@@ -145,7 +143,7 @@ def test_avs_get_aws_metrics(
         clusters=clusters + clusters,
         timeout=10,
         elasticache_replication_group_id_to_identifier={
-            "elasticache-cache-foobar": "elasticache-1"
+            ("aws_account_id-1", "elasticache-cache-foobar"): "elasticache-1"
         },
         prom_get_func=prom_get_mock,
     )
