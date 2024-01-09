@@ -1,20 +1,17 @@
 from typing import Any
-from unittest.mock import (
-    create_autospec,
-    patch,
-)
+from unittest.mock import create_autospec, patch
 
 import pytest
 
+from reconcile.gql_definitions.common.app_interface_repo_settings import (
+    DEFINITION as SETTINGS_QUERY,
+)
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
 from reconcile.openshift_resources_base import NAMESPACES_QUERY
 from reconcile.prometheus_rules_tester.integration import Test as PTest
-from reconcile.prometheus_rules_tester.integration import (
-    check_rules_and_tests,
-    run,
-)
+from reconcile.prometheus_rules_tester.integration import check_rules_and_tests, run
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 
@@ -42,6 +39,12 @@ class TestPrometheusRulesTester:
         """Mock for GqlApi.query using test_data set in setup_method."""
         if query == NAMESPACES_QUERY:
             return {"namespaces": self.ns_data}
+        if query == SETTINGS_QUERY:
+            return {
+                "settings": [
+                    {"repoUrl": "https://gitlab.cee.redhat.com/service/app-interface"}
+                ]
+            }
 
         raise TstUnsupportedGqlQueryError("Unsupported query")
 
