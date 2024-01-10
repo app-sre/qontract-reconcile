@@ -6,32 +6,55 @@ import logging
 import re
 import sys
 from collections import defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import (
+    Iterable,
+    Mapping,
+    Sequence,
+)
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import cache
 from textwrap import indent
 from threading import Lock
-from typing import Any, Optional, Protocol, Tuple
+from typing import (
+    Any,
+    Optional,
+    Protocol,
+    Tuple,
+)
 from urllib import parse
 
 import anymarkup
 import jinja2
 import jinja2.sandbox
 from deepdiff import DeepHash
-from sretoolbox.utils import retry, threaded
+from sretoolbox.utils import (
+    retry,
+    threaded,
+)
 
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.checkpoint import url_makes_sense
 from reconcile.github_users import init_github
-from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
-from reconcile.utils import amtool, gql, openssl
+from reconcile.utils import (
+    amtool,
+    gql,
+    openssl,
+)
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import FetchResourceError
-from reconcile.utils.jinja2_ext import B64EncodeExtension, RaiseErrorExtension
-from reconcile.utils.oc import OC_Map, OCClient, OCLogMsg, StatusCodeError
+from reconcile.utils.jinja2_ext import (
+    B64EncodeExtension,
+    RaiseErrorExtension,
+)
+from reconcile.utils.oc import (
+    OC_Map,
+    OCClient,
+    OCLogMsg,
+    StatusCodeError,
+)
 from reconcile.utils.openshift_resource import (
     ConstructResourceError,
     ResourceInventory,
@@ -44,7 +67,10 @@ from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
-from reconcile.utils.vault import SecretVersionIsNone, SecretVersionNotFound
+from reconcile.utils.vault import (
+    SecretVersionIsNone,
+    SecretVersionNotFound,
+)
 
 # +-----------------------+-------------------------+-------------+
 # |   Current / Desired   |         Present         | Not Present |
@@ -198,6 +224,7 @@ NAMESPACES_QUERY = """
 QONTRACT_INTEGRATION = "openshift_resources_base"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 2)
 QONTRACT_BASE64_SUFFIX = "_qb64"
+APP_INT_BASE_URL = "https://gitlab.cee.redhat.com/service/app-interface"
 KUBERNETES_SECRET_DATA_KEY_RE = "^[-._a-zA-Z0-9]+$"
 
 _log_lock = Lock()
@@ -461,8 +488,6 @@ def fetch_provider_resource(
 ) -> OR:
     path = resource["path"]
     content = resource["content"]
-    gqlapi = gql.get_api()
-    app_int_base_url = get_app_interface_repo_url(query_func=gqlapi.query)
     if tfunc:
         content = tfunc(body=content, vars=tvars, settings=settings)
 
@@ -519,8 +544,9 @@ def fetch_provider_resource(
                         annotations = rule.get("annotations")
                         if not annotations:
                             continue
+                        # TODO(mafriedm): make this better
                         rule["annotations"]["html_url"] = (
-                            f"{app_int_base_url}/blob/master/resources{path}"
+                            f"{APP_INT_BASE_URL}/blob/master/resources{path}"
                         )
             except Exception:
                 logging.warning(
