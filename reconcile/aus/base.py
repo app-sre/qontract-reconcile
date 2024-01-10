@@ -729,7 +729,7 @@ def gates_for_minor_version(
 
 def gates_to_agree(
     gates: list[OCMVersionGate],
-    cluster_id: str,
+    cluster: OCMCluster,
     ocm_api: OCMBaseClient,
 ) -> list[OCMVersionGate]:
     """Check via OCM if a version is agreed
@@ -750,12 +750,18 @@ def gates_to_agree(
         #       once we have proper and secure handling get gate agreements for STS clusters, we can use this condition:
         #       `and (not g.sts_only or g.sts_only == cluster.is_sts())`
         if not g.sts_only
+        # consider only gates after the clusters current minor version
+        # OCM onls supports creating gate agreements for later minor versions than the
+        # current cluster version
+        and semver.match(
+            f"{cluster.minor_version()}.0", f"<{g.version_raw_id_prefix}.0"
+        )
     ]
 
     if applicable_gates:
         current_agreements = {
             agreement["version_gate"]["id"]
-            for agreement in get_version_agreement(ocm_api, cluster_id)
+            for agreement in get_version_agreement(ocm_api, cluster.id)
         }
         return [gate for gate in applicable_gates if gate.id not in current_agreements]
     return []
@@ -1003,7 +1009,8 @@ def calculate_diff(
             else:
                 target_version_prefix = get_version_prefix(version)
                 minor_version_gates = gates_for_minor_version(
-                    gates, target_version_prefix
+                    gates=gates,
+                    target_version_prefix=target_version_prefix,
                 )
                 # skipping upgrades when there are no version gates is a safety
                 # precaution to prevent cluster upgrades being scheduled.
@@ -1025,7 +1032,7 @@ def calculate_diff(
                             GateAgreement(gate=g)
                             for g in gates_to_agree(
                                 minor_version_gates,
-                                spec.cluster.id,
+                                spec.cluster,
                                 ocm_api,
                             )
                         ],
