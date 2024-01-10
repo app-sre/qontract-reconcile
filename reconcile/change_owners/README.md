@@ -15,6 +15,8 @@
 
 `change_owners` uses the `qontract-server` diff endpoint to get a highlevel overview what changed in an MR. It leverages `change_types` to find fine grained differences in datafiles and resourcefiles and build `BundleFileChange` objects that hold the state of diffs and diff coverage.
 
+`change_owners` checks `BundleFileChange` objects for `change-types` that are `restrictive`. If the MR was created by a user, that has this `change-type` not assigned, the integration will fail. A user with this role assigned could issue an `/good-to-test` command to override this restriction.
+
 `change_owners` reachs out to pluggable functionality to find out which `change-types` can be applied to which changes with a set of approvers. Currently, the only module to provide such `ChangeTypeContext` is `self_service_roles` which looks for explicitly bound `change-types` and files in the context of a `Role` with users and bots will can act as approvers.
 
 The functionality provided by `self_service_roles` is very explicit because it sets up the self-service relationship by listing all involved components. Other mechanisms to provide `ChangeTypeContexts` based on other explicit or implicit ownership information can be added easily and plugged into the `change_owners.cover_changes()` function.
