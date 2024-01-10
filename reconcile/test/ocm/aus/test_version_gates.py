@@ -130,7 +130,7 @@ def cluster() -> OCMCluster:
 #
 
 
-def test_gates_to_agree_same_version(
+def test_gates_to_agree_no_minor_upgrade(
     cluster: OCMCluster,
     version_gates: list[dict[str, Any]],
     version_gate_4_13_ocp_id: str,
@@ -141,7 +141,26 @@ def test_gates_to_agree_same_version(
         gates=base.gates_for_minor_version(
             [OCMVersionGate(**g) for g in version_gates], "4.12"
         ),
-        cluster_id=cluster.id,
+        cluster=cluster,
+        ocm_api=ocm_api,
+    )
+    assert gates == []
+
+
+def test_gates_to_agree_ignore_old_version_gates(
+    cluster: OCMCluster,
+    version_gates: list[dict[str, Any]],
+    version_gate_4_13_ocp_id: str,
+    cluster_version_gate_agreement_none: str,
+    ocm_api: OCMBaseClient,
+) -> None:
+    cluster.version.raw_id = "4.13.1"
+    cluster.version.available_upgrades = ["4.13.2"]
+    gates = base.gates_to_agree(
+        gates=base.gates_for_minor_version(
+            [OCMVersionGate(**g) for g in version_gates], "4.13"
+        ),
+        cluster=cluster,
         ocm_api=ocm_api,
     )
     assert gates == []
@@ -160,7 +179,7 @@ def test_gates_to_agree_ocp_agreement_required(
         gates=base.gates_for_minor_version(
             [OCMVersionGate(**g) for g in version_gates], "4.13"
         ),
-        cluster_id=cluster.id,
+        cluster=cluster,
         ocm_api=ocm_api,
     )
     assert {g.id for g in gates} == {version_gate_4_13_ocp_id}
@@ -179,7 +198,7 @@ def test_gates_to_agree_ocp_agreement_present(
         gates=base.gates_for_minor_version(
             [OCMVersionGate(**g) for g in version_gates], "4.13"
         ),
-        cluster_id=cluster.id,
+        cluster=cluster,
         ocm_api=ocm_api,
     )
     assert gates == []
@@ -199,7 +218,7 @@ def test_gates_to_agree_sts_cluster_agreement_required(
         gates=base.gates_for_minor_version(
             [OCMVersionGate(**g) for g in version_gates], "4.13"
         ),
-        cluster_id=cluster.id,
+        cluster=cluster,
         ocm_api=ocm_api,
     )
     # version gate for sts is not present becaues we don't want to agree to them automatically for now
@@ -220,7 +239,7 @@ def test_gates_to_agree_sts_agreement_present(
         gates=base.gates_for_minor_version(
             [OCMVersionGate(**g) for g in version_gates], "4.13"
         ),
-        cluster_id=cluster.id,
+        cluster=cluster,
         ocm_api=ocm_api,
     )
     assert {g.id for g in gates} == {version_gate_4_13_ocp_id}
