@@ -46,7 +46,7 @@ def restrictive_change(
 def test_assert_restrictive(
     restrictive_change: list[BundleFileChange], user: str, expected: bool
 ) -> None:
-    assert expected == is_change_admitted(restrictive_change, user, {""})
+    assert is_change_admitted(restrictive_change, user, {""}) == expected
 
 
 def test_assert_restrictive_non_restrictive(
@@ -77,6 +77,52 @@ def test_assert_restrictive_non_restrictive(
     assert is_change_admitted(changes, "baz", {""})
 
 
+def test_assert_restrictive_all_need_approval(
+    restrictive_type: ChangeTypeV1, mocker: MockerFixture
+) -> None:
+    b = mocker.patch("reconcile.change_owners.changes.BundleFileChange")
+    restrictive_type.restrictive = True
+    b.diff_coverage = [
+        DiffCoverage(
+            diff=mocker.patch("reconcile.change_owners.diff.Diff"),
+            coverage=[
+                ChangeTypeContext(
+                    change_type_processor=change_type_to_processor(restrictive_type),
+                    context="",
+                    origin="",
+                    context_file=FileRef(
+                        file_type=BundleFileType.DATAFILE,
+                        path="/somepath.yml",
+                        schema=None,
+                    ),
+                    approvers=[Approver(org_username="foo")],
+                )
+            ],
+        ),
+        DiffCoverage(
+            diff=mocker.patch("reconcile.change_owners.diff.Diff"),
+            coverage=[
+                ChangeTypeContext(
+                    change_type_processor=change_type_to_processor(restrictive_type),
+                    context="",
+                    origin="",
+                    context_file=FileRef(
+                        file_type=BundleFileType.DATAFILE,
+                        path="/somepath.yml",
+                        schema=None,
+                    ),
+                    approvers=[Approver(org_username="bar")],
+                )
+            ],
+        ),
+    ]
+    changes = [b]
+
+    assert is_change_admitted(changes, "baz", {"foo", "bar"})
+    assert not is_change_admitted(changes, "baz", {"bar"})
+    assert is_change_admitted(changes, "foo", {"bar"})
+
+
 @pytest.mark.parametrize(
     ("good_to_test_approver", "expected"), [({"foo"}, True), ({"baz"}, False)]
 )
@@ -85,6 +131,6 @@ def test_assert_restrictive_good_to_test(
     good_to_test_approver: set[str],
     expected: bool,
 ) -> None:
-    assert expected == is_change_admitted(
-        restrictive_change, "baz", good_to_test_approver
+    assert (
+        is_change_admitted(restrictive_change, "baz", good_to_test_approver) == expected
     )

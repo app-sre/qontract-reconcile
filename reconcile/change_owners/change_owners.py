@@ -11,6 +11,7 @@ from reconcile.change_owners.bundle import (
     QontractServerFileDiffResolver,
 )
 from reconcile.change_owners.change_types import (
+    ChangeTypeContext,
     ChangeTypePriority,
     ChangeTypeProcessor,
     init_change_type_processors,
@@ -242,29 +243,30 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
 
 
-def is_change_admitted(
-    changes: list[BundleFileChange], user: str, good_to_test_approvers: set[str]
+def is_coverage_admitted(
+    coverage: ChangeTypeContext, mr_author: str, good_to_test_approvers: set[str]
 ) -> bool:
-    for change in changes:
-        for dc in change.diff_coverage:
-            for c in dc.coverage:
-                if c.change_type_processor.restrictive:
-                    approvers = {a.org_username for a in c.approvers}
+    return any(
+        a.org_username == mr_author or a.org_username in good_to_test_approvers
+        for a in coverage.approvers
+    )
 
-                    for gttapprover in good_to_test_approvers:
-                        if gttapprover in approvers:
-                            logging.info(
-                                f"Restrictive change approved by {gttapprover}"
-                            )
-                            return True
 
-                    if user not in approvers:
-                        logging.error(
-                            f"change type {c.change_type_processor.name} is restrictive"
-                            f"user {user} is not an approver"
-                        )
-                        return False
-    return True
+def is_change_admitted(
+    changes: list[BundleFileChange], mr_author: str, good_to_test_approvers: set[str]
+) -> bool:
+    # Checks if mr authors are allowed to do the changes in the merge request.
+    # If a change type is restrictive and the author is not an approver,
+    # this is not admitted.
+    # A change might be admitted if a user that has the restrictive change
+    # type is an approver and adds an /good-to-test comment.
+    return all(
+        is_coverage_admitted(c, mr_author, good_to_test_approvers)
+        for change in changes
+        for dc in change.diff_coverage
+        for c in dc.coverage
+        if c.change_type_processor.restrictive
+    )
 
 
 def run(
