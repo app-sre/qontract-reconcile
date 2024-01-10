@@ -42,6 +42,11 @@ query AVSNamespaces {
             defaults
             overrides
           }
+          ... on NamespaceTerraformResourceElastiCache_v1 {
+            identifier
+            defaults
+            overrides
+          }
         }
       }
     }
@@ -87,8 +92,14 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     overrides: Optional[Json] = Field(..., alias="overrides")
 
 
+class NamespaceTerraformResourceElastiCacheV1(NamespaceTerraformResourceAWSV1):
+    identifier: str = Field(..., alias="identifier")
+    defaults: str = Field(..., alias="defaults")
+    overrides: Optional[Json] = Field(..., alias="overrides")
+
+
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
-    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):

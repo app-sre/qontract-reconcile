@@ -222,7 +222,7 @@ class MergeRequestManager:
             resource_engine_version=resource_engine_version,
         )
         title = self._renderer.render_title(resource_identifier=resource_identifier)
-        logging.info("Open MR for %s", resource_identifier)
+        logging.info("Open MR for %s (%s)", resource_identifier, resource_engine)
         mr_labels = [AVS_LABEL]
         if self._auto_merge_enabled:
             mr_labels.append(AUTO_MERGE)

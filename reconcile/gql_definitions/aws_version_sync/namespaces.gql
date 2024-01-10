@@ -23,6 +23,11 @@ query AVSNamespaces {
             defaults
             overrides
           }
+          ... on NamespaceTerraformResourceElastiCache_v1 {
+            identifier
+            defaults
+            overrides
+          }
         }
       }
     }
