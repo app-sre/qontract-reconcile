@@ -224,7 +224,6 @@ NAMESPACES_QUERY = """
 QONTRACT_INTEGRATION = "openshift_resources_base"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 2)
 QONTRACT_BASE64_SUFFIX = "_qb64"
-APP_INT_BASE_URL = "https://gitlab.cee.redhat.com/service/app-interface"
 KUBERNETES_SECRET_DATA_KEY_RE = "^[-._a-zA-Z0-9]+$"
 
 _log_lock = Lock()
@@ -536,6 +535,9 @@ def fetch_provider_resource(
 
     if add_path_to_prom_rules:
         if body["kind"] == "PrometheusRule":
+            app_int_base_url = "https://gitlab.cee.redhat.com/service/app-interface"
+            if settings and "repoUrl" in settings:
+                app_int_base_url = settings["repoUrl"]
             try:
                 groups = body["spec"]["groups"]
                 for group in groups:
@@ -544,9 +546,8 @@ def fetch_provider_resource(
                         annotations = rule.get("annotations")
                         if not annotations:
                             continue
-                        # TODO(mafriedm): make this better
                         rule["annotations"]["html_url"] = (
-                            f"{APP_INT_BASE_URL}/blob/master/resources{path}"
+                            f"{app_int_base_url}/blob/master/resources{path}"
                         )
             except Exception:
                 logging.warning(
