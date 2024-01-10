@@ -443,6 +443,8 @@ def run(
                 raise NotAdmittedError("Change not admitted")
 
     except NotAdmittedError as e:
+        # This is not an error, but we want to fail the integration, since the
+        # MR author is not allowed to do this change
         logging.error(e)
         sys.exit(1)
     except BaseException:
