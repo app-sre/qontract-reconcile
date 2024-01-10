@@ -6022,6 +6022,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "${aws_cloudwatch_log_group.waf_log_group.arn}"
                 ],
                 resource_arn="${aws_wafv2_web_acl.api_waf.arn}",
+                redacted_fields={"single_header": {"name": "authorization"}},
             )
         )
 
