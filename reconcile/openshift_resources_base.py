@@ -6,32 +6,55 @@ import logging
 import re
 import sys
 from collections import defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import (
+    Iterable,
+    Mapping,
+    Sequence,
+)
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import cache
 from textwrap import indent
 from threading import Lock
-from typing import Any, Optional, Protocol, Tuple
+from typing import (
+    Any,
+    Optional,
+    Protocol,
+    Tuple,
+)
 from urllib import parse
 
 import anymarkup
 import jinja2
 import jinja2.sandbox
 from deepdiff import DeepHash
-from sretoolbox.utils import retry, threaded
+from sretoolbox.utils import (
+    retry,
+    threaded,
+)
 
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.checkpoint import url_makes_sense
 from reconcile.github_users import init_github
-from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
-from reconcile.utils import amtool, gql, openssl
+from reconcile.utils import (
+    amtool,
+    gql,
+    openssl,
+)
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import FetchResourceError
-from reconcile.utils.jinja2_ext import B64EncodeExtension, RaiseErrorExtension
-from reconcile.utils.oc import OC_Map, OCClient, OCLogMsg, StatusCodeError
+from reconcile.utils.jinja2_ext import (
+    B64EncodeExtension,
+    RaiseErrorExtension,
+)
+from reconcile.utils.oc import (
+    OC_Map,
+    OCClient,
+    OCLogMsg,
+    StatusCodeError,
+)
 from reconcile.utils.openshift_resource import (
     ConstructResourceError,
     ResourceInventory,
@@ -44,7 +67,10 @@ from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
-from reconcile.utils.vault import SecretVersionIsNone, SecretVersionNotFound
+from reconcile.utils.vault import (
+    SecretVersionIsNone,
+    SecretVersionNotFound,
+)
 
 # +-----------------------+-------------------------+-------------+
 # |   Current / Desired   |         Present         | Not Present |
@@ -461,8 +487,6 @@ def fetch_provider_resource(
 ) -> OR:
     path = resource["path"]
     content = resource["content"]
-    gqlapi = gql.get_api()
-    app_int_base_url = get_app_interface_repo_url(query_func=gqlapi.query)
     if tfunc:
         content = tfunc(body=content, vars=tvars, settings=settings)
 
@@ -511,6 +535,9 @@ def fetch_provider_resource(
 
     if add_path_to_prom_rules:
         if body["kind"] == "PrometheusRule":
+            app_int_base_url = "https://gitlab.cee.redhat.com/service/app-interface"
+            if settings and "repoUrl" in settings:
+                app_int_base_url = settings["repoUrl"]
             try:
                 groups = body["spec"]["groups"]
                 for group in groups:
