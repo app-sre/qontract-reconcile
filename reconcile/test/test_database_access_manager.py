@@ -87,7 +87,7 @@ def db_connection_parameter():
         port="5432",
         user="test",
         password="postgres",  # notsecret
-        database="test",
+        database="user",
     )
 
 
@@ -520,7 +520,7 @@ def test__process_db_access_job_pass(
                 "port": "5432",
                 "user": "test",
                 "password": "postgres",
-                "database": "test",
+                "database": "user",
             },
         },
         decode_base64=False,

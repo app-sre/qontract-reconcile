@@ -2347,7 +2347,7 @@ def cluster_admin(ctx, org_name, cluster_name):
 
 
 @root.group()
-@environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
+@environ(["APP_INTERFACE_STATE_BUCKET"])
 @click.pass_context
 def state(ctx):
     pass

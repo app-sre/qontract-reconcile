@@ -293,7 +293,7 @@ def test_build_org_upgrade_spec_missing_sector(
         version_data_inheritance=None,
     )
     assert len(org_upgrade_spec.cluster_errors) == 1
-    assert len(org_upgrade_spec.organization_errors) == 0
+    assert len(org_upgrade_spec.organization_errors) == 1
     assert len(org_upgrade_spec.specs) == 0
 
 

@@ -53,6 +53,8 @@ def format_table(content, columns, table_format="simple") -> str:
                     cell = "<br />".join(cell)
                 else:
                     cell = "\n".join(cell)
+            if table_format == "github" and isinstance(cell, str):
+                cell = cell.replace("|", "&#124;")
             row_data.append(cell)
         table_data.append(row_data)
     return tabulate(table_data, headers=headers, tablefmt=table_format)

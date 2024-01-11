@@ -8,6 +8,7 @@ from typing import (
     TypeVar,
 )
 
+import semver
 from pydantic import (
     BaseModel,
     Field,
@@ -187,6 +188,10 @@ class OCMCluster(BaseModel):
     dns: Optional[OCMClusterDns]
 
     external_configuration: Optional[OCMExternalConfiguration]
+
+    def minor_version(self) -> str:
+        version_info = semver.parse(self.version.raw_id)
+        return f"{version_info['major']}.{version_info['minor']}"
 
     def available_upgrades(self) -> list[str]:
         return self.version.available_upgrades

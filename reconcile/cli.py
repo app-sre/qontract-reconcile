@@ -1661,7 +1661,7 @@ def ldap_groups(ctx):
 )
 @click.option(
     "--supported-providers",
-    help="A comma seperated list of supported external resource providers to operator on. Default: rds",
+    help="A comma seperated list of supported external resource providers to operator on. Default: rds, elasticache",
     required=False,
     envvar="AVS_SUPPORTED_PROVIDERS",
 )
@@ -1692,7 +1692,7 @@ def aws_version_sync(
                 ),
                 supported_providers=supported_providers.split(",")
                 if supported_providers
-                else ["rds"],
+                else ["rds", "elasticache"],
                 clusters=clusters.split(",") if clusters else [],
                 prometheus_timeout=int(prometheus_timeout)
                 if prometheus_timeout

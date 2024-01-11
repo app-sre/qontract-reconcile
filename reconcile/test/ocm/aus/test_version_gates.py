@@ -130,7 +130,7 @@ def cluster() -> OCMCluster:
 #
 
 
-def test_gates_to_agree_same_version(
+def test_gates_to_agree_no_minor_upgrade(
     cluster: OCMCluster,
     version_gates: list[dict[str, Any]],
     version_gate_4_13_ocp_id: str,
@@ -138,8 +138,28 @@ def test_gates_to_agree_same_version(
     ocm_api: OCMBaseClient,
 ) -> None:
     gates = base.gates_to_agree(
-        gates=[OCMVersionGate(**g) for g in version_gates],
-        version_prefix="4.12",
+        gates=base.gates_for_minor_version(
+            [OCMVersionGate(**g) for g in version_gates], "4.12"
+        ),
+        cluster=cluster,
+        ocm_api=ocm_api,
+    )
+    assert gates == []
+
+
+def test_gates_to_agree_ignore_old_version_gates(
+    cluster: OCMCluster,
+    version_gates: list[dict[str, Any]],
+    version_gate_4_13_ocp_id: str,
+    cluster_version_gate_agreement_none: str,
+    ocm_api: OCMBaseClient,
+) -> None:
+    cluster.version.raw_id = "4.13.1"
+    cluster.version.available_upgrades = ["4.13.2"]
+    gates = base.gates_to_agree(
+        gates=base.gates_for_minor_version(
+            [OCMVersionGate(**g) for g in version_gates], "4.13"
+        ),
         cluster=cluster,
         ocm_api=ocm_api,
     )
@@ -156,8 +176,9 @@ def test_gates_to_agree_ocp_agreement_required(
     cluster.version.available_upgrades = ["4.13.2"]
     cluster.aws.sts.enabled = False  # type: ignore
     gates = base.gates_to_agree(
-        gates=[OCMVersionGate(**g) for g in version_gates],
-        version_prefix="4.13",
+        gates=base.gates_for_minor_version(
+            [OCMVersionGate(**g) for g in version_gates], "4.13"
+        ),
         cluster=cluster,
         ocm_api=ocm_api,
     )
@@ -174,8 +195,9 @@ def test_gates_to_agree_ocp_agreement_present(
     cluster.version.available_upgrades = ["4.13.2"]
     cluster.aws.sts.enabled = False  # type: ignore
     gates = base.gates_to_agree(
-        gates=[OCMVersionGate(**g) for g in version_gates],
-        version_prefix="4.13",
+        gates=base.gates_for_minor_version(
+            [OCMVersionGate(**g) for g in version_gates], "4.13"
+        ),
         cluster=cluster,
         ocm_api=ocm_api,
     )
@@ -193,8 +215,9 @@ def test_gates_to_agree_sts_cluster_agreement_required(
     cluster.version.available_upgrades = ["4.13.2"]
     cluster.aws.sts.enabled = True  # type: ignore
     gates = base.gates_to_agree(
-        gates=[OCMVersionGate(**g) for g in version_gates],
-        version_prefix="4.13",
+        gates=base.gates_for_minor_version(
+            [OCMVersionGate(**g) for g in version_gates], "4.13"
+        ),
         cluster=cluster,
         ocm_api=ocm_api,
     )
@@ -213,8 +236,9 @@ def test_gates_to_agree_sts_agreement_present(
     cluster.version.available_upgrades = ["4.13.2"]
     cluster.aws.sts.enabled = True  # type: ignore
     gates = base.gates_to_agree(
-        gates=[OCMVersionGate(**g) for g in version_gates],
-        version_prefix="4.13",
+        gates=base.gates_for_minor_version(
+            [OCMVersionGate(**g) for g in version_gates], "4.13"
+        ),
         cluster=cluster,
         ocm_api=ocm_api,
     )
