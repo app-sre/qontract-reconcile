@@ -1,5 +1,4 @@
 from collections.abc import Callable
-
 from typing import (
     Any,
     Optional,
@@ -10,8 +9,8 @@ import requests
 
 from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
 from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
-
 from reconcile.utils.exceptions import AppInterfaceSettingsError
+
 
 class AcsBaseApi:
     def __init__(
@@ -29,7 +28,7 @@ class AcsBaseApi:
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.session.close()
-    
+
     @staticmethod
     def get_acs_instance(query_func: Callable) -> AcsInstanceV1:
         """
@@ -44,10 +43,10 @@ class AcsBaseApi:
                 raise AppInterfaceSettingsError("More than one ACS instance found!")
             return instances[0]
         raise AppInterfaceSettingsError("No ACS instance found!")
-    
+
     @staticmethod
     def check_len_attributes(attrs: list[Any], api_data: Any) -> None:
-    # generic attribute check function for expected types with valid len()
+        # generic attribute check function for expected types with valid len()
         for attr in attrs:
             value = api_data.get(attr)
             if value is None or len(value) == 0:

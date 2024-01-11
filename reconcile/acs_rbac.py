@@ -14,11 +14,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.utils import gql
-from reconcile.utils.acs.rbac import (
-    AcsRbacApi,
-    Group,
-    RbacResources
-)
+from reconcile.utils.acs.rbac import AcsRbacApi, Group, RbacResources
 from reconcile.utils.differ import (
     DiffPair,
     diff_iterables,
