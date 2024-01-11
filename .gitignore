@@ -9,6 +9,7 @@
 .coverage
 build
 coverage.xml
+dev/localstack/volume
 dist
 venv
 throughput

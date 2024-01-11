@@ -113,3 +113,6 @@ gql-query-classes:
 	find reconcile/gql_definitions -path '*/__pycache__' -prune -o -type d -exec touch "{}/__init__.py" \;
 
 qenerate: gql-introspection gql-query-classes
+
+localstack:
+	@$(CONTAINER_ENGINE) compose -f dev/localstack/docker-compose.yml up
