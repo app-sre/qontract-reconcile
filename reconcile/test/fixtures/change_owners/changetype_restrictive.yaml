@@ -1,0 +1,22 @@
+name: change-type-restrictive
+description: change-type-restrictive
+
+# this change type can be used on owned role-1 datafiles
+contextType: datafile
+contextSchema: /openshift/cluster-1.yml
+
+disabled: false
+
+restrictive: true
+
+inherit: null
+implicitOwnership: null
+
+priority: high
+
+changes:
+- provider: jsonPath
+  changeSchema: null
+  context: null
+  jsonPathSelectors:
+  - org_username

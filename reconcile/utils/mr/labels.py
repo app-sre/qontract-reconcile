@@ -10,6 +10,7 @@ LGTM = "lgtm"
 SAAS_FILE_UPDATE = "saas-file-update"
 NEEDS_REBASE = "needs-rebase"
 SELF_SERVICEABLE = "self-serviceable"
+RESTRICTED = "restricted"
 NOT_SELF_SERVICEABLE = "not-self-serviceable"
 ONBOARDING = "onboarding"
 

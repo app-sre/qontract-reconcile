@@ -11,6 +11,7 @@ from reconcile.change_owners.bundle import (
     QontractServerFileDiffResolver,
 )
 from reconcile.change_owners.change_types import (
+    ChangeTypeContext,
     ChangeTypePriority,
     ChangeTypeProcessor,
     init_change_type_processors,
@@ -39,6 +40,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import (
     HOLD,
     NOT_SELF_SERVICEABLE,
+    RESTRICTED,
     SELF_SERVICEABLE,
     change_owner_label,
     prioritized_approval_label,
@@ -48,6 +50,10 @@ from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "change-owners"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+
+
+class NotAdmittedError(Exception):
+    pass
 
 
 def cover_changes(
@@ -112,6 +118,7 @@ def manage_conditional_label(
 def write_coverage_report_to_mr(
     self_serviceable: bool,
     change_decisions: list[ChangeDecision],
+    change_admitted: bool,
     authoritative: bool,
     merge_request: ProjectMergeRequest,
     gl: GitLabApi,
@@ -147,7 +154,9 @@ def write_coverage_report_to_mr(
             "schema": d.file.schema,
             "change": d.diff.path,
         }
-        if d.is_held():
+        if not change_admitted:
+            item["status"] = "restricted"
+        elif d.is_held():
             item["status"] = "hold"
         elif d.is_approved():
             item["status"] = "approved"
@@ -168,6 +177,9 @@ def write_coverage_report_to_mr(
         )
     if not authoritative:
         self_serviceability_hint += "\n\nchanges outside of data and resources detected - <b>PAY EXTRA ATTENTION WHILE REVIEWING</b>\n\n"
+
+    if not change_admitted:
+        self_serviceability_hint += "\n\nchanges are not admitted. Please request `/good-to-test` from one of the approvers.\n\n"
 
     approver_reachability_hint = "Reach out to approvers for reviews"
     if approver_reachability:
@@ -229,6 +241,32 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     return GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
+
+
+def is_coverage_admitted(
+    coverage: ChangeTypeContext, mr_author: str, good_to_test_approvers: set[str]
+) -> bool:
+    return any(
+        a.org_username == mr_author or a.org_username in good_to_test_approvers
+        for a in coverage.approvers
+    )
+
+
+def is_change_admitted(
+    changes: list[BundleFileChange], mr_author: str, good_to_test_approvers: set[str]
+) -> bool:
+    # Checks if mr authors are allowed to do the changes in the merge request.
+    # If a change type is restrictive and the author is not an approver,
+    # this is not admitted.
+    # A change might be admitted if a user that has the restrictive change
+    # type is an approver and adds an /good-to-test comment.
+    return all(
+        is_coverage_admitted(c, mr_author, good_to_test_approvers)
+        for change in changes
+        for dc in change.diff_coverage
+        for c in dc.coverage
+        if c.change_type_processor.restrictive
+    )
 
 
 def run(
@@ -315,6 +353,17 @@ def run(
 
         with init_gitlab(gitlab_project_id) as gl:
             merge_request = gl.get_merge_request(gitlab_merge_request_id)
+
+            comments = gl.get_merge_request_comments(merge_request)
+            good_to_test_approvers = {
+                c["username"] for c in comments if c["body"].strip() == "/good-to-test"
+            }
+
+            change_admitted = is_change_admitted(
+                changes,
+                gl.get_merge_request_author_username(merge_request),
+                good_to_test_approvers,
+            )
             approver_decisions = get_approver_decisions_from_mr_comments(
                 gl.get_merge_request_comments(merge_request, include_description=True)
             )
@@ -339,6 +388,7 @@ def run(
                 write_coverage_report_to_mr(
                     self_serviceable,
                     change_decisions,
+                    change_admitted,
                     change_type_processing_mode
                     == CHANGE_TYPE_PROCESSING_MODE_AUTHORITATIVE,
                     merge_request,
@@ -355,6 +405,7 @@ def run(
                 SELF_SERVICEABLE: self_serviceable,
                 NOT_SELF_SERVICEABLE: not self_serviceable,
                 HOLD: self_serviceable and hold,
+                RESTRICTED: not change_admitted,
             }
 
             # priority labels
@@ -390,5 +441,13 @@ def run(
                 # skips MRs with this label
                 gl.remove_label(merge_request, SELF_SERVICEABLE)
 
+            if not change_admitted:
+                raise NotAdmittedError("Change not admitted")
+
+    except NotAdmittedError as e:
+        # This is not an error, but we want to fail the integration, since the
+        # MR author is not allowed to do this change
+        logging.error(e)
+        sys.exit(1)
     except BaseException:
         logging.error(traceback.format_exc())

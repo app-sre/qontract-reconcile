@@ -33,6 +33,11 @@ def change_types() -> list[ChangeTypeV1]:
 
 
 @pytest.fixture
+def restrictive_type() -> ChangeTypeV1:
+    return load_change_type("changetype_restrictive.yaml")
+
+
+@pytest.fixture
 def saas_file() -> StubFile:
     return StubFile(**fxt.get_anymarkup("datafile_saas_file.yaml"))
 

@@ -27,6 +27,7 @@ query ChangeTypes($name: String) {
     contextType
     contextSchema
     disabled
+    restrictive
     changes {
       provider
       changeSchema
@@ -121,6 +122,7 @@ class ChangeTypeV1(ConfiguredBaseModel):
     context_type: str = Field(..., alias="contextType")
     context_schema: Optional[str] = Field(..., alias="contextSchema")
     disabled: Optional[bool] = Field(..., alias="disabled")
+    restrictive: Optional[bool] = Field(..., alias="restrictive")
     changes: list[Union[ChangeTypeChangeDetectorJsonPathProviderV1, ChangeTypeChangeDetectorChangeTypeProviderV1, ChangeTypeChangeDetectorV1]] = Field(..., alias="changes")
     implicit_ownership: Optional[list[Union[ChangeTypeImplicitOwnershipJsonPathProviderV1, ChangeTypeImplicitOwnershipV1]]] = Field(..., alias="implicitOwnership")
     inherit: Optional[list[ChangeTypeV1_ChangeTypeV1]] = Field(..., alias="inherit")

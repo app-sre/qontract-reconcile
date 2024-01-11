@@ -378,6 +378,7 @@ def build_change_type(
                 )
             ],
             disabled=False,
+            restrictive=None,
             priority="urgent",
             inherit=[],
             implicitOwnership=[],
