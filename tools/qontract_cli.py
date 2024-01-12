@@ -2419,7 +2419,7 @@ def early_exit_cache(ctx):
     pass
 
 
-@early_exit_cache.command(name="head")  # type: ignore
+@early_exit_cache.command(name="head")
 @click.option(
     "-i",
     "--integration",
@@ -2462,7 +2462,7 @@ def early_exit_cache_head(
         print(status)
 
 
-@early_exit_cache.command(name="get")  # type: ignore
+@early_exit_cache.command(name="get")
 @click.option(
     "-i",
     "--integration",

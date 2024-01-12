@@ -83,4 +83,5 @@ class EarlyExitCache:
             int(metadata[EXPIRE_AT_METADATA_KEY]),
             tz=UTC,
         )
-        return CacheStatus.HIT if datetime.now(UTC) < expire_at else CacheStatus.EXPIRED
+        now = datetime.now(UTC)
+        return CacheStatus.HIT if now < expire_at else CacheStatus.EXPIRED
