@@ -7,7 +7,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.utils import gql
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
-from reconcile.utils.differ import diff_iterables
+from reconcile.utils.differ import diff_iterables, DiffPair
 
 from reconcile.utils.runtime.integration import (
     NoParams,
@@ -66,7 +66,9 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
             conditions: list[PolicyCondition] = []
             for c in gql_policy.conditions:
                 pc = PolicyCondition(
-                    field_name=POLICY_CONDITION_FIELD_NAMES[c.policy_field]
+                    field_name=POLICY_CONDITION_FIELD_NAMES[c.policy_field],
+                    negate=False,
+                    values=[],
                 )
                 if c.policy_field == "cvss":
                     pc.values = [
@@ -74,7 +76,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                     ]
                 elif c.policy_field == "severity":
                     pc.values = [
-                        f"{POLICY_CONDITION_COMPARISONS[c.comparison]}{c.level}"
+                        f"{POLICY_CONDITION_COMPARISONS[c.comparison]}{c.level.upper()}"
                     ]
                 elif c.policy_field == "cve":
                     pc.values = [str(c.fixable).lower()]
@@ -95,26 +97,44 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                     name=gql_policy.name,
                     description=gql_policy.description,
                     severity=f"{gql_policy.severity.upper()}_SEVERITY",  # align with acs api severity value format
-                    scope=[Scope(cluster=cs.name) for cs in gql_policy.scope.clusters]
+                    scope=sorted(
+                        [
+                            Scope(cluster=cs.name, namespace="")
+                            for cs in gql_policy.scope.clusters
+                        ],
+                        key=lambda s: s.cluster,
+                    )
                     if gql_policy.scope.level == "cluster"
                     else [
                         Scope(cluster=ns.cluster.name, namespace=ns.name)
                         for ns in gql_policy.scope.namespaces
                     ],
-                    categories=[POLICY_CATEGORIES[pc] for pc in gql_policy.categories],
+                    categories=sorted([
+                        POLICY_CATEGORIES[pc] for pc in gql_policy.categories
+                    ]),
                     conditions=conditions,
                 )
             )
         return policies
-    
-    def add_policies(self, dry_run: bool):
-        pass
 
-    def delete_policies(self, dry_run: bool):
-        pass
+    def add_policies(self, to_add: dict[str, Policy], acs: AcsPolicyApi, dry_run: bool):
+        errors = []
+        return errors
 
-    def update_policies(self, dry_run: bool):
-        pass
+    def delete_policies(
+        self, to_delete: dict[str, Policy], acs: AcsPolicyApi, dry_run: bool
+    ):
+        errors = []
+        return errors
+
+    def update_policies(
+        self,
+        to_update: dict[str, DiffPair[Policy, Policy]],
+        acs: AcsPolicyApi,
+        dry_run: bool,
+    ):
+        errors = []
+        return errors
 
     def reconcile(
         self,
@@ -125,17 +145,16 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
     ):
         errors = []
         diff = diff_iterables(current, desired, lambda x: x.name)
+        print(diff)
         if len(diff.add) > 0:
-            errors.extend(
-                self.add_policies(dry_run=dry_run)
-            )
+            errors.extend(self.add_policies(to_add=diff.add, acs=acs, dry_run=dry_run))
         if len(diff.delete) > 0:
             errors.extend(
-                self.delete_policies(dry_run=dry_run)
+                self.delete_policies(to_delete=diff.delete, acs=acs, dry_run=dry_run)
             )
         if len(diff.change) > 0:
             errors.extend(
-                self.update_policies(dry_run=dry_run)
+                self.update_policies(to_update=diff.change, acs=acs, dry_run=dry_run)
             )
 
         if errors:
@@ -153,12 +172,11 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         token = secret_reader.read_all_secret(instance.credentials)
 
         desired = self.get_desired_state(gqlapi.query)
-        print("DESIRED")
-        print(desired)
 
         with AcsPolicyApi(
             instance={"url": instance.url, "token": token[instance.credentials.field]}
         ) as acs_api:
             current = acs_api.get_custom_policies()
-            print("CURRENT")
-            print(current)
+            self.reconcile(
+                desired=desired, current=current, acs=acs_api, dry_run=dry_run
+            )
