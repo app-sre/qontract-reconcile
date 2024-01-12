@@ -8,7 +8,7 @@ query AcsPolicy {
     scope {
       level
       ... on AcsPolicyScopeCluster_v1 {
-		clusters {
+				clusters {
           name
         }        
       }
@@ -18,21 +18,26 @@ query AcsPolicy {
         }
       }
     }
-	conditions {
-      cvss {
+	  conditions {
+      policyField
+      ... on AcsPolicyConditionsCvss_v1 {
         comparison
         score
       }
-      severity {
+      ... on AcsPolicyConditionsSeverity_v1 {
         comparison
         level
       }
-      imageTag {
-        values
+      ... on AcsPolicyConditionsCve_v1 {
+        fixable
+      }
+      ... on AcsPolicyConditionsImageTag_v1 {
+        tags
         negate
       }
-      imageAge
-      fixableCve
+      ... on AcsPolicyConditionsImageAge_v1 {
+        days
+      }
     }
   }
 }

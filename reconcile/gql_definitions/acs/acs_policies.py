@@ -27,7 +27,7 @@ query AcsPolicy {
     scope {
       level
       ... on AcsPolicyScopeCluster_v1 {
-		clusters {
+				clusters {
           name
         }        
       }
@@ -37,21 +37,26 @@ query AcsPolicy {
         }
       }
     }
-	conditions {
-      cvss {
+	  conditions {
+      policyField
+      ... on AcsPolicyConditionsCvss_v1 {
         comparison
         score
       }
-      severity {
+      ... on AcsPolicyConditionsSeverity_v1 {
         comparison
         level
       }
-      imageTag {
-        values
+      ... on AcsPolicyConditionsCve_v1 {
+        fixable
+      }
+      ... on AcsPolicyConditionsImageTag_v1 {
+        tags
         negate
       }
-      imageAge
-      fixableCve
+      ... on AcsPolicyConditionsImageAge_v1 {
+        days
+      }
     }
   }
 }
@@ -84,27 +89,31 @@ class AcsPolicyScopeNamespaceV1(AcsPolicyScopeV1):
     namespaces: list[NamespaceV1] = Field(..., alias="namespaces")
 
 
-class AcsPolicyConditionsCvssV1(ConfiguredBaseModel):
+class AcsPolicyConditionsV1(ConfiguredBaseModel):
+    policy_field: str = Field(..., alias="policyField")
+
+
+class AcsPolicyConditionsCvssV1(AcsPolicyConditionsV1):
     comparison: str = Field(..., alias="comparison")
     score: int = Field(..., alias="score")
 
 
-class AcsPolicyConditionsSeverityV1(ConfiguredBaseModel):
+class AcsPolicyConditionsSeverityV1(AcsPolicyConditionsV1):
     comparison: str = Field(..., alias="comparison")
     level: str = Field(..., alias="level")
 
 
-class AcsPolicyConditionsImageTagV1(ConfiguredBaseModel):
-    values: list[str] = Field(..., alias="values")
+class AcsPolicyConditionsCveV1(AcsPolicyConditionsV1):
+    fixable: bool = Field(..., alias="fixable")
+
+
+class AcsPolicyConditionsImageTagV1(AcsPolicyConditionsV1):
+    tags: list[str] = Field(..., alias="tags")
     negate: Optional[bool] = Field(..., alias="negate")
 
 
-class AcsPolicyConditionsV1(ConfiguredBaseModel):
-    cvss: Optional[AcsPolicyConditionsCvssV1] = Field(..., alias="cvss")
-    severity: Optional[AcsPolicyConditionsSeverityV1] = Field(..., alias="severity")
-    image_tag: Optional[AcsPolicyConditionsImageTagV1] = Field(..., alias="imageTag")
-    image_age: Optional[int] = Field(..., alias="imageAge")
-    fixable_cve: Optional[bool] = Field(..., alias="fixableCve")
+class AcsPolicyConditionsImageAgeV1(AcsPolicyConditionsV1):
+    days: int = Field(..., alias="days")
 
 
 class AcsPolicyV1(ConfiguredBaseModel):
@@ -112,7 +121,7 @@ class AcsPolicyV1(ConfiguredBaseModel):
     severity: str = Field(..., alias="severity")
     categories: list[str] = Field(..., alias="categories")
     scope: Union[AcsPolicyScopeClusterV1, AcsPolicyScopeNamespaceV1, AcsPolicyScopeV1] = Field(..., alias="scope")
-    conditions: AcsPolicyConditionsV1 = Field(..., alias="conditions")
+    conditions: list[Union[AcsPolicyConditionsCvssV1, AcsPolicyConditionsSeverityV1, AcsPolicyConditionsImageTagV1, AcsPolicyConditionsCveV1, AcsPolicyConditionsImageAgeV1, AcsPolicyConditionsV1]] = Field(..., alias="conditions")
 
 
 class AcsPolicyQueryData(ConfiguredBaseModel):
