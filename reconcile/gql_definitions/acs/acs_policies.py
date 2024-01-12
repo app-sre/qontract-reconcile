@@ -21,7 +21,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 DEFINITION = """
 query AcsPolicy {
   acs_policies: acs_policy_v1 {
-   	name 
+   	name
+    description
     severity
     categories
     scope {
@@ -118,6 +119,7 @@ class AcsPolicyConditionsImageAgeV1(AcsPolicyConditionsV1):
 
 class AcsPolicyV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    description: Optional[str] = Field(..., alias="description")
     severity: str = Field(..., alias="severity")
     categories: list[str] = Field(..., alias="categories")
     scope: Union[AcsPolicyScopeClusterV1, AcsPolicyScopeNamespaceV1, AcsPolicyScopeV1] = Field(..., alias="scope")

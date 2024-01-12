@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -7,17 +7,18 @@ from reconcile.utils.acs.base import AcsBaseApi
 
 class Scope(BaseModel):
     cluster: str
-    namespace: str
+    namespace: Optional[str]
 
 
 class PolicyCondition(BaseModel):
     field_name: str
-    negate: bool
-    value: str
+    negate: Optional[bool]
+    values: Optional[list[str]]
 
 
 class Policy(BaseModel):
     name: str
+    description: str
     categories: list[str]
     severity: str
     scope: list[Scope]
@@ -39,25 +40,18 @@ class AcsPolicyApi(AcsBaseApi):
         }
         # make individual policy requests to obtain further details
         custom_policies_api_result = [
-            self.generic_request(f"/v1/policies/{pid}") for pid in custom_policy_ids
+            self.generic_request(f"/v1/policies/{pid}", "GET").json() for pid in custom_policy_ids
         ]
 
         formatted_custom_policies: list[Policy] = []
         for cp in custom_policies_api_result:
-            # attributes defined within stackrox(ACS) API for GET /v1/policies
-            AcsBaseApi.check_len_attributes(
-                ["name", "categories", "severity", "scope", "policySections"],
-                cp,
-            )
             conditions: list[PolicyCondition] = []
             for section in cp["policySections"]:
                 for group in section.get("policyGroups", []):
                     conditions.append(
                         PolicyCondition(
                             field_name=group["fieldName"],
-                            value=group["values"][0]["value"]
-                            if len(group.get("values", [])) > 0
-                            else "",
+                            values=[v["value"] for v in group["values"]],
                             negate=group["negate"],
                         )
                     )
@@ -65,6 +59,7 @@ class AcsPolicyApi(AcsBaseApi):
             formatted_custom_policies.append(
                 Policy(
                     name=cp["name"],
+                    description=cp["description"],
                     categories=cp["categories"],
                     severity=cp["severity"],
                     scope=[

@@ -2,7 +2,8 @@
 
 query AcsPolicy {
   acs_policies: acs_policy_v1 {
-   	name 
+   	name
+    description
     severity
     categories
     scope {
