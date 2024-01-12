@@ -12,18 +12,12 @@ from reconcile.utils.early_exit_cache import (
     CacheValue,
     EarlyExitCache,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.state import State
 
 
 @pytest.fixture
 def state() -> Any:
     return create_autospec(State)
-
-
-@pytest.fixture
-def secret_reader() -> Any:
-    return create_autospec(SecretReaderBase)
 
 
 def test_early_exit_cache_build(
