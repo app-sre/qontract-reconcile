@@ -2928,6 +2928,19 @@ def ocm_labels(ctx, managed_label_prefixes):
     )
 
 
+@integration.command(short_help="Something.")
+@click.pass_context
+def ocm_internal_notifications(ctx):
+    from reconcile.ocm_internal_notifications.integration import (
+        OcmInternalNotifications,
+    )
+
+    run_class_integration(
+        integration=OcmInternalNotifications(),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manages RHACS rbac configuration")
 @click.pass_context
 def acs_rbac(ctx):
