@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import (
     Callable,
     Iterable,
@@ -12,6 +13,7 @@ from reconcile.gql_definitions.common.ocm_environments import (
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.utils import gql
+from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import (
     OCMAPIClientConfigurationProtocol,
     OCMBaseClient,
@@ -72,21 +74,40 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
 
             clusters = ocm.get(
                 api_path="/api/clusters_mgmt/v1/clusters",
-                params={"search": "state like 'uninstalling' and managed='true'"},
+                params={
+                    "search": Filter()
+                    .eq("state", "uninstalling")
+                    .eq("managed", True)
+                    .render(),
+                    "orderBy": "created_at",
+                },
+            ).get("items")
+            subscriptions = ocm.get(
+                api_path="/api/accounts_mgmt/v1/subscriptions",
+                params={
+                    "search": Filter()
+                    .is_in("id", [c["subscription"]["id"] for c in clusters])
+                    .render(),
+                    "orderBy": "created_at",
+                },
             ).get("items")
 
             slack_user_ids = set()
-            for cluster in clusters:
-                subscription = ocm.get(api_path=cluster["subscription"]["href"])
+            for subscription in subscriptions:
                 creator = ocm.get(api_path=subscription["creator"]["href"])
                 email = creator["email"]
+                logging.info(
+                    f"found managed cluster in uninstalling state in environment {env_name} with creator {email}"
+                )
                 user, mail_address = email.split("@")
                 user_name = user.split("+")[0]
-                slack_user_ids.add(
-                    self.slack_get_user_id_by_name(user_name, mail_address)
+                slack_user_id = self.slack_get_user_id_by_name(user_name, mail_address)
+                logging.info(
+                    f"found slack user id {slack_user_id} for user {user_name}"
                 )
+                slack_user_ids.add(slack_user_id)
 
-            if not dry_run:
+            if not dry_run and slack_user_ids:
                 users = " ".join([f"<@{uid}>" for uid in slack_user_ids])
                 self.slack.chat_post_message(
                     f"hey {users} :wave: you have clusters stuck in uninstalling state in the {env_name} environment"
