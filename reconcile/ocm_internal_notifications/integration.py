@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from collections.abc import (
     Callable,
-    Iterable,
 )
 from functools import lru_cache
 
@@ -15,15 +14,12 @@ from reconcile.slack_base import slackapi_from_queries
 from reconcile.utils import gql
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import (
-    OCMAPIClientConfigurationProtocol,
-    OCMBaseClient,
     init_ocm_base_client,
 )
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "ocm-internal-notifications"
 
@@ -44,18 +40,6 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
     def get_environments(self, query_func: Callable) -> list[OCMEnvironment]:
         return ocm_environment_query(query_func).environments
 
-    def init_ocm_apis(
-        self,
-        environments: Iterable[OCMEnvironment],
-        init_ocm_base_client: Callable[
-            [OCMAPIClientConfigurationProtocol, SecretReaderBase], OCMBaseClient
-        ] = init_ocm_base_client,
-    ) -> dict[str, OCMBaseClient]:
-        return {
-            env.name: init_ocm_base_client(env, self.secret_reader)
-            for env in environments
-        }
-
     @lru_cache
     def slack_get_user_id_by_name(self, user_name: str, mail_address: str) -> str:
         return self.slack.get_user_id_by_name(
@@ -66,10 +50,10 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
         gqlapi = gql.get_api()
         environments = self.get_environments(gqlapi.query)
 
-        self.ocm_apis = self.init_ocm_apis(environments, init_ocm_base_client)
+        for env in environments:
+            ocm = init_ocm_base_client(env, self.secret_reader)
 
-        for env_name, ocm in self.ocm_apis.items():
-            if env_name == "ocm-production":
+            if env.name == "ocm-production":
                 continue
 
             clusters = ocm.get(
@@ -97,7 +81,7 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
                 creator = ocm.get(api_path=subscription["creator"]["href"])
                 email = creator["email"]
                 logging.info(
-                    f"found managed cluster in uninstalling state in environment {env_name} with creator {email}"
+                    f"found managed cluster in uninstalling state in environment {env.name} with creator {email}"
                 )
                 user, mail_address = email.split("@")
                 user_name = user.split("+")[0]
@@ -110,5 +94,5 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
             if not dry_run and slack_user_ids:
                 users = " ".join([f"<@{uid}>" for uid in slack_user_ids])
                 self.slack.chat_post_message(
-                    f"hey {users} :wave: you have clusters stuck in uninstalling state in the {env_name} environment"
+                    f"hey {users} :wave: you have clusters stuck in uninstalling state in the {env.name} environment"
                 )
