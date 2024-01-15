@@ -34,16 +34,11 @@ class AcsPolicyApi(AcsBaseApi):
             for p in self.generic_request("/v1/policies", "GET").json()["policies"]
             if not p["isDefault"]
         ]
-        # the 'scope' attribute for each 'policy' references clusters by internal UUIDs
-        cluster_ids_names: dict[str, str] = {
-            c.cluster_id: c.name for c in self.get_cluster_identifiers()
-        }
         # make individual policy requests to obtain further details
         custom_policies_api_result = [
             self.generic_request(f"/v1/policies/{pid}", "GET").json()
             for pid in custom_policy_ids
         ]
-
         formatted_custom_policies: list[Policy] = []
         for cp in custom_policies_api_result:
             conditions: list[PolicyCondition] = []
@@ -66,7 +61,7 @@ class AcsPolicyApi(AcsBaseApi):
                     scope=sorted(
                         [
                             Scope(
-                                cluster=cluster_ids_names[s["cluster"]],
+                                cluster=s["cluster"],
                                 namespace=s["namespace"],
                             )
                             for s in cp["scope"]
@@ -78,16 +73,6 @@ class AcsPolicyApi(AcsBaseApi):
             )
         return formatted_custom_policies
 
-    class ClusterIdentifiers(BaseModel):
-        name: str
-        cluster_id: str
-
-    def get_cluster_identifiers(self) -> list[ClusterIdentifiers]:
-        return [
-            self.ClusterIdentifiers(name=c["name"], cluster_id=c["id"])
-            for c in self.generic_request("/v1/clusters", "GET").json()["clusters"]
-        ]
-    
     def get_custom_policy_id_names(self) -> dict[str, str]:
         return {
             p["name"]: p["id"]
@@ -128,5 +113,32 @@ class AcsPolicyApi(AcsBaseApi):
     def delete_policy(self, id: str) -> None:
         self.generic_request(f"/v1/policies/{id}", "DELETE")
 
-    def update_policy(self, to_update: Policy):
-        pass
+    def update_policy(self, id: str, to_update: Policy):
+        body = {
+            "name": to_update.name,
+            "description": to_update.description,
+            "categories": to_update.categories,
+            "severity": to_update.severity,
+            "isDefault": False,
+            "disabled": False,
+            "scope": [
+                {"cluster": s.cluster, "namespace": s.namespace} for s in to_update.scope
+            ],
+            "lifecycleStages": [
+                "BUILD"
+            ],  # all currently supported policy criteria are classified as 'build' stage
+            "policySections": [
+                {
+                    "sectionName": "primary",
+                    "policyGroups": [
+                        {
+                            "fieldName": c.field_name,
+                            "negate": c.negate,
+                            "values": [{"value": v} for v in c.values],
+                        }
+                        for c in to_update.conditions
+                    ],
+                }
+            ],
+        }
+        self.generic_request(f"/v1/policies/{id}", "PUT", body)
