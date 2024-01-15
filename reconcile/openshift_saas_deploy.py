@@ -4,6 +4,8 @@ import sys
 from collections.abc import Callable
 from typing import Optional
 
+from slack_sdk.errors import SlackApiError
+
 import reconcile.openshift_base as ob
 from reconcile import (
     jenkins_base,
@@ -100,7 +102,13 @@ def slack_notify(
         message += f" triggered by _{trigger_integration}_"
     if in_progress and skip_successful_notifications:
         message += ". There will not be a notice for success."
-    slack.chat_post_message(message)
+    try:
+        slack.chat_post_message(message)
+    except SlackApiError as e:
+        if e.response["error"] == "channel_not_found":
+            logging.error(f"Slack API says can't find channel {slack.channel}")
+            # raise up to let someone else handle the exception
+            raise e
 
 
 @defer
