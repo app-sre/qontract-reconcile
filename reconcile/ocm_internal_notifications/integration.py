@@ -25,7 +25,7 @@ QONTRACT_INTEGRATION = "ocm-internal-notifications"
 
 
 class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
-    """Something."""
+    """Notifications to internal Red Hat users based on conditions in OCM."""
 
     def __init__(self) -> None:
         super().__init__(NoParams())
@@ -53,7 +53,10 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
         for env in environments:
             ocm = init_ocm_base_client(env, self.secret_reader)
 
-            if env.name == "ocm-production":
+            if not (env.labels and env.labels["internal_notifications"]):
+                logging.info(
+                    f"skipping environment {env.name} due to no internal_notifications label"
+                )
                 continue
 
             clusters = ocm.get(
@@ -61,7 +64,7 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
                 params={
                     "search": Filter()
                     .eq("state", "uninstalling")
-                    .eq("managed", True)
+                    .eq("managed", "true")
                     .render(),
                     "orderBy": "created_at",
                 },
