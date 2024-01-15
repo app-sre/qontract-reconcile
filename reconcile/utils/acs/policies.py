@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from pydantic import BaseModel
@@ -36,7 +37,7 @@ class AcsPolicyApi(AcsBaseApi):
         ]
         # the 'scope' attribute for each 'policy' references clusters by internal UUIDs
         cluster_ids_names: dict[str, str] = {
-            c.cluster_id: c.name for c in self.get_clusters()
+            c.cluster_id: c.name for c in self.get_cluster_identifiers()
         }
         # make individual policy requests to obtain further details
         custom_policies_api_result = [
@@ -82,10 +83,44 @@ class AcsPolicyApi(AcsBaseApi):
         name: str
         cluster_id: str
 
-    def get_clusters(self) -> list[ClusterIdentifiers]:
-        # each cluster object in response from `/v1/clusters` is unnecessarily detailed for needs
-        # of this api. The required attributes are copied over to dedicated lightweight objects
+    def get_cluster_identifiers(self) -> list[ClusterIdentifiers]:
         return [
             self.ClusterIdentifiers(name=c["name"], cluster_id=c["id"])
             for c in self.generic_request("/v1/clusters", "GET").json()["clusters"]
         ]
+
+    def create_policy(self, to_add: Policy):
+        body = {
+            "name": to_add.name,
+            "description": to_add.description,
+            "categories": to_add.categories,
+            "severity": to_add.severity,
+            "isDefault": False,
+            "disabled": False,
+            "scope": [
+                {"cluster": s.cluster, "namespace": s.namespace} for s in to_add.scope
+            ],
+            "lifecycleStages": [
+                "BUILD"
+            ],  # all currently supported policy criteria are classified as 'build' stage
+            "policySections": [
+                {
+                    "sectionName": "primary",
+                    "policyGroups": [
+                        {
+                            "fieldName": c.field_name,
+                            "negate": c.negate,
+                            "values": [{"value": v} for v in c.values],
+                        }
+                        for c in to_add.conditions
+                    ],
+                }
+            ],
+        }
+        self.generic_request("/v1/policies", "POST", body)
+
+    def delete_policy(self, to_delete: Policy):
+        pass
+
+    def update_policy(self, to_update: Policy):
+        pass

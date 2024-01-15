@@ -117,25 +117,6 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
             )
         return policies
 
-    def add_policies(self, to_add: dict[str, Policy], acs: AcsPolicyApi, dry_run: bool):
-        errors = []
-        return errors
-
-    def delete_policies(
-        self, to_delete: dict[str, Policy], acs: AcsPolicyApi, dry_run: bool
-    ):
-        errors = []
-        return errors
-
-    def update_policies(
-        self,
-        to_update: dict[str, DiffPair[Policy, Policy]],
-        acs: AcsPolicyApi,
-        dry_run: bool,
-    ):
-        errors = []
-        return errors
-
     def reconcile(
         self,
         desired: list[Policy],
@@ -146,17 +127,27 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         errors = []
         diff = diff_iterables(current, desired, lambda x: x.name)
         print(diff)
-        if len(diff.add) > 0:
-            errors.extend(self.add_policies(to_add=diff.add, acs=acs, dry_run=dry_run))
-        if len(diff.delete) > 0:
-            errors.extend(
-                self.delete_policies(to_delete=diff.delete, acs=acs, dry_run=dry_run)
-            )
-        if len(diff.change) > 0:
-            errors.extend(
-                self.update_policies(to_update=diff.change, acs=acs, dry_run=dry_run)
-            )
-
+        for a in diff.add.values():
+            if not dry_run:
+                try:
+                    acs.create_policy(a)
+                except Exception as e:
+                    errors.append(e)
+            logging.info("Created policy: %s", a.name)
+        for d in diff.delete.values():
+            if not dry_run:
+                try:
+                    acs.delete_policy(d)
+                except Exception as e:
+                    errors.append(e)
+            logging.info("Deleted policy: %s", d.name)
+        for c in diff.change.values():
+            if not dry_run:
+                try:
+                    acs.update_policy(c)
+                except Exception as e:
+                    errors.append(e)
+            logging.info("Updated policy: %s", c.name)
         if errors:
             raise ExceptionGroup("Reconcile errors occurred", errors)
 

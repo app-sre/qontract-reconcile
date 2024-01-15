@@ -60,9 +60,7 @@ class AcsBaseApi:
         url = f"{self.base_url}{path}"
         headers = {
             "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json",
         }
-
         response = self.session.request(
             verb,
             url,
@@ -70,6 +68,5 @@ class AcsBaseApi:
             json=json,
             timeout=self.timeout,
         )
-
         response.raise_for_status()
         return response
