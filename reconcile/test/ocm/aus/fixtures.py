@@ -56,7 +56,7 @@ def build_upgrade_policy(
 def build_ocm_environment(env_name: Optional[str] = None) -> OCMEnvironment:
     return OCMEnvironment(
         name=env_name or "env-name",
-        labels="{}",
+        labels=None,
         accessTokenClientId="client-id",
         accessTokenUrl="https://token-url",
         accessTokenClientSecret=VaultSecret(
