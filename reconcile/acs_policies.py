@@ -123,10 +123,9 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         current: list[Policy],
         acs: AcsPolicyApi,
         dry_run: bool,
-    ):
+    ) -> None:
         errors = []
-        diff = diff_iterables(current, desired, lambda x: x.name)
-        print(diff)
+        diff = diff_iterables(current=current, desired=desired, key=lambda x: x.name)
         for a in diff.add.values():
             if not dry_run:
                 try:
@@ -134,13 +133,15 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                 except Exception as e:
                     errors.append(e)
             logging.info("Created policy: %s", a.name)
-        for d in diff.delete.values():
-            if not dry_run:
-                try:
-                    acs.delete_policy(d)
-                except Exception as e:
-                    errors.append(e)
-            logging.info("Deleted policy: %s", d.name)
+        if len(diff.delete) > 0:
+            policy_id_names = acs.get_custom_policy_id_names()
+            for d in diff.delete.values():
+                if not dry_run:
+                    try:
+                        acs.delete_policy(policy_id_names[d.name])
+                    except Exception as e:
+                        errors.append(e)
+                logging.info("Deleted policy: %s", d.name)
         for c in diff.change.values():
             if not dry_run:
                 try:

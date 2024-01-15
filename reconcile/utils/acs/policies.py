@@ -1,4 +1,3 @@
-import json
 from typing import Optional
 
 from pydantic import BaseModel
@@ -88,8 +87,15 @@ class AcsPolicyApi(AcsBaseApi):
             self.ClusterIdentifiers(name=c["name"], cluster_id=c["id"])
             for c in self.generic_request("/v1/clusters", "GET").json()["clusters"]
         ]
+    
+    def get_custom_policy_id_names(self) -> dict[str, str]:
+        return {
+            p["name"]: p["id"]
+            for p in self.generic_request("/v1/policies", "GET").json()["policies"]
+            if not p["isDefault"]
+        }
 
-    def create_policy(self, to_add: Policy):
+    def create_policy(self, to_add: Policy) -> None:
         body = {
             "name": to_add.name,
             "description": to_add.description,
@@ -119,8 +125,8 @@ class AcsPolicyApi(AcsBaseApi):
         }
         self.generic_request("/v1/policies", "POST", body)
 
-    def delete_policy(self, to_delete: Policy):
-        pass
+    def delete_policy(self, id: str) -> None:
+        self.generic_request(f"/v1/policies/{id}", "DELETE")
 
     def update_policy(self, to_update: Policy):
         pass
