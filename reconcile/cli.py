@@ -2928,7 +2928,9 @@ def ocm_labels(ctx, managed_label_prefixes):
     )
 
 
-@integration.command(short_help="Notifications to internal Red Hat users based on conditions in OCM.")
+@integration.command(
+    short_help="Notifications to internal Red Hat users based on conditions in OCM."
+)
 @click.pass_context
 def ocm_internal_notifications(ctx):
     from reconcile.ocm_internal_notifications.integration import (
