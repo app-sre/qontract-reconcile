@@ -52,6 +52,7 @@ ocm:
   accessTokenUrl: access-token-url
   environment:
     name: name
+    labels: "{}"
     url: ocm-url
     accessTokenClientId: client-id
     accessTokenClientSecret:

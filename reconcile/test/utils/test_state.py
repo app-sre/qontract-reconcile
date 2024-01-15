@@ -187,6 +187,22 @@ def test_exists_for_missing_bucket(s3_client: S3Client) -> None:
         )
 
 
+def test_add_without_metadata(integration_state: State) -> None:
+    integration_state.add("k", "v", force=True)
+
+    assert integration_state.head("k") == (True, {})
+    assert integration_state.get("k") == "v"
+
+
+def test_add_with_metadata(integration_state: State) -> None:
+    metadata = {"a": "b"}
+
+    integration_state.add("k", "v", metadata=metadata, force=True)
+
+    assert integration_state.head("k") == (True, metadata)
+    assert integration_state.get("k") == "v"
+
+
 #
 # aquire settings
 #

@@ -23,6 +23,7 @@ from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 DEFINITION = """
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
     name
+    labels
     url
     accessTokenClientId
     accessTokenUrl

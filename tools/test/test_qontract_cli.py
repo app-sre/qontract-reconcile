@@ -1,6 +1,7 @@
 import pytest
 from click.testing import CliRunner
 
+from reconcile.utils.early_exit_cache import CacheStatus
 from tools import qontract_cli
 
 
@@ -18,6 +19,11 @@ def mock_queries(mocker):
 @pytest.fixture
 def mock_state(mocker):
     return mocker.patch("tools.qontract_cli.init_state", autospec=True)
+
+
+@pytest.fixture
+def mock_early_exit_cache(mocker):
+    return mocker.patch("tools.qontract_cli.EarlyExitCache", autospec=True)
 
 
 def test_state_ls_with_integration(env_vars, mock_queries, mock_state):
@@ -58,3 +64,39 @@ integration1   key1
 integration2   nested/key2
 """
     )
+
+
+def test_early_exit_cache_get(env_vars, mock_queries, mock_early_exit_cache):
+    runner = CliRunner()
+    mock_early_exit_cache.build.return_value.__enter__.return_value.get.return_value = (
+        "some value"
+    )
+
+    result = runner.invoke(
+        qontract_cli.early_exit_cache, "get -i a -v b --dry-run -c {}"
+    )
+    assert result.exit_code == 0
+    assert result.output == "some value\n"
+
+
+def test_early_exit_cache_set(env_vars, mock_queries, mock_early_exit_cache):
+    runner = CliRunner()
+
+    result = runner.invoke(
+        qontract_cli.early_exit_cache,
+        "set -i a -v b --no-dry-run -c {} -d {} -l log -t 30",
+    )
+    assert result.exit_code == 0
+    mock_early_exit_cache.build.return_value.__enter__.return_value.set.assert_called()
+
+
+def test_early_exit_cache_head(env_vars, mock_queries, mock_early_exit_cache):
+    runner = CliRunner()
+
+    mock_early_exit_cache.build.return_value.__enter__.return_value.head.return_value = CacheStatus.HIT
+
+    result = runner.invoke(
+        qontract_cli.early_exit_cache, "head -i a -v b --dry-run -c {}"
+    )
+    assert result.exit_code == 0
+    assert result.output == f"{CacheStatus.HIT}\n"

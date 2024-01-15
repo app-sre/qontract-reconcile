@@ -4,6 +4,7 @@ clusters:
   ocm:
     environment:
       name: ocm-stage
+      labels: "{}"
       accessTokenClientSecret:
         field: client_secret
         path: path/to/client_secret
@@ -17,6 +18,7 @@ clusters:
   ocm:
     environment:
       name: ocm-prod
+      labels: "{}"
       accessTokenClientSecret:
         field: client_secret
         path: path/to/client_secret
@@ -28,6 +30,7 @@ clusters:
   ocm:
     environment:
       name: ocm-stage
+      labels: "{}"
       accessTokenClientSecret:
         field: client_secret
         path: path/to/client_secret
@@ -38,6 +41,7 @@ clusters:
   ocm:
     environment:
       name: ocm-stage
+      labels: "{}"
       accessTokenClientSecret:
         field: client_secret
         path: path/to/client_secret
