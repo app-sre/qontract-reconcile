@@ -287,14 +287,28 @@ class State:
         :raises StateInaccessibleException: if the bucket is missing or
         permissions are insufficient or a general AWS error occurred
         """
+        exists, _ = self.head(key)
+        return exists
+
+    def head(self, key) -> tuple[bool, dict[str, str]]:
+        """
+        Checks if a key exists in the state. Returns the metadata of a key in the state.
+
+        :param key: key to check
+
+        :return: tuple of (exists, metadata)
+
+        :raises StateInaccessibleException: if the bucket is missing or
+        permissions are insufficient or a general AWS error occurred
+        """
         key_path = f"{self.state_path}/{key}"
         try:
-            self.client.head_object(Bucket=self.bucket, Key=key_path)
-            return True
+            response = self.client.head_object(Bucket=self.bucket, Key=key_path)
+            return True, response["Metadata"]
         except ClientError as details:
             error_code = details.response.get("Error", {}).get("Code", None)
             if error_code == "404":
-                return False
+                return False, {}
 
             raise StateInaccessibleException(
                 f"Can not access state key {key_path} "
@@ -325,18 +339,28 @@ class State:
 
         return [c["Key"].replace(self.state_path, "") for c in contents]
 
-    def add(self, key, value=None, force=False):
+    def add(self, key, value=None, metadata=None, force=False):
         """
         Adds a key/value to the state and fails if the key already exists
 
         :param key: key to add
         :param value: (optional) value of the state, defaults to None
+        :param metadata: (optional) metadata of the state, Mapping[str, str], defaults to None
+        :param force: (optional) if True, overrides the key if it exists,
 
         :type key: string
         """
-        if self.exists(key) and not force:
+        if not force and self.exists(key):
             raise KeyError(f"[state] key {key} already " f"exists in {self.state_path}")
-        self[key] = value
+        self._set(key, value, metadata=metadata)
+
+    def _set(self, key, value, metadata=None):
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=f"{self.state_path}/{key}",
+            Body=json.dumps(value),
+            Metadata=metadata or {},
+        )
 
     def rm(self, key):
         """
@@ -392,6 +416,4 @@ class State:
             raise KeyError(item)
 
     def __setitem__(self, key, value):
-        self.client.put_object(
-            Bucket=self.bucket, Key=f"{self.state_path}/{key}", Body=json.dumps(value)
-        )
+        self._set(key, value)

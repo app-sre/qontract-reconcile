@@ -83,6 +83,7 @@ from reconcile.utils import (
     gql,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.early_exit_cache import CacheKey, CacheValue, EarlyExitCache
 from reconcile.utils.environ import environ
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
@@ -2409,6 +2410,176 @@ def state_set(ctx, integration, key, value):
 def rm(ctx, integration, key):
     state = init_state(integration=integration)
     state.rm(key)
+
+
+@root.group()
+@environ(["APP_INTERFACE_STATE_BUCKET"])
+@click.pass_context
+def early_exit_cache(ctx):
+    pass
+
+
+@early_exit_cache.command(name="head")
+@click.option(
+    "-i",
+    "--integration",
+    help="Integration name.",
+    required=True,
+)
+@click.option(
+    "-v",
+    "--integration-version",
+    help="Integration version.",
+    required=True,
+)
+@click.option(
+    "--dry-run/--no-dry-run",
+    help="",
+    default=False,
+)
+@click.option(
+    "-c",
+    "--cache-desired-state",
+    help="Cache desired state. It should be a JSON string.",
+    required=True,
+)
+@click.pass_context
+def early_exit_cache_head(
+    ctx,
+    integration,
+    integration_version,
+    dry_run,
+    cache_desired_state,
+):
+    with EarlyExitCache.build() as cache:
+        cache_key = CacheKey(
+            integration=integration,
+            integration_version=integration_version,
+            dry_run=dry_run,
+            cache_desired_state=json.loads(cache_desired_state),
+        )
+        status = cache.head(cache_key)
+        print(status)
+
+
+@early_exit_cache.command(name="get")
+@click.option(
+    "-i",
+    "--integration",
+    help="Integration name.",
+    required=True,
+)
+@click.option(
+    "-v",
+    "--integration-version",
+    help="Integration version.",
+    required=True,
+)
+@click.option(
+    "--dry-run/--no-dry-run",
+    help="",
+    default=False,
+)
+@click.option(
+    "-c",
+    "--cache-desired-state",
+    help="Cache desired state. It should be a JSON string.",
+    required=True,
+)
+@click.pass_context
+def early_exit_cache_get(
+    ctx,
+    integration,
+    integration_version,
+    dry_run,
+    cache_desired_state,
+):
+    with EarlyExitCache.build() as cache:
+        cache_key = CacheKey(
+            integration=integration,
+            integration_version=integration_version,
+            dry_run=dry_run,
+            cache_desired_state=json.loads(cache_desired_state),
+        )
+        value = cache.get(cache_key)
+        print(value)
+
+
+@early_exit_cache.command(name="set")
+@click.option(
+    "-i",
+    "--integration",
+    help="Integration name.",
+    required=True,
+)
+@click.option(
+    "-v",
+    "--integration-version",
+    help="Integration version.",
+    required=True,
+)
+@click.option(
+    "--dry-run/--no-dry-run",
+    help="",
+    default=False,
+)
+@click.option(
+    "-c",
+    "--cache-desired-state",
+    help="Cache desired state. It should be a JSON string.",
+    required=True,
+)
+@click.option(
+    "-d",
+    "--desired-state",
+    help="Desired state. It should be a JSON string.",
+    required=True,
+)
+@click.option(
+    "-l",
+    "--log-output",
+    help="Log output.",
+    default="",
+)
+@click.option(
+    "-a",
+    "--applied-count",
+    help="Log output.",
+    default=0,
+    type=int,
+)
+@click.option(
+    "-t",
+    "--ttl",
+    help="TTL, in seconds.",
+    default=60,
+    type=int,
+)
+@click.pass_context
+def early_exit_cache_set(
+    ctx,
+    integration,
+    integration_version,
+    dry_run,
+    cache_desired_state,
+    desired_state,
+    log_output,
+    applied_count,
+    ttl,
+):
+    with EarlyExitCache.build() as cache:
+        cache_key = CacheKey(
+            integration=integration,
+            integration_version=integration_version,
+            dry_run=dry_run,
+            cache_desired_state=json.loads(cache_desired_state),
+        )
+        cache_value = CacheValue(
+            desired_state=json.loads(desired_state),
+            log_output=log_output,
+            applied_count=applied_count,
+        )
+        cache.set(cache_key, cache_value, ttl)
 
 
 @root.command()
