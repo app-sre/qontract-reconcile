@@ -28,6 +28,7 @@ class ConfiguredBaseModel(BaseModel):
 
 class OCMEnvironment(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     url: str = Field(..., alias="url")
     access_token_client_id: str = Field(..., alias="accessTokenClientId")
     access_token_url: str = Field(..., alias="accessTokenUrl")
