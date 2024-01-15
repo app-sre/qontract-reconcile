@@ -13,6 +13,7 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 def ocm_env() -> OCMEnvironment:
     return OCMEnvironment(
         name="env",
+        labels="{}",
         url="https://ocm",
         accessTokenUrl="https://sso/token",
         accessTokenClientId="client-id",

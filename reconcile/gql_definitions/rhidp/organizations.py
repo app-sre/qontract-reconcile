@@ -28,6 +28,7 @@ fragment DisableAutomations on DisableClusterAutomations_v1 {
 
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
     name
+    labels
     url
     accessTokenClientId
     accessTokenUrl

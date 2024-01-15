@@ -46,6 +46,7 @@ def test_ocm_labels_get_clusters(
                 "ocm": {
                     "environment": {
                         "name": "ocm-prod",
+                        "labels": "{}",
                         "accessTokenClientSecret": {
                             "field": "client_secret",
                             "path": "path/to/client_secret",
@@ -64,6 +65,7 @@ def test_ocm_labels_get_clusters(
                 "ocm": {
                     "environment": {
                         "name": "ocm-stage",
+                        "labels": "{}",
                         "accessTokenClientSecret": {
                             "field": "client_secret",
                             "path": "path/to/client_secret",
@@ -81,6 +83,7 @@ def test_ocm_labels_get_clusters(
                 "ocm": {
                     "environment": {
                         "name": "ocm-stage",
+                        "labels": "{}",
                         "accessTokenClientSecret": {
                             "field": "client_secret",
                             "path": "path/to/client_secret",
