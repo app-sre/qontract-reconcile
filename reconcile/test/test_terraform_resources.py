@@ -71,7 +71,7 @@ def test_cannot_pass_two_aws_account_if_not_dry_run():
 def test_filter_accounts_by_name():
     accounts = [{"name": "a"}, {"name": "b"}, {"name": "c"}]
 
-    filtered = integ.filter_accounts_by_name(accounts, filter=("a", "b"))
+    filtered = integ.filter_accounts_by_name(accounts, names=("a", "b"))
 
     assert filtered == [{"name": "a"}, {"name": "b"}]
 
@@ -79,7 +79,7 @@ def test_filter_accounts_by_name():
 def test_exclude_accounts_by_name():
     accounts = [{"name": "a"}, {"name": "b"}, {"name": "c"}]
 
-    filtered = integ.exclude_accounts_by_name(accounts, filter=("a", "b"))
+    filtered = integ.exclude_accounts_by_name(accounts, names=("a", "b"))
 
     assert filtered == [{"name": "c"}]
 
@@ -273,7 +273,6 @@ def test_empty_run(mocker: MockerFixture) -> None:
     mocked_tf.return_value.should_apply = False
 
     mocker.patch("reconcile.terraform_resources.AWSApi", autospec=True)
-    mocker.patch("reconcile.terraform_resources.sys")
 
     mocked_logging = mocker.patch("reconcile.terraform_resources.logging")
 
