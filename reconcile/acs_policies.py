@@ -1,14 +1,14 @@
 import logging
 from collections.abc import Callable
+from typing import cast
 
-from reconcile.gql_definitions.acs.acs_policies import query as acs_policies_query
+import reconcile.gql_definitions.acs.acs_policies as gql_acs_policies
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.utils import gql
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
 from reconcile.utils.differ import diff_iterables
-
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
@@ -62,7 +62,9 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         """
 
         policies = []
-        for gql_policy in acs_policies_query(query_func=query_func).acs_policies:
+        for gql_policy in (
+            gql_acs_policies.query(query_func=query_func).acs_policies or []
+        ):
             conditions: list[PolicyCondition] = []
             for c in gql_policy.conditions:
                 pc = PolicyCondition(
@@ -71,20 +73,31 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                     values=[],
                 )
                 if c.policy_field == "cvss":
+                    cvss_condition = cast(gql_acs_policies.AcsPolicyConditionsCvssV1, c)
                     pc.values = [
-                        f"{POLICY_CONDITION_COMPARISONS[c.comparison]}{c.score}" # type: ignore[union-attr]
+                        f"{POLICY_CONDITION_COMPARISONS[cvss_condition.comparison]}{cvss_condition.score}"
                     ]
                 elif c.policy_field == "severity":
+                    severity_condition = cast(
+                        gql_acs_policies.AcsPolicyConditionsSeverityV1, c
+                    )
                     pc.values = [
-                        f"{POLICY_CONDITION_COMPARISONS[c.comparison]}{c.level.upper()}" # type: ignore[union-attr]
+                        f"{POLICY_CONDITION_COMPARISONS[severity_condition.comparison]}{severity_condition.level.upper()}"
                     ]
                 elif c.policy_field == "cve":
-                    pc.values = [str(c.fixable).lower()] # type: ignore[union-attr]
+                    cve_condition = cast(gql_acs_policies.AcsPolicyConditionsCveV1, c)
+                    pc.values = [str(cve_condition.fixable).lower()]
                 elif c.policy_field == "image_tag":
-                    pc.values = c.tags # type: ignore[union-attr]
-                    pc.negate = c.negate
+                    image_tag_condition = cast(
+                        gql_acs_policies.AcsPolicyConditionsImageTagV1, c
+                    )
+                    pc.values = image_tag_condition.tags
+                    pc.negate = image_tag_condition.negate or False
                 elif c.policy_field == "image_age":
-                    pc.values = [str(c.days)] # type: ignore[union-attr]
+                    image_age_condition = cast(
+                        gql_acs_policies.AcsPolicyConditionsImageAgeV1, c
+                    )
+                    pc.values = [str(image_age_condition.days)]
                 else:
                     logging.warning(
                         "unsupported policyField encountered: %s", c.policy_field
@@ -100,14 +113,19 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                     scope=sorted(
                         [
                             Scope(cluster=cs.name, namespace="")
-                            for cs in gql_policy.scope.clusters # type: ignore[union-attr]
+                            for cs in cast(
+                                gql_acs_policies.AcsPolicyScopeClusterV1,
+                                gql_policy.scope,
+                            ).clusters
                         ],
                         key=lambda s: s.cluster,
                     )
                     if gql_policy.scope.level == "cluster"
                     else [
                         Scope(cluster=ns.cluster.name, namespace=ns.name)
-                        for ns in gql_policy.scope.namespaces # type: ignore[union-attr]
+                        for ns in cast(
+                            gql_acs_policies.AcsPolicyScopeNamespaceV1, gql_policy.scope
+                        ).namespaces
                     ],
                     categories=sorted([
                         POLICY_CATEGORIES[pc] for pc in gql_policy.categories

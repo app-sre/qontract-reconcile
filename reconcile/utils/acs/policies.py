@@ -122,7 +122,8 @@ class AcsPolicyApi(AcsBaseApi):
             "isDefault": False,
             "disabled": False,
             "scope": [
-                {"cluster": s.cluster, "namespace": s.namespace} for s in to_update.scope
+                {"cluster": s.cluster, "namespace": s.namespace}
+                for s in to_update.scope
             ],
             "lifecycleStages": [
                 "BUILD"

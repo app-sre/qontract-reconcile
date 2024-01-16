@@ -35,6 +35,9 @@ query AcsPolicy {
       ... on AcsPolicyScopeNamespace_v1 {
        	namespaces {
           name
+          cluster {
+            name
+          }
         }
       }
     }
@@ -82,8 +85,13 @@ class AcsPolicyScopeClusterV1(AcsPolicyScopeV1):
     clusters: list[ClusterV1] = Field(..., alias="clusters")
 
 
+class NamespaceV1_ClusterV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    cluster: NamespaceV1_ClusterV1 = Field(..., alias="cluster")
 
 
 class AcsPolicyScopeNamespaceV1(AcsPolicyScopeV1):

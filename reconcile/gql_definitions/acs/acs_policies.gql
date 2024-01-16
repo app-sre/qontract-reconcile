@@ -16,6 +16,9 @@ query AcsPolicy {
       ... on AcsPolicyScopeNamespace_v1 {
        	namespaces {
           name
+          cluster {
+            name
+          }
         }
       }
     }
