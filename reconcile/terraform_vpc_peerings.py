@@ -67,6 +67,16 @@ def _build_infrastructure_assume_role(
 ) -> Optional[dict[str, Any]]:
     if provided_assume_role:
         assume_role = provided_assume_role
+    elif cluster["spec"].get("account"):
+        cluster_account = cluster["spec"].get("account")
+        return {
+            "name": cluster_account["name"],
+            "uid": cluster_account["uid"],
+            "terraformUsername": cluster_account["terraformUsername"],
+            "automationToken": cluster_account["automationToken"],
+            "assume_region": cluster["spec"]["region"],
+            "assume_cidr": cluster["network"]["vpc"],
+        }
     elif ocm is not None:
         assume_role = ocm.get_aws_infrastructure_access_terraform_assume_role(
             cluster["name"],
@@ -92,7 +102,7 @@ def aws_assume_roles_for_cluster_vpc_peering(
     accepter_connection: dict[str, Any],
     accepter_cluster: dict[str, Any],
     ocm: Optional[OCM],
-) -> tuple[dict[str, Any], dict[str, Any]]:
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
     # check if dedicated infra accounts have been declared on the
     # accepters peering connection or on the accepters cluster
     allowed_accounts = {
@@ -103,21 +113,21 @@ def aws_assume_roles_for_cluster_vpc_peering(
 
     # check if a dedicated infra accounts have been declared on the
     # accepters peering connection
-    account = accepter_connection["awsInfrastructureManagementAccount"]
-    if account and account["name"] not in allowed_accounts:
+    infra_account = accepter_connection["awsInfrastructureManagementAccount"]
+    if infra_account and infra_account["name"] not in allowed_accounts:
         raise BadTerraformPeeringState(
             "[account_not_allowed] "
-            f"account {account['name']} used on the peering accepter of "
+            f"account {infra_account['name']} used on the peering accepter of "
             f"cluster {accepter_cluster['name']} is not listed as a "
             "network-mgmt in awsInfrastructureManagementAccounts"
         )
 
-    if not account:
+    if not infra_account:
         # look for a network-mgmt account marked as default on the accepters
         # clusters awsInfrastructureManagementAccounts
-        account = _get_default_management_account(accepter_cluster)
+        infra_account = _get_default_management_account(accepter_cluster)
 
-    if not account:
+    if not infra_account:
         raise BadTerraformPeeringState(
             f"[no_account_available] unable to find infra account "
             f"for {accepter_cluster['name']} to manage the VPC peering "
@@ -127,25 +137,25 @@ def aws_assume_roles_for_cluster_vpc_peering(
     # a dedicated infra account was found on the accepter side
     # let's use it for both legs
     req_aws = _build_infrastructure_assume_role(
-        account, requester_cluster, ocm, requester_connection.get("assumeRole")
+        infra_account, requester_cluster, ocm, requester_connection.get("assumeRole")
     )
     if req_aws is None:
         raise BadTerraformPeeringState(
             f"[assume_role_not_found] unable to find assume role "
-            f"on cluster-vpc-requester for account {account['name']} and "
+            f"on cluster-vpc-requester for account {infra_account['name']} and "
             f"cluster {requester_cluster['name']} "
         )
     acc_aws = _build_infrastructure_assume_role(
-        account, accepter_cluster, ocm, accepter_connection.get("assumeRole")
+        infra_account, accepter_cluster, ocm, accepter_connection.get("assumeRole")
     )
     if acc_aws is None:
         raise BadTerraformPeeringState(
             f"[assume_role_not_found] unable to find assume role "
-            f"on cluster-vpc-accepter for account {account['name']} and "
+            f"on cluster-vpc-accepter for account {infra_account['name']} and "
             f"cluster {accepter_cluster['name']} "
         )
 
-    return req_aws, acc_aws
+    return infra_account["name"], req_aws, acc_aws
 
 
 def build_desired_state_single_cluster(
@@ -180,34 +190,24 @@ def build_desired_state_single_cluster(
 
         accepter_manage_routes = peer_info.get("manageRoutes")
 
-        req_aws, acc_aws = aws_assume_roles_for_cluster_vpc_peering(
+        infra_account_name, req_aws, acc_aws = aws_assume_roles_for_cluster_vpc_peering(
             peer_connection, cluster_info, peer_info, peer_cluster, ocm
         )
 
         # filter on account
-        if account_filter and acc_aws["name"] != account_filter:
+        if (
+            account_filter
+            and acc_aws["name"] != account_filter
+            and infra_account_name != account_filter
+        ):
             continue
 
-        # verify that the infra mgmt account for both sides of a peering is the same
-        # this is a restriction we might lift in the future but it
-        # requires work in `populate_vpc_peerings` where the tf resources are hooked up
-        if req_aws["name"] != acc_aws["name"]:
-            raise BadTerraformPeeringState(
-                f"different infra mgmt accounts for peering "
-                f"requester ({cluster_name} - {req_aws['name']}) and "
-                f"accepter ({peer_connection_name} - {acc_aws['name']}) "
-                "are not suppored"
+        requester_vpc_id, requester_route_table_ids, _, api_security_group_id = (
+            awsapi.get_cluster_vpc_details(
+                req_aws,
+                route_tables=requester_manage_routes,
+                hcp_vpc_endpoint_sg=_private_hosted_control_plane(cluster_info),
             )
-
-        (
-            requester_vpc_id,
-            requester_route_table_ids,
-            _,
-            api_security_group_id,
-        ) = awsapi.get_cluster_vpc_details(
-            req_aws,
-            route_tables=requester_manage_routes,
-            hcp_vpc_endpoint_sg=_private_hosted_control_plane(cluster_info),
         )
         if requester_vpc_id is None:
             raise BadTerraformPeeringState(
@@ -238,7 +238,9 @@ def build_desired_state_single_cluster(
                 f"[{peer_cluster_name}] could not find VPC ID for cluster"
             )
 
-        requester["peer_owner_id"] = acc_aws["assume_role"].split(":")[4]
+        requester["peer_owner_id"] = acc_aws["uid"]
+        if acc_aws.get("assume_role"):
+            requester["peer_owner_id"] = acc_aws["assume_role"].split(":")[4]
         accepter = {
             "cidr_block": peer_cluster["network"]["vpc"],
             "region": peer_cluster["spec"]["region"],
@@ -251,6 +253,7 @@ def build_desired_state_single_cluster(
         item = {
             "connection_provider": peer_connection_provider,
             "connection_name": peer_connection_name,
+            "infra_account_name": infra_account_name,
             "requester": requester,
             "accepter": accepter,
             "deleted": peer_connection.get("delete", False),
@@ -308,26 +311,30 @@ def build_desired_state_vpc_mesh_single_cluster(
             "region": cluster_info["spec"]["region"],
         }
 
+        cluster_account = account
         # assume_role is the role to assume to provision the peering
         # connection request, through the accepter AWS account.
         provided_assume_role = peer_connection.get("assumeRole")
         if provided_assume_role:
-            account["assume_role"] = provided_assume_role
+            cluster_account["assume_role"] = provided_assume_role
+        elif cluster_info["spec"].get("account"):
+            cluster_account = cluster_info["spec"].get("account")
         elif ocm is not None:
-            account["assume_role"] = (
+            cluster_account["assume_role"] = (
                 ocm.get_aws_infrastructure_access_terraform_assume_role(
                     cluster, account["uid"], account["terraformUsername"]
                 )
             )
         account["assume_region"] = requester["region"]
-        account["assume_cidr"] = requester["cidr_block"]
+        cluster_account["assume_region"] = requester["region"]
+        cluster_account["assume_cidr"] = requester["cidr_block"]
         (
             requester_vpc_id,
             requester_route_table_ids,
             _,
             api_security_group_id,
         ) = awsapi.get_cluster_vpc_details(
-            account,
+            cluster_account,
             route_tables=peer_connection.get("manageRoutes"),
             hcp_vpc_endpoint_sg=_private_hosted_control_plane(cluster_info),
         )
@@ -340,8 +347,8 @@ def build_desired_state_vpc_mesh_single_cluster(
 
         requester["vpc_id"] = requester_vpc_id
         requester["route_table_ids"] = requester_route_table_ids
+        requester["account"] = cluster_account
         requester["api_security_group_id"] = api_security_group_id
-        requester["account"] = account
 
         account_vpcs = awsapi.get_vpcs_details(
             account,
@@ -363,6 +370,7 @@ def build_desired_state_vpc_mesh_single_cluster(
             item = {
                 "connection_provider": peer_connection_provider,
                 "connection_name": connection_name,
+                "infra_account_name": account["name"],
                 "requester": requester,
                 "accepter": accepter,
                 "deleted": peer_connection.get("delete", False),
@@ -433,6 +441,7 @@ def build_desired_state_vpc_single_cluster(
                 account, peer_vpc["vpc_id"], peer_vpc["region"]
             )
 
+        cluster_account = account
         # assume_role is the role to assume to provision the peering
         # connection request, through the accepter AWS account.
         provided_assume_role = peer_connection.get("assumeRole")
@@ -440,9 +449,11 @@ def build_desired_state_vpc_single_cluster(
         # to get the information from OCM. it likely means that
         # there is no OCM at all.
         if provided_assume_role:
-            account["assume_role"] = provided_assume_role
+            cluster_account["assume_role"] = provided_assume_role
+        elif cluster_info["spec"].get("account"):
+            cluster_account = cluster_info["spec"].get("account")
         elif ocm is not None:
-            account["assume_role"] = (
+            cluster_account["assume_role"] = (
                 ocm.get_aws_infrastructure_access_terraform_assume_role(
                     cluster,
                     peer_vpc["account"]["uid"],
@@ -456,30 +467,30 @@ def build_desired_state_vpc_single_cluster(
                 "or ocm should be defined to obtain role to assume"
             )
         account["assume_region"] = requester["region"]
-        account["assume_cidr"] = requester["cidr_block"]
-        (
-            requester_vpc_id,
-            requester_route_table_ids,
-            _,
-            api_security_group_id,
-        ) = awsapi.get_cluster_vpc_details(
-            account,
-            route_tables=peer_connection.get("manageRoutes"),
-            hcp_vpc_endpoint_sg=_private_hosted_control_plane(cluster_info),
+        cluster_account["assume_region"] = requester["region"]
+        cluster_account["assume_cidr"] = requester["cidr_block"]
+        requester_vpc_id, requester_route_table_ids, _, api_security_group_id = (
+            awsapi.get_cluster_vpc_details(
+                cluster_account,
+                route_tables=peer_connection.get("manageRoutes"),
+                hcp_vpc_endpoint_sg=_private_hosted_control_plane(cluster_info),
+            )
         )
 
         if requester_vpc_id is None:
             raise BadTerraformPeeringState(
                 f"[{cluster}] could not find VPC ID for cluster"
             )
+
         requester["vpc_id"] = requester_vpc_id
         requester["route_table_ids"] = requester_route_table_ids
-        requester["account"] = account
+        requester["account"] = cluster_account
         requester["api_security_group_id"] = api_security_group_id
         accepter["account"] = account
         item = {
             "connection_provider": peer_connection_provider,
             "connection_name": connection_name,
+            "infra_account_name": account["name"],
             "requester": requester,
             "accepter": accepter,
             "deleted": peer_connection.get("delete", False),
@@ -572,20 +583,52 @@ def run(
         logging.error("duplicate vpc connection names found")
         sys.exit(1)
 
-    participating_accounts = [item["requester"]["account"] for item in desired_state]
-    participating_accounts += [item["accepter"]["account"] for item in desired_state]
-    participating_account_names = {a["name"] for a in participating_accounts}
-    accounts = [a for a in accounts if a["name"] in participating_account_names]
-    if not accounts:
+    # infra accounts are the accounts hosting the terraform state
+    # - for cluster to vpc or vpc-mesh peering, the infra account is the accepter (non-cluster) account
+    # - for cluster-to-cluster peerings, the infra account is the default awsInfrastructureManagementAccount from the accepter cluster
+    infra_account_names = {d["infra_account_name"] for d in desired_state}
+    infra_accounts = [a for a in accounts if a["name"] in infra_account_names]
+    if not infra_accounts:
         logging.warning(
             f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
         )
         return
 
+    participating_accounts: dict[str, list[Any]] = {}
+    for infra_account_name in infra_account_names:
+        participating_accounts[infra_account_name] = []
+        participating_accounts[infra_account_name].extend([
+            item["requester"]["account"]
+            for item in desired_state
+            if item["infra_account_name"] == infra_account_name
+            and (
+                item["requester"]["account"]["name"] != infra_account_name
+                or item["requester"]["account"].get("assume_role")
+            )
+        ])
+        participating_accounts[infra_account_name].extend([
+            item["accepter"]["account"]
+            for item in desired_state
+            if item["infra_account_name"] == infra_account_name
+            and (
+                item["accepter"]["account"]["name"] != infra_account_name
+                or item["accepter"]["account"].get("assume_role")
+            )
+        ])
+
+    account_by_name = {a["name"]: a for a in accounts}
     with terrascript.TerrascriptClient(
-        QONTRACT_INTEGRATION, "", thread_pool_size, accounts, settings=settings
+        QONTRACT_INTEGRATION, "", thread_pool_size, infra_accounts, settings=settings
     ) as ts:
-        ts.populate_additional_providers(participating_accounts)
+        rosa_cluster_accounts = [
+            account_by_name[c["spec"]["account"]["name"]]
+            for c in clusters
+            if c.get("spec") and c["spec"].get("account")
+        ]
+        ts.populate_configs(rosa_cluster_accounts)
+
+        for infra_account_name, items in participating_accounts.items():
+            ts.populate_additional_providers(infra_account_name, items)
         ts.populate_vpc_peerings(desired_state)
         working_dirs = ts.dump(print_to_file=print_to_file)
 
@@ -596,7 +639,7 @@ def run(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
         "",
-        accounts,
+        infra_accounts,
         working_dirs,
         thread_pool_size,
         awsapi,

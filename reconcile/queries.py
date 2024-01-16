@@ -1073,6 +1073,19 @@ CLUSTER_PEERING_QUERY = """
       region
       private
       hypershift
+      ... on ClusterSpecROSA_v1 {
+        account {
+          name
+          uid
+          terraformUsername
+          automationToken {
+            path
+            field
+            version
+            format
+          }
+        }
+      }
     }
     network {
       vpc
@@ -1147,6 +1160,19 @@ CLUSTER_PEERING_QUERY = """
               region
               private
               hypershift
+              ... on ClusterSpecROSA_v1 {
+                account {
+                  name
+                  uid
+                  terraformUsername
+                  automationToken {
+                    path
+                    field
+                    version
+                    format
+                  }
+                }
+              }
             }
             awsInfrastructureManagementAccounts {
               account {
@@ -1174,6 +1200,21 @@ CLUSTER_PEERING_QUERY = """
                   name
                   cluster {
                     name
+                    spec {
+                      ... on ClusterSpecROSA_v1 {
+                        account {
+                          name
+                          uid
+                          terraformUsername
+                          automationToken {
+                            path
+                            field
+                            version
+                            format
+                          }
+                        }
+                      }
+                    }
                   }
                   assumeRole
                   awsInfrastructureManagementAccount {

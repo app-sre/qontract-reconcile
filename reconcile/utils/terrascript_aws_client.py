@@ -872,7 +872,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def populate_additional_providers(self, infra_account_name: str, accounts):
         for account in accounts:
             account_name = account["name"]
-            assume_role = account["assume_role"]
+            assume_role = account.get("assume_role")
             region = account["assume_region"]
             alias = self.get_provider_alias(account)
             ts = self.tss[infra_account_name]
@@ -1006,13 +1006,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if item["deleted"]:
                 continue
 
+            infra_account_name = item["infra_account_name"]
+
             connection_provider = item["connection_provider"]
             connection_name = item["connection_name"]
             requester = item["requester"]
             accepter = item["accepter"]
 
             req_account = requester["account"]
-            req_account_name = req_account["name"]
             req_alias = self.get_provider_alias(req_account)
 
             acc_account = accepter["account"]
@@ -1028,7 +1029,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "vpc_id": requester["vpc_id"],
                 "peer_vpc_id": accepter["vpc_id"],
                 "peer_region": accepter["region"],
-                "peer_owner_id": req_account["uid"],
+                "peer_owner_id": acc_account["uid"],
                 "auto_accept": False,
                 "tags": {
                     "managed_by_integration": self.integration,
@@ -1040,7 +1041,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if req_peer_owner_id:
                 values["peer_owner_id"] = req_peer_owner_id
             tf_resource = aws_vpc_peering_connection(identifier, **values)
-            self.add_resource(req_account_name, tf_resource)
+            self.add_resource(infra_account_name, tf_resource)
 
             # add routes to existing route tables
             route_table_ids = requester.get("route_table_ids")
@@ -1056,7 +1057,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     }
                     route_identifier = f"{identifier}-{route_table_id}"
                     tf_resource = aws_route(route_identifier, **values)
-                    self.add_resource(req_account_name, tf_resource)
+                    self.add_resource(infra_account_name, tf_resource)
 
             # add security group rules for private hosted controlplane API VPC endpoint service
             if requester.get("api_security_group_id"):
@@ -1071,11 +1072,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     protocol="tcp",
                     description=f"HCP API access from peering connection {connection_name}",
                 )
-                self.add_resource(req_account_name, hcp_api_ingress_rule)
+                self.add_resource(infra_account_name, hcp_api_ingress_rule)
 
             if accepter.get("api_security_group_id"):
                 self.add_resource(
-                    acc_account_name,
+                    infra_account_name,
                     aws_security_group_rule(
                         f"api-access-from-peering-{connection_name}",
                         provider="aws." + acc_alias,
@@ -1107,7 +1108,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             else:
                 values["provider"] = "aws." + acc_alias
             tf_resource = aws_vpc_peering_connection_accepter(identifier, **values)
-            self.add_resource(acc_account_name, tf_resource)
+            self.add_resource(infra_account_name, tf_resource)
 
             # add routes to existing route tables
             route_table_ids = accepter.get("route_table_ids")
@@ -1127,7 +1128,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         values["provider"] = "aws." + acc_alias
                     route_identifier = f"{identifier}-{route_table_id}"
                     tf_resource = aws_route(route_identifier, **values)
-                    self.add_resource(acc_account_name, tf_resource)
+                    self.add_resource(infra_account_name, tf_resource)
 
     def populate_tgw_attachments(self, desired_state):
         for item in desired_state:
