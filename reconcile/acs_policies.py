@@ -7,7 +7,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.utils import gql
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
-from reconcile.utils.differ import diff_iterables, DiffPair
+from reconcile.utils.differ import diff_iterables
 
 from reconcile.utils.runtime.integration import (
     NoParams,
@@ -72,19 +72,19 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                 )
                 if c.policy_field == "cvss":
                     pc.values = [
-                        f"{POLICY_CONDITION_COMPARISONS[c.comparison]}{c.score}"
+                        f"{POLICY_CONDITION_COMPARISONS[c.comparison]}{c.score}" # type: ignore[union-attr]
                     ]
                 elif c.policy_field == "severity":
                     pc.values = [
-                        f"{POLICY_CONDITION_COMPARISONS[c.comparison]}{c.level.upper()}"
+                        f"{POLICY_CONDITION_COMPARISONS[c.comparison]}{c.level.upper()}" # type: ignore[union-attr]
                     ]
                 elif c.policy_field == "cve":
-                    pc.values = [str(c.fixable).lower()]
+                    pc.values = [str(c.fixable).lower()] # type: ignore[union-attr]
                 elif c.policy_field == "image_tag":
-                    pc.values = c.tags
+                    pc.values = c.tags # type: ignore[union-attr]
                     pc.negate = c.negate
                 elif c.policy_field == "image_age":
-                    pc.values = [str(c.days)]
+                    pc.values = [str(c.days)] # type: ignore[union-attr]
                 else:
                     logging.warning(
                         "unsupported policyField encountered: %s", c.policy_field
@@ -100,14 +100,14 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                     scope=sorted(
                         [
                             Scope(cluster=cs.name, namespace="")
-                            for cs in gql_policy.scope.clusters
+                            for cs in gql_policy.scope.clusters # type: ignore[union-attr]
                         ],
                         key=lambda s: s.cluster,
                     )
                     if gql_policy.scope.level == "cluster"
                     else [
                         Scope(cluster=ns.cluster.name, namespace=ns.name)
-                        for ns in gql_policy.scope.namespaces
+                        for ns in gql_policy.scope.namespaces # type: ignore[union-attr]
                     ],
                     categories=sorted([
                         POLICY_CATEGORIES[pc] for pc in gql_policy.categories
