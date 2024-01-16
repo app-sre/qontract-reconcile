@@ -372,7 +372,6 @@ def _fetch_desired_state_data_source(
     clusters = get_clusters_with_peering(gql.get_api())
     tgw_clusters = _filter_tgw_clusters(clusters, account_name)
     all_accounts = get_aws_accounts(gql.get_api())
-    # tgw_accounts = _filter_tgw_accounts(accounts, tgw_clusters)
     return DesiredStateDataSource(
         clusters=tgw_clusters,
         accounts=all_accounts,

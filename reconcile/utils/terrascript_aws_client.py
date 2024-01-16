@@ -862,13 +862,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return err
 
     @staticmethod
-    def get_provider_alias(
-        account_name: str, region: str, assume_role: Optional[str]
-    ) -> str:
-        if not assume_role:
-            return f"account-{account_name}-{region}"
-        uid = awsh.get_account_uid_from_arn(assume_role)
-        role_name = awsh.get_id_from_arn(assume_role)
+    def get_provider_alias(account: Mapping[str, str]) -> str:
+        if not account.get("assume_role"):
+            return f"account-{account['name']}-{account['assume_region']}"
+        uid = awsh.get_account_uid_from_arn(account["assume_role"])
+        role_name = awsh.get_id_from_arn(account["assume_role"])
         return f"account-{uid}-{role_name}"
 
     def populate_additional_providers(self, infra_account_name: str, accounts):
@@ -876,7 +874,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             account_name = account["name"]
             assume_role = account["assume_role"]
             region = account["assume_region"]
-            alias = self.get_provider_alias(account_name, region, assume_role)
+            alias = self.get_provider_alias(account)
             ts = self.tss[infra_account_name]
             config = self.configs[account_name]
             existing_provider_aliases = {p.get("alias") for p in ts["provider"]["aws"]}
@@ -1015,11 +1013,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             req_account = requester["account"]
             req_account_name = req_account["name"]
-            req_alias = self.get_provider_alias(req_account["assume_role"])
+            req_alias = self.get_provider_alias(req_account)
 
             acc_account = accepter["account"]
             acc_account_name = acc_account["name"]
-            acc_alias = self.get_provider_alias(acc_account["assume_role"])
+            acc_alias = self.get_provider_alias(acc_account)
 
             # Requester's side of the connection - the cluster's account
             identifier = f"{requester['vpc_id']}-{accepter['vpc_id']}"
@@ -1147,10 +1145,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             req_account_name = req_account.name
             # Accepter's side of the connection - the cluster's account
             acc_account = accepter.account
-            acc_account_name = acc_account.name
-            acc_alias = self.get_provider_alias(
-                acc_account_name, acc_account.assume_region, acc_account.assume_role
-            )
+            acc_alias = self.get_provider_alias(acc_account.dict(by_alias=True))
             acc_uid = acc_account.uid
             if acc_account.assume_role:
                 acc_uid = awsh.get_account_uid_from_arn(acc_account.assume_role)
