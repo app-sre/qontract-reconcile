@@ -1133,29 +1133,27 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def populate_tgw_attachments(self, desired_state):
         for item in desired_state:
-            if item["deleted"]:
+            if item.deleted:
                 continue
 
-            infra_account_name = item["infra_acount_name"]
+            infra_account_name = item.infra_acount_name
 
-            connection_name = item["connection_name"]
-            requester = item["requester"]
-            accepter = item["accepter"]
+            connection_name = item.connection_name
+            requester = item.requester
+            accepter = item.accepter
 
             # Requester's side of the connection - the AWS account
-            req_account = requester["account"]
-            req_account_name = req_account["name"]
+            req_account = requester.account
+            req_account_name = req_account.name
             # Accepter's side of the connection - the cluster's account
-            acc_account = accepter["account"]
-            acc_account_name = acc_account["name"]
+            acc_account = accepter.account
+            acc_account_name = acc_account.name
             acc_alias = self.get_provider_alias(
-                acc_account_name,
-                acc_account["assume_region"],
-                acc_account["assume_role"],
+                acc_account_name, acc_account.assume_region, acc_account.assume_role
             )
-            acc_uid = acc_account["uid"]
-            if acc_account["assume_role"]:
-                acc_uid = awsh.get_account_uid_from_arn(acc_account["assume_role"])
+            acc_uid = acc_account.uid
+            if acc_account.assume_role:
+                acc_uid = awsh.get_account_uid_from_arn(acc_account.assume_role)
 
             tags = {"managed_by_integration": self.integration, "Name": connection_name}
             # add resource share
@@ -1165,7 +1163,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "tags": tags,
             }
             if self._multiregion_account(req_account_name):
-                values["provider"] = "aws." + requester["region"]
+                values["provider"] = "aws." + requester.region
             tf_resource_share = aws_ram_resource_share(connection_name, **values)
             self.add_resource(infra_account_name, tf_resource_share)
 
@@ -1175,7 +1173,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "resource_share_arn": "${" + tf_resource_share.arn + "}",
             }
             if self._multiregion_account(req_account_name):
-                values["provider"] = "aws." + requester["region"]
+                values["provider"] = "aws." + requester.region
             tf_resource_association = aws_ram_principal_association(
                 connection_name, **values
             )
@@ -1200,25 +1198,25 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # specific for the TGW attachments integration
 
             # tgw share association
-            identifier = f"{requester['tgw_id']}-{accepter['vpc_id']}"
+            identifier = f"{requester.tgw_id}-{accepter.vpc_id}"
             values = {
-                "resource_arn": requester["tgw_arn"],
+                "resource_arn": requester.tgw_arn,
                 "resource_share_arn": "${" + tf_resource_share.arn + "}",
             }
             if self._multiregion_account(req_account_name):
-                values["provider"] = "aws." + requester["region"]
+                values["provider"] = "aws." + requester.region
             tf_resource_association = aws_ram_resource_association(identifier, **values)
             self.add_resource(infra_account_name, tf_resource_association)
 
             # now that the tgw is shared to the cluster's aws account
             # we can create a vpc attachment to the tgw
-            subnets_id_az = accepter["subnets_id_az"]
+            subnets_id_az = accepter.subnets_id_az
             subnets = self.get_az_unique_subnet_ids(subnets_id_az)
             values = {
                 "provider": "aws." + acc_alias,
                 "subnet_ids": subnets,
-                "transit_gateway_id": requester["tgw_id"],
-                "vpc_id": accepter["vpc_id"],
+                "transit_gateway_id": requester.tgw_id,
+                "vpc_id": accepter.vpc_id,
                 "depends_on": [
                     "aws_ram_principal_association." + connection_name,
                     "aws_ram_resource_association." + identifier,
@@ -1237,22 +1235,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "tags": tags,
             }
             if self._multiregion_account(req_account_name):
-                values["provider"] = "aws." + requester["region"]
+                values["provider"] = "aws." + requester.region
             tf_resource_attachment_accepter = (
                 aws_ec2_transit_gateway_vpc_attachment_accepter(identifier, **values)
             )
             self.add_resource(infra_account_name, tf_resource_attachment_accepter)
 
             # add routes to existing route tables
-            route_table_ids = accepter.get("route_table_ids")
-            req_cidr_block = requester.get("cidr_block")
+            route_table_ids = accepter.route_table_ids
+            req_cidr_block = requester.cidr_block
             if route_table_ids and req_cidr_block:
                 for route_table_id in route_table_ids:
                     values = {
                         "provider": "aws." + acc_alias,
                         "route_table_id": route_table_id,
                         "destination_cidr_block": req_cidr_block,
-                        "transit_gateway_id": requester["tgw_id"],
+                        "transit_gateway_id": requester.tgw_id,
                     }
                     route_identifier = f"{identifier}-{route_table_id}"
                     tf_resource = aws_route(route_identifier, **values)
@@ -1260,7 +1258,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             # add routes to peered transit gateways in the requester's
             # account to achieve global routing from all regions
-            requester_routes = requester.get("routes")
+            requester_routes = requester.routes
             if requester_routes:
                 for route in requester_routes:
                     route_region = route["region"]
@@ -1285,7 +1283,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             # add rules to security groups of VPCs which are attached
             # to the transit gateway to allow traffic through the routes
-            requester_rules = requester.get("rules")
+            requester_rules = requester.rules
             if requester_rules:
                 for rule in requester_rules:
                     rule_region = rule["region"]
@@ -1309,11 +1307,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     tf_resource = aws_security_group_rule(rule_identifier, **values)
                     self.add_resource(infra_account_name, tf_resource)
 
-            for zone in requester.get("hostedzones") or []:
+            for zone in requester.hostedzones or []:
                 id = f"{identifier}-{zone}"
                 values = {
-                    "vpc_id": accepter["vpc_id"],
-                    "vpc_region": accepter["region"],
+                    "vpc_id": accepter.vpc_id,
+                    "vpc_region": accepter.region,
                     "zone_id": zone,
                 }
                 authorization = aws_route53_vpc_association_authorization(id, **values)
@@ -1321,7 +1319,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 values = {
                     "provider": "aws." + acc_alias,
                     "vpc_id": f"${{aws_route53_vpc_association_authorization.{id}.vpc_id}}",
-                    "vpc_region": accepter["region"],
+                    "vpc_region": accepter.region,
                     "zone_id": f"${{aws_route53_vpc_association_authorization.{id}.zone_id}}",
                 }
                 association = aws_route53_zone_association(id, **values)

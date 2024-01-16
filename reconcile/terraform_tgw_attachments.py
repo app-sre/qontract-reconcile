@@ -311,7 +311,7 @@ def _populate_tgw_attachments_working_dirs(
         )
     for infra_account_name, accounts in accounts_by_infra_account_name.items():
         ts.populate_additional_providers(infra_account_name, accounts)
-    ts.populate_tgw_attachments([item.dict(by_alias=True) for item in desired_state])
+    ts.populate_tgw_attachments(desired_state)
     working_dirs = ts.dump(print_to_file=print_to_file)
     return working_dirs
 
