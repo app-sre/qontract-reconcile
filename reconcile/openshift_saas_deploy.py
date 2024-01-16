@@ -102,6 +102,10 @@ def slack_notify(
         message += f" triggered by _{trigger_integration}_"
     if in_progress and skip_successful_notifications:
         message += ". There will not be a notice for success."
+        # When a message is sent to #someChannel and the Slack API can't find
+        # it, the message it provides in the exception doesn't include the
+        # channel name. We handle that here in case the consumer has many such
+        # independent calls to Slack's API.
     try:
         slack.chat_post_message(message)
     except SlackApiError as e:
