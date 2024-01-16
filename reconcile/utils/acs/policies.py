@@ -80,16 +80,16 @@ class AcsPolicyApi(AcsBaseApi):
             if not p["isDefault"]
         }
 
-    def create_policy(self, to_add: Policy) -> None:
+    def create_or_update_policy(self, desired: Policy, id: str = "") -> None:
         body = {
-            "name": to_add.name,
-            "description": to_add.description,
-            "categories": to_add.categories,
-            "severity": to_add.severity,
+            "name": desired.name,
+            "description": desired.description,
+            "categories": desired.categories,
+            "severity": desired.severity,
             "isDefault": False,
             "disabled": False,
             "scope": [
-                {"cluster": s.cluster, "namespace": s.namespace} for s in to_add.scope
+                {"cluster": s.cluster, "namespace": s.namespace} for s in desired.scope
             ],
             "lifecycleStages": [
                 "BUILD"
@@ -103,43 +103,15 @@ class AcsPolicyApi(AcsBaseApi):
                             "negate": c.negate,
                             "values": [{"value": v} for v in c.values],
                         }
-                        for c in to_add.conditions
+                        for c in desired.conditions
                     ],
                 }
             ],
         }
-        self.generic_request("/v1/policies", "POST", body)
+        if id:
+            self.generic_request(f"/v1/policies/{id}", "PUT", body)
+        else:
+            self.generic_request("/v1/policies", "POST", body)
 
     def delete_policy(self, id: str) -> None:
         self.generic_request(f"/v1/policies/{id}", "DELETE")
-
-    def update_policy(self, id: str, to_update: Policy):
-        body = {
-            "name": to_update.name,
-            "description": to_update.description,
-            "categories": to_update.categories,
-            "severity": to_update.severity,
-            "isDefault": False,
-            "disabled": False,
-            "scope": [
-                {"cluster": s.cluster, "namespace": s.namespace}
-                for s in to_update.scope
-            ],
-            "lifecycleStages": [
-                "BUILD"
-            ],  # all currently supported policy criteria are classified as 'build' stage
-            "policySections": [
-                {
-                    "sectionName": "primary",
-                    "policyGroups": [
-                        {
-                            "fieldName": c.field_name,
-                            "negate": c.negate,
-                            "values": [{"value": v} for v in c.values],
-                        }
-                        for c in to_update.conditions
-                    ],
-                }
-            ],
-        }
-        self.generic_request(f"/v1/policies/{id}", "PUT", body)

@@ -121,12 +121,16 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                         key=lambda s: s.cluster,
                     )
                     if gql_policy.scope.level == "cluster"
-                    else [
-                        Scope(cluster=ns.cluster.name, namespace=ns.name)
-                        for ns in cast(
-                            gql_acs_policies.AcsPolicyScopeNamespaceV1, gql_policy.scope
-                        ).namespaces
-                    ],
+                    else sorted(
+                        [
+                            Scope(cluster=ns.cluster.name, namespace=ns.name)
+                            for ns in cast(
+                                gql_acs_policies.AcsPolicyScopeNamespaceV1,
+                                gql_policy.scope,
+                            ).namespaces
+                        ],
+                        key=lambda s: s.cluster,
+                    ),
                     categories=sorted([
                         POLICY_CATEGORIES[pc] for pc in gql_policy.categories
                     ]),
@@ -147,7 +151,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         for a in diff.add.values():
             if not dry_run:
                 try:
-                    acs.create_policy(a)
+                    acs.create_or_update_policy(desired=a)
                 except Exception as e:
                     errors.append(e)
             logging.info("Created policy: %s", a.name)
@@ -163,7 +167,9 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
             for c in diff.change.values():
                 if not dry_run:
                     try:
-                        acs.update_policy(policy_id_names[c.current.name], c.desired)
+                        acs.create_or_update_policy(
+                            desired=c.desired, id=policy_id_names[c.current.name]
+                        )
                     except Exception as e:
                         errors.append(e)
                 logging.info("Updated policy: %s", c.desired.name)
