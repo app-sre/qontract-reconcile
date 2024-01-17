@@ -24,6 +24,12 @@ query ClustersWithPeering {
 
     spec {
       region
+      ... on ClusterSpecROSA_v1 {
+        account {
+          name
+          uid
+        }
+      }
     }
     network {
       vpc

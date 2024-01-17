@@ -61,6 +61,7 @@ def test_c2c_all_clusters(mocker):
         {
             "connection_provider": "cluster-vpc-requester",
             "connection_name": "peername",
+            "infra_account_name": "acc",
             "requester": {
                 "cidr_block": "requester_vpc",
                 "region": "region",
@@ -226,6 +227,7 @@ def test_c2c_hcp(
         {
             "connection_provider": "cluster-vpc-requester",
             "connection_name": "peername",
+            "infra_account_name": "acc",
             "requester": {
                 "cidr_block": "requester_vpc",
                 "region": "region",
@@ -326,6 +328,7 @@ def test_c2c_base(mocker):
         {
             "connection_provider": "cluster-vpc-requester",
             "connection_name": "peername",
+            "infra_account_name": "acc",
             "requester": {
                 "cidr_block": "requester_vpc",
                 "region": "region",
@@ -798,6 +801,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
             {
                 "connection_provider": "account-vpc-mesh",
                 "connection_name": "peername_peer_account-vpc1",
+                "infra_account_name": self.peer_account["name"],
                 "requester": {
                     "vpc_id": "vpc_id",
                     "route_table_ids": ["route_table_id"],
@@ -818,6 +822,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
             {
                 "connection_provider": "account-vpc-mesh",
                 "connection_name": "peername_peer_account-vpc2",
+                "infra_account_name": self.peer_account["name"],
                 "requester": {
                     "vpc_id": "vpc_id",
                     "route_table_ids": ["route_table_id"],
@@ -870,6 +875,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
             {
                 "connection_provider": "account-vpc-mesh",
                 "connection_name": "peername_peer_account-vpc1",
+                "infra_account_name": self.peer_account["name"],
                 "requester": {
                     "vpc_id": "vpc_id",
                     "route_table_ids": ["route_table_id"],
@@ -890,6 +896,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
             {
                 "connection_provider": "account-vpc-mesh",
                 "connection_name": "peername_peer_account-vpc2",
+                "infra_account_name": self.peer_account["name"],
                 "requester": {
                     "vpc_id": "vpc_id",
                     "route_table_ids": ["route_table_id"],
@@ -1203,6 +1210,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
                 },
                 "connection_name": "peername",
                 "connection_provider": "account-vpc",
+                "infra_account_name": "accountname",
                 "deleted": False,
                 "requester": {
                     "account": {
@@ -1269,6 +1277,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
                 },
                 "connection_name": "peername",
                 "connection_provider": "account-vpc",
+                "infra_account_name": "accountname",
                 "deleted": False,
                 "requester": {
                     "account": {
