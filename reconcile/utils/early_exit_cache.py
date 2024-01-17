@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Optional, Self
+from typing import Any, Self
 
 from deepdiff import DeepHash
 from pydantic import BaseModel
@@ -46,7 +46,7 @@ class EarlyExitCache:
     @classmethod
     def build(
         cls,
-        secret_reader: Optional[SecretReaderBase] = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> Self:
         state = init_state(STATE_INTEGRATION, secret_reader)
         return cls(state)
