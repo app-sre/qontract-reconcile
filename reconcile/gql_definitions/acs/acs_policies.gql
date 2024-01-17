@@ -5,6 +5,7 @@ query AcsPolicy {
    	name
     description
     severity
+    notifiers
     categories
     scope {
       level

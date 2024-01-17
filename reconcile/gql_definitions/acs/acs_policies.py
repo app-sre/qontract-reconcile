@@ -24,6 +24,7 @@ query AcsPolicy {
    	name
     description
     severity
+    notifiers
     categories
     scope {
       level
@@ -129,6 +130,7 @@ class AcsPolicyV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     description: Optional[str] = Field(..., alias="description")
     severity: str = Field(..., alias="severity")
+    notifiers: Optional[list[str]] = Field(..., alias="notifiers")
     categories: list[str] = Field(..., alias="categories")
     scope: Union[AcsPolicyScopeClusterV1, AcsPolicyScopeNamespaceV1, AcsPolicyScopeV1] = Field(..., alias="scope")
     conditions: list[Union[AcsPolicyConditionsCvssV1, AcsPolicyConditionsSeverityV1, AcsPolicyConditionsImageTagV1, AcsPolicyConditionsCveV1, AcsPolicyConditionsImageAgeV1, AcsPolicyConditionsV1]] = Field(..., alias="conditions")

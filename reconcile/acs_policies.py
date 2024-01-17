@@ -53,14 +53,16 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
     def name(self) -> str:
         return self.qontract_integration.replace("_", "-")
 
-    def get_desired_state(self, query_func: Callable) -> list[Policy]:
+    def get_desired_state(
+        self, query_func: Callable, notifiers: list[AcsPolicyApi.NotifierIdentifiers]
+    ) -> list[Policy]:
         """
         Get desired ACS security policies and convert to acs api policy object format
 
         :param query_func: function which queries GQL server
         :return: list of utils.acs.policies.Policy derived from acs-policy-1 definitions
         """
-
+        notifier_name_to_id = {n.name: n.id for n in notifiers}
         policies = []
         for gql_policy in (
             gql_acs_policies.query(query_func=query_func).acs_policies or []
@@ -109,6 +111,11 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                 Policy(
                     name=gql_policy.name,
                     description=gql_policy.description,
+                    notifiers=sorted([
+                        notifier_name_to_id[n] for n in gql_policy.notifiers
+                    ])
+                    if gql_policy.notifiers
+                    else [],
                     severity=f"{gql_policy.severity.upper()}_SEVERITY",  # align with acs api severity value format
                     scope=sorted(
                         [
@@ -187,11 +194,11 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         token = secret_reader.read_all_secret(instance.credentials)
 
-        desired = self.get_desired_state(gqlapi.query)
-
         with AcsPolicyApi(
             instance={"url": instance.url, "token": token[instance.credentials.field]}
         ) as acs_api:
+            notifiers = acs_api.list_notifiers()
+            desired = self.get_desired_state(gqlapi.query, notifiers)
             current = acs_api.get_custom_policies()
             self.reconcile(
                 desired=desired, current=current, acs=acs_api, dry_run=dry_run

@@ -19,6 +19,7 @@ class PolicyCondition(BaseModel):
 class Policy(BaseModel):
     name: str
     description: str
+    notifiers: list[str]
     categories: list[str]
     severity: str
     scope: list[Scope]
@@ -56,6 +57,7 @@ class AcsPolicyApi(AcsBaseApi):
                 Policy(
                     name=cp["name"],
                     description=cp["description"],
+                    notifiers=sorted(cp["notifiers"]),
                     categories=sorted(cp["categories"]),
                     severity=cp["severity"],
                     scope=sorted(
@@ -86,6 +88,7 @@ class AcsPolicyApi(AcsBaseApi):
             "description": desired.description,
             "categories": desired.categories,
             "severity": desired.severity,
+            "notifiers": desired.notifiers,
             "isDefault": False,
             "disabled": False,
             "scope": [
@@ -115,3 +118,13 @@ class AcsPolicyApi(AcsBaseApi):
 
     def delete_policy(self, id: str) -> None:
         self.generic_request(f"/v1/policies/{id}", "DELETE")
+
+    class NotifierIdentifiers(BaseModel):
+        id: str
+        name: str
+
+    def list_notifiers(self) -> list[NotifierIdentifiers]:
+        return [
+            self.NotifierIdentifiers(id=c["id"], name=c["name"])
+            for c in self.generic_request("/v1/notifiers", "GET").json()["notifiers"]
+        ]
