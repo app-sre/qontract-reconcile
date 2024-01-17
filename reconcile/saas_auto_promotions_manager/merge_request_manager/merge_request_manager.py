@@ -12,7 +12,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request 
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     CHANNELS_REF,
-    CONTENT_HASH,
+    CONTENT_HASHES,
     PROMOTION_DATA_SEPARATOR,
     SAPM_LABEL,
     SAPM_VERSION,
@@ -51,7 +51,7 @@ class MergeRequestManager:
         self._vcs = vcs
         self._renderer = renderer
         self._version_ref_regex = re.compile(rf"{VERSION_REF}: (.*)$", re.MULTILINE)
-        self._content_hash_regex = re.compile(rf"{CONTENT_HASH}: (.*)$", re.MULTILINE)
+        self._content_hash_regex = re.compile(rf"{CONTENT_HASHES}: (.*)$", re.MULTILINE)
         self._channels_regex = re.compile(rf"{CHANNELS_REF}: (.*)$", re.MULTILINE)
         self._open_mrs: list[OpenMergeRequest] = []
         self._open_mrs_with_problems: list[OpenMergeRequest] = []
@@ -140,11 +140,11 @@ class MergeRequestManager:
             if not content_hash:
                 logging.info(
                     "Bad %s format. Closing %s",
-                    CONTENT_HASH,
+                    CONTENT_HASHES,
                     mr.attributes.get("web_url", "NO_WEBURL"),
                 )
                 self._vcs.close_app_interface_mr(
-                    mr, f"Closing this MR because of bad {CONTENT_HASH} format."
+                    mr, f"Closing this MR because of bad {CONTENT_HASHES} format."
                 )
                 continue
 
@@ -196,7 +196,7 @@ class MergeRequestManager:
         return any(
             True
             for mr in self._open_mrs
-            if mr.content_hash == content_hash and mr.channels == channels
+            if content_hash in mr.content_hash and channels in mr.channels
         )
 
     def create_promotion_merge_requests(
@@ -221,9 +221,9 @@ class MergeRequestManager:
                 )
                 continue
             for mr in self._open_mrs:
-                if mr.channels != channel_combo:
+                if channel_combo not in mr.channels:
                     continue
-                if mr.content_hash != combined_content_hash:
+                if combined_content_hash not in mr.content_hash:
                     logging.info(
                         "Closing MR %s because it has out-dated content",
                         mr.raw.attributes.get("web_url", "NO_WEBURL"),
