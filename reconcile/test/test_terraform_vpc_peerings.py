@@ -205,13 +205,15 @@ def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite(mocker):
         .register("a_c", "acc_overwrite", "terraform", "arn:a_acc_overwrite")
         .register("a_c", "acc", "terraform", "arn:a_acc")
     )
-    req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
+    infra_acc_name, req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
         requester_connection,
         requester_cluster,
         accepter_connection,
         accepter_cluster,
         ocm,
     )
+
+    assert infra_acc_name == "acc_overwrite"
 
     expected_req_aws = {
         "name": "acc_overwrite",
@@ -285,13 +287,15 @@ def test_c2c_vpc_peering_assume_role_accepter_cluster_account(mocker):
         .register("a_c", "default_acc", "terraform", "arn:a_default_acc")
         .register("a_c", "other_acc", "terraform", "arn:a_other_acc")
     )
-    req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
+    infra_acc_name, req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
         requester_connection,
         requester_cluster,
         accepter_connection,
         accepter_cluster,
         ocm,
     )
+
+    assert infra_acc_name == "default_acc"
 
     expected_req_aws = {
         "name": "default_acc",
@@ -432,6 +436,9 @@ class TestRun(testslide.TestCase):
         self.mock_callable(self.terrascript, "populate_vpc_peerings").to_return_value(
             None
         ).and_assert_called_once()
+        self.mock_callable(self.terrascript, "populate_configs").to_return_value(
+            None
+        ).and_assert_called_once()
         self.mock_callable(self.terrascript, "dump").to_return_value({
             "some_account": "/some/dir"
         }).and_assert_called_once()
@@ -444,6 +451,7 @@ class TestRun(testslide.TestCase):
             [
                 {
                     "connection_name": "desired_vpc_conn",
+                    "infra_account_name": "desired_account",
                     "requester": {"account": {"name": "desired_account"}},
                     "accepter": {"account": {"name": "desired_account"}},
                 },
@@ -454,6 +462,7 @@ class TestRun(testslide.TestCase):
             [
                 {
                     "connection_name": "all_clusters_vpc_conn",
+                    "infra_account_name": "desired_account",
                     "requester": {"account": {"name": "all_clusters_account"}},
                     "accepter": {
                         "account": {
@@ -468,6 +477,7 @@ class TestRun(testslide.TestCase):
             [
                 {
                     "connection_name": "mesh_vpc_conn",
+                    "infra_account_name": "desired_account",
                     "requester": {
                         "account": {"name": "mesh_account"},
                     },
@@ -479,14 +489,15 @@ class TestRun(testslide.TestCase):
             error_code,
         ))
 
-        self.mock_callable(self.terrascript, "populate_additional_providers").for_call([
-            {"name": "desired_account"},
-            {"name": "mesh_account"},
-            {"name": "all_clusters_account"},
-            {"name": "desired_account"},
-            {"name": "mesh_account"},
-            {"name": "all_clusters_account"},
-        ]).to_return_value(None).and_assert_called_once()
+        self.mock_callable(self.terrascript, "populate_additional_providers").for_call(
+            "desired_account",
+            [
+                {"name": "mesh_account"},
+                {"name": "all_clusters_account"},
+                {"name": "mesh_account"},
+                {"name": "all_clusters_account"},
+            ],
+        ).to_return_value(None).and_assert_called_once()
 
     def test_all_fine(self):
         self.initialize_desired_states(False)

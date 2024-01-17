@@ -29,6 +29,7 @@ from reconcile.gql_definitions.common.clusters_with_peering import (
 from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
     AWSAccountV1,
 )
+from reconcile.terraform_tgw_attachments import Accepter, DesiredStateItem, Requester
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.runtime.integration import ShardedRunProposal
 from reconcile.utils.secret_reader import SecretReaderBase
@@ -440,6 +441,19 @@ def app_interface_vault_settings(
 
 
 def build_expected_tgw_account(
+    connection: ClusterPeeringConnectionAccountTGWV1,
+    tgw: Mapping,
+) -> dict:
+    return {
+        "name": connection.account.name,
+        "uid": connection.account.uid,
+        "assume_role": None,
+        "assume_region": tgw["region"],
+        "assume_cidr": connection.cidr_block,
+    }
+
+
+def build_expected_cluster_account(
     cluster: ClusterV1,
     connection: ClusterPeeringConnectionAccountTGWV1,
     assume_role: str,
@@ -459,30 +473,32 @@ def build_expected_desired_state_item(
     tgw: Mapping,
     vpc_details: Mapping,
     expected_tgw_account: Mapping,
-) -> dict:
-    return {
-        "connection_provider": "account-tgw",
-        "connection_name": f"{connection.name}_{expected_tgw_account['name']}-{tgw['tgw_id']}",
-        "requester": {
-            "tgw_id": tgw["tgw_id"],
-            "tgw_arn": tgw["tgw_arn"],
-            "region": tgw["region"],
-            "routes": tgw["routes"],
-            "rules": tgw["rules"],
-            "hostedzones": tgw["hostedzones"],
-            "cidr_block": connection.cidr_block,
-            "account": expected_tgw_account,
-        },
-        "accepter": {
-            "vpc_id": vpc_details["vpc_id"],
-            "region": cluster.spec.region if cluster.spec is not None else "",
-            "cidr_block": cluster.network.vpc if cluster.network is not None else "",
-            "route_table_ids": vpc_details["route_table_ids"],
-            "subnets_id_az": vpc_details["subnets_id_az"],
-            "account": expected_tgw_account,
-        },
-        "deleted": connection.delete,
-    }
+    expected_cluster_account: Mapping,
+) -> DesiredStateItem:
+    return DesiredStateItem(
+        connection_provider="account-tgw",
+        connection_name=f"{connection.name}_{expected_tgw_account['name']}-{tgw['tgw_id']}",
+        infra_acount_name=expected_tgw_account["name"],
+        requester=Requester(
+            tgw_id=tgw["tgw_id"],
+            tgw_arn=tgw["tgw_arn"],
+            region=tgw["region"],
+            routes=tgw["routes"],
+            rules=tgw["rules"],
+            hostedzones=tgw["hostedzones"],
+            cidr_block=connection.cidr_block,
+            account=expected_tgw_account,
+        ),
+        accepter=Accepter(
+            vpc_id=vpc_details["vpc_id"],
+            region=cluster.spec.region if cluster.spec is not None else "",
+            cidr_block=cluster.network.vpc if cluster.network is not None else "",
+            route_table_ids=vpc_details["route_table_ids"],
+            subnets_id_az=vpc_details["subnets_id_az"],
+            account=expected_cluster_account,
+        ),
+        deleted=connection.delete,
+    )
 
 
 def _setup_mocks(
@@ -580,7 +596,7 @@ def test_empty_run(
         "No participating AWS accounts found, consider disabling this integration, account name: None"
     )
     mocks["get_clusters_with_peering"].assert_called_once_with(mocks["gql_api"])
-    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"], name=None)
+    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"])
     mocks["get_app_interface_vault_settings"].assert_not_called()
     mocks["tf"].plan.assert_not_called()
     mocks["tf"].apply.assert_not_called()
@@ -609,7 +625,7 @@ def test_dry_run(
 
     mocks["get_app_interface_vault_settings"].assert_called_once_with()
     mocks["get_clusters_with_peering"].assert_called_once_with(mocks["gql_api"])
-    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"], name=None)
+    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"])
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_not_called()
 
@@ -637,7 +653,7 @@ def test_non_dry_run(
 
     mocks["get_app_interface_vault_settings"].assert_called_once_with()
     mocks["get_clusters_with_peering"].assert_called_once_with(mocks["gql_api"])
-    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"], name=None)
+    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"])
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_called_once()
 
@@ -665,6 +681,10 @@ def test_run_when_cluster_with_tgw_connection(
     integ.run(True)
 
     expected_tgw_account = build_expected_tgw_account(
+        connection=account_tgw_connection,
+        tgw=tgw,
+    )
+    expected_cluster_account = build_expected_cluster_account(
         cluster=cluster_with_tgw_connection,
         connection=account_tgw_connection,
         assume_role=assume_role,
@@ -675,6 +695,7 @@ def test_run_when_cluster_with_tgw_connection(
         tgw=tgw,
         vpc_details=vpc_details,
         expected_tgw_account=expected_tgw_account,
+        expected_cluster_account=expected_cluster_account,
     )
 
     mocks["aws_api"].assert_called_once_with(
@@ -688,9 +709,9 @@ def test_run_when_cluster_with_tgw_connection(
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
-    mocks["ts"].populate_additional_providers.assert_called_once_with([
-        expected_tgw_account
-    ])
+    mocks["ts"].populate_additional_providers.assert_called_once_with(
+        tgw_account.name, [expected_cluster_account]
+    )
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([
         expected_desired_state_item
     ])
@@ -720,6 +741,10 @@ def test_run_when_cluster_with_mixed_connections(
     integ.run(True)
 
     expected_tgw_account = build_expected_tgw_account(
+        connection=account_tgw_connection,
+        tgw=tgw,
+    )
+    expected_cluster_account = build_expected_cluster_account(
         cluster=cluster_with_mixed_connections,
         connection=account_tgw_connection,
         assume_role=assume_role,
@@ -730,11 +755,12 @@ def test_run_when_cluster_with_mixed_connections(
         tgw=tgw,
         vpc_details=vpc_details,
         expected_tgw_account=expected_tgw_account,
+        expected_cluster_account=expected_cluster_account,
     )
 
     mocks["aws_api"].assert_called_once_with(
         1,
-        [tgw_account.dict(by_alias=True)],
+        [tgw_account.dict(by_alias=True), vpc_account.dict(by_alias=True)],
         secret_reader=mocks["secret_reader"],
         init_users=False,
     )
@@ -743,9 +769,9 @@ def test_run_when_cluster_with_mixed_connections(
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
-    mocks["ts"].populate_additional_providers.assert_called_once_with([
-        expected_tgw_account
-    ])
+    mocks["ts"].populate_additional_providers.assert_called_once_with(
+        tgw_account.name, [expected_cluster_account]
+    )
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([
         expected_desired_state_item
     ])
@@ -800,6 +826,10 @@ def test_run_with_multiple_clusters(
     integ.run(True)
 
     expected_tgw_account = build_expected_tgw_account(
+        connection=account_tgw_connection,
+        tgw=tgw,
+    )
+    expected_cluster_account = build_expected_cluster_account(
         cluster=cluster_with_tgw_connection,
         connection=account_tgw_connection,
         assume_role=assume_role,
@@ -810,11 +840,12 @@ def test_run_with_multiple_clusters(
         tgw=tgw,
         vpc_details=vpc_details,
         expected_tgw_account=expected_tgw_account,
+        expected_cluster_account=expected_cluster_account,
     )
 
     mocks["aws_api"].assert_called_once_with(
         1,
-        [tgw_account.dict(by_alias=True)],
+        [tgw_account.dict(by_alias=True), vpc_account.dict(by_alias=True)],
         secret_reader=mocks["secret_reader"],
         init_users=False,
     )
@@ -823,9 +854,9 @@ def test_run_with_multiple_clusters(
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
-    mocks["ts"].populate_additional_providers.assert_called_once_with([
-        expected_tgw_account
-    ])
+    mocks["ts"].populate_additional_providers.assert_called_once_with(
+        tgw_account.name, [expected_cluster_account]
+    )
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([
         expected_desired_state_item
     ])
@@ -855,6 +886,10 @@ def test_run_with_account_name_for_multiple_clusters(
     integ.run(True, account_name=tgw_account.name)
 
     expected_tgw_account = build_expected_tgw_account(
+        connection=account_tgw_connection,
+        tgw=tgw,
+    )
+    expected_cluster_account = build_expected_cluster_account(
         cluster=cluster_with_tgw_connection,
         connection=account_tgw_connection,
         assume_role=assume_role,
@@ -865,11 +900,10 @@ def test_run_with_account_name_for_multiple_clusters(
         tgw=tgw,
         vpc_details=vpc_details,
         expected_tgw_account=expected_tgw_account,
+        expected_cluster_account=expected_cluster_account,
     )
 
-    mocks["get_aws_accounts"].assert_called_once_with(
-        mocks["gql_api"], name=tgw_account.name
-    )
+    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"])
     mocks["aws_api"].assert_called_once_with(
         1,
         [tgw_account.dict(by_alias=True)],
@@ -881,9 +915,9 @@ def test_run_with_account_name_for_multiple_clusters(
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
-    mocks["ts"].populate_additional_providers.assert_called_once_with([
-        expected_tgw_account
-    ])
+    mocks["ts"].populate_additional_providers.assert_called_once_with(
+        tgw_account.name, [expected_cluster_account]
+    )
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([
         expected_desired_state_item
     ])
@@ -912,6 +946,10 @@ def test_run_with_account_name_for_multiple_connections(
     integ.run(True, account_name=tgw_account.name)
 
     expected_tgw_account = build_expected_tgw_account(
+        connection=account_tgw_connection,
+        tgw=tgw,
+    )
+    expected_cluster_account = build_expected_cluster_account(
         cluster=cluster_with_2_tgw_connections,
         connection=account_tgw_connection,
         assume_role=assume_role,
@@ -922,11 +960,10 @@ def test_run_with_account_name_for_multiple_connections(
         tgw=tgw,
         vpc_details=vpc_details,
         expected_tgw_account=expected_tgw_account,
+        expected_cluster_account=expected_cluster_account,
     )
 
-    mocks["get_aws_accounts"].assert_called_once_with(
-        mocks["gql_api"], name=tgw_account.name
-    )
+    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"])
     mocks["aws_api"].assert_called_once_with(
         1,
         [tgw_account.dict(by_alias=True)],
@@ -938,9 +975,9 @@ def test_run_with_account_name_for_multiple_connections(
         integration=QONTRACT_INTEGRATION,
         settings=app_interface_vault_settings.dict(by_alias=True),
     )
-    mocks["ts"].populate_additional_providers.assert_called_once_with([
-        expected_tgw_account
-    ])
+    mocks["ts"].populate_additional_providers.assert_called_once_with(
+        tgw_account.name, [expected_cluster_account]
+    )
     mocks["ts"].populate_tgw_attachments.assert_called_once_with([
         expected_desired_state_item
     ])
@@ -1096,7 +1133,7 @@ def test_early_exit_desired_state(
 
     expected_early_exit_desired_state = {
         "clusters": [cluster_with_tgw_connection.dict(by_alias=True)],
-        "accounts": [tgw_account.dict(by_alias=True)],
+        "accounts": [tgw_account.dict(by_alias=True), vpc_account.dict(by_alias=True)],
     }
 
     assert desired_state == expected_early_exit_desired_state

@@ -795,17 +795,20 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self.auth_tokens = auth_tokens
 
     @staticmethod
-    def _get_account_assume_data(account: awsh.Account) -> tuple[str, str, str]:
+    def _get_account_assume_data(
+        account: awsh.Account,
+    ) -> tuple[str, Optional[str], str]:
         """
         returns mandatory data to be able to assume a role with this account:
         (account_name, assume_role, assume_region)
+        assume_role may be None for ROSA (CCS) clusters where we own the account
         """
-        required_keys = ["name", "assume_role", "assume_region"]
+        required_keys = ["name", "assume_region"]
         ok = all(elem in account.keys() for elem in required_keys)
         if not ok:
             account_name = account.get("name")
             raise KeyError("[{}] account is missing required keys".format(account_name))
-        return (account["name"], account["assume_role"], account["assume_region"])
+        return (account["name"], account.get("assume_role"), account["assume_region"])
 
     @staticmethod
     # pylint: disable=method-hidden
@@ -842,7 +845,11 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return assumed_session
 
     def _get_assumed_role_client(
-        self, account_name: str, assume_role: str, assume_region: str, client_type="ec2"
+        self,
+        account_name: str,
+        assume_role: Optional[str],
+        assume_region: str,
+        client_type="ec2",
     ) -> EC2Client:
         session = self.get_session(account_name)
         if not assume_role:

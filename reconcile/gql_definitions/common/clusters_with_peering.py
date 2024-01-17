@@ -99,6 +99,12 @@ query ClustersWithPeering {
 
     spec {
       region
+      ... on ClusterSpecROSA_v1 {
+        account {
+          name
+          uid
+        }
+      }
     }
     network {
       vpc
@@ -207,6 +213,15 @@ class ClusterSpecV1(ConfiguredBaseModel):
     region: str = Field(..., alias="region")
 
 
+class AWSAccountV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    uid: str = Field(..., alias="uid")
+
+
+class ClusterSpecROSAV1(ClusterSpecV1):
+    account: Optional[AWSAccountV1] = Field(..., alias="account")
+
+
 class ClusterNetworkV1(ConfiguredBaseModel):
     vpc: str = Field(..., alias="vpc")
 
@@ -224,7 +239,7 @@ class ClusterPeeringConnectionAccountV1(ClusterPeeringConnectionV1):
     manage_account_routes: Optional[bool] = Field(..., alias="manageAccountRoutes")
 
 
-class AWSAccountV1(ConfiguredBaseModel):
+class ClusterPeeringConnectionAccountVPCMeshV1_AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
     terraform_username: Optional[str] = Field(..., alias="terraformUsername")
@@ -232,7 +247,7 @@ class AWSAccountV1(ConfiguredBaseModel):
 
 
 class ClusterPeeringConnectionAccountVPCMeshV1(ClusterPeeringConnectionV1):
-    account: AWSAccountV1 = Field(..., alias="account")
+    account: ClusterPeeringConnectionAccountVPCMeshV1_AWSAccountV1 = Field(..., alias="account")
     tags: Optional[Json] = Field(..., alias="tags")
 
 
@@ -312,7 +327,7 @@ class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
     aws_infrastructure_management_accounts: Optional[list[AWSInfrastructureManagementAccount]] = Field(..., alias="awsInfrastructureManagementAccounts")
-    spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
+    spec: Optional[Union[ClusterSpecROSAV1, ClusterSpecV1]] = Field(..., alias="spec")
     network: Optional[ClusterNetworkV1] = Field(..., alias="network")
     peering: Optional[ClusterPeeringV1] = Field(..., alias="peering")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")

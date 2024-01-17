@@ -369,6 +369,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
         self.secret_reader = SecretReader(settings=settings)
+        self.configs: dict[str, dict] = {}
         self.populate_configs(filtered_accounts)
         self.versions = {a["name"]: a["providerVersion"] for a in filtered_accounts}
         tss = {}
@@ -627,7 +628,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.thread_pool_size,
             secret_reader=self.secret_reader,
         )
-        self.configs: dict[str, dict] = {}
         for account_name, config in results:
             account = awsh.get_account(accounts, account_name)
             config["supportedDeploymentRegions"] = account["supportedDeploymentRegions"]
@@ -862,30 +862,44 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return err
 
     @staticmethod
-    def get_alias_name_from_assume_role(assume_role):
-        uid = awsh.get_account_uid_from_arn(assume_role)
-        role_name = awsh.get_id_from_arn(assume_role)
+    def get_provider_alias(account: Mapping[str, str]) -> str:
+        if not account.get("assume_role"):
+            return f"account-{account['name']}-{account['assume_region']}"
+        uid = awsh.get_account_uid_from_arn(account["assume_role"])
+        role_name = awsh.get_id_from_arn(account["assume_role"])
         return f"account-{uid}-{role_name}"
 
-    def populate_additional_providers(self, accounts):
+    def populate_additional_providers(self, infra_account_name: str, accounts):
         for account in accounts:
             account_name = account["name"]
-            assume_role = account["assume_role"]
-            alias = self.get_alias_name_from_assume_role(assume_role)
-            ts = self.tss[account_name]
+            assume_role = account.get("assume_role")
+            region = account["assume_region"]
+            alias = self.get_provider_alias(account)
+            ts = self.tss[infra_account_name]
             config = self.configs[account_name]
             existing_provider_aliases = {p.get("alias") for p in ts["provider"]["aws"]}
             if alias not in existing_provider_aliases:
-                ts += provider.aws(
-                    access_key=config["aws_access_key_id"],
-                    secret_key=config["aws_secret_access_key"],
-                    version=self.versions.get(account_name),
-                    region=account["assume_region"],
-                    alias=alias,
-                    assume_role={"role_arn": assume_role},
-                    skip_region_validation=True,
-                    default_tags=DEFAULT_TAGS,
-                )
+                if assume_role:
+                    ts += provider.aws(
+                        access_key=config["aws_access_key_id"],
+                        secret_key=config["aws_secret_access_key"],
+                        version=self.versions.get(infra_account_name),
+                        region=region,
+                        alias=alias,
+                        assume_role={"role_arn": assume_role},
+                        skip_region_validation=True,
+                        default_tags=DEFAULT_TAGS,
+                    )
+                else:
+                    ts += provider.aws(
+                        access_key=config["aws_access_key_id"],
+                        secret_key=config["aws_secret_access_key"],
+                        version=self.versions.get(infra_account_name),
+                        region=region,
+                        alias=alias,
+                        skip_region_validation=True,
+                        default_tags=DEFAULT_TAGS,
+                    )
 
     def populate_route53(
         self, desired_state: Iterable[dict[str, Any]], default_ttl: int = 300
@@ -992,18 +1006,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if item["deleted"]:
                 continue
 
+            infra_account_name = item["infra_account_name"]
+
             connection_provider = item["connection_provider"]
             connection_name = item["connection_name"]
             requester = item["requester"]
             accepter = item["accepter"]
 
             req_account = requester["account"]
-            req_account_name = req_account["name"]
-            req_alias = self.get_alias_name_from_assume_role(req_account["assume_role"])
+            req_alias = self.get_provider_alias(req_account)
 
             acc_account = accepter["account"]
             acc_account_name = acc_account["name"]
-            acc_alias = self.get_alias_name_from_assume_role(acc_account["assume_role"])
+            acc_alias = self.get_provider_alias(acc_account)
 
             # Requester's side of the connection - the cluster's account
             identifier = f"{requester['vpc_id']}-{accepter['vpc_id']}"
@@ -1014,7 +1029,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "vpc_id": requester["vpc_id"],
                 "peer_vpc_id": accepter["vpc_id"],
                 "peer_region": accepter["region"],
-                "peer_owner_id": req_account["uid"],
+                "peer_owner_id": acc_account["uid"],
                 "auto_accept": False,
                 "tags": {
                     "managed_by_integration": self.integration,
@@ -1026,7 +1041,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if req_peer_owner_id:
                 values["peer_owner_id"] = req_peer_owner_id
             tf_resource = aws_vpc_peering_connection(identifier, **values)
-            self.add_resource(req_account_name, tf_resource)
+            self.add_resource(infra_account_name, tf_resource)
 
             # add routes to existing route tables
             route_table_ids = requester.get("route_table_ids")
@@ -1042,7 +1057,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     }
                     route_identifier = f"{identifier}-{route_table_id}"
                     tf_resource = aws_route(route_identifier, **values)
-                    self.add_resource(req_account_name, tf_resource)
+                    self.add_resource(infra_account_name, tf_resource)
 
             # add security group rules for private hosted controlplane API VPC endpoint service
             if requester.get("api_security_group_id"):
@@ -1057,11 +1072,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     protocol="tcp",
                     description=f"HCP API access from peering connection {connection_name}",
                 )
-                self.add_resource(req_account_name, hcp_api_ingress_rule)
+                self.add_resource(infra_account_name, hcp_api_ingress_rule)
 
             if accepter.get("api_security_group_id"):
                 self.add_resource(
-                    acc_account_name,
+                    infra_account_name,
                     aws_security_group_rule(
                         f"api-access-from-peering-{connection_name}",
                         provider="aws." + acc_alias,
@@ -1093,7 +1108,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             else:
                 values["provider"] = "aws." + acc_alias
             tf_resource = aws_vpc_peering_connection_accepter(identifier, **values)
-            self.add_resource(acc_account_name, tf_resource)
+            self.add_resource(infra_account_name, tf_resource)
 
             # add routes to existing route tables
             route_table_ids = accepter.get("route_table_ids")
@@ -1113,25 +1128,28 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         values["provider"] = "aws." + acc_alias
                     route_identifier = f"{identifier}-{route_table_id}"
                     tf_resource = aws_route(route_identifier, **values)
-                    self.add_resource(acc_account_name, tf_resource)
+                    self.add_resource(infra_account_name, tf_resource)
 
     def populate_tgw_attachments(self, desired_state):
         for item in desired_state:
-            if item["deleted"]:
+            if item.deleted:
                 continue
 
-            connection_name = item["connection_name"]
-            requester = item["requester"]
-            accepter = item["accepter"]
+            infra_account_name = item.infra_acount_name
+
+            connection_name = item.connection_name
+            requester = item.requester
+            accepter = item.accepter
 
             # Requester's side of the connection - the AWS account
-            req_account = requester["account"]
-            req_account_name = req_account["name"]
+            req_account = requester.account
+            req_account_name = req_account.name
             # Accepter's side of the connection - the cluster's account
-            acc_account = accepter["account"]
-            acc_account_name = acc_account["name"]
-            acc_alias = self.get_alias_name_from_assume_role(acc_account["assume_role"])
-            acc_uid = awsh.get_account_uid_from_arn(acc_account["assume_role"])
+            acc_account = accepter.account
+            acc_alias = self.get_provider_alias(acc_account.dict(by_alias=True))
+            acc_uid = acc_account.uid
+            if acc_account.assume_role:
+                acc_uid = awsh.get_account_uid_from_arn(acc_account.assume_role)
 
             tags = {"managed_by_integration": self.integration, "Name": connection_name}
             # add resource share
@@ -1141,9 +1159,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "tags": tags,
             }
             if self._multiregion_account(req_account_name):
-                values["provider"] = "aws." + requester["region"]
+                values["provider"] = "aws." + requester.region
             tf_resource_share = aws_ram_resource_share(connection_name, **values)
-            self.add_resource(req_account_name, tf_resource_share)
+            self.add_resource(infra_account_name, tf_resource_share)
 
             # share with accepter aws account
             values = {
@@ -1151,11 +1169,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "resource_share_arn": "${" + tf_resource_share.arn + "}",
             }
             if self._multiregion_account(req_account_name):
-                values["provider"] = "aws." + requester["region"]
+                values["provider"] = "aws." + requester.region
             tf_resource_association = aws_ram_principal_association(
                 connection_name, **values
             )
-            self.add_resource(req_account_name, tf_resource_association)
+            self.add_resource(infra_account_name, tf_resource_association)
 
             # accept resource share from accepter aws account
             values = {
@@ -1169,32 +1187,32 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tf_resource_share_accepter = aws_ram_resource_share_accepter(
                 connection_name, **values
             )
-            self.add_resource(acc_account_name, tf_resource_share_accepter)
+            self.add_resource(infra_account_name, tf_resource_share_accepter)
 
             # until now it was standard sharing
             # from this line onwards we will be adding content
             # specific for the TGW attachments integration
 
             # tgw share association
-            identifier = f"{requester['tgw_id']}-{accepter['vpc_id']}"
+            identifier = f"{requester.tgw_id}-{accepter.vpc_id}"
             values = {
-                "resource_arn": requester["tgw_arn"],
+                "resource_arn": requester.tgw_arn,
                 "resource_share_arn": "${" + tf_resource_share.arn + "}",
             }
             if self._multiregion_account(req_account_name):
-                values["provider"] = "aws." + requester["region"]
+                values["provider"] = "aws." + requester.region
             tf_resource_association = aws_ram_resource_association(identifier, **values)
-            self.add_resource(req_account_name, tf_resource_association)
+            self.add_resource(infra_account_name, tf_resource_association)
 
             # now that the tgw is shared to the cluster's aws account
             # we can create a vpc attachment to the tgw
-            subnets_id_az = accepter["subnets_id_az"]
+            subnets_id_az = accepter.subnets_id_az
             subnets = self.get_az_unique_subnet_ids(subnets_id_az)
             values = {
                 "provider": "aws." + acc_alias,
                 "subnet_ids": subnets,
-                "transit_gateway_id": requester["tgw_id"],
-                "vpc_id": accepter["vpc_id"],
+                "transit_gateway_id": requester.tgw_id,
+                "vpc_id": accepter.vpc_id,
                 "depends_on": [
                     "aws_ram_principal_association." + connection_name,
                     "aws_ram_resource_association." + identifier,
@@ -1205,7 +1223,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 identifier, **values
             )
             # we send the attachment from the cluster's aws account
-            self.add_resource(acc_account_name, tf_resource_attachment)
+            self.add_resource(infra_account_name, tf_resource_attachment)
 
             # and accept the attachment in the non cluster's aws account
             values = {
@@ -1213,30 +1231,30 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "tags": tags,
             }
             if self._multiregion_account(req_account_name):
-                values["provider"] = "aws." + requester["region"]
+                values["provider"] = "aws." + requester.region
             tf_resource_attachment_accepter = (
                 aws_ec2_transit_gateway_vpc_attachment_accepter(identifier, **values)
             )
-            self.add_resource(req_account_name, tf_resource_attachment_accepter)
+            self.add_resource(infra_account_name, tf_resource_attachment_accepter)
 
             # add routes to existing route tables
-            route_table_ids = accepter.get("route_table_ids")
-            req_cidr_block = requester.get("cidr_block")
+            route_table_ids = accepter.route_table_ids
+            req_cidr_block = requester.cidr_block
             if route_table_ids and req_cidr_block:
                 for route_table_id in route_table_ids:
                     values = {
                         "provider": "aws." + acc_alias,
                         "route_table_id": route_table_id,
                         "destination_cidr_block": req_cidr_block,
-                        "transit_gateway_id": requester["tgw_id"],
+                        "transit_gateway_id": requester.tgw_id,
                     }
                     route_identifier = f"{identifier}-{route_table_id}"
                     tf_resource = aws_route(route_identifier, **values)
-                    self.add_resource(acc_account_name, tf_resource)
+                    self.add_resource(infra_account_name, tf_resource)
 
             # add routes to peered transit gateways in the requester's
             # account to achieve global routing from all regions
-            requester_routes = requester.get("routes")
+            requester_routes = requester.routes
             if requester_routes:
                 for route in requester_routes:
                     route_region = route["region"]
@@ -1257,11 +1275,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     tf_resource = aws_ec2_transit_gateway_route(
                         route_identifier, **values
                     )
-                    self.add_resource(req_account_name, tf_resource)
+                    self.add_resource(infra_account_name, tf_resource)
 
             # add rules to security groups of VPCs which are attached
             # to the transit gateway to allow traffic through the routes
-            requester_rules = requester.get("rules")
+            requester_rules = requester.rules
             if requester_rules:
                 for rule in requester_rules:
                     rule_region = rule["region"]
@@ -1283,25 +1301,25 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         values["provider"] = "aws." + rule_region
                     rule_identifier = f"{identifier}-{rule['vpc_id']}"
                     tf_resource = aws_security_group_rule(rule_identifier, **values)
-                    self.add_resource(req_account_name, tf_resource)
+                    self.add_resource(infra_account_name, tf_resource)
 
-            for zone in requester.get("hostedzones") or []:
+            for zone in requester.hostedzones or []:
                 id = f"{identifier}-{zone}"
                 values = {
-                    "vpc_id": accepter["vpc_id"],
-                    "vpc_region": accepter["region"],
+                    "vpc_id": accepter.vpc_id,
+                    "vpc_region": accepter.region,
                     "zone_id": zone,
                 }
                 authorization = aws_route53_vpc_association_authorization(id, **values)
-                self.add_resource(req_account_name, authorization)
+                self.add_resource(infra_account_name, authorization)
                 values = {
                     "provider": "aws." + acc_alias,
                     "vpc_id": f"${{aws_route53_vpc_association_authorization.{id}.vpc_id}}",
-                    "vpc_region": accepter["region"],
+                    "vpc_region": accepter.region,
                     "zone_id": f"${{aws_route53_vpc_association_authorization.{id}.zone_id}}",
                 }
                 association = aws_route53_zone_association(id, **values)
-                self.add_resource(acc_account_name, association)
+                self.add_resource(infra_account_name, association)
 
     @staticmethod
     def get_az_unique_subnet_ids(subnets_id_az):

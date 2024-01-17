@@ -38,6 +38,29 @@ def default_account():
 
 
 @pytest.fixture
+def cluster_account():
+    return {
+        "automationToken": "token",
+        "name": "account2",
+        "providerVersion": "1.0.0",
+        "resourcesDefaultRegion": "us-west-1",
+        "supportedDeploymentRegions": ["us-west-1"],
+        "terraformState": {
+            "provider": "s3",
+            "bucket": "cluster-account-bucket",
+            "region": "us-west-1",
+            "integrations": [
+                {
+                    "integration": "a-integration",
+                    "key": "some-key",
+                }
+            ],
+        },
+        "uid": "67890",
+    }
+
+
+@pytest.fixture
 def expected_supported_region_aws_provider():
     return {
         "access_key": "some-key-id",
@@ -108,26 +131,47 @@ def account_with_assume_role(default_account):
 
 
 @pytest.fixture
-def expected_additional_aws_provider():
+def cluster_account_no_assume_role(cluster_account):
     return {
-        "access_key": "some-key-id",
-        "alias": "account-12345-1",
-        "assume_role": {"role_arn": "arn:aws:iam::12345:role/1"},
-        "default_tags": {"tags": {"app": "app-sre-infra"}},
-        "region": "us-east-1",
-        "secret_key": "some-secret-key",
-        "skip_region_validation": True,
-        "version": "1.0.0",
+        **cluster_account,
+        "assume_role": None,
+        "assume_region": cluster_account["resourcesDefaultRegion"],
     }
+
+
+@pytest.fixture
+def expected_additional_aws_providers():
+    return [
+        {
+            "access_key": "some-key-id",
+            "alias": "account-12345-1",
+            "assume_role": {"role_arn": "arn:aws:iam::12345:role/1"},
+            "default_tags": {"tags": {"app": "app-sre-infra"}},
+            "region": "us-east-1",
+            "secret_key": "some-secret-key",
+            "skip_region_validation": True,
+            "version": "1.0.0",
+        },
+        {
+            "access_key": "some-key-id",
+            "alias": "account-account2-us-west-1",
+            "default_tags": {"tags": {"app": "app-sre-infra"}},
+            "region": "us-west-1",
+            "secret_key": "some-secret-key",
+            "skip_region_validation": True,
+            "version": "1.0.0",
+        },
+    ]
 
 
 def test_populate_additional_providers(
     mocker,
     default_account,
     account_with_assume_role,
+    cluster_account_no_assume_role,
     expected_supported_region_aws_provider,
     expected_default_region_aws_provider,
-    expected_additional_aws_provider,
+    expected_additional_aws_providers,
 ):
     mocked_secret_reader = mocker.patch(
         "reconcile.utils.terrascript_aws_client.SecretReader",
@@ -144,12 +188,16 @@ def test_populate_additional_providers(
         1,
         [default_account],
     )
-    ts.populate_additional_providers([account_with_assume_role])
+    ts.populate_configs([cluster_account_no_assume_role])
+    ts.populate_additional_providers(
+        default_account["name"],
+        [account_with_assume_role, cluster_account_no_assume_role],
+    )
 
     assert ts.tss["account1"]["provider"]["aws"] == [
         expected_supported_region_aws_provider,
         expected_default_region_aws_provider,
-        expected_additional_aws_provider,
+        *expected_additional_aws_providers,
     ]
 
 
