@@ -43,7 +43,17 @@ def find_builds(jenkins, job_names, rules):
         for rule in rules:
             if rule["name_re"].search(job_name):
                 builds = jenkins.get_builds(job_name)
+                # We need to keep last successful build (https://issues.redhat.com/browse/APPSRE-8701)
+                good_build_timestamp = 0
                 for build in builds:
+                    if build["result"] == "SUCCESS":
+                        if build["timestamp"] > good_build_timestamp:
+                            build_to_keep = build["id"]
+                            good_build_timestamp = build["timestamp"]
+                for build in builds:
+                    if build["id"] == build_to_keep:
+                        logging.info(f"{jenkins.url}: {job_name} build: {build_to_keep} will be kept")
+                        continue
                     if time_ms - rule["keep_ms"] > build["timestamp"]:
                         builds_found.append({
                             "job_name": job_name,
