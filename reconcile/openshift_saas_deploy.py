@@ -112,7 +112,7 @@ def slack_notify(
         if e.response["error"] == "channel_not_found":
             logging.error(f"Slack API says can't find channel {slack.channel}")
         # raise up to let someone else handle the exception
-        raise e
+        raise
 
 
 @defer
