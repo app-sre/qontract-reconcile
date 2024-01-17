@@ -44,7 +44,7 @@ VOLUME ["/work"]
 ENTRYPOINT ["/work/dev/run.sh"]
 
 
-FROM quay.io/app-sre/qontract-reconcile-base:0.10.2 as prod-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.10.3 as prod-image
 
 # Cache mount. We don't need te wheel files in the final image.
 # This COPY will create a layer with all the wheel files to install the app.
