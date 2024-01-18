@@ -43,7 +43,7 @@ def early_exit_cache(state: Any) -> EarlyExitCache:
 
 
 @pytest.mark.parametrize(
-    "integration, integration_version, dry_run, cache_desired_state, expected",
+    "integration, integration_version, dry_run, cache_source, expected",
     [
         (
             "some-integration",
@@ -65,16 +65,15 @@ def test_cache_key_string(
     integration: str,
     integration_version: str,
     dry_run: bool,
-    cache_desired_state: Any,
+    cache_source: Any,
     expected: str,
 ) -> None:
     cache_key = CacheKey(
         integration=integration,
         integration_version=integration_version,
         dry_run=dry_run,
-        cache_desired_state=cache_desired_state,
+        cache_source=cache_source,
     )
-
     assert str(cache_key) == expected
 
 
@@ -84,14 +83,14 @@ def cache_key() -> CacheKey:
         integration="some-integration",
         integration_version="some-integration-version",
         dry_run=False,
-        cache_desired_state={"k": "v"},
+        cache_source={"k": "v"},
     )
 
 
 @pytest.fixture
 def cache_value() -> CacheValue:
     return CacheValue(
-        desired_state={"k": "v"},
+        payload={"k": "v"},
         log_output="some-log-output",
         applied_count=1,
     )

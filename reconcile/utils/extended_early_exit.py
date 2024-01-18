@@ -16,7 +16,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class ExtendedEarlyExitRunnerResult(BaseModel):
-    desired_state: object
+    payload: object
     applied_count: int
 
 
@@ -33,7 +33,7 @@ def _no_dry_run_cache_hit(
     cache: EarlyExitCache,
     integration: str,
     integration_version: str,
-    cache_desired_state: object,
+    cache_source: object,
     logger: Logger,
     log_cached_log_output: bool,
 ) -> bool:
@@ -46,7 +46,7 @@ def _no_dry_run_cache_hit(
     :param cache: The early exit cache
     :param integration: The integration name
     :param integration_version: The integration version
-    :param cache_desired_state: The desired state
+    :param cache_source: The cache source
     :param logger: A logger
     :param log_cached_log_output: True if we want to log the cached log output, False otherwise
     :return: True if the cache has a hit for the no-dry-run key, False otherwise
@@ -55,7 +55,7 @@ def _no_dry_run_cache_hit(
         integration=integration,
         integration_version=integration_version,
         dry_run=False,
-        cache_desired_state=cache_desired_state,
+        cache_source=cache_source,
     )
     hit = cache.head(key) == CacheStatus.HIT
     if hit and log_cached_log_output:
@@ -105,7 +105,7 @@ def extended_early_exit_run(
     integration: str,
     integration_version: str,
     dry_run: bool,
-    cache_desired_state: object,
+    cache_source: object,
     short_ttl_seconds: int,
     ttl_seconds: int,
     logger: Logger,
@@ -126,7 +126,7 @@ def extended_early_exit_run(
     :param integration: The integration name
     :param integration_version: The integration version
     :param dry_run: True if the run is in dry run mode, False otherwise
-    :param cache_desired_state: The desired state
+    :param cache_source: The cache source, usually the static desired state
     :param short_ttl_seconds: A short ttl in seconds
     :param ttl_seconds: A ttl in seconds
     :param logger: A Logger
@@ -141,7 +141,7 @@ def extended_early_exit_run(
             integration=integration,
             integration_version=integration_version,
             dry_run=dry_run,
-            cache_desired_state=cache_desired_state,
+            cache_source=cache_source,
         )
         cache_status = cache.head(key)
 
@@ -154,7 +154,7 @@ def extended_early_exit_run(
             cache,
             integration,
             integration_version,
-            cache_desired_state,
+            cache_source,
             logger,
             log_cached_log_output,
         ):
@@ -165,7 +165,7 @@ def extended_early_exit_run(
             log_output = log_stream.getvalue()
 
         value = CacheValue(
-            desired_state=result.desired_state,
+            payload=result.payload,
             log_output=log_output,
             applied_count=result.applied_count,
         )

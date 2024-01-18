@@ -49,7 +49,7 @@ def early_exit_cache() -> Any:
     return create_autospec(EarlyExitCache)
 
 
-CACHE_DESIRED_STATE = {"k": "v"}
+CACHE_SOURCE = {"k": "v"}
 
 
 @pytest.mark.parametrize(
@@ -95,7 +95,7 @@ def test_extended_early_exit_run_miss_or_expired_when_no_dry_run(
         logger.warning(warning_log_output)
         logger.error(error_log_output)
         return ExtendedEarlyExitRunnerResult(
-            desired_state=desired_state,
+            payload=desired_state,
             applied_count=applied_count,
         )
 
@@ -105,7 +105,7 @@ def test_extended_early_exit_run_miss_or_expired_when_no_dry_run(
         integration=INTEGRATION,
         integration_version=INTEGRATION_VERSION,
         dry_run=False,
-        cache_desired_state=CACHE_DESIRED_STATE,
+        cache_source=CACHE_SOURCE,
         short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
         logger=logger,
@@ -119,7 +119,7 @@ def test_extended_early_exit_run_miss_or_expired_when_no_dry_run(
             integration=INTEGRATION,
             integration_version=INTEGRATION_VERSION,
             dry_run=False,
-            cache_desired_state=CACHE_DESIRED_STATE,
+            cache_source=CACHE_SOURCE,
         )
     )
     runner.assert_called_once_with(**RUNNER_PARAMS.dict())
@@ -128,10 +128,10 @@ def test_extended_early_exit_run_miss_or_expired_when_no_dry_run(
             integration=INTEGRATION,
             integration_version=INTEGRATION_VERSION,
             dry_run=False,
-            cache_desired_state=CACHE_DESIRED_STATE,
+            cache_source=CACHE_SOURCE,
         ),
         CacheValue(
-            desired_state=desired_state,
+            payload=desired_state,
             log_output=expected_log_output,
             applied_count=applied_count,
         ),
@@ -164,7 +164,7 @@ def test_extended_early_exit_run_miss_or_expired_in_dry_run_but_hit_in_no_dry_ru
     ]
     expected_log_output = "some-log-output"
     early_exit_cache.get.return_value = CacheValue(
-        desired_state=CACHE_DESIRED_STATE,
+        payload=CACHE_SOURCE,
         log_output=expected_log_output,
         applied_count=1,
     )
@@ -174,7 +174,7 @@ def test_extended_early_exit_run_miss_or_expired_in_dry_run_but_hit_in_no_dry_ru
         integration=INTEGRATION,
         integration_version=INTEGRATION_VERSION,
         dry_run=True,
-        cache_desired_state=CACHE_DESIRED_STATE,
+        cache_source=CACHE_SOURCE,
         short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
         logger=mock_logger,
@@ -190,7 +190,7 @@ def test_extended_early_exit_run_miss_or_expired_in_dry_run_but_hit_in_no_dry_ru
                 integration=INTEGRATION,
                 integration_version=INTEGRATION_VERSION,
                 dry_run=True,
-                cache_desired_state=CACHE_DESIRED_STATE,
+                cache_source=CACHE_SOURCE,
             )
         ),
         call(
@@ -198,7 +198,7 @@ def test_extended_early_exit_run_miss_or_expired_in_dry_run_but_hit_in_no_dry_ru
                 integration=INTEGRATION,
                 integration_version=INTEGRATION_VERSION,
                 dry_run=False,
-                cache_desired_state=CACHE_DESIRED_STATE,
+                cache_source=CACHE_SOURCE,
             )
         ),
     ])
@@ -207,7 +207,7 @@ def test_extended_early_exit_run_miss_or_expired_in_dry_run_but_hit_in_no_dry_ru
             integration=INTEGRATION,
             integration_version=INTEGRATION_VERSION,
             dry_run=False,
-            cache_desired_state=CACHE_DESIRED_STATE,
+            cache_source=CACHE_SOURCE,
         )
     )
     mock_logger.info.assert_called_once_with(expected_log_output)
@@ -238,7 +238,7 @@ def test_extended_early_exit_run_miss_or_expired_in_both_dry_run_and_no_dry_run(
     runner = MagicMock()
     desired_state = {"k": "v2"}
     runner.return_value = ExtendedEarlyExitRunnerResult(
-        desired_state=desired_state,
+        payload=desired_state,
         applied_count=0,
     )
 
@@ -246,7 +246,7 @@ def test_extended_early_exit_run_miss_or_expired_in_both_dry_run_and_no_dry_run(
         integration=INTEGRATION,
         integration_version=INTEGRATION_VERSION,
         dry_run=True,
-        cache_desired_state=CACHE_DESIRED_STATE,
+        cache_source=CACHE_SOURCE,
         short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
         logger=logger,
@@ -261,7 +261,7 @@ def test_extended_early_exit_run_miss_or_expired_in_both_dry_run_and_no_dry_run(
                 integration=INTEGRATION,
                 integration_version=INTEGRATION_VERSION,
                 dry_run=True,
-                cache_desired_state=CACHE_DESIRED_STATE,
+                cache_source=CACHE_SOURCE,
             )
         ),
         call(
@@ -269,7 +269,7 @@ def test_extended_early_exit_run_miss_or_expired_in_both_dry_run_and_no_dry_run(
                 integration=INTEGRATION,
                 integration_version=INTEGRATION_VERSION,
                 dry_run=False,
-                cache_desired_state=CACHE_DESIRED_STATE,
+                cache_source=CACHE_SOURCE,
             )
         ),
     ])
@@ -279,10 +279,10 @@ def test_extended_early_exit_run_miss_or_expired_in_both_dry_run_and_no_dry_run(
             integration=INTEGRATION,
             integration_version=INTEGRATION_VERSION,
             dry_run=True,
-            cache_desired_state=CACHE_DESIRED_STATE,
+            cache_source=CACHE_SOURCE,
         ),
         CacheValue(
-            desired_state=desired_state,
+            payload=desired_state,
             log_output="",
             applied_count=0,
         ),
@@ -308,7 +308,7 @@ def test_extended_early_exit_run_hit_when_not_dry_run(
         integration=INTEGRATION,
         integration_version=INTEGRATION_VERSION,
         dry_run=False,
-        cache_desired_state=CACHE_DESIRED_STATE,
+        cache_source=CACHE_SOURCE,
         short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
         logger=logger,
@@ -322,7 +322,7 @@ def test_extended_early_exit_run_hit_when_not_dry_run(
             integration=INTEGRATION,
             integration_version=INTEGRATION_VERSION,
             dry_run=False,
-            cache_desired_state=CACHE_DESIRED_STATE,
+            cache_source=CACHE_SOURCE,
         )
     )
     runner.assert_not_called()
@@ -342,7 +342,7 @@ def test_extended_early_exit_run_hit_when_dry_run(
     mock_early_exit_cache.build.return_value.__enter__.return_value = early_exit_cache
     early_exit_cache.head.return_value = CacheStatus.HIT
     early_exit_cache.get.return_value = CacheValue(
-        desired_state=CACHE_DESIRED_STATE,
+        payload=CACHE_SOURCE,
         log_output="log-output",
         applied_count=1,
     )
@@ -352,7 +352,7 @@ def test_extended_early_exit_run_hit_when_dry_run(
         integration=INTEGRATION,
         integration_version=INTEGRATION_VERSION,
         dry_run=True,
-        cache_desired_state=CACHE_DESIRED_STATE,
+        cache_source=CACHE_SOURCE,
         short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
         logger=mock_logger,
@@ -367,7 +367,7 @@ def test_extended_early_exit_run_hit_when_dry_run(
             integration=INTEGRATION,
             integration_version=INTEGRATION_VERSION,
             dry_run=True,
-            cache_desired_state=CACHE_DESIRED_STATE,
+            cache_source=CACHE_SOURCE,
         )
     )
     early_exit_cache.get.assert_called_once_with(
@@ -375,7 +375,7 @@ def test_extended_early_exit_run_hit_when_dry_run(
             integration=INTEGRATION,
             integration_version=INTEGRATION_VERSION,
             dry_run=True,
-            cache_desired_state=CACHE_DESIRED_STATE,
+            cache_source=CACHE_SOURCE,
         )
     )
     mock_logger.info.assert_called_once_with("log-output")

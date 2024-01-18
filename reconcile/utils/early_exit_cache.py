@@ -16,19 +16,19 @@ class CacheKey(BaseModel):
     integration: str
     integration_version: str
     dry_run: bool
-    cache_desired_state: object
+    cache_source: object
 
     def __str__(self) -> str:
         return "/".join([
             self.integration,
             self.integration_version,
             "dry-run" if self.dry_run else "no-dry-run",
-            DeepHash(self.cache_desired_state)[self.cache_desired_state],
+            DeepHash(self.cache_source)[self.cache_source],
         ])
 
 
 class CacheValue(BaseModel):
-    desired_state: object
+    payload: object
     log_output: str
     applied_count: int
 
