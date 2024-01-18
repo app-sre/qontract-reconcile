@@ -27,7 +27,14 @@ TTLS_SECONDS = 100
 
 @pytest.fixture
 def logger() -> Logger:
-    return logging.getLogger("some-logger")
+    logger = logging.getLogger("some-logger")
+    logger.setLevel(logging.INFO)
+    return logger
+
+
+@pytest.fixture
+def mock_logger() -> Any:
+    return create_autospec(Logger)
 
 
 class TestRunnerParams(BaseModel):
@@ -71,10 +78,28 @@ def test_extended_early_exit_run_miss_or_expired_when_no_dry_run(
     early_exit_cache.head.return_value = cache_status
     runner = MagicMock()
     desired_state = {"k": "v2"}
-    runner.return_value = ExtendedEarlyExitRunnerResult(
-        desired_state=desired_state,
-        applied_count=applied_count,
+    info_log_output = "some-log-output"
+    warning_log_output = "some-warning-output"
+    error_log_output = "some-error-output"
+    expected_log_output = (
+        "\n".join([
+            info_log_output,
+            warning_log_output,
+            error_log_output,
+        ])
+        + "\n"
     )
+
+    def runner_side_effect(**_: Any) -> ExtendedEarlyExitRunnerResult:
+        logger.info(info_log_output)
+        logger.warning(warning_log_output)
+        logger.error(error_log_output)
+        return ExtendedEarlyExitRunnerResult(
+            desired_state=desired_state,
+            applied_count=applied_count,
+        )
+
+    runner.side_effect = runner_side_effect
 
     extended_early_exit_run(
         integration=INTEGRATION,
@@ -107,7 +132,7 @@ def test_extended_early_exit_run_miss_or_expired_when_no_dry_run(
         ),
         CacheValue(
             desired_state=desired_state,
-            log_output="",
+            log_output=expected_log_output,
             applied_count=applied_count,
         ),
         expected_ttl,
@@ -123,7 +148,7 @@ def test_extended_early_exit_run_miss_or_expired_when_no_dry_run(
 )
 def test_extended_early_exit_run_miss_or_expired_in_dry_run_but_hit_in_no_dry_run(
     mocker: MockerFixture,
-    logger: Logger,
+    mock_logger: Any,
     secret_reader: SecretReaderBase,
     early_exit_cache: Any,
     cache_status: CacheStatus,
@@ -137,6 +162,12 @@ def test_extended_early_exit_run_miss_or_expired_in_dry_run_but_hit_in_no_dry_ru
         cache_status,
         CacheStatus.HIT,
     ]
+    expected_log_output = "some-log-output"
+    early_exit_cache.get.return_value = CacheValue(
+        desired_state=CACHE_DESIRED_STATE,
+        log_output=expected_log_output,
+        applied_count=1,
+    )
     runner = MagicMock()
 
     extended_early_exit_run(
@@ -146,10 +177,11 @@ def test_extended_early_exit_run_miss_or_expired_in_dry_run_but_hit_in_no_dry_ru
         cache_desired_state=CACHE_DESIRED_STATE,
         short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
-        logger=logger,
+        logger=mock_logger,
         runner=runner,
         runner_params=RUNNER_PARAMS,
         secret_reader=secret_reader,
+        log_cached_log_output=True,
     )
 
     early_exit_cache.head.assert_has_calls([
@@ -170,6 +202,15 @@ def test_extended_early_exit_run_miss_or_expired_in_dry_run_but_hit_in_no_dry_ru
             )
         ),
     ])
+    early_exit_cache.get.assert_called_once_with(
+        CacheKey(
+            integration=INTEGRATION,
+            integration_version=INTEGRATION_VERSION,
+            dry_run=False,
+            cache_desired_state=CACHE_DESIRED_STATE,
+        )
+    )
+    mock_logger.info.assert_called_once_with(expected_log_output)
     runner.assert_not_called()
     early_exit_cache.set.assert_not_called()
 
@@ -249,19 +290,11 @@ def test_extended_early_exit_run_miss_or_expired_in_both_dry_run_and_no_dry_run(
     )
 
 
-@pytest.mark.parametrize(
-    "dry_run",
-    [
-        True,
-        False,
-    ],
-)
-def test_extended_early_exit_run_hit(
+def test_extended_early_exit_run_hit_when_not_dry_run(
     mocker: MockerFixture,
     logger: Logger,
     secret_reader: SecretReaderBase,
     early_exit_cache: Any,
-    dry_run: bool,
 ) -> None:
     mock_early_exit_cache = mocker.patch(
         "reconcile.utils.extended_early_exit.EarlyExitCache",
@@ -274,7 +307,7 @@ def test_extended_early_exit_run_hit(
     extended_early_exit_run(
         integration=INTEGRATION,
         integration_version=INTEGRATION_VERSION,
-        dry_run=dry_run,
+        dry_run=False,
         cache_desired_state=CACHE_DESIRED_STATE,
         short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
@@ -288,9 +321,63 @@ def test_extended_early_exit_run_hit(
         CacheKey(
             integration=INTEGRATION,
             integration_version=INTEGRATION_VERSION,
-            dry_run=dry_run,
+            dry_run=False,
             cache_desired_state=CACHE_DESIRED_STATE,
         )
     )
+    runner.assert_not_called()
+    early_exit_cache.set.assert_not_called()
+
+
+def test_extended_early_exit_run_hit_when_dry_run(
+    mocker: MockerFixture,
+    mock_logger: Any,
+    secret_reader: SecretReaderBase,
+    early_exit_cache: Any,
+) -> None:
+    mock_early_exit_cache = mocker.patch(
+        "reconcile.utils.extended_early_exit.EarlyExitCache",
+        autospec=True,
+    )
+    mock_early_exit_cache.build.return_value.__enter__.return_value = early_exit_cache
+    early_exit_cache.head.return_value = CacheStatus.HIT
+    early_exit_cache.get.return_value = CacheValue(
+        desired_state=CACHE_DESIRED_STATE,
+        log_output="log-output",
+        applied_count=1,
+    )
+    runner = MagicMock()
+
+    extended_early_exit_run(
+        integration=INTEGRATION,
+        integration_version=INTEGRATION_VERSION,
+        dry_run=True,
+        cache_desired_state=CACHE_DESIRED_STATE,
+        short_ttl_seconds=SHORT_TTL_SECONDS,
+        ttl_seconds=TTLS_SECONDS,
+        logger=mock_logger,
+        runner=runner,
+        runner_params=RUNNER_PARAMS,
+        secret_reader=secret_reader,
+        log_cached_log_output=True,
+    )
+
+    early_exit_cache.head.assert_called_once_with(
+        CacheKey(
+            integration=INTEGRATION,
+            integration_version=INTEGRATION_VERSION,
+            dry_run=True,
+            cache_desired_state=CACHE_DESIRED_STATE,
+        )
+    )
+    early_exit_cache.get.assert_called_once_with(
+        CacheKey(
+            integration=INTEGRATION,
+            integration_version=INTEGRATION_VERSION,
+            dry_run=True,
+            cache_desired_state=CACHE_DESIRED_STATE,
+        )
+    )
+    mock_logger.info.assert_called_once_with("log-output")
     runner.assert_not_called()
     early_exit_cache.set.assert_not_called()
