@@ -20,14 +20,17 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
-from reconcile.utils.vcs import VCS
+from reconcile.utils.vcs import VCS, MRCheckStatus
+
+ITEM_SEPARATOR = ","
 
 
 @dataclass
 class OpenMergeRequest:
     raw: ProjectMergeRequest
-    content_hash: str
+    content_hashes: str
     channels: str
+    failed_mr_check: bool
 
 
 class MergeRequestManager:
@@ -72,7 +75,7 @@ class MergeRequestManager:
             mr for mr in all_open_mrs if SAPM_LABEL in mr.attributes.get("labels")
         ]
 
-    def housekeeping(self) -> None:
+    def _parse_raw_mrs(self) -> None:
         """
         Close bad MRs:
         - bad description format
@@ -134,10 +137,10 @@ class MergeRequestManager:
                 )
                 continue
 
-            content_hash = self._apply_regex(
+            content_hashes = self._apply_regex(
                 pattern=self._content_hash_regex, promotion_data=promotion_data
             )
-            if not content_hash:
+            if not content_hashes:
                 logging.info(
                     "Bad %s format. Closing %s",
                     CONTENT_HASHES,
@@ -148,10 +151,10 @@ class MergeRequestManager:
                 )
                 continue
 
-            channels_ref = self._apply_regex(
+            channels_refs = self._apply_regex(
                 pattern=self._channels_regex, promotion_data=promotion_data
             )
-            if not channels_ref:
+            if not channels_refs:
                 logging.info(
                     "Bad %s format. Closing %s",
                     CHANNELS_REF,
@@ -162,7 +165,7 @@ class MergeRequestManager:
                 )
                 continue
 
-            key = (version_ref, channels_ref, content_hash)
+            key = (version_ref, channels_refs, content_hashes)
             if key in seen:
                 logging.info(
                     "Duplicate MR detected. Closing %s",
@@ -175,13 +178,23 @@ class MergeRequestManager:
                 continue
             seen.add(key)
 
+            mr_check_status = self._vcs.get_gitlab_mr_check_status(mr)
+
             self._open_mrs.append(
                 OpenMergeRequest(
                     raw=mr,
-                    content_hash=content_hash,
-                    channels=channels_ref,
+                    content_hashes=content_hashes,
+                    channels=channels_refs,
+                    failed_mr_check=mr_check_status == MRCheckStatus.FAILED,
                 )
             )
+
+    def _unbatch_failed_mrs(self) -> None:
+        pass
+
+    def housekeeping(self) -> None:
+        self._parse_raw_mrs()
+        self._unbatch_failed_mrs()
 
     def _aggregate_subscribers_per_channel_combo(
         self, subscribers: Iterable[Subscriber]
@@ -196,7 +209,7 @@ class MergeRequestManager:
         return any(
             True
             for mr in self._open_mrs
-            if content_hash in mr.content_hash and channels in mr.channels
+            if content_hash in mr.content_hashes and channels in mr.channels
         )
 
     def create_promotion_merge_requests(
@@ -223,7 +236,7 @@ class MergeRequestManager:
             for mr in self._open_mrs:
                 if channel_combo not in mr.channels:
                     continue
-                if combined_content_hash not in mr.content_hash:
+                if combined_content_hash not in mr.content_hashes:
                     logging.info(
                         "Closing MR %s because it has out-dated content",
                         mr.raw.attributes.get("web_url", "NO_WEBURL"),
@@ -261,7 +274,7 @@ class MergeRequestManager:
                 continue
 
             description = self._renderer.render_description(
-                content_hash=combined_content_hash,
+                content_hashes=combined_content_hash,
                 channels=channel_combo,
             )
             title = self._renderer.render_title(channels=channel_combo)

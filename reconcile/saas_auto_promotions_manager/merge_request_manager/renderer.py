@@ -134,7 +134,7 @@ class Renderer:
             new_content += stream.getvalue() or ""
         return new_content
 
-    def render_description(self, content_hash: str, channels: str) -> str:
+    def render_description(self, content_hashes: str, channels: str) -> str:
         return f"""
 {SAPM_DESC}
 
@@ -142,7 +142,7 @@ class Renderer:
 
 {CHANNELS_REF}: {channels}
 
-{CONTENT_HASHES}: {content_hash}
+{CONTENT_HASHES}: {content_hashes}
 
 {VERSION_REF}: {SAPM_VERSION}
         """
