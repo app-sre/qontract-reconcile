@@ -13,6 +13,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     CHANNELS_REF,
     CONTENT_HASHES,
+    IS_BATCHABLE,
     PROMOTION_DATA_SEPARATOR,
     SAPM_LABEL,
     SAPM_VERSION,
@@ -31,6 +32,7 @@ class OpenMergeRequest:
     content_hashes: str
     channels: str
     failed_mr_check: bool
+    is_batchable: bool
 
 
 class MergeRequestManager:
@@ -41,13 +43,10 @@ class MergeRequestManager:
 
     The idea is that for every channel combination there exists
     maximum one open MR in app-interface. I.e., all changes for
-    a channel combination are batched in a single MR. A content hash in the
-    description is used to identify the content of that MR. If a
-    channel combination receives new content before an already open MR
-    is merged, then the manager will first close the old MR and then
-    open a new MR with the new content. We might need to change this
-    batching approach in the future to have even less promotion MRs,
-    but for now this is sufficient.
+    a channel combination at a minumum are batched in a single MR.
+    The MR description is used to store current state for SAPM.
+    Channels can also be batched together into a single MR to reduce the overall
+    amount of MRs.
     """
 
     def __init__(self, vcs: VCS, renderer: Renderer):
@@ -56,6 +55,7 @@ class MergeRequestManager:
         self._version_ref_regex = re.compile(rf"{VERSION_REF}: (.*)$", re.MULTILINE)
         self._content_hash_regex = re.compile(rf"{CONTENT_HASHES}: (.*)$", re.MULTILINE)
         self._channels_regex = re.compile(rf"{CHANNELS_REF}: (.*)$", re.MULTILINE)
+        self._is_batchable_regex = re.compile(rf"{IS_BATCHABLE}: (.*)$", re.MULTILINE)
         self._open_mrs: list[OpenMergeRequest] = []
         self._open_mrs_with_problems: list[OpenMergeRequest] = []
         self._open_raw_mrs: list[ProjectMergeRequest] = []
@@ -69,7 +69,7 @@ class MergeRequestManager:
             return ""
         return groups[0]
 
-    def fetch_sapm_managed_open_merge_requests(self) -> None:
+    def _fetch_sapm_managed_open_merge_requests(self) -> None:
         all_open_mrs = self._vcs.get_open_app_interface_merge_requests()
         self._open_raw_mrs = [
             mr for mr in all_open_mrs if SAPM_LABEL in mr.attributes.get("labels")
@@ -77,13 +77,14 @@ class MergeRequestManager:
 
     def _parse_raw_mrs(self) -> None:
         """
-        Close bad MRs:
-        - bad description format
-        - old SAPM version
-        - merge conflict
-
-        --> if we bump the SAPM version, we automatically close
-        old open MRs and replace them with new ones.
+        We store state in MR descriptions.
+        This function parses the state and stores a list of valid, parsed open MRs (current state).
+        If any issue is encountered during parsing, we consider this MR
+        to be broken and close it. Information we want to parse includes:
+        - SAPM_VERSION -> Close if it doesnt match current version
+        - CHANNELS
+        - CONTENT_HASHES
+        - IS_BATCHABLE flag
         """
         seen: set[tuple[str, str, str]] = set()
         for mr in self._open_raw_mrs:
@@ -178,6 +179,20 @@ class MergeRequestManager:
                 continue
             seen.add(key)
 
+            is_batchable_str = self._apply_regex(
+                pattern=self._is_batchable_regex, promotion_data=promotion_data
+            )
+            if is_batchable_str not in set(["True", "False"]):
+                logging.info(
+                    "Bad %s format. Closing %s",
+                    IS_BATCHABLE,
+                    mr.attributes.get("web_url", "NO_WEBURL"),
+                )
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {IS_BATCHABLE} format."
+                )
+                continue
+
             mr_check_status = self._vcs.get_gitlab_mr_check_status(mr)
 
             self._open_mrs.append(
@@ -186,13 +201,24 @@ class MergeRequestManager:
                     content_hashes=content_hashes,
                     channels=channels_refs,
                     failed_mr_check=mr_check_status == MRCheckStatus.FAILED,
+                    is_batchable=bool(is_batchable_str),
                 )
             )
 
     def _unbatch_failed_mrs(self) -> None:
+        """
+        We optimistically batch MRs together that didnt run through MR check yet.
+        Vast majority of auto-promotion MRs are succeeding checks, so we can stay optimistic.
+        In the rare case of an MR failing the check, we want to unbatch it.
+        I.e., we open a dedicated MR for each channel in the batched MR, mark the new MRs as non-batchable
+        and close the old batched MR. By doing so, we ensure that unrelated MRs are not blocking each other.
+        Unbatched MRs are marked and will never be batched again.
+        """
+        # TODO: implemented in follow-up MR
         pass
 
     def housekeeping(self) -> None:
+        self._fetch_sapm_managed_open_merge_requests()
         self._parse_raw_mrs()
         self._unbatch_failed_mrs()
 
@@ -276,6 +302,7 @@ class MergeRequestManager:
             description = self._renderer.render_description(
                 content_hashes=combined_content_hash,
                 channels=channel_combo,
+                is_batchable=True,
             )
             title = self._renderer.render_title(channels=channel_combo)
             logging.info(

@@ -22,6 +22,7 @@ SAPM_VERSION = "1.1.0"
 SAPM_LABEL = "SAPM"
 CONTENT_HASHES = "content_hashes"
 CHANNELS_REF = "channels"
+IS_BATCHABLE = "is_batchable"
 VERSION_REF = "sapm_version"
 SAPM_DESC = f"""
 This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
@@ -134,7 +135,9 @@ class Renderer:
             new_content += stream.getvalue() or ""
         return new_content
 
-    def render_description(self, content_hashes: str, channels: str) -> str:
+    def render_description(
+        self, content_hashes: str, channels: str, is_batchable: bool
+    ) -> str:
         return f"""
 {SAPM_DESC}
 
@@ -143,6 +146,8 @@ class Renderer:
 {CHANNELS_REF}: {channels}
 
 {CONTENT_HASHES}: {content_hashes}
+
+{IS_BATCHABLE}: {is_batchable}
 
 {VERSION_REF}: {SAPM_VERSION}
         """

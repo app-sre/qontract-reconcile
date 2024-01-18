@@ -13,6 +13,7 @@ from reconcile.gql_definitions.fragments.saas_target_namespace import (
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     CHANNELS_REF,
     CONTENT_HASHES,
+    IS_BATCHABLE,
     PROMOTION_DATA_SEPARATOR,
     SAPM_LABEL,
     SAPM_VERSION,
@@ -30,6 +31,7 @@ from .data_keys import (
     HAS_CONFLICTS,
     LABELS,
     OPEN_MERGE_REQUESTS,
+    SUBSCRIBER_BATCHABLE,
     SUBSCRIBER_CHANNELS,
     SUBSCRIBER_CONTENT_HASH,
     SUBSCRIBER_DESIRED_CONFIG_HASHES,
@@ -52,6 +54,7 @@ def mr_builder() -> Callable[[Mapping], ProjectMergeRequest]:
                 {VERSION_REF}: {data.get(VERSION_REF, SAPM_VERSION)}
                 {CHANNELS_REF}: {data.get(SUBSCRIBER_CHANNELS, "some_channel")}
                 {CONTENT_HASHES}: {data.get(SUBSCRIBER_CONTENT_HASH, "content_hash")}
+                {IS_BATCHABLE}: {data.get(SUBSCRIBER_BATCHABLE, "True")}
                 """,
                 "web_url": "http://localhost",
                 "has_conflicts": False,

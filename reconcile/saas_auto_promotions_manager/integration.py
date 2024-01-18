@@ -81,7 +81,6 @@ class SaasAutoPromotionsManager:
         self._fetch_publisher_real_world_states()
         self._compute_desired_subscriber_states()
         subscribers_with_diff = self._get_subscribers_with_diff()
-        self._merge_request_manager.fetch_sapm_managed_open_merge_requests()
         self._merge_request_manager.housekeeping()
         self._merge_request_manager.create_promotion_merge_requests(
             subscribers=subscribers_with_diff
