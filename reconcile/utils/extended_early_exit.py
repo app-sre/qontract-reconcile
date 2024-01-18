@@ -161,7 +161,8 @@ def extended_early_exit_run(
             return
 
         with log_stream_handler(logger) as log_stream:
-            result = runner(**runner_params.dict())
+            params = runner_params.dict() if runner_params is not None else {}
+            result = runner(**params)
             log_output = log_stream.getvalue()
 
         value = CacheValue(

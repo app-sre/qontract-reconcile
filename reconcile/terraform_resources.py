@@ -453,11 +453,13 @@ def runner(
     populate_desired_state(ri, ts.resource_spec_inventory)
 
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
-    actions = []
-    if oc_map:
-        actions = ob.realize_data(
-            dry_run, oc_map, ri, thread_pool_size, caller=acc_name
-        )
+    actions = ob.realize_data(
+        dry_run,
+        oc_map,
+        ri,
+        thread_pool_size,
+        caller=acc_name,
+    )
 
     if actions and vault_output_path:
         write_outputs_to_vault(vault_output_path, ts.resource_spec_inventory)
