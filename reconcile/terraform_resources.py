@@ -181,8 +181,7 @@ def exclude_accounts_by_name(
 def validate_account_names(
     accounts: Collection[Mapping[str, Any]], names: Collection[str]
 ) -> None:
-    missing_names = set(names) - {a["name"] for a in accounts}
-    if missing_names:
+    if missing_names := set(names) - {a["name"] for a in accounts}:
         raise ValueError(
             f"Accounts {missing_names} were provided as arguments, but not found in app-interface. Check your input for typos or for missing AWS account definitions."
         )
@@ -214,7 +213,7 @@ def get_aws_accounts(
     if exclude_accounts:
         validate_account_names(accounts, exclude_accounts)
         filtered_accounts = exclude_accounts_by_name(accounts, exclude_accounts)
-        if len(filtered_accounts) == 0:
+        if not filtered_accounts:
             raise ValueError("You have excluded all aws accounts, verify your input")
         return filtered_accounts
 
