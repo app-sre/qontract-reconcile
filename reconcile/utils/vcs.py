@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import logging
 import re
 from collections.abc import Iterable
+from enum import Enum
 from typing import Optional
 
 from gitlab.v4.objects import ProjectMergeRequest
@@ -17,6 +20,13 @@ from reconcile.utils.secret_reader import (
     HasSecret,
     SecretReaderBase,
 )
+
+
+class MRCheckStatus(Enum):
+    NONE = 0
+    SUCCESS = 1
+    FAILED = 2
+    RUNNING = 3
 
 
 class VCS:
@@ -38,17 +48,32 @@ class VCS:
         dry_run: bool,
         allow_deleting_mrs: bool,
         allow_opening_mrs: bool,
+        gitlab_instance: Optional[GitLabApi] = None,
+        default_gh_token: Optional[str] = None,
+        app_interface_api: Optional[GitLabApi] = None,
     ):
         self._dry_run = dry_run
         self._allow_deleting_mrs = allow_deleting_mrs
         self._allow_opening_mrs = allow_opening_mrs
         self._secret_reader = secret_reader
         self._gh_per_repo_url: dict[str, GithubRepositoryApi] = {}
-        self._default_gh_token = self._get_default_gh_token(github_orgs=github_orgs)
-        self._gitlab_instance = self._gitlab_api(gitlab_instances=gitlab_instances)
-        self._app_interface_api = self._init_app_interface_api(
-            gitlab_instances=gitlab_instances,
-            app_interface_repo_url=app_interface_repo_url,
+        self._default_gh_token = (
+            default_gh_token
+            if default_gh_token
+            else self._get_default_gh_token(github_orgs=github_orgs)
+        )
+        self._gitlab_instance = (
+            gitlab_instance
+            if gitlab_instance
+            else self._gitlab_api(gitlab_instances=gitlab_instances)
+        )
+        self._app_interface_api = (
+            app_interface_api
+            if app_interface_api
+            else self._init_app_interface_api(
+                gitlab_instances=gitlab_instances,
+                app_interface_repo_url=app_interface_repo_url,
+            )
         )
         self._is_commit_sha_regex = re.compile(r"^[0-9a-f]{40}$")
 
@@ -103,6 +128,23 @@ class VCS:
             secret_reader=self._secret_reader,
             project_url=app_interface_repo_url,
         )
+
+    def get_gitlab_mr_check_status(self, mr: ProjectMergeRequest) -> MRCheckStatus:
+        pipelines = self._gitlab_instance.get_merge_request_pipelines(mr)
+        if not pipelines:
+            return MRCheckStatus.NONE
+        # available status codes https://docs.gitlab.com/ee/api/pipelines.html
+        last_pipeline_result = pipelines[0]["status"]
+        match last_pipeline_result:
+            case "success":
+                return MRCheckStatus.SUCCESS
+            case "running":
+                return MRCheckStatus.RUNNING
+            case "failed":
+                return MRCheckStatus.FAILED
+            case _:
+                # Lets assume all other states as non-present
+                return MRCheckStatus.NONE
 
     def get_commit_sha(
         self, repo_url: str, ref: str, auth_code: Optional[HasSecret]
