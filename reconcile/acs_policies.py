@@ -163,7 +163,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                     errors.append(e)
             logging.info("Created policy: %s", a.name)
         if len(diff.delete) > 0 or len(diff.change) > 0:
-            policy_id_names = acs.get_custom_policy_id_names()
+            policy_id_names = {p["name"]: p["id"] for p in acs.list_custom_policies()}
             for d in diff.delete.values():
                 if not dry_run:
                     try:

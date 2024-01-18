@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
@@ -27,14 +27,16 @@ class Policy(BaseModel):
 
 
 class AcsPolicyApi(AcsBaseApi):
-    def get_custom_policies(self) -> list[Policy]:
-        # retrieve summary data for each policy
-        # ignore system default policies from reconciliation
-        custom_policy_ids = [
-            p["id"]
+    def list_custom_policies(self) -> list[Any]:
+        # retrieve summary data for each custom policy
+        return [
+            p
             for p in self.generic_request("/v1/policies", "GET").json()["policies"]
             if not p["isDefault"]
         ]
+
+    def get_custom_policies(self) -> list[Policy]:
+        custom_policy_ids = [p["id"] for p in self.list_custom_policies()]
         # make individual policy requests to obtain further details
         custom_policies_api_result = [
             self.generic_request(f"/v1/policies/{pid}", "GET").json()
@@ -74,13 +76,6 @@ class AcsPolicyApi(AcsBaseApi):
                 )
             )
         return formatted_custom_policies
-
-    def get_custom_policy_id_names(self) -> dict[str, str]:
-        return {
-            p["name"]: p["id"]
-            for p in self.generic_request("/v1/policies", "GET").json()["policies"]
-            if not p["isDefault"]
-        }
 
     def create_or_update_policy(self, desired: Policy, id: str = "") -> None:
         body = {
