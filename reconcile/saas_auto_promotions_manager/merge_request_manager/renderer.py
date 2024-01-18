@@ -18,9 +18,9 @@ from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 )
-SAPM_VERSION = "1.0.0"
+SAPM_VERSION = "1.1.0"
 SAPM_LABEL = "SAPM"
-CONTENT_HASH = "content_hash"
+CONTENT_HASHES = "content_hashes"
 CHANNELS_REF = "channels"
 VERSION_REF = "sapm_version"
 SAPM_DESC = f"""
@@ -142,13 +142,13 @@ class Renderer:
 
 {CHANNELS_REF}: {channels}
 
-{CONTENT_HASH}: {content_hash}
+{CONTENT_HASHES}: {content_hash}
 
 {VERSION_REF}: {SAPM_VERSION}
         """
 
     def render_title(self, channels: str) -> str:
-        return f"[auto-promotion] event for channel(s) {channels}"
+        return f"[SAPM] auto-promotion for {channels}"
 
 
 def _parse_expression(expression: str) -> Any:
