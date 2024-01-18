@@ -1,3 +1,4 @@
+import copy
 from typing import Any
 from unittest.mock import Mock
 
@@ -299,3 +300,145 @@ def test_get_current_state(
         assert sorted(acs.get_custom_policies(), key=lambda p: p.name) == sorted(
             modeled_acs_policies, key=lambda p: p.name
         )
+
+
+def test_create_policy(
+    mocker: MockerFixture, modeled_acs_policies: list[Policy]
+) -> None:
+    dry_run = False
+    desired = modeled_acs_policies
+    current = modeled_acs_policies[:-1]
+
+    acs_mock = Mock()
+    mocker.patch.object(acs_mock, "create_or_update_policy")
+
+    integration = AcsPoliciesIntegration()
+    integration.reconcile(
+        desired=desired, current=current, acs=acs_mock, dry_run=dry_run
+    )
+
+    acs_mock.create_or_update_policy.assert_has_calls([
+        mocker.call(desired=modeled_acs_policies[1])
+    ])
+
+
+def test_create_policy_dry_run(
+    mocker: MockerFixture, modeled_acs_policies: list[Policy]
+) -> None:
+    dry_run = True
+    desired = modeled_acs_policies
+    current = modeled_acs_policies[:-1]
+
+    acs_mock = Mock()
+    mocker.patch.object(acs_mock, "create_or_update_policy")
+
+    integration = AcsPoliciesIntegration()
+    integration.reconcile(
+        desired=desired, current=current, acs=acs_mock, dry_run=dry_run
+    )
+
+    acs_mock.create_or_update_policy.assert_not_called()
+
+
+def test_delete_policy(
+    mocker: MockerFixture,
+    modeled_acs_policies: list[Policy],
+    api_response_policies_summary: Any,
+) -> None:
+    dry_run = False
+    desired = modeled_acs_policies[:-1]
+    current = modeled_acs_policies
+
+    acs_mock = Mock()
+    mocker.patch.object(acs_mock, "delete_policy")
+    mocker.patch.object(
+        acs_mock,
+        "list_custom_policies",
+        return_value=api_response_policies_summary["policies"][:-1],
+    )
+
+    integration = AcsPoliciesIntegration()
+    integration.reconcile(
+        desired=desired, current=current, acs=acs_mock, dry_run=dry_run
+    )
+
+    acs_mock.delete_policy.assert_has_calls([mocker.call(CUSTOM_POLICY_TWO_ID)])
+
+
+def test_delete_policy_dry_run(
+    mocker: MockerFixture,
+    modeled_acs_policies: list[Policy],
+    api_response_policies_summary: Any,
+) -> None:
+    dry_run = True
+    desired = modeled_acs_policies[:-1]
+    current = modeled_acs_policies
+
+    acs_mock = Mock()
+    mocker.patch.object(acs_mock, "delete_policy")
+    mocker.patch.object(
+        acs_mock,
+        "list_custom_policies",
+        return_value=api_response_policies_summary["policies"][:-1],
+    )
+
+    integration = AcsPoliciesIntegration()
+    integration.reconcile(
+        desired=desired, current=current, acs=acs_mock, dry_run=dry_run
+    )
+
+    acs_mock.delete_policy.assert_not_called()
+
+
+def test_update_policy(
+    mocker: MockerFixture,
+    modeled_acs_policies: list[Policy],
+    api_response_policies_summary: Any,
+) -> None:
+    dry_run = False
+    desired = modeled_acs_policies
+    current = copy.deepcopy(modeled_acs_policies)
+    current[0].severity = "LOW_SEVERITY"
+
+    acs_mock = Mock()
+    mocker.patch.object(acs_mock, "create_or_update_policy")
+    mocker.patch.object(
+        acs_mock,
+        "list_custom_policies",
+        return_value=api_response_policies_summary["policies"],
+    )
+
+    integration = AcsPoliciesIntegration()
+    integration.reconcile(
+        desired=desired, current=current, acs=acs_mock, dry_run=dry_run
+    )
+
+    acs_mock.create_or_update_policy.assert_has_calls([
+        mocker.call(desired=desired[0], id=CUSTOM_POLICY_ONE_ID)
+    ])
+
+
+def test_update_policy_dry_run(
+    mocker: MockerFixture,
+    modeled_acs_policies: list[Policy],
+    api_response_policies_summary: Any,
+) -> None:
+    dry_run = True
+    desired = modeled_acs_policies
+    current = copy.deepcopy(modeled_acs_policies)
+    current[0].severity = "LOW_SEVERITY"
+
+    acs_mock = Mock()
+    mocker.patch.object(acs_mock, "create_or_update_policy")
+    mocker.patch.object(
+        acs_mock,
+        "list_custom_policies",
+        return_value=api_response_policies_summary["policies"],
+    )
+
+    integration = AcsPoliciesIntegration()
+    integration.reconcile(
+        desired=desired, current=current, acs=acs_mock, dry_run=dry_run
+    )
+
+    acs_mock.create_or_update_policy.assert_not_called()
