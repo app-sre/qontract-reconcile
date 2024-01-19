@@ -244,12 +244,16 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
 
 
 def is_coverage_admitted(
-    coverage: ChangeTypeContext, mr_author: str, good_to_test_approvers: set[str]
+    contexts: list[ChangeTypeContext], mr_author: str, good_to_test_approvers: set[str]
 ) -> bool:
-    return any(
-        a.org_username == mr_author or a.org_username in good_to_test_approvers
-        for a in coverage.approvers
-    )
+    change_types_to_approve: set[str] = {c.origin for c in contexts}
+    change_types_approved: set[str] = {
+        c.origin
+        for c in contexts
+        for a in c.approvers
+        if a.org_username == mr_author or a.org_username in good_to_test_approvers
+    }
+    return change_types_to_approve == change_types_approved
 
 
 def is_change_admitted(
@@ -260,12 +264,18 @@ def is_change_admitted(
     # this is not admitted.
     # A change might be admitted if a user that has the restrictive change
     # type is an approver and adds an /good-to-test comment.
-    return all(
-        is_coverage_admitted(c, mr_author, good_to_test_approvers)
+
+    to_check = [
+        c
         for change in changes
         for dc in change.diff_coverage
         for c in dc.coverage
         if c.change_type_processor.restrictive
+    ]
+
+    return all(
+        is_coverage_admitted(to_check, mr_author, good_to_test_approvers)
+        for dc in to_check
     )
 
 
