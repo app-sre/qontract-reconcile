@@ -53,7 +53,6 @@ def test_close_old_content(
         vcs=vcs,
         renderer=renderer,
     )
-    merge_request_manager.fetch_sapm_managed_open_merge_requests()
     merge_request_manager.housekeeping()
     merge_request_manager.create_promotion_merge_requests(subscribers=subscribers)
 
@@ -112,7 +111,6 @@ def test_merge_request_already_opened(
         vcs=vcs,
         renderer=renderer,
     )
-    merge_request_manager.fetch_sapm_managed_open_merge_requests()
     merge_request_manager.housekeeping()
     merge_request_manager.create_promotion_merge_requests(subscribers=subscribers)
 
@@ -170,7 +168,6 @@ def test_ignore_unrelated_channels(
         vcs=vcs,
         renderer=renderer,
     )
-    merge_request_manager.fetch_sapm_managed_open_merge_requests()
     merge_request_manager.housekeeping()
     merge_request_manager.create_promotion_merge_requests(subscribers=subscribers)
 
