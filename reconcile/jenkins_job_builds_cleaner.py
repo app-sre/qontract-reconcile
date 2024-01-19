@@ -36,20 +36,14 @@ def delete_builds(jenkins, builds_todel, dry_run=True):
 
 def get_last_build_ids(builds):
     builds_to_keep = []
-    # FIXME need to explicitly sort and not rely on order API returns
+    if builds != []:
+        last_build = sorted(builds, key=lambda b: b["timestamp"], reverse=True)[0]
+        builds_to_keep.append(last_build["id"])
 
-    good_build_timestamp = 0
-    for build in builds:
-        if build["timestamp"] > good_build_timestamp:
-            builds_to_keep.append(build["id"])
-            good_build_timestamp = build["timestamp"]
-
-    good_build_timestamp = 0
-    for build in builds:
+    for build in sorted(builds, key=lambda b: b["timestamp"], reverse=True):
         if build["result"] == "SUCCESS":
-            if build["timestamp"] > good_build_timestamp:
-                builds_to_keep.append(build["id"])
-                good_build_timestamp = build["timestamp"]
+            builds_to_keep.append(build["id"])
+            break
     return builds_to_keep
 
 
