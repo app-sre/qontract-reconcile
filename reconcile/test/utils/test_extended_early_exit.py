@@ -381,3 +381,37 @@ def test_extended_early_exit_run_hit_when_dry_run(
     mock_logger.info.assert_called_once_with("log-output")
     runner.assert_not_called()
     early_exit_cache.set.assert_not_called()
+
+
+def test_extended_early_exit_run_when_error(
+    mocker: MockerFixture,
+    mock_logger: Any,
+    secret_reader: SecretReaderBase,
+    early_exit_cache: Any,
+) -> None:
+    mock_early_exit_cache = mocker.patch(
+        "reconcile.utils.extended_early_exit.EarlyExitCache",
+        autospec=True,
+    )
+    mock_early_exit_cache.build.return_value.__enter__.return_value = early_exit_cache
+    early_exit_cache.head.return_value = CacheStatus.MISS
+    runner = MagicMock()
+    runner.side_effect = Exception("some-error")
+
+    with pytest.raises(Exception) as exception:
+        extended_early_exit_run(
+            integration=INTEGRATION,
+            integration_version=INTEGRATION_VERSION,
+            dry_run=False,
+            cache_source=CACHE_SOURCE,
+            short_ttl_seconds=SHORT_TTL_SECONDS,
+            ttl_seconds=TTLS_SECONDS,
+            logger=mock_logger,
+            runner=runner,
+            secret_reader=secret_reader,
+            log_cached_log_output=True,
+        )
+
+    assert str(exception.value) == "some-error"
+    runner.assert_called_once_with()
+    early_exit_cache.set.assert_not_called()
