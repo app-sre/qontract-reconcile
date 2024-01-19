@@ -59,6 +59,7 @@ class MergeRequestManager:
         self._open_mrs: list[OpenMergeRequest] = []
         self._open_mrs_with_problems: list[OpenMergeRequest] = []
         self._open_raw_mrs: list[ProjectMergeRequest] = []
+        self._unbatchable_hashes: set[str] = set()
 
     def _apply_regex(self, pattern: re.Pattern, promotion_data: str) -> str:
         matches = pattern.search(promotion_data)
@@ -214,8 +215,24 @@ class MergeRequestManager:
         and close the old batched MR. By doing so, we ensure that unrelated MRs are not blocking each other.
         Unbatched MRs are marked and will never be batched again.
         """
-        # TODO: implemented in follow-up MR
-        pass
+        open_mrs_after_unbatching: list[OpenMergeRequest] = []
+        for mr in self._open_mrs:
+            if not mr.is_batchable:
+                # The MR is already marked as not batchable which means we do not need to unbatch
+                open_mrs_after_unbatching.append(mr)
+                continue
+            if not mr.failed_mr_check:
+                # The MR passed check and doesnt need unbatching
+                open_mrs_after_unbatching.append(mr)
+                continue
+            self._vcs.close_app_interface_mr(
+                mr,
+                "Closing this MR because it failed MR check and isnt marked un-batchable yet.",
+            )
+            # Remember these hashes as unbatchable
+            content_hashes = mr.content_hashes.split(ITEM_SEPARATOR)
+            self._unbatchable_hashes.update(content_hashes)
+        self._open_mrs = open_mrs_after_unbatching
 
     def housekeeping(self) -> None:
         self._fetch_sapm_managed_open_merge_requests()
@@ -302,7 +319,7 @@ class MergeRequestManager:
             description = self._renderer.render_description(
                 content_hashes=combined_content_hash,
                 channels=channel_combo,
-                is_batchable=True,
+                is_batchable=combined_content_hash not in self._unbatchable_hashes,
             )
             title = self._renderer.render_title(channels=channel_combo)
             logging.info(
