@@ -33,9 +33,10 @@ def delete_builds(jenkins, builds_todel, dry_run=True):
                 msg = f"failed to delete {job_name}/{build_id}"
                 logging.exception(msg)
 
+
 def get_last_build_ids(builds):
     builds_to_keep = []
-    #FIXME need to explicitly sort and not rely on order API returns
+    # FIXME need to explicitly sort and not rely on order API returns
 
     good_build_timestamp = 0
     for build in builds:
@@ -51,6 +52,7 @@ def get_last_build_ids(builds):
                 good_build_timestamp = build["timestamp"]
     return builds_to_keep
 
+
 def find_builds(jenkins, job_names, rules):
     # Current time in ms
     time_ms = time.time() * 1000
@@ -61,10 +63,12 @@ def find_builds(jenkins, job_names, rules):
             if rule["name_re"].search(job_name):
                 builds = jenkins.get_builds(job_name)
                 # We need to keep last [|successful] build (https://issues.redhat.com/browse/APPSRE-8701)
-                builds_to_keep =  get_last_build_ids(builds)                      
+                builds_to_keep = get_last_build_ids(builds)
                 for build in builds:
                     if build["id"] in builds_to_keep:
-                        logging.debug(f"{jenkins.url}: {job_name} build: {build['id']} will be kept")
+                        logging.debug(
+                            f"{jenkins.url}: {job_name} build: {build['id']} will be kept"
+                        )
                         continue
                     if time_ms - rule["keep_ms"] > build["timestamp"]:
                         builds_found.append({
