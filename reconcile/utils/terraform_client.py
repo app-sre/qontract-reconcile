@@ -90,7 +90,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         self.thread_pool_size = thread_pool_size
         self._aws_api = aws_api
         self._log_lock = Lock()
-        self.should_apply = False
+        self.apply_count = 0
 
         self.specs: list[TerraformSpec] = []
         self.init_specs()
@@ -110,6 +110,12 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             account: list(self.format_output(output, self.OUTPUT_TYPE_PASSWORDS).keys())
             for account, output in self.outputs.items()
         }
+
+    def increment_apply_count(self):
+        self.apply_count += 1
+
+    def should_apply(self) -> bool:
+        return self.apply_count > 0
 
     def get_new_users(self):
         new_users = []
@@ -282,7 +288,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             after = output_change.get("after")
             if before != after:
                 logging.info(["update", name, "output", output_name])
-                self.should_apply = True
+                self.increment_apply_count()
 
         # A way to detect deleted outputs is by comparing
         # the prior state with the output changes.
@@ -295,7 +301,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         deleted_outputs = [po for po in prior_outputs if po not in output_changes]
         for output_name in deleted_outputs:
             logging.info(["delete", name, "output", output_name])
-            self.should_apply = True
+            self.increment_apply_count()
 
         resource_changes = output.get("resource_changes")
         if resource_changes is None:
@@ -339,7 +345,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                         resource_name,
                         self._resource_diff_changed_fields(action, resource_change),
                     ])
-                    self.should_apply = True
+                    self.increment_apply_count()
                 if action == "create":
                     if resource_type == "aws_iam_user_login_profile":
                         created_users.append(AccountUser(name, resource_name))

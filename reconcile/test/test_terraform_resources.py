@@ -4,7 +4,7 @@ from collections.abc import (
     Mapping,
 )
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, create_autospec
 
 import pytest
 from pytest_mock import MockerFixture
@@ -283,7 +283,7 @@ def setup_mocks(
         "reconcile.terraform_resources.Terraform", autospec=True
     ).return_value
     mocked_tf.plan.return_value = (False, None)
-    mocked_tf.should_apply = False
+    mocked_tf.should_apply.return_value = False
 
     mocker.patch("reconcile.terraform_resources.AWSApi", autospec=True)
 
@@ -397,3 +397,85 @@ def test_run_with_extended_early_exit_run_disabled(
 
     mocks["extended_early_exit_run"].assert_not_called()
     mocks["tf"].plan.assert_called_once_with(False)
+
+
+def test_terraform_resources_runner_dry_run(
+    secret_reader: SecretReaderBase,
+) -> None:
+    tf = create_autospec(integ.Terraform)
+    tf.plan.return_value = (False, None)
+
+    ts = create_autospec(integ.Terrascript)
+    terraform_configurations = {"a": "b"}
+    ts.terraform_configurations.return_value = terraform_configurations
+
+    defer = MagicMock()
+
+    runner_params = integ.RunnerParams(
+        accounts=[{"name": "a"}],
+        account_names={"a"},
+        tf_namespaces=[],
+        tf=tf,
+        ts=ts,
+        secret_reader=secret_reader,
+        dry_run=True,
+        enable_deletion=False,
+        thread_pool_size=10,
+        internal=None,
+        use_jump_host=True,
+        light=False,
+        vault_output_path="",
+        defer=defer,
+    )
+
+    result = integ.runner(**runner_params.dict())
+
+    assert result == integ.ExtendedEarlyExitRunnerResult(
+        payload=terraform_configurations,
+        applied_count=0,
+    )
+
+
+def test_terraform_resources_runner_no_dry_run(
+    mocker: MockerFixture,
+    secret_reader: SecretReaderBase,
+) -> None:
+    tf = create_autospec(integ.Terraform)
+    tf.plan.return_value = (False, None)
+    tf.apply_count = 1
+    tf.should_apply.return_value = True
+    tf.apply.return_value = False
+
+    ts = create_autospec(integ.Terrascript)
+    terraform_configurations = {"a": "b"}
+    ts.terraform_configurations.return_value = terraform_configurations
+    ts.resource_spec_inventory = {}
+
+    defer = MagicMock()
+
+    mocked_ob = mocker.patch("reconcile.terraform_resources.ob")
+    mocked_ob.realize_data.return_value = [{"action": "applied"}]
+
+    runner_params = integ.RunnerParams(
+        accounts=[{"name": "a"}],
+        account_names={"a"},
+        tf_namespaces=[],
+        tf=tf,
+        ts=ts,
+        secret_reader=secret_reader,
+        dry_run=False,
+        enable_deletion=False,
+        thread_pool_size=10,
+        internal=None,
+        use_jump_host=True,
+        light=False,
+        vault_output_path="",
+        defer=defer,
+    )
+
+    result = integ.runner(**runner_params.dict())
+
+    assert result == integ.ExtendedEarlyExitRunnerResult(
+        payload=terraform_configurations,
+        applied_count=2,
+    )

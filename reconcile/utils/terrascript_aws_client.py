@@ -3890,7 +3890,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if os.path.isfile(print_to_file):
                 os.remove(print_to_file)
 
-        for name, ts in self.terraform_configurations():
+        for name, ts in self.terraform_configurations().items():
             if print_to_file:
                 with open(print_to_file, "a", encoding="locale") as f:
                     f.write(f"##### {name} #####\n")

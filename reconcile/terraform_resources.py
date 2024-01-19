@@ -32,7 +32,10 @@ from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
-from reconcile.utils.extended_early_exit import extended_early_exit_run
+from reconcile.utils.extended_early_exit import (
+    ExtendedEarlyExitRunnerResult,
+    extended_early_exit_run,
+)
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
@@ -458,7 +461,7 @@ def runner(
     light: bool = False,
     vault_output_path: str = "",
     defer: Optional[Callable] = None,
-) -> None:
+) -> ExtendedEarlyExitRunnerResult:
     if not light:
         disabled_deletions_detected, err = tf.plan(enable_deletion)
         if err:
@@ -467,10 +470,13 @@ def runner(
             raise RuntimeError("Terraform plan has disabled deletions detected")
 
     if dry_run:
-        return
+        return ExtendedEarlyExitRunnerResult(
+            payload=ts.terraform_configurations(),
+            applied_count=0,
+        )
 
     acc_name = accounts[0]["name"] if accounts else None
-    if not light and tf.should_apply:
+    if not light and tf.should_apply():
         err = tf.apply()
         if err:
             raise RuntimeError("Terraform apply has errors")
@@ -516,6 +522,11 @@ def runner(
 
     if ri.has_error_registered():
         raise RuntimeError("Resource inventory has errors registered")
+
+    return ExtendedEarlyExitRunnerResult(
+        payload=ts.terraform_configurations(),
+        applied_count=tf.apply_count + len(actions),
+    )
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
