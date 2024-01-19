@@ -4,6 +4,7 @@ from collections.abc import (
     Mapping,
 )
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
@@ -12,6 +13,7 @@ import reconcile.terraform_resources as integ
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceV1,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 def test_cannot_use_exclude_accounts_if_not_dry_run():
@@ -258,26 +260,140 @@ def test_filter_tf_namespaces_namespace_deleted(gql_class_factory: Callable):
     assert filtered == [ns2]
 
 
-def test_empty_run(mocker: MockerFixture) -> None:
+def setup_mocks(
+    mocker: MockerFixture,
+    secret_reader: SecretReaderBase,
+    aws_accounts: list[dict[str, Any]],
+    tf_namespaces: list[NamespaceV1],
+) -> dict[str, Any]:
     mocked_queries = mocker.patch("reconcile.terraform_resources.queries")
-    mocked_queries.get_aws_accounts.return_value = [{"name": "a"}]
+    mocked_queries.get_aws_accounts.return_value = aws_accounts
     mocked_queries.get_app_interface_settings.return_value = []
 
-    mocker.patch("reconcile.terraform_resources.get_namespaces").return_value = []
+    mocker.patch(
+        "reconcile.terraform_resources.get_namespaces"
+    ).return_value = tf_namespaces
 
-    mocked_ts = mocker.patch("reconcile.terraform_resources.Terrascript", autospec=True)
-    mocked_ts.return_value.resource_spec_inventory = {}
+    mocked_ts = mocker.patch(
+        "reconcile.terraform_resources.Terrascript", autospec=True
+    ).return_value
+    mocked_ts.resource_spec_inventory = {}
 
-    mocked_tf = mocker.patch("reconcile.terraform_resources.Terraform", autospec=True)
-    mocked_tf.return_value.plan.return_value = (False, None)
-    mocked_tf.return_value.should_apply = False
+    mocked_tf = mocker.patch(
+        "reconcile.terraform_resources.Terraform", autospec=True
+    ).return_value
+    mocked_tf.plan.return_value = (False, None)
+    mocked_tf.should_apply = False
 
     mocker.patch("reconcile.terraform_resources.AWSApi", autospec=True)
 
     mocked_logging = mocker.patch("reconcile.terraform_resources.logging")
 
+    mocker.patch("reconcile.terraform_resources.get_app_interface_vault_settings")
+
+    mocker.patch(
+        "reconcile.terraform_resources.create_secret_reader",
+        return_value=secret_reader,
+    )
+
+    mock_extended_early_exit_run = mocker.patch(
+        "reconcile.terraform_resources.extended_early_exit_run"
+    )
+
+    return {
+        "queries": mocked_queries,
+        "ts": mocked_ts,
+        "tf": mocked_tf,
+        "logging": mocked_logging,
+        "extended_early_exit_run": mock_extended_early_exit_run,
+    }
+
+
+def test_empty_run(
+    mocker: MockerFixture,
+    secret_reader: SecretReaderBase,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        secret_reader,
+        aws_accounts=[{"name": "a"}],
+        tf_namespaces=[],
+    )
+
     integ.run(True, account_name="a")
 
-    mocked_logging.warning.assert_called_once_with(
+    mocks["logging"].warning.assert_called_once_with(
         "No terraform namespaces found, consider disabling this integration, account names: a"
     )
+
+
+def test_run_with_extended_early_exit_run_enabled(
+    mocker: MockerFixture,
+    secret_reader: SecretReaderBase,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        secret_reader,
+        aws_accounts=[{"name": "a"}],
+        tf_namespaces=[],
+    )
+    defer = MagicMock()
+    expected_runner_params = integ.RunnerParams(
+        accounts=[{"name": "a"}],
+        account_names={"a"},
+        tf_namespaces=[],
+        tf=mocks["tf"],
+        ts=mocks["ts"],
+        secret_reader=secret_reader,
+        dry_run=True,
+        enable_deletion=False,
+        thread_pool_size=10,
+        internal=None,
+        use_jump_host=True,
+        light=False,
+        vault_output_path="",
+        defer=defer,
+    )
+
+    integ.run.__wrapped__(
+        True,
+        account_name="a",
+        extended_early_exit=True,
+        extended_early_exit_cache_ttl_seconds=60,
+        log_cached_log_output=True,
+        defer=defer,
+    )
+
+    mocks["extended_early_exit_run"].assert_called_once_with(
+        integration=integ.QONTRACT_INTEGRATION,
+        integration_version=integ.QONTRACT_INTEGRATION_VERSION,
+        dry_run=True,
+        cache_source=mocks["ts"].terraform_configurations.return_value,
+        ttl_seconds=60,
+        logger=mocks["logging"].getLogger.return_value,
+        runner=integ.runner,
+        runner_params=expected_runner_params,
+        secret_reader=secret_reader,
+        log_cached_log_output=True,
+    )
+
+
+def test_run_with_extended_early_exit_run_disabled(
+    mocker: MockerFixture,
+    secret_reader: SecretReaderBase,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        secret_reader,
+        aws_accounts=[{"name": "a"}],
+        tf_namespaces=[],
+    )
+
+    integ.run(
+        True,
+        account_name="a",
+        extended_early_exit=False,
+    )
+
+    mocks["extended_early_exit_run"].assert_not_called()
+    mocks["tf"].plan.assert_called_once_with(False)

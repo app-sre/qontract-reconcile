@@ -21,7 +21,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 INTEGRATION = "some-integration"
 INTEGRATION_VERSION = "some-integration-version"
-SHORT_TTL_SECONDS = 10
+SHORT_TTL_SECONDS = 0
 TTLS_SECONDS = 100
 
 
@@ -106,7 +106,6 @@ def test_extended_early_exit_run_miss_or_expired_when_no_dry_run(
         integration_version=INTEGRATION_VERSION,
         dry_run=False,
         cache_source=CACHE_SOURCE,
-        short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
         logger=logger,
         runner=runner,
@@ -175,7 +174,6 @@ def test_extended_early_exit_run_miss_or_expired_in_dry_run_but_hit_in_no_dry_ru
         integration_version=INTEGRATION_VERSION,
         dry_run=True,
         cache_source=CACHE_SOURCE,
-        short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
         logger=mock_logger,
         runner=runner,
@@ -247,7 +245,6 @@ def test_extended_early_exit_run_miss_or_expired_in_both_dry_run_and_no_dry_run(
         integration_version=INTEGRATION_VERSION,
         dry_run=True,
         cache_source=CACHE_SOURCE,
-        short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
         logger=logger,
         runner=runner,
@@ -309,7 +306,6 @@ def test_extended_early_exit_run_hit_when_not_dry_run(
         integration_version=INTEGRATION_VERSION,
         dry_run=False,
         cache_source=CACHE_SOURCE,
-        short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
         logger=logger,
         runner=runner,
@@ -353,7 +349,6 @@ def test_extended_early_exit_run_hit_when_dry_run(
         integration_version=INTEGRATION_VERSION,
         dry_run=True,
         cache_source=CACHE_SOURCE,
-        short_ttl_seconds=SHORT_TTL_SECONDS,
         ttl_seconds=TTLS_SECONDS,
         logger=mock_logger,
         runner=runner,
@@ -404,7 +399,6 @@ def test_extended_early_exit_run_when_error(
             integration_version=INTEGRATION_VERSION,
             dry_run=False,
             cache_source=CACHE_SOURCE,
-            short_ttl_seconds=SHORT_TTL_SECONDS,
             ttl_seconds=TTLS_SECONDS,
             logger=mock_logger,
             runner=runner,

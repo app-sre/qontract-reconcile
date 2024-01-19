@@ -65,21 +65,19 @@ def _no_dry_run_cache_hit(
 
 def _ttl_seconds(
     applied_count: int,
-    short_ttl_seconds: int,
     ttl_seconds: int,
 ) -> int:
     """
     Pick the ttl based on the applied count.
-    If the applied count is greater than 0, then we want to set a short ttl so that the next run will not hit the cache,
+    If the applied count is greater than 0, then we want to set ttl to 0 so that the next run will not hit the cache,
     this will allow us to easy debug reconcile loops, as we will be able to see the logs of the next run,
     and check cached value for more details.
 
     :param applied_count: The number of resources that were applied
-    :param short_ttl_seconds: A short ttl in seconds
     :param ttl_seconds: A ttl in seconds
     :return: The ttl in seconds
     """
-    return short_ttl_seconds if applied_count > 0 else ttl_seconds
+    return 0 if applied_count > 0 else ttl_seconds
 
 
 @contextmanager
@@ -106,7 +104,6 @@ def extended_early_exit_run(
     integration_version: str,
     dry_run: bool,
     cache_source: object,
-    short_ttl_seconds: int,
     ttl_seconds: int,
     logger: Logger,
     runner: Callable[..., ExtendedEarlyExitRunnerResult],
@@ -121,13 +118,12 @@ def extended_early_exit_run(
     and will be logged when hit if log_cached_log_output is True,
     this is mainly used to show all log output from different integrations in one place (CI).
     When runner returns no applies (applied_count is 0), the ttl will be set to ttl_seconds,
-    otherwise it will be set to short_ttl_seconds.
+    otherwise it will be set to 0.
 
     :param integration: The integration name
     :param integration_version: The integration version
     :param dry_run: True if the run is in dry run mode, False otherwise
     :param cache_source: The cache source, usually the static desired state
-    :param short_ttl_seconds: A short ttl in seconds
     :param ttl_seconds: A ttl in seconds
     :param logger: A Logger
     :param runner: A runner can return ExtendedEarlyExitRunnerResult when called
@@ -170,5 +166,5 @@ def extended_early_exit_run(
             log_output=log_output,
             applied_count=result.applied_count,
         )
-        ttl = _ttl_seconds(result.applied_count, short_ttl_seconds, ttl_seconds)
+        ttl = _ttl_seconds(result.applied_count, ttl_seconds)
         cache.set(key, value, ttl)

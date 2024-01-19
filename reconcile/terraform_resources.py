@@ -12,6 +12,7 @@ from typing import (
     cast,
 )
 
+from pydantic import BaseModel
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -31,6 +32,7 @@ from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
+from reconcile.utils.extended_early_exit import extended_early_exit_run
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
@@ -50,9 +52,10 @@ from reconcile.utils.ocm import OCMMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
-from reconcile.utils.secret_reader import create_secret_reader
+from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from reconcile.utils.terrascript_aws_client import TerrascriptClient
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 from reconcile.utils.vault import (
     VaultClient,
@@ -120,10 +123,9 @@ def fetch_current_state(
     internal: Optional[bool],
     use_jump_host: bool,
     account_names: Optional[Iterable[str]],
+    secret_reader: SecretReaderBase,
 ) -> tuple[ResourceInventory, OCMap]:
     ri = ResourceInventory()
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     oc_map = init_oc_map_from_namespaces(
         namespaces=namespaces,
         integration=QONTRACT_INTEGRATION,
@@ -230,7 +232,10 @@ def setup(
     tf_namespaces: list[NamespaceV1],
     print_to_file: Optional[str],
     thread_pool_size: int,
-) -> tuple[Terraform, Terrascript]:
+) -> tuple[Terraform, TerrascriptClient, SecretReaderBase]:
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+
     settings = queries.get_app_interface_settings()
     # initialize terrascript (scripting engine to generate terraform manifests)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size, settings=settings)
@@ -262,7 +267,7 @@ def setup(
     ts.populate_resources(ocm_map=ocm_map)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
-    return tf, ts
+    return tf, ts, secret_reader
 
 
 def filter_tf_namespaces(
@@ -353,6 +358,9 @@ def run(
     vault_output_path: str = "",
     account_name: Optional[Sequence[str]] = None,
     exclude_accounts: Optional[Sequence[str]] = None,
+    extended_early_exit: bool = False,
+    extended_early_exit_cache_ttl_seconds: int = 600,
+    log_cached_log_output: bool = False,
     defer: Optional[Callable] = None,
 ) -> None:
     # account_name is a tuple of account names for more detail go to
@@ -366,7 +374,7 @@ def run(
             f"{', '.join(account_names)}"
         )
 
-    tf, ts = setup(
+    tf, ts, secret_reader = setup(
         accounts,
         account_names,
         tf_namespaces,
@@ -381,12 +389,13 @@ def run(
     if print_to_file:
         return
 
-    runner(
+    runner_params = RunnerParams(
         accounts=accounts,
         account_names=account_names,
         tf_namespaces=tf_namespaces,
         tf=tf,
         ts=ts,
+        secret_reader=secret_reader,
         dry_run=dry_run,
         enable_deletion=enable_deletion,
         thread_pool_size=thread_pool_size,
@@ -397,6 +406,42 @@ def run(
         defer=defer,
     )
 
+    if extended_early_exit:
+        extended_early_exit_run(
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            dry_run=dry_run,
+            cache_source=ts.terraform_configurations(),
+            ttl_seconds=extended_early_exit_cache_ttl_seconds,
+            logger=logging.getLogger(),
+            runner=runner,
+            runner_params=runner_params,
+            secret_reader=secret_reader,
+            log_cached_log_output=log_cached_log_output,
+        )
+    else:
+        runner(**runner_params.dict())
+
+
+class RunnerParams(BaseModel):
+    accounts: list[dict[str, Any]]
+    account_names: set[str]
+    tf_namespaces: list[NamespaceV1]
+    tf: Terraform
+    ts: Terrascript
+    secret_reader: SecretReaderBase
+    dry_run: bool
+    enable_deletion: bool
+    thread_pool_size: int
+    internal: Optional[bool]
+    use_jump_host: bool
+    light: bool
+    vault_output_path: str
+    defer: Optional[Callable]
+
+    class Config:
+        arbitrary_types_allowed = True
+
 
 def runner(
     accounts: list[dict[str, Any]],
@@ -404,6 +449,7 @@ def runner(
     tf_namespaces: list[NamespaceV1],
     tf: Terraform,
     ts: Terrascript,
+    secret_reader: SecretReaderBase,
     dry_run: bool,
     enable_deletion: bool = False,
     thread_pool_size: int = 10,
@@ -444,7 +490,12 @@ def runner(
     )
 
     ri, oc_map = fetch_current_state(
-        tf_namespaces, thread_pool_size, internal, use_jump_host, account_names
+        tf_namespaces,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        account_names,
+        secret_reader=secret_reader,
     )
     if defer:
         defer(oc_map.cleanup)
