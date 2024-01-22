@@ -4,8 +4,8 @@ from typing import cast
 
 import reconcile.gql_definitions.acs.acs_policies as gql_acs_policies
 from reconcile.gql_definitions.acs.acs_policies import (
-    AcsPolicyV1,
     AcsPolicyConditionsV1,
+    AcsPolicyV1,
 )
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -184,25 +184,25 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                     acs.create_or_update_policy(desired=a)
                 except Exception as e:
                     errors.append(e)
-            logging.info("Created policy: %s", a.name)
-        if len(diff.delete) > 0 or len(diff.change) > 0:
-            policy_id_names = {p["name"]: p["id"] for p in acs.list_custom_policies()}
+            logging.info("Create policy: %s", a.name)
+        if diff.delete or diff.change:
+            policy_id_by_name = {p["name"]: p["id"] for p in acs.list_custom_policies()}
             for d in diff.delete.values():
                 if not dry_run:
                     try:
-                        acs.delete_policy(policy_id_names[d.name])
+                        acs.delete_policy(policy_id_by_name[d.name])
                     except Exception as e:
                         errors.append(e)
-                logging.info("Deleted policy: %s", d.name)
+                logging.info("Delete policy: %s", d.name)
             for c in diff.change.values():
                 if not dry_run:
                     try:
                         acs.create_or_update_policy(
-                            desired=c.desired, id=policy_id_names[c.current.name]
+                            desired=c.desired, id=policy_id_by_name[c.current.name]
                         )
                     except Exception as e:
                         errors.append(e)
-                logging.info("Updated policy: %s", c.desired.name)
+                logging.info("Update policy: %s", c.desired.name)
         if errors:
             raise ExceptionGroup("Reconcile errors occurred", errors)
 
