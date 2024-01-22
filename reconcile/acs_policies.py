@@ -3,6 +3,10 @@ from collections.abc import Callable
 from typing import cast
 
 import reconcile.gql_definitions.acs.acs_policies as gql_acs_policies
+from reconcile.gql_definitions.acs.acs_policies import (
+    AcsPolicyV1,
+    AcsPolicyConditionsV1,
+)
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -53,6 +57,102 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
     def name(self) -> str:
         return self.qontract_integration.replace("_", "-")
 
+    def _build_policy(
+        self, gql_policy: AcsPolicyV1, notifier_name_to_id: dict[str, str]
+    ) -> Policy:
+        conditions = [self._build_policy_condition(c) for c in gql_policy.conditions]
+        return Policy(
+            name=gql_policy.name,
+            description=gql_policy.description,
+            notifiers=sorted([notifier_name_to_id[n] for n in gql_policy.notifiers])
+            if gql_policy.notifiers
+            else [],
+            severity=f"{gql_policy.severity.upper()}_SEVERITY",  # align with acs api severity value format
+            scope=sorted(
+                [
+                    Scope(cluster=cs.name, namespace="")
+                    for cs in cast(
+                        gql_acs_policies.AcsPolicyScopeClusterV1,
+                        gql_policy.scope,
+                    ).clusters
+                ],
+                key=lambda s: s.cluster,
+            )
+            if gql_policy.scope.level == "cluster"
+            else sorted(
+                [
+                    Scope(cluster=ns.cluster.name, namespace=ns.name)
+                    for ns in cast(
+                        gql_acs_policies.AcsPolicyScopeNamespaceV1,
+                        gql_policy.scope,
+                    ).namespaces
+                ],
+                key=lambda s: s.cluster,
+            ),
+            categories=sorted([POLICY_CATEGORIES[pc] for pc in gql_policy.categories]),
+            conditions=conditions,
+        )
+
+    def _build_policy_condition(
+        self, condition: AcsPolicyConditionsV1
+    ) -> PolicyCondition | None:
+        field_name = POLICY_CONDITION_FIELD_NAMES[condition.policy_field]
+        match condition.policy_field:
+            case "cvss":
+                cvss_condition = cast(
+                    gql_acs_policies.AcsPolicyConditionsCvssV1, condition
+                )
+                return PolicyCondition(
+                    field_name=field_name,
+                    negate=False,
+                    values=[
+                        f"{POLICY_CONDITION_COMPARISONS[cvss_condition.comparison]}{cvss_condition.score}"
+                    ],
+                )
+            case "severity":
+                severity_condition = cast(
+                    gql_acs_policies.AcsPolicyConditionsSeverityV1, condition
+                )
+                return PolicyCondition(
+                    field_name=field_name,
+                    negate=False,
+                    values=[
+                        f"{POLICY_CONDITION_COMPARISONS[severity_condition.comparison]}{severity_condition.level.upper()}"
+                    ],
+                )
+            case "cve":
+                cve_condition = cast(
+                    gql_acs_policies.AcsPolicyConditionsCveV1, condition
+                )
+                return PolicyCondition(
+                    field_name=field_name,
+                    negate=False,
+                    values=[str(cve_condition.fixable).lower()],
+                )
+            case "image_tag":
+                image_tag_condition = cast(
+                    gql_acs_policies.AcsPolicyConditionsImageTagV1, condition
+                )
+                return PolicyCondition(
+                    field_name=field_name,
+                    negate=image_tag_condition.negate or False,
+                    values=image_tag_condition.tags,
+                )
+            case "image_age":
+                image_age_condition = cast(
+                    gql_acs_policies.AcsPolicyConditionsImageAgeV1, condition
+                )
+                return PolicyCondition(
+                    field_name=field_name,
+                    negate=False,
+                    values=[str(image_age_condition.days)],
+                )
+            case _:
+                logging.warning(
+                    "unsupported policyField encountered: %s", condition.policy_field
+                )
+                return None
+
     def get_desired_state(
         self, query_func: Callable, notifiers: list[AcsPolicyApi.NotifierIdentifiers]
     ) -> list[Policy]:
@@ -63,88 +163,11 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         :return: list of utils.acs.policies.Policy derived from acs-policy-1 definitions
         """
         notifier_name_to_id = {n.name: n.id for n in notifiers}
-        policies = []
-        for gql_policy in (
-            gql_acs_policies.query(query_func=query_func).acs_policies or []
-        ):
-            conditions: list[PolicyCondition] = []
-            for c in gql_policy.conditions:
-                pc = PolicyCondition(
-                    field_name=POLICY_CONDITION_FIELD_NAMES[c.policy_field],
-                    negate=False,
-                    values=[],
-                )
-                if c.policy_field == "cvss":
-                    cvss_condition = cast(gql_acs_policies.AcsPolicyConditionsCvssV1, c)
-                    pc.values = [
-                        f"{POLICY_CONDITION_COMPARISONS[cvss_condition.comparison]}{cvss_condition.score}"
-                    ]
-                elif c.policy_field == "severity":
-                    severity_condition = cast(
-                        gql_acs_policies.AcsPolicyConditionsSeverityV1, c
-                    )
-                    pc.values = [
-                        f"{POLICY_CONDITION_COMPARISONS[severity_condition.comparison]}{severity_condition.level.upper()}"
-                    ]
-                elif c.policy_field == "cve":
-                    cve_condition = cast(gql_acs_policies.AcsPolicyConditionsCveV1, c)
-                    pc.values = [str(cve_condition.fixable).lower()]
-                elif c.policy_field == "image_tag":
-                    image_tag_condition = cast(
-                        gql_acs_policies.AcsPolicyConditionsImageTagV1, c
-                    )
-                    pc.values = image_tag_condition.tags
-                    pc.negate = image_tag_condition.negate or False
-                elif c.policy_field == "image_age":
-                    image_age_condition = cast(
-                        gql_acs_policies.AcsPolicyConditionsImageAgeV1, c
-                    )
-                    pc.values = [str(image_age_condition.days)]
-                else:
-                    logging.warning(
-                        "unsupported policyField encountered: %s", c.policy_field
-                    )
-                    continue
-                conditions.append(pc)
-
-            policies.append(
-                Policy(
-                    name=gql_policy.name,
-                    description=gql_policy.description,
-                    notifiers=sorted([
-                        notifier_name_to_id[n] for n in gql_policy.notifiers
-                    ])
-                    if gql_policy.notifiers
-                    else [],
-                    severity=f"{gql_policy.severity.upper()}_SEVERITY",  # align with acs api severity value format
-                    scope=sorted(
-                        [
-                            Scope(cluster=cs.name, namespace="")
-                            for cs in cast(
-                                gql_acs_policies.AcsPolicyScopeClusterV1,
-                                gql_policy.scope,
-                            ).clusters
-                        ],
-                        key=lambda s: s.cluster,
-                    )
-                    if gql_policy.scope.level == "cluster"
-                    else sorted(
-                        [
-                            Scope(cluster=ns.cluster.name, namespace=ns.name)
-                            for ns in cast(
-                                gql_acs_policies.AcsPolicyScopeNamespaceV1,
-                                gql_policy.scope,
-                            ).namespaces
-                        ],
-                        key=lambda s: s.cluster,
-                    ),
-                    categories=sorted([
-                        POLICY_CATEGORIES[pc] for pc in gql_policy.categories
-                    ]),
-                    conditions=conditions,
-                )
-            )
-        return policies
+        return [
+            self._build_policy(gql_policy, notifier_name_to_id)
+            for gql_policy in gql_acs_policies.query(query_func=query_func).acs_policies
+            or []
+        ]
 
     def reconcile(
         self,
