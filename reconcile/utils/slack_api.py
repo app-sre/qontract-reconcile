@@ -235,11 +235,15 @@ class SlackApi:
         try:
             do_send(self.channel, text)
         except SlackApiError as e:
-            if e.response["error"] == "not_in_channel":
-                self.join_channel()
-                do_send(self.channel, text)
-            else:
-                raise e
+            match e.response["error"]:
+                case "not_in_channel":
+                    self.join_channel()
+                    do_send(self.channel, text)
+                case "channel_not_found":
+                    logging.error(f"Slack API says can't find channel {self.channel}")
+                    raise
+                case _:
+                    raise
 
     def describe_usergroup(
         self, handle: str
