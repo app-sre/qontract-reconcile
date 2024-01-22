@@ -239,6 +239,10 @@ class SlackApi:
                 case "not_in_channel":
                     self.join_channel()
                     do_send(self.channel, text)
+                # When a message is sent to #someChannel and the Slack API can't find
+                # it, the message it provides in the exception doesn't include the
+                # channel name. We handle that here in case the consumer has many such
+                # independent calls to Slack's API.
                 case "channel_not_found":
                     logging.error(f"Slack API says can't find channel {self.channel}")
                     raise
