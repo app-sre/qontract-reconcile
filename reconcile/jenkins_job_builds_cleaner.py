@@ -57,7 +57,7 @@ def find_builds(jenkins, job_names, rules):
         for rule in rules:
             if rule["name_re"].search(job_name):
                 builds = jenkins.get_builds(job_name)
-                # We need to keep last and last successful builds (https://issues.redhat.com/browse/APPSRE-8701)
+                # We need to keep very last and last successful builds (https://issues.redhat.com/browse/APPSRE-8701)
                 builds_to_keep = get_last_build_ids(builds)
                 for build in builds:
                     if build["id"] in builds_to_keep:
