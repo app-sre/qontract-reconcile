@@ -36,11 +36,12 @@ def delete_builds(jenkins, builds_todel, dry_run=True):
 
 def get_last_build_ids(builds):
     builds_to_keep = []
-    if builds:
-        last_build = sorted(builds, key=lambda b: b["timestamp"], reverse=True)[0]
+    sorted_builds = sorted(builds, key=lambda b: b["timestamp"], reverse=True)
+    if sorted_builds:
+        last_build = sorted_builds[0]
         builds_to_keep.append(last_build["id"])
 
-    for build in builds:
+    for build in sorted_builds:
         if build["result"] == "SUCCESS":
             builds_to_keep.append(build["id"])
             break
