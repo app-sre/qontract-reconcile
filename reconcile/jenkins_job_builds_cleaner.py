@@ -34,6 +34,20 @@ def delete_builds(jenkins, builds_todel, dry_run=True):
                 logging.exception(msg)
 
 
+def get_last_build_ids(builds):
+    builds_to_keep = []
+    sorted_builds = sorted(builds, key=lambda b: b["timestamp"], reverse=True)
+    if sorted_builds:
+        last_build = sorted_builds[0]
+        builds_to_keep.append(last_build["id"])
+
+    for build in sorted_builds:
+        if build["result"] == "SUCCESS":
+            builds_to_keep.append(build["id"])
+            break
+    return builds_to_keep
+
+
 def find_builds(jenkins, job_names, rules):
     # Current time in ms
     time_ms = time.time() * 1000
@@ -43,7 +57,14 @@ def find_builds(jenkins, job_names, rules):
         for rule in rules:
             if rule["name_re"].search(job_name):
                 builds = jenkins.get_builds(job_name)
+                # We need to keep last and last successful builds (https://issues.redhat.com/browse/APPSRE-8701)
+                builds_to_keep = get_last_build_ids(builds)
                 for build in builds:
+                    if build["id"] in builds_to_keep:
+                        logging.debug(
+                            f"{jenkins.url}: {job_name} build: {build['id']} will be kept"
+                        )
+                        continue
                     if time_ms - rule["keep_ms"] > build["timestamp"]:
                         builds_found.append({
                             "job_name": job_name,
