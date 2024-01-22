@@ -36,11 +36,11 @@ def delete_builds(jenkins, builds_todel, dry_run=True):
 
 def get_last_build_ids(builds):
     builds_to_keep = []
-    if builds != []:
+    if builds:
         last_build = sorted(builds, key=lambda b: b["timestamp"], reverse=True)[0]
         builds_to_keep.append(last_build["id"])
 
-    for build in sorted(builds, key=lambda b: b["timestamp"], reverse=True):
+    for build in builds:
         if build["result"] == "SUCCESS":
             builds_to_keep.append(build["id"])
             break
@@ -56,7 +56,7 @@ def find_builds(jenkins, job_names, rules):
         for rule in rules:
             if rule["name_re"].search(job_name):
                 builds = jenkins.get_builds(job_name)
-                # We need to keep last [|successful] build (https://issues.redhat.com/browse/APPSRE-8701)
+                # We need to keep last and last successful builds (https://issues.redhat.com/browse/APPSRE-8701)
                 builds_to_keep = get_last_build_ids(builds)
                 for build in builds:
                     if build["id"] in builds_to_keep:
