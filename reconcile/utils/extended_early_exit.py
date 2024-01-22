@@ -57,7 +57,9 @@ def _no_dry_run_cache_hit(
         dry_run=False,
         cache_source=cache_source,
     )
-    hit = cache.head(key) == CacheStatus.HIT
+    cache_status = cache.head(key)
+    logger.debug("Early exit cache status for key=%s: %s", key, cache_status)
+    hit = cache_status == CacheStatus.HIT
     if hit and log_cached_log_output:
         _log_cached_log_output(cache, key, logger)
     return hit
@@ -140,6 +142,7 @@ def extended_early_exit_run(
             cache_source=cache_source,
         )
         cache_status = cache.head(key)
+        logger.debug("Early exit cache status for key=%s: %s", key, cache_status)
 
         if cache_status == CacheStatus.HIT:
             if log_cached_log_output:
@@ -167,4 +170,5 @@ def extended_early_exit_run(
             applied_count=result.applied_count,
         )
         ttl = _ttl_seconds(result.applied_count, ttl_seconds)
+        logger.debug("Set early exit cache for key=%s with ttl=%d", key, ttl)
         cache.set(key, value, ttl)

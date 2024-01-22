@@ -361,8 +361,8 @@ def run(
     vault_output_path: str = "",
     account_name: Optional[Sequence[str]] = None,
     exclude_accounts: Optional[Sequence[str]] = None,
-    extended_early_exit: bool = False,
-    extended_early_exit_cache_ttl_seconds: int = 600,
+    enable_extended_early_exit: bool = False,
+    extended_early_exit_cache_ttl_seconds: int = 3600,
     log_cached_log_output: bool = False,
     defer: Optional[Callable] = None,
 ) -> None:
@@ -409,7 +409,7 @@ def run(
         defer=defer,
     )
 
-    if extended_early_exit:
+    if enable_extended_early_exit:
         extended_early_exit_run(
             integration=QONTRACT_INTEGRATION,
             integration_version=QONTRACT_INTEGRATION_VERSION,

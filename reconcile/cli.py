@@ -507,6 +507,30 @@ def trigger_integration(function):
     return function
 
 
+def enable_extended_early_exit(function):
+    return click.option(
+        "--enable-extended-early-exit/--no-enable-extended-early-exit",
+        default=False,
+        help="enable extended early exit.",
+    )(function)
+
+
+def extended_early_exit_cache_ttl_seconds(function):
+    return click.option(
+        "--extended-early-exit-cache-ttl-seconds",
+        default=3600,
+        help="TTL of extended early exit cache in seconds.",
+    )(function)
+
+
+def log_cached_log_output(function):
+    return click.option(
+        "--log-cached-log-output/--no-log-cached-log-output",
+        default=False,
+        help="log the cached log output.",
+    )(function)
+
+
 def register_faulthandler(fileobj=sys.__stderr__):
     if fileobj:
         if not faulthandler.is_enabled():
@@ -1738,6 +1762,9 @@ def terraform_repo(ctx, output_file, gitlab_project_id, gitlab_merge_request_id)
 @enable_deletion(default=False)
 @account_name_multiple
 @exclude_aws_accounts
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.option(
     "--light/--full",
     default=False,
@@ -1755,6 +1782,9 @@ def terraform_resources(
     vault_output_path,
     account_name,
     exclude_accounts,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
 ):
     import reconcile.terraform_resources
 
@@ -1772,6 +1802,9 @@ def terraform_resources(
         vault_output_path,
         account_name=account_name,
         exclude_accounts=exclude_accounts,
+        enable_extended_early_exit=enable_extended_early_exit,
+        extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+        log_cached_log_output=log_cached_log_output,
     )
 
 

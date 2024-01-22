@@ -358,7 +358,7 @@ def test_run_with_extended_early_exit_run_enabled(
     integ.run.__wrapped__(
         True,
         account_name="a",
-        extended_early_exit=True,
+        enable_extended_early_exit=True,
         extended_early_exit_cache_ttl_seconds=60,
         log_cached_log_output=True,
         defer=defer,
@@ -392,7 +392,7 @@ def test_run_with_extended_early_exit_run_disabled(
     integ.run(
         True,
         account_name="a",
-        extended_early_exit=False,
+        enable_extended_early_exit=False,
     )
 
     mocks["extended_early_exit_run"].assert_not_called()
