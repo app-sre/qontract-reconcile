@@ -2,6 +2,9 @@ from collections.abc import (
     Callable,
     Mapping,
 )
+from unittest.mock import call
+
+from gitlab.v4.objects import ProjectMergeRequest
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
@@ -27,9 +30,10 @@ from .data_keys import (
 
 
 def test_housekeeping_unbatch_multiple_valid(
-    vcs_builder: Callable[[Mapping], VCS], renderer: Renderer
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
+    renderer: Renderer,
 ) -> None:
-    vcs = vcs_builder({
+    vcs, open_mrs = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             # The MR consists of multiple other MRs and is marked batchable
             {
@@ -63,16 +67,25 @@ def test_housekeeping_unbatch_multiple_valid(
         vcs=vcs,
         renderer=renderer,
     )
+    expected_close_mr_calls = [
+        call(
+            mr,
+            "Closing this MR because it failed MR check and isn't marked un-batchable yet.",
+        )
+        for mr in open_mrs
+    ]
     merge_request_manager.housekeeping()
+    vcs.close_app_interface_mr.assert_has_calls(expected_close_mr_calls, any_order=True)  # type: ignore[attr-defined]
     assert vcs.close_app_interface_mr.call_count == 2  # type: ignore[attr-defined]
     assert merge_request_manager._unbatchable_hashes == set(["a", "b", "c", "d"])
     assert len(merge_request_manager._open_mrs) == 0
 
 
 def test_housekeeping_unbatch_multiple_invalid(
-    vcs_builder: Callable[[Mapping], VCS], renderer: Renderer
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
+    renderer: Renderer,
 ) -> None:
-    vcs = vcs_builder({
+    vcs, _ = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
                 # Already marked as not batchable -> should be ignored

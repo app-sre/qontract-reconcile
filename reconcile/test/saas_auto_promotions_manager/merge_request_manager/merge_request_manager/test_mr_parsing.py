@@ -3,6 +3,8 @@ from collections.abc import (
     Mapping,
 )
 
+from gitlab.v4.objects import ProjectMergeRequest
+
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
 )
@@ -27,9 +29,10 @@ from .data_keys import (
 
 
 def test_labels_filter(
-    vcs_builder: Callable[[Mapping], VCS], renderer: Renderer
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
+    renderer: Renderer,
 ) -> None:
-    vcs = vcs_builder({
+    vcs, _ = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
                 LABELS: ["OtherLabel"],
@@ -62,9 +65,10 @@ def test_labels_filter(
 
 
 def test_valid_description(
-    vcs_builder: Callable[[Mapping], VCS], renderer: Renderer
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
+    renderer: Renderer,
 ) -> None:
-    vcs = vcs_builder({
+    vcs, _ = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
                 LABELS: [SAPM_LABEL],
@@ -89,9 +93,10 @@ def test_valid_description(
 
 
 def test_valid_batching(
-    vcs_builder: Callable[[Mapping], VCS], renderer: Renderer
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
+    renderer: Renderer,
 ) -> None:
-    vcs = vcs_builder({
+    vcs, _ = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
                 LABELS: [SAPM_LABEL],
@@ -126,8 +131,11 @@ def test_valid_batching(
     assert len(merge_request_manager._open_mrs) == 2
 
 
-def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer) -> None:
-    vcs = vcs_builder({
+def test_bad_mrs(
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
+    renderer: Renderer,
+) -> None:
+    vcs, _ = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
                 LABELS: [SAPM_LABEL],
@@ -241,9 +249,10 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer) -> N
 
 
 def test_remove_duplicates(
-    vcs_builder: Callable[[Mapping], VCS], renderer: Renderer
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
+    renderer: Renderer,
 ) -> None:
-    vcs = vcs_builder({
+    vcs, _ = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
                 LABELS: [SAPM_LABEL],

@@ -4,6 +4,7 @@ from collections.abc import (
 )
 
 import pytest
+from gitlab.v4.objects import ProjectMergeRequest
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
@@ -26,7 +27,7 @@ from .data_keys import (
 
 
 def test_close_old_content(
-    vcs_builder: Callable[[Mapping], VCS],
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
     renderer: Renderer,
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
@@ -40,7 +41,7 @@ def test_close_old_content(
         })
     ]
 
-    vcs = vcs_builder({
+    vcs, _ = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
                 SUBSCRIBER_CONTENT_HASH: "oldcontent",
@@ -74,7 +75,7 @@ def test_close_old_content(
     ],
 )
 def test_merge_request_already_opened(
-    vcs_builder: Callable[[Mapping], VCS],
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
     renderer: Renderer,
     subscriber_builder: Callable[[Mapping], Subscriber],
     hash_prefix: str,
@@ -94,7 +95,7 @@ def test_merge_request_already_opened(
     ]
     content_hash = Subscriber.combined_content_hash(subscribers=subscribers)
 
-    vcs = vcs_builder({
+    vcs, _ = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
                 # Note, that the hash/channel can be embedded within a concatenated string.
@@ -132,7 +133,7 @@ def test_merge_request_already_opened(
     ],
 )
 def test_ignore_unrelated_channels(
-    vcs_builder: Callable[[Mapping], VCS],
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
     renderer: Renderer,
     subscriber_builder: Callable[[Mapping], Subscriber],
     hash_prefix: str,
@@ -151,7 +152,7 @@ def test_ignore_unrelated_channels(
     ]
     content_hash = Subscriber.combined_content_hash(subscribers=subscribers)
 
-    vcs = vcs_builder({
+    vcs, _ = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
                 # Note, that the hash/channel can be embedded within a concatenated string.

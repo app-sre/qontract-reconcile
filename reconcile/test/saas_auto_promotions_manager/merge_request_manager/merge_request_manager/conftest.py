@@ -75,8 +75,8 @@ def mr_builder() -> Callable[[Mapping], ProjectMergeRequest]:
 @pytest.fixture
 def vcs_builder(
     mr_builder: Callable[[Mapping], ProjectMergeRequest],
-) -> Callable[[Mapping], VCS]:
-    def builder(data: Mapping) -> VCS:
+) -> Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]]:
+    def builder(data: Mapping) -> tuple[VCS, list[ProjectMergeRequest]]:
         vcs = create_autospec(spec=VCS)
         open_mrs: list[ProjectMergeRequest] = []
         for d in data.get(OPEN_MERGE_REQUESTS, []):
@@ -85,7 +85,7 @@ def vcs_builder(
         vcs.get_gitlab_mr_check_status.side_effect = data.get(
             PIPELINE_RESULTS, [MRCheckStatus.SUCCESS] * 100
         )
-        return vcs
+        return (vcs, open_mrs)
 
     return builder
 

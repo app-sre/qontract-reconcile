@@ -226,8 +226,8 @@ class MergeRequestManager:
                 open_mrs_after_unbatching.append(mr)
                 continue
             self._vcs.close_app_interface_mr(
-                mr,
-                "Closing this MR because it failed MR check and isnt marked un-batchable yet.",
+                mr.raw,
+                "Closing this MR because it failed MR check and isn't marked un-batchable yet.",
             )
             # Remember these hashes as unbatchable
             content_hashes = mr.content_hashes.split(ITEM_SEPARATOR)
