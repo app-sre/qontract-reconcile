@@ -259,14 +259,23 @@ def is_change_admitted(
     # If a change type is restrictive and the author is not an approver,
     # this is not admitted.
     # A change might be admitted if a user that has the restrictive change
-    # type is an approver and adds an /good-to-test comment.
-    return all(
-        is_coverage_admitted(c, mr_author, good_to_test_approvers)
+    # type is an approver or an approver adds an /good-to-test comment.
+
+    restrictive_coverages = [
+        c
         for change in changes
         for dc in change.diff_coverage
         for c in dc.coverage
         if c.change_type_processor.restrictive
-    )
+    ]
+
+    change_types_to_approve = {c.origin for c in restrictive_coverages}
+    change_types_approved = {
+        c.origin
+        for c in restrictive_coverages
+        if is_coverage_admitted(c, mr_author, good_to_test_approvers)
+    }
+    return change_types_to_approve == change_types_approved
 
 
 def run(

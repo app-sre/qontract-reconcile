@@ -81,7 +81,8 @@ def test_assert_restrictive_all_need_approval(
     restrictive_type: ChangeTypeV1, mocker: MockerFixture
 ) -> None:
     b = mocker.patch("reconcile.change_owners.changes.BundleFileChange")
-    restrictive_type.restrictive = True
+    restrictive_type_two = restrictive_type.copy()
+    restrictive_type_two.name = "restrictive_type_two"
     b.diff_coverage = [
         DiffCoverage(
             diff=mocker.patch("reconcile.change_owners.diff.Diff"),
@@ -89,7 +90,7 @@ def test_assert_restrictive_all_need_approval(
                 ChangeTypeContext(
                     change_type_processor=change_type_to_processor(restrictive_type),
                     context="",
-                    origin="",
+                    origin=restrictive_type.name,
                     context_file=FileRef(
                         file_type=BundleFileType.DATAFILE,
                         path="/somepath.yml",
@@ -103,9 +104,11 @@ def test_assert_restrictive_all_need_approval(
             diff=mocker.patch("reconcile.change_owners.diff.Diff"),
             coverage=[
                 ChangeTypeContext(
-                    change_type_processor=change_type_to_processor(restrictive_type),
+                    change_type_processor=change_type_to_processor(
+                        restrictive_type_two
+                    ),
                     context="",
-                    origin="",
+                    origin=restrictive_type_two.name,
                     context_file=FileRef(
                         file_type=BundleFileType.DATAFILE,
                         path="/somepath.yml",
