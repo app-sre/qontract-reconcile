@@ -24,13 +24,14 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     Channel,
     Subscriber,
 )
-from reconcile.utils.vcs import VCS
+from reconcile.utils.vcs import VCS, MRCheckStatus
 
 from .data_keys import (
     DESCRIPTION,
     HAS_CONFLICTS,
     LABELS,
     OPEN_MERGE_REQUESTS,
+    PIPELINE_RESULTS,
     SUBSCRIBER_BATCHABLE,
     SUBSCRIBER_CHANNELS,
     SUBSCRIBER_CONTENT_HASH,
@@ -74,14 +75,17 @@ def mr_builder() -> Callable[[Mapping], ProjectMergeRequest]:
 @pytest.fixture
 def vcs_builder(
     mr_builder: Callable[[Mapping], ProjectMergeRequest],
-) -> Callable[[Mapping], VCS]:
-    def builder(data: Mapping) -> VCS:
+) -> Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]]:
+    def builder(data: Mapping) -> tuple[VCS, list[ProjectMergeRequest]]:
         vcs = create_autospec(spec=VCS)
         open_mrs: list[ProjectMergeRequest] = []
         for d in data.get(OPEN_MERGE_REQUESTS, []):
             open_mrs.append(mr_builder(d))
         vcs.get_open_app_interface_merge_requests.side_effect = [open_mrs]
-        return vcs
+        vcs.get_gitlab_mr_check_status.side_effect = data.get(
+            PIPELINE_RESULTS, [MRCheckStatus.SUCCESS] * 100
+        )
+        return (vcs, open_mrs)
 
     return builder
 
