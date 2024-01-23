@@ -27,6 +27,33 @@ class Policy(BaseModel):
 
 
 class AcsPolicyApi(AcsBaseApi):
+    def _build_policy(self, api_policy: Any, conditions: list[PolicyCondition]) -> Policy:
+        return Policy(
+            name=api_policy["name"],
+            description=api_policy["description"],
+            notifiers=sorted(api_policy["notifiers"]),
+            categories=sorted(api_policy["categories"]),
+            severity=api_policy["severity"],
+            scope=sorted(
+                [
+                    Scope(
+                        cluster=s["cluster"],
+                        namespace=s["namespace"],
+                    )
+                    for s in api_policy["scope"]
+                ],
+                key=lambda s: s.cluster,
+            ),
+            conditions=conditions,
+        )
+
+    def _build_policy_condition(self, api_policy_group: Any) -> PolicyCondition:
+        return PolicyCondition(
+            field_name=api_policy_group["fieldName"],
+            values=[v["value"] for v in api_policy_group["values"]],
+            negate=api_policy_group["negate"],
+        )
+
     def list_custom_policies(self) -> list[Any]:
         # retrieve summary data for each custom policy
         return [
@@ -42,40 +69,17 @@ class AcsPolicyApi(AcsBaseApi):
             self.generic_request(f"/v1/policies/{pid}", "GET").json()
             for pid in custom_policy_ids
         ]
-        formatted_custom_policies: list[Policy] = []
-        for cp in custom_policies_api_result:
-            conditions: list[PolicyCondition] = []
-            for section in cp["policySections"]:
-                for group in section.get("policyGroups", []):
-                    conditions.append(
-                        PolicyCondition(
-                            field_name=group["fieldName"],
-                            values=[v["value"] for v in group["values"]],
-                            negate=group["negate"],
-                        )
-                    )
-
-            formatted_custom_policies.append(
-                Policy(
-                    name=cp["name"],
-                    description=cp["description"],
-                    notifiers=sorted(cp["notifiers"]),
-                    categories=sorted(cp["categories"]),
-                    severity=cp["severity"],
-                    scope=sorted(
-                        [
-                            Scope(
-                                cluster=s["cluster"],
-                                namespace=s["namespace"],
-                            )
-                            for s in cp["scope"]
-                        ],
-                        key=lambda s: s.cluster,
-                    ),
-                    conditions=conditions,
-                )
+        return [
+            self._build_policy(
+                api_policy=cp,
+                conditions=[
+                    self._build_policy_condition(group)
+                    for section in cp["policySections"]
+                    for group in section.get("policyGroups", [])
+                ],
             )
-        return formatted_custom_policies
+            for cp in custom_policies_api_result
+        ]
 
     def create_or_update_policy(self, desired: Policy, id: str = "") -> None:
         body = {

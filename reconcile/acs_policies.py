@@ -60,7 +60,9 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
     def _build_policy(
         self, gql_policy: AcsPolicyV1, notifier_name_to_id: dict[str, str]
     ) -> Policy:
-        conditions = [pc for c in gql_policy.conditions if (pc := self._build_policy_condition(c))]
+        conditions = [
+            pc for c in gql_policy.conditions if (pc := self._build_policy_condition(c))
+        ]
         return Policy(
             name=gql_policy.name,
             description=gql_policy.description,
