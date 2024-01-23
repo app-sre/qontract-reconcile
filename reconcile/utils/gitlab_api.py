@@ -340,7 +340,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if access == "guest":
             return gitlab.GUEST_ACCESS
 
-    def get_group_id_and_projects(self, group_name):
+    def get_group_id_and_projects(self, group_name: str) -> tuple[str, list[str]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
         return group.id, [p.name for p in self.get_items(group.projects.list)]
@@ -353,7 +353,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return f"{self.server}/{group}/{project}"
 
     @retry()
-    def get_project(self, repo_url):
+    def get_project(self, repo_url: str) -> Project | None:
         repo = repo_url.replace(self.server + "/", "")
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         try:
@@ -765,5 +765,5 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         self, repo_url: str, ref_from: str, ref_to: str
     ) -> list[dict[str, Any]]:
         project = self.get_project(repo_url)
-        response = project.repository_compare(ref_from, ref_to)
+        response: Any = project.repository_compare(ref_from, ref_to)
         return response.get("commits", [])
