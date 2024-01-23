@@ -137,6 +137,8 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                 )
                 return PolicyCondition(
                     field_name=field_name,
+                    # negate utilized to enforce policy in which image tag should not be any
+                    # defined in list of values
                     negate=image_tag_condition.negate or False,
                     values=image_tag_condition.tags,
                 )

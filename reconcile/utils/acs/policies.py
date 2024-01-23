@@ -12,7 +12,7 @@ class Scope(BaseModel):
 
 class PolicyCondition(BaseModel):
     field_name: str
-    negate: bool
+    negate: Optional[bool]
     values: list[str]
 
 
