@@ -20,51 +20,6 @@ class ExtendedEarlyExitRunnerResult(BaseModel):
     applied_count: int
 
 
-def _log_cached_log_output(
-    cache: EarlyExitCache,
-    key: CacheKey,
-    logger: Logger,
-) -> None:
-    value = cache.get(key)
-    logger.info(value.log_output)
-
-
-def _no_dry_run_cache_hit(
-    cache: EarlyExitCache,
-    integration: str,
-    integration_version: str,
-    cache_source: object,
-    logger: Logger,
-    log_cached_log_output: bool,
-) -> bool:
-    """
-    Check if the cache has a hit for the no-dry-run key.
-    This is used in dry run mode mostly run in CI,
-    if the cache has a hit for the no-dry-run key,
-    then we want to early exit.
-
-    :param cache: The early exit cache
-    :param integration: The integration name
-    :param integration_version: The integration version
-    :param cache_source: The cache source
-    :param logger: A logger
-    :param log_cached_log_output: True if we want to log the cached log output, False otherwise
-    :return: True if the cache has a hit for the no-dry-run key, False otherwise
-    """
-    key = CacheKey(
-        integration=integration,
-        integration_version=integration_version,
-        dry_run=False,
-        cache_source=cache_source,
-    )
-    cache_status = cache.head(key)
-    logger.debug("Early exit cache status for key=%s: %s", key, cache_status)
-    hit = cache_status == CacheStatus.HIT
-    if hit and log_cached_log_output:
-        _log_cached_log_output(cache, key, logger)
-    return hit
-
-
 def _ttl_seconds(
     applied_count: int,
     ttl_seconds: int,
@@ -115,7 +70,6 @@ def extended_early_exit_run(
 ) -> None:
     """
     Run the runner based on the cache status. Early exit when cache hit.
-    If not hit in dry-run mode, will check no-dry-run cache additionally.
     Runner log output will be extracted and stored in cache value,
     and will be logged when hit if log_cached_log_output is True,
     this is mainly used to show all log output from different integrations in one place (CI).
@@ -146,17 +100,7 @@ def extended_early_exit_run(
 
         if cache_status == CacheStatus.HIT:
             if log_cached_log_output:
-                _log_cached_log_output(cache, key, logger)
-            return
-
-        if dry_run and _no_dry_run_cache_hit(
-            cache,
-            integration,
-            integration_version,
-            cache_source,
-            logger,
-            log_cached_log_output,
-        ):
+                logger.info(cache.get(key).log_output)
             return
 
         with log_stream_handler(logger) as log_stream:
