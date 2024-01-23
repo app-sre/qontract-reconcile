@@ -5,6 +5,7 @@ from collections.abc import (
     Callable,
 )
 from functools import lru_cache
+from typing import Optional
 
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
@@ -20,6 +21,7 @@ from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.slack_api import UserNotFoundException
 
 QONTRACT_INTEGRATION = "ocm-internal-notifications"
 
@@ -41,10 +43,15 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
         return ocm_environment_query(query_func).environments
 
     @lru_cache
-    def slack_get_user_id_by_name(self, user_name: str, mail_address: str) -> str:
-        return self.slack.get_user_id_by_name(
-            user_name=user_name, mail_address=mail_address
-        )
+    def slack_get_user_id_by_name(
+        self, user_name: str, mail_address: str
+    ) -> Optional[str]:
+        try:
+            return self.slack.get_user_id_by_name(
+                user_name=user_name, mail_address=mail_address
+            )
+        except UserNotFoundException:
+            return None
 
     def run(self, dry_run: bool) -> None:
         gqlapi = gql.get_api()
@@ -89,10 +96,13 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
                 user, mail_address = email.split("@")
                 user_name = user.split("+")[0]
                 slack_user_id = self.slack_get_user_id_by_name(user_name, mail_address)
-                logging.info(
-                    f"found slack user id {slack_user_id} for user {user_name}"
-                )
-                slack_user_ids.add(slack_user_id)
+                if slack_user_id:
+                    logging.info(
+                        f"found slack user id {slack_user_id} for user {user_name}"
+                    )
+                    slack_user_ids.add(slack_user_id)
+                else:
+                    logging.warning(f"slack user id not found for user {user_name}")
 
             if not dry_run and slack_user_ids:
                 users = " ".join([f"<@{uid}>" for uid in slack_user_ids])
