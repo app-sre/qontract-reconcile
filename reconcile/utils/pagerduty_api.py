@@ -4,6 +4,7 @@ from collections.abc import (
     Iterable,
 )
 from datetime import datetime as dt
+from datetime import timedelta
 from typing import (
     Optional,
     Protocol,
@@ -104,7 +105,8 @@ class PagerDutyApi:
         return user.email.split("@")[0]
 
     def get_schedule_users(self, schedule_id: str, now: dt) -> list[pypd.User]:
-        s = pypd.Schedule.fetch(id=schedule_id, since=now, until=now, time_zone="UTC")
+        until = now + timedelta(seconds=60)
+        s = pypd.Schedule.fetch(id=schedule_id, since=now, until=until, time_zone="UTC")
         entries = s["final_schedule"]["rendered_schedule_entries"]
 
         return [
