@@ -12,6 +12,7 @@ from operator import (
 from typing import (
     Any,
     Optional,
+    TypedDict,
 )
 from urllib.parse import urlparse
 
@@ -19,6 +20,8 @@ import gitlab
 import urllib3
 from gitlab.v4.objects import (
     CurrentUser,
+    Group,
+    Project,
     ProjectIssue,
     ProjectMergeRequest,
     ProjectMergeRequestNote,
@@ -212,7 +215,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return any(mr.title == title for mr in mrs)
 
     @retry()
-    def get_project_maintainers(self, repo_url=None):
+    def get_project_maintainers(self, repo_url: str | None = None) -> list[str] | None:
         if repo_url is None:
             project = self.project
         else:
@@ -227,14 +230,27 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         app_sre_group = self.gl.groups.get("app-sre")
         return self.get_items(app_sre_group.members.list)
 
-    def get_group_if_exists(self, group_name):
+    def get_group_if_exists(self, group_name: str) -> Group | None:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         try:
             return self.gl.groups.get(group_name)
         except gitlab.exceptions.GitlabGetError:
             return None
 
-    def get_group_members(self, group_name):
+    class GLGroupMember(TypedDict):
+        user: str
+        access_level: str
+
+    @staticmethod
+    def _is_bot_username(username: str) -> bool:
+        """crudely checking for the username
+
+        as gitlab-python require a major upgrade to use the billable members apis
+
+        """
+        return username.startswith("group_") and "_bot_" in username
+
+    def get_group_members(self, group_name: str) -> list[GLGroupMember]:
         group = self.get_group_if_exists(group_name)
         if not group:
             logging.error(group_name + " group not found")
@@ -245,6 +261,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                 "access_level": self.get_access_level_string(m.access_level),
             }
             for m in self.get_items(group.members.list)
+            if not self._is_bot_username(m.username)
         ]
 
     def add_project_member(self, repo_url, user, access="maintainer"):
