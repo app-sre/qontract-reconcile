@@ -4,7 +4,6 @@ from typing import Any
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
-from pydantic import BaseModel
 from pytest_mock import MockerFixture
 
 from reconcile.utils.early_exit_cache import (
@@ -23,6 +22,7 @@ INTEGRATION = "some-integration"
 INTEGRATION_VERSION = "some-integration-version"
 SHORT_TTL_SECONDS = 0
 TTLS_SECONDS = 100
+RUNNER_PARAMS = {"some_param": "some-value"}
 
 
 @pytest.fixture
@@ -35,13 +35,6 @@ def logger() -> Logger:
 @pytest.fixture
 def mock_logger() -> Any:
     return create_autospec(Logger)
-
-
-class TestRunnerParams(BaseModel):
-    some_param: str
-
-
-RUNNER_PARAMS = TestRunnerParams(some_param="some-value")
 
 
 @pytest.fixture
@@ -124,7 +117,7 @@ def test_extended_early_exit_run_miss_or_expired(
             cache_source=CACHE_SOURCE,
         )
     )
-    runner.assert_called_once_with(**RUNNER_PARAMS.dict())
+    runner.assert_called_once_with(**RUNNER_PARAMS)
     early_exit_cache.set.assert_called_once_with(
         CacheKey(
             integration=INTEGRATION,

@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Mapping
 from contextlib import contextmanager
 from io import StringIO
 from logging import Logger
@@ -64,7 +64,7 @@ def extended_early_exit_run(
     ttl_seconds: int,
     logger: Logger,
     runner: Callable[..., ExtendedEarlyExitRunnerResult],
-    runner_params: BaseModel | None = None,
+    runner_params: Mapping | None = None,
     secret_reader: SecretReaderBase | None = None,
     log_cached_log_output: bool = False,
 ) -> None:
@@ -83,7 +83,7 @@ def extended_early_exit_run(
     :param ttl_seconds: A ttl in seconds
     :param logger: A Logger
     :param runner: A runner can return ExtendedEarlyExitRunnerResult when called
-    :param runner_params: Runner params
+    :param runner_params: Runner params, will be spread into kwargs when calling runner
     :param secret_reader: A secret reader
     :param log_cached_log_output: Whether to log the cached log output when there is a cache hit
     :return: None
@@ -104,8 +104,7 @@ def extended_early_exit_run(
             return
 
         with log_stream_handler(logger) as log_stream:
-            params = runner_params.dict() if runner_params is not None else {}
-            result = runner(**params)
+            result = runner(**(runner_params or {}))
             log_output = log_stream.getvalue()
 
         value = CacheValue(

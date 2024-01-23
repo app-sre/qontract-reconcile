@@ -411,7 +411,7 @@ def test_terraform_resources_runner_dry_run(
 
     defer = MagicMock()
 
-    runner_params = integ.RunnerParams(
+    runner_params = dict(
         accounts=[{"name": "a"}],
         account_names={"a"},
         tf_namespaces=[],
@@ -428,7 +428,7 @@ def test_terraform_resources_runner_dry_run(
         defer=defer,
     )
 
-    result = integ.runner(**runner_params.dict())
+    result = integ.runner(**runner_params)
 
     assert result == integ.ExtendedEarlyExitRunnerResult(
         payload=terraform_configurations,
@@ -456,7 +456,7 @@ def test_terraform_resources_runner_no_dry_run(
     mocked_ob = mocker.patch("reconcile.terraform_resources.ob")
     mocked_ob.realize_data.return_value = [{"action": "applied"}]
 
-    runner_params = integ.RunnerParams(
+    runner_params = dict(
         accounts=[{"name": "a"}],
         account_names={"a"},
         tf_namespaces=[],
@@ -473,7 +473,7 @@ def test_terraform_resources_runner_no_dry_run(
         defer=defer,
     )
 
-    result = integ.runner(**runner_params.dict())
+    result = integ.runner(**runner_params)
 
     assert result == integ.ExtendedEarlyExitRunnerResult(
         payload=terraform_configurations,

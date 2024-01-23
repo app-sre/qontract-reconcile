@@ -9,10 +9,10 @@ from typing import (
     Collection,
     Optional,
     Sequence,
+    TypedDict,
     cast,
 )
 
-from pydantic import BaseModel
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -392,7 +392,7 @@ def run(
     if print_to_file:
         return
 
-    runner_params = RunnerParams(
+    runner_params: RunnerParams = dict(
         accounts=accounts,
         account_names=account_names,
         tf_namespaces=tf_namespaces,
@@ -423,10 +423,10 @@ def run(
             log_cached_log_output=log_cached_log_output,
         )
     else:
-        runner(**runner_params.dict())
+        runner(**runner_params)
 
 
-class RunnerParams(BaseModel):
+class RunnerParams(TypedDict):
     accounts: list[dict[str, Any]]
     account_names: set[str]
     tf_namespaces: list[NamespaceV1]
@@ -441,9 +441,6 @@ class RunnerParams(BaseModel):
     light: bool
     vault_output_path: str
     defer: Optional[Callable]
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 def runner(
