@@ -27,7 +27,9 @@ class Policy(BaseModel):
 
 
 class AcsPolicyApi(AcsBaseApi):
-    def _build_policy(self, api_policy: Any, conditions: list[PolicyCondition]) -> Policy:
+    def _build_policy(
+        self, api_policy: Any, conditions: list[PolicyCondition]
+    ) -> Policy:
         return Policy(
             name=api_policy["name"],
             description=api_policy["description"],
