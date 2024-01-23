@@ -12,6 +12,7 @@ from reconcile.utils.metrics import (
     MetricsContainer,
     inc_counter,
     join_metric_containers,
+    normalize_integration_name,
     set_gauge,
     transactional_metrics,
 )
@@ -549,3 +550,18 @@ def test_error_rate_metric_set_mixed() -> None:
 
     assert root.get_metric_value(DemoCounter, field="field") == 2
     assert root.get_metric_value(DemoErrorCounter, field="field") == 1
+
+
+@pytest.mark.parametrize(
+    "integration_name, expected",
+    [
+        ("a", "a"),
+        ("a_b", "a-b"),
+        ("a-b", "a-b"),
+    ],
+)
+def test_normalize_integration_name(
+    integration_name: str,
+    expected: str,
+) -> None:
+    assert normalize_integration_name(integration_name) == expected

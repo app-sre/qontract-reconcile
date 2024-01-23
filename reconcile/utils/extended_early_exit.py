@@ -12,12 +12,50 @@ from reconcile.utils.early_exit_cache import (
     CacheValue,
     EarlyExitCache,
 )
+from reconcile.utils.metrics import (
+    CounterMetric,
+    inc_counter,
+    normalize_integration_name,
+)
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class ExtendedEarlyExitRunnerResult(BaseModel):
     payload: object
     applied_count: int
+
+
+class ExtendedEarlyExitBaseMetric(BaseModel):
+    integration: str
+
+
+class ExtendedEarlyExitCounterMetric(ExtendedEarlyExitBaseMetric, CounterMetric):
+    integration_version: str
+    dry_run: bool
+    cache_key: str
+    cache_status: str
+    applied_count: int
+
+    @classmethod
+    def name(cls) -> str:
+        return "qontract_reconcile_extended_early_exit"
+
+
+def _publish_metrics(
+    cache_key: CacheKey,
+    cache_status: CacheStatus,
+    applied_count: int,
+) -> None:
+    inc_counter(
+        ExtendedEarlyExitCounterMetric(
+            integration=cache_key.integration,
+            integration_version=cache_key.integration_version,
+            dry_run=cache_key.dry_run,
+            cache_key=str(cache_key),
+            cache_status=cache_status.value,
+            applied_count=applied_count,
+        ),
+    )
 
 
 def _ttl_seconds(
@@ -90,7 +128,7 @@ def extended_early_exit_run(
     """
     with EarlyExitCache.build(secret_reader) as cache:
         key = CacheKey(
-            integration=integration,
+            integration=normalize_integration_name(integration),
             integration_version=integration_version,
             dry_run=dry_run,
             cache_source=cache_source,
@@ -101,6 +139,11 @@ def extended_early_exit_run(
         if cache_status == CacheStatus.HIT:
             if log_cached_log_output:
                 logger.info(cache.get(key).log_output)
+            _publish_metrics(
+                cache_key=key,
+                cache_status=cache_status,
+                applied_count=0,
+            )
             return
 
         with log_stream_handler(logger) as log_stream:
@@ -115,3 +158,8 @@ def extended_early_exit_run(
         ttl = _ttl_seconds(result.applied_count, ttl_seconds)
         logger.debug("Set early exit cache for key=%s with ttl=%d", key, ttl)
         cache.set(key, value, ttl)
+        _publish_metrics(
+            cache_key=key,
+            cache_status=cache_status,
+            applied_count=result.applied_count,
+        )
