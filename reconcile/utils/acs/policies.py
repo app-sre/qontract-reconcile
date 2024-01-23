@@ -6,17 +6,33 @@ from reconcile.utils.acs.base import AcsBaseApi
 
 
 class Scope(BaseModel):
+    """
+    Scope represents a single cluster or namespace that an acs security policy is applied to.
+    """
+
     cluster: str
     namespace: Optional[str]
 
 
 class PolicyCondition(BaseModel):
+    """
+    PolicyCondition represents a single condition criteria enforced within an ACS security policy.
+    Current attributes support subset of "build" lifecycle condition criteria.
+    See section 6.4.3 for table of all condition criteria:
+    https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_security_for_kubernetes/4.3/html/operating/manage-security-policies
+    """
+
     field_name: str
     negate: Optional[bool]
     values: list[str]
 
 
 class Policy(BaseModel):
+    """
+    Policy is minimum attributes required to represent an ACS security policy
+    https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_security_for_kubernetes/4.3/html/operating/manage-security-policies
+    """
+
     name: str
     description: str
     notifiers: list[str]
@@ -27,6 +43,10 @@ class Policy(BaseModel):
 
 
 class AcsPolicyApi(AcsBaseApi):
+    """
+    Implements methods to support reconcile operations against the ACS PolicyService api
+    """
+
     def _build_policy(
         self, api_policy: Any, conditions: list[PolicyCondition]
     ) -> Policy:
