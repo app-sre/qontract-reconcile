@@ -159,6 +159,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         cluster_info
         for cluster_info in queries.get_clusters()
         if cluster_info.get("managedClusterRoles")
+        and cluster_info.get("automationToken")
     ]
     ri, oc_map = ob.fetch_current_state(
         clusters=clusters,
