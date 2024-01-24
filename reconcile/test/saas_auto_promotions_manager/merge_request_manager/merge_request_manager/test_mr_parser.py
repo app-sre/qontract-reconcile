@@ -2,9 +2,12 @@ from collections.abc import (
     Callable,
     Mapping,
 )
+from unittest.mock import call
 
-from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager import (
-    MergeRequestManager,
+from gitlab.v4.objects import ProjectMergeRequest
+
+from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
+    MRParser,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     CHANNELS_REF,
@@ -14,7 +17,6 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     SAPM_LABEL,
     SAPM_VERSION,
     VERSION_REF,
-    Renderer,
 )
 from reconcile.utils.vcs import VCS
 
@@ -26,21 +28,57 @@ from .data_keys import (
 )
 
 
-def test_labels_filter(
-    vcs_builder: Callable[[Mapping], VCS], renderer: Renderer
+def test_valid_parsing(
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
 ) -> None:
-    vcs = vcs_builder({
+    vcs, expectd_mrs = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
-                LABELS: ["OtherLabel"],
+                LABELS: [SAPM_LABEL],
                 DESCRIPTION: f"""
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
                     {VERSION_REF}: {SAPM_VERSION}
-                    {CHANNELS_REF}: some-channel
-                    {CONTENT_HASHES}: some_hash
+                    {CHANNELS_REF}: channel0
+                    {CONTENT_HASHES}: hash0
+                    {IS_BATCHABLE}: True
                 """,
             },
+            {
+                LABELS: [SAPM_LABEL],
+                DESCRIPTION: f"""
+                    Blabla
+                    {PROMOTION_DATA_SEPARATOR}
+                    {VERSION_REF}: {SAPM_VERSION}
+                    {CHANNELS_REF}: channel1
+                    {CONTENT_HASHES}: hash1
+                    {IS_BATCHABLE}: False
+                """,
+            },
+        ]
+    })
+    mr_parser = MRParser(
+        vcs=vcs,
+    )
+    open_mrs = mr_parser.retrieve_open_mrs()
+    assert len(open_mrs) == 2
+
+    assert open_mrs[0].raw == expectd_mrs[0]
+    assert open_mrs[0].channels == "channel0"
+    assert open_mrs[0].content_hashes == "hash0"
+    assert open_mrs[0].is_batchable
+
+    assert open_mrs[1].raw == expectd_mrs[1]
+    assert open_mrs[1].channels == "channel1"
+    assert open_mrs[1].content_hashes == "hash1"
+    assert not open_mrs[1].is_batchable
+
+
+def test_labels_filter(
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
+) -> None:
+    vcs, expectd_mrs = vcs_builder({
+        OPEN_MERGE_REQUESTS: [
             {
                 LABELS: [SAPM_LABEL, "OtherLabel"],
                 DESCRIPTION: f"""
@@ -49,25 +87,12 @@ def test_labels_filter(
                     {VERSION_REF}: {SAPM_VERSION}
                     {CHANNELS_REF}: other-channel
                     {CONTENT_HASHES}: other_hash
+                    {IS_BATCHABLE}: True
                 """,
             },
-        ]
-    })
-    merge_request_manager = MergeRequestManager(
-        vcs=vcs,
-        renderer=renderer,
-    )
-    merge_request_manager.housekeeping()
-    assert len(merge_request_manager._open_raw_mrs) == 1
-
-
-def test_valid_description(
-    vcs_builder: Callable[[Mapping], VCS], renderer: Renderer
-) -> None:
-    vcs = vcs_builder({
-        OPEN_MERGE_REQUESTS: [
+            # This MR should get ignored
             {
-                LABELS: [SAPM_LABEL],
+                LABELS: ["OtherLabel"],
                 DESCRIPTION: f"""
                     Blabla
                     {PROMOTION_DATA_SEPARATOR}
@@ -76,58 +101,21 @@ def test_valid_description(
                     {CONTENT_HASHES}: some_hash
                     {IS_BATCHABLE}: True
                 """,
-            }
+            },
         ]
     })
-    merge_request_manager = MergeRequestManager(
+    mr_parser = MRParser(
         vcs=vcs,
-        renderer=renderer,
     )
-    merge_request_manager.housekeeping()
-    vcs.close_app_interface_mr.assert_not_called()  # type: ignore[attr-defined]
-    assert len(merge_request_manager._open_mrs) == 1
+    open_mrs = mr_parser.retrieve_open_mrs()
+    assert len(open_mrs) == 1
+    assert open_mrs[0].raw == expectd_mrs[0]
 
 
-def test_valid_batching(
-    vcs_builder: Callable[[Mapping], VCS], renderer: Renderer
+def test_bad_mrs(
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
 ) -> None:
-    vcs = vcs_builder({
-        OPEN_MERGE_REQUESTS: [
-            {
-                LABELS: [SAPM_LABEL],
-                DESCRIPTION: f"""
-                    Blabla
-                    {PROMOTION_DATA_SEPARATOR}
-                    {VERSION_REF}: {SAPM_VERSION}
-                    {CHANNELS_REF}: some-channel
-                    {CONTENT_HASHES}: some_hash
-                    {IS_BATCHABLE}: False
-                """,
-            },
-            {
-                LABELS: [SAPM_LABEL],
-                DESCRIPTION: f"""
-                    Blabla
-                    {PROMOTION_DATA_SEPARATOR}
-                    {VERSION_REF}: {SAPM_VERSION}
-                    {CHANNELS_REF}: other-channel
-                    {CONTENT_HASHES}: other_hash
-                    {IS_BATCHABLE}: True
-                """,
-            },
-        ]
-    })
-    merge_request_manager = MergeRequestManager(
-        vcs=vcs,
-        renderer=renderer,
-    )
-    merge_request_manager.housekeeping()
-    vcs.close_app_interface_mr.assert_not_called()  # type: ignore[attr-defined]
-    assert len(merge_request_manager._open_mrs) == 2
-
-
-def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer) -> None:
-    vcs = vcs_builder({
+    vcs, expected_mrs = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
                 LABELS: [SAPM_LABEL],
@@ -231,19 +219,58 @@ def test_bad_mrs(vcs_builder: Callable[[Mapping], VCS], renderer: Renderer) -> N
             },
         ]
     })
-    merge_request_manager = MergeRequestManager(
+    mr_parser = MRParser(
         vcs=vcs,
-        renderer=renderer,
     )
-    merge_request_manager.housekeeping()
-    vcs.close_app_interface_mr.assert_called()  # type: ignore[attr-defined]
-    assert len(merge_request_manager._open_mrs) == 0
+    expected_calls = [
+        call(
+            expected_mrs[0],
+            "Closing this MR because of bad sapm_version format.",
+        ),
+        call(
+            expected_mrs[1],
+            "Closing this MR because of bad content_hashes format.",
+        ),
+        call(
+            expected_mrs[2],
+            "Closing this MR because of bad data separator format.",
+        ),
+        call(
+            expected_mrs[3],
+            "Closing this MR because of bad sapm_version format.",
+        ),
+        call(
+            expected_mrs[4],
+            "Closing this MR because of a merge-conflict.",
+        ),
+        call(
+            expected_mrs[5],
+            "Closing this MR because it has an outdated SAPM version outdated-version.",
+        ),
+        call(
+            expected_mrs[6],
+            "Closing this MR because of bad channels format.",
+        ),
+        call(
+            expected_mrs[7],
+            "Closing this MR because of bad is_batchable format.",
+        ),
+        call(
+            expected_mrs[8],
+            "Closing this MR because of bad is_batchable format.",
+        ),
+    ]
+
+    open_mrs = mr_parser.retrieve_open_mrs()
+    assert len(open_mrs) == 0
+    vcs.close_app_interface_mr.assert_has_calls(expected_calls)  # type: ignore[attr-defined]
+    assert vcs.close_app_interface_mr.call_count == len(expected_calls)  # type: ignore[attr-defined]
 
 
 def test_remove_duplicates(
-    vcs_builder: Callable[[Mapping], VCS], renderer: Renderer
+    vcs_builder: Callable[[Mapping], tuple[VCS, list[ProjectMergeRequest]]],
 ) -> None:
-    vcs = vcs_builder({
+    vcs, expected_mrs = vcs_builder({
         OPEN_MERGE_REQUESTS: [
             {
                 LABELS: [SAPM_LABEL],
@@ -269,10 +296,16 @@ def test_remove_duplicates(
             },
         ]
     })
-    merge_request_manager = MergeRequestManager(
+    mr_parser = MRParser(
         vcs=vcs,
-        renderer=renderer,
     )
-    merge_request_manager.housekeeping()
-    vcs.close_app_interface_mr.assert_called_once()  # type: ignore[attr-defined]
-    assert len(merge_request_manager._open_mrs) == 1
+    open_mrs = mr_parser.retrieve_open_mrs()
+    vcs.close_app_interface_mr.assert_has_calls([  # type: ignore[attr-defined]
+        call(
+            expected_mrs[1],
+            "Closing this MR because there is already another MR open with identical content.",
+        )
+    ])
+    assert vcs.close_app_interface_mr.call_count == 1  # type: ignore[attr-defined]
+    assert len(open_mrs) == 1
+    assert open_mrs[0].raw == expected_mrs[0]
