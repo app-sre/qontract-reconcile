@@ -1,0 +1,48 @@
+# qenerate: plugin=pydantic_v1
+
+query AcsPolicy {
+  acs_policies: acs_policy_v1 {
+   	name
+    description
+    severity
+    notifiers
+    categories
+    scope {
+      level
+      ... on AcsPolicyScopeCluster_v1 {
+				clusters {
+          name
+        }        
+      }
+      ... on AcsPolicyScopeNamespace_v1 {
+       	namespaces {
+          name
+          cluster {
+            name
+          }
+        }
+      }
+    }
+	  conditions {
+      policyField
+      ... on AcsPolicyConditionsCvss_v1 {
+        comparison
+        score
+      }
+      ... on AcsPolicyConditionsSeverity_v1 {
+        comparison
+        level
+      }
+      ... on AcsPolicyConditionsCve_v1 {
+        fixable
+      }
+      ... on AcsPolicyConditionsImageTag_v1 {
+        tags
+        negate
+      }
+      ... on AcsPolicyConditionsImageAge_v1 {
+        days
+      }
+    }
+  }
+}

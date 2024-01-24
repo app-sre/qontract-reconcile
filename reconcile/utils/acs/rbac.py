@@ -1,11 +1,8 @@
-from typing import (
-    Any,
-    Optional,
-    Self,
-)
+from typing import Any
 
-import requests
 from pydantic import BaseModel
+
+from reconcile.utils.acs.base import AcsBaseApi
 
 
 class Role(BaseModel):
@@ -17,7 +14,7 @@ class Role(BaseModel):
 
     def __init__(self, api_data: Any) -> None:
         # attributes defined within stackrox(ACS) API for GET /v1/roles
-        check_len_attributes(
+        AcsBaseApi.check_len_attributes(
             ["name", "permissionSetId", "accessScopeId"],
             api_data,
         )
@@ -45,14 +42,14 @@ class Group(BaseModel):
 
     def __init__(self, api_data: Any) -> None:
         # attributes defined within stackrox(ACS) API for GET /v1/groups
-        check_len_attributes(["roleName", "props"], api_data)
+        AcsBaseApi.check_len_attributes(["roleName", "props"], api_data)
         if api_data["roleName"] != "None":
-            check_len_attributes(
+            AcsBaseApi.check_len_attributes(
                 ["id", "authProviderId", "key", "value"], api_data["props"]
             )
         else:
             # it is valid for the default None group to contain empty key/value
-            check_len_attributes(["id", "authProviderId"], api_data["props"])
+            AcsBaseApi.check_len_attributes(["id", "authProviderId"], api_data["props"])
 
         super().__init__(
             role_name=api_data["roleName"],
@@ -73,12 +70,12 @@ class AccessScope(BaseModel):
     def __init__(self, api_data: Any) -> None:
         # attributes defined within stackrox(ACS) API for GET /v1/simpleaccessscopes/{id}
         unrestricted = False
-        check_len_attributes(["id", "name"], api_data)
+        AcsBaseApi.check_len_attributes(["id", "name"], api_data)
 
         # it is valid for the default Unrestricted access scope to have null 'rules'
         unrestricted = api_data["name"] == "Unrestricted"
         if not unrestricted:
-            check_len_attributes(["rules"], api_data)
+            AcsBaseApi.check_len_attributes(["rules"], api_data)
 
         super().__init__(
             id=api_data["id"],
@@ -99,7 +96,7 @@ class PermissionSet(BaseModel):
 
     def __init__(self, api_data: Any) -> None:
         # attributes defined within stackrox(ACS) API for GET /v1/permissionsets/{id}
-        check_len_attributes(["id", "name"], api_data)
+        AcsBaseApi.check_len_attributes(["id", "name"], api_data)
 
         super().__init__(id=api_data["id"], name=api_data["name"])
 
@@ -111,53 +108,7 @@ class RbacResources(BaseModel):
     permission_sets: list[PermissionSet]
 
 
-def check_len_attributes(attrs: list[Any], api_data: Any) -> None:
-    # generic attribute check function for expected types with valid len()
-    for attr in attrs:
-        value = api_data.get(attr)
-        if value is None or len(value) == 0:
-            raise ValueError(
-                f"Attribute '{attr}' must exist and not be empty\n\t{api_data}"
-            )
-
-
-class AcsApi:
-    def __init__(
-        self,
-        instance: Any,
-        timeout: int = 30,
-    ) -> None:
-        self.base_url = instance["url"]
-        self.token = instance["token"]
-        self.timeout = timeout
-        self.session = requests.Session()
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
-        self.session.close()
-
-    def generic_request(
-        self, path: str, verb: str, json: Optional[Any] = None
-    ) -> requests.Response:
-        url = f"{self.base_url}{path}"
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json",
-        }
-
-        response = self.session.request(
-            verb,
-            url,
-            headers=headers,
-            json=json,
-            timeout=self.timeout,
-        )
-
-        response.raise_for_status()
-        return response
-
+class AcsRbacApi(AcsBaseApi):
     def get_roles(self) -> list[Role]:
         response = self.generic_request("/v1/roles", "GET")
         return [Role(r) for r in response.json()["roles"]]

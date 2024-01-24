@@ -2952,6 +2952,17 @@ def acs_rbac(ctx):
     )
 
 
+@integration.command(short_help="Manages RHACS security policy configurations")
+@click.pass_context
+def acs_policies(ctx):
+    from reconcile import acs_policies
+
+    run_class_integration(
+        integration=acs_policies.AcsPoliciesIntegration(),
+        ctx=ctx.obj,
+    )
+
+
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
     """
     returns all integrations known to cli.py via click introspection

@@ -8,24 +8,17 @@ from typing import (
 
 from pydantic import BaseModel
 
-from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
-from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
 from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1
 from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.utils import gql
-from reconcile.utils.acs_api import (
-    AcsApi,
-    Group,
-    RbacResources,
-)
+from reconcile.utils.acs.rbac import AcsRbacApi, Group, RbacResources
 from reconcile.utils.differ import (
     DiffPair,
     diff_iterables,
 )
-from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
@@ -143,20 +136,6 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
     def name(self) -> str:
         return self.qontract_integration.replace("_", "-")
 
-    def get_acs_instance(self, query_func: Callable) -> AcsInstanceV1:
-        """
-        Get an ACS instance
-
-        :param query_func: function which queries GQL Server
-        """
-        if instances := acs_instances_query(query_func=query_func).instances:
-            # mirroring logic for gitlab instances
-            # current assumption is for appsre to only utilize one instance
-            if len(instances) != 1:
-                raise AppInterfaceSettingsError("More than one ACS instance found!")
-            return instances[0]
-        raise AppInterfaceSettingsError("No ACS instance found!")
-
     def get_desired_state(self, query_func: Callable) -> list[AcsRole]:
         """
         Get desired ACS roles and associated users from App Interface
@@ -255,7 +234,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
     def add_rbac_for_role(
         self,
         role: AcsRole,
-        acs: AcsApi,
+        acs: AcsRbacApi,
         admin_access_scope_id: str,
         permission_set_id: str,
         auth_id: str,
@@ -298,7 +277,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
 
         if not dry_run:
             additions = [
-                AcsApi.GroupAdd(
+                AcsRbacApi.GroupAdd(
                     role_name=role.name,
                     key=a.key,
                     value=a.value,
@@ -317,7 +296,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         self,
         to_add: dict[str, AcsRole],
         rbac_api_resources: RbacResources,
-        acs: AcsApi,
+        acs: AcsRbacApi,
         auth_id: str,
         dry_run: bool,
     ) -> list[Exception]:
@@ -351,7 +330,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
     def delete_rbac_for_role(
         self,
         role: AcsRole,
-        acs: AcsApi,
+        acs: AcsRbacApi,
         access_scope_id: str,
         admin_access_scope_id: str,
         groups: list[Group],
@@ -394,7 +373,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         self,
         to_delete: dict[str, AcsRole],
         rbac_api_resources: RbacResources,
-        acs: AcsApi,
+        acs: AcsRbacApi,
         auth_id: str,
         dry_run: bool,
     ) -> list[Exception]:
@@ -430,7 +409,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
     def update_rbac_for_role(
         self,
         role_diff_pair: DiffPair[AcsRole, AcsRole],
-        acs: AcsApi,
+        acs: AcsRbacApi,
         role_group_mappings: dict[str, dict[str, Group]],
         access_scope_id: str,
         permission_set_id: str,
@@ -465,7 +444,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                 for d in diff.delete.values()
             ]
             new = [
-                AcsApi.GroupAdd(
+                AcsRbacApi.GroupAdd(
                     role_name=role_diff_pair.desired.name,
                     key=a.key,
                     value=a.value,
@@ -513,7 +492,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         self,
         to_update: dict[str, DiffPair[AcsRole, AcsRole]],
         rbac_api_resources: RbacResources,
-        acs: AcsApi,
+        acs: AcsRbacApi,
         auth_id: str,
         dry_run: bool,
     ) -> list[Exception]:
@@ -558,7 +537,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         desired: list[AcsRole],
         current: list[AcsRole],
         rbac_api_resources: RbacResources,
-        acs: AcsApi,
+        acs: AcsRbacApi,
         auth_provider_id: str,
         dry_run: bool,
     ) -> None:
@@ -602,7 +581,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
         dry_run: bool,
     ) -> None:
         gqlapi = gql.get_api()
-        instance = self.get_acs_instance(gqlapi.query)
+        instance = AcsRbacApi.get_acs_instance(gqlapi.query)
 
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -610,7 +589,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
 
         desired = self.get_desired_state(gqlapi.query)
 
-        with AcsApi(
+        with AcsRbacApi(
             instance={"url": instance.url, "token": token[instance.credentials.field]}
         ) as acs_api:
             rbac_api_resources = acs_api.get_rbac_resources()
