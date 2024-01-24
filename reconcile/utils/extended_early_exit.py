@@ -14,8 +14,10 @@ from reconcile.utils.early_exit_cache import (
 )
 from reconcile.utils.metrics import (
     CounterMetric,
+    GaugeMetric,
     inc_counter,
     normalize_integration_name,
+    set_gauge,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
 
@@ -27,18 +29,21 @@ class ExtendedEarlyExitRunnerResult(BaseModel):
 
 class ExtendedEarlyExitBaseMetric(BaseModel):
     integration: str
-
-
-class ExtendedEarlyExitCounterMetric(ExtendedEarlyExitBaseMetric, CounterMetric):
     integration_version: str
     dry_run: bool
-    cache_key: str
     cache_status: str
-    applied_count: int
 
+
+class ExtendedEarlyExitCounter(ExtendedEarlyExitBaseMetric, CounterMetric):
     @classmethod
     def name(cls) -> str:
         return "qontract_reconcile_extended_early_exit"
+
+
+class ExtendedEarlyExitAppliedCountGauge(ExtendedEarlyExitBaseMetric, GaugeMetric):
+    @classmethod
+    def name(cls) -> str:
+        return "qontract_reconcile_extended_early_exit_applied_count"
 
 
 def _publish_metrics(
@@ -47,14 +52,21 @@ def _publish_metrics(
     applied_count: int,
 ) -> None:
     inc_counter(
-        ExtendedEarlyExitCounterMetric(
+        ExtendedEarlyExitCounter(
             integration=cache_key.integration,
             integration_version=cache_key.integration_version,
             dry_run=cache_key.dry_run,
-            cache_key=str(cache_key),
             cache_status=cache_status.value,
-            applied_count=applied_count,
         ),
+    )
+    set_gauge(
+        ExtendedEarlyExitAppliedCountGauge(
+            integration=cache_key.integration,
+            integration_version=cache_key.integration_version,
+            dry_run=cache_key.dry_run,
+            cache_status=cache_status.value,
+        ),
+        applied_count,
     )
 
 
