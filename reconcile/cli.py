@@ -2062,6 +2062,83 @@ def ocm_clusters(ctx, gitlab_project_id, thread_pool_size):
     )
 
 
+def vault_creds_path(function):
+    function = click.option(
+        "--vault-creds-path",
+        help="path in Vault to store creds.",
+        default="app-sre/creds/kube-configs",
+    )(function)
+
+    return function
+
+
+def dedicated_admin_namespace(function):
+    function = click.option(
+        "--dedicated-admin-namespace",
+        default="dedicated-admin",
+        help="namespace for the dedicated-admin bot",
+    )(function)
+    return function
+
+
+def dedicated_admin_service_account(function):
+    function = click.option(
+        "--dedicated-admin-service-account",
+        default="app-sre",
+        help="service account name for the dedicated-admin bot",
+    )(function)
+    return function
+
+
+def cluster_admin_namespace(function):
+    function = click.option(
+        "--cluster-admin-namespace",
+        default="app-sre",
+        help="namespace for the cluster-admin bot",
+    )(function)
+    return function
+
+
+def cluster_admin_service_account(function):
+    function = click.option(
+        "--cluster-admin-service-account",
+        default="app-sre-cluster-admin-bot",
+        help="service account name for the cluster-admin bot",
+    )(function)
+    return function
+
+
+@integration.command(short_help="Manages dedicated-admin and cluster-admin creds.")
+@gitlab_project_id
+@vault_creds_path
+@dedicated_admin_namespace
+@dedicated_admin_service_account
+@cluster_admin_namespace
+@cluster_admin_service_account
+@click.pass_context
+def openshift_cluster_bots(
+    ctx,
+    gitlab_project_id,
+    vault_creds_path,
+    dedicated_admin_namespace,
+    dedicated_admin_service_account,
+    cluster_admin_namespace,
+    cluster_admin_service_account,
+):
+    import reconcile.openshift_cluster_bots
+
+    run_integration(
+        reconcile.openshift_cluster_bots,
+        ctx.obj,
+        gitlab_project_id,
+        vault_creds_path,
+        dedicated_admin_ns=dedicated_admin_namespace,
+        dedicated_admin_sa=dedicated_admin_service_account,
+        cluster_admin_ns=cluster_admin_namespace,
+        cluster_admin_sa=cluster_admin_service_account,
+    )
+
+
 @integration.command(short_help="Manage External Configuration labels in OCM.")
 @threaded()
 @click.pass_context

@@ -4761,6 +4761,11 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "DynatraceEnvironment_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "AWSGroup_v1",
                             "ofType": null
                         },
@@ -7763,7 +7768,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
