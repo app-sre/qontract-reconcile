@@ -205,7 +205,7 @@ class DynatraceTokenProviderIntegration(
         if not dt_tenants.environments:
             raise RuntimeError("No Dynatrace environment defined.")
         for tenant in dt_tenants.environments:
-            dt_bootstrap_token = secret_reader.read_secret(tenant.bootstrap_token)
+            dt_bootstrap_token = secret_reader.read_secret(tenant.bootstrap_api_token)
             dt_client = Dynatrace(
                 tenant.environment_url,
                 dt_bootstrap_token,

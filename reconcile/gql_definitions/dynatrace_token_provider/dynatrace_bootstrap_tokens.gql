@@ -2,7 +2,7 @@
 
 query DynatraceEnvironment {
   environments: dynatrace_environment_v1 {
-    bootstrapToken {
+    bootstrapAPIToken {
       ... VaultSecret
     }
     environmentUrl

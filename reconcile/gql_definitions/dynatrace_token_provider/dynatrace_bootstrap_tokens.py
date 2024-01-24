@@ -30,7 +30,7 @@ fragment VaultSecret on VaultSecret_v1 {
 
 query DynatraceEnvironment {
   environments: dynatrace_environment_v1 {
-    bootstrapToken {
+    bootstrapAPIToken {
       ... VaultSecret
     }
     environmentUrl
@@ -46,7 +46,7 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class DynatraceEnvironmentV1(ConfiguredBaseModel):
-    bootstrap_token: VaultSecret = Field(..., alias="bootstrapToken")
+    bootstrap_api_token: Optional[VaultSecret] = Field(..., alias="bootstrapAPIToken")
     environment_url: str = Field(..., alias="environmentUrl")
 
 
