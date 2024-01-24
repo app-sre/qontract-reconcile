@@ -60,6 +60,7 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
+from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vault import (
     VaultClient,
     _VaultClient,
@@ -409,7 +410,10 @@ def run(
         defer=defer,
     )
 
-    if enable_extended_early_exit:
+    if enable_extended_early_exit and get_feature_toggle_state(
+        "terraform-resources-extended-early-exit",
+        default=False,
+    ):
         extended_early_exit_run(
             integration=QONTRACT_INTEGRATION,
             integration_version=QONTRACT_INTEGRATION_VERSION,

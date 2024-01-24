@@ -265,6 +265,7 @@ def setup_mocks(
     secret_reader: SecretReaderBase,
     aws_accounts: list[dict[str, Any]],
     tf_namespaces: list[NamespaceV1],
+    feature_toggle_state: bool = True,
 ) -> dict[str, Any]:
     mocked_queries = mocker.patch("reconcile.terraform_resources.queries")
     mocked_queries.get_aws_accounts.return_value = aws_accounts
@@ -300,12 +301,18 @@ def setup_mocks(
         "reconcile.terraform_resources.extended_early_exit_run"
     )
 
+    get_feature_toggle_state = mocker.patch(
+        "reconcile.terraform_resources.get_feature_toggle_state",
+        return_value=feature_toggle_state,
+    )
+
     return {
         "queries": mocked_queries,
         "ts": mocked_ts,
         "tf": mocked_tf,
         "logging": mocked_logging,
         "extended_early_exit_run": mock_extended_early_exit_run,
+        "get_feature_toggle_state": get_feature_toggle_state,
     }
 
 
@@ -397,6 +404,32 @@ def test_run_with_extended_early_exit_run_disabled(
 
     mocks["extended_early_exit_run"].assert_not_called()
     mocks["tf"].plan.assert_called_once_with(False)
+
+
+def test_run_with_extended_early_exit_run_feature_disabled(
+    mocker: MockerFixture,
+    secret_reader: SecretReaderBase,
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        secret_reader,
+        aws_accounts=[{"name": "a"}],
+        tf_namespaces=[],
+        feature_toggle_state=False,
+    )
+
+    integ.run(
+        True,
+        account_name="a",
+        enable_extended_early_exit=True,
+    )
+
+    mocks["extended_early_exit_run"].assert_not_called()
+    mocks["tf"].plan.assert_called_once_with(False)
+    mocks["get_feature_toggle_state"].assert_called_once_with(
+        "terraform-resources-extended-early-exit",
+        default=False,
+    )
 
 
 def test_terraform_resources_runner_dry_run(
