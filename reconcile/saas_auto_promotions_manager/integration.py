@@ -9,6 +9,9 @@ from reconcile.openshift_saas_deploy import (
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
 )
+from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
+    MRParser,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
 )
@@ -116,8 +119,10 @@ def init_external_dependencies(
         allow_deleting_mrs=allow_deleting_mrs,
         allow_opening_mrs=allow_opening_mrs,
     )
+    mr_parser = MRParser(vcs=vcs)
     merge_request_manager = MergeRequestManager(
         vcs=vcs,
+        mr_parser=mr_parser,
         renderer=Renderer(),
     )
     saas_files = get_saas_files()

@@ -9,6 +9,9 @@ from reconcile.saas_auto_promotions_manager.integration import SaasAutoPromotion
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
 )
+from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
+    MRParser,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
 )
@@ -99,8 +102,10 @@ def test_integration_test(
         ),
     ])
     renderer = create_autospec(spec=Renderer)
+    mr_parser = create_autospec(spec=MRParser)
     merge_request_manager = MergeRequestManager(
         vcs=vcs,
+        mr_parser=mr_parser,
         renderer=renderer,
     )
     manager = SaasAutoPromotionsManager(

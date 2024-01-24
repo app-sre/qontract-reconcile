@@ -1,5 +1,6 @@
 from collections.abc import (
     Callable,
+    Iterable,
     Mapping,
 )
 from unittest.mock import create_autospec
@@ -9,6 +10,10 @@ from gitlab.v4.objects import ProjectMergeRequest
 
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
+)
+from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
+    MRParser,
+    OpenMergeRequest,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     CHANNELS_REF,
@@ -86,6 +91,16 @@ def vcs_builder(
             PIPELINE_RESULTS, [MRCheckStatus.SUCCESS] * 100
         )
         return (vcs, open_mrs)
+
+    return builder
+
+
+@pytest.fixture
+def mr_parser_builder() -> Callable[[Mapping], MRParser]:
+    def builder(data: Iterable[OpenMergeRequest]) -> MRParser:
+        mr_parser = create_autospec(spec=MRParser)
+        mr_parser.retrieve_open_mrs.side_effect = [data]
+        return mr_parser
 
     return builder
 
