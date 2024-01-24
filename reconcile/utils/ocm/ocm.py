@@ -1029,6 +1029,19 @@ class OCM:  # pylint: disable=too-many-public-methods
         }
         self._post(api, payload)
 
+    def get_kubeconfig(self, cluster: str) -> str | None:
+        """Returns the cluster credentials (kubeconfig)
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return None
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/credentials"
+        return self._get_json(api).get("kubeconfig")
+
     def get_external_configuration_labels(self, cluster: str) -> dict[str, str]:
         """Returns details of External Configurations
 
