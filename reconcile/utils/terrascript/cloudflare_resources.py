@@ -201,11 +201,12 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
             certificate_secret = cert_values.pop("certificate_secret")
             certificate = secret_reader.read(certificate_secret.pop("certificate"))
             key = secret_reader.read(certificate_secret.pop("key"))
+            bundle_method = cert_values.pop("bundle_method") or "ubiquitous"
             custom_ssl_values: dict[Any, Any] = {
                 "zone_id": f"${{{zone.id}}}",
                 "depends_on": self._get_dependencies([zone]),
                 "custom_ssl_options": {
-                    "bundle_method": cert_values.pop("bundle_method", "ubiquitous"),
+                    "bundle_method": bundle_method,
                     "type": cert_values.pop("type"),
                     "certificate": certificate,
                     "private_key": key,
