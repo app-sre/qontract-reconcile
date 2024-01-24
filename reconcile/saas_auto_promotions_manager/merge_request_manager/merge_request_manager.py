@@ -16,7 +16,6 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     CHANNELS_REF,
     CONTENT_HASHES,
     IS_BATCHABLE,
-    SAPM_LABEL,
     VERSION_REF,
     Renderer,
 )
@@ -24,6 +23,8 @@ from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.utils.vcs import VCS
 
 ITEM_SEPARATOR = ","
+
+SAPM_LABEL = "SAPM"
 
 
 class MergeRequestManager:
@@ -68,14 +69,13 @@ class MergeRequestManager:
                     "Closing this MR because it failed MR check and isn't marked un-batchable yet.",
                 )
                 # Remember these hashes as unbatchable
-                content_hashes = mr.content_hashes.split(ITEM_SEPARATOR)
-                self._unbatchable_hashes.update(content_hashes)
+                self._unbatchable_hashes.update(mr.content_hashes)
             else:
                 open_mrs_after_unbatching.append(mr)
         self._open_mrs = open_mrs_after_unbatching
 
     def housekeeping(self) -> None:
-        self._open_mrs = self._mr_parser.retrieve_open_mrs()
+        self._open_mrs = self._mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
         self._unbatch_failed_mrs()
 
     def _aggregate_subscribers_per_channel_combo(
@@ -160,7 +160,7 @@ class MergeRequestManager:
                 channels=channel_combo,
                 is_batchable=combined_content_hash not in self._unbatchable_hashes,
             )
-            title = self._renderer.render_title(channels=channel_combo)
+            title = self._renderer.render_title(is_draft=False, channels=channel_combo)
             logging.info(
                 "Open MR for update in channel(s) %s",
                 channel_combo,

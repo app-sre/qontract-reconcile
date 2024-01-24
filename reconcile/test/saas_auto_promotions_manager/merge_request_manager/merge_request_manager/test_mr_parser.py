@@ -6,6 +6,9 @@ from unittest.mock import call
 
 from gitlab.v4.objects import ProjectMergeRequest
 
+from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager_v2 import (
+    SAPM_LABEL,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
 )
@@ -14,7 +17,6 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     CONTENT_HASHES,
     IS_BATCHABLE,
     PROMOTION_DATA_SEPARATOR,
-    SAPM_LABEL,
     SAPM_VERSION,
     VERSION_REF,
 )
@@ -60,17 +62,17 @@ def test_valid_parsing(
     mr_parser = MRParser(
         vcs=vcs,
     )
-    open_mrs = mr_parser.retrieve_open_mrs()
+    open_mrs = mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
     assert len(open_mrs) == 2
 
     assert open_mrs[0].raw == expectd_mrs[0]
-    assert open_mrs[0].channels == "channel0"
-    assert open_mrs[0].content_hashes == "hash0"
+    assert open_mrs[0].channels == {"channel0"}
+    assert open_mrs[0].content_hashes == {"hash0"}
     assert open_mrs[0].is_batchable
 
     assert open_mrs[1].raw == expectd_mrs[1]
-    assert open_mrs[1].channels == "channel1"
-    assert open_mrs[1].content_hashes == "hash1"
+    assert open_mrs[1].channels == {"channel1"}
+    assert open_mrs[1].content_hashes == {"hash1"}
     assert not open_mrs[1].is_batchable
 
 
@@ -107,7 +109,7 @@ def test_labels_filter(
     mr_parser = MRParser(
         vcs=vcs,
     )
-    open_mrs = mr_parser.retrieve_open_mrs()
+    open_mrs = mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
     assert len(open_mrs) == 1
     assert open_mrs[0].raw == expectd_mrs[0]
 
@@ -261,7 +263,7 @@ def test_bad_mrs(
         ),
     ]
 
-    open_mrs = mr_parser.retrieve_open_mrs()
+    open_mrs = mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
     assert len(open_mrs) == 0
     vcs.close_app_interface_mr.assert_has_calls(expected_calls)  # type: ignore[attr-defined]
     assert vcs.close_app_interface_mr.call_count == len(expected_calls)  # type: ignore[attr-defined]
@@ -299,7 +301,7 @@ def test_remove_duplicates(
     mr_parser = MRParser(
         vcs=vcs,
     )
-    open_mrs = mr_parser.retrieve_open_mrs()
+    open_mrs = mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
     vcs.close_app_interface_mr.assert_has_calls([  # type: ignore[attr-defined]
         call(
             expected_mrs[1],
