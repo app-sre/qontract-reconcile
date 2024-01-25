@@ -4,6 +4,10 @@ from unittest.mock import create_autospec
 import pytest
 from gitlab.v4.objects import (
     CurrentUser,
+    Group,
+    GroupManager,
+    GroupMember,
+    GroupMemberManager,
     Project,
     ProjectIssue,
     ProjectIssueManager,
@@ -45,6 +49,7 @@ def instance() -> dict:
         "sslVerify": False,
     }
 
+
 @pytest.fixture
 def mocked_gitlab_request(mocker: MockerFixture) -> Any:
     """replaces the instriumentation with a mock"""
@@ -59,7 +64,9 @@ def mocked_gl(mocker: MockerFixture) -> Any:
 
 
 @pytest.fixture
-def mocked_gitlab_api(instance, mocked_gl: Any, mocked_gitlab_request: Any) -> GitLabApi:
+def mocked_gitlab_api(
+    instance, mocked_gl: Any, mocked_gitlab_request: Any
+) -> GitLabApi:
     """creates a gitlab api instance where the internal gitlab client
     is replaced with a mock"""
     gitlab_api = GitLabApi(instance, project_id=1)
@@ -333,7 +340,7 @@ def test_get_project_labels(
     instance: dict,
     mocked_gl: Any,
     mocked_gitlab_api: GitLabApi,
-    mocked_gitlab_request: Any
+    mocked_gitlab_request: Any,
 ) -> None:
     label = create_autospec(ProjectLabel)
     label.name = "a"
@@ -349,9 +356,7 @@ def test_get_project_labels(
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
 
 
-def test_get_merge_request_changed_paths(
-        mocked_gitlab_request: Any
-) -> None:
+def test_get_merge_request_changed_paths(mocked_gitlab_request: Any) -> None:
     mr = create_autospec(ProjectMergeRequest)
     mr.changes.return_value = {
         "changes": [
@@ -384,7 +389,7 @@ def test_mr_exist(
     instance: dict,
     mocked_gl: Any,
     mocked_gitlab_api: GitLabApi,
-    mocked_gitlab_request: Any
+    mocked_gitlab_request: Any,
 ) -> None:
     project = create_autospec(Project)
     project.mergerequests = create_autospec(ProjectMergeRequestManager)
@@ -392,16 +397,13 @@ def test_mr_exist(
     project.mergerequests.list.return_value = [mr]
     mocked_gitlab_api.project = project
 
-
     exists = mocked_gitlab_api.mr_exists("title")
 
     assert exists is True
     mocked_gitlab_request.labels.return_value.inc.assert_called_once()
 
 
-def test_refresh_labels_for_merge_request(
-    mocked_gitlab_request: Any
-) -> None:
+def test_refresh_labels_for_merge_request(mocked_gitlab_request: Any) -> None:
     manager = create_autospec(ProjectMergeRequestManager)
 
     mr = create_autospec(ProjectMergeRequest)
@@ -441,3 +443,28 @@ def test_refresh_labels_for_issue(
     assert issue.labels == ["existing_label", "new_label"]
     mocked_gitlab_request.labels.return_value.inc.assert_called_once_with()
     manager.get.assert_called_once_with(1)
+
+
+def test_get_group_members(
+    mocked_gitlab_request: Any,
+    mocked_gl: Any,
+    mocked_gitlab_api: GitLabApi,
+):
+    user = create_autospec(GroupMember, username="small", access_level=50)
+    # group bots should be ignored
+    group_bot = create_autospec(
+        GroupMember, username="group_123_bot_deadbeef", access_level=50
+    )
+    group = create_autospec(Group)
+    group.members = create_autospec(GroupMemberManager)
+    group.members.list.return_value = [user, group_bot]
+
+    groups = create_autospec(GroupManager)
+    groups.get.return_value = group
+    mocked_gl.groups = groups
+
+    assert mocked_gitlab_api.get_group_if_exists("group") is group
+
+    assert mocked_gitlab_api.get_group_members("group") == [
+        {"user": "small", "access_level": None}
+    ]
