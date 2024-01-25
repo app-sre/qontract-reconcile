@@ -5,7 +5,9 @@ import re
 import tempfile
 import time
 from collections import defaultdict
+from typing import Any, Self
 
+import requests
 from sretoolbox.container import (
     Image,
     Skopeo,
@@ -20,6 +22,7 @@ from reconcile.utils.secret_reader import SecretReader
 _LOG = logging.getLogger(__name__)
 
 QONTRACT_INTEGRATION = "gcr-mirror"
+REQUEST_TIMEOUT = 60
 
 
 class QuayMirror:
@@ -70,6 +73,13 @@ class QuayMirror:
         self.secret_reader = SecretReader(settings=settings)
         self.skopeo_cli = Skopeo(dry_run)
         self.push_creds = self._get_push_creds()
+        self.session = requests.Session()
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        self.session.close()
 
     def run(self):
         sync_tasks = self.process_sync_tasks()
@@ -140,7 +150,11 @@ class QuayMirror:
         sync_tasks = defaultdict(list)
         for org, data in summary.items():
             for item in data:
-                image = Image(f'{item["server_url"]}/{org}/{item["name"]}')
+                image = Image(
+                    f'{item["server_url"]}/{org}/{item["name"]}',
+                    session=self.session,
+                    timeout=REQUEST_TIMEOUT,
+                )
 
                 mirror_url = item["mirror"]["url"]
 
@@ -154,7 +168,13 @@ class QuayMirror:
                     password = raw_data["token"]
                     mirror_creds = f"{username}:{password}"
 
-                image_mirror = Image(mirror_url, username=username, password=password)
+                image_mirror = Image(
+                    mirror_url,
+                    username=username,
+                    password=password,
+                    session=self.session,
+                    timeout=REQUEST_TIMEOUT,
+                )
 
                 tags = item["mirror"].get("tags")
                 tags_exclude = item["mirror"].get("tagsExclude")
@@ -256,5 +276,5 @@ class QuayMirror:
 
 
 def run(dry_run):
-    gcr_mirror = QuayMirror(dry_run)
-    gcr_mirror.run()
+    with QuayMirror(dry_run) as gcr_mirror:
+        gcr_mirror.run()
