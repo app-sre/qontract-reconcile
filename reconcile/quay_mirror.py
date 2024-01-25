@@ -12,8 +12,10 @@ from collections.abc import Iterable
 from typing import (
     Any,
     Optional,
+    Self,
 )
 
+import requests
 from requests import Response
 from sretoolbox.container.image import (
     ImageComparisonError,
@@ -36,6 +38,7 @@ _LOG = logging.getLogger(__name__)
 
 QONTRACT_INTEGRATION = "quay-mirror"
 CONTROL_FILE_NAME = "qontract-reconcile-quay-mirror.timestamp"
+REQUEST_TIMEOUT = 60
 
 OrgKey = namedtuple("OrgKey", ["instance", "org_name"])
 
@@ -111,6 +114,13 @@ class QuayMirror:
             )
 
         self._has_enough_time_passed_since_last_compare_tags: Optional[bool] = None
+        self.session = requests.Session()
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        self.session.close()
 
     def run(self) -> None:
         sync_tasks = self.process_sync_tasks()
@@ -134,6 +144,8 @@ class QuayMirror:
         cls,
         repository_urls: Optional[Iterable[str]] = None,
         exclude_repository_urls: Optional[Iterable[str]] = None,
+        session: requests.Session | None = None,
+        timeout: int = REQUEST_TIMEOUT,
     ) -> defaultdict[OrgKey, list[dict[str, Any]]]:
         apps = queries.get_quay_repos()
 
@@ -171,7 +183,12 @@ class QuayMirror:
                     ):
                         continue
 
-                    mirror_image = Image(mirror_url, response_cache=cls.response_cache)
+                    mirror_image = Image(
+                        mirror_url,
+                        response_cache=cls.response_cache,
+                        session=session,
+                        timeout=timeout,
+                    )
                     if mirror_image.registry == "docker.io" and item["public"]:
                         _LOG.error(
                             "Image %s can't be mirrored to a public "
@@ -224,6 +241,8 @@ class QuayMirror:
                     username=push_creds[0],
                     password=push_creds[1],
                     response_cache=self.response_cache,
+                    session=self.session,
+                    timeout=REQUEST_TIMEOUT,
                 )
 
                 mirror_url = item["mirror"]["url"]
@@ -243,6 +262,8 @@ class QuayMirror:
                     username=username,
                     password=password,
                     response_cache=self.response_cache,
+                    session=self.session,
+                    timeout=REQUEST_TIMEOUT,
                 )
 
                 tags = item["mirror"].get("tags")
@@ -391,20 +412,20 @@ def run(
     repository_urls: Optional[Iterable[str]],
     exclude_repository_urls: Optional[Iterable[str]],
 ):
-    quay_mirror = QuayMirror(
+    with QuayMirror(
         dry_run,
         control_file_dir,
         compare_tags,
         compare_tags_interval,
         repository_urls,
         exclude_repository_urls,
-    )
-    quay_mirror.run()
+    ) as quay_mirror:
+        quay_mirror.run()
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
-    quay_mirror = QuayMirror(dry_run=True)
-    return {
-        "repos": quay_mirror.process_repos_query(),
-        "orgs": quay_mirror.push_creds,
-    }
+    with QuayMirror(dry_run=True) as quay_mirror:
+        return {
+            "repos": quay_mirror.process_repos_query(session=quay_mirror.session),
+            "orgs": quay_mirror.push_creds,
+        }

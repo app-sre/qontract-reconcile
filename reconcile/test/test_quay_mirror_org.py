@@ -70,3 +70,13 @@ class TestIsCompareTags:
             compare_tags=True,
         )
         assert qm.is_compare_tags
+
+
+def test_quay_mirror_org_session(mocker):
+    mocker.patch("reconcile.quay_mirror_org.get_quay_api_store")
+    mocked_request = mocker.patch("reconcile.quay_mirror_org.requests")
+
+    with QuayMirrorOrg() as quay_mirror_org:
+        assert quay_mirror_org.session == mocked_request.Session.return_value
+
+    mocked_request.Session.return_value.close.assert_called_once_with()
