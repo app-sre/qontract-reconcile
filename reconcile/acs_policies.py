@@ -108,7 +108,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                     field_name=field_name,
                     negate=False,
                     values=[
-                        f"{POLICY_CONDITION_COMPARISONS[cvss_condition.comparison]} {cvss_condition.score}"
+                        f"{POLICY_CONDITION_COMPARISONS[cvss_condition.comparison]}{cvss_condition.score}"
                     ],
                 )
             case "severity":
@@ -119,7 +119,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                     field_name=field_name,
                     negate=False,
                     values=[
-                        f"{POLICY_CONDITION_COMPARISONS[severity_condition.comparison]} {severity_condition.level.upper()}"
+                        f"{POLICY_CONDITION_COMPARISONS[severity_condition.comparison]}{severity_condition.level.upper()}"
                     ],
                 )
             case "cve":
