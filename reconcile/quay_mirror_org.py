@@ -3,8 +3,9 @@ import os
 import tempfile
 from collections import defaultdict
 from collections.abc import Iterable
-from typing import Optional
+from typing import Any, Optional, Self
 
+import requests
 from sretoolbox.container import (
     Image,
     Skopeo,
@@ -22,6 +23,7 @@ _LOG = logging.getLogger(__name__)
 
 QONTRACT_INTEGRATION = "quay-mirror-org"
 CONTROL_FILE_NAME = "qontract-reconcile-quay-mirror-org.timestamp"
+REQUEST_TIMEOUT = 60
 
 
 class QuayMirrorOrg:
@@ -55,6 +57,13 @@ class QuayMirrorOrg:
             )
 
         self._has_enough_time_passed_since_last_compare_tags: Optional[bool] = None
+        self.session = requests.Session()
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.session.close()
 
     def run(self):
         sync_tasks = self.process_sync_tasks()
@@ -144,6 +153,8 @@ class QuayMirrorOrg:
                     f'{server_url}/{org_name}/{item["name"]}',
                     username=username,
                     password=password,
+                    session=self.session,
+                    timeout=REQUEST_TIMEOUT,
                 )
 
                 mirror_url = item["mirror"]["url"]
@@ -158,7 +169,11 @@ class QuayMirrorOrg:
                     mirror_creds = f"{mirror_username}:{mirror_password}"
 
                 image_mirror = Image(
-                    mirror_url, username=mirror_username, password=mirror_password
+                    mirror_url,
+                    username=mirror_username,
+                    password=mirror_password,
+                    session=self.session,
+                    timeout=REQUEST_TIMEOUT,
                 )
 
                 tags = item["mirror_filters"].get("tags")
@@ -281,12 +296,12 @@ def run(
     orgs: Optional[Iterable[str]],
     repositories: Optional[Iterable[str]],
 ):
-    quay_mirror = QuayMirrorOrg(
+    with QuayMirrorOrg(
         dry_run,
         control_file_dir,
         compare_tags,
         compare_tags_interval,
         orgs,
         repositories,
-    )
-    quay_mirror.run()
+    ) as quay_mirror_org:
+        quay_mirror_org.run()

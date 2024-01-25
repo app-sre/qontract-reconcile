@@ -38,10 +38,9 @@ _LOG = logging.getLogger(__name__)
 
 QONTRACT_INTEGRATION = "quay-mirror"
 CONTROL_FILE_NAME = "qontract-reconcile-quay-mirror.timestamp"
+REQUEST_TIMEOUT = 60
 
 OrgKey = namedtuple("OrgKey", ["instance", "org_name"])
-
-REQUEST_TIMEOUT = 60
 
 
 class QuayMirror:

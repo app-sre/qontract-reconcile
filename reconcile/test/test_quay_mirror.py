@@ -176,4 +176,4 @@ def test_quay_mirror_session(mocker):
     with QuayMirror() as quay_mirror:
         assert quay_mirror.session == mocked_request.Session.return_value
 
-    mocked_request.Session.return_value.close.assert_called_once()
+    mocked_request.Session.return_value.close.assert_called_once_with()
