@@ -2628,10 +2628,10 @@ def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
 
 @integration.command(short_help="Tests templating of resources.")
 @click.pass_context
-def template_tester(ctx):
-    import reconcile.template_tester
+def resource_template_tester(ctx):
+    import reconcile.resource_template_tester
 
-    run_integration(reconcile.template_tester, ctx.obj)
+    run_integration(reconcile.resource_template_tester, ctx.obj)
 
 
 @integration.command(

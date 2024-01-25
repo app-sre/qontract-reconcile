@@ -2453,7 +2453,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "template_tests_v1",
+                            "name": "resource_template_tests_v1",
                             "description": null,
                             "args": [
                                 {
@@ -2485,7 +2485,7 @@
                                     "name": null,
                                     "ofType": {
                                         "kind": "OBJECT",
-                                        "name": "TemplateTest_v1",
+                                        "name": "ResourceTemplateTest_v1",
                                         "ofType": null
                                     }
                                 }
@@ -27212,7 +27212,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "TemplateTest_v1",
+                    "name": "ResourceTemplateTest_v1",
                     "description": null,
                     "fields": [
                         {

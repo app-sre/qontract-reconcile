@@ -11,13 +11,13 @@ from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
 
-QONTRACT_INTEGRATION = "template-tester"
+QONTRACT_INTEGRATION = "resource-template-tester"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 TEMPLATE_TESTS_QUERY = """
 {
-  tests: template_tests_v1 {
+  tests: resource_template_tests_v1 {
     name
     resourcePath
     expectedResult
@@ -30,7 +30,7 @@ def load_resource(path: str) -> dict:
     return yaml.safe_load(gql.get_resource(path)["content"])
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     gqlapi = gql.get_api()
     template_tests = gqlapi.query(TEMPLATE_TESTS_QUERY)["tests"]
     settings = queries.get_app_interface_settings()
