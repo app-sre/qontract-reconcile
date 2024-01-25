@@ -116,8 +116,10 @@ class AcsPolicyApi(AcsBaseApi):
                 {"cluster": s.cluster, "namespace": s.namespace} for s in desired.scope
             ],
             "lifecycleStages": [
-                "BUILD"
-            ],  # all currently supported policy criteria are classified as 'build' stage
+                "BUILD",
+                "DEPLOY",
+            ],  # all currently supported policy criteria are classified as 'build' or 'deploy'
+            # and created policies are evaluated at both stages
             "policySections": [
                 {
                     "sectionName": "primary",
