@@ -1078,6 +1078,13 @@ def clusters_aws_account_ids(ctx):
     results = []
     for cluster in clusters:
         cluster_name = cluster["name"]
+        if cluster["spec"].get("account"):
+            item = {
+                "cluster": cluster_name,
+                "aws_account_id": cluster["spec"]["account"]["uid"],
+            }
+            results.append(item)
+            continue
         ocm = ocm_map.get(cluster_name)
         aws_account_id = ocm.get_cluster_aws_account_id(cluster_name)
         item = {
