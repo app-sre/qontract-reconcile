@@ -208,6 +208,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
                 "custom_ssl_options": {
                     "bundle_method": bundle_method,
                     "type": cert_values.pop("type"),
+                    "geo_restrictions": cert_values.pop("geo_restrictions"),
                     "certificate": certificate,
                     "private_key": key,
                 },
