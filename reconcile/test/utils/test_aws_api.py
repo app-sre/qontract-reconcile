@@ -362,3 +362,18 @@ def test_delete_cloudwatch_log_group(
     mocked_cloudwatch_client.delete_log_group.assert_called_once_with(
         logGroupName="some-name",
     )
+
+
+# Ensure get_cluster_vpc_detail raises AWS exceptions and does not catch them
+# This is essential so we do not end up removing peerings in terraform due to some AWS error
+def test_get_cluster_vpc_details_aws_error(
+    mocker: MockerFixture, aws_api: AWSApi
+) -> None:
+    get_account_vpcs = mocker.patch.object(aws_api, "get_account_vpcs")
+    exc_txt = "Something bad happens on AWS"
+    get_account_vpcs.side_effect = Exception(exc_txt)
+    with pytest.raises(Exception, match=exc_txt):
+        aws_api.get_cluster_vpc_details({
+            "name": "some-account",
+            "assume_region": "us-east-1",
+        })

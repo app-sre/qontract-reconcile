@@ -210,9 +210,11 @@ def build_desired_state_single_cluster(
             )
         )
         if requester_vpc_id is None:
-            raise BadTerraformPeeringState(
-                f"[{cluster_name}] could not find VPC ID for cluster"
+            logging.warning(
+                f"[{cluster_name}] could not find VPC ID for cluster. "
+                f"Skipping {peer_connection_provider} connection {peer_connection['name']}"
             )
+            continue
 
         requester = {
             "cidr_block": cluster_info["network"]["vpc"],
@@ -234,9 +236,11 @@ def build_desired_state_single_cluster(
             hcp_vpc_endpoint_sg=_private_hosted_control_plane(peer_cluster),
         )
         if accepter_vpc_id is None:
-            raise BadTerraformPeeringState(
-                f"[{peer_cluster_name}] could not find VPC ID for cluster"
+            logging.warning(
+                f"[{peer_cluster_name}] could not find VPC ID for cluster. "
+                f"Skipping {peer_info['provider']} connection {peer_info['name']}"
             )
+            continue
 
         requester["peer_owner_id"] = acc_aws["uid"]
         if acc_aws.get("assume_role"):
@@ -340,10 +344,11 @@ def build_desired_state_vpc_mesh_single_cluster(
         )
 
         if requester_vpc_id is None:
-            raise BadTerraformPeeringState(
-                f"{cluster} could not find VPC ID for cluster and "
-                f"peer account {account}"
+            logging.warning(
+                f"[{cluster}] could not find VPC ID for cluster and peer account {account}. "
+                f"Skipping {peer_connection_provider} connection {peer_connection['name']}"
             )
+            continue
 
         requester["vpc_id"] = requester_vpc_id
         requester["route_table_ids"] = requester_route_table_ids
@@ -478,9 +483,11 @@ def build_desired_state_vpc_single_cluster(
         )
 
         if requester_vpc_id is None:
-            raise BadTerraformPeeringState(
-                f"[{cluster}] could not find VPC ID for cluster"
+            logging.warning(
+                f"[{cluster}] could not find VPC ID for cluster. "
+                f"Skipping {peer_connection_provider} connection {peer_connection['name']}"
             )
+            continue
 
         requester["vpc_id"] = requester_vpc_id
         requester["route_table_ids"] = requester_route_table_ids
