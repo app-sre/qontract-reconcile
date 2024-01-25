@@ -11,13 +11,13 @@ from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
 
-QONTRACT_INTEGRATION = "template-tester"
+QONTRACT_INTEGRATION = "resource-template-tester"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 TEMPLATE_TESTS_QUERY = """
 {
-  tests: template_tests_v1 {
+  tests: resource_template_tests_v1 {
     name
     resourcePath
     expectedResult
