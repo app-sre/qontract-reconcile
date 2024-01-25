@@ -1,3 +1,4 @@
+import hashlib
 from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
@@ -18,18 +19,17 @@ from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 )
-SAPM_VERSION = "1.1.0"
-SAPM_LABEL = "SAPM"
+SAPM_VERSION = "2.0.0"
 CONTENT_HASHES = "content_hashes"
 CHANNELS_REF = "channels"
 IS_BATCHABLE = "is_batchable"
 VERSION_REF = "sapm_version"
-SAPM_DESC = f"""
+SAPM_DESC = """
 This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
 The channel(s) mentioned in the MR title had an event.
 This MR promotes all subscribers with auto-promotions for these channel(s).
 
-Please **do not remove the {SAPM_LABEL} label** from this MR.
+Please **do not remove or change any label** from this MR.
 
 Parts of this description are used by SAPM to manage auto-promotions.
 """
@@ -152,8 +152,11 @@ class Renderer:
 {VERSION_REF}: {SAPM_VERSION}
         """
 
-    def render_title(self, channels: str) -> str:
-        return f"[SAPM] auto-promotion for {channels}"
+    def render_title(self, is_draft: bool, channels: str) -> str:
+        content = f"[SAPM] auto-promotion ID {int(hashlib.sha256(channels.encode('utf-8')).hexdigest(), 16) % 10**8}"
+        if is_draft:
+            return f"Draft: {content}"
+        return content
 
 
 def _parse_expression(expression: str) -> Any:

@@ -14,3 +14,6 @@ SUBSCRIBER_BATCHABLE = "sub_batchable"
 HAS_CONFLICTS = "has_conflicts"
 SUBSCRIBER_TARGET_NAMESPACE = "subscriber_target_namespace"
 PIPELINE_RESULTS = "pipeline_results"
+
+CHANNEL = "channel"
+REF = "ref"

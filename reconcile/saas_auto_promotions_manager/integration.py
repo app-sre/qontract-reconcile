@@ -9,8 +9,14 @@ from reconcile.openshift_saas_deploy import (
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
 )
+from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager_v2 import (
+    MergeRequestManagerV2,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
+)
+from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
+    Reconciler,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
@@ -45,6 +51,7 @@ class SaasAutoPromotionsManager:
         deployment_state: PromotionState,
         vcs: VCS,
         saas_file_inventory: SaasFilesInventory,
+        merge_request_manager_v2: MergeRequestManagerV2,
         merge_request_manager: MergeRequestManager,
         thread_pool_size: int,
         dry_run: bool,
@@ -52,6 +59,7 @@ class SaasAutoPromotionsManager:
         self._deployment_state = deployment_state
         self._vcs = vcs
         self._saas_file_inventory = saas_file_inventory
+        self._merge_request_manager_v2 = merge_request_manager_v2
         self._merge_request_manager = merge_request_manager
         self._thread_pool_size = thread_pool_size
         self._dry_run = dry_run
@@ -88,11 +96,14 @@ class SaasAutoPromotionsManager:
         self._merge_request_manager.create_promotion_merge_requests(
             subscribers=subscribers_with_diff
         )
+        self._merge_request_manager_v2.reconcile(subscribers=subscribers_with_diff)
 
 
 def init_external_dependencies(
     dry_run: bool,
-) -> tuple[PromotionState, VCS, SaasFilesInventory, MergeRequestManager]:
+) -> tuple[
+    PromotionState, VCS, SaasFilesInventory, MergeRequestManagerV2, MergeRequestManager
+]:
     """
     Lets initialize everything that involves calls to external dependencies:
     - VCS -> Gitlab / Github queries
@@ -120,17 +131,29 @@ def init_external_dependencies(
         allow_opening_mrs=allow_opening_mrs,
     )
     mr_parser = MRParser(vcs=vcs)
-    merge_request_manager = MergeRequestManager(
+    merge_request_manager_v2 = MergeRequestManagerV2(
         vcs=vcs,
+        reconciler=Reconciler(),
         mr_parser=mr_parser,
         renderer=Renderer(),
+    )
+    merge_request_manager = MergeRequestManager(
+        mr_parser=mr_parser,
+        renderer=Renderer(),
+        vcs=vcs,
     )
     saas_files = get_saas_files()
     saas_inventory = SaasFilesInventory(saas_files=saas_files)
     deployment_state = PromotionState(
         state=init_state(integration=OPENSHIFT_SAAS_DEPLOY, secret_reader=secret_reader)
     )
-    return deployment_state, vcs, saas_inventory, merge_request_manager
+    return (
+        deployment_state,
+        vcs,
+        saas_inventory,
+        merge_request_manager_v2,
+        merge_request_manager,
+    )
 
 
 @defer
@@ -143,6 +166,7 @@ def run(
         deployment_state,
         vcs,
         saas_inventory,
+        merge_request_manager_v2,
         merge_request_manager,
     ) = init_external_dependencies(dry_run=dry_run)
     if defer:
@@ -153,6 +177,7 @@ def run(
         vcs=vcs,
         saas_file_inventory=saas_inventory,
         merge_request_manager=merge_request_manager,
+        merge_request_manager_v2=merge_request_manager_v2,
         thread_pool_size=thread_pool_size,
         dry_run=dry_run,
     )

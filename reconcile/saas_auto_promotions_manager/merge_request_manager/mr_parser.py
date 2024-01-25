@@ -9,7 +9,6 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     CONTENT_HASHES,
     IS_BATCHABLE,
     PROMOTION_DATA_SEPARATOR,
-    SAPM_LABEL,
     SAPM_VERSION,
     VERSION_REF,
 )
@@ -19,10 +18,13 @@ from reconcile.utils.vcs import VCS, MRCheckStatus
 @dataclass
 class OpenMergeRequest:
     raw: ProjectMergeRequest
-    content_hashes: str
-    channels: str
+    content_hashes: set[str]
+    channels: set[str]
     failed_mr_check: bool
     is_batchable: bool
+
+
+ITEM_SEPARATOR = ","
 
 
 class MRParser:
@@ -49,11 +51,13 @@ class MRParser:
             return ""
         return groups[0]
 
-    def _fetch_sapm_managed_open_merge_requests(self) -> list[ProjectMergeRequest]:
+    def _fetch_sapm_managed_open_merge_requests(
+        self, label: str
+    ) -> list[ProjectMergeRequest]:
         all_open_mrs = self._vcs.get_open_app_interface_merge_requests()
-        return [mr for mr in all_open_mrs if SAPM_LABEL in mr.attributes.get("labels")]
+        return [mr for mr in all_open_mrs if label in mr.attributes.get("labels")]
 
-    def retrieve_open_mrs(self) -> list[OpenMergeRequest]:
+    def retrieve_open_mrs(self, label: str) -> list[OpenMergeRequest]:
         """
         This function parses the state and returns a list of valid, parsed open MRs (current state).
         If any issue is encountered during parsing, we consider this MR
@@ -66,7 +70,7 @@ class MRParser:
         """
         open_mrs: list[OpenMergeRequest] = []
         seen: set[tuple[str, str, str]] = set()
-        for mr in self._fetch_sapm_managed_open_merge_requests():
+        for mr in self._fetch_sapm_managed_open_merge_requests(label=label):
             attrs = mr.attributes
             desc = attrs.get("description")
             has_conflicts = attrs.get("has_conflicts", False)
@@ -177,8 +181,8 @@ class MRParser:
             open_mrs.append(
                 OpenMergeRequest(
                     raw=mr,
-                    content_hashes=content_hashes,
-                    channels=channels_refs,
+                    content_hashes=set(content_hashes.split(ITEM_SEPARATOR)),
+                    channels=set(channels_refs.split(ITEM_SEPARATOR)),
                     failed_mr_check=mr_check_status == MRCheckStatus.FAILED,
                     is_batchable=is_batchable_str == "True",
                 )
