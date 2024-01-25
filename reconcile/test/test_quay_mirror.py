@@ -1,8 +1,9 @@
 import os
 import tempfile
-from unittest.mock import patch
+from unittest.mock import create_autospec, patch
 
 import pytest
+import requests
 
 from reconcile.quay_mirror import (
     CONTROL_FILE_NAME,
@@ -123,6 +124,8 @@ def test_process_repos_query_ok(mocker):
 
     cloudservices = OrgKey(instance="quay.io", org_name="cloudservices")
     app_sre = OrgKey(instance="quay.io", org_name="app-sre")
+    session = create_autospec(requests.Session)
+    timeout = 30
 
     summary = QuayMirror.process_repos_query()
     assert len(summary) == 2
@@ -132,7 +135,11 @@ def test_process_repos_query_ok(mocker):
     mosquitto = "docker.io/library/eclipse-mosquitto"
     redis = "docker.io/redis"
 
-    summary = QuayMirror.process_repos_query(repository_urls=[mosquitto, redis])
+    summary = QuayMirror.process_repos_query(
+        repository_urls=[mosquitto, redis],
+        session=session,
+        timeout=timeout,
+    )
     cl = summary[cloudservices]
     ap = summary[app_sre]
     assert len(cl) == 2
@@ -140,7 +147,11 @@ def test_process_repos_query_ok(mocker):
     assert cl[0]["mirror"]["url"] == mosquitto
     assert cl[1]["mirror"]["url"] == redis
 
-    summary = QuayMirror.process_repos_query(exclude_repository_urls=[mosquitto, redis])
+    summary = QuayMirror.process_repos_query(
+        exclude_repository_urls=[mosquitto, redis],
+        session=session,
+        timeout=timeout,
+    )
     cl = summary[cloudservices]
     ap = summary[app_sre]
     assert len(cl) == 0
@@ -155,3 +166,14 @@ def test_process_repos_query_public_dockerhub(mocker, caplog):
         QuayMirror.process_repos_query()
 
     assert "can't be mirrored to a public quay repository" in caplog.text
+
+
+def test_quay_mirror_session(mocker):
+    mocker.patch("reconcile.quay_mirror.gql")
+    mocker.patch("reconcile.quay_mirror.queries")
+    mocked_request = mocker.patch("reconcile.quay_mirror.requests")
+
+    with QuayMirror() as quay_mirror:
+        assert quay_mirror.session == mocked_request.Session.return_value
+
+    mocked_request.Session.return_value.close.assert_called_once()
