@@ -466,11 +466,10 @@ def test_c2c_no_vpc_in_aws(mocker):
 
     awsapi = MockAWSAPI()
 
-    with pytest.raises(sut.BadTerraformPeeringState) as ex:
-        sut.build_desired_state_single_cluster(
-            requester_cluster, ocm, awsapi, account_filter=None
-        )
-    assert str(ex.value).endswith("could not find VPC ID for cluster")
+    desired_state = sut.build_desired_state_single_cluster(
+        requester_cluster, ocm, awsapi, account_filter=None
+    )
+    assert desired_state == []
 
 
 def test_c2c_no_peer_account(mocker):
@@ -936,10 +935,10 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
             None,
         )).and_assert_called_once()
 
-        with self.assertRaises(sut.BadTerraformPeeringState):
-            sut.build_desired_state_vpc_mesh_single_cluster(
-                self.cluster, self.ocm, self.awsapi, None
-            )
+        desired_state = sut.build_desired_state_vpc_mesh_single_cluster(
+            self.cluster, self.ocm, self.awsapi, None
+        )
+        assert desired_state == []
 
 
 class TestBuildDesiredStateVpc(testslide.TestCase):
@@ -1341,7 +1340,22 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
             self.ocm, "get_aws_infrastructure_access_terraform_assume_role"
         ).to_return_value("a:role:that:you:will:like").and_assert_called_once()
 
-        with self.assertRaises(sut.BadTerraformPeeringState):
+        desired_state = sut.build_desired_state_vpc_single_cluster(
+            self.cluster, self.ocm, self.awsapi, None
+        )
+        assert desired_state == []
+
+    def test_aws_exception(self):
+        exc_txt = "AWS Problem!"
+        self.mock_callable(self.awsapi, "get_cluster_vpc_details").to_raise(
+            Exception(exc_txt)
+        )
+
+        self.mock_callable(
+            self.ocm, "get_aws_infrastructure_access_terraform_assume_role"
+        ).to_return_value("a:role:that:you:will:like").and_assert_called_once()
+
+        with pytest.raises(Exception, match=exc_txt):
             sut.build_desired_state_vpc_single_cluster(
                 self.cluster, self.ocm, self.awsapi, None
             )
