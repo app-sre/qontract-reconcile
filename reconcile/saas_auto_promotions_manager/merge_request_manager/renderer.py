@@ -24,15 +24,6 @@ CONTENT_HASHES = "content_hashes"
 CHANNELS_REF = "channels"
 IS_BATCHABLE = "is_batchable"
 VERSION_REF = "sapm_version"
-SAPM_DESC = """
-This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
-The channel(s) mentioned in the MR title had an event.
-This MR promotes all subscribers with auto-promotions for these channel(s).
-
-Please **do not remove or change any label** from this MR.
-
-Parts of this description are used by SAPM to manage auto-promotions.
-"""
 
 
 class Renderer:
@@ -136,10 +127,10 @@ class Renderer:
         return new_content
 
     def render_description(
-        self, content_hashes: str, channels: str, is_batchable: bool
+        self, message: str, content_hashes: str, channels: str, is_batchable: bool
     ) -> str:
         return f"""
-{SAPM_DESC}
+{message}
 
 {PROMOTION_DATA_SEPARATOR}
 
