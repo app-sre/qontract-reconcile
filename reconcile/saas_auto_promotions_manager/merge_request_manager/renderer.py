@@ -143,8 +143,9 @@ class Renderer:
 {VERSION_REF}: {SAPM_VERSION}
         """
 
-    def render_title(self, is_draft: bool, channels: str) -> str:
-        content = f"[SAPM] auto-promotion ID {int(hashlib.sha256(channels.encode('utf-8')).hexdigest(), 16) % 10**8}"
+    def render_title(self, is_draft: bool, canary: bool, channels: str) -> str:
+        canary_suffix = "Canary" if canary else ""
+        content = f"[SAPM{canary_suffix}] auto-promotion ID {int(hashlib.sha256(channels.encode('utf-8')).hexdigest(), 16) % 10**8}"
         if is_draft:
             return f"Draft: {content}"
         return content
