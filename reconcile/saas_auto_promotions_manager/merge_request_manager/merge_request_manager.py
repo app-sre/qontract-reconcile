@@ -20,11 +20,23 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
+from reconcile.utils.mr.labels import AUTO_MERGE
 from reconcile.utils.vcs import VCS
 
 ITEM_SEPARATOR = ","
 
 SAPM_LABEL = "SAPM"
+SAPM_MR_LABELS = [SAPM_LABEL, AUTO_MERGE]
+
+MR_DESC = """
+This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
+The channel(s) mentioned in the MR title had an event.
+This MR promotes all subscribers with auto-promotions for these channel(s).
+
+Please **do not remove or change any label** from this MR.
+
+Parts of this description are used by SAPM to manage auto-promotions.
+"""
 
 
 class MergeRequestManager:
@@ -156,6 +168,7 @@ class MergeRequestManager:
                 continue
 
             description = self._renderer.render_description(
+                message=MR_DESC,
                 content_hashes=combined_content_hash,
                 channels=channel_combo,
                 is_batchable=combined_content_hash not in self._unbatchable_hashes,
@@ -167,7 +180,7 @@ class MergeRequestManager:
             )
             self._vcs.open_app_interface_merge_request(
                 mr=SAPMMR(
-                    sapm_label=SAPM_LABEL,
+                    labels=SAPM_MR_LABELS,
                     content_by_path=content_by_path,
                     title=title,
                     description=description,

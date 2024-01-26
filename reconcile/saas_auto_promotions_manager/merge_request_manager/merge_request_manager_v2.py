@@ -19,10 +19,21 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
+from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
 from reconcile.utils.vcs import VCS
 
 BATCH_SIZE_LIMIT = 5
 SAPM_LABEL = "SAPMCanary"
+SAPM_MR_LABELS = [SAPM_LABEL, DO_NOT_MERGE_HOLD]
+
+MR_DESC = """
+:warning: **THIS IS A TEST MR - DO NOT MERGE OR CHANGE THIS!**
+
+If you witness any issues with this MR, please reach out to @kfischer from AppSRE.
+
+Please **do not remove or change any label** from this MR.
+
+"""
 
 
 class MergeRequestManagerV2:
@@ -103,12 +114,13 @@ class MergeRequestManagerV2:
         description_channels = ",".join(addition.channels)
 
         description = self._renderer.render_description(
+            message=MR_DESC,
             content_hashes=description_hashes,
             channels=description_channels,
             is_batchable=addition.batchable,
         )
         title = self._renderer.render_title(
-            is_draft=True, channels=description_channels
+            is_draft=False, channels=description_channels
         )
         logging.info(
             "Open MR for update in channel(s) %s",
@@ -116,7 +128,7 @@ class MergeRequestManagerV2:
         )
         self._sapm_mrs.append(
             SAPMMR(
-                sapm_label=SAPM_LABEL,
+                labels=SAPM_MR_LABELS,
                 content_by_path=content_by_path,
                 title=title,
                 description=description,
