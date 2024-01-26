@@ -120,7 +120,7 @@ class MergeRequestManagerV2:
             is_batchable=addition.batchable,
         )
         title = self._renderer.render_title(
-            is_draft=False, channels=description_channels
+            is_draft=False, canary=True, channels=description_channels
         )
         logging.info(
             "Open MR for update in channel(s) %s",

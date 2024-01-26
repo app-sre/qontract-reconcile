@@ -173,7 +173,9 @@ class MergeRequestManager:
                 channels=channel_combo,
                 is_batchable=combined_content_hash not in self._unbatchable_hashes,
             )
-            title = self._renderer.render_title(is_draft=False, channels=channel_combo)
+            title = self._renderer.render_title(
+                is_draft=False, canary=False, channels=channel_combo
+            )
             logging.info(
                 "Open MR for update in channel(s) %s",
                 channel_combo,
