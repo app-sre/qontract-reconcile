@@ -240,7 +240,23 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
     def apply_diff(
         dry_run: bool, ocm_api: OCMBaseClient, diff: list[StatusBoardHandler]
     ) -> None:
-        for d in sorted(diff, key=lambda x: x.status_board_object.get_priority()):
+        creations: list[StatusBoardHandler] = []
+        deletions: list[StatusBoardHandler] = []
+
+        for o in diff:
+            match o.action:
+                case "create":
+                    creations.append(o)
+                case "delete":
+                    deletions.append(o)
+
+        # Products need to be created before Applications
+        creations.sort(key=lambda x: x.status_board_object.get_priority())
+
+        # Applications need to be deleted before Products
+        deletions.sort(key=lambda x: x.status_board_object.get_priority(), reverse=True)
+
+        for d in creations + deletions:
             d.act(dry_run, ocm_api)
 
     def run(self, dry_run: bool) -> None:
