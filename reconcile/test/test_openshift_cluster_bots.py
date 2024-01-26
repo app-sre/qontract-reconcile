@@ -234,6 +234,6 @@ def test_run_cluster_admin(
     )
     mocks.oc.return_value = {"data": {"token": "mytoken"}}
     ocb.run(**integ_params)
-    assert mocks.oc.call_count == 7
+    assert mocks.oc.call_count == 8
     mocks.vault.assert_called_once()
     mocks.submit_mr.assert_called_once()
