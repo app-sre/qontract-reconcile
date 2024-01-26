@@ -124,7 +124,11 @@ def retrieve_token(kubeconfig: str, namespace: str, sa: str) -> str:
 
 
 def create_sa(
-    kubeconfig: str, namespace: str, sa: str, create_namespace: bool = False
+    kubeconfig: str,
+    namespace: str,
+    sa: str,
+    create_namespace: bool = False,
+    cluster_admin: bool = False,
 ) -> str:
     items: list[dict] = []
     if create_namespace:
@@ -159,6 +163,26 @@ def create_sa(
             "type": "kubernetes.io/service-account-token",
         },
     ])
+    if cluster_admin:
+        items.append({
+            "apiVersion": "rbac.authorization.k8s.io/v1",
+            "kind": "ClusterRoleBinding",
+            "metadata": {
+                "name": f"{namespace}-{sa}",
+            },
+            "roleRef": {
+                "apiGroup": "rbac.authorization.k8s.io",
+                "kind": "ClusterRole",
+                "name": "cluster-admin",
+            },
+            "subjects": [
+                {
+                    "kind": "ServiceAccount",
+                    "name": sa,
+                    "namespace": namespace,
+                }
+            ],
+        })
 
     oc_apply(kubeconfig, namespace, items)
     token = retrieve_token(kubeconfig, namespace, sa)
@@ -200,6 +224,7 @@ def create_cluster_bots(
                         config.cluster_admin_ns,
                         config.cluster_admin_sa,
                         create_namespace=True,
+                        cluster_admin=True,
                     )
     except subprocess.CalledProcessError as e:
         logging.error(e.stderr)
