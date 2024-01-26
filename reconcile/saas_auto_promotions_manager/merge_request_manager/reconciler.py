@@ -6,9 +6,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser impo
     OpenMergeRequest,
 )
 
-MSG_MISSING_UNBATCHING = (
-    "Closing this MR because it failed MR check and isn't marked as un-batchable yet."
-)
+MSG_MISSING_UNBATCHING = "Closing this MR because it failed MR check and isn't marked as un-batchable yet. cc @kfischer"
 MSG_OUTDATED_CONTENT = "Closing this MR because it has out-dated content."
 MSG_NEW_BATCH = "Closing this MR in favor of a new batch MR."
 
