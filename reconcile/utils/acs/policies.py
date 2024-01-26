@@ -151,3 +151,13 @@ class AcsPolicyApi(AcsBaseApi):
             self.NotifierIdentifiers(id=c["id"], name=c["name"])
             for c in self.generic_request("/v1/notifiers", "GET").json()["notifiers"]
         ]
+
+    class ClusterIdentifiers(BaseModel):
+        id: str
+        name: str
+
+    def list_clusters(self) -> list[ClusterIdentifiers]:
+        return [
+            self.ClusterIdentifiers(id=c["id"], name=c["name"])
+            for c in self.generic_request("/v1/clusters", "GET").json()["clusters"]
+        ]

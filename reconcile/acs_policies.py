@@ -58,7 +58,10 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         return self.qontract_integration.replace("_", "-")
 
     def _build_policy(
-        self, gql_policy: AcsPolicyV1, notifier_name_to_id: dict[str, str]
+        self,
+        gql_policy: AcsPolicyV1,
+        notifier_name_to_id: dict[str, str],
+        cluster_name_to_id: dict[str, str],
     ) -> Policy:
         conditions = [
             pc for c in gql_policy.conditions if (pc := self._build_policy_condition(c))
@@ -72,7 +75,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
             severity=f"{gql_policy.severity.upper()}_SEVERITY",  # align with acs api severity value format
             scope=sorted(
                 [
-                    Scope(cluster=cs.name, namespace="")
+                    Scope(cluster=cluster_name_to_id[cs.name], namespace="")
                     for cs in cast(
                         gql_acs_policies.AcsPolicyScopeClusterV1,
                         gql_policy.scope,
@@ -83,7 +86,9 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
             if gql_policy.scope.level == "cluster"
             else sorted(
                 [
-                    Scope(cluster=ns.cluster.name, namespace=ns.name)
+                    Scope(
+                        cluster=cluster_name_to_id[ns.cluster.name], namespace=ns.name
+                    )
                     for ns in cast(
                         gql_acs_policies.AcsPolicyScopeNamespaceV1,
                         gql_policy.scope,
@@ -158,7 +163,10 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                 return None
 
     def get_desired_state(
-        self, query_func: Callable, notifiers: list[AcsPolicyApi.NotifierIdentifiers]
+        self,
+        query_func: Callable,
+        notifiers: list[AcsPolicyApi.NotifierIdentifiers],
+        clusters: list[AcsPolicyApi.ClusterIdentifiers],
     ) -> list[Policy]:
         """
         Get desired ACS security policies and convert to acs api policy object format
@@ -167,8 +175,9 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         :return: list of utils.acs.policies.Policy derived from acs-policy-1 definitions
         """
         notifier_name_to_id = {n.name: n.id for n in notifiers}
+        cluster_name_to_id = {c.name: c.id for c in clusters}
         return [
-            self._build_policy(gql_policy, notifier_name_to_id)
+            self._build_policy(gql_policy, notifier_name_to_id, cluster_name_to_id)
             for gql_policy in gql_acs_policies.query(query_func=query_func).acs_policies
             or []
         ]
@@ -225,7 +234,8 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
             instance={"url": instance.url, "token": token[instance.credentials.field]}
         ) as acs_api:
             notifiers = acs_api.list_notifiers()
-            desired = self.get_desired_state(gqlapi.query, notifiers)
+            clusters = acs_api.list_clusters()
+            desired = self.get_desired_state(gqlapi.query, notifiers, clusters)
             current = acs_api.get_custom_policies()
             self.reconcile(
                 desired=desired, current=current, acs=acs_api, dry_run=dry_run

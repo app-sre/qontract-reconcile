@@ -20,6 +20,10 @@ from reconcile.gql_definitions.acs.acs_policies import (
 )
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
 
+CLUSTER_NAME_ONE = "app-sre-stage"
+CLUSTER_ID_ONE = "5211d395-5cf7-4185-a1fb-d88f41bc7542"
+CLUSTER_NAME_TWO = "app-sre-prod"
+CLUSTER_ID_TWO = "a217cca7-d85a-4be1-9703-f58866fdbe2d"
 CUSTOM_POLICY_ONE_NAME = "app-sre-clusters-fixable-cve-7-fixable"
 CUSTOM_POLICY_ONE_ID = "365d4e71-3241-4448-9f3d-eb0eed1c1820"
 CUSTOM_POLICY_TWO_NAME = "app-sre-namespaces-severity-critical"
@@ -41,8 +45,8 @@ def query_data_desired_state() -> AcsPolicyQueryData:
                 scope=AcsPolicyScopeClusterV1(
                     level="cluster",
                     clusters=[
-                        ClusterV1(name="app-sre-stage"),
-                        ClusterV1(name="app-sre-prod"),
+                        ClusterV1(name=CLUSTER_NAME_ONE),
+                        ClusterV1(name=CLUSTER_NAME_TWO),
                     ],
                 ),
                 conditions=[
@@ -91,8 +95,8 @@ def modeled_acs_policies() -> list[Policy]:
             notifiers=[JIRA_NOTIFIER_ID],
             categories=["Vulnerability Management"],
             scope=[
-                Scope(cluster="app-sre-prod", namespace=""),
-                Scope(cluster="app-sre-stage", namespace=""),
+                Scope(cluster=CLUSTER_ID_ONE, namespace=""),
+                Scope(cluster=CLUSTER_ID_TWO, namespace=""),
             ],
             conditions=[
                 PolicyCondition(field_name="CVSS", values=[">=7"], negate=False),
@@ -106,8 +110,8 @@ def modeled_acs_policies() -> list[Policy]:
             notifiers=[],
             categories=["DevOps Best Practices", "Vulnerability Management"],
             scope=[
-                Scope(cluster="app-sre-prod", namespace="app-interface-production"),
-                Scope(cluster="app-sre-stage", namespace="app-interface-stage"),
+                Scope(cluster=CLUSTER_ID_ONE, namespace="app-interface-stage"),
+                Scope(cluster=CLUSTER_ID_TWO, namespace="app-interface-production"),
             ],
             conditions=[
                 PolicyCondition(
@@ -175,8 +179,8 @@ def api_response_policies_specific() -> list[Any]:
             "eventSource": "NOT_APPLICABLE",
             "exclusions": [],
             "scope": [
-                {"cluster": "app-sre-stage", "namespace": "", "label": None},
-                {"cluster": "app-sre-prod", "namespace": "", "label": None},
+                {"cluster": CLUSTER_ID_ONE, "namespace": "", "label": None},
+                {"cluster": CLUSTER_ID_TWO, "namespace": "", "label": None},
             ],
             "severity": "HIGH_SEVERITY",
             "enforcementActions": [],
@@ -216,12 +220,12 @@ def api_response_policies_specific() -> list[Any]:
             "exclusions": [],
             "scope": [
                 {
-                    "cluster": "app-sre-stage",
+                    "cluster": CLUSTER_ID_ONE,
                     "namespace": "app-interface-stage",
                     "label": None,
                 },
                 {
-                    "cluster": "app-sre-prod",
+                    "cluster": CLUSTER_ID_TWO,
                     "namespace": "app-interface-production",
                     "label": None,
                 },
@@ -257,11 +261,20 @@ def api_response_list_notifiers() -> list[AcsPolicyApi.NotifierIdentifiers]:
     ]
 
 
+@pytest.fixture
+def api_response_list_clusters() -> list[AcsPolicyApi.ClusterIdentifiers]:
+    return [
+        AcsPolicyApi.ClusterIdentifiers(id=CLUSTER_ID_ONE, name=CLUSTER_NAME_ONE),
+        AcsPolicyApi.ClusterIdentifiers(id=CLUSTER_ID_TWO, name=CLUSTER_NAME_TWO),
+    ]
+
+
 def test_get_desired_state(
     mocker: MockerFixture,
     query_data_desired_state: AcsPolicyQueryData,
     modeled_acs_policies: list[Policy],
     api_response_list_notifiers: list[AcsPolicyApi.NotifierIdentifiers],
+    api_response_list_clusters: list[AcsPolicyApi.ClusterIdentifiers],
 ) -> None:
     query_func = mocker.patch(
         "reconcile.gql_definitions.acs.acs_policies.query", autospec=True
@@ -270,7 +283,9 @@ def test_get_desired_state(
 
     integration = AcsPoliciesIntegration()
     result = integration.get_desired_state(
-        query_func=query_func, notifiers=api_response_list_notifiers
+        query_func=query_func,
+        notifiers=api_response_list_notifiers,
+        clusters=api_response_list_clusters,
     )
     assert result == modeled_acs_policies
 
