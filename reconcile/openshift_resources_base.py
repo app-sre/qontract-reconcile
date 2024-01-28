@@ -169,6 +169,10 @@ NAMESPACES_QUERY = """
     openshiftResources {
       %s
     }
+    environment {
+      name
+      parameters
+    }
     cluster {
       name
       labels
