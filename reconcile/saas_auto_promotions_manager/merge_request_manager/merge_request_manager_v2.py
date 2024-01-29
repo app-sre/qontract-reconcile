@@ -29,7 +29,7 @@ SAPM_MR_LABELS = [SAPM_LABEL, DO_NOT_MERGE_HOLD]
 MR_DESC = """
 :warning: **THIS IS A TEST MR - DO NOT MERGE OR CHANGE THIS!**
 
-If you witness any issues with this MR, please reach out to @kfischer from AppSRE.
+If you witness any issues with this MR, please reach out to kfischer from AppSRE.
 
 Please **do not remove or change any label** from this MR.
 
