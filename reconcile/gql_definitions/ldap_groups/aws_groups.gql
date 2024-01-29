@@ -1,0 +1,17 @@
+# qenerate: plugin=pydantic_v1
+
+query LdapGroupsAwsGroupQuery {
+  aws_groups: awsgroups_v1 {
+    name
+    account {
+      name
+      uid
+      sso
+    }
+    roles {
+      users {
+        org_username
+      }
+    }
+  }
+}

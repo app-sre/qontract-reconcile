@@ -1,5 +1,6 @@
 from collections.abc import (
     Callable,
+    Iterable,
     Mapping,
 )
 from typing import Any
@@ -8,6 +9,7 @@ from unittest.mock import Mock
 import pytest
 from pytest_mock import MockerFixture
 
+from reconcile.gql_definitions.ldap_groups.aws_groups import AWSGroupV1
 from reconcile.gql_definitions.ldap_groups.roles import RoleV1
 from reconcile.ldap_groups.integration import (
     LdapGroupsIntegration,
@@ -29,12 +31,19 @@ def fx() -> Fixtures:
 
 @pytest.fixture
 def intg() -> LdapGroupsIntegration:
-    return LdapGroupsIntegration(LdapGroupsIntegrationParams())
+    return LdapGroupsIntegration(
+        LdapGroupsIntegrationParams(aws_sso_namespace="rover-prefix")
+    )
 
 
 @pytest.fixture
 def raw_fixture_data(fx: Fixtures) -> dict[str, Any]:
     return fx.get_anymarkup("roles.yml")
+
+
+@pytest.fixture
+def raw_fixture_data_aws_groups(fx: Fixtures) -> dict[str, Any]:
+    return fx.get_anymarkup("aws_groups.yml")
 
 
 @pytest.fixture
@@ -53,14 +62,32 @@ def roles(
 
 
 @pytest.fixture
-def group() -> Group:
+def aws_groups(
+    fx: Fixtures,
+    data_factory: Callable[[type[AWSGroupV1], Mapping[str, Any]], Mapping[str, Any]],
+    intg: LdapGroupsIntegration,
+    raw_fixture_data_aws_groups: dict[str, Any],
+) -> list[AWSGroupV1]:
+    def q(*args: Any, **kwargs: Any) -> dict:
+        return {
+            "aws_groups": [
+                data_factory(AWSGroupV1, item)
+                for item in raw_fixture_data_aws_groups["aws_groups"]
+            ]
+        }
+
+    return intg.get_aws_groups(q)
+
+
+@pytest.fixture
+def group(owners: Iterable[Entity]) -> Group:
     # keep in sync with fx/roles.yml
     return Group(
         name="ai-dev-test-group",
         description="Persisted App-Interface role. Managed by qontract-reconcile",
         member_approval_type="self-service",
         contact_list="email@example.org",
-        owners=[Entity(type=EntityType.SERVICE_ACCOUNT, id="service-account-1")],
+        owners=owners,
         display_name="ai-dev-test-group (App-Interface))",
         notes=None,
         rover_group_member_query=None,

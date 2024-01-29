@@ -1655,15 +1655,23 @@ def ldap_users(ctx, infra_project_id, app_interface_project_id):
 
 
 @integration.command(short_help="Manages LDAP groups based on App-Interface roles.")
+@click.option(
+    "--aws-sso-namespace",
+    help="Namespace used to store AWS SSO groups.",
+    required=True,
+    default="it-cloud-aws",
+)
 @click.pass_context
-def ldap_groups(ctx):
+def ldap_groups(ctx, aws_sso_namespace):
     from reconcile.ldap_groups.integration import (
         LdapGroupsIntegration,
         LdapGroupsIntegrationParams,
     )
 
     run_class_integration(
-        integration=LdapGroupsIntegration(LdapGroupsIntegrationParams()),
+        integration=LdapGroupsIntegration(
+            LdapGroupsIntegrationParams(aws_sso_namespace=aws_sso_namespace)
+        ),
         ctx=ctx.obj,
     )
 
