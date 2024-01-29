@@ -2469,6 +2469,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 name=identifier,
                 policy=role_policy,
                 depends_on=self.get_dependencies([role_tf_resource]),
+                tags=common_values["tags"],
             )
             tf_resources.append(tf_aws_iam_policy)
 
