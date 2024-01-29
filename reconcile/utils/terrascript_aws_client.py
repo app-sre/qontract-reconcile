@@ -238,6 +238,7 @@ VARIABLE_KEYS = [
     "subscriptions",
     "records",
     "extra_tags",
+    "lifecycle",
 ]
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
@@ -869,6 +870,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         uid = awsh.get_account_uid_from_arn(account["assume_role"])
         role_name = awsh.get_id_from_arn(account["assume_role"])
         return f"account-{uid}-{role_name}"
+
+    @staticmethod
+    def get_resource_lifecycle(
+        common_values: dict[str, Any],
+    ) -> Optional[dict[str, Any]]:
+        if lifecycle := common_values.get("lifecycle"):
+            if lifecycle.get("create_before_destroy") is None:
+                lifecycle["create_before_destroy"] = False
+            if lifecycle.get("prevent_destroy") is None:
+                lifecycle["prevent_destroy"] = False
+            if lifecycle.get("ignore_changes") is None:
+                lifecycle["ignore_changes"] = []
+            if "all" in lifecycle["ignore_changes"]:
+                lifecycle["ignore_changes"] = "all"
+            return lifecycle
+        return None
 
     def populate_additional_providers(self, infra_account_name: str, accounts):
         for account in accounts:
@@ -2458,6 +2475,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         inline_policy = common_values.get("inline_policy")
         if inline_policy:
             values["inline_policy"] = {"name": identifier, "policy": inline_policy}
+
+        if lifecycle := self.get_resource_lifecycle(common_values):
+            values["lifecycle"] = lifecycle
 
         role_tf_resource = aws_iam_role(identifier, **values)
         tf_resources.append(role_tf_resource)

@@ -707,3 +707,43 @@ def test_s3_bucket_event_notifications(
     identifier, tf_resources = mocked_add_resources.call_args.args
     assert identifier == "a"
     assert expected_s3_bucket_notification in tf_resources
+
+
+def test_get_resource_lifecycle_none(
+    ts: tsclient.TerrascriptClient,
+) -> None:
+    common_values = {"lifecycle": None}
+    lifecycle = ts.get_resource_lifecycle(common_values)
+    assert lifecycle is None
+
+
+def test_get_resource_lifecycle_default(
+    ts: tsclient.TerrascriptClient,
+) -> None:
+    common_values = {
+        "lifecycle": {
+            "create_before_destroy": None,
+            "prevent_destroy": None,
+            "ignore_changes": [],
+        }
+    }
+    lifecycle = ts.get_resource_lifecycle(common_values)
+    expected = {
+        "create_before_destroy": False,
+        "prevent_destroy": False,
+        "ignore_changes": [],
+    }
+    assert lifecycle == expected
+
+
+def test_get_resource_lifecycle_all(
+    ts: tsclient.TerrascriptClient,
+) -> None:
+    common_values = {"lifecycle": {"ignore_changes": ["all"]}}
+    lifecycle = ts.get_resource_lifecycle(common_values)
+    expected = {
+        "create_before_destroy": False,
+        "prevent_destroy": False,
+        "ignore_changes": "all",
+    }
+    assert lifecycle == expected
