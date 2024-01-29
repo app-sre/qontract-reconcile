@@ -2462,8 +2462,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         role_tf_resource = aws_iam_role(identifier, **values)
         tf_resources.append(role_tf_resource)
 
-        role_policy = common_values.get("role_policy")
-        if role_policy:
+        if role_policy := common_values.get("role_policy"):
             tf_aws_iam_policy = aws_iam_policy(
                 identifier,
                 name=identifier,
