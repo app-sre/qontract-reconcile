@@ -143,6 +143,9 @@ import reconcile.openshift_resources_base as orb
 import reconcile.utils.aws_helper as awsh
 from reconcile import queries
 from reconcile.github_org import get_default_config
+from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
+    NamespaceTerraformResourceLifecycleV1,
+)
 from reconcile.utils import gql
 from reconcile.utils.aws_api import (
     AmiTag,
@@ -876,15 +879,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         common_values: dict[str, Any],
     ) -> Optional[dict[str, Any]]:
         if lifecycle := common_values.get("lifecycle"):
-            if lifecycle.get("create_before_destroy") is None:
-                lifecycle["create_before_destroy"] = False
-            if lifecycle.get("prevent_destroy") is None:
-                lifecycle["prevent_destroy"] = False
-            if lifecycle.get("ignore_changes") is None:
-                lifecycle["ignore_changes"] = []
-            if "all" in lifecycle["ignore_changes"]:
-                lifecycle["ignore_changes"] = "all"
-            return lifecycle
+            lifecycle = NamespaceTerraformResourceLifecycleV1(**lifecycle)
+            if lifecycle.create_before_destroy is None:
+                lifecycle.create_before_destroy = False
+            if lifecycle.prevent_destroy is None:
+                lifecycle.prevent_destroy = False
+            if lifecycle.ignore_changes is None:
+                lifecycle.ignore_changes = []
+            if "all" in lifecycle.ignore_changes:
+                lifecycle.ignore_changes = "all"
+            return lifecycle.dict(by_alias=True)
         return None
 
     def populate_additional_providers(self, infra_account_name: str, accounts):
