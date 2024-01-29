@@ -80,6 +80,7 @@ class Reconciler:
         desired_promotions_after_unbatching: list[Promotion] = []
         for promotion in self._desired_promotions:
             if promotion.content_hashes.issubset(unbatchable_hashes):
+                desired_promotions_after_unbatching.append(promotion)
                 continue
             elif promotion.content_hashes.issubset(falsely_marked_batchable_hashes):
                 diff.additions.append(
@@ -143,7 +144,7 @@ class Reconciler:
 
         batch_with_capacity: Optional[OpenMergeRequest] = None
         for mr in self._open_mrs:
-            if len(mr.content_hashes) < batch_limit:
+            if mr.is_batchable and len(mr.content_hashes) < batch_limit:
                 batch_with_capacity = mr
                 # Note, there should always only be maximum one batch with capacity available
                 break

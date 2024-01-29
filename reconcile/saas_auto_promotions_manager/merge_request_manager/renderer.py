@@ -19,7 +19,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 )
-SAPM_VERSION = "2.1.1"
+SAPM_VERSION = "2.1.2"
 CONTENT_HASHES = "content_hashes"
 CHANNELS_REF = "channels"
 IS_BATCHABLE = "is_batchable"

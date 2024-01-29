@@ -367,6 +367,94 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 ],
             ),
         ),
+        # We have an unbatchable open MR.
+        # We do not want any change on the existing unbatchable MR,
+        # but at the same time expect a new MR to be opened for the new promotion.
+        (
+            [
+                Promotion(
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                ),
+                Promotion(
+                    channels={"chan2"},
+                    content_hashes={"hash2"},
+                ),
+            ],
+            [
+                OpenMergeRequest(
+                    raw=create_autospec(spec=ProjectMergeRequest),
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                    failed_mr_check=False,
+                    is_batchable=False,
+                ),
+            ],
+            Diff(
+                deletions=[],
+                additions=[
+                    Addition(
+                        content_hashes={
+                            "hash2",
+                        },
+                        channels={"chan2"},
+                        batchable=True,
+                    ),
+                ],
+            ),
+        ),
+        # We have multiple unbatchable open MRs.
+        # We do not want any change on the existing unbatchable MRs,
+        # but at the same time expect a new MR to be opened for the new promotions.
+        (
+            [
+                Promotion(
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                ),
+                Promotion(
+                    channels={"chan2"},
+                    content_hashes={"hash2"},
+                ),
+                Promotion(
+                    channels={"chan3"},
+                    content_hashes={"hash3"},
+                ),
+                Promotion(
+                    channels={"chan4"},
+                    content_hashes={"hash4"},
+                ),
+            ],
+            [
+                OpenMergeRequest(
+                    raw=create_autospec(spec=ProjectMergeRequest),
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                    failed_mr_check=False,
+                    is_batchable=False,
+                ),
+                OpenMergeRequest(
+                    raw=create_autospec(spec=ProjectMergeRequest),
+                    channels={"chan2"},
+                    content_hashes={"hash2"},
+                    failed_mr_check=False,
+                    is_batchable=False,
+                ),
+            ],
+            Diff(
+                deletions=[],
+                additions=[
+                    Addition(
+                        content_hashes={
+                            "hash3",
+                            "hash4",
+                        },
+                        channels={"chan3", "chan4"},
+                        batchable=True,
+                    ),
+                ],
+            ),
+        ),
     ],
 )
 def test_reconcile(
