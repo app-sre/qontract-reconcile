@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from collections.abc import (
     Iterable,
     Set,
@@ -12,6 +13,7 @@ from operator import (
 from typing import (
     Any,
     Optional,
+    TypedDict,
 )
 from urllib.parse import urlparse
 
@@ -19,6 +21,8 @@ import gitlab
 import urllib3
 from gitlab.v4.objects import (
     CurrentUser,
+    Group,
+    Project,
     ProjectIssue,
     ProjectMergeRequest,
     ProjectMergeRequestNote,
@@ -66,12 +70,19 @@ class MRStatus:
     CANNOT_BE_MERGED_RECHECK = "cannot_be_merged_recheck"
 
 
+GROUP_BOT_NAME_REGEX = re.compile(r"group_.+_bot_.+")
+
+
+class GLGroupMember(TypedDict):
+    user: str
+    access_level: str
+
+
 class GitLabApi:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
         instance,
         project_id=None,
-        ssl_verify=True,
         settings=None,
         secret_reader=None,
         project_url=None,
@@ -205,14 +216,14 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         return self.project.mergerequests.create(data)
 
-    def mr_exists(self, title):
+    def mr_exists(self, title: str) -> bool:
         mrs = self.get_merge_requests(state=MRState.OPENED)
         # since we are using a naming convention for these MRs
         # we can determine if a pending MR exists based on the title
         return any(mr.title == title for mr in mrs)
 
     @retry()
-    def get_project_maintainers(self, repo_url=None):
+    def get_project_maintainers(self, repo_url: str | None = None) -> list[str] | None:
         if repo_url is None:
             project = self.project
         else:
@@ -227,25 +238,42 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         app_sre_group = self.gl.groups.get("app-sre")
         return self.get_items(app_sre_group.members.list)
 
-    def get_group_if_exists(self, group_name):
+    def get_group_if_exists(self, group_name: str) -> Group | None:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         try:
             return self.gl.groups.get(group_name)
         except gitlab.exceptions.GitlabGetError:
             return None
 
-    def get_group_members(self, group_name):
+    @staticmethod
+    def _is_bot_username(username: str) -> bool:
+        """crudely checking for the username
+
+        as gitlab-python require a major upgrade to use the billable members apis
+        https://python-gitlab.readthedocs.io/en/stable/gl_objects/groups.html#id11 lists the api
+        billable_membersis the attribute that provides billable members of groups
+
+        the second api is https://python-gitlab.readthedocs.io/en/stable/gl_objects/group_access_tokens.html
+        which provides a list of access tokens as well as their assigned users
+
+        those apis are not avaliable in python-gitlab v1.x
+        """
+        return GROUP_BOT_NAME_REGEX.match(username) is not None
+
+    def get_group_members(self, group_name: str) -> list[GLGroupMember]:
         group = self.get_group_if_exists(group_name)
-        if not group:
+        if group is None:
             logging.error(group_name + " group not found")
             return []
-        return [
-            {
-                "user": m.username,
-                "access_level": self.get_access_level_string(m.access_level),
-            }
-            for m in self.get_items(group.members.list)
-        ]
+        else:
+            return [
+                {
+                    "user": m.username,
+                    "access_level": self.get_access_level_string(m.access_level),
+                }
+                for m in self.get_items(group.members.list)
+                if not self._is_bot_username(m.username)
+            ]
 
     def add_project_member(self, repo_url, user, access="maintainer"):
         project = self.get_project(repo_url)
@@ -323,7 +351,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if access == "guest":
             return gitlab.GUEST_ACCESS
 
-    def get_group_id_and_projects(self, group_name):
+    def get_group_id_and_projects(self, group_name: str) -> tuple[str, list[str]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
         return group.id, [p.name for p in self.get_items(group.projects.list)]
@@ -336,7 +364,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return f"{self.server}/{group}/{project}"
 
     @retry()
-    def get_project(self, repo_url):
+    def get_project(self, repo_url: str) -> Project | None:
         repo = repo_url.replace(self.server + "/", "")
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         try:
@@ -748,5 +776,5 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         self, repo_url: str, ref_from: str, ref_to: str
     ) -> list[dict[str, Any]]:
         project = self.get_project(repo_url)
-        response = project.repository_compare(ref_from, ref_to)
+        response: Any = project.repository_compare(ref_from, ref_to)
         return response.get("commits", [])
