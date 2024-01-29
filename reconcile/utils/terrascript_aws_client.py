@@ -221,6 +221,7 @@ VARIABLE_KEYS = [
     "image",
     "assume_role",
     "inline_policy",
+    "role_policy",
     "assume_condition",
     "assume_action",
     "api_proxy_uri",
@@ -2460,6 +2461,24 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         role_tf_resource = aws_iam_role(identifier, **values)
         tf_resources.append(role_tf_resource)
+
+        role_policy = common_values.get("role_policy")
+        if role_policy:
+            tf_aws_iam_policy = aws_iam_policy(
+                identifier,
+                name=identifier,
+                policy=role_policy,
+                depends_on=self.get_dependencies([role_tf_resource]),
+            )
+            tf_resources.append(tf_aws_iam_policy)
+
+            tf_aws_iam_policy_attachment = aws_iam_role_policy_attachment(
+                identifier,
+                role=role_tf_resource.name,
+                policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
+                depends_on=self.get_dependencies([role_tf_resource, tf_aws_iam_policy]),
+            )
+            tf_resources.append(tf_aws_iam_policy_attachment)
 
         # output role arn
         output_name_0_13 = output_prefix + "__role_arn"

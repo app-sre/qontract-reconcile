@@ -38400,6 +38400,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "role_policy",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "JSON",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "output_resource_name",
                             "description": null,
                             "args": [],
