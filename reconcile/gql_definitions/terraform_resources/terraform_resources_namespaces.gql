@@ -108,6 +108,7 @@ query TerraformResourcesNamespaces {
                 assume_condition
                 assume_action
                 inline_policy
+                role_policy
                 output_resource_name
                 annotations
             }
