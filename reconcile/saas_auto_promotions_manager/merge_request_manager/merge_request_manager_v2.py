@@ -19,20 +19,21 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
-from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
+from reconcile.utils.mr.labels import AUTO_MERGE
 from reconcile.utils.vcs import VCS
 
 BATCH_SIZE_LIMIT = 5
-SAPM_LABEL = "SAPMCanary"
-SAPM_MR_LABELS = [SAPM_LABEL, DO_NOT_MERGE_HOLD]
+
+SAPM_LABEL = "SAPM"
+SAPM_MR_LABELS = [SAPM_LABEL, AUTO_MERGE]
 
 MR_DESC = """
-:warning: **THIS IS A TEST MR - DO NOT MERGE OR CHANGE THIS!**
+This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
+This MR promotes all subscribers with auto-promotions for the channel(s) listed below.
 
-If you witness any issues with this MR, please reach out to kfischer from AppSRE.
+Please **do not manually modify** this MR in any way, as it might result in blocking the auto-promotion.
 
-Please **do not remove or change any label** from this MR.
-
+This description is used by SAPM to manage auto-promotions.
 """
 
 
