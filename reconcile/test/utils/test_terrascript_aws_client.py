@@ -720,7 +720,7 @@ def test_get_resource_lifecycle_none(
 def test_get_resource_lifecycle_default(
     ts: tsclient.TerrascriptClient,
 ) -> None:
-    common_values = {
+    common_values: dict = {
         "lifecycle": {
             "create_before_destroy": None,
             "prevent_destroy": None,
