@@ -111,6 +111,11 @@ query TerraformResourcesNamespaces {
                 role_policy
                 output_resource_name
                 annotations
+                lifecycle {
+                  create_before_destroy
+                  prevent_destroy
+                  ignore_changes
+                }
             }
             ... on NamespaceTerraformResourceSQS_v1 {
                 region

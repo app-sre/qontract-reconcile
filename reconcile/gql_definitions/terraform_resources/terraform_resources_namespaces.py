@@ -168,6 +168,11 @@ query TerraformResourcesNamespaces {
                 role_policy
                 output_resource_name
                 annotations
+                lifecycle {
+                  create_before_destroy
+                  prevent_destroy
+                  ignore_changes
+                }
             }
             ... on NamespaceTerraformResourceSQS_v1 {
                 region
@@ -614,6 +619,12 @@ class AssumeRoleV1(ConfiguredBaseModel):
     federated: Optional[str] = Field(..., alias="Federated")
 
 
+class NamespaceTerraformResourceLifecycleV1(ConfiguredBaseModel):
+    create_before_destroy: Optional[bool] = Field(..., alias="create_before_destroy")
+    prevent_destroy: Optional[bool] = Field(..., alias="prevent_destroy")
+    ignore_changes: Optional[list[str]] = Field(..., alias="ignore_changes")
+
+
 class NamespaceTerraformResourceRoleV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     assume_role: AssumeRoleV1 = Field(..., alias="assume_role")
@@ -623,6 +634,7 @@ class NamespaceTerraformResourceRoleV1(NamespaceTerraformResourceAWSV1):
     role_policy: Optional[str] = Field(..., alias="role_policy")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    lifecycle: Optional[NamespaceTerraformResourceLifecycleV1] = Field(..., alias="lifecycle")
 
 
 class KeyValueV1(ConfiguredBaseModel):
