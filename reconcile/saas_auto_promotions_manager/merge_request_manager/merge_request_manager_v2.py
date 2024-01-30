@@ -7,6 +7,15 @@ from gitlab.exceptions import GitlabGetError
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request import (
     SAPMMR,
 )
+from reconcile.saas_auto_promotions_manager.merge_request_manager.metrics import (
+    SAPMClosedMRsCounter as MRClosedCounter,
+)
+from reconcile.saas_auto_promotions_manager.merge_request_manager.metrics import (
+    SAPMOpenedMRsCounter as MROpenedCounter,
+)
+from reconcile.saas_auto_promotions_manager.merge_request_manager.metrics import (
+    SAPMParallelOpenMRsGauge as ParallelOpenMRGauge,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
 )
@@ -19,20 +28,22 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
-from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
+from reconcile.utils import metrics
+from reconcile.utils.mr.labels import AUTO_MERGE
 from reconcile.utils.vcs import VCS
 
 BATCH_SIZE_LIMIT = 5
-SAPM_LABEL = "SAPMCanary"
-SAPM_MR_LABELS = [SAPM_LABEL, DO_NOT_MERGE_HOLD]
+
+SAPM_LABEL = "SAPM"
+SAPM_MR_LABELS = [SAPM_LABEL, AUTO_MERGE]
 
 MR_DESC = """
-:warning: **THIS IS A TEST MR - DO NOT MERGE OR CHANGE THIS!**
+This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
+This MR promotes all subscribers with auto-promotions for the channel(s) listed below.
 
-If you witness any issues with this MR, please reach out to @kfischer from AppSRE.
+Please **do not manually modify** this MR in any way, as it might result in blocking the auto-promotion.
 
-Please **do not remove or change any label** from this MR.
-
+This description is used by SAPM to manage auto-promotions.
 """
 
 
@@ -120,7 +131,7 @@ class MergeRequestManagerV2:
             is_batchable=addition.batchable,
         )
         title = self._renderer.render_title(
-            is_draft=False, canary=True, channels=description_channels
+            is_draft=False, canary=False, channels=description_channels
         )
         logging.info(
             "Open MR for update in channel(s) %s",
@@ -137,19 +148,32 @@ class MergeRequestManagerV2:
 
     def reconcile(self, subscribers: Iterable[Subscriber]) -> None:
         current_state = self._mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
+        metrics.set_gauge(ParallelOpenMRGauge(), len(current_state))
+
         desired_state = self._aggregate_desired_state(subscribers=subscribers)
+
         diff = self._reconciler.reconcile(
             batch_limit=BATCH_SIZE_LIMIT,
             desired_promotions=desired_state,
             open_mrs=current_state,
         )
         for deletion in diff.deletions:
+            metrics.inc_counter(
+                MRClosedCounter(
+                    reason=deletion.reason.name,
+                ),
+            )
             self._vcs.close_app_interface_mr(
                 mr=deletion.mr.raw,
-                comment=deletion.reason,
+                comment=deletion.reason.value,
             )
 
         for addition in diff.additions:
+            metrics.inc_counter(
+                MROpenedCounter(
+                    is_batchable=addition.batchable,
+                ),
+            )
             self._render_mr(addition=addition)
 
         for rendered_mr in self._sapm_mrs:

@@ -1,16 +1,17 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     OpenMergeRequest,
 )
 
-MSG_MISSING_UNBATCHING = (
-    "Closing this MR because it failed MR check and isn't marked as un-batchable yet."
-)
-MSG_OUTDATED_CONTENT = "Closing this MR because it has out-dated content."
-MSG_NEW_BATCH = "Closing this MR in favor of a new batch MR."
+
+class Reason(Enum):
+    MISSING_UNBATCHING = "Closing this MR because it failed MR check and isn't marked as un-batchable yet. cc @kfischer"
+    OUTDATED_CONTENT = "Closing this MR because it has out-dated content."
+    NEW_BATCH = "Closing this MR in favor of a new batch MR."
 
 
 @dataclass
@@ -22,7 +23,7 @@ class Promotion:
 @dataclass
 class Deletion:
     mr: OpenMergeRequest
-    reason: str
+    reason: Reason
 
 
 @dataclass
@@ -72,7 +73,7 @@ class Reconciler:
                 diff.deletions.append(
                     Deletion(
                         mr=mr,
-                        reason=MSG_MISSING_UNBATCHING,
+                        reason=Reason.MISSING_UNBATCHING,
                     )
                 )
             else:
@@ -82,6 +83,7 @@ class Reconciler:
         desired_promotions_after_unbatching: list[Promotion] = []
         for promotion in self._desired_promotions:
             if promotion.content_hashes.issubset(unbatchable_hashes):
+                desired_promotions_after_unbatching.append(promotion)
                 continue
             elif promotion.content_hashes.issubset(falsely_marked_batchable_hashes):
                 diff.additions.append(
@@ -113,7 +115,7 @@ class Reconciler:
             diff.deletions.append(
                 Deletion(
                     mr=mr,
-                    reason=MSG_OUTDATED_CONTENT,
+                    reason=Reason.OUTDATED_CONTENT,
                 )
             )
         self._open_mrs = open_mrs_after_deletion
@@ -145,7 +147,7 @@ class Reconciler:
 
         batch_with_capacity: Optional[OpenMergeRequest] = None
         for mr in self._open_mrs:
-            if len(mr.content_hashes) < batch_limit:
+            if mr.is_batchable and len(mr.content_hashes) < batch_limit:
                 batch_with_capacity = mr
                 # Note, there should always only be maximum one batch with capacity available
                 break
@@ -164,7 +166,7 @@ class Reconciler:
             diff.deletions.append(
                 Deletion(
                     mr=batch_with_capacity,
-                    reason=MSG_NEW_BATCH,
+                    reason=Reason.NEW_BATCH,
                 )
             )
 

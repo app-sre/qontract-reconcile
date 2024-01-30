@@ -8,13 +8,11 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser impo
     OpenMergeRequest,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
-    MSG_MISSING_UNBATCHING,
-    MSG_NEW_BATCH,
-    MSG_OUTDATED_CONTENT,
     Addition,
     Deletion,
     Diff,
     Promotion,
+    Reason,
     Reconciler,
 )
 
@@ -110,7 +108,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=True,
                             is_batchable=True,
                         ),
-                        reason=MSG_MISSING_UNBATCHING,
+                        reason=Reason.MISSING_UNBATCHING,
                     ),
                     Deletion(
                         mr=OpenMergeRequest(
@@ -120,7 +118,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=False,
                             is_batchable=True,
                         ),
-                        reason=MSG_OUTDATED_CONTENT,
+                        reason=Reason.OUTDATED_CONTENT,
                     ),
                     Deletion(
                         mr=OpenMergeRequest(
@@ -130,7 +128,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=False,
                             is_batchable=False,
                         ),
-                        reason=MSG_OUTDATED_CONTENT,
+                        reason=Reason.OUTDATED_CONTENT,
                     ),
                     Deletion(
                         mr=OpenMergeRequest(
@@ -140,7 +138,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=True,
                             is_batchable=False,
                         ),
-                        reason=MSG_OUTDATED_CONTENT,
+                        reason=Reason.OUTDATED_CONTENT,
                     ),
                 ],
                 additions=[],
@@ -181,7 +179,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=True,
                             is_batchable=True,
                         ),
-                        reason=MSG_MISSING_UNBATCHING,
+                        reason=Reason.MISSING_UNBATCHING,
                     )
                 ],
                 additions=[
@@ -263,7 +261,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=False,
                             is_batchable=True,
                         ),
-                        reason=MSG_NEW_BATCH,
+                        reason=Reason.NEW_BATCH,
                     )
                 ],
                 additions=[
@@ -321,7 +319,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=False,
                             is_batchable=True,
                         ),
-                        reason=MSG_NEW_BATCH,
+                        reason=Reason.NEW_BATCH,
                     )
                 ],
                 additions=[
@@ -362,6 +360,94 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     Addition(
                         content_hashes={"hash13", "hash14"},
                         channels={"chan13", "chan14"},
+                        batchable=True,
+                    ),
+                ],
+            ),
+        ),
+        # We have an unbatchable open MR.
+        # We do not want any change on the existing unbatchable MR,
+        # but at the same time expect a new MR to be opened for the new promotion.
+        (
+            [
+                Promotion(
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                ),
+                Promotion(
+                    channels={"chan2"},
+                    content_hashes={"hash2"},
+                ),
+            ],
+            [
+                OpenMergeRequest(
+                    raw=create_autospec(spec=ProjectMergeRequest),
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                    failed_mr_check=False,
+                    is_batchable=False,
+                ),
+            ],
+            Diff(
+                deletions=[],
+                additions=[
+                    Addition(
+                        content_hashes={
+                            "hash2",
+                        },
+                        channels={"chan2"},
+                        batchable=True,
+                    ),
+                ],
+            ),
+        ),
+        # We have multiple unbatchable open MRs.
+        # We do not want any change on the existing unbatchable MRs,
+        # but at the same time expect a new MR to be opened for the new promotions.
+        (
+            [
+                Promotion(
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                ),
+                Promotion(
+                    channels={"chan2"},
+                    content_hashes={"hash2"},
+                ),
+                Promotion(
+                    channels={"chan3"},
+                    content_hashes={"hash3"},
+                ),
+                Promotion(
+                    channels={"chan4"},
+                    content_hashes={"hash4"},
+                ),
+            ],
+            [
+                OpenMergeRequest(
+                    raw=create_autospec(spec=ProjectMergeRequest),
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                    failed_mr_check=False,
+                    is_batchable=False,
+                ),
+                OpenMergeRequest(
+                    raw=create_autospec(spec=ProjectMergeRequest),
+                    channels={"chan2"},
+                    content_hashes={"hash2"},
+                    failed_mr_check=False,
+                    is_batchable=False,
+                ),
+            ],
+            Diff(
+                deletions=[],
+                additions=[
+                    Addition(
+                        content_hashes={
+                            "hash3",
+                            "hash4",
+                        },
+                        channels={"chan3", "chan4"},
                         batchable=True,
                     ),
                 ],

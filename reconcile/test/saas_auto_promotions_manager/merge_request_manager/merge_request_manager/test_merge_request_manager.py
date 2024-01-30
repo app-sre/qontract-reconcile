@@ -14,6 +14,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler imp
     Addition,
     Deletion,
     Diff,
+    Reason,
     Reconciler,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
@@ -48,7 +49,7 @@ def test_reconcile(
             failed_mr_check=False,
             is_batchable=True,
         ),
-        reason="some reason.",
+        reason=Reason.NEW_BATCH,
     )
 
     additions = [
@@ -76,7 +77,7 @@ def test_reconcile(
 
     assert len(manager._sapm_mrs) == len(additions)
     vcs.close_app_interface_mr.assert_has_calls([
-        call(deletion.mr.raw, deletion.reason),
+        call(deletion.mr.raw, deletion.reason.value),
     ])
     vcs.open_app_interface_merge_request.assert_has_calls([
         call(mr) for mr in manager._sapm_mrs
