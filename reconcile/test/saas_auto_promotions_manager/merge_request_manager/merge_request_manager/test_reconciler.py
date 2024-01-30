@@ -8,13 +8,11 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser impo
     OpenMergeRequest,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
-    MSG_MISSING_UNBATCHING,
-    MSG_NEW_BATCH,
-    MSG_OUTDATED_CONTENT,
     Addition,
     Deletion,
     Diff,
     Promotion,
+    Reason,
     Reconciler,
 )
 
@@ -110,7 +108,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=True,
                             is_batchable=True,
                         ),
-                        reason=MSG_MISSING_UNBATCHING,
+                        reason=Reason.MISSING_UNBATCHING,
                     ),
                     Deletion(
                         mr=OpenMergeRequest(
@@ -120,7 +118,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=False,
                             is_batchable=True,
                         ),
-                        reason=MSG_OUTDATED_CONTENT,
+                        reason=Reason.OUTDATED_CONTENT,
                     ),
                     Deletion(
                         mr=OpenMergeRequest(
@@ -130,7 +128,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=False,
                             is_batchable=False,
                         ),
-                        reason=MSG_OUTDATED_CONTENT,
+                        reason=Reason.OUTDATED_CONTENT,
                     ),
                     Deletion(
                         mr=OpenMergeRequest(
@@ -140,7 +138,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=True,
                             is_batchable=False,
                         ),
-                        reason=MSG_OUTDATED_CONTENT,
+                        reason=Reason.OUTDATED_CONTENT,
                     ),
                 ],
                 additions=[],
@@ -181,7 +179,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=True,
                             is_batchable=True,
                         ),
-                        reason=MSG_MISSING_UNBATCHING,
+                        reason=Reason.MISSING_UNBATCHING,
                     )
                 ],
                 additions=[
@@ -263,7 +261,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=False,
                             is_batchable=True,
                         ),
-                        reason=MSG_NEW_BATCH,
+                        reason=Reason.NEW_BATCH,
                     )
                 ],
                 additions=[
@@ -321,7 +319,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             failed_mr_check=False,
                             is_batchable=True,
                         ),
-                        reason=MSG_NEW_BATCH,
+                        reason=Reason.NEW_BATCH,
                     )
                 ],
                 additions=[
