@@ -563,3 +563,10 @@ class ErrorRateMetricSet:
         if exc_value:
             self.fail(exc_value)
         inc_counter(self._error_counter, by=(1 if self._errors else 0))
+
+
+def normalize_integration_name(integration: str) -> str:
+    """
+    Normalize the integration name to be used in prometheus.
+    """
+    return integration.replace("_", "-")

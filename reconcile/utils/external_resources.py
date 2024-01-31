@@ -79,11 +79,12 @@ def get_inventory_count_combinations(
 
 def publish_metrics(inventory: ExternalResourceSpecInventory, integration: str) -> None:
     count_combinations = get_inventory_count_combinations(inventory)
+    integration_name = metrics.normalize_integration_name(integration)
     for combination, count in count_combinations.items():
         provision_provider, provisioner_name, provider = combination
         metrics.set_gauge(
             ExternalResourceInventoryGauge(
-                integration=integration.replace("_", "-"),
+                integration=integration_name,
                 provision_provider=provision_provider,
                 provisioner_name=provisioner_name,
                 provider=provider,

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Optional, Self
+from typing import Any, Self
 
 from deepdiff import DeepHash
 from pydantic import BaseModel
@@ -16,19 +16,19 @@ class CacheKey(BaseModel):
     integration: str
     integration_version: str
     dry_run: bool
-    cache_desired_state: object
+    cache_source: object
 
     def __str__(self) -> str:
         return "/".join([
             self.integration,
             self.integration_version,
             "dry-run" if self.dry_run else "no-dry-run",
-            DeepHash(self.cache_desired_state)[self.cache_desired_state],
+            DeepHash(self.cache_source)[self.cache_source],
         ])
 
 
 class CacheValue(BaseModel):
-    desired_state: object
+    payload: object
     log_output: str
     applied_count: int
 
@@ -46,7 +46,7 @@ class EarlyExitCache:
     @classmethod
     def build(
         cls,
-        secret_reader: Optional[SecretReaderBase] = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> Self:
         state = init_state(STATE_INTEGRATION, secret_reader)
         return cls(state)

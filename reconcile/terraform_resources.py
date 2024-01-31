@@ -1,6 +1,4 @@
 import logging
-import shutil
-import sys
 from collections.abc import (
     Callable,
     Iterable,
@@ -11,6 +9,7 @@ from typing import (
     Collection,
     Optional,
     Sequence,
+    TypedDict,
     cast,
 )
 
@@ -33,6 +32,10 @@ from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
+from reconcile.utils.extended_early_exit import (
+    ExtendedEarlyExitRunnerResult,
+    extended_early_exit_run,
+)
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
@@ -52,10 +55,12 @@ from reconcile.utils.ocm import OCMMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
-from reconcile.utils.secret_reader import create_secret_reader
+from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from reconcile.utils.terrascript_aws_client import TerrascriptClient
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
+from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vault import (
     VaultClient,
     _VaultClient,
@@ -117,18 +122,14 @@ def populate_oc_resources(
 
 
 def fetch_current_state(
-    dry_run: bool,
     namespaces: Iterable[NamespaceV1],
     thread_pool_size: int,
     internal: Optional[bool],
     use_jump_host: bool,
     account_names: Optional[Iterable[str]],
-) -> tuple[ResourceInventory, Optional[OCMap]]:
+    secret_reader: SecretReaderBase,
+) -> tuple[ResourceInventory, OCMap]:
     ri = ResourceInventory()
-    if dry_run:
-        return ri, None
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     oc_map = init_oc_map_from_namespaces(
         namespaces=namespaces,
         integration=QONTRACT_INTEGRATION,
@@ -172,64 +173,74 @@ def init_working_dirs(
 
 
 def filter_accounts_by_name(
-    accounts: Iterable[Mapping[str, Any]], filter: Iterable[str]
-) -> Collection[Mapping[str, Any]]:
-    return [ac for ac in accounts if ac["name"] in filter]
+    accounts: Iterable[dict[str, Any]], names: Iterable[str]
+) -> list[dict[str, Any]]:
+    return [ac for ac in accounts if ac["name"] in names]
 
 
 def exclude_accounts_by_name(
-    accounts: Iterable[Mapping[str, Any]], filter: Iterable[str]
-) -> Collection[Mapping[str, Any]]:
-    return [ac for ac in accounts if ac["name"] not in filter]
+    accounts: Iterable[dict[str, Any]], names: Iterable[str]
+) -> list[dict[str, Any]]:
+    return [ac for ac in accounts if ac["name"] not in names]
 
 
 def validate_account_names(
     accounts: Collection[Mapping[str, Any]], names: Collection[str]
 ) -> None:
-    if len(accounts) != len(names):
-        missing_names = set(names) - {a["name"] for a in accounts}
+    if missing_names := set(names) - {a["name"] for a in accounts}:
         raise ValueError(
             f"Accounts {missing_names} were provided as arguments, but not found in app-interface. Check your input for typos or for missing AWS account definitions."
         )
 
 
-def setup(
+def get_aws_accounts(
     dry_run: bool,
-    print_to_file: Optional[str],
-    thread_pool_size: int,
-    internal: Optional[bool],
-    use_jump_host: bool,
     include_accounts: Optional[Collection[str]],
     exclude_accounts: Optional[Collection[str]],
-) -> tuple[
-    ResourceInventory, Optional[OCMap], Terraform, ExternalResourceSpecInventory
-]:
+) -> list[dict[str, Any]]:
+    if exclude_accounts and not dry_run:
+        message = "--exclude-accounts is only supported in dry-run mode"
+        logging.error(message)
+        raise ExcludeAccountsAndDryRunException(message)
+
+    if exclude_accounts and include_accounts:
+        message = "Using --exclude-accounts and --account-name at the same time is not allowed"
+        logging.error(message)
+        raise ExcludeAccountsAndAccountNameException(message)
+
+    # If we are not running in dry run we don't want to run with more than one account
+    if include_accounts and len(include_accounts) > 1 and not dry_run:
+        message = "Running with multiple accounts is only supported in dry-run mode"
+        logging.error(message)
+        raise MultipleAccountNamesInDryRunException(message)
+
     accounts = queries.get_aws_accounts(terraform_state=True)
-    if not include_accounts and exclude_accounts:
-        excluding = filter_accounts_by_name(accounts, exclude_accounts)
-        validate_account_names(excluding, exclude_accounts)
-        accounts = exclude_accounts_by_name(accounts, exclude_accounts)
-        if len(accounts) == 0:
+
+    if exclude_accounts:
+        validate_account_names(accounts, exclude_accounts)
+        filtered_accounts = exclude_accounts_by_name(accounts, exclude_accounts)
+        if not filtered_accounts:
             raise ValueError("You have excluded all aws accounts, verify your input")
-        account_names = tuple(ac["name"] for ac in accounts)
-    elif include_accounts:
-        accounts = filter_accounts_by_name(accounts, include_accounts)
+        return filtered_accounts
+
+    if include_accounts:
         validate_account_names(accounts, include_accounts)
-    account_names = tuple(a["name"] for a in accounts)
+        return filter_accounts_by_name(accounts, include_accounts)
+
+    return accounts
+
+
+def setup(
+    accounts: list[dict[str, Any]],
+    account_names: set[str],
+    tf_namespaces: list[NamespaceV1],
+    print_to_file: Optional[str],
+    thread_pool_size: int,
+) -> tuple[Terraform, TerrascriptClient, SecretReaderBase]:
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+
     settings = queries.get_app_interface_settings()
-
-    # build a resource inventory for all the kube secrets managed by the
-    # app-interface managed terraform resources
-    tf_namespaces = get_tf_namespaces(account_names)
-    if not tf_namespaces:
-        logging.warning(
-            "No terraform namespaces found, consider disabling this integration, account names: "
-            f"{', '.join(account_names)}"
-        )
-    ri, oc_map = fetch_current_state(
-        dry_run, tf_namespaces, thread_pool_size, internal, use_jump_host, account_names
-    )
-
     # initialize terrascript (scripting engine to generate terraform manifests)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size, settings=settings)
 
@@ -260,7 +271,7 @@ def setup(
     ts.populate_resources(ocm_map=ocm_map)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
-    return ri, oc_map, tf, ts.resource_spec_inventory
+    return tf, ts, secret_reader
 
 
 def filter_tf_namespaces(
@@ -288,21 +299,6 @@ def filter_tf_namespaces(
                 break
 
     return tf_namespaces
-
-
-def cleanup_and_exit(
-    tf: Optional[Terraform] = None,
-    status: bool = False,
-    working_dirs: Optional[Mapping[str, str]] = None,
-) -> None:
-    if working_dirs is None:
-        working_dirs = {}
-    if tf is None:
-        for wd in working_dirs.values():
-            shutil.rmtree(wd)
-    else:
-        tf.cleanup()
-    sys.exit(status)
 
 
 @retry()
@@ -366,65 +362,125 @@ def run(
     vault_output_path: str = "",
     account_name: Optional[Sequence[str]] = None,
     exclude_accounts: Optional[Sequence[str]] = None,
+    enable_extended_early_exit: bool = False,
+    extended_early_exit_cache_ttl_seconds: int = 3600,
+    log_cached_log_output: bool = False,
     defer: Optional[Callable] = None,
 ) -> None:
-    if exclude_accounts and not dry_run:
-        message = "--exclude-accounts is only supported in dry-run mode"
-        logging.error(message)
-        raise ExcludeAccountsAndDryRunException(message)
-
-    if exclude_accounts and account_name:
-        message = "Using --exclude-accounts and --account-name at the same time is not allowed"
-        logging.error(message)
-        raise ExcludeAccountsAndAccountNameException(message)
-
     # account_name is a tuple of account names for more detail go to
     # https://click.palletsprojects.com/en/8.1.x/options/#multiple-options
-    account_names = account_name
+    accounts = get_aws_accounts(dry_run, account_name, exclude_accounts)
+    account_names = {a["name"] for a in accounts}
+    tf_namespaces = get_tf_namespaces(account_names)
+    if not tf_namespaces:
+        logging.warning(
+            "No terraform namespaces found, consider disabling this integration, account names: "
+            f"{', '.join(account_names)}"
+        )
 
-    # acc_name will prevent type error since account_name is not a str
-    acc_name: Optional[str] = account_names[0] if account_names else None
-
-    # If we are not running in dry run we don't want to run with more than one account
-    if account_names and len(account_names) > 1 and not dry_run:
-        message = "Running with multiple accounts is only supported in dry-run mode"
-        logging.error(message)
-        raise MultipleAccountNamesInDryRunException(message)
-
-    ri, oc_map, tf, resource_specs = setup(
-        dry_run,
+    tf, ts, secret_reader = setup(
+        accounts,
+        account_names,
+        tf_namespaces,
         print_to_file,
         thread_pool_size,
-        internal,
-        use_jump_host,
-        account_names,
-        exclude_accounts,
     )
-    publish_metrics(resource_specs, QONTRACT_INTEGRATION)
+    if defer:
+        defer(tf.cleanup)
 
-    if not dry_run and oc_map and defer:
-        defer(oc_map.cleanup)
+    publish_metrics(ts.resource_spec_inventory, QONTRACT_INTEGRATION)
 
     if print_to_file:
-        cleanup_and_exit(tf)
-    if tf is None:
-        err = True
-        cleanup_and_exit(tf, err)
+        return
 
+    runner_params: RunnerParams = dict(
+        accounts=accounts,
+        account_names=account_names,
+        tf_namespaces=tf_namespaces,
+        tf=tf,
+        ts=ts,
+        secret_reader=secret_reader,
+        dry_run=dry_run,
+        enable_deletion=enable_deletion,
+        thread_pool_size=thread_pool_size,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        light=light,
+        vault_output_path=vault_output_path,
+        defer=defer,
+    )
+
+    if enable_extended_early_exit and get_feature_toggle_state(
+        "terraform-resources-extended-early-exit",
+        default=False,
+    ):
+        extended_early_exit_run(
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            dry_run=dry_run,
+            cache_source=ts.terraform_configurations(),
+            ttl_seconds=extended_early_exit_cache_ttl_seconds,
+            logger=logging.getLogger(),
+            runner=runner,
+            runner_params=runner_params,
+            secret_reader=secret_reader,
+            log_cached_log_output=log_cached_log_output,
+        )
+    else:
+        runner(**runner_params)
+
+
+class RunnerParams(TypedDict):
+    accounts: list[dict[str, Any]]
+    account_names: set[str]
+    tf_namespaces: list[NamespaceV1]
+    tf: Terraform
+    ts: Terrascript
+    secret_reader: SecretReaderBase
+    dry_run: bool
+    enable_deletion: bool
+    thread_pool_size: int
+    internal: Optional[bool]
+    use_jump_host: bool
+    light: bool
+    vault_output_path: str
+    defer: Optional[Callable]
+
+
+def runner(
+    accounts: list[dict[str, Any]],
+    account_names: set[str],
+    tf_namespaces: list[NamespaceV1],
+    tf: Terraform,
+    ts: Terrascript,
+    secret_reader: SecretReaderBase,
+    dry_run: bool,
+    enable_deletion: bool = False,
+    thread_pool_size: int = 10,
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    light: bool = False,
+    vault_output_path: str = "",
+    defer: Optional[Callable] = None,
+) -> ExtendedEarlyExitRunnerResult:
     if not light:
         disabled_deletions_detected, err = tf.plan(enable_deletion)
         if err:
-            cleanup_and_exit(tf, err)
+            raise RuntimeError("Terraform plan has errors")
         if disabled_deletions_detected:
-            cleanup_and_exit(tf, disabled_deletions_detected)
+            raise RuntimeError("Terraform plan has disabled deletions detected")
 
     if dry_run:
-        cleanup_and_exit(tf)
+        return ExtendedEarlyExitRunnerResult(
+            payload=ts.terraform_configurations(),
+            applied_count=0,
+        )
 
-    if not light and tf.should_apply:
+    acc_name = accounts[0]["name"] if accounts else None
+    if not light and tf.should_apply():
         err = tf.apply()
         if err:
-            cleanup_and_exit(tf, err)
+            raise RuntimeError("Terraform apply has errors")
 
         if defer:
             defer(
@@ -437,26 +493,41 @@ def run(
 
     # refresh output data after terraform apply
     tf.populate_terraform_output_secrets(
-        resource_specs=resource_specs, init_rds_replica_source=True
+        resource_specs=ts.resource_spec_inventory, init_rds_replica_source=True
     )
+
+    ri, oc_map = fetch_current_state(
+        tf_namespaces,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        account_names,
+        secret_reader=secret_reader,
+    )
+    if defer:
+        defer(oc_map.cleanup)
     # populate the resource inventory with latest output data
-    populate_desired_state(ri, resource_specs)
+    populate_desired_state(ri, ts.resource_spec_inventory)
 
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
-    actions = []
-    if oc_map:
-        actions = ob.realize_data(
-            dry_run, oc_map, ri, thread_pool_size, caller=acc_name
-        )
+    actions = ob.realize_data(
+        dry_run,
+        oc_map,
+        ri,
+        thread_pool_size,
+        caller=acc_name,
+    )
 
     if actions and vault_output_path:
-        write_outputs_to_vault(vault_output_path, resource_specs)
+        write_outputs_to_vault(vault_output_path, ts.resource_spec_inventory)
 
     if ri.has_error_registered():
-        err = True
-        cleanup_and_exit(tf, err)
+        raise RuntimeError("Resource inventory has errors registered")
 
-    cleanup_and_exit(tf)
+    return ExtendedEarlyExitRunnerResult(
+        payload=ts.terraform_configurations(),
+        applied_count=tf.apply_count + len(actions),
+    )
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:

@@ -2446,8 +2446,8 @@ def early_exit_cache(ctx):
 )
 @click.option(
     "-c",
-    "--cache-desired-state",
-    help="Cache desired state. It should be a JSON string.",
+    "--cache-source",
+    help="Cache source. It should be a JSON string.",
     required=True,
 )
 @click.pass_context
@@ -2456,14 +2456,14 @@ def early_exit_cache_head(
     integration,
     integration_version,
     dry_run,
-    cache_desired_state,
+    cache_source,
 ):
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
             integration=integration,
             integration_version=integration_version,
             dry_run=dry_run,
-            cache_desired_state=json.loads(cache_desired_state),
+            cache_source=json.loads(cache_source),
         )
         status = cache.head(cache_key)
         print(status)
@@ -2489,8 +2489,8 @@ def early_exit_cache_head(
 )
 @click.option(
     "-c",
-    "--cache-desired-state",
-    help="Cache desired state. It should be a JSON string.",
+    "--cache-source",
+    help="Cache source. It should be a JSON string.",
     required=True,
 )
 @click.pass_context
@@ -2499,14 +2499,14 @@ def early_exit_cache_get(
     integration,
     integration_version,
     dry_run,
-    cache_desired_state,
+    cache_source,
 ):
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
             integration=integration,
             integration_version=integration_version,
             dry_run=dry_run,
-            cache_desired_state=json.loads(cache_desired_state),
+            cache_source=json.loads(cache_source),
         )
         value = cache.get(cache_key)
         print(value)
@@ -2532,14 +2532,14 @@ def early_exit_cache_get(
 )
 @click.option(
     "-c",
-    "--cache-desired-state",
-    help="Cache desired state. It should be a JSON string.",
+    "--cache-source",
+    help="Cache source. It should be a JSON string.",
     required=True,
 )
 @click.option(
-    "-d",
-    "--desired-state",
-    help="Desired state. It should be a JSON string.",
+    "-p",
+    "--payload",
+    help="Payload in Cache value. It should be a JSON string.",
     required=True,
 )
 @click.option(
@@ -2568,8 +2568,8 @@ def early_exit_cache_set(
     integration,
     integration_version,
     dry_run,
-    cache_desired_state,
-    desired_state,
+    cache_source,
+    payload,
     log_output,
     applied_count,
     ttl,
@@ -2579,10 +2579,10 @@ def early_exit_cache_set(
             integration=integration,
             integration_version=integration_version,
             dry_run=dry_run,
-            cache_desired_state=json.loads(cache_desired_state),
+            cache_source=json.loads(cache_source),
         )
         cache_value = CacheValue(
-            desired_state=json.loads(desired_state),
+            payload=json.loads(payload),
             log_output=log_output,
             applied_count=applied_count,
         )

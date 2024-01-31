@@ -84,7 +84,7 @@ def test_early_exit_cache_set(env_vars, mock_queries, mock_early_exit_cache):
 
     result = runner.invoke(
         qontract_cli.early_exit_cache,
-        "set -i a -v b --no-dry-run -c {} -d {} -l log -t 30",
+        "set -i a -v b --no-dry-run -c {} -p {} -l log -t 30",
     )
     assert result.exit_code == 0
     mock_early_exit_cache.build.return_value.__enter__.return_value.set.assert_called()
