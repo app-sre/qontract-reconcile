@@ -5,6 +5,7 @@ query Projects {
     name
     platform
     projectId
+    eventThrottleRate
     teams {
       name
       roles {

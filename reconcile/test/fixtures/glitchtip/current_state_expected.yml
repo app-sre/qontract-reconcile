@@ -6,6 +6,7 @@
     pk: 10
     platform: python
     slug: rosetta-flight-control
+    event_throttle_rate: 0
     teams:
     - name: esa-flight-control
       pk: 7
@@ -16,6 +17,7 @@
     pk: 9
     platform: python
     slug: rosetta-spacecraft
+    event_throttle_rate: 0
     teams:
     - name: esa-pilots
       pk: 6
@@ -84,6 +86,7 @@
     pk: 8
     platform: python
     slug: apollo-11-flight-control
+    event_throttle_rate: 0
     teams:
     - name: nasa-flight-control
       pk: 4
@@ -94,6 +97,7 @@
     pk: 7
     platform: python
     slug: apollo-11-spacecraft
+    event_throttle_rate: 0
     teams:
     - name: nasa-pilots
       pk: 2

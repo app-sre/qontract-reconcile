@@ -20731,12 +20731,12 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "acceptEvents",
+                            "name": "eventThrottleRate",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "SCALAR",
-                                "name": "Boolean",
+                                "name": "Int",
                                 "ofType": null
                             },
                             "isDeprecated": false,
