@@ -121,7 +121,7 @@ def test_ldap_groups_integration_get_aws_groups(
                 "account": {
                     "name": "aws-account-1",
                     "uid": "987654321",
-                    "sso": None,
+                    "sso": True,
                 },
                 "roles": [
                     {
@@ -168,7 +168,7 @@ def test_ldap_groups_integration_get_desired_groups_for_roles(
 def test_ldap_groups_integration_get_desired_groups_for_aws_groups(
     intg: LdapGroupsIntegration,
     aws_groups: Iterable[AWSGroupV1],
-    owners: Iterable[Entity],
+    owners: list[Entity],
 ) -> None:
     assert intg.get_desired_groups_for_aws_groups(
         aws_groups=aws_groups,

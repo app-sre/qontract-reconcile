@@ -14,8 +14,7 @@ aws_groups:
   account:
     name: aws-account-1
     uid: '987654321'
-    # defaults to true
-    sso: null
+    sso: true
   roles:
   - users:
     - org_username: user-1
@@ -25,6 +24,16 @@ aws_groups:
     name: aws-account-1
     uid: '1'
     sso: false
+  roles:
+  - users:
+    - org_username: user-1
+    - org_username: user-2
+
+- name: sso-disabled-by-default
+  account:
+    name: aws-account-1
+    uid: '1'
+    sso: null
   roles:
   - users:
     - org_username: user-1

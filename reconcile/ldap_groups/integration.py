@@ -61,6 +61,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
     def get_early_exit_desired_state(
         self, query_func: Callable | None = None
     ) -> dict[str, Any]:
+        """Return the desired state for early exit."""
         if not query_func:
             query_func = gql.get_api().query()
         return {
@@ -70,6 +71,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
 
     @defer
     def run(self, dry_run: bool, defer: Optional[Callable] = None) -> None:
+        """Run the integration."""
         gql_api = gql.get_api()
         roles = self.get_roles(gql_api.query)
         aws_groups = self.get_aws_groups(gql_api.query)
@@ -126,17 +128,20 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
             self.set_managed_groups(dry_run=dry_run, state_obj=state_obj)
 
     def get_managed_groups(self, state_obj: State) -> set[str]:
+        """Return the managed groups from the state object."""
         try:
             return set(state_obj["managed_groups"])
         except KeyError:
             return set()
 
     def set_managed_groups(self, dry_run: bool, state_obj: State) -> None:
+        """Set the managed groups in the state object."""
         if not dry_run:
             state_obj["managed_groups"] = sorted(self._managed_groups)
 
     @staticmethod
     def get_integration_settings(query_func: Callable) -> LdapGroupsSettingsV1:
+        """Return the integration settings."""
         data = settings_query(query_func)
         if not data.settings:
             raise AppInterfaceSettingsError("No app-interface settings found.")
@@ -147,6 +152,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         return data.settings[0].ldap_groups
 
     def get_roles(self, query_func: Callable) -> list[RoleV1]:
+        """Return the roles with ldap_group set."""
         data = roles_query(query_func, variables={})
         roles = [role for role in data.roles or [] if role.ldap_group]
         if duplicates := find_duplicates(role.ldap_group for role in roles):
@@ -156,14 +162,15 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         return roles
 
     def get_aws_groups(self, query_func: Callable) -> list[AWSGroupV1]:
+        """Return all aws groups for from accounts with enabled SSO."""
         data = aws_groups_query(query_func, variables={})
         aws_groups = [
             group
             for group in data.aws_groups or []
             if group.roles
-            and (group.account.sso is None or group.account.sso)
+            and group.account.sso
             # exclude roles without users
-            and [user for role in group.roles for user in role.users]
+            and any(role.users for role in group.roles)
         ]
         if duplicates := find_duplicates(
             get_aws_group_ldap_name(self.params.aws_sso_namespace, aws_group)
@@ -177,6 +184,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
     def get_desired_groups_for_roles(
         self, roles: Iterable[RoleV1], owners: Iterable[Entity], contact_list: str
     ) -> list[Group]:
+        """Return the desired rover groups for the given roles."""
         return [
             Group(
                 name=role.ldap_group,
@@ -198,9 +206,10 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
     def get_desired_groups_for_aws_groups(
         self,
         aws_groups: Iterable[AWSGroupV1],
-        owners: Iterable[Entity],
+        owners: list[Entity],
         contact_list: str,
     ) -> list[Group]:
+        """Return the desired rover groups for the given aws groups."""
         groups = []
         for aws_group in aws_groups:
             if not aws_group.roles:
@@ -234,6 +243,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
     def fetch_current_state(
         self, internal_groups_client: InternalGroupsClient, group_names: Iterable[str]
     ) -> list[Group]:
+        """Reach out to the internal groups API and fetch all managed groups."""
         groups = []
         for group_name in group_names:
             try:
@@ -249,6 +259,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         desired_groups: Iterable[Group],
         current_groups: Iterable[Group],
     ) -> None:
+        """Reach out to the internal groups API and reconcile the groups."""
         diff_result = diff_iterables(
             current_groups,
             desired_groups,
