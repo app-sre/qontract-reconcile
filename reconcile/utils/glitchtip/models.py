@@ -154,6 +154,10 @@ class Project(BaseModel):
     platform: Optional[str]
     teams: list[Team] = []
     alerts: list[ProjectAlert] = []
+    event_throttle_rate: int = Field(0, alias="eventThrottleRate")
+
+    class Config:
+        allow_population_by_field_name = True
 
     @root_validator
     def slugify(  # pylint: disable=no-self-argument
@@ -174,7 +178,11 @@ class Project(BaseModel):
         return self.slug == other.slug
 
     def diff(self, other: Project) -> bool:
-        return self.name != other.name or self.platform != other.platform
+        return (
+            self.name != other.name
+            or self.platform != other.platform
+            or self.event_throttle_rate != other.event_throttle_rate
+        )
 
     def __hash__(self) -> int:
         return hash(self.slug)

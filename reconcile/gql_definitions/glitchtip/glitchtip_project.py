@@ -45,6 +45,7 @@ query Projects {
     name
     platform
     projectId
+    eventThrottleRate
     teams {
       name
       roles {
@@ -183,6 +184,7 @@ class GlitchtipProjectsV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     platform: str = Field(..., alias="platform")
     project_id: Optional[str] = Field(..., alias="projectId")
+    event_throttle_rate: Optional[int] = Field(..., alias="eventThrottleRate")
     teams: list[GlitchtipTeamV1] = Field(..., alias="teams")
     organization: GlitchtipProjectsV1_GlitchtipOrganizationV1 = Field(..., alias="organization")
     namespaces: list[NamespaceV1] = Field(..., alias="namespaces")
