@@ -257,6 +257,7 @@ def test_glitchtip_update_project(glitchtip_client: GlitchtipClient) -> None:
         slug="science-tools",
         name="science-tools-advanced",
         platform="python",
+        event_throttle_rate=0,
     )
     assert project.pk == 11
     assert project.slug == "science-tools"

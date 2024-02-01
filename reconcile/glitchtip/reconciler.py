@@ -80,6 +80,7 @@ class GlitchtipReconciler:
                     slug=project.slug,
                     name=project.name,
                     platform=project.platform,
+                    event_throttle_rate=project.event_throttle_rate,
                 )
                 organization_projects[organization_projects.index(project)] = (
                     updated_project
