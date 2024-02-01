@@ -23,6 +23,7 @@ from typing import (
 import boto3
 import click
 import click.core
+import gitlab
 import requests
 import yaml
 from rich import box
@@ -122,6 +123,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from tools.cli_commands.cdp import cdp_bump_saasfile, cdp_hash
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
@@ -3202,6 +3204,60 @@ def remove(ctx, sso_client_vault_secret_path: str):
         bg="red",
         fg="white",
     )
+
+
+@root.command()
+@click.argument("saasfile")
+@click.argument("ref")
+@click.option(
+    "--target",
+    help="resource_template (and optionally target name separated by comma)",
+    multiple=True,
+    required=True,
+    prompt=True,
+)
+def promote(saasfile, ref, target):
+    settings = queries.get_app_interface_settings()
+    instance = queries.get_gitlab_instance()
+    gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
+
+    target_branch = "master"
+    command_prefix = "CDP"  # Continuous Deployment Promotion
+    mr_labels = [
+        "CDP",
+        # "bot/automerge", # TODO: enable
+        "do-not-merge/hold",  # TODO: remove
+    ]
+
+    # Branch
+    branch_hash = cdp_hash(saasfile, ref, target)
+    branch = f"{command_prefix.lower()}-{branch_hash}"
+    print(f"Branch name: {branch}")
+
+    try:
+        gl.create_branch(branch, target_branch)
+    except gitlab.exceptions.GitlabCreateError:
+        print(f"Branch already exists: {branch}")
+        sys.exit(1)
+
+    # MR Title and Commit Message
+    title = f"[{command_prefix}] {saasfile} bump to {ref} ({branch_hash})"
+    msg = f"{title}\n\nTargets: {target}"
+
+    # Update file
+    content = gl.get_file(saasfile, branch).decode()
+    new_content = cdp_bump_saasfile(content, ref, target)
+    # TODO: catch exception for no changes
+    gl.update_file(branch, saasfile, msg, new_content)
+
+    # Create MR
+    mr = gl.create_mr(branch, target_branch, title, True, mr_labels)
+    # TODO: check if MR already exists
+    # TODO: add proper labels for automerge
+
+    print("Created MR:")
+    print(mr.title)
+    print(mr.web_url)
 
 
 if __name__ == "__main__":
