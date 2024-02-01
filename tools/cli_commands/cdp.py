@@ -14,12 +14,8 @@ def cdp_hash(saasfile: str, ref: str, target: list[str]) -> str:
 
 
 def to_rttarget(t: str) -> RTTarget:
-    chunks = t.split(",", 1)
-
-    if len(chunks) == 1:
-        return RTTarget(chunks[0], None)
-
-    return RTTarget(chunks[0], chunks[1])
+    chunks = iter(t.split(",", 1))
+    return RTTarget(next(chunks), next(chunks, None))
 
 
 def cdp_bump_saasfile(content: str, ref: str, targets_str: list[str]) -> str:
