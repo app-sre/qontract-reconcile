@@ -46,6 +46,9 @@ ENTRYPOINT ["/work/dev/run.sh"]
 
 FROM quay.io/app-sre/qontract-reconcile-base:0.10.3 as prod-image
 
+ARG quay_expiration=never
+LABEL quay.expires-after=${quay_expiration}
+
 # Cache mount. We don't need te wheel files in the final image.
 # This COPY will create a layer with all the wheel files to install the app.
 # This layer is not needed in the final image, so we can leverage a cache mount
