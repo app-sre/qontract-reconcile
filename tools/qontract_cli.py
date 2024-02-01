@@ -3253,7 +3253,6 @@ def promote(saasfile, ref, target):
     # Create MR
     mr = gl.create_mr(branch, target_branch, title, True, mr_labels)
     # TODO: check if MR already exists
-    # TODO: add proper labels for automerge
 
     print("Created MR:")
     print(mr.title)
