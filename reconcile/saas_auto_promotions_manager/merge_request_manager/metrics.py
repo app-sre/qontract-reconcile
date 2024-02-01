@@ -16,6 +16,8 @@ class SAPMOpenedMRsCounter(SAPMBaseMetric, CounterMetric):
     "Counter for the number of opened auto-promotion MRs"
 
     is_batchable: bool
+    # We do not expect batches >10, i.e., cardinality will stay in check here.
+    batch_size: int
 
     @classmethod
     def name(cls) -> str:

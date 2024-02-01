@@ -148,8 +148,6 @@ class MergeRequestManagerV2:
 
     def reconcile(self, subscribers: Iterable[Subscriber]) -> None:
         current_state = self._mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
-        metrics.set_gauge(ParallelOpenMRGauge(), len(current_state))
-
         desired_state = self._aggregate_desired_state(subscribers=subscribers)
 
         diff = self._reconciler.reconcile(
@@ -157,6 +155,10 @@ class MergeRequestManagerV2:
             desired_promotions=desired_state,
             open_mrs=current_state,
         )
+        parallel_open_mrs = (
+            len(current_state) - len(diff.deletions) + len(diff.additions)
+        )
+        metrics.set_gauge(ParallelOpenMRGauge(), parallel_open_mrs)
         for deletion in diff.deletions:
             metrics.inc_counter(
                 MRClosedCounter(
@@ -172,6 +174,7 @@ class MergeRequestManagerV2:
             metrics.inc_counter(
                 MROpenedCounter(
                     is_batchable=addition.batchable,
+                    batch_size=len(addition.content_hashes),
                 ),
             )
             self._render_mr(addition=addition)
