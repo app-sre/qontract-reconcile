@@ -150,13 +150,22 @@ class GlitchtipClient:  # pylint: disable=too-many-public-methods
         )
 
     def update_project(
-        self, organization_slug: str, slug: str, name: str, platform: Optional[str]
+        self,
+        organization_slug: str,
+        slug: str,
+        name: str,
+        platform: Optional[str],
+        event_throttle_rate: int,
     ) -> Project:
         """Update a project."""
         return Project(
             **self._put(
                 f"/api/0/projects/{organization_slug}/{slug}/",
-                data={"name": name, "platform": platform},
+                data={
+                    "name": name,
+                    "platform": platform,
+                    "eventThrottleRate": event_throttle_rate,
+                },
             )
         )
 

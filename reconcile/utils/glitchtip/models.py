@@ -173,7 +173,7 @@ class Project(BaseModel):
         if not isinstance(other, Project):
             raise NotImplementedError("Cannot compare to non Project objects.")
         # use the slug attribute to compare projects
-        # it can't be changed by the Glithtip users, so it's more reliable
+        # it can't be changed by the Glitchtip users, so it's more reliable
         # and can be used to detect changes in the project name
         return self.slug == other.slug
 
