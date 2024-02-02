@@ -63,7 +63,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
     ) -> dict[str, Any]:
         """Return the desired state for early exit."""
         if not query_func:
-            query_func = gql.get_api().query()
+            query_func = gql.get_api().query
         return {
             "roles": [c.dict() for c in self.get_roles(query_func)],
             "aws_groups": [c.dict() for c in self.get_aws_groups(query_func)],
