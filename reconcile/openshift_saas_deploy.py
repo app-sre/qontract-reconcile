@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -301,6 +302,7 @@ def run(
             slack.chat_post_message(message)
 
     # get upstream repo info for sast scan
+    # get image info for clamav scan
     # we only do this if:
     # - this is not a dry run
     # - there is a single saas file deployed
@@ -309,14 +311,14 @@ def run(
         openshift_saas_deploy_trigger_upstream_jobs.QONTRACT_INTEGRATION,
         openshift_saas_deploy_trigger_images.QONTRACT_INTEGRATION,
     ]
-    sast = (
+    scan = (
         not dry_run
         and len(saas_files) == 1
         and trigger_integration
         and trigger_integration in allowed_integration
         and trigger_reason
     )
-    if sast:
+    if scan:
         saas_file = saas_files[0]
         owners = saas_file.app.service_owners or []
         emails = " ".join([o.email for o in owners])
@@ -326,3 +328,12 @@ def run(
             f.write(file + "\n")
             f.write(url + "\n")
             f.write(emails + "\n")
+        images = " ".join(saasherder.images)
+        images_file = os.path.join(io_dir, "images")
+        with open(images_file, "w", encoding="locale") as f:
+            f.write(images)
+        image_auth = saasherder._initiate_image_auth(saas_file)
+        if image_auth.auth_server:
+            json_file = os.path.join(io_dir, "dockerconfigjson")
+            with open(json_file, "w", encoding="locale") as f:
+                f.write(json.dumps(image_auth.getDockerConfigJson(), indent=2))
