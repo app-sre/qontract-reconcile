@@ -147,6 +147,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.state = state
         self._promotion_state = PromotionState(state=state) if state else None
         self._channel_map = self._assemble_channels(saas_files=all_saas_files)
+        self.images: list[str] = []
 
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -1171,6 +1172,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             self._collect_images, resources, self.available_thread_pool_size
         )
         images = set(itertools.chain.from_iterable(images_list))
+        self.images.extend(images)
         if not images:
             return False  # no errors
         errors = threaded.run(

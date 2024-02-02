@@ -1,3 +1,4 @@
+import base64
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
@@ -191,6 +192,19 @@ class ImageAuth:
     username: Optional[str] = None
     password: Optional[str] = None
     auth_server: Optional[str] = None
+
+    def getDockerConfigJson(self) -> dict:
+        return {
+            "auths": {
+                self.auth_server: {
+                    "username": self.username,
+                    "password": self.password,
+                    "auth": base64.b64encode(
+                        f"{self.username}:{self.password}".encode()
+                    ).decode(),
+                }
+            }
+        }
 
 
 @dataclass
