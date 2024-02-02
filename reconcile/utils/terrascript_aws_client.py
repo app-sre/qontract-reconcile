@@ -3890,18 +3890,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if os.path.isfile(print_to_file):
                 os.remove(print_to_file)
 
-        for name, ts in self.terraform_configurations().items():
+        for name, ts in self.tss.items():
+            content = str(ts)
             if print_to_file:
                 with open(print_to_file, "a", encoding="locale") as f:
                     f.write(f"##### {name} #####\n")
-                    f.write(ts)
+                    f.write(content)
                     f.write("\n")
             if existing_dirs is None:
                 wd = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
             else:
                 wd = working_dirs[name]
             with open(wd + "/config.tf.json", "w", encoding="locale") as f:
-                f.write(ts)
+                f.write(content)
             working_dirs[name] = wd
 
         return working_dirs
@@ -3909,10 +3910,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def terraform_configurations(self) -> dict[str, str]:
         """
         Return the Terraform configurations (in JSON format) for each AWS account.
+        Terraform config content keys are sorted for consistent hash check.
+        The result is not used for final file dump.
+        Doc: https://python-terrascript.readthedocs.io/en/stable/quickstart.html
 
         :return: key is AWS account name and value is terraform configuration
         """
-        return {name: str(ts) for name, ts in self.tss.items()}
+        return {
+            name: json.dumps(ts, indent=2, sort_keys=True)
+            for name, ts in self.tss.items()
+        }
 
     def init_values(self, spec: ExternalResourceSpec, init_tags: bool = True) -> dict:
         """
