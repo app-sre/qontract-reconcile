@@ -1,0 +1,55 @@
+---
+aws_groups:
+- name: shiny-Group
+  account:
+    name: aws-account-1
+    uid: '123456789'
+    sso: true
+  roles:
+  - users:
+    - org_username: user-1
+    - org_username: user-2
+
+- name: second-Group
+  account:
+    name: aws-account-1
+    uid: '987654321'
+    sso: true
+  roles:
+  - users:
+    - org_username: user-1
+
+- name: sso-disabled
+  account:
+    name: aws-account-1
+    uid: '1'
+    sso: false
+  roles:
+  - users:
+    - org_username: user-1
+    - org_username: user-2
+
+- name: sso-disabled-by-default
+  account:
+    name: aws-account-1
+    uid: '1'
+    sso: null
+  roles:
+  - users:
+    - org_username: user-1
+    - org_username: user-2
+
+- name: no-roles
+  account:
+    name: aws-account-1
+    uid: '2'
+    sso: null
+  roles: []
+
+- name: no-users
+  account:
+    name: aws-account-1
+    uid: '3'
+    sso: null
+  roles:
+  - users: []

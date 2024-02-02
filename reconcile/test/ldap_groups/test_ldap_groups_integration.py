@@ -2,20 +2,44 @@ from collections.abc import (
     Callable,
     Iterable,
     Mapping,
+    Sequence,
 )
 from typing import Any
 from unittest.mock import Mock
 
 import pytest
 
+from reconcile.gql_definitions.ldap_groups.aws_groups import AWSGroupV1
 from reconcile.gql_definitions.ldap_groups.roles import RoleV1
-from reconcile.ldap_groups.integration import LdapGroupsIntegration
+from reconcile.ldap_groups.integration import (
+    LdapGroupsIntegration,
+    get_aws_group_ldap_name,
+)
 from reconcile.utils.internal_groups.client import NotFound
 from reconcile.utils.internal_groups.models import (
     Entity,
     EntityType,
     Group,
 )
+
+
+def test_get_aws_group_ldap_name(aws_groups: Sequence[AWSGroupV1]) -> None:
+    assert (
+        get_aws_group_ldap_name("prefix", aws_groups[0])
+        == "prefix-123456789-shiny-Group"
+    )
+
+
+def test_get_early_exit_desired_state(
+    intg: LdapGroupsIntegration,
+    roles: Sequence[RoleV1],
+    aws_groups: Sequence[AWSGroupV1],
+) -> None:
+    intg.get_roles = lambda *args, **kwargs: roles  # type: ignore
+    intg.get_aws_groups = lambda *args, **kwargs: aws_groups  # type: ignore
+    state = intg.get_early_exit_desired_state(query_func=lambda *args, **kwargs: None)
+    assert "roles" in state
+    assert "aws_groups" in state
 
 
 def test_ldap_groups_integration_get_managed_groups(
@@ -65,6 +89,52 @@ def test_ldap_groups_integration_get_roles(
     ]
 
 
+def test_ldap_groups_integration_get_aws_groups(
+    gql_class_factory: Callable, aws_groups: Sequence[AWSGroupV1]
+) -> None:
+    assert aws_groups == [
+        gql_class_factory(
+            AWSGroupV1,
+            {
+                "name": "shiny-Group",
+                "account": {
+                    "name": "aws-account-1",
+                    "uid": "123456789",
+                    "sso": True,
+                },
+                "roles": [
+                    {
+                        "users": [
+                            {"org_username": "user-1"},
+                            {
+                                "org_username": "user-2",
+                            },
+                        ]
+                    }
+                ],
+            },
+        ),
+        gql_class_factory(
+            AWSGroupV1,
+            {
+                "name": "second-Group",
+                "account": {
+                    "name": "aws-account-1",
+                    "uid": "987654321",
+                    "sso": True,
+                },
+                "roles": [
+                    {
+                        "users": [
+                            {"org_username": "user-1"},
+                        ]
+                    }
+                ],
+            },
+        ),
+    ]
+
+
 def test_ldap_groups_integration_get_roles_duplicates(
     intg: LdapGroupsIntegration,
     raw_fixture_data: dict[str, Any],
@@ -82,17 +152,63 @@ def test_ldap_groups_integration_get_roles_duplicates(
         intg.get_roles(q)
 
 
-def test_ldap_groups_integration_fetch_desired_state(
+def test_ldap_groups_integration_get_desired_groups_for_roles(
     intg: LdapGroupsIntegration,
     roles: Iterable[RoleV1],
     owners: Iterable[Entity],
     group: Group,
 ) -> None:
-    assert intg.fetch_desired_state(
+    assert intg.get_desired_groups_for_roles(
         roles=roles,
         owners=owners,
         contact_list="email@example.org",
     ) == [group]
+
+
+def test_ldap_groups_integration_get_desired_groups_for_aws_groups(
+    intg: LdapGroupsIntegration,
+    aws_groups: Iterable[AWSGroupV1],
+    owners: list[Entity],
+) -> None:
+    assert intg.get_desired_groups_for_aws_groups(
+        aws_groups=aws_groups,
+        owners=owners,
+        contact_list="email@example.org",
+    ) == [
+        Group(
+            name="rover-prefix-123456789-shiny-Group",
+            description="AWS account: 'aws-account-1' Role: 'shiny-Group' Managed by qontract-reconcile",
+            member_approval_type="self-service",
+            contact_list="email@example.org",
+            owners=owners,
+            display_name="rover-prefix-123456789-shiny-Group",
+            notes=None,
+            rover_group_member_query=None,
+            rover_group_inclusions=None,
+            rover_group_exclusions=None,
+            members=[
+                Entity(type=EntityType.USER, id="user-1"),
+                Entity(type=EntityType.USER, id="user-2"),
+            ],
+            member_of=None,
+            namespace=None,
+        ),
+        Group(
+            name="rover-prefix-987654321-second-Group",
+            description="AWS account: 'aws-account-1' Role: 'second-Group' Managed by qontract-reconcile",
+            member_approval_type="self-service",
+            contact_list="email@example.org",
+            owners=owners,
+            display_name="rover-prefix-987654321-second-Group",
+            notes=None,
+            rover_group_member_query=None,
+            rover_group_inclusions=None,
+            rover_group_exclusions=None,
+            members=[Entity(type=EntityType.USER, id="user-1")],
+            member_of=None,
+            namespace=None,
+        ),
+    ]
 
 
 def test_ldap_groups_integration_fetch_current_state(
