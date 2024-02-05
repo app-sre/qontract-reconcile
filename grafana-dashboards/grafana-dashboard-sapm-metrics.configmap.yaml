@@ -27,7 +27,7 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 671713,
+      "id": 673590,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -89,7 +89,7 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 9,
+            "h": 5,
             "w": 24,
             "x": 0,
             "y": 0
@@ -172,10 +172,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 9,
+            "h": 5,
             "w": 24,
             "x": 0,
-            "y": 9
+            "y": 5
           },
           "id": 2,
           "interval": "5m",
@@ -267,10 +267,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 9,
+            "h": 6,
             "w": 24,
             "x": 0,
-            "y": 18
+            "y": 10
           },
           "id": 3,
           "interval": "5m",
@@ -361,10 +361,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 9,
+            "h": 5,
             "w": 24,
             "x": 0,
-            "y": 27
+            "y": 16
           },
           "id": 6,
           "interval": "5m",
