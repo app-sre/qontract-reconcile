@@ -1,5 +1,7 @@
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+from functools import cached_property
 from typing import Any, Self
 
 from deepdiff import DeepHash
@@ -10,6 +12,7 @@ from reconcile.utils.state import State, init_state
 
 STATE_INTEGRATION = "early-exit-cache"
 EXPIRE_AT_METADATA_KEY = "expire-at"
+CACHE_SOURCE_DIGEST_METADATA_KEY = "cache-source-digest"
 
 
 class CacheKey(BaseModel):
@@ -23,8 +26,24 @@ class CacheKey(BaseModel):
             self.integration,
             self.integration_version,
             "dry-run" if self.dry_run else "no-dry-run",
-            DeepHash(self.cache_source)[self.cache_source],
+            self.cache_source_digest if self.dry_run else "latest",
         ])
+
+    @cached_property
+    def cache_source_digest(self) -> str:
+        return DeepHash(self.cache_source)[self.cache_source]
+
+    def no_dry_run_path(self) -> str:
+        return "/".join([
+            self.integration,
+            self.integration_version,
+            "no-dry-run",
+            "latest",
+        ])
+
+    class Config:
+        frozen = True
+        keep_untouched = (cached_property,)
 
 
 class CacheValue(BaseModel):
@@ -36,7 +55,8 @@ class CacheValue(BaseModel):
 class CacheStatus(Enum):
     MISS = "MISS"
     HIT = "HIT"
-    EXPIRED = "EXPIRED"
+    EXPIRED = "EXPIRED"  # TTL expired
+    STALE = "STALE"  # latest cache source digest is different, which means there are new applied changes
 
 
 class EarlyExitCache:
@@ -66,7 +86,10 @@ class EarlyExitCache:
 
     def set(self, key: CacheKey, value: CacheValue, ttl_seconds: int) -> None:
         expire_at = datetime.now(tz=UTC) + timedelta(seconds=ttl_seconds)
-        metadata = {EXPIRE_AT_METADATA_KEY: str(int(expire_at.timestamp()))}
+        metadata = {
+            EXPIRE_AT_METADATA_KEY: str(int(expire_at.timestamp())),
+            CACHE_SOURCE_DIGEST_METADATA_KEY: key.cache_source_digest,
+        }
         self.state.add(
             str(key),
             value.dict(),
@@ -74,9 +97,44 @@ class EarlyExitCache:
             force=True,
         )
 
+    @staticmethod
+    def _is_latest(
+        key: CacheKey,
+        metadata: Mapping[str, str],
+    ) -> bool:
+        latest_cache_source_digest = metadata.get(CACHE_SOURCE_DIGEST_METADATA_KEY)
+        return key.cache_source_digest == latest_cache_source_digest
+
+    def _is_stale(self, key: CacheKey) -> bool:
+        """
+        Check if the cache is stale, a dry run cache is stale if the matching no dry run cache is no longer the latest.
+        When there is no matching no dry run cache, it is considered as not stale.
+
+        :param key: CacheKey
+        :return: whether the cache is stale
+        """
+        if not key.dry_run:
+            return False
+
+        exists, metadata = self.state.head(key.no_dry_run_path())
+        if not exists:
+            return False
+
+        return not self._is_latest(key, metadata)
+
     def head(self, key: CacheKey) -> CacheStatus:
+        """
+        Get the cache status for the given key.
+        Additionally, for dry run key, it will use matching no dry run key to check stale.
+
+        :param key: CacheKey
+        :return: CacheStatus
+        """
         exists, metadata = self.state.head(str(key))
         if not exists:
+            return CacheStatus.MISS
+
+        if not key.dry_run and not self._is_latest(key, metadata):
             return CacheStatus.MISS
 
         expire_at = datetime.fromtimestamp(
@@ -84,4 +142,10 @@ class EarlyExitCache:
             tz=UTC,
         )
         now = datetime.now(UTC)
-        return CacheStatus.HIT if now < expire_at else CacheStatus.EXPIRED
+        if now >= expire_at:
+            return CacheStatus.EXPIRED
+
+        if self._is_stale(key):
+            return CacheStatus.STALE
+
+        return CacheStatus.HIT
