@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import subprocess
@@ -120,7 +121,8 @@ def retrieve_token(kubeconfig: str, namespace: str, sa: str) -> str:
     secret = oc(kubeconfig, namespace, ["get", "secret", sa_secret_name(sa)])
     if not secret or "token" not in secret.get("data", {}):
         raise TokenNotReadyException()
-    return secret["data"]["token"]
+    b64_token = secret["data"]["token"]
+    return base64.b64decode(b64_token).decode()
 
 
 def create_sa(
