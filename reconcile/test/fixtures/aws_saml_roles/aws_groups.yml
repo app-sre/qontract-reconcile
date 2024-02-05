@@ -1,0 +1,79 @@
+aws_groups:
+- name: group-1
+  account:
+    name: account-1
+    uid: '1'
+    sso: true
+  roles:
+  - users:
+    - org_username: user-1
+    - org_username: user-2
+  policies:
+  - AdministratorAccess
+
+- name: group-2
+  account:
+    name: account-2
+    uid: '2'
+    sso: true
+  roles:
+  - users:
+    - org_username: other-user-1
+    - org_username: other-user-2
+  policies:
+  - AdministratorAccess
+
+# all groups below must be ignored
+- name: account-with-disabled-integrations
+  account:
+    name: account-2
+    uid: '2'
+    sso: true
+    disable:
+      integrations:
+      - aws-saml-roles
+  roles: []
+  policies:
+  - AdministratorAccess
+
+- name: sso-disabled
+  account:
+    name: account-1
+    uid: '1'
+    sso: false
+  roles:
+  - users:
+    - org_username: user-1
+    - org_username: user-2
+  policies:
+  - AdministratorAccess
+
+- name: no-users
+  account:
+    name: account-1
+    uid: '1'
+    sso: true
+  roles:
+  - users: []
+  policies:
+  - AdministratorAccess
+
+- name: no-roles
+  account:
+    name: account-1
+    uid: '1'
+    sso: true
+  roles: []
+  policies:
+  - AdministratorAccess
+
+- name: no-policies
+  account:
+    name: account-1
+    uid: '1'
+    sso: true
+  roles:
+  - users:
+    - org_username: user-1
+    - org_username: user-2
+  policies: []

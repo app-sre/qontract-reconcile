@@ -1,0 +1,55 @@
+accounts:
+- sso: true
+  name: account-1
+  uid: '1'
+  resourcesDefaultRegion: us-east-1
+  supportedDeploymentRegions:
+  - us-east-1
+  - us-east-2
+  providerVersion: 3.76.0
+  accountOwners:
+  - name: 'owner'
+    email: email@example.com
+  automationToken:
+    path: /path/to/token
+    field: all
+  enableDeletion: true
+  premiumSupport: true
+
+- sso: false
+  name: account-2
+  uid: '1'
+  resourcesDefaultRegion: us-east-1
+  supportedDeploymentRegions:
+  - us-east-1
+  - us-east-2
+  providerVersion: 3.76.0
+  accountOwners:
+  - name: 'owner'
+    email: email@example.com
+  automationToken:
+    path: /path/to/token
+    field: all
+  enableDeletion: true
+  premiumSupport: true
+
+# integration disabled
+- sso: false
+  name: account-3
+  uid: '1'
+  resourcesDefaultRegion: us-east-1
+  supportedDeploymentRegions:
+  - us-east-1
+  - us-east-2
+  providerVersion: 3.76.0
+  accountOwners:
+  - name: 'owner'
+    email: email@example.com
+  automationToken:
+    path: /path/to/token
+    field: all
+  enableDeletion: true
+  premiumSupport: true
+  disable:
+    integrations:
+    - aws-saml-roles

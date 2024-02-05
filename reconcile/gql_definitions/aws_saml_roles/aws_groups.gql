@@ -1,0 +1,21 @@
+# qenerate: plugin=pydantic_v1
+
+query AwsSamlRolesAwsGroupQuery {
+  aws_groups: awsgroups_v1 {
+    name
+    account {
+      name
+      uid
+      sso
+      disable {
+        integrations
+      }
+    }
+    roles {
+      users {
+        org_username
+      }
+    }
+    policies
+  }
+}

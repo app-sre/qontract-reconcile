@@ -2515,6 +2515,45 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.add_resources(account, tf_resources)
 
+    def populate_saml_iam_role(
+        self,
+        account: str,
+        name: str,
+        saml_provider_name: str,
+        policies: list[str],
+        max_session_duration_hours: int = 1,
+    ) -> None:
+        """Manage the an IAM role needed for SAML authentication."""
+        managed_policy_arns = [
+            f"arn:{self._get_partition(account)}:" + f"iam::aws:policy/{policy}"
+            for policy in policies
+        ]
+        assume_role_policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Federated": f"arn:{self._get_partition(account)}:iam::{self.uids[account]}:saml-provider/{saml_provider_name}"
+                    },
+                    "Action": "sts:AssumeRoleWithSAML",
+                    "Condition": {
+                        "StringEquals": {
+                            "SAML:aud": "https://signin.aws.amazon.com/saml"
+                        }
+                    },
+                }
+            ],
+        }
+        role_tf_resource = aws_iam_role(
+            f"{account}-{name}",
+            name=f"{self.uids[account]}-{name}",
+            assume_role_policy=json.dumps(assume_role_policy),
+            managed_policy_arns=managed_policy_arns,
+            max_session_duration=max_session_duration_hours * 3600,
+        )
+        self.add_resource(account, role_tf_resource)
+
     def populate_tf_resource_sqs(self, spec):
         account = spec.provisioner_name
         identifier = spec.identifier
