@@ -24,6 +24,7 @@ DRY_RUN_CACHE_KEY = CacheKey(
     integration_version=INTEGRATION_VERSION,
     dry_run=True,
     cache_source=CACHE_SOURCE,
+    shard="",
 )
 
 DRY_RUN_CACHE_VALUE = CacheValue(
@@ -37,8 +38,8 @@ NO_DRY_RUN_CACHE_KEY = CacheKey(
     integration_version=INTEGRATION_VERSION,
     dry_run=False,
     cache_source=CACHE_SOURCE,
+    shard="",
 )
-
 
 NO_DRY_RUN_CACHE_VALUE = CacheValue(
     payload={"k2": "v2"},
@@ -75,21 +76,39 @@ def early_exit_cache(state: Any) -> EarlyExitCache:
 
 
 @pytest.mark.parametrize(
-    "integration, integration_version, dry_run, cache_source, expected",
+    "integration, integration_version, dry_run, cache_source, shard, expected",
     [
         (
             INTEGRATION_NAME,
             INTEGRATION_VERSION,
             False,
             CACHE_SOURCE,
+            "",
             f"{INTEGRATION_NAME}/{INTEGRATION_VERSION}/no-dry-run/latest",
+        ),
+        (
+            INTEGRATION_NAME,
+            INTEGRATION_VERSION,
+            False,
+            CACHE_SOURCE,
+            "shard-1",
+            f"{INTEGRATION_NAME}/{INTEGRATION_VERSION}/no-dry-run/shard-1/latest",
         ),
         (
             INTEGRATION_NAME,
             INTEGRATION_VERSION,
             True,
             CACHE_SOURCE,
+            "",
             f"{INTEGRATION_NAME}/{INTEGRATION_VERSION}/dry-run/{CACHE_SOURCE_DIGEST}",
+        ),
+        (
+            INTEGRATION_NAME,
+            INTEGRATION_VERSION,
+            True,
+            CACHE_SOURCE,
+            "shard-1",
+            f"{INTEGRATION_NAME}/{INTEGRATION_VERSION}/dry-run/shard-1/{CACHE_SOURCE_DIGEST}",
         ),
     ],
 )
@@ -98,6 +117,7 @@ def test_cache_key_string(
     integration_version: str,
     dry_run: bool,
     cache_source: Any,
+    shard: str,
     expected: str,
 ) -> None:
     cache_key = CacheKey(
@@ -105,6 +125,7 @@ def test_cache_key_string(
         integration_version=integration_version,
         dry_run=dry_run,
         cache_source=cache_source,
+        shard=shard,
     )
     assert str(cache_key) == expected
 

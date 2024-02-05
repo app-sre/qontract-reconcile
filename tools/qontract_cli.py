@@ -2450,6 +2450,12 @@ def early_exit_cache(ctx):
     help="Cache source. It should be a JSON string.",
     required=True,
 )
+@click.option(
+    "-s",
+    "--shard",
+    help="Shard",
+    default="",
+)
 @click.pass_context
 def early_exit_cache_head(
     ctx,
@@ -2457,6 +2463,7 @@ def early_exit_cache_head(
     integration_version,
     dry_run,
     cache_source,
+    shard,
 ):
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
@@ -2464,6 +2471,7 @@ def early_exit_cache_head(
             integration_version=integration_version,
             dry_run=dry_run,
             cache_source=json.loads(cache_source),
+            shard=shard,
         )
         status = cache.head(cache_key)
         print(status)
@@ -2493,6 +2501,12 @@ def early_exit_cache_head(
     help="Cache source. It should be a JSON string.",
     required=True,
 )
+@click.option(
+    "-s",
+    "--shard",
+    help="Shard",
+    default="",
+)
 @click.pass_context
 def early_exit_cache_get(
     ctx,
@@ -2500,6 +2514,7 @@ def early_exit_cache_get(
     integration_version,
     dry_run,
     cache_source,
+    shard,
 ):
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
@@ -2507,6 +2522,7 @@ def early_exit_cache_get(
             integration_version=integration_version,
             dry_run=dry_run,
             cache_source=json.loads(cache_source),
+            shard=shard,
         )
         value = cache.get(cache_key)
         print(value)
@@ -2535,6 +2551,12 @@ def early_exit_cache_get(
     "--cache-source",
     help="Cache source. It should be a JSON string.",
     required=True,
+)
+@click.option(
+    "-s",
+    "--shard",
+    help="Shard",
+    default="",
 )
 @click.option(
     "-p",
@@ -2569,6 +2591,7 @@ def early_exit_cache_set(
     integration_version,
     dry_run,
     cache_source,
+    shard,
     payload,
     log_output,
     applied_count,
@@ -2580,6 +2603,7 @@ def early_exit_cache_set(
             integration_version=integration_version,
             dry_run=dry_run,
             cache_source=json.loads(cache_source),
+            shard=shard,
         )
         cache_value = CacheValue(
             payload=json.loads(payload),

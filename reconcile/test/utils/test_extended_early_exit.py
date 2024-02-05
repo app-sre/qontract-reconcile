@@ -26,6 +26,8 @@ INTEGRATION_VERSION = "some-integration-version"
 SHORT_TTL_SECONDS = 0
 TTLS_SECONDS = 100
 RUNNER_PARAMS = {"some_param": "some-value"}
+CACHE_SOURCE = {"k": "v"}
+SHARD = "some-shard"
 
 
 @pytest.fixture
@@ -43,9 +45,6 @@ def mock_logger() -> Any:
 @pytest.fixture
 def early_exit_cache() -> Any:
     return create_autospec(EarlyExitCache)
-
-
-CACHE_SOURCE = {"k": "v"}
 
 
 @pytest.mark.parametrize(
@@ -107,6 +106,7 @@ def test_extended_early_exit_run_miss_or_expired(
         integration_version=INTEGRATION_VERSION,
         dry_run=dry_run,
         cache_source=CACHE_SOURCE,
+        shard=SHARD,
         ttl_seconds=TTLS_SECONDS,
         logger=logger,
         runner=runner,
@@ -119,6 +119,7 @@ def test_extended_early_exit_run_miss_or_expired(
         integration_version=INTEGRATION_VERSION,
         dry_run=dry_run,
         cache_source=CACHE_SOURCE,
+        shard=SHARD,
     )
     early_exit_cache.head.assert_called_once_with(expected_cache_key)
     runner.assert_called_once_with(**RUNNER_PARAMS)
@@ -137,6 +138,7 @@ def test_extended_early_exit_run_miss_or_expired(
             integration_version=INTEGRATION_VERSION,
             dry_run=dry_run,
             cache_status=cache_status.value,
+            shard=SHARD,
         ),
     )
     mock_set_gauge.assert_called_once_with(
@@ -145,6 +147,7 @@ def test_extended_early_exit_run_miss_or_expired(
             integration_version=INTEGRATION_VERSION,
             dry_run=dry_run,
             cache_status=cache_status.value,
+            shard=SHARD,
         ),
         applied_count,
     )
@@ -179,6 +182,7 @@ def test_extended_early_exit_run_hit_when_not_log_cached_log_output(
         integration_version=INTEGRATION_VERSION,
         dry_run=dry_run,
         cache_source=CACHE_SOURCE,
+        shard=SHARD,
         ttl_seconds=TTLS_SECONDS,
         logger=mock_logger,
         runner=runner,
@@ -192,6 +196,7 @@ def test_extended_early_exit_run_hit_when_not_log_cached_log_output(
         integration_version=INTEGRATION_VERSION,
         dry_run=dry_run,
         cache_source=CACHE_SOURCE,
+        shard=SHARD,
     )
     early_exit_cache.head.assert_called_once_with(expected_cache_key)
     runner.assert_not_called()
@@ -205,6 +210,7 @@ def test_extended_early_exit_run_hit_when_not_log_cached_log_output(
             integration_version=INTEGRATION_VERSION,
             dry_run=dry_run,
             cache_status=CacheStatus.HIT.value,
+            shard=SHARD,
         ),
     )
     mock_set_gauge.assert_called_once_with(
@@ -213,6 +219,7 @@ def test_extended_early_exit_run_hit_when_not_log_cached_log_output(
             integration_version=INTEGRATION_VERSION,
             dry_run=dry_run,
             cache_status=CacheStatus.HIT.value,
+            shard=SHARD,
         ),
         0,
     )
@@ -252,6 +259,7 @@ def test_extended_early_exit_run_hit_when_log_cached_log_output(
         integration_version=INTEGRATION_VERSION,
         dry_run=dry_run,
         cache_source=CACHE_SOURCE,
+        shard=SHARD,
         ttl_seconds=TTLS_SECONDS,
         logger=mock_logger,
         runner=runner,
@@ -265,6 +273,7 @@ def test_extended_early_exit_run_hit_when_log_cached_log_output(
         integration_version=INTEGRATION_VERSION,
         dry_run=dry_run,
         cache_source=CACHE_SOURCE,
+        shard=SHARD,
     )
     early_exit_cache.head.assert_called_once_with(expected_cache_key)
     early_exit_cache.get.assert_called_once_with(expected_cache_key)
@@ -278,6 +287,7 @@ def test_extended_early_exit_run_hit_when_log_cached_log_output(
             integration_version=INTEGRATION_VERSION,
             dry_run=dry_run,
             cache_status=CacheStatus.HIT.value,
+            shard=SHARD,
         ),
     )
     mock_set_gauge.assert_called_once_with(
@@ -286,6 +296,7 @@ def test_extended_early_exit_run_hit_when_log_cached_log_output(
             integration_version=INTEGRATION_VERSION,
             dry_run=dry_run,
             cache_status=CacheStatus.HIT.value,
+            shard=SHARD,
         ),
         0,
     )
@@ -314,6 +325,7 @@ def test_extended_early_exit_run_when_error(
             integration_version=INTEGRATION_VERSION,
             dry_run=False,
             cache_source=CACHE_SOURCE,
+            shard=SHARD,
             ttl_seconds=TTLS_SECONDS,
             logger=mock_logger,
             runner=runner,

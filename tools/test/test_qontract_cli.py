@@ -73,7 +73,7 @@ def test_early_exit_cache_get(env_vars, mock_queries, mock_early_exit_cache):
     )
 
     result = runner.invoke(
-        qontract_cli.early_exit_cache, "get -i a -v b --dry-run -c {}"
+        qontract_cli.early_exit_cache, "get -i a -v b --dry-run -c {} -s shard-1"
     )
     assert result.exit_code == 0
     assert result.output == "some value\n"
@@ -84,7 +84,7 @@ def test_early_exit_cache_set(env_vars, mock_queries, mock_early_exit_cache):
 
     result = runner.invoke(
         qontract_cli.early_exit_cache,
-        "set -i a -v b --no-dry-run -c {} -p {} -l log -t 30",
+        "set -i a -v b --no-dry-run -c {} -s shard-1 -p {} -l log -t 30",
     )
     assert result.exit_code == 0
     mock_early_exit_cache.build.return_value.__enter__.return_value.set.assert_called()
@@ -96,7 +96,7 @@ def test_early_exit_cache_head(env_vars, mock_queries, mock_early_exit_cache):
     mock_early_exit_cache.build.return_value.__enter__.return_value.head.return_value = CacheStatus.HIT
 
     result = runner.invoke(
-        qontract_cli.early_exit_cache, "head -i a -v b --dry-run -c {}"
+        qontract_cli.early_exit_cache, "head -i a -v b --dry-run -c {} -s shard-1"
     )
     assert result.exit_code == 0
     assert result.output == f"{CacheStatus.HIT}\n"

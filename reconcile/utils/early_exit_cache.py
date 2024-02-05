@@ -20,26 +20,51 @@ class CacheKey(BaseModel):
     integration_version: str
     dry_run: bool
     cache_source: object
+    shard: str
 
     def __str__(self) -> str:
-        return "/".join([
-            self.integration,
-            self.integration_version,
-            "dry-run" if self.dry_run else "no-dry-run",
-            self.cache_source_digest if self.dry_run else "latest",
-        ])
+        return self.dry_run_path() if self.dry_run else self.no_dry_run_path()
 
     @cached_property
     def cache_source_digest(self) -> str:
+        """
+        Calculate a consistent hash of the cache source, use @cached_property to avoid recalculating
+
+        :return: hash of the cache source
+        """
         return DeepHash(self.cache_source)[self.cache_source]
 
+    def dry_run_path(self) -> str:
+        """
+        /<integration>/<integration_version>/dry-run(/<shard>)/<cache_source_digest>
+        """
+        return "/".join(
+            [
+                self.integration,
+                self.integration_version,
+                "dry-run",
+            ]
+            + ([self.shard] if self.shard else [])
+            + [
+                self.cache_source_digest,
+            ]
+        )
+
     def no_dry_run_path(self) -> str:
-        return "/".join([
-            self.integration,
-            self.integration_version,
-            "no-dry-run",
-            "latest",
-        ])
+        """
+        /<integration>/<integration_version>/no-dry-run(/<shard>)/latest
+        """
+        return "/".join(
+            [
+                self.integration,
+                self.integration_version,
+                "no-dry-run",
+            ]
+            + ([self.shard] if self.shard else [])
+            + [
+                "latest",
+            ]
+        )
 
     class Config:
         frozen = True
