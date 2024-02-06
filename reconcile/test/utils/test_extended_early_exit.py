@@ -7,6 +7,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.utils.early_exit_cache import (
+    CacheHeadResult,
     CacheKey,
     CacheStatus,
     CacheValue,
@@ -28,6 +29,7 @@ TTLS_SECONDS = 100
 RUNNER_PARAMS = {"some_param": "some-value"}
 CACHE_SOURCE = {"k": "v"}
 SHARD = "some-shard"
+LATEST_CACHE_SOURCE_DIGEST = "some-digest"
 
 
 @pytest.fixture
@@ -73,7 +75,10 @@ def test_extended_early_exit_run_miss_or_expired(
         autospec=True,
     )
     mock_early_exit_cache.build.return_value.__enter__.return_value = early_exit_cache
-    early_exit_cache.head.return_value = cache_status
+    early_exit_cache.head.return_value = CacheHeadResult(
+        status=cache_status,
+        latest_cache_source_digest=LATEST_CACHE_SOURCE_DIGEST,
+    )
     mock_inc_counter = mocker.patch("reconcile.utils.extended_early_exit.inc_counter")
     mock_set_gauge = mocker.patch("reconcile.utils.extended_early_exit.set_gauge")
     runner = MagicMock()
@@ -131,6 +136,7 @@ def test_extended_early_exit_run_miss_or_expired(
             applied_count=applied_count,
         ),
         expected_ttl,
+        LATEST_CACHE_SOURCE_DIGEST,
     )
     mock_inc_counter.assert_called_once_with(
         ExtendedEarlyExitCounter(
@@ -172,7 +178,10 @@ def test_extended_early_exit_run_hit_when_not_log_cached_log_output(
         autospec=True,
     )
     mock_early_exit_cache.build.return_value.__enter__.return_value = early_exit_cache
-    early_exit_cache.head.return_value = CacheStatus.HIT
+    early_exit_cache.head.return_value = CacheHeadResult(
+        status=CacheStatus.HIT,
+        latest_cache_source_digest=LATEST_CACHE_SOURCE_DIGEST,
+    )
     mock_inc_counter = mocker.patch("reconcile.utils.extended_early_exit.inc_counter")
     mock_set_gauge = mocker.patch("reconcile.utils.extended_early_exit.set_gauge")
     runner = MagicMock()
@@ -244,7 +253,10 @@ def test_extended_early_exit_run_hit_when_log_cached_log_output(
         autospec=True,
     )
     mock_early_exit_cache.build.return_value.__enter__.return_value = early_exit_cache
-    early_exit_cache.head.return_value = CacheStatus.HIT
+    early_exit_cache.head.return_value = CacheHeadResult(
+        status=CacheStatus.HIT,
+        latest_cache_source_digest=LATEST_CACHE_SOURCE_DIGEST,
+    )
     early_exit_cache.get.return_value = CacheValue(
         payload=CACHE_SOURCE,
         log_output="log-output",
@@ -313,7 +325,10 @@ def test_extended_early_exit_run_when_error(
         autospec=True,
     )
     mock_early_exit_cache.build.return_value.__enter__.return_value = early_exit_cache
-    early_exit_cache.head.return_value = CacheStatus.MISS
+    early_exit_cache.head.return_value = CacheHeadResult(
+        status=CacheStatus.MISS,
+        latest_cache_source_digest=LATEST_CACHE_SOURCE_DIGEST,
+    )
     mock_inc_counter = mocker.patch("reconcile.utils.extended_early_exit.inc_counter")
     mock_set_gauge = mocker.patch("reconcile.utils.extended_early_exit.set_gauge")
     runner = MagicMock()
