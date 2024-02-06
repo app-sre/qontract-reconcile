@@ -2473,8 +2473,8 @@ def early_exit_cache_head(
             cache_source=json.loads(cache_source),
             shard=shard,
         )
-        status = cache.head(cache_key)
-        print(status)
+        result = cache.head(cache_key)
+        print(result)
 
 
 @early_exit_cache.command(name="get")
@@ -2584,6 +2584,12 @@ def early_exit_cache_get(
     default=60,
     type=int,
 )
+@click.option(
+    "-d",
+    "--latest-cache-source-digest",
+    help="Latest cache source digest.",
+    default="",
+)
 @click.pass_context
 def early_exit_cache_set(
     ctx,
@@ -2596,6 +2602,7 @@ def early_exit_cache_set(
     log_output,
     applied_count,
     ttl,
+    latest_cache_source_digest,
 ):
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
@@ -2610,7 +2617,7 @@ def early_exit_cache_set(
             log_output=log_output,
             applied_count=applied_count,
         )
-        cache.set(cache_key, cache_value, ttl)
+        cache.set(cache_key, cache_value, ttl, latest_cache_source_digest)
 
 
 @root.command()

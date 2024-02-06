@@ -7,6 +7,7 @@ from deepdiff import DeepHash
 from pytest_mock import MockerFixture
 
 from reconcile.utils.early_exit_cache import (
+    CacheHeadResult,
     CacheKey,
     CacheStatus,
     CacheValue,
@@ -18,6 +19,7 @@ INTEGRATION_NAME = "some-integration"
 INTEGRATION_VERSION = "some-integration-version"
 CACHE_SOURCE = {"k": "v"}
 CACHE_SOURCE_DIGEST = DeepHash(CACHE_SOURCE)[CACHE_SOURCE]
+LATEST_CACHE_SOURCE_DIGEST = "latest-cache-source-digest"
 
 DRY_RUN_CACHE_KEY = CacheKey(
     integration=INTEGRATION_NAME,
@@ -186,7 +188,7 @@ def test_early_exit_cache_set(
     now = datetime.datetime.now(tz=datetime.UTC)
     mock_datetime.now.return_value = now
 
-    early_exit_cache.set(cache_key, cache_value, 100)
+    early_exit_cache.set(cache_key, cache_value, 100, LATEST_CACHE_SOURCE_DIGEST)
 
     expected_expire_at = str(int((now + datetime.timedelta(seconds=100)).timestamp()))
     state.add.assert_called_once_with(
@@ -195,32 +197,64 @@ def test_early_exit_cache_set(
         metadata={
             "expire-at": expected_expire_at,
             "cache-source-digest": CACHE_SOURCE_DIGEST,
+            "latest-cache-source-digest": LATEST_CACHE_SOURCE_DIGEST,
         },
         force=True,
     )
 
 
-@pytest.mark.parametrize(
-    "cache_key",
-    [
-        DRY_RUN_CACHE_KEY,
-        NO_DRY_RUN_CACHE_KEY,
-    ],
-)
-def test_early_exit_cache_head_miss(
+def test_early_exit_cache_head_dry_run_miss(
     early_exit_cache: EarlyExitCache,
     state: Any,
-    cache_key: CacheKey,
 ) -> None:
-    state.head.return_value = (False, {})
+    state.head.side_effect = [
+        (
+            False,
+            {},
+        ),
+        (
+            False,
+            {},
+        ),
+    ]
 
-    status = early_exit_cache.head(cache_key)
+    result = early_exit_cache.head(DRY_RUN_CACHE_KEY)
 
-    assert status == CacheStatus.MISS
-    state.head.assert_called_once_with(str(cache_key))
+    assert result == CacheHeadResult(
+        status=CacheStatus.MISS,
+        latest_cache_source_digest="",
+    )
+
+    state.head.assert_has_calls(
+        [
+            call(DRY_RUN_CACHE_KEY.no_dry_run_path()),
+            call(str(DRY_RUN_CACHE_KEY)),
+        ],
+    )
 
 
 def test_early_exit_cache_head_no_dry_run_miss(
+    early_exit_cache: EarlyExitCache,
+    state: Any,
+) -> None:
+    state.head.side_effect = [
+        (
+            False,
+            {},
+        ),
+    ]
+
+    result = early_exit_cache.head(NO_DRY_RUN_CACHE_KEY)
+
+    assert result == CacheHeadResult(
+        status=CacheStatus.MISS,
+        latest_cache_source_digest="",
+    )
+
+    state.head.assert_called_once_with(str(NO_DRY_RUN_CACHE_KEY))
+
+
+def test_early_exit_cache_head_no_dry_run_miss_when_cache_source_digest_changed(
     early_exit_cache: EarlyExitCache,
     state: Any,
 ) -> None:
@@ -231,26 +265,70 @@ def test_early_exit_cache_head_no_dry_run_miss(
         },
     )
 
-    status = early_exit_cache.head(NO_DRY_RUN_CACHE_KEY)
+    result = early_exit_cache.head(NO_DRY_RUN_CACHE_KEY)
 
-    assert status == CacheStatus.MISS
+    assert result == CacheHeadResult(
+        status=CacheStatus.MISS,
+        latest_cache_source_digest="different-digest",
+    )
     state.head.assert_called_once_with(str(NO_DRY_RUN_CACHE_KEY))
 
 
 @pytest.mark.parametrize(
-    "cache_key, expire_at_offset",
+    "expire_at_offset",
     [
-        (DRY_RUN_CACHE_KEY, -1),
-        (NO_DRY_RUN_CACHE_KEY, -1),
-        (DRY_RUN_CACHE_KEY, 0),
-        (NO_DRY_RUN_CACHE_KEY, 0),
+        -1,
+        0,
     ],
 )
-def test_early_exit_cache_head_expired(
+def test_early_exit_cache_head_dry_run_expired(
     mock_datetime: Any,
     early_exit_cache: EarlyExitCache,
     state: Any,
-    cache_key: CacheKey,
+    expire_at_offset: int,
+) -> None:
+    now = datetime.datetime.now(tz=datetime.UTC)
+    mock_datetime.now.return_value = now
+    state.head.side_effect = [
+        (
+            False,
+            {},
+        ),
+        (
+            True,
+            {
+                "expire-at": str(int(now.timestamp()) + expire_at_offset),
+                "cache-source-digest": CACHE_SOURCE_DIGEST,
+                "latest-cache-source-digest": "",
+            },
+        ),
+    ]
+
+    result = early_exit_cache.head(DRY_RUN_CACHE_KEY)
+
+    assert result == CacheHeadResult(
+        status=CacheStatus.EXPIRED,
+        latest_cache_source_digest="",
+    )
+    state.head.assert_has_calls(
+        [
+            call(DRY_RUN_CACHE_KEY.no_dry_run_path()),
+            call(str(DRY_RUN_CACHE_KEY)),
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    "expire_at_offset",
+    [
+        -1,
+        0,
+    ],
+)
+def test_early_exit_cache_head_no_dry_run_expired(
+    mock_datetime: Any,
+    early_exit_cache: EarlyExitCache,
+    state: Any,
     expire_at_offset: int,
 ) -> None:
     now = datetime.datetime.now(tz=datetime.UTC)
@@ -263,10 +341,13 @@ def test_early_exit_cache_head_expired(
         },
     )
 
-    status = early_exit_cache.head(cache_key)
+    result = early_exit_cache.head(NO_DRY_RUN_CACHE_KEY)
 
-    assert status == CacheStatus.EXPIRED
-    state.head.assert_called_once_with(str(cache_key))
+    assert result == CacheHeadResult(
+        status=CacheStatus.EXPIRED,
+        latest_cache_source_digest=CACHE_SOURCE_DIGEST,
+    )
+    state.head.assert_called_once_with(str(NO_DRY_RUN_CACHE_KEY))
 
 
 def test_early_exit_cache_head_dry_run_stale(
@@ -280,24 +361,28 @@ def test_early_exit_cache_head_dry_run_stale(
         (
             True,
             {
-                "expire-at": str(int(now.timestamp()) + 1),
+                "cache-source-digest": "different-digest",
             },
         ),
         (
             True,
             {
-                "cache-source-digest": "different-digest",
+                "expire-at": str(int(now.timestamp()) + 1),
+                "latest-cache-source-digest": LATEST_CACHE_SOURCE_DIGEST,
             },
         ),
     ]
 
-    status = early_exit_cache.head(DRY_RUN_CACHE_KEY)
+    result = early_exit_cache.head(DRY_RUN_CACHE_KEY)
 
-    assert status == CacheStatus.STALE
+    assert result == CacheHeadResult(
+        status=CacheStatus.STALE,
+        latest_cache_source_digest="different-digest",
+    )
     state.head.assert_has_calls(
         [
-            call(str(DRY_RUN_CACHE_KEY)),
             call(DRY_RUN_CACHE_KEY.no_dry_run_path()),
+            call(str(DRY_RUN_CACHE_KEY)),
         ],
     )
 
@@ -317,9 +402,12 @@ def test_early_exit_cache_head_no_dry_run_hit(
         },
     )
 
-    status = early_exit_cache.head(NO_DRY_RUN_CACHE_KEY)
+    result = early_exit_cache.head(NO_DRY_RUN_CACHE_KEY)
 
-    assert status == CacheStatus.HIT
+    assert result == CacheHeadResult(
+        status=CacheStatus.HIT,
+        latest_cache_source_digest=CACHE_SOURCE_DIGEST,
+    )
     state.head.assert_called_once_with(str(NO_DRY_RUN_CACHE_KEY))
 
 
@@ -334,23 +422,27 @@ def test_early_exit_cache_head_dry_run_hit(
         (
             True,
             {
-                "expire-at": str(int(now.timestamp()) + 1),
+                "cache-source-digest": LATEST_CACHE_SOURCE_DIGEST,
             },
         ),
         (
             True,
             {
-                "cache-source-digest": CACHE_SOURCE_DIGEST,
+                "expire-at": str(int(now.timestamp()) + 1),
+                "latest-cache-source-digest": LATEST_CACHE_SOURCE_DIGEST,
             },
         ),
     ]
 
-    status = early_exit_cache.head(DRY_RUN_CACHE_KEY)
+    result = early_exit_cache.head(DRY_RUN_CACHE_KEY)
 
-    assert status == CacheStatus.HIT
+    assert result == CacheHeadResult(
+        status=CacheStatus.HIT,
+        latest_cache_source_digest=LATEST_CACHE_SOURCE_DIGEST,
+    )
     state.head.assert_has_calls(
         [
-            call(str(DRY_RUN_CACHE_KEY)),
             call(DRY_RUN_CACHE_KEY.no_dry_run_path()),
+            call(str(DRY_RUN_CACHE_KEY)),
         ],
     )

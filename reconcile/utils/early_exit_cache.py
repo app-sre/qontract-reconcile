@@ -13,6 +13,7 @@ from reconcile.utils.state import State, init_state
 STATE_INTEGRATION = "early-exit-cache"
 EXPIRE_AT_METADATA_KEY = "expire-at"
 CACHE_SOURCE_DIGEST_METADATA_KEY = "cache-source-digest"
+LATEST_CACHE_SOURCE_DIGEST_METADATA_KEY = "latest-cache-source-digest"
 
 
 class CacheKey(BaseModel):
@@ -84,6 +85,11 @@ class CacheStatus(Enum):
     STALE = "STALE"  # latest cache source digest is different, which means there are new applied changes
 
 
+class CacheHeadResult(BaseModel):
+    status: CacheStatus
+    latest_cache_source_digest: str
+
+
 class EarlyExitCache:
     def __init__(self, state: State):
         self.state = state
@@ -109,11 +115,27 @@ class EarlyExitCache:
         value = self.state.get(str(key))
         return CacheValue.parse_obj(value)
 
-    def set(self, key: CacheKey, value: CacheValue, ttl_seconds: int) -> None:
+    def set(
+        self,
+        key: CacheKey,
+        value: CacheValue,
+        ttl_seconds: int,
+        latest_cache_source_digest: str,
+    ) -> None:
+        """
+        Set the cache value for the given key.
+
+        :param key: cache key
+        :param value: cache value
+        :param ttl_seconds: time to live in seconds
+        :param latest_cache_source_digest: latest cache source digest, used to check stale for dry run cache
+        :return: None
+        """
         expire_at = datetime.now(tz=UTC) + timedelta(seconds=ttl_seconds)
         metadata = {
             EXPIRE_AT_METADATA_KEY: str(int(expire_at.timestamp())),
             CACHE_SOURCE_DIGEST_METADATA_KEY: key.cache_source_digest,
+            LATEST_CACHE_SOURCE_DIGEST_METADATA_KEY: latest_cache_source_digest,
         }
         self.state.add(
             str(key),
@@ -122,55 +144,83 @@ class EarlyExitCache:
             force=True,
         )
 
+    def head(self, key: CacheKey) -> CacheHeadResult:
+        """
+        Get the cache status and latest cache source digest for the given key.
+        Additionally, for dry run key, it will use latest cache source digest to check stale.
+
+        :param key: CacheKey
+        :return: CacheHeadResult
+        """
+        return self._head_dry_run(key) if key.dry_run else self._head_no_dry_run(key)
+
     @staticmethod
-    def _is_latest(
-        key: CacheKey,
+    def _is_stale(
         metadata: Mapping[str, str],
+        latest_cache_source_digest: str,
     ) -> bool:
-        latest_cache_source_digest = metadata.get(CACHE_SOURCE_DIGEST_METADATA_KEY)
-        return key.cache_source_digest == latest_cache_source_digest
+        cached_latest_cache_source_digest = (
+            metadata.get(LATEST_CACHE_SOURCE_DIGEST_METADATA_KEY) or ""
+        )
+        return cached_latest_cache_source_digest != latest_cache_source_digest
 
-    def _is_stale(self, key: CacheKey) -> bool:
-        """
-        Check if the cache is stale, a dry run cache is stale if the matching no dry run cache is no longer the latest.
-        When there is no matching no dry run cache, it is considered as not stale.
-
-        :param key: CacheKey
-        :return: whether the cache is stale
-        """
-        if not key.dry_run:
-            return False
-
-        exists, metadata = self.state.head(key.no_dry_run_path())
-        if not exists:
-            return False
-
-        return not self._is_latest(key, metadata)
-
-    def head(self, key: CacheKey) -> CacheStatus:
-        """
-        Get the cache status for the given key.
-        Additionally, for dry run key, it will use matching no dry run key to check stale.
-
-        :param key: CacheKey
-        :return: CacheStatus
-        """
-        exists, metadata = self.state.head(str(key))
-        if not exists:
-            return CacheStatus.MISS
-
-        if not key.dry_run and not self._is_latest(key, metadata):
-            return CacheStatus.MISS
-
+    @staticmethod
+    def _is_expired(metadata: Mapping[str, str]) -> bool:
         expire_at = datetime.fromtimestamp(
             int(metadata[EXPIRE_AT_METADATA_KEY]),
             tz=UTC,
         )
         now = datetime.now(UTC)
-        if now >= expire_at:
+        return now >= expire_at
+
+    def _head_dry_run_status(
+        self,
+        key: CacheKey,
+        latest_cache_source_digest: str,
+    ) -> CacheStatus:
+        exists, metadata = self.state.head(key.dry_run_path())
+        if not exists:
+            return CacheStatus.MISS
+        if self._is_expired(metadata):
             return CacheStatus.EXPIRED
-
-        if self._is_stale(key):
+        if self._is_stale(metadata, latest_cache_source_digest):
             return CacheStatus.STALE
-
         return CacheStatus.HIT
+
+    def _head_dry_run(self, key: CacheKey) -> CacheHeadResult:
+        _, latest_metadata = self.state.head(key.no_dry_run_path())
+        latest_cache_source_digest = (
+            latest_metadata.get(CACHE_SOURCE_DIGEST_METADATA_KEY) or ""
+        )
+        return CacheHeadResult(
+            status=self._head_dry_run_status(key, latest_cache_source_digest),
+            latest_cache_source_digest=latest_cache_source_digest,
+        )
+
+    def _head_no_dry_run_status(
+        self,
+        key: CacheKey,
+        exists: bool,
+        metadata: Mapping[str, str],
+        latest_cache_source_digest: str,
+    ) -> CacheStatus:
+        if not exists or key.cache_source_digest != latest_cache_source_digest:
+            return CacheStatus.MISS
+        if self._is_expired(metadata):
+            return CacheStatus.EXPIRED
+        return CacheStatus.HIT
+
+    def _head_no_dry_run(self, key: CacheKey) -> CacheHeadResult:
+        exists, metadata = self.state.head(key.no_dry_run_path())
+        latest_cache_source_digest = (
+            metadata.get(CACHE_SOURCE_DIGEST_METADATA_KEY) or ""
+        )
+        return CacheHeadResult(
+            status=self._head_no_dry_run_status(
+                key,
+                exists,
+                metadata,
+                latest_cache_source_digest,
+            ),
+            latest_cache_source_digest=latest_cache_source_digest,
+        )
