@@ -137,10 +137,6 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
             self.params.thread_pool_size,
             aws_api,
         )
-
-        if tf is None:
-            sys.exit(ExitCodes.ERROR)
-
         if defer:
             defer(tf.cleanup)
 
