@@ -14,9 +14,11 @@ def test_aws_saml_idp_get_early_exit_desired_state(
 
 
 def test_aws_saml_idp_get_aws_accounts(
-    gql_class_factory: Callable, aws_accounts: list[AWSAccountV1]
+    gql_class_factory: Callable,
+    intg: AwsSamlIdpIntegration,
+    fixture_query_func: Callable,
 ) -> None:
-    assert aws_accounts == [
+    assert intg.get_aws_accounts(fixture_query_func) == [
         gql_class_factory(
             AWSAccountV1,
             {
