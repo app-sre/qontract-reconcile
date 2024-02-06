@@ -1,0 +1,9 @@
+---
+name: full
+
+targetPath: /{{bar}}/foo.yml
+
+template: |
+  foo: {{ bar }}
+
+templateTest: []

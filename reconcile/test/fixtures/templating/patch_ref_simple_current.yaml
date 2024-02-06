@@ -1,0 +1,8 @@
+---
+resourceTemplates:
+- name: saas
+  targets:
+    - namespace:
+        $ref: existing.yaml
+      version:
+        foo: bar
