@@ -704,6 +704,7 @@ def terraform_aws_route53(
 @binary(["terraform", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=True)
+@account_name
 @click.option(
     "--saml-idp-name",
     help="Name of the SAML IDP. Must match the name the SAML response!",
@@ -722,6 +723,7 @@ def aws_saml_idp(
     print_to_file,
     enable_deletion,
     thread_pool_size,
+    account_name,
     saml_idp_name,
     saml_metadata_url,
 ):
@@ -738,6 +740,7 @@ def aws_saml_idp(
                 enable_deletion=enable_deletion,
                 saml_idp_name=saml_idp_name,
                 saml_metadata_url=saml_metadata_url,
+                account_name=account_name,
             )
         ),
         ctx=ctx.obj,

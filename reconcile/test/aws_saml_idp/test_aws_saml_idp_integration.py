@@ -50,6 +50,23 @@ def test_aws_saml_idp_get_aws_accounts(
             },
         ),
     ]
+    assert intg.get_aws_accounts(fixture_query_func, account_name="account-1") == [
+        gql_class_factory(
+            AWSAccountV1,
+            {
+                "sso": True,
+                "name": "account-1",
+                "uid": "1",
+                "resourcesDefaultRegion": "us-east-1",
+                "supportedDeploymentRegions": ["us-east-1", "us-east-2"],
+                "providerVersion": "3.76.0",
+                "accountOwners": [{"name": "owner", "email": "email@example.com"}],
+                "automationToken": {"path": "/path/to/token", "field": "all"},
+                "enableDeletion": True,
+                "premiumSupport": True,
+            },
+        )
+    ]
 
 
 def test_aws_saml_idp_build_saml_idp_config(

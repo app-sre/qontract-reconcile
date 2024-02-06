@@ -41,6 +41,7 @@ class AwsSamlIdpIntegrationParams(PydanticRunParams):
     # integration specific parameters
     saml_idp_name: str
     saml_metadata_url: HttpUrl
+    account_name: str | None = None
 
 
 class SamlIdpConfig(BaseModel):
@@ -66,13 +67,16 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
             "accounts": [c.dict() for c in self.get_aws_accounts(query_func)],
         }
 
-    def get_aws_accounts(self, query_func: Callable) -> list[AWSAccountV1]:
+    def get_aws_accounts(
+        self, query_func: Callable, account_name: str | None = None
+    ) -> list[AWSAccountV1]:
         """Get all AWS accounts."""
         data = aws_accounts_query(query_func)
         return [
             account
             for account in data.accounts or []
             if integration_is_enabled(self.name, account)
+            and (not account_name or account.name == account_name)
         ]
 
     def build_saml_idp_config(
@@ -101,7 +105,9 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
         """Run the integration."""
         gql_api = gql.get_api()
         settings = queries.get_app_interface_settings()
-        aws_accounts = self.get_aws_accounts(gql_api.query)
+        aws_accounts = self.get_aws_accounts(
+            gql_api.query, account_name=self.params.account_name
+        )
         aws_accounts_dict = [account.dict(by_alias=True) for account in aws_accounts]
 
         ts = TerrascriptClient(
