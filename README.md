@@ -10,7 +10,8 @@ Additional tools that use the libraries created by the reconciliations are also 
 
 ### qontract-reconcile
 
-```
+```text
+  acs-policies                    Manages RHACS security policy configurations
   acs-rbac                        Manages RHACS rbac configuration
   advanced-upgrade-scheduler      Manage Cluster Upgrade Policy schedules in
                                   OCM organizations based on OCM labels.
@@ -22,6 +23,8 @@ Additional tools that use the libraries created by the reconciliations are also 
   aws-garbage-collector           Delete orphan AWS resources.
   aws-iam-keys                    Delete IAM access keys by access key ID.
   aws-iam-password-reset          Reset IAM user password by user reference.
+  aws-saml-idp                    Manage the SAML IDP config for all AWS
+                                  accounts.
   aws-support-cases-sos           Scan AWS support cases for reports of leaked
                                   keys and remove them (only submits PR)
   aws-version-sync                Sync AWS asset version numbers to App-
@@ -112,6 +115,8 @@ Additional tools that use the libraries created by the reconciliations are also 
   ocm-github-idp                  Manage GitHub Identity Providers in OCM.
   ocm-groups                      Manage membership in OpenShift groups via
                                   OCM.
+  ocm-internal-notifications      Notifications to internal Red Hat users
+                                  based on conditions in OCM.
   ocm-labels                      Manage cluster OCM labels.
   ocm-machine-pools               Manage Machine Pools in OCM.
   ocm-oidc-idp                    Manage OIDC cluster configuration in OCM
@@ -125,6 +130,8 @@ Additional tools that use the libraries created by the reconciliations are also 
   ocm-upgrade-scheduler-org-updater
                                   Update Upgrade Policy schedules in OCM
                                   organizations.
+  openshift-cluster-bots          Manages dedicated-admin and cluster-admin
+                                  creds.
   openshift-clusterrolebindings   Configures ClusterRolebindings in OpenShift
                                   clusters.
   openshift-groups                Manages OpenShift Groups.
@@ -175,6 +182,7 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   submitted to app-interface.
   resource-scraper                Get resources from clusters and store in
                                   Vault.
+  resource-template-tester        Tests templating of resources.
   rhidp-sso-client                Manage Keycloak SSO clients for OCM
                                   clusters. Part of RHIDP.
   saas-auto-promotions-manager    Manage auto-promotions defined in SaaS files
@@ -195,7 +203,6 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   to Status Board.
   status-page-components          Manages components on statuspage.io hosted
                                   status pages.
-  template-tester                 Tests templating of resources.
   terraform-aws-route53           Manage AWS Route53 resources using
                                   Terraform.
   terraform-cloudflare-dns        Manage Cloudflare DNS using Terraform.
@@ -255,13 +262,13 @@ pip install --upgrade pip setuptools
 
 Install build prerequisites for [psycopg2](https://www.psycopg.org/docs/install.html#build-prerequisites):
 
-* A C compiler
-* The Python header files. They are usually installed in a package such as `python-dev` or `python3-dev`.
-* `libpq` and `pg_config`
-  * The `libpq` header files. They are usually installed in a package such as `libpq-dev`.
-  * The `pg_config` program: it is usually installed by the `libpq-dev` package but sometimes it is not in a `PATH` directory.
-  * On macOS, can be installed via `brew install libpq`. Make sure the installation path is added to your PATH, otherwise `pg_config` will not be available.
-  * On Fedora, it can be installed with `dnf install libpq-devel`
+- A C compiler
+- The Python header files. They are usually installed in a package such as `python-dev` or `python3-dev`.
+- `libpq` and `pg_config`
+  - The `libpq` header files. They are usually installed in a package such as `libpq-dev`.
+  - The `pg_config` program: it is usually installed by the `libpq-dev` package but sometimes it is not in a `PATH` directory.
+  - On macOS, can be installed via `brew install libpq`. Make sure the installation path is added to your PATH, otherwise `pg_config` will not be available.
+  - On Fedora, it can be installed with `dnf install libpq-devel`
 
 Note:
 In macOS with M1/M2 `pip` will fail to install in a virtualenvironment unless LDFLAGS reference the openssl library path. It can be fixed with `export LDFLAGS="-I/opt/homebrew/opt/openssl/include -L/opt/homebrew/opt/openssl/lib"`.
@@ -287,14 +294,14 @@ Install runtime requirements:
 
 Versions can be found in [qontract-reconcile-base Dockerfile](https://github.com/app-sre/container-images/blob/master/qontract-reconcile-base/Dockerfile).
 
-* amtool
-* git-secrets
-* helm
-* kubectl
-* oc
-* promtool
-* skopeo
-* terraform
+- amtool
+- git-secrets
+- helm
+- kubectl
+- oc
+- promtool
+- skopeo
+- terraform
 
 ### Requirements
 
@@ -407,8 +414,8 @@ GQL definitions and generated classes can be found [here](reconcile/gql_definiti
 Qontract-reconcile uses [PEP8](https://peps.python.org/pep-0008/) as the code style guide.
 The style is enforced via [PR checks](#ci-tooling) with the help of the following utilities:
 
-* [Ruff - An extremely fast Python linter and code formatter, written in Rust.](https://docs.astral.sh/ruff/)
-* [Mypy](https://mypy.readthedocs.io/en/stable/)
+- [Ruff - An extremely fast Python linter and code formatter, written in Rust.](https://docs.astral.sh/ruff/)
+- [Mypy](https://mypy.readthedocs.io/en/stable/)
 
 Run `make format` before you commit your changes to keep the code compliant.
 
@@ -421,7 +428,7 @@ Release version are calculated from git tags of the form X.Y.Z.
   - the patch label (Z) is incremented
   - the string `.pre<count>+<commitid>` is appended. `<count>` is the number of commits since the X.Y.Z tag. `<commitid> is... the current commitid.
 
-After the PR is merged, a CI job will be triggered that will publish the package to pypi: https://pypi.org/project/qontract-reconcile.
+After the PR is merged, a CI job will be triggered that will publish the package to pypi: <https://pypi.org/project/qontract-reconcile>.
 
 ## Licence
 

@@ -698,6 +698,55 @@ def terraform_aws_route53(
     )
 
 
+@integration.command(short_help="Manage the SAML IDP config for all AWS accounts.")
+@print_to_file
+@threaded()
+@binary(["terraform", "git"])
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@enable_deletion(default=True)
+@account_name
+@click.option(
+    "--saml-idp-name",
+    help="Name of the SAML IDP. Must match the name the SAML response!",
+    required=True,
+    default="RedHatInternal",
+)
+@click.option(
+    "--saml-metadata-url",
+    help="URL of the SAML metadata xml file. Must be a valid URL!",
+    required=True,
+    default="https://auth.redhat.com/auth/realms/EmployeeIDP/protocol/saml/descriptor",
+)
+@click.pass_context
+def aws_saml_idp(
+    ctx,
+    print_to_file,
+    enable_deletion,
+    thread_pool_size,
+    account_name,
+    saml_idp_name,
+    saml_metadata_url,
+):
+    from reconcile.aws_saml_idp.integration import (
+        AwsSamlIdpIntegration,
+        AwsSamlIdpIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=AwsSamlIdpIntegration(
+            AwsSamlIdpIntegrationParams(
+                thread_pool_size=thread_pool_size,
+                print_to_file=print_to_file,
+                enable_deletion=enable_deletion,
+                saml_idp_name=saml_idp_name,
+                saml_metadata_url=saml_metadata_url,
+                account_name=account_name,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Configures the teams and members in a GitHub org.")
 @click.pass_context
 def github(ctx):

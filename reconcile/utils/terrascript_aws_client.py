@@ -90,6 +90,7 @@ from terrascript.resource import (
     aws_iam_role,
     aws_iam_role_policy,
     aws_iam_role_policy_attachment,
+    aws_iam_saml_provider,
     aws_iam_service_linked_role,
     aws_iam_user,
     aws_iam_user_group_membership,
@@ -6454,3 +6455,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
         )
         self.add_resources(account, tf_resources)
+
+    def populate_saml_idp(self, account_name: str, name: str, metadata: str) -> None:
+        saml_idp = aws_iam_saml_provider(
+            f"{account_name}-{name}", name=name, saml_metadata_document=metadata
+        )
+        self.add_resource(account_name, saml_idp)
