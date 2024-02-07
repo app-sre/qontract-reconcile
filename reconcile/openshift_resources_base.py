@@ -295,8 +295,9 @@ def lookup_secret(path, key, version=None, allow_not_found=False, tvars=None, se
         secret_reader = SecretReader(settings)
         return secret_reader.read(secret)
     except Exception as e:
-        if not allow_not_found:
-            raise FetchSecretError(e)
+        if allow_not_found:
+            return ""
+        raise FetchSecretError(e)
 
 
 def lookup_github_file_content(repo, path, ref, tvars=None, settings=None):
@@ -434,8 +435,8 @@ def process_jinja2_template(body, vars=None, extra_curly: bool = False, settings
     if vars is None:
         vars = {}
     vars.update({
-        "vault": lambda p, k, v=None,allow_not_found=False: lookup_secret(
-            path=p, key=k, version=v,allow_not_found=allow_not_found, tvars=vars, settings=settings
+        "vault": lambda p, k, v=None, allow_not_found=False: lookup_secret(
+            path=p, key=k, version=v, allow_not_found=allow_not_found, tvars=vars, settings=settings
         ),
         "github": lambda u, p, r, v=None: lookup_github_file_content(
             repo=u, path=p, ref=r, tvars=vars, settings=settings
