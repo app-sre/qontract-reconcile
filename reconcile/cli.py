@@ -883,6 +883,57 @@ def openshift_serviceaccount_tokens(
     )
 
 
+@integration.command(
+    short_help="Manage the SAML IAM roles for all AWS accounts with SSO enabled."
+)
+@print_to_file
+@threaded()
+@binary(["terraform", "git"])
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@enable_deletion(default=True)
+@account_name
+@click.option(
+    "--saml-idp-name",
+    help="Name of the SAML IDP. Must match the name the SAML response!",
+    required=True,
+    default="RedHatInternal",
+)
+@click.option(
+    "--max-session-duration-hours",
+    help="Maximum session duration (in hours) that you want to set for the specified role",
+    required=True,
+    default=6,
+)
+@click.pass_context
+def aws_saml_roles(
+    ctx,
+    print_to_file,
+    enable_deletion,
+    thread_pool_size,
+    account_name,
+    saml_idp_name,
+    max_session_duration_hours,
+):
+    from reconcile.aws_saml_roles.integration import (
+        AwsSamlRolesIntegration,
+        AwsSamlRolesIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=AwsSamlRolesIntegration(
+            AwsSamlRolesIntegrationParams(
+                thread_pool_size=thread_pool_size,
+                print_to_file=print_to_file,
+                enable_deletion=enable_deletion,
+                saml_idp_name=saml_idp_name,
+                max_session_duration_hours=max_session_duration_hours,
+                account_name=account_name,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage Jenkins roles association via REST API.")
 @click.pass_context
 def jenkins_roles(ctx):

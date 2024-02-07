@@ -25,6 +25,8 @@ Additional tools that use the libraries created by the reconciliations are also 
   aws-iam-password-reset          Reset IAM user password by user reference.
   aws-saml-idp                    Manage the SAML IDP config for all AWS
                                   accounts.
+  aws-saml-roles                  Manage the SAML IAM roles for all AWS
+                                  accounts with SSO enabled
   aws-support-cases-sos           Scan AWS support cases for reports of leaked
                                   keys and remove them (only submits PR)
   aws-version-sync                Sync AWS asset version numbers to App-

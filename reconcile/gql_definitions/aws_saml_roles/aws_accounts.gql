@@ -1,0 +1,11 @@
+# qenerate: plugin=pydantic_v1
+
+query AwsSamlRolesAwsAccountsQuery {
+  accounts: awsaccounts_v1 {
+    sso
+    ...AWSAccountCommon
+    terraformState {
+      ...TerraformState
+    }
+  }
+}
