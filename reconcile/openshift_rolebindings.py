@@ -74,7 +74,7 @@ def construct_sa_oc_resource(role, namespace, sa_name):
         "roleRef": {"name": role},
         "subjects": [
             {"kind": "ServiceAccount", "name": sa_name, "namespace": namespace}
-        ]
+        ],
     }
     return (
         OR(
