@@ -194,8 +194,14 @@ NAMESPACES_QUERY = """
         %s
       }
       spec {
+        ... on ClusterSpecROSA_v1 {
+          account {
+            uid
+          }
+        }
         version
         region
+        hypershift
       }
       network {
         pod
