@@ -473,9 +473,6 @@ class OpenshiftResource:
                     and not rule["attributeRestrictions"]
                 ):
                     rule.pop("attributeRestrictions")
-            # TODO: remove this once we have no 3.11 clusters
-            if body["apiVersion"] == "authorization.openshift.io/v1":
-                body["apiVersion"] = "rbac.authorization.k8s.io/v1"
 
         if body["kind"] == "OperatorGroup":
             annotations.pop("olm.providedAPIs", None)
@@ -500,14 +497,8 @@ class OpenshiftResource:
                     not subject["apiGroup"] or subject["apiGroup"] in body["apiVersion"]
                 ):
                     subject.pop("apiGroup")
-            # TODO: remove this once we have no 3.11 clusters
-            if body["apiVersion"] == "rbac.authorization.k8s.io/v1":
-                body["apiVersion"] = "authorization.openshift.io/v1"
 
         if body["kind"] == "ClusterRoleBinding":
-            # TODO: remove this once we have no 3.11 clusters
-            if body["apiVersion"] == "authorization.openshift.io/v1":
-                body["apiVersion"] = "rbac.authorization.k8s.io/v1"
             if "userNames" in body:
                 body.pop("userNames")
             if "roleRef" in body:

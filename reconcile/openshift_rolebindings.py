@@ -51,7 +51,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 def construct_user_oc_resource(role, user):
     name = f"{role}-{user}"
     body = {
-        "apiVersion": "authorization.openshift.io/v1",
+        "apiVersion": "rbac.authorization.k8s.io/v1",
         "kind": "RoleBinding",
         "metadata": {"name": name},
         "roleRef": {"name": role},
@@ -68,7 +68,7 @@ def construct_user_oc_resource(role, user):
 def construct_sa_oc_resource(role, namespace, sa_name):
     name = f"{role}-{namespace}-{sa_name}"
     body = {
-        "apiVersion": "authorization.openshift.io/v1",
+        "apiVersion": "rbac.authorization.k8s.io/v1",
         "kind": "RoleBinding",
         "metadata": {"name": name},
         "roleRef": {"name": role},
@@ -141,7 +141,7 @@ def fetch_desired_state(ri, oc_map, enforced_user_keys=None):
                         ri.add_desired(
                             cluster,
                             perm_namespace_name,
-                            "RoleBinding.authorization.openshift.io",
+                            "RoleBinding.rbac.authorization.k8s.io",
                             resource_name,
                             oc_resource,
                             privileged=privileged,
@@ -161,7 +161,7 @@ def fetch_desired_state(ri, oc_map, enforced_user_keys=None):
                     ri.add_desired(
                         cluster,
                         perm_namespace_name,
-                        "RoleBinding.authorization.openshift.io",
+                        "RoleBinding.rbac.authorization.k8s.io",
                         resource_name,
                         oc_resource,
                         privileged=privileged,
@@ -190,7 +190,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
-        override_managed_types=["RoleBinding.authorization.openshift.io"],
+        override_managed_types=["RoleBinding.rbac.authorization.k8s.io"],
         internal=internal,
         use_jump_host=use_jump_host,
     )
