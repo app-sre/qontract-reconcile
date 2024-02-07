@@ -529,14 +529,11 @@ def fetch_provider_resource(
     add_path_to_prom_rules=True,
     skip_validation=False,
     settings=None,
-    secret_reader=None,
 ) -> OR:
     path = resource["path"]
     content = resource["content"]
     if tfunc:
-        content = tfunc(
-            body=content, vars=tvars, settings=settings, secret_reader=secret_reader
-        )
+        content = tfunc(body=content, vars=tvars, settings=settings)
 
     if skip_validation:
         return OR(
@@ -622,11 +619,9 @@ def fetch_provider_vault_secret(
     validate_alertmanager_config=False,
     alertmanager_config_key="alertmanager.yaml",
     settings=None,
-    secret_reader=None,
 ) -> OR:
     # get the fields from vault
-    if not secret_reader:
-        secret_reader = SecretReader(settings)
+    secret_reader = SecretReader(settings)
     raw_data = secret_reader.read_all({"path": path, "version": version})
 
     if validate_alertmanager_config:
@@ -715,11 +710,7 @@ def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -
 
 
 def fetch_openshift_resource(
-    resource,
-    parent,
-    settings=None,
-    skip_validation=False,
-    secret_reader=None,
+    resource, parent, settings=None, skip_validation=False
 ) -> OR:
     provider = resource["provider"]
     if provider == "resource":
@@ -775,7 +766,6 @@ def fetch_openshift_resource(
                 add_path_to_prom_rules=add_path_to_prom_rules,
                 skip_validation=skip_validation,
                 settings=settings,
-                secret_reader=secret_reader,
             )
         except Exception as e:
             msg = "could not render template at path {}\n{}".format(path, e)
@@ -850,7 +840,6 @@ def fetch_openshift_resource(
                 add_path_to_prom_rules=add_path_to_prom_rules,
                 skip_validation=skip_validation,
                 settings=settings,
-                secret_reader=secret_reader,
             )
         except Exception as e:
             msg = "could not render template at path {}\n{}".format(path, e)
@@ -1398,11 +1387,7 @@ def _early_exit_fetch_resource(spec, settings):
         # functionality. this is crucial in such situations because the result of
         # the template processing depends heavily on other data in app-interface
         c = fetch_openshift_resource(
-            resource,
-            ns_info,
-            skip_validation=True,
-            settings=settings,
-            secret_reader=None,
+            resource, ns_info, skip_validation=True, settings=settings
         ).body
     else:
         # for regular resources, the plain content is sufficient enough to
@@ -1432,14 +1417,12 @@ def early_exit_monkey_patch():
             key,
             version=None,
             tvars=None,
-            settings=None,
-            secret_reader=None:  f"vault({path}, {key}, {version})",
+            settings=None: f"vault({path}, {key}, {version})",
             lambda repo,
             path,
             ref,
             tvars=None,
-            settings=None,
-            secret_reader=None : f"github({repo}, {path}, {ref})",
+            settings=None: f"github({repo}, {path}, {ref})",
             lambda url: False,
             lambda data, path, alertmanager_config_key, decode_base64=False: True,
         )
