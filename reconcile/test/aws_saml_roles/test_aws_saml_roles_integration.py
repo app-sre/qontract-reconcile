@@ -1,10 +1,14 @@
 from collections.abc import Callable
 
+import pytest
+from pytest_mock import MockerFixture
+
 from reconcile.aws_saml_roles.integration import (
     AwsSamlRolesIntegration,
 )
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import AWSAccountV1
 from reconcile.gql_definitions.aws_saml_roles.aws_groups import AWSGroupV1
+from reconcile.utils.terrascript_aws_client import TerrascriptClient
 
 
 def test_aws_saml_roles_get_early_exit_desired_state(
@@ -119,3 +123,35 @@ def test_aws_saml_roles_get_aws_groups(
             },
         )
     ]
+
+
+def test_aws_saml_roles_populate_saml_iam_roles(
+    mocker: MockerFixture, intg: AwsSamlRolesIntegration, aws_groups: list[AWSGroupV1]
+) -> None:
+    ts = mocker.MagicMock(spec=TerrascriptClient)
+    intg.populate_saml_iam_roles(ts, aws_groups)
+    ts.populate_saml_iam_role.assert_has_calls([
+        mocker.call(
+            account="account-1",
+            name="group-1",
+            saml_provider_name="saml-idp",
+            policies=["AdministratorAccess"],
+            max_session_duration_hours=1,
+        ),
+        mocker.call(
+            account="account-2",
+            name="group-2",
+            saml_provider_name="saml-idp",
+            policies=["AdministratorAccess"],
+            max_session_duration_hours=1,
+        ),
+    ])
+
+
+def test_aws_saml_roles_populate_saml_iam_roles_duplicated_policy(
+    mocker: MockerFixture, intg: AwsSamlRolesIntegration, aws_groups: list[AWSGroupV1]
+) -> None:
+    ts = mocker.MagicMock(spec=TerrascriptClient)
+    aws_groups[0].policies = ["AdministratorAccess", "AdministratorAccess"]
+    with pytest.raises(ValueError):
+        intg.populate_saml_iam_roles(ts, aws_groups)

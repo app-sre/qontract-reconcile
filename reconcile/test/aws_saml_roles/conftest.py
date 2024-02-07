@@ -60,3 +60,11 @@ def fixture_query_func_aws_accounts(
         }
 
     return q
+
+
+@pytest.fixture
+def aws_groups(
+    intg: AwsSamlRolesIntegration,
+    fixture_query_func: Callable,
+) -> list[AWSGroupV1]:
+    return intg.get_aws_groups(fixture_query_func)

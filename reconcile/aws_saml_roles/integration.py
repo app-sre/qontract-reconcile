@@ -1,6 +1,7 @@
 import sys
 from collections.abc import (
     Callable,
+    Iterable,
 )
 from typing import (
     Any,
@@ -101,6 +102,27 @@ class AwsSamlRolesIntegration(
             and any(role.users for role in group.roles)
         ]
 
+    def populate_saml_iam_roles(
+        self, ts: TerrascriptClient, aws_groups: Iterable[AWSGroupV1]
+    ) -> None:
+        """Populate the SAML IAM roles."""
+        for group in aws_groups:
+            # aws groups without policies are filtered out by the query
+            # duplicated policies aren't allowed in the same role
+            policies = group.policies or []
+            if len(policies) != len(set(policies)):
+                raise ValueError(
+                    f"Group {group.name} has duplicated policies: {policies}"
+                )
+
+            ts.populate_saml_iam_role(
+                account=group.account.name,
+                name=group.name,
+                saml_provider_name=self.params.saml_idp_name,
+                policies=policies,
+                max_session_duration_hours=self.params.max_session_duration_hours,
+            )
+
     @defer
     def run(self, dry_run: bool, defer: Callable | None = None) -> None:
         """Run the integration."""
@@ -110,6 +132,9 @@ class AwsSamlRolesIntegration(
             gql_api.query, account_name=self.params.account_name
         )
         aws_accounts_dict = [account.dict(by_alias=True) for account in aws_accounts]
+        aws_groups = self.get_aws_groups(
+            gql_api.query, account_name=self.params.account_name
+        )
 
         ts = TerrascriptClient(
             self.name.replace("-", "_"),
@@ -118,18 +143,7 @@ class AwsSamlRolesIntegration(
             aws_accounts_dict,
             settings=settings,
         )
-
-        for group in self.get_aws_groups(
-            gql_api.query, account_name=self.params.account_name
-        ):
-            ts.populate_saml_iam_role(
-                account=group.account.name,
-                name=group.name,
-                saml_provider_name=self.params.saml_idp_name,
-                # aws groups without policies are filtered out by the query
-                policies=group.policies or [],
-                max_session_duration_hours=self.params.max_session_duration_hours,
-            )
+        self.populate_saml_iam_roles(ts, aws_groups)
         working_dirs = ts.dump(print_to_file=self.params.print_to_file)
 
         if self.params.print_to_file:
