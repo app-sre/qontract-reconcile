@@ -329,9 +329,11 @@ def run(
             f.write(url + "\n")
             f.write(emails + "\n")
         images = " ".join(saasherder.images)
-        images_file = os.path.join(io_dir, "images")
-        with open(images_file, "w", encoding="locale") as f:
-            f.write(images)
+        app_name = saas_file.app.name
+        clamav_file = os.path.join(io_dir, "clamav")
+        with open(clamav_file, "w", encoding="locale") as f:
+            f.write(images + "\n")
+            f.write(app_name + "\n")
         image_auth = saasherder._initiate_image_auth(saas_file)
         if image_auth.auth_server:
             json_file = os.path.join(io_dir, "dockerconfigjson")
