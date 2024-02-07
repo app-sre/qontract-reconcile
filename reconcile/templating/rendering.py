@@ -27,28 +27,25 @@ class Renderer(ABC):
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
         return {**self._get_variables(), "current": self._get_current()}
 
+    def _render_template(self, template: str) -> str:
+        return self.jinja_env.from_string(template).render(
+            **self._jinja2_render_kwargs()
+        )
+
     @abstractmethod
     def get_output(self) -> str:
         pass
 
     def get_target_path(self) -> str:
-        return self.jinja_env.from_string(self.template.target_path).render(
-            **self._jinja2_render_kwargs()
-        )
+        return self._render_template(self.template.target_path)
 
     def should_render(self) -> bool:
-        return bool(
-            self.jinja_env.from_string(self.template.condition or "").render(
-                **self._jinja2_render_kwargs()
-            )
-        )
+        return bool(self._render_template(self.template.condition or "True"))
 
 
 class FullRenderer(Renderer):
     def get_output(self) -> str:
-        return self.jinja_env.from_string(self.template.template).render(
-            **self._jinja2_render_kwargs()
-        )
+        return self._render_template(self.template.template)
 
 
 class PatchRenderer(Renderer):
@@ -58,40 +55,38 @@ class PatchRenderer(Renderer):
 
         p = parse_jsonpath(self.template.patch.path)
 
-        matched_values = [match.value for match in p.find(self._get_current())]
+        matched_values = [match for match in p.find(self._get_current())]
 
         if len(matched_values) != 1:
             raise ValueError(
                 f"Expected exactly one match for {self.template.patch.path}, got {len(matched_values)}"
             )
-        matched_value = matched_values[0]
+        matched_value = matched_values[0].value
 
-        if not isinstance(matched_value, list):
-            raise ValueError(
-                f"Expected matched value to be a list, got {type(matched_value)}"
-            )
+        data_to_add = yaml.safe_load(self._render_template(self.template.template))
 
-        data_to_add = yaml.safe_load(
-            self.jinja_env.from_string(self.template.template).render(
-                **self._jinja2_render_kwargs()
-            )
-        )
+        if isinstance(matched_value, list):
+            if not self.template.patch.identifier:
+                raise ValueError(
+                    f"Expected identifier in patch for list at {self.template}"
+                )
+            dta_identifier = data_to_add.get(self.template.patch.identifier)
+            if not dta_identifier:
+                raise ValueError(
+                    f"Expected identifier {self.template.patch.identifier} in data to add"
+                )
 
-        dta_identifier = data_to_add.get(self.template.patch.identifier)
-        if not dta_identifier:
-            raise ValueError(
-                f"Expected identifier {self.template.patch.identifier} in data to add"
-            )
+            updated = False
+            for data in matched_value:
+                if data.get(self.template.patch.identifier) == dta_identifier:
+                    data.update(data_to_add)
+                    updated = True
+                    continue
 
-        updated = False
-        for data in matched_value:
-            if data.get(self.template.patch.identifier) == dta_identifier:
-                data.update(data_to_add)
-                updated = True
-                continue
-
-        if not updated:
-            matched_value.append(data_to_add)
+            if not updated:
+                matched_value.append(data_to_add)
+        else:
+            matched_value.update(data_to_add)
 
         return yaml.dump(self.data.current, width=4096, Dumper=yaml.RoundTripDumper)
 

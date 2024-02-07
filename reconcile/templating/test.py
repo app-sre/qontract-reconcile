@@ -28,6 +28,8 @@ class TemplateDiff(BaseModel):
 
 
 class TemplatingTestIntegration(QontractReconcileIntegration):
+    diffs: list[TemplateDiff]
+
     def diff_result(
         self, template_name: str, test_name: str, output: str, expected: str
     ) -> None:
@@ -42,7 +44,7 @@ class TemplatingTestIntegration(QontractReconcileIntegration):
             )
 
     def run(self, dry_run: bool) -> None:
-        self.diffs: list[TemplateDiff] = []
+        self.diffs = []
         for template in get_templates():
             for test in template.template_test:
                 r = create_renderer(

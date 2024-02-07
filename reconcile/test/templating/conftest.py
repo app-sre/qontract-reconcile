@@ -12,16 +12,13 @@ def fxt() -> Fixtures:
 
 
 @pytest.fixture
-def template_from_fixture(fxt: Fixtures, gql_class_factory: Callable) -> Callable:
-    def _q(fixture_file: str) -> TemplateV1:
-        return gql_class_factory(TemplateV1, fxt.get_anymarkup(fixture_file))
+def get_fixture(fxt: Fixtures, gql_class_factory: Callable) -> Callable:
+    def _f(fixture_file: str) -> dict[str, Any]:
+        fixture = fxt.get_anymarkup(fixture_file)
+        return {
+            "template": gql_class_factory(TemplateV1, fixture.get("template")),
+            "current": fixture.get("current", {}),
+            "expected": fixture.get("expected", ""),
+        }
 
-    return _q
-
-
-@pytest.fixture
-def file_from_fixture(fxt: Fixtures, gql_class_factory: Callable) -> Callable:
-    def _q(fixture_file: str) -> dict[str, Any]:
-        return fxt.get_anymarkup(fixture_file)
-
-    return _q
+    return _f

@@ -1,9 +1,11 @@
----
-name: full
+template:
+  name: full
 
-targetPath: /{{bar}}/foo.yml
+  targetPath: /{{bar}}/foo.yml
 
-template: |
-  foo: {{ bar }}
+  template: |
+    foo: {{ bar }}
 
-templateTest: []
+  templateTest: []
+expected: |
+  foo: bar

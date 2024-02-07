@@ -12,25 +12,32 @@ template:
       $ref: additional.yaml
     version:
       foo: {{bar}}
+      bar: {{foo}}
 
   templateTest: []
 current:
   resourceTemplates:
-    - name: saas
-      targets:
-        - namespace:
-            $ref: existing.yaml
-          version:
-            foo: bar
+  - name: saas
+    targets:
+    - namespace:
+        $ref: additional.yaml
+      version:
+        foo: bar
+    - namespace:
+        $ref: existing.yaml
+      version:
+        foo: bar
+
 expected: |
   resourceTemplates:
   - name: saas
     targets:
     - namespace:
-        $ref: existing.yaml
+        $ref: additional.yaml
       version:
         foo: bar
+        bar: foo
     - namespace:
-        $ref: additional.yaml
+        $ref: existing.yaml
       version:
         foo: bar

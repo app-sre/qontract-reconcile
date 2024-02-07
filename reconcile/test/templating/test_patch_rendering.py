@@ -1,28 +1,27 @@
 from typing import Callable
 
+import pytest
+
 from reconcile.templating.rendering import PatchRenderer, TemplateData
 
 
-def test_patch_ref_simple(
-    template_from_fixture: Callable, file_from_fixture: Callable
+@pytest.mark.parametrize(
+    "fixture_file",
+    [
+        "patch_ref_simple.yaml",
+        "patch_ref_updated.yaml",
+        "patch_ref_overwrite.yaml",
+        "patch_ref_overwrite_nested.yaml",
+    ],
+)
+def test_patch_ref_update(
+    get_fixture: Callable,
+    fixture_file: str,
 ) -> None:
-    template = template_from_fixture("patch_ref_simple.yaml")
-    current = file_from_fixture("patch_ref_simple_current.yaml")
+    template, current, expected = get_fixture(fixture_file).values()
 
-    r = PatchRenderer(template, TemplateData(variables={"bar": "bar"}, current=current))
-
-    assert (
-        r.get_output()
-        == """resourceTemplates:
-- name: saas
-  targets:
-  - namespace:
-      $ref: existing.yaml
-    version:
-      foo: bar
-  - namespace:
-      $ref: additional.yaml
-    version:
-      foo: bar
-"""
+    r = PatchRenderer(
+        template, TemplateData(variables={"bar": "bar", "foo": "foo"}, current=current)
     )
+
+    assert r.get_output().strip() == expected.strip()
