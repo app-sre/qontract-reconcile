@@ -9,7 +9,6 @@ from typing import (
 
 from pydantic import validator
 
-from reconcile import queries
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import (
     AWSAccountV1,
 )
@@ -127,7 +126,6 @@ class AwsSamlRolesIntegration(
     def run(self, dry_run: bool, defer: Callable | None = None) -> None:
         """Run the integration."""
         gql_api = gql.get_api()
-        settings = queries.get_app_interface_settings()
         aws_accounts = self.get_aws_accounts(
             gql_api.query, account_name=self.params.account_name
         )
@@ -141,7 +139,7 @@ class AwsSamlRolesIntegration(
             "",
             self.params.thread_pool_size,
             aws_accounts_dict,
-            settings=settings,
+            secret_reader=self.secret_reader,
         )
         self.populate_saml_iam_roles(ts, aws_groups)
         working_dirs = ts.dump(print_to_file=self.params.print_to_file)
