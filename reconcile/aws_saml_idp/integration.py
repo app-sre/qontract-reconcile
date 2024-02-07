@@ -10,7 +10,6 @@ from typing import (
 import requests
 from pydantic import BaseModel, HttpUrl
 
-from reconcile import queries
 from reconcile.gql_definitions.aws_saml_idp.aws_accounts import (
     AWSAccountV1,
 )
@@ -104,7 +103,6 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
     def run(self, dry_run: bool, defer: Callable | None = None) -> None:
         """Run the integration."""
         gql_api = gql.get_api()
-        settings = queries.get_app_interface_settings()
         aws_accounts = self.get_aws_accounts(
             gql_api.query, account_name=self.params.account_name
         )
@@ -115,7 +113,7 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
             "",
             self.params.thread_pool_size,
             aws_accounts_dict,
-            settings=settings,
+            secret_reader=self.secret_reader,
         )
 
         for saml_idp_config in self.build_saml_idp_config(
@@ -133,7 +131,9 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
         if self.params.print_to_file:
             sys.exit(ExitCodes.SUCCESS)
 
-        aws_api = AWSApi(1, aws_accounts_dict, settings=settings, init_users=False)
+        aws_api = AWSApi(
+            1, aws_accounts_dict, secret_reader=self.secret_reader, init_users=False
+        )
         tf = TerraformClient(
             self.name,
             QONTRACT_INTEGRATION_VERSION,
