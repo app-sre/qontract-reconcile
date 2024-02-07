@@ -56,19 +56,30 @@ class TemplatingTestIntegration(QontractReconcileIntegration):
                         ),
                     ),
                 )
+                if test.expected_target_path:
+                    self.diff_result(
+                        template.name,
+                        test.name,
+                        r.get_target_path().strip(),
+                        test.expected_target_path.strip(),
+                    )
+                if test.expected_to_render is not None:
+                    if test.expected_to_render != r.should_render():
+                        self.diffs.append(
+                            TemplateDiff(
+                                template=template.name,
+                                test=test.name,
+                                diff="Template should not render, but it did",
+                            )
+                        )
+                if r.should_render():
+                    self.diff_result(
+                        template.name,
+                        test.name,
+                        r.get_output().strip(),
+                        test.expected_output.strip(),
+                    )
 
-                self.diff_result(
-                    template.name,
-                    test.name,
-                    r.get_target_path().strip(),
-                    test.expected_target_path.strip(),
-                )
-                self.diff_result(
-                    template.name,
-                    test.name,
-                    r.get_output().strip(),
-                    test.expected_output.strip(),
-                )
         if self.diffs:
             for diff in self.diffs:
                 logging.error(

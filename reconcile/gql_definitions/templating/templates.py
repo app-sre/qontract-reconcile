@@ -35,6 +35,7 @@ query Templatev1 {
       current
       expectedOutput
       expectedTargetPath
+      expectedToRender
     }
   }
 }
@@ -57,7 +58,8 @@ class TemplateTestV1(ConfiguredBaseModel):
     variables: Optional[Json] = Field(..., alias="variables")
     current: Optional[str] = Field(..., alias="current")
     expected_output: str = Field(..., alias="expectedOutput")
-    expected_target_path: str = Field(..., alias="expectedTargetPath")
+    expected_target_path: Optional[str] = Field(..., alias="expectedTargetPath")
+    expected_to_render: Optional[bool] = Field(..., alias="expectedToRender")
 
 
 class TemplateV1(ConfiguredBaseModel):

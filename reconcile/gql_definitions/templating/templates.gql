@@ -16,6 +16,7 @@ query Templatev1 {
       current
       expectedOutput
       expectedTargetPath
+      expectedToRender
     }
   }
 }

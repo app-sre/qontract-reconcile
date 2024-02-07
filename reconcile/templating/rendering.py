@@ -40,7 +40,10 @@ class Renderer(ABC):
         return self._render_template(self.template.target_path)
 
     def should_render(self) -> bool:
-        return bool(self._render_template(self.template.condition or "True"))
+        condition = self._render_template(self.template.condition or "True")
+        if condition == "True":
+            return True
+        return False
 
 
 class FullRenderer(Renderer):
@@ -50,7 +53,7 @@ class FullRenderer(Renderer):
 
 class PatchRenderer(Renderer):
     def get_output(self) -> str:
-        if self.template.patch is None:
+        if self.template.patch is None:  # here to satisfy mypy
             raise ValueError("PatchRenderer requires a patch")
 
         p = parse_jsonpath(self.template.patch.path)

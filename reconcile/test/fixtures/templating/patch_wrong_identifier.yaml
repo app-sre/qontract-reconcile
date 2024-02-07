@@ -1,0 +1,16 @@
+template:
+  name: update file
+
+  targetPath: /some/saas/deploy.yml
+
+  patch:
+    path: '$.resourceTemplates[?name=="saas"].targets'
+    identifier: wrong
+
+  template: |
+    namespace:
+      $ref: additional.yaml
+    version:
+      foo: {{bar}}
+
+  templateTest: []
