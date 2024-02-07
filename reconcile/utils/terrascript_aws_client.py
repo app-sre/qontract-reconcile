@@ -181,7 +181,7 @@ from reconcile.utils.password_validator import (
     PasswordPolicy,
     PasswordValidator,
 )
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 from reconcile.utils.terraform import safe_resource_id
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
@@ -368,13 +368,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         accounts: Iterable[dict[str, Any]],
         settings: Optional[Mapping[str, Any]] = None,
         prefetch_resources_by_schemas: Optional[list[str]] = None,
+        secret_reader: Optional[SecretReaderBase] = None,
     ) -> None:
         self.integration = integration
         self.integration_prefix = integration_prefix
-        self.settings = settings
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
-        self.secret_reader = SecretReader(settings=settings)
+        if secret_reader:
+            self.secret_reader = secret_reader
+        else:
+            self.secret_reader = SecretReader(settings=settings)
         self.configs: dict[str, dict] = {}
         self.populate_configs(filtered_accounts)
         self.versions = {a["name"]: a["providerVersion"] for a in filtered_accounts}
@@ -601,7 +604,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             with self.gitlab_lock:
                 if not self.gitlab:
                     instance = queries.get_gitlab_instance()
-                    self.gitlab = GitLabApi(instance, settings=self.settings)
+                    self.gitlab = GitLabApi(instance, secret_reader=self.secret_reader)
         return self.gitlab
 
     def init_jenkins(self, instance: dict) -> JenkinsApi:
@@ -612,7 +615,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 if not self.jenkins_map.get(instance_name):
                     self.jenkins_map[instance_name] = (
                         JenkinsApi.init_jenkins_from_secret(
-                            SecretReader(self.settings), instance["token"]
+                            self.secret_reader, instance["token"]
                         )
                     )
         return self.jenkins_map[instance_name]
@@ -4745,7 +4748,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         account["assume_region"] = cluster["spec"]["region"]
         service_name = f"{namespace_info['name']}/{openshift_service}"
-        with AWSApi(1, [account], settings=self.settings, init_users=False) as awsapi:
+        with AWSApi(
+            1, [account], secret_reader=self.secret_reader, init_users=False
+        ) as awsapi:
             ips = awsapi.get_alb_network_interface_ips(account, service_name)
         if not ips:
             raise ValueError(
@@ -5176,7 +5181,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # Get the most recent AMI id
         aws_account = self.accounts[account]
-        with AWSApi(1, [aws_account], settings=self.settings, init_users=False) as aws:
+        with AWSApi(
+            1, [aws_account], secret_reader=self.secret_reader, init_users=False
+        ) as aws:
             return aws.get_image_id(account, region, tags)
 
     def _use_previous_image_id(self, filters: Iterable[Mapping[str, Any]]) -> bool:
@@ -5259,7 +5266,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             for c in cloudinit_configs:
                 raw = self.get_raw_values(c["content"])
                 content = orb.process_extracurlyjinja2_template(
-                    body=raw["content"], vars=vars, settings=self.settings
+                    body=raw["content"], vars=vars, secret_reader=self.secret_reader
                 )
                 # https://www.terraform.io/docs/language/expressions/strings.html#escape-sequences
                 content = content.replace("${", "$${")
