@@ -1931,63 +1931,18 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # common_values['cors_rules'] is a list of cors_rules
             values["cors_rule"] = cors_rules
         # S3 Bucket Logging
-        s3_bucket_logging = common_values.get("s3_bucket_logging", {})
-        if s3_bucket_logging.get("enabled", False):
+        s3_bucket_logging = common_values.get("s3_bucket_logging")
+        if s3_bucket_logging:
             target_bucket_name = s3_bucket_logging.get("target_bucket_name")
-            target_bucket_identifier = f"{identifier}-logging"
-            if not target_bucket_name:
-                target_bucket_name = f"{identifier}-logs"
+            logging_identifier = f"{identifier}-logging"
 
-            # Logging target bucket
-            target_bucket_values = {
-                "bucket": target_bucket_name,
-                "lifecycle": {"ignore_changes": ["grant"]},
-            }
-            target_bucket_resource = aws_s3_bucket(
-                target_bucket_identifier, **target_bucket_values
-            )
-            tf_resources.append(target_bucket_resource)
-
-            # Logging target bucket Access Control Policy
-            access_control_policy = {
-                "owner": {
-                    "id": "${data.aws_canonical_user_id.current.id}",
-                },
-                "grant": [
-                    {
-                        "grantee": {
-                            "id": "${data.aws_canonical_user_id.current.id}",
-                            "type": "CanonicalUser",
-                        },
-                        "permission": "FULL_CONTROL",
-                    },
-                    {
-                        "grantee": {
-                            # https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html
-                            "type": "Group",
-                            "uri": "http://acs.amazonaws.com/groups/s3/LogDelivery",
-                        },
-                        "permission": "WRITE",
-                    },
-                ],
-            }
-            target_bucket_acl_values = {
-                "bucket": "${aws_s3_bucket." + target_bucket_identifier + ".id}",
-                "access_control_policy": access_control_policy,
-            }
-            target_bucket_acl_resource = aws_s3_bucket_acl(
-                target_bucket_identifier, **target_bucket_acl_values
-            )
-            tf_resources.append(target_bucket_acl_resource)
-
-            # Origin bucket logging resource
             logging_values = {
                 "bucket": "${aws_s3_bucket." + identifier + ".id}",
-                "target_bucket": "${aws_s3_bucket." + target_bucket_identifier + ".id}",
+                "target_bucket": "${aws_s3_bucket." + target_bucket_name + ".id}",
                 "target_prefix": s3_bucket_logging.get("target_prefix", ""),
             }
             logging_tf_resource = aws_s3_bucket_logging(
-                target_bucket_identifier, **logging_values
+                logging_identifier, **logging_values
             )
             tf_resources.append(logging_tf_resource)
         deps = []
