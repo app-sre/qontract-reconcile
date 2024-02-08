@@ -1936,6 +1936,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             target_bucket_name = s3_bucket_logging.get("target_bucket_name")
             logging_identifier = f"{identifier}-logging"
 
+            # Logging config will be set out of this resource
+            # the following `ignore_change` allows to avoid conflicts
+            values.setdefault("lifecycle", {}).setdefault("ignore_changes", []).append(
+                "logging"
+            )
+
             logging_values = {
                 "bucket": "${aws_s3_bucket." + identifier + ".id}",
                 "target_bucket": "${aws_s3_bucket." + target_bucket_name + ".id}",
