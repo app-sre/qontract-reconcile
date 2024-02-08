@@ -75,7 +75,6 @@ def construct_sa_oc_resource(role, namespace, sa_name):
         "subjects": [
             {"kind": "ServiceAccount", "name": sa_name, "namespace": namespace}
         ],
-        "userNames": [f"system:serviceaccount:{namespace}:{sa_name}"],
     }
     return (
         OR(
