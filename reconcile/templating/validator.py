@@ -66,10 +66,10 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                     self.diff_result(
                         template.name,
                         test.name,
-                        r.get_target_path().strip(),
+                        r.render_target_path().strip(),
                         test.expected_target_path.strip(),
                     )
-                should_render = r.should_render()
+                should_render = r.render_condition()
                 if (
                     test.expected_to_render is not None
                     and test.expected_to_render != should_render
@@ -85,7 +85,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                     self.diff_result(
                         template.name,
                         test.name,
-                        r.get_output().strip(),
+                        r.render_output().strip(),
                         test.expected_output.strip(),
                     )
 

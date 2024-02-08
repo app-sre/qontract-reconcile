@@ -29,21 +29,21 @@ class Renderer(ABC):
         )
 
     @abstractmethod
-    def get_output(self) -> str:
+    def render_output(self) -> str:
         """
         Implementation of a renderer is required and should return the entire rendered file as a string.
         """
         pass
 
-    def get_target_path(self) -> str:
+    def render_target_path(self) -> str:
         return self._render_template(self.template.target_path)
 
-    def should_render(self) -> bool:
+    def render_condition(self) -> bool:
         return self._render_template(self.template.condition or "True") == "True"
 
 
 class FullRenderer(Renderer):
-    def get_output(self) -> str:
+    def render_output(self) -> str:
         """
         Take the variables from Template Data and render the template with it.
 
@@ -53,13 +53,12 @@ class FullRenderer(Renderer):
 
 
 class PatchRenderer(Renderer):
-    def get_output(self) -> str:
+    def render_output(self) -> str:
         """
         Takes the variables from Template Data and render the template with it.
 
         This method partially updates the current data with the rendered template.
         It checks the existence of the path in the current data and updates it if it exists.
-        If the path does not exist, it creates it.
         If the path is not a list, it will update the value with the rendered template.
 
         This method returns the entire file as a string.

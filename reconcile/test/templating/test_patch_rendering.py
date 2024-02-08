@@ -24,7 +24,7 @@ def test_patch_ref_update(
         template, TemplateData(variables={"bar": "bar", "foo": "foo"}, current=current)
     )
 
-    assert r.get_output().strip() == expected.strip()
+    assert r.render_output().strip() == expected.strip()
 
 
 @pytest.mark.parametrize(
@@ -44,4 +44,4 @@ def test_patch_raises(
         r = PatchRenderer(
             template, TemplateData(variables={"bar": "bar", "foo": "foo"})
         )
-        r.get_output()
+        r.render_output()
