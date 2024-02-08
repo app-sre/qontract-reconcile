@@ -289,7 +289,13 @@ class UnknownTemplateTypeError(Exception):
 
 @retry()
 def lookup_secret(
-    path, key, allow_not_found=False, version=None, tvars=None, settings=None, secret_reader=None
+    path,
+    key,
+    allow_not_found=False,
+    version=None,
+    tvars=None,
+    settings=None,
+    secret_reader=None,
 ):
     if tvars is not None:
         path = process_jinja2_template(
@@ -465,7 +471,7 @@ def process_jinja2_template(
             tvars=vars,
             allow_not_found=allow_secret_not_found,
             settings=settings,
-            secret_reader=secret_reader
+            secret_reader=secret_reader,
         ),
         "github": lambda u, p, r, v=None: lookup_github_file_content(
             repo=u,
