@@ -54,7 +54,7 @@ def construct_user_oc_resource(role, user):
         "apiVersion": "rbac.authorization.k8s.io/v1",
         "kind": "RoleBinding",
         "metadata": {"name": name},
-        "roleRef": {"name": role},
+        "roleRef": {"kind": "ClusterRole", "name": role},
         "subjects": [{"kind": "User", "name": user}],
     }
     return (
@@ -71,7 +71,7 @@ def construct_sa_oc_resource(role, namespace, sa_name):
         "apiVersion": "rbac.authorization.k8s.io/v1",
         "kind": "RoleBinding",
         "metadata": {"name": name},
-        "roleRef": {"name": role},
+        "roleRef": {"kind": "ClusterRole", "name": role},
         "subjects": [
             {"kind": "ServiceAccount", "name": sa_name, "namespace": namespace}
         ],
