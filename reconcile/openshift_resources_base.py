@@ -289,7 +289,7 @@ class UnknownTemplateTypeError(Exception):
 
 @retry()
 def lookup_secret(
-    path, key, version=None, tvars=None, settings=None, secret_reader=None
+    path, key, allow_not_found=False, version=None, tvars=None, settings=None, secret_reader=None
 ):
     if tvars is not None:
         path = process_jinja2_template(
@@ -308,6 +308,8 @@ def lookup_secret(
             secret_reader = SecretReader(settings)
         return secret_reader.read(secret)
     except Exception as e:
+        if allow_not_found:
+            return "SECRET_NOT_FOUND"
         raise FetchSecretError(e)
 
 
@@ -456,11 +458,12 @@ def process_jinja2_template(
     if vars is None:
         vars = {}
     vars.update({
-        "vault": lambda p, k, v=None: lookup_secret(
+        "vault": lambda p, k, v=None, allow_secret_not_found=False: lookup_secret(
             path=p,
             key=k,
             version=v,
             tvars=vars,
+            allow_not_found=allow_secret_not_found,
             settings=settings,
             secret_reader=secret_reader,
         ),
