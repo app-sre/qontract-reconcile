@@ -464,12 +464,12 @@ def process_jinja2_template(
     if vars is None:
         vars = {}
     vars.update({
-        "vault": lambda p, k, v=None, allow_secret_not_found=False: lookup_secret(
+        "vault": lambda p, k, v=None, allow_not_found=False: lookup_secret(
             path=p,
             key=k,
             version=v,
             tvars=vars,
-            allow_not_found=allow_secret_not_found,
+            allow_not_found=allow_not_found,
             settings=settings,
             secret_reader=secret_reader,
         ),
