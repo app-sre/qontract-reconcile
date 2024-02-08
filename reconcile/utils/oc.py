@@ -23,7 +23,7 @@ from typing import (
 )
 
 import urllib3
-from kubernetes.client import (
+from kubernetes.client import (  # type: ignore[attr-defined]
     ApiClient,
     Configuration,
 )
