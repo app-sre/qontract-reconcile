@@ -14,9 +14,10 @@ class JobStatus(str, Enum):
 
 
 class JobConcurrencyPolicy(IntFlag):
-    REPLACE_FAILED: int = 1
-    REPLACE_IN_PROGRESS: int = 2
-    REPLACE_FINISHED: int = 4
+    NO_REPLACE: int = 1
+    REPLACE_FAILED: int = 2
+    REPLACE_IN_PROGRESS: int = 4
+    REPLACE_FINISHED: int = 8
 
 
 class JobValidationError(Exception):

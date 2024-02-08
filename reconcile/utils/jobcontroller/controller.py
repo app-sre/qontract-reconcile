@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Optional, TextIO, TypeVar
+from typing import Optional, TypeVar
 
 from kubernetes.client import ApiClient, V1Job  # type: ignore[attr-defined]
 
@@ -25,6 +25,16 @@ def build_job_controller(
     secret_reader: SecretReaderBase,
     dry_run: bool,
 ) -> "K8sJobController":
+    """
+    Builds a job controller that will act on the given cluster and namespace.
+    The integration name and integration_version are used to annotate the jobs
+    created by the controller so there is a way to identify the source for them.
+
+    The cluster parameter is the name of a cluster defined in app-interface. The namespace
+    is expected to exist in the cluster.
+
+    If dry_run is set to True, the controller will not perform any changes to the cluster.
+    """
     clusters = get_clusters_minimal(name=cluster)
     oc_map = init_oc_map_from_clusters(
         clusters=clusters,
@@ -72,6 +82,9 @@ class K8sJobController:
         return self._cache
 
     def update_cache(self) -> dict[str, OpenshiftResource]:
+        """
+        Updates the cache with the latest jobs in the namespace.
+        """
         new_cache = {}
         for item in self.oc.get_items(
             kind="Job",
@@ -87,6 +100,11 @@ class K8sJobController:
         return self._cache
 
     def get_job_status(self, job_name: str) -> JobStatus:
+        """
+        Looks up the status for a job. It expects the cache to be up to date, so
+        the caller of this function should consider calling update_cache before
+        calling this function.
+        """
         job_resource = self.cache.get(job_name)
 
         if job_resource is None:
@@ -104,10 +122,15 @@ class K8sJobController:
         self, jobs: set[JobType], check_interval_seconds: int, timeout_seconds: int
     ) -> list[tuple[JobType, JobStatus]]:
         """
-        Waits for all jobs in the list to complete, and returns a dictionary.
+        Waits for all jobs in the list to complete, and retruens their statuses.
         * if a job from the list does not exist, it will have the status NOT_EXISTS set in the result.
         * if a job did not finish within the timeout boundaries, it will have the status
-          IN_PROGRESS set in the result.
+          IN_PROGRESS set in the result
+        * failed and successful jobs report SUCCESS or ERROR respectively
+
+        The check_interval_seconds parameter is the time to wait between checks for job completion.
+        The timeout_seconds parameter is the maximum time to wait for all jobs to complete. If set to -1,
+        the function will wait indefinitely.  If a timeout occures, a TimeoutError will be raised.
         """
         jobs_left = {j.name() for j in jobs}
         job_statuses: dict[str, tuple[JobType, JobStatus]] = {
@@ -139,8 +162,13 @@ class K8sJobController:
         job: K8sJob,
         check_interval_seconds: int,
         timeout_seconds: int,
-        concurrency_policy: JobConcurrencyPolicy,
+        concurrency_policy: JobConcurrencyPolicy = JobConcurrencyPolicy.NO_REPLACE,
     ) -> JobStatus:
+        """
+        Schedules a job and waits for it to complete.
+        * For the concurrency_policy, see documentation on the enqueue_job function
+        * For check_interval_seconds and timeout_seconds, see documentation on the wait_for_job_completion function
+        """
         self.enqueue_job(job, concurrency_policy)
         success = self.wait_for_job_completion(
             job.name(), check_interval_seconds, timeout_seconds
@@ -150,8 +178,20 @@ class K8sJobController:
     def enqueue_job(
         self,
         job: K8sJob,
-        concurrency_policy: JobConcurrencyPolicy,
+        concurrency_policy: JobConcurrencyPolicy = JobConcurrencyPolicy.NO_REPLACE,
     ) -> bool:
+        """
+        Schedules a job on a cluster.
+
+        In general a new job will not be scheduled if one with the same name already exists. This behaviour can
+        be influenced by the concurrency_policy parameter. The following flags are available:
+
+        * REPLACE_FAILED: if a job with the same name exists and it has failed, it will be replaced
+        * REPLACE_IN_PROGRESS: if a job with the same name exists and it is in progress, it will be replaced
+        * REPLACE_FINISHED: if a job with the same name exists and it has finished, it will be replaced
+
+        True is returned when the job was scheduled or replaced an existing job, False otherwise.
+        """
         job_name = job.name()
         job_status = self.get_job_status(job_name)
 
@@ -181,6 +221,9 @@ class K8sJobController:
         return False
 
     def create_job(self, job: K8sJob) -> None:
+        """
+        Creates the K8S job on the cluster and namespace.
+        """
         job_spec = job.build_job()
         self.validate_job(job_spec)
         api = ApiClient()
@@ -205,6 +248,13 @@ class K8sJobController:
     def wait_for_job_completion(
         self, job_name: str, check_interval_seconds: int, timeout_seconds: int
     ) -> bool:
+        """
+        Waits for a job to complete. Returns True if the job was successful, False otherwise.
+
+        The check_interval_seconds parameter is the time to wait between checks for job completion.
+        The timeout_seconds parameter is the maximum time to wait for all jobs to complete. If set to -1,
+        the function will wait indefinitely. If a timeout occures, a TimeoutError will be raised.
+        """
         start_time = time.time()
         while True:
             self.update_cache()
@@ -218,10 +268,14 @@ class K8sJobController:
                 raise TimeoutError(f"Timeout waiting for job {job_name} to complete")
             time.sleep(check_interval_seconds)
 
-    def get_job_logs(self, job: K8sJob, output: TextIO) -> None:
+    def store_job_logs(self, job_name: str, output_dir_path: str) -> None:
+        """
+        Stores the logs of a job in the given output directory.
+        The filename will be the name of the job.
+        """
         self.oc.job_logs(
             namespace=self.namespace,
             follow=False,
-            name=job.name(),
-            output=output,
+            name=job_name,
+            output=output_dir_path,
         )
