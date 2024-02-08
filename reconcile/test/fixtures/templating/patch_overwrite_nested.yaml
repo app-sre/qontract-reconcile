@@ -1,0 +1,28 @@
+template:
+  name: update file
+
+  targetPath: /some/saas/deploy.yml
+
+  patch:
+    path: '$.version'
+    identifier: namespace
+
+  template: |
+    foo:
+      buz: baz
+
+  templateTest: []
+current:
+  version:
+    bar: baz
+    foo:
+      buz: baz
+      r: bar
+    oof: rab
+
+expected: |
+  version:
+    bar: baz
+    foo:
+      buz: baz
+    oof: rab

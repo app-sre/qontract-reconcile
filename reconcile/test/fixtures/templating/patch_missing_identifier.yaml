@@ -1,0 +1,13 @@
+template:
+  name: update file
+
+  targetPath: /some/saas/deploy.yml
+
+  patch:
+    path: '$.resourceTemplates[?name=="saas"].targets'
+
+  template: |
+    namespace:
+      $ref: additional.yaml
+
+  templateTest: []
