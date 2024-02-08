@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import TextIO, Tuple, TypeVar
+from typing import Optional, TextIO, TypeVar
 
 from kubernetes.client import ApiClient, V1Job  # type: ignore[attr-defined]
 
@@ -63,11 +63,16 @@ class K8sJobController:
         self.integration_version = integration_version
         self.oc = oc
         self.dry_run = dry_run
-        self.cache: dict[str, OpenshiftResource] = {}
-        self.update_cache()
+        self._cache: Optional[dict[str, OpenshiftResource]] = None
 
-    def update_cache(self) -> None:
-        new_cache: dict[str, OpenshiftResource] = {}
+    @property
+    def cache(self) -> dict[str, OpenshiftResource]:
+        if not self._cache:
+            return self.update_cache()
+        return self._cache
+
+    def update_cache(self) -> dict[str, OpenshiftResource]:
+        new_cache = {}
         for item in self.oc.get_items(
             kind="Job",
             namespace=self.namespace,
@@ -78,7 +83,8 @@ class K8sJobController:
                 integration_version=self.integration_version,
             )
             new_cache[openshift_resource.name] = openshift_resource
-        self.cache = new_cache
+        self._cache = new_cache
+        return self._cache
 
     def get_job_status(self, job_name: str) -> JobStatus:
         job_resource = self.cache.get(job_name)
@@ -92,12 +98,11 @@ class K8sJobController:
             return JobStatus.SUCCESS
         elif status.get("failed", 0) >= backofflimit:
             return JobStatus.ERROR
-        else:
-            return JobStatus.IN_PROGRESS
+        return JobStatus.IN_PROGRESS
 
     def wait_for_job_list_completion(
         self, jobs: set[JobType], check_interval_seconds: int, timeout_seconds: int
-    ) -> list[Tuple[JobType, JobStatus]]:
+    ) -> list[tuple[JobType, JobStatus]]:
         """
         Waits for all jobs in the list to complete, and returns a dictionary.
         * if a job from the list does not exist, it will have the status NOT_EXISTS set in the result.
@@ -105,7 +110,7 @@ class K8sJobController:
           IN_PROGRESS set in the result.
         """
         jobs_left = {j.name() for j in jobs}
-        job_statuses: dict[str, Tuple[JobType, JobStatus]] = {
+        job_statuses: dict[str, tuple[JobType, JobStatus]] = {
             job.name(): (job, JobStatus.NOT_EXISTS) for job in jobs
         }
 
