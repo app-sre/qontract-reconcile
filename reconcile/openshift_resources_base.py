@@ -465,7 +465,7 @@ def process_jinja2_template(
             tvars=vars,
             allow_not_found=allow_secret_not_found,
             settings=settings,
-            secret_reader=secret_reader,
+            secret_reader=secret_reader
         ),
         "github": lambda u, p, r, v=None: lookup_github_file_content(
             repo=u,
