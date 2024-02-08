@@ -2310,6 +2310,38 @@ def slo_document_services(ctx, status_board_instance):
     print_output(ctx.obj["options"], slodocs, columns)
 
 
+@get.command()
+@click.argument("file_path")
+@click.pass_context
+def alerts(ctx, file_path):
+    with open(file_path, "r", encoding="locale") as f:
+        content = json.loads(f.read())
+
+    columns = [
+        "name",
+        "summary",
+        "severity",
+    ]
+    data = []
+    prometheus_rules = content["items"]
+    for prom_rule in prometheus_rules:
+        groups = prom_rule["spec"]["groups"]
+        for group in groups:
+            rules = group["rules"]
+            for rule in rules:
+                name = rule.get("alert")
+                summary = rule.get("annotations", {}).get("summary")
+                severity = rule.get("labels", {}).get("severity")
+                if name and severity:
+                    data.append({
+                        "name": name,
+                        "summary": summary,
+                        "severity": severity,
+                    })
+
+    print_output(ctx.obj["options"], data, columns)
+
+
 @root.group(name="set")
 @output
 @click.pass_context
