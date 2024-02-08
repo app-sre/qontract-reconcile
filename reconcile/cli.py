@@ -1860,11 +1860,11 @@ def terraform_repo(ctx, output_file, gitlab_project_id, gitlab_merge_request_id)
 
 @integration.command(short_help="Test app-interface templates.")
 @click.pass_context
-def templating_test(ctx):
-    from reconcile.templating import test
+def template_validator(ctx):
+    from reconcile.templating import validator
 
     run_class_integration(
-        integration=test.TemplatingTestIntegration(PydanticRunParams()),
+        integration=validator.TemplateValidatorIntegration(PydanticRunParams()),
         ctx=ctx.obj,
     )
 

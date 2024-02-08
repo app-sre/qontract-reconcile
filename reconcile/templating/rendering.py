@@ -9,23 +9,19 @@ from reconcile.gql_definitions.templating.templates import TemplateV1
 from reconcile.utils.jsonpath import parse_jsonpath
 
 
-class Renderer(ABC):
-    template: TemplateV1
-    data: "TemplateData"
+class TemplateData(BaseModel):
+    variables: dict[str, Any]
+    current: Optional[dict[str, Any]]
 
-    def __init__(self, template: TemplateV1, data: "TemplateData"):
+
+class Renderer(ABC):
+    def __init__(self, template: TemplateV1, data: TemplateData):
         self.template = template
         self.data = data
         self.jinja_env = SandboxedEnvironment()
 
-    def _get_variables(self) -> dict[str, Any]:
-        return self.data.variables
-
-    def _get_current(self) -> dict[str, Any]:
-        return self.data.current or {}
-
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
-        return {**self._get_variables(), "current": self._get_current()}
+        return {**self.data.variables, "current": self.data.current}
 
     def _render_template(self, template: str) -> str:
         return self.jinja_env.from_string(template).render(
@@ -34,6 +30,9 @@ class Renderer(ABC):
 
     @abstractmethod
     def get_output(self) -> str:
+        """
+        Implementation of a renderer is required and should return the entire rendered file as a string.
+        """
         pass
 
     def get_target_path(self) -> str:
@@ -45,17 +44,32 @@ class Renderer(ABC):
 
 class FullRenderer(Renderer):
     def get_output(self) -> str:
+        """
+        Take the variables from Template Data and render the template with it.
+
+        This method returns the entire file as a string.
+        """
         return self._render_template(self.template.template)
 
 
 class PatchRenderer(Renderer):
     def get_output(self) -> str:
+        """
+        Takes the variables from Template Data and render the template with it.
+
+        This method partially updates the current data with the rendered template.
+        It checks the existence of the path in the current data and updates it if it exists.
+        If the path does not exist, it creates it.
+        If the path is not a list, it will update the value with the rendered template.
+
+        This method returns the entire file as a string.
+        """
         if self.template.patch is None:  # here to satisfy mypy
             raise ValueError("PatchRenderer requires a patch")
 
         p = parse_jsonpath(self.template.patch.path)
 
-        matched_values = [match.value for match in p.find(self._get_current())]
+        matched_values = [match.value for match in p.find(self.data.current)]
 
         if len(matched_values) != 1:
             raise ValueError(
@@ -91,16 +105,10 @@ class PatchRenderer(Renderer):
         else:
             matched_value.update(data_to_add)
 
-        return yaml.dump(self._get_current(), width=4096, Dumper=yaml.RoundTripDumper)
-
-
-class TemplateData(BaseModel):
-    variables: dict[str, Any]
-    current: Optional[dict[str, Any]]
+        return yaml.dump(self.data.current, width=4096, Dumper=yaml.RoundTripDumper)
 
 
 def create_renderer(template: TemplateV1, data: TemplateData) -> Renderer:
     if template.patch:
         return PatchRenderer(template=template, data=data)
-    else:
-        return FullRenderer(template=template, data=data)
+    return FullRenderer(template=template, data=data)

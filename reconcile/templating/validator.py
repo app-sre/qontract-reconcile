@@ -8,9 +8,12 @@ from ruamel import yaml
 from reconcile.gql_definitions.templating.templates import TemplateV1, query
 from reconcile.templating.rendering import TemplateData, create_renderer
 from reconcile.utils import gql
-from reconcile.utils.runtime.integration import QontractReconcileIntegration
+from reconcile.utils.runtime.integration import (
+    QontractReconcileIntegration,
+    RunParamsTypeVar,
+)
 
-QONTRACT_INTEGRATION = "templating-test"
+QONTRACT_INTEGRATION = "template-validator"
 
 
 def get_templates(
@@ -27,8 +30,10 @@ class TemplateDiff(BaseModel):
     diff: str
 
 
-class TemplatingTestIntegration(QontractReconcileIntegration):
-    diffs: list[TemplateDiff]
+class TemplateValidatorIntegration(QontractReconcileIntegration):
+    def __init__(self, params: RunParamsTypeVar) -> None:
+        super().__init__(params)
+        self.diffs = []
 
     def diff_result(
         self, template_name: str, test_name: str, output: str, expected: str
@@ -44,7 +49,6 @@ class TemplatingTestIntegration(QontractReconcileIntegration):
             )
 
     def run(self, dry_run: bool) -> None:
-        self.diffs = []
         for template in get_templates():
             for test in template.template_test:
                 logging.info(f"Running test {test.name} for template {template.name}")
@@ -90,7 +94,7 @@ class TemplatingTestIntegration(QontractReconcileIntegration):
                 logging.error(
                     f"template: {diff.template}, test: {diff.test}: {diff.diff}"
                 )
-            raise ValueError("templating test failed")
+            raise ValueError("Template validation")
 
     @property
     def name(self) -> str:
