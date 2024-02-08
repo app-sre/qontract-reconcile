@@ -33,7 +33,7 @@ class TemplateDiff(BaseModel):
 class TemplateValidatorIntegration(QontractReconcileIntegration):
     def __init__(self, params: RunParamsTypeVar) -> None:
         super().__init__(params)
-        self.diffs = []
+        self.diffs: list[TemplateDiff] = []
 
     def diff_result(
         self, template_name: str, test_name: str, output: str, expected: str
