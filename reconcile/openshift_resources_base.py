@@ -194,8 +194,14 @@ NAMESPACES_QUERY = """
         %s
       }
       spec {
+        ... on ClusterSpecROSA_v1 {
+          account {
+            uid
+          }
+        }
         version
         region
+        hypershift
       }
       network {
         pod
@@ -284,27 +290,40 @@ class UnknownTemplateTypeError(Exception):
 @retry()
 def lookup_secret(path, key, version=None, allow_not_found=False, tvars=None, settings=None):
     if tvars is not None:
-        path = process_jinja2_template(body=path, vars=tvars, settings=settings)
-        key = process_jinja2_template(body=key, vars=tvars, settings=settings)
+        path = process_jinja2_template(
+            body=path, vars=tvars, settings=settings, secret_reader=secret_reader
+        )
+        key = process_jinja2_template(
+            body=key, vars=tvars, settings=settings, secret_reader=secret_reader
+        )
         if version and not isinstance(version, int):
             version = process_jinja2_template(
-                body=version, vars=tvars, settings=settings
+                body=version, vars=tvars, settings=settings, secret_reader=secret_reader
             )
     secret = {"path": path, "field": key, "version": version}
     try:
-        secret_reader = SecretReader(settings)
+        if not secret_reader:
+            secret_reader = SecretReader(settings)
         return secret_reader.read(secret)
     except Exception as e:
         if allow_not_found:
-            return ""
+            return "SECRET_NOT_FOUND"
         raise FetchSecretError(e)
 
 
-def lookup_github_file_content(repo, path, ref, tvars=None, settings=None):
+def lookup_github_file_content(
+    repo, path, ref, tvars=None, settings=None, secret_reader=None
+):
     if tvars is not None:
-        repo = process_jinja2_template(body=repo, vars=tvars, settings=settings)
-        path = process_jinja2_template(body=path, vars=tvars, settings=settings)
-        ref = process_jinja2_template(body=ref, vars=tvars, settings=settings)
+        repo = process_jinja2_template(
+            body=repo, vars=tvars, settings=settings, secret_reader=secret_reader
+        )
+        path = process_jinja2_template(
+            body=path, vars=tvars, settings=settings, secret_reader=secret_reader
+        )
+        ref = process_jinja2_template(
+            body=ref, vars=tvars, settings=settings, secret_reader=secret_reader
+        )
 
     gh = init_github()
     c = gh.get_repo(repo).get_contents(path, ref).decoded_content
@@ -431,15 +450,28 @@ def compile_jinja2_template(body, extra_curly: bool = False):
     return jinja_env.from_string(body)
 
 
-def process_jinja2_template(body, vars=None, extra_curly: bool = False, settings=None):
+def process_jinja2_template(
+    body, vars=None, extra_curly: bool = False, settings=None, secret_reader=None
+):
     if vars is None:
         vars = {}
     vars.update({
         "vault": lambda p, k, v=None, allow_not_found=False: lookup_secret(
-            path=p, key=k, version=v, allow_not_found=allow_not_found, tvars=vars, settings=settings
+            path=p,
+            key=k,
+            version=v,
+            tvars=vars,
+            settings=settings,
+            secret_reader=secret_reader,
+            allow_not_found=allow_not_found
         ),
         "github": lambda u, p, r, v=None: lookup_github_file_content(
-            repo=u, path=p, ref=r, tvars=vars, settings=settings
+            repo=u,
+            path=p,
+            ref=r,
+            tvars=vars,
+            settings=settings,
+            secret_reader=secret_reader,
         ),
         "urlescape": lambda u, s="/", e=None: urlescape(string=u, safe=s, encoding=e),
         "urlunescape": lambda u, e=None: urlunescape(string=u, encoding=e),
@@ -455,10 +487,18 @@ def process_jinja2_template(body, vars=None, extra_curly: bool = False, settings
     return r
 
 
-def process_extracurlyjinja2_template(body, vars=None, env=None, settings=None):
+def process_extracurlyjinja2_template(
+    body, vars=None, env=None, settings=None, secret_reader=None
+):
     if vars is None:
         vars = {}
-    return process_jinja2_template(body, vars=vars, extra_curly=True, settings=settings)
+    return process_jinja2_template(
+        body,
+        vars=vars,
+        extra_curly=True,
+        settings=settings,
+        secret_reader=secret_reader,
+    )
 
 
 def check_alertmanager_config(data, path, alertmanager_config_key, decode_base64=False):
@@ -1378,12 +1418,14 @@ def early_exit_monkey_patch():
             key,
             version=None,
             tvars=None,
-            settings=None: f"vault({path}, {key}, {version})",
+            settings=None,
+            secret_reader=None: f"vault({path}, {key}, {version})",
             lambda repo,
             path,
             ref,
             tvars=None,
-            settings=None: f"github({repo}, {path}, {ref})",
+            settings=None,
+            secret_reader=None: f"github({repo}, {path}, {ref})",
             lambda url: False,
             lambda data, path, alertmanager_config_key, decode_base64=False: True,
         )
