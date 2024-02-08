@@ -40,10 +40,7 @@ class Renderer(ABC):
         return self._render_template(self.template.target_path)
 
     def should_render(self) -> bool:
-        condition = self._render_template(self.template.condition or "True")
-        if condition == "True":
-            return True
-        return False
+        return self._render_template(self.template.condition or "True") == "True"
 
 
 class FullRenderer(Renderer):
@@ -58,13 +55,13 @@ class PatchRenderer(Renderer):
 
         p = parse_jsonpath(self.template.patch.path)
 
-        matched_values = [match for match in p.find(self._get_current())]
+        matched_values = [match.value for match in p.find(self._get_current())]
 
         if len(matched_values) != 1:
             raise ValueError(
                 f"Expected exactly one match for {self.template.patch.path}, got {len(matched_values)}"
             )
-        matched_value = matched_values[0].value
+        matched_value = matched_values[0]
 
         data_to_add = yaml.safe_load(self._render_template(self.template.template))
 
@@ -79,19 +76,22 @@ class PatchRenderer(Renderer):
                     f"Expected identifier {self.template.patch.identifier} in data to add"
                 )
 
-            updated = False
-            for data in matched_value:
-                if data.get(self.template.patch.identifier) == dta_identifier:
-                    data.update(data_to_add)
-                    updated = True
-                    continue
-
-            if not updated:
+            data = next(
+                (
+                    data
+                    for data in matched_value
+                    if data.get(self.template.patch.identifier) == dta_identifier
+                ),
+                None,
+            )
+            if data is None:
                 matched_value.append(data_to_add)
+            else:
+                data.update(data_to_add)
         else:
             matched_value.update(data_to_add)
 
-        return yaml.dump(self.data.current, width=4096, Dumper=yaml.RoundTripDumper)
+        return yaml.dump(self._get_current(), width=4096, Dumper=yaml.RoundTripDumper)
 
 
 class TemplateData(BaseModel):

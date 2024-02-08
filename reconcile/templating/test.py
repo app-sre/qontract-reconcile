@@ -47,6 +47,8 @@ class TemplatingTestIntegration(QontractReconcileIntegration):
         self.diffs = []
         for template in get_templates():
             for test in template.template_test:
+                logging.info(f"Running test {test.name} for template {template.name}")
+
                 r = create_renderer(
                     template,
                     TemplateData(
@@ -63,16 +65,19 @@ class TemplatingTestIntegration(QontractReconcileIntegration):
                         r.get_target_path().strip(),
                         test.expected_target_path.strip(),
                     )
-                if test.expected_to_render is not None:
-                    if test.expected_to_render != r.should_render():
-                        self.diffs.append(
-                            TemplateDiff(
-                                template=template.name,
-                                test=test.name,
-                                diff="Template should not render, but it did",
-                            )
+                should_render = r.should_render()
+                if (
+                    test.expected_to_render is not None
+                    and test.expected_to_render != should_render
+                ):
+                    self.diffs.append(
+                        TemplateDiff(
+                            template=template.name,
+                            test=test.name,
+                            diff=f"Condition mismatch, got: {should_render}, expected: {test.expected_to_render}",
                         )
-                if r.should_render():
+                    )
+                if should_render:
                     self.diff_result(
                         template.name,
                         test.name,
@@ -83,7 +88,7 @@ class TemplatingTestIntegration(QontractReconcileIntegration):
         if self.diffs:
             for diff in self.diffs:
                 logging.error(
-                    f"template: {diff.template}, test: {diff.test}\n{diff.diff}"
+                    f"template: {diff.template}, test: {diff.test}: {diff.diff}"
                 )
             raise ValueError("templating test failed")
 
