@@ -1858,6 +1858,17 @@ def terraform_repo(ctx, output_file, gitlab_project_id, gitlab_merge_request_id)
     )
 
 
+@integration.command(short_help="Test app-interface templates.")
+@click.pass_context
+def template_validator(ctx):
+    from reconcile.templating import validator
+
+    run_class_integration(
+        integration=validator.TemplateValidatorIntegration(PydanticRunParams()),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage AWS Resources using Terraform.")
 @print_to_file
 @vault_output_path
