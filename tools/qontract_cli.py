@@ -2321,6 +2321,8 @@ def alerts(ctx, file_path):
         "name",
         "summary",
         "severity",
+        "threshold",
+        "description",
     ]
     data = []
     prometheus_rules = content["items"]
@@ -2332,11 +2334,15 @@ def alerts(ctx, file_path):
                 name = rule.get("alert")
                 summary = rule.get("annotations", {}).get("summary")
                 severity = rule.get("labels", {}).get("severity")
-                if name and severity:
+                description = rule.get("annotations", {}).get("description")
+                threshold = rule.get("for")
+                if name and severity == "critical":
                     data.append({
                         "name": name,
                         "summary": summary,
                         "severity": severity,
+                        "threshold": threshold,
+                        "description": description,
                     })
 
     print_output(ctx.obj["options"], data, columns)
