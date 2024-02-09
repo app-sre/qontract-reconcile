@@ -46,7 +46,7 @@ from reconcile.utils.unleash import get_feature_toggle_state
 TERRAFORM_VERSION = "0.13.7"
 TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 
-OC_VERSION = "4.10.15"
+OC_VERSION = "4.14.12"
 OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$"
 
 
