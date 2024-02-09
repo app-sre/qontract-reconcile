@@ -29,6 +29,7 @@ from reconcile.utils import (
     gql,
     promtool,
 )
+from reconcile.utils.jinja2.utils import process_extracurlyjinja2_template
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.structs import CommandExecutionResult
@@ -91,7 +92,7 @@ def fetch_rule_and_tests(
         test_raw_yaml = gql.get_resource(test_path)["content"]
 
         if rule.resource["type"] == "resource-template-extracurlyjinja2":
-            test_raw_yaml = orb.process_extracurlyjinja2_template(
+            test_raw_yaml = process_extracurlyjinja2_template(
                 body=test_raw_yaml,
                 vars=variables,
                 settings=vault_settings.dict(by_alias=True),

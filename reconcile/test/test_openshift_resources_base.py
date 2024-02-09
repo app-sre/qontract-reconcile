@@ -13,11 +13,11 @@ from reconcile.openshift_base import CurrentStateSpec
 from reconcile.openshift_resources_base import (
     CheckClusterScopedResourceDuplicates,
     canonicalize_namespaces,
-    hash_list,
     ob,
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
+from reconcile.utils.jinja2.filters import hash_list
 from reconcile.utils.openshift_resource import ResourceInventory
 
 fxt = Fixtures("namespaces")

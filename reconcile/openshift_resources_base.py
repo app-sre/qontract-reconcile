@@ -13,7 +13,6 @@ from collections.abc import (
 )
 from contextlib import contextmanager
 from dataclasses import dataclass
-from functools import cache
 from textwrap import indent
 from threading import Lock
 from typing import (
@@ -22,14 +21,10 @@ from typing import (
     Protocol,
     Tuple,
 )
-from urllib import parse
 
 import anymarkup
-import jinja2
-import jinja2.sandbox
 from deepdiff import DeepHash
 from sretoolbox.utils import (
-    retry,
     threaded,
 )
 
@@ -37,7 +32,6 @@ import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.checkpoint import url_makes_sense
-from reconcile.github_users import init_github
 from reconcile.utils import (
     amtool,
     gql,
@@ -45,9 +39,12 @@ from reconcile.utils import (
 )
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import FetchResourceError
-from reconcile.utils.jinja2_ext import (
-    B64EncodeExtension,
-    RaiseErrorExtension,
+from reconcile.utils.jinja2.utils import (
+    FetchSecretError,
+    lookup_github_file_content,
+    lookup_secret,
+    process_extracurlyjinja2_template,
+    process_jinja2_template,
 )
 from reconcile.utils.oc import (
     OC_Map,
@@ -64,7 +61,7 @@ from reconcile.utils.openshift_resource import (
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
-from reconcile.utils.secret_reader import SecretNotFound, SecretReader
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.vault import (
@@ -254,19 +251,9 @@ def _locked_error_log(msg: str):
         logging.error(msg)
 
 
-class FetchSecretError(Exception):
-    def __init__(self, msg):
-        super().__init__("error fetching secret: " + str(msg))
-
-
 class FetchRouteError(Exception):
     def __init__(self, msg):
         super().__init__("error fetching route: " + str(msg))
-
-
-class Jinja2TemplateError(Exception):
-    def __init__(self, msg):
-        super().__init__("error processing jinja2 template: " + str(msg))
 
 
 class ResourceTemplateRenderError(Exception):
@@ -285,230 +272,6 @@ class UnknownProviderError(Exception):
 class UnknownTemplateTypeError(Exception):
     def __init__(self, msg):
         super().__init__("unknown template type error: " + str(msg))
-
-
-@retry()
-def lookup_secret(
-    path,
-    key,
-    version=None,
-    tvars=None,
-    allow_not_found=False,
-    settings=None,
-    secret_reader=None,
-):
-    if tvars is not None:
-        path = process_jinja2_template(
-            body=path, vars=tvars, settings=settings, secret_reader=secret_reader
-        )
-        key = process_jinja2_template(
-            body=key, vars=tvars, settings=settings, secret_reader=secret_reader
-        )
-        if version and not isinstance(version, int):
-            version = process_jinja2_template(
-                body=version, vars=tvars, settings=settings, secret_reader=secret_reader
-            )
-    secret = {"path": path, "field": key, "version": version}
-    try:
-        if not secret_reader:
-            secret_reader = SecretReader(settings)
-        return secret_reader.read(secret)
-    except SecretNotFound as e:
-        if allow_not_found:
-            return None
-        raise FetchSecretError(e)
-    except Exception as e:
-        raise FetchSecretError(e)
-
-
-def lookup_github_file_content(
-    repo, path, ref, tvars=None, settings=None, secret_reader=None
-):
-    if tvars is not None:
-        repo = process_jinja2_template(
-            body=repo, vars=tvars, settings=settings, secret_reader=secret_reader
-        )
-        path = process_jinja2_template(
-            body=path, vars=tvars, settings=settings, secret_reader=secret_reader
-        )
-        ref = process_jinja2_template(
-            body=ref, vars=tvars, settings=settings, secret_reader=secret_reader
-        )
-
-    gh = init_github()
-    c = gh.get_repo(repo).get_contents(path, ref).decoded_content
-    return c.decode("utf-8")
-
-
-def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
-    gqlapi = gql.get_api()
-    resource = gqlapi.get_resource(query)["content"]
-    rendered_resource = jinja2.Template(resource).render(**kwargs)
-    results = list(gqlapi.query(rendered_resource).values())[0]
-    return results
-
-
-def hash_list(input: Iterable) -> str:
-    """
-    Deterministic hash of a list for jinja2 templates.
-    The order of the list doesn't matter as it is sorted
-    before hashing. Note, that the list elements
-    must be flat primitives (no dicts/lists).
-    """
-    lst = list(input)
-    str_lst = []
-    for el in lst:
-        if isinstance(el, (list, dict)):
-            raise RuntimeError(
-                f"jinja2 hash_list function received non-primitive value {el}. All values received {lst}"
-            )
-        str_lst.append(str(el))
-    msg = "a"  # keep non-empty for hashing empty list
-    msg += "".join(sorted(str_lst))
-    m = hashlib.sha256()
-    m.update(msg.encode("utf-8"))
-    return m.hexdigest()
-
-
-def eval_filter(input, **kwargs) -> str:
-    """Jinja2 filter be used when the string
-    is in itself a jinja2 template that must be
-    evaluated with kwargs. For example in the case
-    of the slo-document expression fields.
-    :param input: template string
-    :kwargs: variables that will be used to evaluate the
-             input string
-    :return: rendered string
-    """
-    return jinja2.Template(input).render(**kwargs)
-
-
-def json_to_dict(input):
-    """Jinja2 filter to parse JSON strings into dictionaries.
-       This becomes useful to access Graphql queries data (labels)
-    :param input: json string
-    :return: dict with the parsed inputs contents
-    """
-    data = json.loads(input)
-    return data
-
-
-def urlescape(
-    string: str,
-    safe: str = "/",
-    encoding: Optional[str] = None,
-) -> str:
-    """Jinja2 filter that is a simple wrapper around urllib's URL quoting
-    functions that takes a string value and makes it safe for use as URL
-    components escaping any reserved characters using URL encoding. See:
-    urllib.parse.quote() and urllib.parse.quote_plus() for reference.
-
-    :param str string: String value to escape.
-    :param str safe: Optional characters that should not be escaped.
-    :param encoding: Encoding to apply to the string to be escaped. Defaults
-        to UTF-8. Unsupported characters raise a UnicodeEncodeError error.
-    :type encoding: typing.Optional[str]
-    :returns: A string with reserved characters escaped.
-    :rtype: str
-    """
-    return parse.quote(string, safe=safe, encoding=encoding)
-
-
-def urlunescape(string: str, encoding: Optional[str] = None) -> str:
-    """Jinja2 filter that is a simple wrapper around urllib's URL unquoting
-    functions that takes an URL-encoded string value and unescapes it
-    replacing any URL-encoded values with their character equivalent. See:
-    urllib.parse.unquote() and urllib.parse.unquote_plus() for reference.
-
-    :param str string: String value to unescape.
-    :param encoding: Encoding to apply to the string to be unescaped. Defaults
-        to UTF-8. Unsupported characters are replaced by placeholder values.
-    :type encoding: typing.Optional[str]
-    :returns: A string with URL-encoded sequences unescaped.
-    :rtype: str
-    """
-    if encoding is None:
-        encoding = "utf-8"
-    return parse.unquote(string, encoding=encoding)
-
-
-@cache
-def compile_jinja2_template(body, extra_curly: bool = False):
-    env: dict = {}
-    if extra_curly:
-        env = {
-            "block_start_string": "{{%",
-            "block_end_string": "%}}",
-            "variable_start_string": "{{{",
-            "variable_end_string": "}}}",
-            "comment_start_string": "{{#",
-            "comment_end_string": "#}}",
-        }
-
-    jinja_env = jinja2.sandbox.SandboxedEnvironment(
-        extensions=[B64EncodeExtension, RaiseErrorExtension],
-        undefined=jinja2.StrictUndefined,
-        **env,
-    )
-    jinja_env.filters.update({
-        "json_to_dict": json_to_dict,
-        "urlescape": urlescape,
-        "urlunescape": urlunescape,
-        "eval": eval_filter,
-    })
-
-    return jinja_env.from_string(body)
-
-
-def process_jinja2_template(
-    body, vars=None, extra_curly: bool = False, settings=None, secret_reader=None
-):
-    if vars is None:
-        vars = {}
-    vars.update({
-        "vault": lambda p, k, v=None, allow_not_found=False: lookup_secret(
-            path=p,
-            key=k,
-            version=v,
-            tvars=vars,
-            allow_not_found=allow_not_found,
-            settings=settings,
-            secret_reader=secret_reader,
-        ),
-        "github": lambda u, p, r, v=None: lookup_github_file_content(
-            repo=u,
-            path=p,
-            ref=r,
-            tvars=vars,
-            settings=settings,
-            secret_reader=secret_reader,
-        ),
-        "urlescape": lambda u, s="/", e=None: urlescape(string=u, safe=s, encoding=e),
-        "urlunescape": lambda u, e=None: urlunescape(string=u, encoding=e),
-        "hash_list": hash_list,
-        "query": lookup_graphql_query_results,
-        "url": url_makes_sense,
-    })
-    try:
-        template = compile_jinja2_template(body, extra_curly)
-        r = template.render(vars)
-    except Exception as e:
-        raise Jinja2TemplateError(e)
-    return r
-
-
-def process_extracurlyjinja2_template(
-    body, vars=None, env=None, settings=None, secret_reader=None
-):
-    if vars is None:
-        vars = {}
-    return process_jinja2_template(
-        body,
-        vars=vars,
-        extra_curly=True,
-        settings=settings,
-        secret_reader=secret_reader,
-    )
 
 
 def check_alertmanager_config(data, path, alertmanager_config_key, decode_base64=False):
