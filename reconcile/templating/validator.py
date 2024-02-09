@@ -51,7 +51,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
     def run(self, dry_run: bool) -> None:
         for template in get_templates():
             for test in template.template_test:
-                logging.info(f"Running test {test.name} for template {template.name}")
+                logging.debug(f"Running test {test.name} for template {template.name}")
 
                 r = create_renderer(
                     template,
