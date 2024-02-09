@@ -20,6 +20,7 @@ from reconcile.status import (
     ExitCodes,
     RunningState,
 )
+from reconcile.templating.validator import TemplateValidatorIntegrationParams
 from reconcile.utils import gql
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import (
@@ -1859,12 +1860,18 @@ def terraform_repo(ctx, output_file, gitlab_project_id, gitlab_merge_request_id)
 
 
 @integration.command(short_help="Test app-interface templates.")
+@click.option(
+    "--bundle-file",
+    help="Bundle to use during schema validation.",
+    required=False,
+    envvar="BUNDLE_FILE",
+)
 @click.pass_context
-def template_validator(ctx):
+def template_validator(ctx, bundle_file):
     from reconcile.templating import validator
 
     run_class_integration(
-        integration=validator.TemplateValidatorIntegration(PydanticRunParams()),
+        integration=validator.TemplateValidatorIntegration(TemplateValidatorIntegrationParams(bundle_file=bundle_file)),
         ctx=ctx.obj,
     )
 

@@ -21,7 +21,9 @@ class Renderer(ABC):
         self.jinja_env = SandboxedEnvironment()
 
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
-        return {**self.data.variables, "current": self.data.current}
+        return {**self.data.variables,
+                ""
+                "current": self.data.current}
 
     def _render_template(self, template: str) -> str:
         return self.jinja_env.from_string(template).render(
