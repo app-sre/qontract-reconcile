@@ -1,3 +1,5 @@
+import hashlib
+import inspect
 from abc import ABC, abstractmethod
 from enum import Enum, IntFlag
 from typing import Any
@@ -24,23 +26,64 @@ class JobValidationError(Exception):
     pass
 
 
+JOB_GENERATION_ANNOTATION = "qontract-reconcile/job.generation"
+
+
 class K8sJob(ABC):
+    """
+    This is the base class for all jobs that will be managed by the
+    K8sJobController.
+
+    A job needs to implement the following methods:
+    - name_prefix: return the prefix of the job name. This is useful to group
+        jobs of the same type together. The prefix is part of the final job name.
+
+    - unit_of_work_identity: return the data that uniquely identifies the unit
+        of work that the job will perform. This data will be used to calculate a
+        hash that will be used as part of the job name. This way a unit of work
+        can be uniquely identified by the job name.
+
+    - job_spec: return the job spec that will be used as the spec part of
+        the Kubernetes Job.
+
+    The job can optionally also implement the following methods:
+    - annotations: return a dictionary with the annotations that will be used
+        in the job metadata.
+    - labels: return a dictionary with the labels that will be used in the job
+        metadata.
+    - build_job: return the V1Job object that will be used to create the job in
+        Kubernetes. Override this method if you need to customize the job that
+        will represent your unit of work in Kubernetes.
+    - name: return the name of the job. Override this method if you need to
+        customize the name of the job that will represent your unit of work in
+        Kubernetes. Keep in mind that the name of the job is used to identify job
+        and the controllers concurrency policy functionality is based on the job name.
+    """
+
     def name(self) -> str:
-        return f"{self.name_prefix()}-{self.job_identity_digest()}"
+        return f"{self.name_prefix()}-{self.unit_of_work_digest()}"
 
     @abstractmethod
-    def name_prefix(self) -> str: ...
+    def name_prefix(self) -> str:
+        """
+        Return the prefix of the job name. This is useful to group jobs of the
+        same type together. The prefix is part of the final job name.
+        """
+        ...
 
-    def job_identity_digest(self, length: int = 10) -> str:
-        data = self.job_identity_data()
+    def unit_of_work_digest(self, length: int = 10) -> str:
+        data = self.unit_of_work_identity()
         hash = DeepHash(data).get(data)
         return str(hash)[:length]
 
     @abstractmethod
-    def description(self) -> str: ...
-
-    @abstractmethod
-    def job_identity_data(self) -> Any: ...
+    def unit_of_work_identity(self) -> Any:
+        """
+        Return the data that uniquely identifies the unit of work that the job
+        will perform. This data will be used to calculate a hash that will be
+        used as part of the job name.
+        """
+        ...
 
     def annotations(self) -> dict[str, Any]:
         return {}
@@ -49,12 +92,14 @@ class K8sJob(ABC):
         return {}
 
     def build_job(self) -> V1Job:
+        job_annotations = self.annotations()
+        job_annotations[JOB_GENERATION_ANNOTATION] = self.job_spec_generation_digest()
         return V1Job(
             api_version="batch/v1",
             kind="Job",
             metadata=V1ObjectMeta(
                 name=self.name(),
-                annotations=self.annotations(),
+                annotations=job_annotations,
                 labels=self.labels(),
             ),
             spec=self.job_spec(),
@@ -62,3 +107,14 @@ class K8sJob(ABC):
 
     @abstractmethod
     def job_spec(self) -> V1JobSpec: ...
+
+    def job_spec_generation_digest(self, length: int = 10) -> str:
+        """
+        Calculate a hash of the job spec source code to be used as a generation
+        identifier for the job spec. This is useful to determine if the job
+        spec has changed and a job needs to be replaced.
+        """
+        job_spec_source_code = inspect.getsource(self.job_spec)
+        hash_object = hashlib.sha256(job_spec_source_code.encode())
+        hash = hash_object.hexdigest()
+        return hash[:length]

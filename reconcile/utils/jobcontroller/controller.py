@@ -1,11 +1,12 @@
 import logging
 import time
-from typing import Optional, TypeVar
+from typing import Optional, Protocol
 
 from kubernetes.client import ApiClient, V1Job  # type: ignore[attr-defined]
 
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils.jobcontroller.models import (
+    JOB_GENERATION_ANNOTATION,
     JobConcurrencyPolicy,
     JobStatus,
     JobValidationError,
@@ -54,7 +55,10 @@ def build_job_controller(
     )
 
 
-JobType = TypeVar("JobType", bound=K8sJob)
+class TimeProtocol(Protocol):
+    def time(self) -> float: ...
+
+    def sleep(self, seconds: float) -> None: ...
 
 
 class K8sJobController:
@@ -66,6 +70,7 @@ class K8sJobController:
         integration: str,
         integration_version: str,
         dry_run: bool = False,
+        time_module: TimeProtocol = time,
     ) -> None:
         self.cluster = cluster
         self.namespace = namespace
@@ -73,6 +78,7 @@ class K8sJobController:
         self.integration_version = integration_version
         self.oc = oc
         self.dry_run = dry_run
+        self.time_module = time_module
         self._cache: Optional[dict[str, OpenshiftResource]] = None
 
     @property
@@ -99,6 +105,19 @@ class K8sJobController:
         self._cache = new_cache
         return self._cache
 
+    def get_job_generation(self, job_name: str) -> Optional[str]:
+        """
+        Returns the generation annotation for a job.
+        """
+        job_resource = self.cache.get(job_name)
+        if job_resource is None:
+            return None
+        return (
+            job_resource.body.get("metadata", {})
+            .get("annotations", {})
+            .get(JOB_GENERATION_ANNOTATION)
+        )
+
     def get_job_status(self, job_name: str) -> JobStatus:
         """
         Looks up the status for a job. It expects the cache to be up to date, so
@@ -119,10 +138,10 @@ class K8sJobController:
         return JobStatus.IN_PROGRESS
 
     def wait_for_job_list_completion(
-        self, jobs: set[JobType], check_interval_seconds: int, timeout_seconds: int
-    ) -> list[tuple[JobType, JobStatus]]:
+        self, job_names: set[str], check_interval_seconds: int, timeout_seconds: int
+    ) -> dict[str, JobStatus]:
         """
-        Waits for all jobs in the list to complete, and retruens their statuses.
+        Waits for all jobs in the list to complete, and returns their statuses.
         * if a job from the list does not exist, it will have the status NOT_EXISTS set in the result.
         * if a job did not finish within the timeout boundaries, it will have the status
           IN_PROGRESS set in the result
@@ -132,21 +151,22 @@ class K8sJobController:
         The timeout_seconds parameter is the maximum time to wait for all jobs to complete. If set to -1,
         the function will wait indefinitely.  If a timeout occures, a TimeoutError will be raised.
         """
-        jobs_left = {j.name() for j in jobs}
-        job_statuses: dict[str, tuple[JobType, JobStatus]] = {
-            job.name(): (job, JobStatus.NOT_EXISTS) for job in jobs
+        jobs_left = job_names.copy()
+        job_statuses: dict[str, JobStatus] = {
+            name: JobStatus.NOT_EXISTS for name in job_names
         }
 
-        start_time = time.time()
+        start_time = self.time_module.time()
         while jobs_left:
             self.update_cache()
-            for job_name in jobs_left:
+            for job_name in list(jobs_left):
                 status = self.get_job_status(job_name)
-                job_statuses[job_name] = (job_statuses[job_name][0], status)
+                job_statuses[job_name] = status
                 if status in {JobStatus.SUCCESS, JobStatus.ERROR}:
                     jobs_left.remove(job_name)
             if jobs_left:
-                if timeout_seconds >= 0 and time.time() - start_time > timeout_seconds:
+                elapsed_time = self.time_module.time() - start_time
+                if timeout_seconds >= 0 and elapsed_time > timeout_seconds:
                     logging.warning(
                         f"Timeout waiting for jobs to complete: {jobs_left}"
                     )
@@ -154,8 +174,10 @@ class K8sJobController:
                 logging.info(
                     f"Waiting for {jobs_left} to complete. Rechecking in {check_interval_seconds} seconds"
                 )
-                time.sleep(check_interval_seconds)
-        return list(job_statuses.values())
+                self.time_module.sleep(
+                    min(check_interval_seconds, timeout_seconds - elapsed_time)
+                )
+        return job_statuses
 
     def enqueue_job_and_wait_for_completion(
         self,
@@ -255,7 +277,7 @@ class K8sJobController:
         The timeout_seconds parameter is the maximum time to wait for all jobs to complete. If set to -1,
         the function will wait indefinitely. If a timeout occures, a TimeoutError will be raised.
         """
-        start_time = time.time()
+        start_time = self.time_module.time()
         while True:
             self.update_cache()
             status = self.get_job_status(job_name)
@@ -264,9 +286,12 @@ class K8sJobController:
                     return True
                 case JobStatus.ERROR:
                     return False
-            if time.time() - start_time > timeout_seconds:
+            elapsed_time = self.time_module.time() - start_time
+            if elapsed_time > timeout_seconds:
                 raise TimeoutError(f"Timeout waiting for job {job_name} to complete")
-            time.sleep(check_interval_seconds)
+            self.time_module.sleep(
+                min(check_interval_seconds, timeout_seconds - elapsed_time)
+            )
 
     def store_job_logs(self, job_name: str, output_dir_path: str) -> None:
         """
