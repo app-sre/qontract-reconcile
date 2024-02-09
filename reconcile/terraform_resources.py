@@ -563,7 +563,7 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
 
     return {
         "accounts": queries.get_aws_accounts(terraform_state=True),
-        "namespaces": namespaces,
+        "namespaces": [ns.dict(by_alias=True) for ns in namespaces],
         "resources": resources,
     }
 
