@@ -2450,6 +2450,12 @@ def early_exit_cache(ctx):
     help="Cache source. It should be a JSON string.",
     required=True,
 )
+@click.option(
+    "-s",
+    "--shard",
+    help="Shard",
+    default="",
+)
 @click.pass_context
 def early_exit_cache_head(
     ctx,
@@ -2457,6 +2463,7 @@ def early_exit_cache_head(
     integration_version,
     dry_run,
     cache_source,
+    shard,
 ):
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
@@ -2464,9 +2471,10 @@ def early_exit_cache_head(
             integration_version=integration_version,
             dry_run=dry_run,
             cache_source=json.loads(cache_source),
+            shard=shard,
         )
-        status = cache.head(cache_key)
-        print(status)
+        result = cache.head(cache_key)
+        print(result)
 
 
 @early_exit_cache.command(name="get")
@@ -2493,6 +2501,12 @@ def early_exit_cache_head(
     help="Cache source. It should be a JSON string.",
     required=True,
 )
+@click.option(
+    "-s",
+    "--shard",
+    help="Shard",
+    default="",
+)
 @click.pass_context
 def early_exit_cache_get(
     ctx,
@@ -2500,6 +2514,7 @@ def early_exit_cache_get(
     integration_version,
     dry_run,
     cache_source,
+    shard,
 ):
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
@@ -2507,6 +2522,7 @@ def early_exit_cache_get(
             integration_version=integration_version,
             dry_run=dry_run,
             cache_source=json.loads(cache_source),
+            shard=shard,
         )
         value = cache.get(cache_key)
         print(value)
@@ -2537,6 +2553,12 @@ def early_exit_cache_get(
     required=True,
 )
 @click.option(
+    "-s",
+    "--shard",
+    help="Shard",
+    default="",
+)
+@click.option(
     "-p",
     "--payload",
     help="Payload in Cache value. It should be a JSON string.",
@@ -2562,6 +2584,12 @@ def early_exit_cache_get(
     default=60,
     type=int,
 )
+@click.option(
+    "-d",
+    "--latest-cache-source-digest",
+    help="Latest cache source digest.",
+    default="",
+)
 @click.pass_context
 def early_exit_cache_set(
     ctx,
@@ -2569,10 +2597,12 @@ def early_exit_cache_set(
     integration_version,
     dry_run,
     cache_source,
+    shard,
     payload,
     log_output,
     applied_count,
     ttl,
+    latest_cache_source_digest,
 ):
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
@@ -2580,13 +2610,14 @@ def early_exit_cache_set(
             integration_version=integration_version,
             dry_run=dry_run,
             cache_source=json.loads(cache_source),
+            shard=shard,
         )
         cache_value = CacheValue(
             payload=json.loads(payload),
             log_output=log_output,
             applied_count=applied_count,
         )
-        cache.set(cache_key, cache_value, ttl)
+        cache.set(cache_key, cache_value, ttl, latest_cache_source_digest)
 
 
 @root.command()
