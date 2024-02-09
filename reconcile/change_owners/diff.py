@@ -1,6 +1,5 @@
 import copy
 import json
-import re
 from dataclasses import dataclass
 from enum import Enum
 from functools import reduce
@@ -237,9 +236,6 @@ def extract_diffs(old_file_content: Any, new_file_content: Any) -> list[Diff]:
         )
 
     return diffs
-
-
-DEEP_DIFF_RE = re.compile(r"\['?(.*?)'?\]")
 
 
 def deepdiff_path_to_jsonpath(deep_diff_path: str) -> jsonpath_ng.JSONPath:
