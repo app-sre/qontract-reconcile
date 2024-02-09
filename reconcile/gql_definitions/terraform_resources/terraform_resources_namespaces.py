@@ -346,6 +346,16 @@ query TerraformResourcesNamespaces {
                                 status_code
                             }
                         }
+                        ... on NamespaceTerraformResourceALBActionRedirect_v1 {
+                            redirect {
+                                host
+                                path
+                                port
+                                protocol
+                                query
+                                status_code
+                            }
+                        }
                     }
                 }
                 output_resource_name
@@ -831,9 +841,22 @@ class NamespaceTerraformResourceALBActionFixedResponseV1(NamespaceTerraformResou
     fixed_response: NamespaceTerraformResourceALBActionFixedResponseSettingsV1 = Field(..., alias="fixed_response")
 
 
+class NamespaceTerraformResourceALBActionRedirectSettingsV1(ConfiguredBaseModel):
+    host: Optional[str] = Field(..., alias="host")
+    path: Optional[str] = Field(..., alias="path")
+    port: Optional[int] = Field(..., alias="port")
+    protocol: Optional[str] = Field(..., alias="protocol")
+    query: Optional[str] = Field(..., alias="query")
+    status_code: Optional[str] = Field(..., alias="status_code")
+
+
+class NamespaceTerraformResourceALBActionRedirectV1(NamespaceTerraformResourceALBActionV1):
+    redirect: NamespaceTerraformResourceALBActionRedirectSettingsV1 = Field(..., alias="redirect")
+
+
 class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
     condition: list[Union[NamespaceTerraformResourceALBConditionHostHeaderV1, NamespaceTerraformResourceALBConditionHTTPRequestMethodV1, NamespaceTerraformResourceALBConditionPathPatternV1, NamespaceTerraformResourceALBConditionSourceIPV1, NamespaceTerraformResourceALBConditionV1]] = Field(..., alias="condition")
-    action: Union[NamespaceTerraformResourceALBActionForwardV1, NamespaceTerraformResourceALBActionFixedResponseV1, NamespaceTerraformResourceALBActionV1] = Field(..., alias="action")
+    action: Union[NamespaceTerraformResourceALBActionForwardV1, NamespaceTerraformResourceALBActionFixedResponseV1, NamespaceTerraformResourceALBActionRedirectV1, NamespaceTerraformResourceALBActionV1] = Field(..., alias="action")
 
 
 class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):

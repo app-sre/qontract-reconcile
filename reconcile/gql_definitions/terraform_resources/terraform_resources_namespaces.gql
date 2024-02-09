@@ -289,6 +289,16 @@ query TerraformResourcesNamespaces {
                                 status_code
                             }
                         }
+                        ... on NamespaceTerraformResourceALBActionRedirect_v1 {
+                            redirect {
+                                host
+                                path
+                                port
+                                protocol
+                                query
+                                status_code
+                            }
+                        }
                     }
                 }
                 output_resource_name
