@@ -1,10 +1,13 @@
 import hashlib
 import json
+import re
 from collections.abc import Iterable
 from typing import Any, Optional
 from urllib import parse
 
 import jinja2
+
+from reconcile.utils.jsonpath import parse_jsonpath
 
 
 def json_to_dict(input: str) -> Any:
@@ -85,3 +88,41 @@ def hash_list(input: Iterable) -> str:
     m = hashlib.sha256()
     m.update(msg.encode("utf-8"))
     return m.hexdigest()
+
+
+def _find_jsonpath(input: Any, jsonpath: str | None) -> Any:
+    assert jsonpath is not None and len(jsonpath) > 0
+    return parse_jsonpath(jsonpath).find(input)
+
+
+def extract_jsonpath(input: Any, jsonpath: str) -> Any:
+    """
+    Extracts data from the input using jsonpath.
+    The result is a list of matching elements.
+    The list will be empty if nothing matches.
+    """
+    return [i.value for i in _find_jsonpath(input, jsonpath)]
+
+
+def matches_jsonpath(input: Any, jsonpath: str | None) -> bool:
+    """
+    Returns True if the input matches the provided jsonpath
+    """
+    return len(_find_jsonpath(input, jsonpath)) > 0
+
+
+def _convert_pointer(pointer: str) -> str:
+    """
+    Converts a jsonpath_ng pointer (eg "items.[2].type.[3]")
+    to a rfc6901 one (https://www.rfc-editor.org/rfc/rfc6901)
+    "/items/2/type/3"
+    """
+    elems = [e[1:-1] if re.match(r"\[\d\]", e) else e for e in pointer.split(".")]
+    return "/" + "/".join(elems)
+
+
+def json_pointers(input: Any, jsonpath: str) -> list[str]:
+    """
+    Finds the RFC6901 JSON pointers of the input elements matching the given jsonpath
+    """
+    return [_convert_pointer(str(i.full_path)) for i in _find_jsonpath(input, jsonpath)]

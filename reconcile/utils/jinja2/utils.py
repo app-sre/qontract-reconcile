@@ -11,8 +11,11 @@ from reconcile.utils import gql
 from reconcile.utils.jinja2.extensions import B64EncodeExtension, RaiseErrorExtension
 from reconcile.utils.jinja2.filters import (
     eval_filter,
+    extract_jsonpath,
     hash_list,
+    json_pointers,
     json_to_dict,
+    matches_jsonpath,
     urlescape,
     urlunescape,
 )
@@ -47,6 +50,9 @@ def compile_jinja2_template(body: str, extra_curly: bool = False) -> Any:
         "urlescape": urlescape,
         "urlunescape": urlunescape,
         "eval": eval_filter,
+        "extract_jsonpath": extract_jsonpath,
+        "matches_jsonpath": matches_jsonpath,
+        "json_pointers": json_pointers,
     })
 
     return jinja_env.from_string(body)
