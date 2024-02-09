@@ -1871,7 +1871,9 @@ def template_validator(ctx, bundle_file):
     from reconcile.templating import validator
 
     run_class_integration(
-        integration=validator.TemplateValidatorIntegration(TemplateValidatorIntegrationParams(bundle_file=bundle_file)),
+        integration=validator.TemplateValidatorIntegration(
+            TemplateValidatorIntegrationParams(bundle_file=bundle_file)
+        ),
         ctx=ctx.obj,
     )
 

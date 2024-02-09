@@ -1,12 +1,11 @@
-import json
 import logging
 from difflib import context_diff
 from typing import Callable, Optional
 
 from pydantic import BaseModel
 from ruamel import yaml
-from validator import validate_bundle # type: ignore
-from validator.bundle import load_bundle # type: ignore
+from validator import validate_bundle  # type: ignore
+from validator.bundle import load_bundle  # type: ignore
 from yamllint import linter  # type: ignore
 from yamllint.config import YamlLintConfig  # type: ignore
 
@@ -14,8 +13,8 @@ from reconcile.gql_definitions.templating.templates import TemplateV1, query
 from reconcile.templating.rendering import TemplateData, create_renderer
 from reconcile.utils import gql
 from reconcile.utils.runtime.integration import (
+    PydanticRunParams,
     QontractReconcileIntegration,
-    RunParamsTypeVar, PydanticRunParams,
 )
 
 QONTRACT_INTEGRATION = "template-validator"
@@ -41,18 +40,25 @@ class TemplateError(BaseModel):
     lineno: Optional[int] = None
 
 
-def validate_template(bundle_file: str, template_name: str, target_path: str , yaml_to_validate: str) -> list[TemplateError]:
-    with open(bundle_file) as b:
+def validate_template(
+    bundle_file: str, templates: dict[str, dict[str, str]]
+) -> list[TemplateError]:
+    with open(bundle_file, "r", encoding="utf-8") as b:
         bundle = load_bundle(b)
 
-    bundle.data[target_path] = yaml.safe_load(yaml_to_validate)
+    for target_path, template_data in templates.items():
+        bundle.data[target_path] = yaml.safe_load(template_data["yaml"])
 
     results = validate_bundle(bundle)
-    errors = list(filter(lambda x: x["result"]["status"] == "ERROR", results))
+    return [
+        TemplateError(
+            template=templates[result["filename"]]["template"],
+            error=f"{result['result']['status']}: {result['result']}",
+        )
+        for result in results
+        if result["result"]["status"] == "ERROR"
+    ]
 
-    print(json.dumps(errors, indent=4) + "\n")
-
-    return []
 
 def lint_yaml(template_name: str, yaml_to_lint: str) -> list[TemplateError]:
     # Possibly move this path to the templating configuration schema in the future
@@ -91,6 +97,8 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
             )
 
     def run(self, dry_run: bool) -> None:
+        if self.params.bundle_file:
+            validation_data: dict[str, dict[str, str]] = {}
         for template in get_templates():
             for test in template.template_test:
                 logging.debug(f"Running test {test.name} for template {template.name}")
@@ -131,11 +139,18 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                         output.strip(),
                         test.expected_output.strip(),
                     )
-
                     if self.params.bundle_file:
-                        validate_template(self.params.bundle_file, template.name, "added-by-test.yml", output)
+                        validation_data[r.render_target_path()] = {
+                            "yaml": output,
+                            "template": template.name,
+                        }
 
                     self.errors.extend(lint_yaml(template.name, output))
+
+        if self.params.bundle_file:
+            self.errors.extend(
+                validate_template(self.params.bundle_file, validation_data)
+            )
 
         if self.diffs or self.errors:
             for diff in self.diffs:
