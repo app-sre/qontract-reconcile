@@ -4,6 +4,8 @@ from typing import Callable, Optional
 
 from pydantic import BaseModel
 from ruamel import yaml
+from yamllint import linter  # type: ignore
+from yamllint.config import YamlLintConfig  # type: ignore
 
 from reconcile.gql_definitions.templating.templates import TemplateV1, query
 from reconcile.templating.rendering import TemplateData, create_renderer
@@ -30,10 +32,30 @@ class TemplateDiff(BaseModel):
     diff: str
 
 
+class TemplateError(BaseModel):
+    template: str
+    error: str
+    lineno: Optional[int] = None
+
+
+def lint_yaml(template_name: str, yaml_to_lint: str) -> list[TemplateError]:
+    # Possibly move this path to the templating configuration schema in the future
+    resource = gql.get_api().get_resource("/yamllint/yamllint.yml")
+    config = YamlLintConfig(content=resource["content"])
+
+    return [
+        TemplateError(
+            template=template_name, error=problem.message, lineno=problem.line
+        )
+        for problem in linter.run(yaml_to_lint, config, "")
+    ]
+
+
 class TemplateValidatorIntegration(QontractReconcileIntegration):
     def __init__(self, params: RunParamsTypeVar) -> None:
         super().__init__(params)
         self.diffs: list[TemplateDiff] = []
+        self.errors: list[TemplateError] = []
 
     def diff_result(
         self, template_name: str, test_name: str, output: str, expected: str
@@ -82,19 +104,25 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                         )
                     )
                 if should_render:
+                    output = r.render_output()
                     self.diff_result(
                         template.name,
                         test.name,
-                        r.render_output().strip(),
+                        output.strip(),
                         test.expected_output.strip(),
                     )
+                    self.errors.extend(lint_yaml(template.name, output))
 
-        if self.diffs:
+        if self.diffs or self.errors:
             for diff in self.diffs:
                 logging.error(
                     f"template: {diff.template}, test: {diff.test}: {diff.diff}"
                 )
-            raise ValueError("Template validation")
+            for err in self.errors:
+                logging.error(
+                    f"template: {err.template}, line: {err.lineno}, error: {err.error}"
+                )
+            raise ValueError("Template validation failed")
 
     @property
     def name(self) -> str:

@@ -70,6 +70,7 @@ setup(
         "dt==1.1.61",
         "jsonpatch~=1.33",
         "jsonpointer~=2.4",
+        "yamllint==1.34.0",
     ],
     test_suite="tests",
     classifiers=[
