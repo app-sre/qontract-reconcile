@@ -1869,6 +1869,17 @@ def template_validator(ctx):
     )
 
 
+@integration.command(short_help="Render datafile templates in app-interface.")
+@click.pass_context
+def template_renderer(ctx):
+    from reconcile.templating import renderer
+
+    run_class_integration(
+        integration=renderer.TemplateValidatorIntegration(PydanticRunParams()),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage AWS Resources using Terraform.")
 @print_to_file
 @vault_output_path

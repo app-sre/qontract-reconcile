@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, Optional, Protocol
 
 from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel
 from ruamel import yaml
 
-from reconcile.gql_definitions.templating.templates import TemplateV1
 from reconcile.utils.jsonpath import parse_jsonpath
 
 
@@ -14,8 +13,28 @@ class TemplateData(BaseModel):
     current: Optional[dict[str, Any]]
 
 
+class TemplatePatchProtocol(Protocol):
+    path: str
+    identifier: Optional[str]
+
+    def dict(self) -> dict[str, str]: ...
+
+
+class TemplateProtocol(Protocol):
+    name: str
+    condition: Optional[str]
+    target_path: str
+    template: str
+
+    def dict(self) -> dict[str, str]: ...
+
+    @property
+    def patch(self) -> Optional[TemplatePatchProtocol]:
+        pass
+
+
 class Renderer(ABC):
-    def __init__(self, template: TemplateV1, data: TemplateData):
+    def __init__(self, template: TemplateProtocol, data: TemplateData):
         self.template = template
         self.data = data
         self.jinja_env = SandboxedEnvironment()
@@ -107,7 +126,7 @@ class PatchRenderer(Renderer):
         return yaml.dump(self.data.current, width=4096, Dumper=yaml.RoundTripDumper)
 
 
-def create_renderer(template: TemplateV1, data: TemplateData) -> Renderer:
+def create_renderer(template: TemplateProtocol, data: TemplateData) -> Renderer:
     if template.patch:
         return PatchRenderer(template=template, data=data)
     return FullRenderer(template=template, data=data)
