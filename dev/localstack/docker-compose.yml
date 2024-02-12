@@ -15,3 +15,5 @@ services:
     volumes:
       - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
       - ./init:/etc/localstack/init/ready.d
+    networks:
+    - qontract-development
