@@ -45,6 +45,7 @@ from reconcile.utils import (
 )
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import FetchResourceError
+from reconcile.utils.secret_reader import SecretNotFound
 from reconcile.utils.jinja2_ext import (
     B64EncodeExtension,
     RaiseErrorExtension,
@@ -313,9 +314,11 @@ def lookup_secret(
         if not secret_reader:
             secret_reader = SecretReader(settings)
         return secret_reader.read(secret)
-    except Exception as e:
+    except SecretNotFound:
         if allow_not_found:
-            return "SECRET_NOT_FOUND"
+            return None
+        raise FetchSecretError(e)
+    except Exception as e:
         raise FetchSecretError(e)
 
 
