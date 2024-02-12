@@ -45,7 +45,6 @@ from reconcile.utils import (
 )
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import FetchResourceError
-from reconcile.utils.secret_reader import SecretNotFound
 from reconcile.utils.jinja2_ext import (
     B64EncodeExtension,
     RaiseErrorExtension,
@@ -65,7 +64,7 @@ from reconcile.utils.openshift_resource import (
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretNotFound, SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.vault import (
@@ -314,7 +313,7 @@ def lookup_secret(
         if not secret_reader:
             secret_reader = SecretReader(settings)
         return secret_reader.read(secret)
-    except SecretNotFound:
+    except SecretNotFound as e:
         if allow_not_found:
             return None
         raise FetchSecretError(e)
