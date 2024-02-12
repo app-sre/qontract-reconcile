@@ -537,7 +537,6 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
         account["name"]: {
             "meta": account,
             "specs": {},
-            "resources": {},
         }
         for account in queries.get_aws_accounts(terraform_state=True)
     }
@@ -545,17 +544,15 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
         for spec in get_external_resource_specs(
             ns_info.dict(by_alias=True), provision_provider=PROVIDER_AWS
         ):
-            spec_id = f"{spec.cluster_name}/{spec.namespace_name}/{spec.provisioner_name}/{spec.provider}/{spec.identifier}"
-            state_for_accounts[spec.provisioner_name][spec_id] = spec_state = {
+            spec_resources: dict[str, str] = {}
+            spec_state = {
                 "spec": asdict(spec),
-                "resources": {},
+                "resources": spec_resources,
             }
 
             def register_resource(resource: Optional[dict[str, Any]]) -> None:
                 if resource:
-                    spec_state["resources"][resource.get("path")] = resource[
-                        "sha256sum"
-                    ]
+                    spec_resources[resource["path"]] = resource["sha256sum"]
 
             defaults = spec.resource.get("defaults")
             if defaults:
@@ -567,6 +564,8 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
                 defaults = spec_item.get("defaults")
                 if defaults:
                     register_resource(gqlapi.get_resource(defaults))
+            spec_id = f"{spec.cluster_name}/{spec.namespace_name}/{spec.provisioner_name}/{spec.provider}/{spec.identifier}"
+            state_for_accounts[spec.provisioner_name][spec_id] = spec_state
 
     return {
         "state": {
