@@ -544,26 +544,22 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
         for spec in get_external_resource_specs(
             ns_info.dict(by_alias=True), provision_provider=PROVIDER_AWS
         ):
-            spec_resources: dict[str, str] = {}
+            resource_paths = [
+                spec.resource.get("defaults"),
+                spec.resource.get("parameter_group"),
+            ] + [
+                spec_item.get("defaults")
+                for spec_item in spec.resource.get("specs") or []
+            ]
+            resources = {
+                resource["path"]: resource["sha256sum"]
+                for path in resource_paths
+                if path and (resource := gqlapi.get_resource(path))
+            }
             spec_state = {
                 "spec": asdict(spec),
-                "resources": spec_resources,
+                "resources": resources,
             }
-
-            def register_resource(resource: Optional[dict[str, Any]]) -> None:
-                if resource:
-                    spec_resources[resource["path"]] = resource["sha256sum"]
-
-            defaults = spec.resource.get("defaults")
-            if defaults:
-                register_resource(gqlapi.get_resource(defaults))
-            parameter_group = spec.resource.get("parameter_group")
-            if parameter_group:
-                register_resource(gqlapi.get_resource(parameter_group))
-            for spec_item in spec.resource.get("specs") or []:
-                defaults = spec_item.get("defaults")
-                if defaults:
-                    register_resource(gqlapi.get_resource(defaults))
             spec_id = f"{spec.cluster_name}/{spec.namespace_name}/{spec.provisioner_name}/{spec.provider}/{spec.identifier}"
             state_for_accounts[spec.provisioner_name][spec_id] = spec_state
 
