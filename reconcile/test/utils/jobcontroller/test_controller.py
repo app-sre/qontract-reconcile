@@ -146,6 +146,7 @@ def test_controller_enqueue_job_failed_job_exists(
     [
         (build_job_status(succeeded=1), 100, True),
         (build_job_status(failed=1), 100, False),
+        (build_job_status(succeeded=1), -1, True),
     ],
 )
 def test_controller_wait_for_completion(
@@ -169,6 +170,24 @@ def test_controller_wait_for_completion(
         )
         == expected
     )
+    assert controller.time_module.time() == 10
+
+
+def test_controller_wait_for_completion_instant() -> None:
+    job = SomeJob(identifying_attribute="some-id", description="some-description")
+    controller = build_job_controller_fixture(
+        oc=build_oc_fixture(
+            [
+                [build_job_resource(job, build_job_status(succeeded=1))],  # 0 seconds
+            ],
+        ),
+        dry_run=False,
+    )
+
+    assert controller.wait_for_job_completion(
+        job.name(), check_interval_seconds=5, timeout_seconds=0
+    )
+    assert controller.time_module.time() == 0
 
 
 def test_controller_wait_for_completion_timeout() -> None:
@@ -225,6 +244,7 @@ def test_controller_wait_for_job_list_completion() -> None:
         check_interval_seconds=5,
         timeout_seconds=10,
     )
+    assert controller.time_module.time() == 5
 
 
 def test_controller_wait_for_job_list_completion_partial() -> None:
@@ -257,11 +277,46 @@ def test_controller_wait_for_job_list_completion_partial() -> None:
         job1.name(): JobStatus.SUCCESS,
         job2.name(): JobStatus.IN_PROGRESS,
     }
-    assert expected == controller.wait_for_job_list_completion(
+    actual = controller.wait_for_job_list_completion(
         {job1.name(), job2.name()},
         check_interval_seconds=5,
         timeout_seconds=5,
     )
+    assert expected == actual
+    assert controller.time_module.time() == 5
+
+
+def test_controller_wait_for_job_list_completion_no_timeout() -> None:
+    job1 = SomeJob(identifying_attribute="some-id-1", description="some-description")
+    job2 = SomeJob(identifying_attribute="some-id-2", description="some-description")
+    controller = build_job_controller_fixture(
+        oc=build_oc_fixture(
+            [
+                # 0 seconds
+                [
+                    build_job_resource(job1, build_job_status(active=1)),
+                    build_job_resource(job2, build_job_status(active=1)),
+                ],
+                # 5 seconds
+                [
+                    build_job_resource(job1, build_job_status(succeeded=1)),
+                    build_job_resource(job2, build_job_status(succeeded=1)),
+                ],
+            ],
+        ),
+        dry_run=False,
+    )
+
+    expected = {
+        job1.name(): JobStatus.SUCCESS,
+        job2.name(): JobStatus.SUCCESS,
+    }
+    assert expected == controller.wait_for_job_list_completion(
+        {job1.name(), job2.name()},
+        check_interval_seconds=5,
+        timeout_seconds=-1,
+    )
+    assert controller.time_module.time() == 5
 
 
 #
