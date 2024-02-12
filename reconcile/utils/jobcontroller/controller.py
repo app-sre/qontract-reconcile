@@ -166,7 +166,7 @@ class K8sJobController:
                     jobs_left.remove(job_name)
             if jobs_left:
                 elapsed_time = self.time_module.time() - start_time
-                if timeout_seconds >= 0 and elapsed_time > timeout_seconds:
+                if timeout_seconds >= 0 and elapsed_time >= timeout_seconds:
                     logging.warning(
                         f"Timeout waiting for jobs to complete: {jobs_left}"
                     )
@@ -174,8 +174,8 @@ class K8sJobController:
                 logging.info(
                     f"Waiting for {jobs_left} to complete. Rechecking in {check_interval_seconds} seconds"
                 )
-                self.time_module.sleep(
-                    min(check_interval_seconds, timeout_seconds - elapsed_time)
+                self._sleep_until_timeout(
+                    elapsed_time, timeout_seconds, check_interval_seconds
                 )
         return job_statuses
 
@@ -287,11 +287,25 @@ class K8sJobController:
                 case JobStatus.ERROR:
                     return False
             elapsed_time = self.time_module.time() - start_time
-            if elapsed_time > timeout_seconds:
+            if timeout_seconds >= 0 and elapsed_time >= timeout_seconds:
                 raise TimeoutError(f"Timeout waiting for job {job_name} to complete")
-            self.time_module.sleep(
-                min(check_interval_seconds, timeout_seconds - elapsed_time)
+            self._sleep_until_timeout(
+                elapsed_time, timeout_seconds, check_interval_seconds
             )
+
+    def _sleep_until_timeout(
+        self,
+        elapsed_time: float,
+        timeout_seconds: float,
+        default_sleep_interval_seconds: float,
+    ) -> None:
+        sleep_interval_seconds = default_sleep_interval_seconds
+        if timeout_seconds >= 0:
+            sleep_interval_seconds = min(
+                default_sleep_interval_seconds, timeout_seconds - elapsed_time
+            )
+        if sleep_interval_seconds > 0:
+            self.time_module.sleep(sleep_interval_seconds)
 
     def store_job_logs(self, job_name: str, output_dir_path: str) -> None:
         """

@@ -90,4 +90,6 @@ class TimeMock:
         return self.current_time
 
     def sleep(self, seconds: float) -> None:
-        self.current_time += seconds + 0.1
+        if seconds < 0:
+            raise ValueError("Negative value for sleep seconds not allowed")
+        self.current_time += seconds
