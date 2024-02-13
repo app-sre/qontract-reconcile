@@ -2314,6 +2314,24 @@ def slo_document_services(ctx, status_board_instance):
 @click.argument("file_path")
 @click.pass_context
 def alerts(ctx, file_path):
+    BIG_NUMBER = 10
+
+    def sort_by_threshold(item: dict[str, str]) -> int:
+        threshold = item["threshold"]
+        if not threshold:
+            return BIG_NUMBER * 60 * 24
+        value = int(threshold[:-1])
+        unit = threshold[-1]
+        match unit:
+            case "m":
+                return value
+            case "h":
+                return value * 60
+            case "d":
+                return value * 60 * 24
+            case _:
+                return BIG_NUMBER * 60 * 24
+
     def sort_by_severity(item: dict[str, str]) -> int:
         match item["severity"].lower():
             case "critical":
@@ -2323,7 +2341,7 @@ def alerts(ctx, file_path):
             case "info":
                 return 2
             case _:
-                return 10
+                return BIG_NUMBER
 
     with open(file_path, "r", encoding="locale") as f:
         content = json.loads(f.read())
@@ -2348,8 +2366,6 @@ def alerts(ctx, file_path):
                 severity = rule.get("labels", {}).get("severity")
                 description = rule.get("annotations", {}).get("description")
                 threshold = rule.get("for")
-                print(threshold)
-                continue
                 if name:
                     data.append({
                         "name": name,
@@ -2363,6 +2379,7 @@ def alerts(ctx, file_path):
                         else "",
                     })
     ctx.obj["options"]["sort"] = False
+    data = sorted(data, key=sort_by_threshold)
     data = sorted(data, key=sort_by_severity)
     print_output(ctx.obj["options"], data, columns)
 
