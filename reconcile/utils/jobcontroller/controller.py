@@ -133,7 +133,7 @@ class K8sJobController:
         backofflimit = job_resource.body["spec"].get("backoffLimit", 6)
         if status.get("succeeded", 0) > 0:
             return JobStatus.SUCCESS
-        elif status.get("failed", 0) >= backofflimit:
+        elif status.get("failed", 0) > backofflimit:
             return JobStatus.ERROR
         return JobStatus.IN_PROGRESS
 
