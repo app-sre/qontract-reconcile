@@ -2314,6 +2314,17 @@ def slo_document_services(ctx, status_board_instance):
 @click.argument("file_path")
 @click.pass_context
 def alerts(ctx, file_path):
+    def sort_by_severity(item: dict[str, str]) -> int:
+        match item["severity"].lower():
+            case "critical":
+                return 0
+            case "warning":
+                return 1
+            case "info":
+                return 2
+            case _:
+                return 10
+
     with open(file_path, "r", encoding="locale") as f:
         content = json.loads(f.read())
 
@@ -2333,18 +2344,26 @@ def alerts(ctx, file_path):
             for rule in rules:
                 name = rule.get("alert")
                 summary = rule.get("annotations", {}).get("summary")
+                message = rule.get("annotations", {}).get("message")
                 severity = rule.get("labels", {}).get("severity")
                 description = rule.get("annotations", {}).get("description")
                 threshold = rule.get("for")
-                if name and severity == "critical":
+                print(threshold)
+                continue
+                if name:
                     data.append({
                         "name": name,
-                        "summary": summary,
+                        "summary": "`" + (summary or message).replace("\n", " ") + "`"
+                        if summary or message
+                        else "",
                         "severity": severity,
                         "threshold": threshold,
-                        "description": description,
+                        "description": "`" + description.replace("\n", " ") + "`"
+                        if description
+                        else "",
                     })
-
+    ctx.obj["options"]["sort"] = False
+    data = sorted(data, key=sort_by_severity)
     print_output(ctx.obj["options"], data, columns)
 
 
