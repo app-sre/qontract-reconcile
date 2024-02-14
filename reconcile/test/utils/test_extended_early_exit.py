@@ -1,7 +1,7 @@
 import logging
 from logging import Logger
 from typing import Any
-from unittest.mock import MagicMock, create_autospec
+from unittest.mock import MagicMock, call, create_autospec
 
 import pytest
 from pytest_mock import MockerFixture
@@ -259,7 +259,7 @@ def test_extended_early_exit_run_hit_when_log_cached_log_output(
     )
     early_exit_cache.get.return_value = CacheValue(
         payload=CACHE_SOURCE,
-        log_output="log-output",
+        log_output="log-output1\nlog-output2\n",
         applied_count=1,
     )
     mock_inc_counter = mocker.patch("reconcile.utils.extended_early_exit.inc_counter")
@@ -289,7 +289,10 @@ def test_extended_early_exit_run_hit_when_log_cached_log_output(
     )
     early_exit_cache.head.assert_called_once_with(expected_cache_key)
     early_exit_cache.get.assert_called_once_with(expected_cache_key)
-    mock_logger.info.assert_called_once_with("log-output")
+    mock_logger.info.assert_has_calls([
+        call("log-output1"),
+        call("log-output2"),
+    ])
     runner.assert_not_called()
     early_exit_cache.set.assert_not_called()
 

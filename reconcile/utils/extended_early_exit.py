@@ -109,6 +109,16 @@ def log_stream_handler(
         logger.removeHandler(log_handler)
 
 
+def _log_cached_log_output(
+    cache: EarlyExitCache,
+    key: CacheKey,
+    logger: Logger,
+) -> None:
+    log_output = cache.get(key).log_output
+    for line in log_output.splitlines():
+        logger.info(line)
+
+
 def extended_early_exit_run(
     integration: str,
     integration_version: str,
@@ -161,7 +171,7 @@ def extended_early_exit_run(
 
         if cache_result.status == CacheStatus.HIT:
             if log_cached_log_output:
-                logger.info(cache.get(key).log_output)
+                _log_cached_log_output(cache, key, logger)
             _publish_metrics(
                 cache_key=key,
                 cache_status=cache_result.status,
