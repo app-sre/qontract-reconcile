@@ -104,6 +104,7 @@ class RosaJob(K8sJob, BaseModel, frozen=True):
     cluster_name: str
     org_id: str
     cmd: str
+    image: str
 
     aws_credentials: AWSTemporaryCredentials
     ocm_token: str
@@ -123,6 +124,7 @@ class RosaJob(K8sJob, BaseModel, frozen=True):
             "cluster_name": self.cluster_name,
             "org_id": self.org_id,
             "dry_run": self.dry_run,
+            "image": self.image,
         }
 
     def annotations(self) -> dict[str, str]:
@@ -143,8 +145,8 @@ class RosaJob(K8sJob, BaseModel, frozen=True):
                 spec=V1PodSpec(
                     containers=[
                         V1Container(
-                            name="outputs",
-                            image="registry.ci.openshift.org/ci/rosa-aws-cli:latest",
+                            name="rosa-cli",
+                            image=self.image,
                             command=["/bin/bash", "-c"],
                             args=[self.cmd],
                             image_pull_policy="Always",

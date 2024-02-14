@@ -36,11 +36,13 @@ class RosaSession:
         aws_session_builder: AWSSessionBuilder,
         ocm_api: OCMBaseClient,
         job_controller: K8sJobController,
+        image: str,
     ):
         self.cluster = cluster
         self.aws_session_builder = aws_session_builder
         self.ocm_api = ocm_api
         self.job_controller = job_controller
+        self.image = image
         self._closed = False
 
     def close(self) -> None:
@@ -50,7 +52,7 @@ class RosaSession:
     def is_closed(self) -> bool:
         return self._closed
 
-    def cli_execute(self, cmd: str) -> RosaCliResult:
+    def cli_execute(self, cmd: str, image: Optional[str] = None) -> RosaCliResult:
         """
         Execute CLI commands in the context of a valid ROSA session (rosa login not required).
         The provided cmd needs to be a single command. If multiple commands are required, they
@@ -64,6 +66,7 @@ class RosaSession:
             cmd=f"rosa login > /dev/null && {cmd}",
             aws_credentials=aws_tmp_creds,
             ocm_token=self.ocm_api._access_token,
+            image=image or self.image,
         )
 
         status = self.job_controller.enqueue_job_and_wait_for_completion(
@@ -113,12 +116,14 @@ class RosaSessionContextManager:
         ocm_config: OCMAPIClientConfigurationProtocol,
         secret_reader: SecretReaderBase,
         job_controller: K8sJobController,
+        image: str,
     ):
         self.cluster = cluster
         self.aws_session_builder = aws_session_builder
         self.ocm_config = ocm_config
         self.secret_reader = secret_reader
         self.job_controller = job_controller
+        self.image = image
 
         self._rosa_session: Optional[RosaSession] = None
 
@@ -128,6 +133,7 @@ class RosaSessionContextManager:
             aws_session_builder=self.aws_session_builder,
             ocm_api=init_ocm_base_client(self.ocm_config, self.secret_reader),
             job_controller=self.job_controller,
+            image=self.image,
         )
         return self._rosa_session
 
@@ -146,6 +152,7 @@ def rosa_session_ctx(
     cluster: ROSACluster,
     secret_reader: SecretReaderBase,
     job_controller: K8sJobController,
+    image: str = "registry.ci.openshift.org/ci/rosa-aws-cli:latest",
 ) -> RosaSessionContextManager:
     """
     Creates a context manager for a ROSA session. The ROSA session
@@ -178,5 +185,6 @@ def rosa_session_ctx(
         ocm_config=ocm_config,
         secret_reader=secret_reader,
         job_controller=job_controller,
+        image=image,
     )
     return rosa_session_builder
