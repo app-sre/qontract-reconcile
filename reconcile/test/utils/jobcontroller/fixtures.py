@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from unittest.mock import create_autospec
 
 from kubernetes.client import (  # type: ignore[attr-defined]
@@ -15,6 +15,7 @@ from reconcile.utils.oc import OCCli
 
 class SomeJob(K8sJob, BaseModel):
     identifying_attribute: str
+    backoff_limit: int = 0
 
     def name_prefix(self) -> str:
         return "some-job"
@@ -24,7 +25,7 @@ class SomeJob(K8sJob, BaseModel):
 
     def job_spec(self) -> V1JobSpec:
         return V1JobSpec(
-            backoff_limit=1,
+            backoff_limit=self.backoff_limit,
             ttl_seconds_after_finished=10,
             template=V1PodTemplateSpec(),
         )
@@ -57,16 +58,18 @@ def build_job_status(
     }
 
 
-def build_job_resource(job: SomeJob, status: dict[str, Any] = {}) -> dict[str, Any]:
+def build_job_resource(
+    job: SomeJob, status: Optional[dict[str, Any]] = None
+) -> dict[str, Any]:
     job_resource = ApiClient().sanitize_for_serialization(job.build_job())
     if status:
         job_resource["status"] = status
     return job_resource
 
 
-def build_oc_fixture(job_specs: list[list[dict[str, Any]]]) -> OCCli:
+def build_oc_fixture(job_specs: Optional[list[list[dict[str, Any]]]] = None) -> OCCli:
     mocked_oc_client = create_autospec(OCCli)
-    mocked_oc_client.get_items.side_effect = job_specs
+    mocked_oc_client.get_items.side_effect = job_specs or [[]]
     return mocked_oc_client
 
 

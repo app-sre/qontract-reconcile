@@ -336,3 +336,50 @@ def test_get_job_generation() -> None:
     )
 
     assert controller.get_job_generation(job.name())
+
+
+#
+# get job status
+#
+
+
+@pytest.mark.parametrize(
+    "backoff_limit, expected_job_status",
+    [
+        (1, JobStatus.IN_PROGRESS),
+        (0, JobStatus.ERROR),
+    ],
+)
+def test_get_job_status_backoff_limit(
+    backoff_limit: int, expected_job_status: JobStatus
+) -> None:
+    """
+    Verify that backoff_limit is honored when determining the job status.
+    A failed job should be reported as IN_PROGRESS when its backoff limit is
+    not exceeded yet.
+    """
+    job = SomeJob(identifying_attribute="some-id", backoff_limit=backoff_limit)
+    controller = build_job_controller_fixture(
+        oc=build_oc_fixture(
+            [[build_job_resource(job, build_job_status(failed=1))]],
+        ),
+        dry_run=False,
+    )
+    assert controller.get_job_status(job_name=job.name()) == expected_job_status
+
+
+def test_get_job_status_not_exists() -> None:
+    controller = build_job_controller_fixture(
+        oc=build_oc_fixture(),
+        dry_run=False,
+    )
+    assert controller.get_job_status(job_name="foo bar") == JobStatus.NOT_EXISTS
+
+
+def test_get_job_status_no_job_resource_status() -> None:
+    job = SomeJob(identifying_attribute="some-id")
+    controller = build_job_controller_fixture(
+        oc=build_oc_fixture([[build_job_resource(job)]]),
+        dry_run=False,
+    )
+    assert controller.get_job_status(job_name=job.name()) == JobStatus.IN_PROGRESS
