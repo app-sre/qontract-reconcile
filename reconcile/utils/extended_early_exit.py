@@ -32,6 +32,7 @@ class ExtendedEarlyExitBaseMetric(BaseModel):
     integration_version: str
     dry_run: bool
     cache_status: str
+    shard: str
 
 
 class ExtendedEarlyExitCounter(ExtendedEarlyExitBaseMetric, CounterMetric):
@@ -57,6 +58,7 @@ def _publish_metrics(
             integration_version=cache_key.integration_version,
             dry_run=cache_key.dry_run,
             cache_status=cache_status.value,
+            shard=cache_key.shard,
         ),
     )
     set_gauge(
@@ -65,6 +67,7 @@ def _publish_metrics(
             integration_version=cache_key.integration_version,
             dry_run=cache_key.dry_run,
             cache_status=cache_status.value,
+            shard=cache_key.shard,
         ),
         applied_count,
     )
@@ -111,6 +114,7 @@ def extended_early_exit_run(
     integration_version: str,
     dry_run: bool,
     cache_source: object,
+    shard: str,
     ttl_seconds: int,
     logger: Logger,
     runner: Callable[..., ExtendedEarlyExitRunnerResult],
@@ -130,6 +134,7 @@ def extended_early_exit_run(
     :param integration_version: The integration version
     :param dry_run: True if the run is in dry run mode, False otherwise
     :param cache_source: The cache source, usually the static desired state
+    :param shard: The shard name
     :param ttl_seconds: A ttl in seconds
     :param logger: A Logger
     :param runner: A runner can return ExtendedEarlyExitRunnerResult when called
@@ -144,16 +149,22 @@ def extended_early_exit_run(
             integration_version=integration_version,
             dry_run=dry_run,
             cache_source=cache_source,
+            shard=shard,
         )
-        cache_status = cache.head(key)
-        logger.debug("Early exit cache status for key=%s: %s", key, cache_status)
+        cache_result = cache.head(key)
+        logger.debug(
+            "Early exit cache head result for key=%s: status: %s, latest cache source digest: %s",
+            key,
+            cache_result.status,
+            cache_result.latest_cache_source_digest,
+        )
 
-        if cache_status == CacheStatus.HIT:
+        if cache_result.status == CacheStatus.HIT:
             if log_cached_log_output:
                 logger.info(cache.get(key).log_output)
             _publish_metrics(
                 cache_key=key,
-                cache_status=cache_status,
+                cache_status=cache_result.status,
                 applied_count=0,
             )
             return
@@ -168,10 +179,15 @@ def extended_early_exit_run(
             applied_count=result.applied_count,
         )
         ttl = _ttl_seconds(result.applied_count, ttl_seconds)
-        logger.debug("Set early exit cache for key=%s with ttl=%d", key, ttl)
-        cache.set(key, value, ttl)
+        logger.debug(
+            "Set early exit cache for key=%s with ttl=%d and latest_cache_source_digest=%s",
+            key,
+            ttl,
+            cache_result.latest_cache_source_digest,
+        )
+        cache.set(key, value, ttl, cache_result.latest_cache_source_digest)
         _publish_metrics(
             cache_key=key,
-            cache_status=cache_status,
+            cache_status=cache_result.status,
             applied_count=result.applied_count,
         )

@@ -4,6 +4,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
+from dataclasses import asdict
 from typing import (
     Any,
     Collection,
@@ -13,6 +14,7 @@ from typing import (
     cast,
 )
 
+from deepdiff import DeepHash
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -21,7 +23,6 @@ from sretoolbox.utils import (
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.aws_iam_keys import run as disable_keys
-from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceV1,
 )
@@ -37,7 +38,6 @@ from reconcile.utils.extended_early_exit import (
     extended_early_exit_run,
 )
 from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
     ExternalResourceSpecInventory,
 )
 from reconcile.utils.external_resources import (
@@ -419,6 +419,7 @@ def run(
             integration_version=QONTRACT_INTEGRATION_VERSION,
             dry_run=dry_run,
             cache_source=ts.terraform_configurations(),
+            shard="_".join(account_name) if account_name else "",
             ttl_seconds=extended_early_exit_cache_ttl_seconds,
             logger=logging.getLogger(),
             runner=runner,
@@ -532,38 +533,41 @@ def runner(
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     gqlapi = gql.get_api()
-    namespaces = get_tf_namespaces()
-    resources = []
-    for ns_info in namespaces:
+    state_for_accounts = {
+        account["name"]: {
+            "meta": account,
+            "specs": {},
+        }
+        for account in queries.get_aws_accounts(terraform_state=True)
+    }
+    for ns_info in get_tf_namespaces():
         for spec in get_external_resource_specs(
             ns_info.dict(by_alias=True), provision_provider=PROVIDER_AWS
         ):
-
-            def register_resource(
-                spec: ExternalResourceSpec, resource: Optional[dict[str, Any]]
-            ) -> None:
-                if resource:
-                    resources.append({
-                        IDENTIFIER_FIELD_NAME: f"{spec.cluster_name}/{spec.namespace_name}/{spec.provisioner_name}/{spec.provider}/{spec.identifier}/{resource.get('path')}",
-                        "content_sha": resource.get("sha256sum"),
-                        "provisioner": spec.provisioner_name,
-                    })
-
-            defaults = spec.resource.get("defaults")
-            if defaults:
-                register_resource(spec, gqlapi.get_resource(defaults))
-            parameter_group = spec.resource.get("parameter_group")
-            if parameter_group:
-                register_resource(spec, gqlapi.get_resource(parameter_group))
-            for spec_item in spec.resource.get("specs") or []:
-                defaults = spec_item.get("defaults")
-                if defaults:
-                    register_resource(spec, gqlapi.get_resource(defaults))
+            resource_paths = [
+                spec.resource.get("defaults"),
+                spec.resource.get("parameter_group"),
+            ] + [
+                spec_item.get("defaults")
+                for spec_item in spec.resource.get("specs") or []
+            ]
+            resources = {
+                resource["path"]: resource["sha256sum"]
+                for path in resource_paths
+                if path and (resource := gqlapi.get_resource(path))
+            }
+            spec_state = {
+                "spec": asdict(spec),
+                "resources": resources,
+            }
+            spec_id = f"{spec.cluster_name}/{spec.namespace_name}/{spec.provisioner_name}/{spec.provider}/{spec.identifier}"
+            state_for_accounts[spec.provisioner_name][spec_id] = spec_state
 
     return {
-        "accounts": queries.get_aws_accounts(terraform_state=True),
-        "namespaces": namespaces,
-        "resources": resources,
+        "state": {
+            account: {"shard": account, "hash": DeepHash(state).get(state)}
+            for account, state in state_for_accounts.items()
+        }
     }
 
 
@@ -571,10 +575,6 @@ def desired_state_shard_config() -> DesiredStateShardConfig:
     return DesiredStateShardConfig(
         shard_arg_name="account_name",
         shard_arg_is_collection=True,
-        shard_path_selectors={
-            "accounts[*].name",
-            "namespaces[*].externalResources[*].provisioner.name",
-            "resources[*].provisioner",
-        },
+        shard_path_selectors={"state.*.shard"},
         sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 2,
     )

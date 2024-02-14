@@ -289,6 +289,10 @@ class aws_s3_bucket_acl(Resource):
     pass
 
 
+class aws_s3_bucket_logging(Resource):
+    pass
+
+
 class aws_cloudfront_log_delivery_canonical_user_id(Data):
     pass
 
@@ -1926,6 +1930,27 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if cors_rules:
             # common_values['cors_rules'] is a list of cors_rules
             values["cors_rule"] = cors_rules
+        # S3 Bucket Logging
+        s3_bucket_logging = common_values.get("s3_bucket_logging")
+        if s3_bucket_logging:
+            target_bucket_name = s3_bucket_logging.get("target_bucket_name")
+            logging_identifier = f"{identifier}-logging"
+
+            # Logging config will be set out of this resource
+            # the following `ignore_change` allows to avoid conflicts
+            values.setdefault("lifecycle", {}).setdefault("ignore_changes", []).append(
+                "logging"
+            )
+
+            logging_values = {
+                "bucket": "${aws_s3_bucket." + identifier + ".id}",
+                "target_bucket": "${aws_s3_bucket." + target_bucket_name + ".id}",
+                "target_prefix": s3_bucket_logging.get("target_prefix", ""),
+            }
+            logging_tf_resource = aws_s3_bucket_logging(
+                logging_identifier, **logging_values
+            )
+            tf_resources.append(logging_tf_resource)
         deps = []
         replication_configs = common_values.get("replication_configurations")
         if replication_configs:
@@ -5099,6 +5124,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "content_type": fr_data.get("content_type"),
                         "message_body": fr_data.get("message_body"),
                         "status_code": fr_data.get("status_code"),
+                    },
+                }
+            elif action_type == "redirect":
+                redirect_data = action.get("redirect", {})
+                action_values = {
+                    "type": "redirect",
+                    "redirect": {
+                        "host": redirect_data.get("host"),
+                        "path": redirect_data.get("path"),
+                        "port": redirect_data.get("port"),
+                        "protocol": redirect_data.get("protocol"),
+                        "query": redirect_data.get("query"),
+                        "status_code": redirect_data.get("status_code"),
                     },
                 }
             else:

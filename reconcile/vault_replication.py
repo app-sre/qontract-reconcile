@@ -436,15 +436,18 @@ def run(dry_run: bool) -> None:
                     # Private class _VaultClient is used because the public class is
                     # defined as a singleton, and we need to create multiple instances
                     # as the source vault is different than the replication.
-                    with _VaultClient(
-                        server=source_creds["server"],
-                        role_id=source_creds["role_id"],
-                        secret_id=source_creds["secret_id"],
-                    ) as source_vault, _VaultClient(
-                        server=dest_creds["server"],
-                        role_id=dest_creds["role_id"],
-                        secret_id=dest_creds["secret_id"],
-                    ) as dest_vault:
+                    with (
+                        _VaultClient(
+                            server=source_creds["server"],
+                            role_id=source_creds["role_id"],
+                            secret_id=source_creds["secret_id"],
+                        ) as source_vault,
+                        _VaultClient(
+                            server=dest_creds["server"],
+                            role_id=dest_creds["role_id"],
+                            secret_id=dest_creds["secret_id"],
+                        ) as dest_vault,
+                    ):
                         replicate_paths(
                             dry_run=dry_run,
                             source_vault=source_vault,

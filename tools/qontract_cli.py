@@ -2310,6 +2310,80 @@ def slo_document_services(ctx, status_board_instance):
     print_output(ctx.obj["options"], slodocs, columns)
 
 
+@get.command()
+@click.argument("file_path")
+@click.pass_context
+def alerts(ctx, file_path):
+    BIG_NUMBER = 10
+
+    def sort_by_threshold(item: dict[str, str]) -> int:
+        threshold = item["threshold"]
+        if not threshold:
+            return BIG_NUMBER * 60 * 24
+        value = int(threshold[:-1])
+        unit = threshold[-1]
+        match unit:
+            case "m":
+                return value
+            case "h":
+                return value * 60
+            case "d":
+                return value * 60 * 24
+            case _:
+                return BIG_NUMBER * 60 * 24
+
+    def sort_by_severity(item: dict[str, str]) -> int:
+        match item["severity"].lower():
+            case "critical":
+                return 0
+            case "warning":
+                return 1
+            case "info":
+                return 2
+            case _:
+                return BIG_NUMBER
+
+    with open(file_path, "r", encoding="locale") as f:
+        content = json.loads(f.read())
+
+    columns = [
+        "name",
+        "summary",
+        "severity",
+        "threshold",
+        "description",
+    ]
+    data = []
+    prometheus_rules = content["items"]
+    for prom_rule in prometheus_rules:
+        groups = prom_rule["spec"]["groups"]
+        for group in groups:
+            rules = group["rules"]
+            for rule in rules:
+                name = rule.get("alert")
+                summary = rule.get("annotations", {}).get("summary")
+                message = rule.get("annotations", {}).get("message")
+                severity = rule.get("labels", {}).get("severity")
+                description = rule.get("annotations", {}).get("description")
+                threshold = rule.get("for")
+                if name:
+                    data.append({
+                        "name": name,
+                        "summary": "`" + (summary or message).replace("\n", " ") + "`"
+                        if summary or message
+                        else "",
+                        "severity": severity,
+                        "threshold": threshold,
+                        "description": "`" + description.replace("\n", " ") + "`"
+                        if description
+                        else "",
+                    })
+    ctx.obj["options"]["sort"] = False
+    data = sorted(data, key=sort_by_threshold)
+    data = sorted(data, key=sort_by_severity)
+    print_output(ctx.obj["options"], data, columns)
+
+
 @root.group(name="set")
 @output
 @click.pass_context
@@ -2450,6 +2524,12 @@ def early_exit_cache(ctx):
     help="Cache source. It should be a JSON string.",
     required=True,
 )
+@click.option(
+    "-s",
+    "--shard",
+    help="Shard",
+    default="",
+)
 @click.pass_context
 def early_exit_cache_head(
     ctx,
@@ -2457,6 +2537,7 @@ def early_exit_cache_head(
     integration_version,
     dry_run,
     cache_source,
+    shard,
 ):
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
@@ -2464,9 +2545,10 @@ def early_exit_cache_head(
             integration_version=integration_version,
             dry_run=dry_run,
             cache_source=json.loads(cache_source),
+            shard=shard,
         )
-        status = cache.head(cache_key)
-        print(status)
+        result = cache.head(cache_key)
+        print(result)
 
 
 @early_exit_cache.command(name="get")
@@ -2493,6 +2575,12 @@ def early_exit_cache_head(
     help="Cache source. It should be a JSON string.",
     required=True,
 )
+@click.option(
+    "-s",
+    "--shard",
+    help="Shard",
+    default="",
+)
 @click.pass_context
 def early_exit_cache_get(
     ctx,
@@ -2500,6 +2588,7 @@ def early_exit_cache_get(
     integration_version,
     dry_run,
     cache_source,
+    shard,
 ):
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
@@ -2507,6 +2596,7 @@ def early_exit_cache_get(
             integration_version=integration_version,
             dry_run=dry_run,
             cache_source=json.loads(cache_source),
+            shard=shard,
         )
         value = cache.get(cache_key)
         print(value)
@@ -2537,6 +2627,12 @@ def early_exit_cache_get(
     required=True,
 )
 @click.option(
+    "-s",
+    "--shard",
+    help="Shard",
+    default="",
+)
+@click.option(
     "-p",
     "--payload",
     help="Payload in Cache value. It should be a JSON string.",
@@ -2562,6 +2658,12 @@ def early_exit_cache_get(
     default=60,
     type=int,
 )
+@click.option(
+    "-d",
+    "--latest-cache-source-digest",
+    help="Latest cache source digest.",
+    default="",
+)
 @click.pass_context
 def early_exit_cache_set(
     ctx,
@@ -2569,10 +2671,12 @@ def early_exit_cache_set(
     integration_version,
     dry_run,
     cache_source,
+    shard,
     payload,
     log_output,
     applied_count,
     ttl,
+    latest_cache_source_digest,
 ):
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
@@ -2580,13 +2684,14 @@ def early_exit_cache_set(
             integration_version=integration_version,
             dry_run=dry_run,
             cache_source=json.loads(cache_source),
+            shard=shard,
         )
         cache_value = CacheValue(
             payload=json.loads(payload),
             log_output=log_output,
             applied_count=applied_count,
         )
-        cache.set(cache_key, cache_value, ttl)
+        cache.set(cache_key, cache_value, ttl, latest_cache_source_digest)
 
 
 @root.command()

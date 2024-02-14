@@ -14,7 +14,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
     python3 -m pip wheel . --wheel-dir /work/wheels
 
 
-FROM quay.io/app-sre/qontract-reconcile-base:0.10.2 as dev-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.11.0 as dev-image
 
 ARG CONTAINER_UID=1000
 RUN useradd --uid ${CONTAINER_UID} reconcile
@@ -44,7 +44,7 @@ VOLUME ["/work"]
 ENTRYPOINT ["/work/dev/run.sh"]
 
 
-FROM quay.io/app-sre/qontract-reconcile-base:0.10.3 as prod-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.11.0 as prod-image
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}

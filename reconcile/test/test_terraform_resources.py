@@ -376,6 +376,7 @@ def test_run_with_extended_early_exit_run_enabled(
         integration_version=integ.QONTRACT_INTEGRATION_VERSION,
         dry_run=True,
         cache_source=mocks["ts"].terraform_configurations.return_value,
+        shard="a",
         ttl_seconds=60,
         logger=mocks["logging"].getLogger.return_value,
         runner=integ.runner,

@@ -1,18 +1,19 @@
 import copy
 import json
-import re
 from dataclasses import dataclass
 from enum import Enum
 from functools import reduce
 from typing import (
     Any,
     Optional,
+    Union,
 )
 
 import jsonpath_ng
 from deepdiff import DeepDiff
 from deepdiff.helper import CannotCompare
 from deepdiff.model import DiffLevel
+from deepdiff.path import parse_path
 
 from reconcile.utils.jsonpath import parse_jsonpath
 
@@ -237,9 +238,6 @@ def extract_diffs(old_file_content: Any, new_file_content: Any) -> list[Diff]:
     return diffs
 
 
-DEEP_DIFF_RE = re.compile(r"\['?(.*?)'?\]")
-
-
 def deepdiff_path_to_jsonpath(deep_diff_path: str) -> jsonpath_ng.JSONPath:
     """
     deepdiff's way to describe a path within a data structure differs from jsonpath.
@@ -252,17 +250,16 @@ def deepdiff_path_to_jsonpath(deep_diff_path: str) -> jsonpath_ng.JSONPath:
     if not deep_diff_path.startswith("root"):
         raise ValueError("a deepdiff path must start with 'root'")
 
-    def build_jsonpath_part(element: str) -> jsonpath_ng.JSONPath:
-        if element.isdigit():
-            return jsonpath_ng.Index(int(element))
+    def build_jsonpath_part(element: Union[str, int]) -> jsonpath_ng.JSONPath:
+        match element:
+            case int():
+                return jsonpath_ng.Index(element)
+            case str():
+                if "." in element:
+                    return jsonpath_ng.Fields(f"'{element}'")
+                return jsonpath_ng.Fields(element)
 
-        if "." in element:
-            return jsonpath_ng.Fields(f"'{element}'")
-        return jsonpath_ng.Fields(element)
-
-    path_parts = [
-        build_jsonpath_part(p) for p in DEEP_DIFF_RE.findall(deep_diff_path[4:])
-    ]
+    path_parts = [build_jsonpath_part(p) for p in parse_path(deep_diff_path)]
     if path_parts:
         return reduce(lambda a, b: a.child(b), path_parts)
     return jsonpath_ng.Root()

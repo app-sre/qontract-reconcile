@@ -21,10 +21,16 @@ from reconcile.test.change_owners.fixtures import (
 @pytest.mark.parametrize(
     "deep_diff_path,expected_json_path",
     [
+        # the old deepdiff format before 6.7.x, with square bracket notation
         ("root['one']['two']['three']", "one.two.three"),
         (
             "root['resourceTemplates'][0]['targets'][0]['ref']",
             "resourceTemplates.[0].targets.[0].ref",
+        ),
+        # the new deepdiff format 6.7.x onwards, with dot notation
+        (
+            "root['namespaces'][353].external_resources[0].resources[0].overrides",
+            "namespaces.[353].external_resources.[0].resources.[0].overrides",
         ),
         ("root", "$"),
     ],
