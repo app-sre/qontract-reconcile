@@ -149,6 +149,76 @@ def test_cache_key_string(
     assert str(cache_key) == expected
 
 
+@pytest.mark.parametrize(
+    "integration, integration_version, dry_run, cache_source, shard, expected",
+    [
+        (
+            INTEGRATION_NAME,
+            INTEGRATION_VERSION,
+            False,
+            CACHE_SOURCE,
+            "",
+            f"--integration {INTEGRATION_NAME} "
+            f"--integration-version {INTEGRATION_VERSION} "
+            "--no-dry-run "
+            f"--cache-source-digest {CACHE_SOURCE_DIGEST}",
+        ),
+        (
+            INTEGRATION_NAME,
+            INTEGRATION_VERSION,
+            False,
+            CACHE_SOURCE,
+            "shard-1",
+            f"--integration {INTEGRATION_NAME} "
+            f"--integration-version {INTEGRATION_VERSION} "
+            "--no-dry-run "
+            f"--cache-source-digest {CACHE_SOURCE_DIGEST} "
+            "--shard shard-1",
+        ),
+        (
+            INTEGRATION_NAME,
+            INTEGRATION_VERSION,
+            True,
+            CACHE_SOURCE,
+            "",
+            f"--integration {INTEGRATION_NAME} "
+            f"--integration-version {INTEGRATION_VERSION} "
+            "--dry-run "
+            f"--cache-source-digest {CACHE_SOURCE_DIGEST}",
+        ),
+        (
+            INTEGRATION_NAME,
+            INTEGRATION_VERSION,
+            True,
+            CACHE_SOURCE,
+            "shard-1",
+            f"--integration {INTEGRATION_NAME} "
+            f"--integration-version {INTEGRATION_VERSION} "
+            "--dry-run "
+            f"--cache-source-digest {CACHE_SOURCE_DIGEST} "
+            "--shard shard-1",
+        ),
+    ],
+)
+def test_cache_key_build_cli_delete_args(
+    integration: str,
+    integration_version: str,
+    dry_run: bool,
+    cache_source: Any,
+    shard: str,
+    expected: str,
+) -> None:
+    cache_key = CacheKey(
+        integration=integration,
+        integration_version=integration_version,
+        dry_run=dry_run,
+        cache_source=cache_source,
+        shard=shard,
+    )
+    cli_delete_args = cache_key.build_cli_delete_args()
+    assert cli_delete_args == expected
+
+
 @pytest.fixture
 def cache_value() -> CacheValue:
     return CacheValue(

@@ -287,12 +287,18 @@ def test_extended_early_exit_run_hit_when_log_cached_log_output(
         cache_source=CACHE_SOURCE,
         shard=SHARD,
     )
-    early_exit_cache.head.assert_called_once_with(expected_cache_key)
-    early_exit_cache.get.assert_called_once_with(expected_cache_key)
+    expected_delete_args = expected_cache_key.build_cli_delete_args()
     mock_logger.info.assert_has_calls([
+        call(
+            "logging cached log output, to delete cache, use "
+            "qontract-cli --config config.toml early-exit-cache delete %s",
+            expected_delete_args,
+        ),
         call("log-output1"),
         call("log-output2"),
     ])
+    early_exit_cache.head.assert_called_once_with(expected_cache_key)
+    early_exit_cache.get.assert_called_once_with(expected_cache_key)
     runner.assert_not_called()
     early_exit_cache.set.assert_not_called()
 

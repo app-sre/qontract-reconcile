@@ -58,6 +58,17 @@ class CacheKeyWithDigest(BaseModel):
             ]
         )
 
+    def build_cli_delete_args(self) -> str:
+        args = [
+            f"--integration {self.integration}",
+            f"--integration-version {self.integration_version}",
+            "--dry-run" if self.dry_run else "--no-dry-run",
+            f"--cache-source-digest {self.cache_source_digest}",
+        ]
+        if self.shard:
+            args.append(f"--shard {self.shard}")
+        return " ".join(args)
+
     class Config:
         frozen = True
 
@@ -102,6 +113,13 @@ class CacheKey(BaseModel):
         /<integration>/<integration_version>/no-dry-run(/<shard>)/latest
         """
         return self.cache_key_with_digest.no_dry_run_path()
+
+    def build_cli_delete_args(self) -> str:
+        """
+        Generate delete command arguments.
+        :return: delete command arguments
+        """
+        return self.cache_key_with_digest.build_cli_delete_args()
 
     class Config:
         frozen = True

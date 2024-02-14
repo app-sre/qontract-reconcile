@@ -115,6 +115,11 @@ def _log_cached_log_output(
     logger: Logger,
 ) -> None:
     log_output = cache.get(key).log_output
+    logger.info(
+        "logging cached log output, to delete cache, use "
+        "qontract-cli --config config.toml early-exit-cache delete %s",
+        key.build_cli_delete_args(),
+    )
     for line in log_output.splitlines():
         logger.info(line)
 
