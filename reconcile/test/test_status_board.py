@@ -19,6 +19,7 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 class TestStatusBoard(AbstractStatusBoard):
+    __test__ = False
     created: Optional[bool] = False
     deleted: Optional[bool] = False
     summarized: Optional[bool] = False

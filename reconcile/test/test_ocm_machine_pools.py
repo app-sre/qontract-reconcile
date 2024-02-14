@@ -33,6 +33,7 @@ from reconcile.utils.ocm import OCM
 
 
 class TestPool(AbstractPool):
+    __test__ = False
     created = False
     deleted = False
     updated = False
