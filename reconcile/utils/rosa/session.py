@@ -56,7 +56,7 @@ class RosaSession:
         """
         Execute CLI commands in the context of a valid ROSA session (rosa login not required).
         The provided cmd needs to be a single command. If multiple commands are required, they
-        need to be combined into a single command with /bin/bash -c.
+        need to be combined delimited with a ;
         """
         aws_tmp_creds = self.aws_session_builder.build_temporary_credentials()
         job = RosaJob(
@@ -75,9 +75,9 @@ class RosaSession:
             timeout_seconds=60,
             concurrency_policy=JobConcurrencyPolicy.REPLACE_FAILED,
         )
-        log_dir = tempfile.TemporaryDirectory()
-        self.job_controller.store_job_logs(job.name(), log_dir.name)
-        log_file = f"{log_dir.name}/{job.name()}"
+        log_dir = tempfile.mkdtemp()
+        self.job_controller.store_job_logs(job.name(), log_dir)
+        log_file = f"{log_dir}/{job.name()}"
         if status != JobStatus.SUCCESS:
             raise RosaCliException(status, cmd, LogHandle(log_file))
         return RosaCliResult(status, cmd, LogHandle(log_file))

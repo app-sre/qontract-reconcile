@@ -6,10 +6,12 @@ from kubernetes.client import (
     V1Container,
     V1EmptyDirVolumeSource,
     V1EnvVar,
+    V1EnvVarSource,
     V1JobSpec,
     V1ObjectMeta,
     V1PodSpec,
     V1PodTemplateSpec,
+    V1SecretKeySelector,
     V1Volume,
     V1VolumeMount,
 )
@@ -84,6 +86,13 @@ class RosaCliException(Exception, RosaCliResult):
         RosaCliResult.__init__(self, status, command, log_handle)
 
 
+AWS_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID"
+AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY"
+AWS_SESSION_TOKEN = "AWS_SESSION_TOKEN"
+AWS_REGION = "AWS_REGION"
+OCM_TOKEN = "OCM_TOKEN"
+
+
 class RosaJob(K8sJob, BaseModel, frozen=True):
     """
     Represents a ROSA CLI job. It leverages the reconcile.utils.jobcontroller module
@@ -134,7 +143,17 @@ class RosaJob(K8sJob, BaseModel, frozen=True):
             "qontract.rosa.org_id": self.org_id,
         }
 
+    def secret_data(self) -> dict[str, str]:
+        return {
+            AWS_ACCESS_KEY_ID: self.aws_credentials.access_key_id,
+            AWS_SECRET_ACCESS_KEY: self.aws_credentials.secret_access_key,
+            AWS_SESSION_TOKEN: self.aws_credentials.session_token,
+            AWS_REGION: self.aws_credentials.region,
+            OCM_TOKEN: self.ocm_token,
+        }
+
     def job_spec(self) -> V1JobSpec:
+        secret_name = self.name()
         return V1JobSpec(
             backoff_limit=1,
             ttl_seconds_after_finished=3600,
@@ -149,27 +168,51 @@ class RosaJob(K8sJob, BaseModel, frozen=True):
                             image=self.image,
                             command=["/bin/bash", "-c"],
                             args=[self.cmd],
-                            image_pull_policy="Always",
                             env=[
                                 V1EnvVar(
-                                    name="AWS_ACCESS_KEY_ID",
-                                    value=self.aws_credentials.access_key_id,
+                                    name=AWS_ACCESS_KEY_ID,
+                                    value_from=V1EnvVarSource(
+                                        secret_key_ref=V1SecretKeySelector(
+                                            name=secret_name,
+                                            key=AWS_ACCESS_KEY_ID,
+                                        )
+                                    ),
                                 ),
                                 V1EnvVar(
-                                    name="AWS_SECRET_ACCESS_KEY",
-                                    value=self.aws_credentials.secret_access_key,
+                                    name=AWS_SECRET_ACCESS_KEY,
+                                    value_from=V1EnvVarSource(
+                                        secret_key_ref=V1SecretKeySelector(
+                                            name=secret_name,
+                                            key=AWS_SECRET_ACCESS_KEY,
+                                        )
+                                    ),
                                 ),
                                 V1EnvVar(
-                                    name="AWS_SESSION_TOKEN",
-                                    value=self.aws_credentials.session_token,
+                                    name=AWS_SESSION_TOKEN,
+                                    value_from=V1EnvVarSource(
+                                        secret_key_ref=V1SecretKeySelector(
+                                            name=secret_name,
+                                            key=AWS_SESSION_TOKEN,
+                                        )
+                                    ),
                                 ),
                                 V1EnvVar(
-                                    name="AWS_REGION",
-                                    value=self.aws_credentials.region,
+                                    name=AWS_REGION,
+                                    value_from=V1EnvVarSource(
+                                        secret_key_ref=V1SecretKeySelector(
+                                            name=secret_name,
+                                            key=AWS_REGION,
+                                        )
+                                    ),
                                 ),
                                 V1EnvVar(
-                                    name="OCM_TOKEN",
-                                    value=self.ocm_token,
+                                    name=OCM_TOKEN,
+                                    value_from=V1EnvVarSource(
+                                        secret_key_ref=V1SecretKeySelector(
+                                            name=secret_name,
+                                            key=OCM_TOKEN,
+                                        )
+                                    ),
                                 ),
                             ],
                             volume_mounts=[

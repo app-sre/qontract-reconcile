@@ -93,7 +93,7 @@ class AWSTemporaryCredentials(BaseModel):
     access_key_id: str
     secret_access_key: str
     session_token: str
-    region: Optional[str]
+    region: str
 
 
 def build_temporary_aws_credentials_from_session(
