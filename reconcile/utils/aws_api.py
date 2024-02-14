@@ -16,6 +16,7 @@ from typing import (
     Any,
     Literal,
     Optional,
+    Protocol,
     Union,
 )
 
@@ -82,6 +83,75 @@ class MissingARNError(Exception):
 KeyStatus = Union[Literal["Active"], Literal["Inactive"]]
 
 GOVCLOUD_PARTITION = "aws-us-gov"
+
+
+class AWSTemporaryCredentials(BaseModel):
+    """
+    A model representing temporary AWS credentials.
+    """
+
+    access_key_id: str
+    secret_access_key: str
+    session_token: str
+    region: Optional[str]
+
+
+def build_temporary_aws_credentials_from_session(
+    session: Session, duration_seconds: int = 900
+) -> AWSTemporaryCredentials:
+    """
+    Builds temporary AWS credentials from an existing session. This is similar to assuming a role,
+    in the sense that the credentials will expire after a certain amount of time.
+    """
+    response = session.client("sts").get_session_token(DurationSeconds=duration_seconds)
+    tmp_creds = response["Credentials"]
+    return AWSTemporaryCredentials(
+        access_key_id=tmp_creds["AccessKeyId"],
+        secret_access_key=tmp_creds["SecretAccessKey"],
+        session_token=tmp_creds["SessionToken"],
+        region=session.region_name,
+    )
+
+
+class AWSSessionBuilder(Protocol):
+    """
+    A generic protocol for building AWS sessions.
+    """
+
+    def build(self) -> Session:
+        """
+        Builds an AWS session.
+        """
+        ...
+
+    def build_temporary_credentials(self) -> AWSTemporaryCredentials:
+        """
+        Builds temporary AWS credentials based und the session built by the `build` method.
+        """
+        ...
+
+
+class AWSStaticCredsSessionBuilder:
+    """
+    An implementation of the AWSSessionBuilder protocol that builds a session with static credentials.
+    """
+
+    def __init__(
+        self, access_key_id: str, secret_access_key: str, region: Optional[str]
+    ) -> None:
+        self.access_key_id = access_key_id
+        self.secret_access_key = secret_access_key
+        self.region = region
+
+    def build(self) -> Session:
+        return Session(
+            aws_access_key_id=self.access_key_id,
+            aws_secret_access_key=self.secret_access_key,
+            region_name=self.region,
+        )
+
+    def build_temporary_credentials(self) -> AWSTemporaryCredentials:
+        return build_temporary_aws_credentials_from_session(self.build())
 
 
 class AmiTag(BaseModel):
