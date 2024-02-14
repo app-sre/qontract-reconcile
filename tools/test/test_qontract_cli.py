@@ -1,7 +1,7 @@
 import pytest
 from click.testing import CliRunner
 
-from reconcile.utils.early_exit_cache import CacheHeadResult, CacheStatus
+from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheStatus
 from tools import qontract_cli
 
 
@@ -102,5 +102,26 @@ def test_early_exit_cache_head(env_vars, mock_queries, mock_early_exit_cache):
     result = runner.invoke(
         qontract_cli.early_exit_cache, "head -i a -v b --dry-run -c {} -s shard-1"
     )
+    cache_key = CacheKey(
+        integration="a",
+        integration_version="b",
+        dry_run=True,
+        cache_source={},
+        shard="shard-1",
+    )
     assert result.exit_code == 0
-    assert result.output == f"{cache_head_result}\n"
+    assert (
+        result.output
+        == f"cache_source_digest: {cache_key.cache_source_digest}\n{cache_head_result}\n"
+    )
+
+
+def test_early_exit_cache_delete(env_vars, mock_queries, mock_early_exit_cache):
+    runner = CliRunner()
+
+    result = runner.invoke(
+        qontract_cli.early_exit_cache, "delete -i a -v b --dry-run -d abc -s shard-1"
+    )
+
+    assert result.exit_code == 0
+    assert result.output == "deleted\n"

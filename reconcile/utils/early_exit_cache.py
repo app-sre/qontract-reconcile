@@ -16,24 +16,15 @@ CACHE_SOURCE_DIGEST_METADATA_KEY = "cache-source-digest"
 LATEST_CACHE_SOURCE_DIGEST_METADATA_KEY = "latest-cache-source-digest"
 
 
-class CacheKey(BaseModel):
+class CacheKeyWithDigest(BaseModel):
     integration: str
     integration_version: str
     dry_run: bool
-    cache_source: object
+    cache_source_digest: str
     shard: str
 
     def __str__(self) -> str:
         return self.dry_run_path() if self.dry_run else self.no_dry_run_path()
-
-    @cached_property
-    def cache_source_digest(self) -> str:
-        """
-        Calculate a consistent hash of the cache source, use @cached_property to avoid recalculating
-
-        :return: hash of the cache source
-        """
-        return DeepHash(self.cache_source)[self.cache_source]
 
     def dry_run_path(self) -> str:
         """
@@ -66,6 +57,51 @@ class CacheKey(BaseModel):
                 "latest",
             ]
         )
+
+    class Config:
+        frozen = True
+
+
+class CacheKey(BaseModel):
+    integration: str
+    integration_version: str
+    dry_run: bool
+    cache_source: object
+    shard: str
+
+    def __str__(self) -> str:
+        return str(self.cache_key_with_digest)
+
+    @cached_property
+    def cache_source_digest(self) -> str:
+        """
+        Calculate a consistent hash of the cache source, use @cached_property to avoid recalculating
+
+        :return: hash of the cache source
+        """
+        return DeepHash(self.cache_source)[self.cache_source]
+
+    @cached_property
+    def cache_key_with_digest(self) -> CacheKeyWithDigest:
+        return CacheKeyWithDigest(
+            integration=self.integration,
+            integration_version=self.integration_version,
+            dry_run=self.dry_run,
+            cache_source_digest=self.cache_source_digest,
+            shard=self.shard,
+        )
+
+    def dry_run_path(self) -> str:
+        """
+        /<integration>/<integration_version>/dry-run(/<shard>)/<cache_source_digest>
+        """
+        return self.cache_key_with_digest.dry_run_path()
+
+    def no_dry_run_path(self) -> str:
+        """
+        /<integration>/<integration_version>/no-dry-run(/<shard>)/latest
+        """
+        return self.cache_key_with_digest.no_dry_run_path()
 
     class Config:
         frozen = True
@@ -153,6 +189,15 @@ class EarlyExitCache:
         :return: CacheHeadResult
         """
         return self._head_dry_run(key) if key.dry_run else self._head_no_dry_run(key)
+
+    def delete(self, key: CacheKeyWithDigest) -> None:
+        """
+        Delete the cache value for the given key.
+
+        :param key: CacheKey
+        :return: None
+        """
+        self.state.rm(str(key))
 
     @staticmethod
     def _is_stale(

@@ -83,7 +83,12 @@ from reconcile.utils import (
     gql,
 )
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.early_exit_cache import CacheKey, CacheValue, EarlyExitCache
+from reconcile.utils.early_exit_cache import (
+    CacheKey,
+    CacheKeyWithDigest,
+    CacheValue,
+    EarlyExitCache,
+)
 from reconcile.utils.environ import environ
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
@@ -2547,6 +2552,7 @@ def early_exit_cache_head(
             cache_source=json.loads(cache_source),
             shard=shard,
         )
+        print(f"cache_source_digest: {cache_key.cache_source_digest}")
         result = cache.head(cache_key)
         print(result)
 
@@ -2692,6 +2698,57 @@ def early_exit_cache_set(
             applied_count=applied_count,
         )
         cache.set(cache_key, cache_value, ttl, latest_cache_source_digest)
+
+
+@early_exit_cache.command(name="delete")
+@click.option(
+    "-i",
+    "--integration",
+    help="Integration name.",
+    required=True,
+)
+@click.option(
+    "-v",
+    "--integration-version",
+    help="Integration version.",
+    required=True,
+)
+@click.option(
+    "--dry-run/--no-dry-run",
+    help="",
+    default=False,
+)
+@click.option(
+    "-d",
+    "--cache-source-digest",
+    help="Cache source digest.",
+    required=True,
+)
+@click.option(
+    "-s",
+    "--shard",
+    help="Shard",
+    default="",
+)
+@click.pass_context
+def early_exit_cache_delete(
+    ctx,
+    integration,
+    integration_version,
+    dry_run,
+    cache_source_digest,
+    shard,
+):
+    with EarlyExitCache.build() as cache:
+        cache_key_with_digest = CacheKeyWithDigest(
+            integration=integration,
+            integration_version=integration_version,
+            dry_run=dry_run,
+            cache_source_digest=cache_source_digest,
+            shard=shard,
+        )
+        cache.delete(cache_key_with_digest)
+        print("deleted")
 
 
 @root.command()

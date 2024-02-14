@@ -9,6 +9,7 @@ from pytest_mock import MockerFixture
 from reconcile.utils.early_exit_cache import (
     CacheHeadResult,
     CacheKey,
+    CacheKeyWithDigest,
     CacheStatus,
     CacheValue,
     EarlyExitCache,
@@ -29,6 +30,14 @@ DRY_RUN_CACHE_KEY = CacheKey(
     shard="",
 )
 
+DRY_RUN_CACHE_KEY_WITH_DIGEST = CacheKeyWithDigest(
+    integration=INTEGRATION_NAME,
+    integration_version=INTEGRATION_VERSION,
+    dry_run=True,
+    cache_source_digest=CACHE_SOURCE_DIGEST,
+    shard="",
+)
+
 DRY_RUN_CACHE_VALUE = CacheValue(
     payload={"k1": "v1"},
     log_output="some-log-output-1",
@@ -40,6 +49,14 @@ NO_DRY_RUN_CACHE_KEY = CacheKey(
     integration_version=INTEGRATION_VERSION,
     dry_run=False,
     cache_source=CACHE_SOURCE,
+    shard="",
+)
+
+NO_DRY_RUN_CACHE_KEY_WITH_DIGEST = CacheKeyWithDigest(
+    integration=INTEGRATION_NAME,
+    integration_version=INTEGRATION_VERSION,
+    dry_run=False,
+    cache_source_digest=CACHE_SOURCE_DIGEST,
     shard="",
 )
 
@@ -446,3 +463,17 @@ def test_early_exit_cache_head_dry_run_hit(
             call(str(DRY_RUN_CACHE_KEY)),
         ],
     )
+
+
+@pytest.mark.parametrize(
+    "cache_key_with_digest",
+    [DRY_RUN_CACHE_KEY_WITH_DIGEST, NO_DRY_RUN_CACHE_KEY_WITH_DIGEST],
+)
+def test_early_exit_cache_delete(
+    early_exit_cache: EarlyExitCache,
+    state: Any,
+    cache_key_with_digest: CacheKeyWithDigest,
+) -> None:
+    early_exit_cache.delete(cache_key_with_digest)
+
+    state.rm.assert_called_once_with(str(cache_key_with_digest))
