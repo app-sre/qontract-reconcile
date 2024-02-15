@@ -12,6 +12,9 @@ from reconcile.gql_definitions.common.ocm_environments import (
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.slack_base import slackapi_from_queries
+from reconcile.typed_queries.app_interface_custom_messages import (
+    get_app_interface_custom_message,
+)
 from reconcile.utils import gql
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm_base_client import (
@@ -106,6 +109,9 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
 
             if not dry_run and slack_user_ids:
                 users = " ".join([f"<@{uid}>" for uid in slack_user_ids])
+                instructions = get_app_interface_custom_message(
+                    "ocm-internal-notifications-instructions"
+                )
                 self.slack.chat_post_message(
-                    f"hey {users} :wave: you have clusters stuck in uninstalling state in the {env.name} environment"
+                    f"hey {users} :wave: you have clusters stuck in uninstalling state in the {env.name} environment. {instructions}"
                 )
