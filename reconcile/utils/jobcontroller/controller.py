@@ -370,7 +370,6 @@ class K8sJobController:
         """
         self.oc.job_logs_latest_pod(
             namespace=self.namespace,
-            follow=False,
             name=job_name,
             output=output_dir_path,
         )
