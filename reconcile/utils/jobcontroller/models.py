@@ -118,3 +118,10 @@ class K8sJob(ABC):
         hash_object = hashlib.sha256(job_spec_source_code.encode())
         hash = hash_object.hexdigest()
         return hash[:length]
+
+    def secret_data(self) -> dict[str, str]:
+        """
+        If a job relies on some secret data, it should return it here. The
+        job controller will manage the lifecycle of a kubernetes Secret.
+        """
+        return {}

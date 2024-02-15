@@ -2,7 +2,13 @@ import logging
 import time
 from typing import Optional, Protocol
 
-from kubernetes.client import ApiClient, V1Job  # type: ignore[attr-defined]
+from kubernetes.client import (  # type: ignore[attr-defined]
+    ApiClient,
+    V1Job,
+    V1ObjectMeta,
+    V1OwnerReference,
+    V1Secret,
+)
 
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils.jobcontroller.models import (
@@ -129,11 +135,11 @@ class K8sJobController:
         if job_resource is None:
             return JobStatus.NOT_EXISTS
 
-        status = job_resource.body["status"]
+        status = job_resource.body.get("status") or {}
         backofflimit = job_resource.body["spec"].get("backoffLimit", 6)
         if status.get("succeeded", 0) > 0:
             return JobStatus.SUCCESS
-        elif status.get("failed", 0) >= backofflimit:
+        elif status.get("failed", 0) > backofflimit:
             return JobStatus.ERROR
         return JobStatus.IN_PROGRESS
 
@@ -242,6 +248,41 @@ class K8sJobController:
             return True
         return False
 
+    def _lookup_job_uid(self, job_name: str) -> Optional[str]:
+        job_resource = self.oc.get(
+            self.namespace, "Job", job_name, allow_not_found=True
+        )
+        if not job_resource:
+            return None
+        return job_resource.get("metadata", {}).get("uid")
+
+    def build_secret(self, job: K8sJob) -> Optional[V1Secret]:
+        secret_data = job.secret_data()
+        if not secret_data:
+            return None
+        job_name = job.name()
+        job_uid = self._lookup_job_uid(job_name)
+        if not job_uid:
+            raise Exception(f"Failed to lookup job uid for {job_name}")
+        return V1Secret(
+            api_version="v1",
+            kind="Secret",
+            metadata=V1ObjectMeta(
+                name=job_name,
+                annotations=job.annotations(),
+                labels=job.labels(),
+                owner_references=[
+                    V1OwnerReference(
+                        api_version="batch/v1",
+                        kind="Job",
+                        name=job_name,
+                        uid=job_uid,
+                    )
+                ],
+            ),
+            string_data=secret_data,
+        )
+
     def create_job(self, job: K8sJob) -> None:
         """
         Creates the K8S job on the cluster and namespace.
@@ -249,12 +290,27 @@ class K8sJobController:
         job_spec = job.build_job()
         self.validate_job(job_spec)
         api = ApiClient()
-        res = OpenshiftResource(
-            api.sanitize_for_serialization(job.build_job()),
-            self.integration,
-            self.integration_version,
+        self.oc.apply(
+            namespace=self.namespace,
+            resource=OpenshiftResource(
+                api.sanitize_for_serialization(job.build_job()),
+                self.integration,
+                self.integration_version,
+            ).annotate(),
         )
-        self.oc.apply(self.namespace, res.annotate())
+
+        # if the job defines secret data, we need to create the secret
+        # with proper owner reference
+        job_secret = self.build_secret(job)
+        if job_secret:
+            self.oc.apply(
+                namespace=self.namespace,
+                resource=OpenshiftResource(
+                    api.sanitize_for_serialization(job_secret),
+                    self.integration,
+                    self.integration_version,
+                ).annotate(),
+            )
 
     def validate_job(self, job: V1Job) -> None:
         if not job.spec:
