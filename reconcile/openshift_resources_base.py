@@ -291,9 +291,9 @@ class UnknownTemplateTypeError(Exception):
 def lookup_secret(
     path,
     key,
-    allow_not_found=False,
     version=None,
     tvars=None,
+    allow_not_found=False,
     settings=None,
     secret_reader=None,
 ):
