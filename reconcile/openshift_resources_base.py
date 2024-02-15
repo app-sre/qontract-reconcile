@@ -287,7 +287,6 @@ class UnknownTemplateTypeError(Exception):
         super().__init__("unknown template type error: " + str(msg))
 
 
-
 @retry()
 def lookup_secret(
     path,
