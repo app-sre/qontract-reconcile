@@ -13,14 +13,14 @@ class TemplateData(BaseModel):
     current: Optional[dict[str, Any]]
 
 
-class TemplatePatchProtocol(Protocol):
+class HasTemplatePatch(Protocol):
     path: str
     identifier: Optional[str]
 
     def dict(self) -> dict[str, str]: ...
 
 
-class TemplateProtocol(Protocol):
+class HasTemplate(Protocol):
     name: str
     condition: Optional[str]
     target_path: str
@@ -29,12 +29,12 @@ class TemplateProtocol(Protocol):
     def dict(self) -> dict[str, str]: ...
 
     @property
-    def patch(self) -> Optional[TemplatePatchProtocol]:
+    def patch(self) -> Optional[HasTemplatePatch]:
         pass
 
 
 class Renderer(ABC):
-    def __init__(self, template: TemplateProtocol, data: TemplateData):
+    def __init__(self, template: HasTemplate, data: TemplateData):
         self.template = template
         self.data = data
         self.jinja_env = SandboxedEnvironment()
@@ -126,7 +126,7 @@ class PatchRenderer(Renderer):
         return yaml.dump(self.data.current, width=4096, Dumper=yaml.RoundTripDumper)
 
 
-def create_renderer(template: TemplateProtocol, data: TemplateData) -> Renderer:
+def create_renderer(template: HasTemplate, data: TemplateData) -> Renderer:
     if template.patch:
         return PatchRenderer(template=template, data=data)
     return FullRenderer(template=template, data=data)
