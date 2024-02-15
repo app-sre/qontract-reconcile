@@ -1871,13 +1871,13 @@ def template_validator(ctx):
 
 @integration.command(short_help="Render datafile templates in app-interface.")
 @click.option(
-    "--app-interface-path",
+    "--app-interface-data-path",
     help="Path to app-interface dictory, used to write output and calculate diff in dry-run.",
     required=False,
-    envvar="APP_INTERFACE_PATH",
+    envvar="APP_INTERFACE_DATA_PATH",
 )
 @click.pass_context
-def template_renderer(ctx, app_interface_path):
+def template_renderer(ctx, app_interface_data_path):
     from reconcile.templating.renderer import (
         TemplateRendererIntegration,
         TemplateRendererIntegrationParams,
@@ -1885,7 +1885,7 @@ def template_renderer(ctx, app_interface_path):
 
     run_class_integration(
         integration=TemplateRendererIntegration(
-            TemplateRendererIntegrationParams(app_interface_path=app_interface_path)
+            TemplateRendererIntegrationParams(app_interface_data_path=app_interface_data_path)
         ),
         ctx=ctx.obj,
     )
