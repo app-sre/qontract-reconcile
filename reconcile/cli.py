@@ -1885,7 +1885,9 @@ def template_renderer(ctx, app_interface_data_path):
 
     run_class_integration(
         integration=TemplateRendererIntegration(
-            TemplateRendererIntegrationParams(app_interface_data_path=app_interface_data_path)
+            TemplateRendererIntegrationParams(
+                app_interface_data_path=app_interface_data_path
+            )
         ),
         ctx=ctx.obj,
     )

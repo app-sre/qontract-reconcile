@@ -1,9 +1,6 @@
 import os
-import sys
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from difflib import context_diff
-from io import StringIO
 from typing import Optional
 
 from ruamel import yaml
@@ -25,7 +22,8 @@ from reconcile.utils.runtime.integration import (
 
 QONTRACT_INTEGRATION = "template-renderer"
 
-APP_INTERFACE_PATH_SEPERATOR="/"
+APP_INTERFACE_PATH_SEPERATOR = "/"
+
 
 def get_template_collections(
     query_func: Optional[Callable] = None,
@@ -36,25 +34,38 @@ def get_template_collections(
 
 
 class FilePersistence(ABC):
+    @abstractmethod
+    def write(self, path: str, content: str) -> None:
+        pass
 
     @abstractmethod
-    def read(self):
-        raise
-
-    @abstractmethod
-    def write(self):
-        raise
+    def read(self, path: str) -> str:
+        pass
 
 
-y = yaml.YAML()
-y.width = 4096
-y.preserve_quotes = True
+class LocalFilePersistence(FilePersistence):
+    def __init__(self, app_interface_data_path: str) -> None:
+        self.app_interface_data_path = app_interface_data_path
+
+    def write(self, path: str, content: str) -> None:
+        with open(
+            f"{join_path(self.app_interface_data_path, path)}", "w", encoding="utf-8"
+        ) as f:
+            f.write(content)
+
+    def read(self, path: str) -> str:
+        with open(
+            f"{join_path(self.app_interface_data_path, path)}", "r", encoding="utf-8"
+        ) as f:
+            return f.read()
+
 
 def unpack_variables(collection_variables: TemplateCollectionVariablesV1) -> dict:
     variables = {}
     if collection_variables.static:
         variables = collection_variables.static
     return variables
+
 
 class TemplateRendererIntegrationParams(PydanticRunParams):
     app_interface_data_path: Optional[str]
@@ -66,6 +77,7 @@ def join_path(base: str, sub: str) -> str:
         return os.path.join(base, sub[1:])
     return os.path.join(base, sub)
 
+
 class TemplateRendererIntegration(QontractReconcileIntegration):
     def __init__(self, params: TemplateRendererIntegrationParams) -> None:
         super().__init__(params)
@@ -74,19 +86,9 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
-    def get_current_content(self, target_path: str) -> Optional[yaml.CommentedMap]:
-        if self.params.app_interface_data_path:
-            with open(f"{join_path(self.params.app_interface_data_path, target_path)}", "r", encoding="utf-8") as f:
-                return y.load(f.read())
-        raise NotImplementedError("Can not work with remote files yet, please provide app_interface_path.")
-
-    def write_output(self, target_path: str, output: str) -> None:
-        if self.params.app_interface_data_path:
-            print(f"write {join_path(self.params.app_interface_data_path, target_path)} with {output}")
-        # with open(target_path, "w", encoding="utf-8") as f:
-        #     f.write(output)
-
     def run(self, dry_run: bool) -> None:
+        persistence = LocalFilePersistence(self.params.app_interface_data_path)
+
         for c in get_template_collections():
             variables = {}
             if c.variables:
@@ -100,27 +102,27 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     ),
                 )
                 target_path = r.render_target_path()
-                current: Optional[yaml.CommentedMap] = None
+                current_str: Optional[str] = None
                 try:
-                    current = self.get_current_content(
+                    current_str = persistence.read(
                         target_path,
                     )
-                    r.data.current = current
-                except FileNotFoundError as e:
-                    print(f"File not found: {e}")
+                    y = yaml.YAML()
+
+                    r.data.current = y.load(current_str)
+                except FileNotFoundError:
                     if template.patch:
                         raise ValueError(
-                            f"Can not patch non-existing file {target_path}")
+                            f"Can not patch non-existing file {target_path}"
+                        )
 
                 if r.render_condition():
                     output = r.render_output()
 
-                    stream = StringIO()
-                    y.dump(current, stream=stream)
-                    current_value = stream.getvalue()
-
-                    if current_value != output:
-                        print(f"diff in template {template.name} for target_path {target_path}")
+                    if current_str != output:
+                        print(
+                            f"diff in template {template.name} for target_path {target_path}"
+                        )
 
                     if not dry_run:
-                        self.write_output(target_path, output)
+                        persistence.write(target_path, output)
