@@ -2,10 +2,7 @@ import tempfile
 from types import TracebackType
 from typing import Optional, Type
 
-from reconcile.utils.aws_api import (
-    AWSSessionBuilder,
-    AWSStaticCredsSessionBuilder,
-)
+from reconcile.utils.aws_api import AWSCredentials, AWSStaticCredentials
 from reconcile.utils.jobcontroller.controller import K8sJobController
 from reconcile.utils.jobcontroller.models import JobConcurrencyPolicy, JobStatus
 from reconcile.utils.ocm_base_client import (
@@ -33,13 +30,13 @@ class RosaSession:
     def __init__(
         self,
         cluster: ROSACluster,
-        aws_session_builder: AWSSessionBuilder,
+        aws_credentials: AWSCredentials,
         ocm_api: OCMBaseClient,
         job_controller: K8sJobController,
         image: str,
     ):
         self.cluster = cluster
-        self.aws_session_builder = aws_session_builder
+        self.aws_credentials = aws_credentials
         self.ocm_api = ocm_api
         self.job_controller = job_controller
         self.image = image
@@ -52,22 +49,27 @@ class RosaSession:
     def is_closed(self) -> bool:
         return self._closed
 
+    def assemble_job(self, cmd: str, image: Optional[str] = None) -> RosaJob:
+        return RosaJob(
+            account_name=self.cluster.spec.account.name,
+            cluster_name=self.cluster.name,
+            org_id=self.cluster.ocm.org_id,
+            cmd=self.wrap_cli_command(cmd),
+            aws_credentials=self.aws_credentials,
+            ocm_token=self.ocm_api._access_token,
+            image=image or self.image,
+        )
+
+    def wrap_cli_command(self, cmd: str) -> str:
+        return f"rosa login > /dev/null && {cmd}"
+
     def cli_execute(self, cmd: str, image: Optional[str] = None) -> RosaCliResult:
         """
         Execute CLI commands in the context of a valid ROSA session (rosa login not required).
         The provided cmd needs to be a single command. If multiple commands are required, they
         need to be combined delimited with a ;
         """
-        aws_tmp_creds = self.aws_session_builder.build_temporary_credentials()
-        job = RosaJob(
-            account_name=self.cluster.spec.account.name,
-            cluster_name=self.cluster.name,
-            org_id=self.cluster.ocm.org_id,
-            cmd=f"rosa login > /dev/null && {cmd}",
-            aws_credentials=aws_tmp_creds,
-            ocm_token=self.ocm_api._access_token,
-            image=image or self.image,
-        )
+        job = self.assemble_job(cmd, image)
 
         status = self.job_controller.enqueue_job_and_wait_for_completion(
             job,
@@ -112,14 +114,14 @@ class RosaSessionContextManager:
     def __init__(
         self,
         cluster: ROSACluster,
-        aws_session_builder: AWSSessionBuilder,
+        aws_credentials: AWSCredentials,
         ocm_config: OCMAPIClientConfigurationProtocol,
         secret_reader: SecretReaderBase,
         job_controller: K8sJobController,
         image: str,
     ):
         self.cluster = cluster
-        self.aws_session_builder = aws_session_builder
+        self.aws_credentials = aws_credentials
         self.ocm_config = ocm_config
         self.secret_reader = secret_reader
         self.job_controller = job_controller
@@ -130,7 +132,7 @@ class RosaSessionContextManager:
     def __enter__(self) -> RosaSession:
         self._rosa_session = RosaSession(
             cluster=self.cluster,
-            aws_session_builder=self.aws_session_builder,
+            aws_credentials=self.aws_credentials,
             ocm_api=init_ocm_base_client(self.ocm_config, self.secret_reader),
             job_controller=self.job_controller,
             image=self.image,
@@ -162,7 +164,7 @@ def rosa_session_ctx(
 
     # build aws config
     aws_secret = secret_reader.read_all_secret(cluster.spec.account.automation_token)
-    aws_session_builder = AWSStaticCredsSessionBuilder(
+    aws_credentials = AWSStaticCredentials(
         access_key_id=aws_secret["aws_access_key_id"],
         secret_access_key=aws_secret["aws_secret_access_key"],
         region=cluster.spec.region,
@@ -181,7 +183,7 @@ def rosa_session_ctx(
 
     rosa_session_builder = RosaSessionContextManager(
         cluster=cluster,
-        aws_session_builder=aws_session_builder,
+        aws_credentials=aws_credentials,
         ocm_config=ocm_config,
         secret_reader=secret_reader,
         job_controller=job_controller,

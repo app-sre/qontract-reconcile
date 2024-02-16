@@ -5,20 +5,17 @@ from typing import Any, Callable, Optional
 from kubernetes.client import (
     V1Container,
     V1EmptyDirVolumeSource,
-    V1EnvVar,
-    V1EnvVarSource,
     V1JobSpec,
     V1ObjectMeta,
     V1PodSpec,
     V1PodTemplateSpec,
-    V1SecretKeySelector,
     V1Volume,
     V1VolumeMount,
 )
 from pydantic import BaseModel
 
 from reconcile.utils.aws_api import (
-    AWSTemporaryCredentials,
+    AWSCredentials,
 )
 from reconcile.utils.jobcontroller.models import JobStatus, K8sJob
 
@@ -33,12 +30,17 @@ class LogHandle:
         self.log_file = log_file
 
     def get_log_lines(self, max_lines: int = 5) -> list[str]:
+        if max_lines <= 0:
+            return []
         with open(self.log_file, "r", encoding="utf-8") as f:
-            return list(itertools.islice(f, max_lines))
+            return [line.rstrip() for line in itertools.islice(f, max_lines)]
 
     def write_logs_to_logger(self, logger: Callable[..., None]) -> None:
         with open(self.log_file, "r", encoding="utf-8") as f:
             logger(f.read())
+
+    def exists(self) -> bool:
+        return os.path.exists(self.log_file)
 
     def cleanup(self) -> None:
         os.remove(self.log_file)
@@ -86,14 +88,7 @@ class RosaCliException(Exception, RosaCliResult):
         RosaCliResult.__init__(self, status, command, log_handle)
 
 
-AWS_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID"
-AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY"
-AWS_SESSION_TOKEN = "AWS_SESSION_TOKEN"
-AWS_REGION = "AWS_REGION"
-OCM_TOKEN = "OCM_TOKEN"
-
-
-class RosaJob(K8sJob, BaseModel, frozen=True):
+class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
     """
     Represents a ROSA CLI job. It leverages the reconcile.utils.jobcontroller module
     functionality to execute ROSA CLI commands in a Kubernetes cluster.
@@ -115,7 +110,7 @@ class RosaJob(K8sJob, BaseModel, frozen=True):
     cmd: str
     image: str
 
-    aws_credentials: AWSTemporaryCredentials
+    aws_credentials: AWSCredentials
     ocm_token: str
 
     dry_run: bool = False
@@ -144,16 +139,11 @@ class RosaJob(K8sJob, BaseModel, frozen=True):
         }
 
     def secret_data(self) -> dict[str, str]:
-        return {
-            AWS_ACCESS_KEY_ID: self.aws_credentials.access_key_id,
-            AWS_SECRET_ACCESS_KEY: self.aws_credentials.secret_access_key,
-            AWS_SESSION_TOKEN: self.aws_credentials.session_token,
-            AWS_REGION: self.aws_credentials.region,
-            OCM_TOKEN: self.ocm_token,
-        }
+        data = self.aws_credentials.as_env_vars()
+        data["OCM_TOKEN"] = self.ocm_token
+        return data
 
     def job_spec(self) -> V1JobSpec:
-        secret_name = self.name()
         return V1JobSpec(
             backoff_limit=1,
             ttl_seconds_after_finished=3600,
@@ -168,53 +158,7 @@ class RosaJob(K8sJob, BaseModel, frozen=True):
                             image=self.image,
                             command=["/bin/bash", "-c"],
                             args=[self.cmd],
-                            env=[
-                                V1EnvVar(
-                                    name=AWS_ACCESS_KEY_ID,
-                                    value_from=V1EnvVarSource(
-                                        secret_key_ref=V1SecretKeySelector(
-                                            name=secret_name,
-                                            key=AWS_ACCESS_KEY_ID,
-                                        )
-                                    ),
-                                ),
-                                V1EnvVar(
-                                    name=AWS_SECRET_ACCESS_KEY,
-                                    value_from=V1EnvVarSource(
-                                        secret_key_ref=V1SecretKeySelector(
-                                            name=secret_name,
-                                            key=AWS_SECRET_ACCESS_KEY,
-                                        )
-                                    ),
-                                ),
-                                V1EnvVar(
-                                    name=AWS_SESSION_TOKEN,
-                                    value_from=V1EnvVarSource(
-                                        secret_key_ref=V1SecretKeySelector(
-                                            name=secret_name,
-                                            key=AWS_SESSION_TOKEN,
-                                        )
-                                    ),
-                                ),
-                                V1EnvVar(
-                                    name=AWS_REGION,
-                                    value_from=V1EnvVarSource(
-                                        secret_key_ref=V1SecretKeySelector(
-                                            name=secret_name,
-                                            key=AWS_REGION,
-                                        )
-                                    ),
-                                ),
-                                V1EnvVar(
-                                    name=OCM_TOKEN,
-                                    value_from=V1EnvVarSource(
-                                        secret_key_ref=V1SecretKeySelector(
-                                            name=secret_name,
-                                            key=OCM_TOKEN,
-                                        )
-                                    ),
-                                ),
-                            ],
+                            env=self.secret_data_to_env_vars_secret_refs(),
                             volume_mounts=[
                                 V1VolumeMount(
                                     name="workdir",
