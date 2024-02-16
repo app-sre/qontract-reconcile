@@ -24,6 +24,7 @@ def version_gate_4_13_ocp(version_gate_4_13_ocp_id: str) -> dict[str, Any]:
         "kind": "VersionGate",
         "id": version_gate_4_13_ocp_id,
         "version_raw_id_prefix": "4.13",
+        "label": "api.openshift.com/gate-ocp",
         "value": "4.13",
         "sts_only": False,
     }

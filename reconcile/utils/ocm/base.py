@@ -14,6 +14,8 @@ from pydantic import (
     Field,
 )
 
+from reconcile.utils.aws_helper import get_role_name_from_arn
+
 LabelSetTypeVar = TypeVar("LabelSetTypeVar", bound=BaseModel)
 ACTIVE_SUBSCRIPTION_STATES = {"Active", "Reserved"}
 CAPABILITY_MANAGE_CLUSTER_ADMIN = "capability.cluster.manage_cluster_admin"
@@ -47,6 +49,12 @@ class OCMVersionGate(BaseModel):
     id: str
     version_raw_id_prefix: str
     sts_only: bool
+    label: str
+    """
+    the label field holds a readable name for a verion gate, e.g.
+    - api.openshift.com/gate-sts
+    - api.openshift.com/gate-ocp
+    """
 
 
 class OCMClusterGroupId(Enum):
@@ -118,12 +126,57 @@ class OCMClusterFlag(BaseModel):
     enabled: bool
 
 
+class OCMClusterAWSOperatorRole(BaseModel):
+    id: str
+    name: str
+    namespace: str
+    role_arn: str
+    service_account: str
+
+
+class OCMAWSSTS(OCMClusterFlag):
+    role_arn: Optional[str]
+    support_role_arn: Optional[str]
+    oidc_endpoint_url: Optional[str]
+    operator_iam_roles: Optional[list[OCMClusterAWSOperatorRole]]
+    instance_iam_roles: Optional[dict[str, str]]
+    operator_role_prefix: Optional[str]
+
+
 class OCMClusterAWSSettings(BaseModel):
-    sts: Optional[OCMClusterFlag]
+    sts: Optional[OCMAWSSTS]
 
     @property
     def sts_enabled(self) -> bool:
         return self.sts is not None and self.sts.enabled
+
+    @property
+    def account_roles(self) -> list[str]:
+        if not self.sts:
+            return []
+        roles = []
+        if self.sts.role_arn:
+            roles.append(self.sts.role_arn)
+        if self.sts.support_role_arn:
+            roles.append(self.sts.support_role_arn)
+        for instance_iam_role in (self.sts.instance_iam_roles or {}).values():
+            roles.append(instance_iam_role)
+        return roles
+
+    @property
+    def account_role_prefix(self) -> Optional[str]:
+        INSTALLER_ROLE_SUFFIX = "-Installer-Role"
+        for role in self.account_roles:
+            role_name = get_role_name_from_arn(role)
+            if role_name.endswith(INSTALLER_ROLE_SUFFIX):
+                return role_name[: -len(INSTALLER_ROLE_SUFFIX)]
+        return None
+
+    @property
+    def operator_roles(self) -> list[str]:
+        if not self.sts:
+            return []
+        return [role.role_arn for role in self.sts.operator_iam_roles or []]
 
 
 class OCMClusterVersion(BaseModel):
@@ -147,7 +200,6 @@ class OCMClusterDns(BaseModel):
 
 
 class OCMExternalConfiguration(BaseModel):
-    kind: str
     syncsets: dict
 
 

@@ -2418,6 +2418,39 @@ def advanced_upgrade_scheduler(
     )
 
 
+@integration.command(short_help="Approves OCM cluster upgrade version gates.")
+@click.option(
+    "--job-controller-cluster",
+    help="The cluster holding the job-controller namepsace",
+    required=True,
+    envvar="JOB_CONTROLLER_CLUSTER",
+)
+@click.option(
+    "--job-controller-namespace",
+    help="The namespace used for ROSA jobs",
+    required=True,
+    envvar="JOB_CONTROLLER_NAMESPACE",
+)
+@click.pass_context
+def version_gate_approver(
+    ctx, job_controller_cluster: str, job_controller_namespace: str
+) -> None:
+    from reconcile.aus.version_gate_approver import (
+        VersionGateApprover,
+        VersionGateApproverParams,
+    )
+
+    run_class_integration(
+        integration=VersionGateApprover(
+            VersionGateApproverParams(
+                job_controller_cluster=job_controller_cluster,
+                job_controller_namespace=job_controller_namespace,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage Databases and Database Users.")
 @vault_output_path
 @click.pass_context

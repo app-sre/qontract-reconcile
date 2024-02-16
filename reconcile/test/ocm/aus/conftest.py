@@ -20,6 +20,7 @@ def ocm_env() -> OCMEnvironment:
         accessTokenClientSecret=VaultSecret(
             field="client-secret", path="path", format=None, version=None
         ),
+        organizations=[],
     )
 
 

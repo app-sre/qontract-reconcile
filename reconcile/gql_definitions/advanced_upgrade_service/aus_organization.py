@@ -109,6 +109,9 @@ fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
     accessTokenClientSecret {
         ... VaultSecret
     }
+    organizations {
+      ... MinimalOCMOrganization
+    }
 }
 
 fragment VaultSecret on VaultSecret_v1 {

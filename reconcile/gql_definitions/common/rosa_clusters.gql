@@ -1,0 +1,38 @@
+# qenerate: plugin=pydantic_v1
+
+query RosaClusters($filter: JSON) {
+  clusters: clusters_v1(filter: $filter) {
+    name
+    spec {
+      id
+      product
+      channel
+      ... on ClusterSpecROSA_v1 {
+        region
+        account {
+          name
+          uid
+          automationToken {
+            ... VaultSecret
+          }
+        }
+      }
+    }
+    ocm {
+      environment {
+        url
+        accessTokenClientId
+        accessTokenUrl
+        accessTokenClientSecret {
+          ... VaultSecret
+        }
+      }
+      orgId
+      accessTokenClientId
+      accessTokenUrl
+      accessTokenClientSecret {
+        ... VaultSecret
+      }
+    }
+  }
+}

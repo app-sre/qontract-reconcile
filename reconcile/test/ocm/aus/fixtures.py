@@ -63,6 +63,7 @@ def build_ocm_environment(env_name: Optional[str] = None) -> OCMEnvironment:
             path="secret/path", field="field", version=None, format=None
         ),
         url="https://ocm-url",
+        organizations=[],
     )
 
 

@@ -17,30 +17,10 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
-fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {
-  name
-  orgId
-}
-
-fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
-    name
-    labels
-    url
-    accessTokenClientId
-    accessTokenUrl
-    accessTokenClientSecret {
-        ... VaultSecret
-    }
-    organizations {
-      ... MinimalOCMOrganization
-    }
-}
-
 fragment VaultSecret on VaultSecret_v1 {
     path
     field
@@ -48,15 +28,32 @@ fragment VaultSecret on VaultSecret_v1 {
     format
 }
 
-query OpenshiftClusterBotsQuery($name: String) {
-  clusters: clusters_v1(name: $name) {
+query RosaClusters($filter: JSON) {
+  clusters: clusters_v1(filter: $filter) {
     name
-    path
-    serverUrl
+    spec {
+      id
+      product
+      channel
+      ... on ClusterSpecROSA_v1 {
+        region
+        account {
+          name
+          uid
+          automationToken {
+            ... VaultSecret
+          }
+        }
+      }
+    }
     ocm {
-      name
       environment {
-        ... OCMEnvironment
+        url
+        accessTokenClientId
+        accessTokenUrl
+        accessTokenClientSecret {
+          ... VaultSecret
+        }
       }
       orgId
       accessTokenClientId
@@ -64,16 +61,6 @@ query OpenshiftClusterBotsQuery($name: String) {
       accessTokenClientSecret {
         ... VaultSecret
       }
-    }
-    automationToken {
-      ... VaultSecret
-    }
-    clusterAdmin
-    clusterAdminAutomationToken {
-      ... VaultSecret
-    }
-    disable {
-      integrations
     }
   }
 }
@@ -86,35 +73,49 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
-class OpenShiftClusterManagerV1(ConfiguredBaseModel):
+class ClusterSpecV1(ConfiguredBaseModel):
+    q_id: Optional[str] = Field(..., alias="id")
+    product: str = Field(..., alias="product")
+    channel: str = Field(..., alias="channel")
+
+
+class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    environment: OCMEnvironment = Field(..., alias="environment")
+    uid: str = Field(..., alias="uid")
+    automation_token: VaultSecret = Field(..., alias="automationToken")
+
+
+class ClusterSpecROSAV1(ClusterSpecV1):
+    region: str = Field(..., alias="region")
+    account: Optional[AWSAccountV1] = Field(..., alias="account")
+
+
+class OpenShiftClusterManagerEnvironmentV1(ConfiguredBaseModel):
+    url: str = Field(..., alias="url")
+    access_token_client_id: str = Field(..., alias="accessTokenClientId")
+    access_token_url: str = Field(..., alias="accessTokenUrl")
+    access_token_client_secret: VaultSecret = Field(..., alias="accessTokenClientSecret")
+
+
+class OpenShiftClusterManagerV1(ConfiguredBaseModel):
+    environment: OpenShiftClusterManagerEnvironmentV1 = Field(..., alias="environment")
     org_id: str = Field(..., alias="orgId")
     access_token_client_id: Optional[str] = Field(..., alias="accessTokenClientId")
     access_token_url: Optional[str] = Field(..., alias="accessTokenUrl")
     access_token_client_secret: Optional[VaultSecret] = Field(..., alias="accessTokenClientSecret")
 
 
-class DisableClusterAutomationsV1(ConfiguredBaseModel):
-    integrations: Optional[list[str]] = Field(..., alias="integrations")
-
-
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    path: str = Field(..., alias="path")
-    server_url: str = Field(..., alias="serverUrl")
+    spec: Optional[Union[ClusterSpecROSAV1, ClusterSpecV1]] = Field(..., alias="spec")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
-    automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
-    cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
-    cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
-    disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
 
-class OpenshiftClusterBotsQueryQueryData(ConfiguredBaseModel):
+class RosaClustersQueryData(ConfiguredBaseModel):
     clusters: Optional[list[ClusterV1]] = Field(..., alias="clusters")
 
 
-def query(query_func: Callable, **kwargs: Any) -> OpenshiftClusterBotsQueryQueryData:
+def query(query_func: Callable, **kwargs: Any) -> RosaClustersQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -127,7 +128,7 @@ def query(query_func: Callable, **kwargs: Any) -> OpenshiftClusterBotsQueryQuery
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        OpenshiftClusterBotsQueryQueryData: queried data parsed into generated classes
+        RosaClustersQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return OpenshiftClusterBotsQueryQueryData(**raw_data)
+    return RosaClustersQueryData(**raw_data)

@@ -21,6 +21,11 @@ from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 
 
 DEFINITION = """
+fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {
+  name
+  orgId
+}
+
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
     name
     labels
@@ -29,6 +34,9 @@ fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
     accessTokenUrl
     accessTokenClientSecret {
         ... VaultSecret
+    }
+    organizations {
+      ... MinimalOCMOrganization
     }
 }
 

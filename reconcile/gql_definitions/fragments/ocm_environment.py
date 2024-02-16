@@ -17,6 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.minimal_ocm_organization import MinimalOCMOrganization
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -33,3 +34,4 @@ class OCMEnvironment(ConfiguredBaseModel):
     access_token_client_id: str = Field(..., alias="accessTokenClientId")
     access_token_url: str = Field(..., alias="accessTokenUrl")
     access_token_client_secret: VaultSecret = Field(..., alias="accessTokenClientSecret")
+    organizations: Optional[list[MinimalOCMOrganization]] = Field(..., alias="organizations")
