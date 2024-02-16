@@ -95,13 +95,6 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
 
     Since the ROSA CLI requires access to both AWS and OCM, the job is executed
     with the required credentials and tokens.
-
-    The credentials used for AWS are as temporary ones that expire after a
-    defined amount of time, usually 15 minutes. The OCM access token is provided
-    as a JWT with an expiration of 15 minutes.
-
-    Since both credential types are of temporary nature, they are passed to the
-    Kubernetes job as environment variables.
     """
 
     account_name: str
