@@ -2,12 +2,14 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.aus import version_gate_approver
+from reconcile.aus.base import gates_to_agree
 from reconcile.aus.version_gate_approver import (
     VersionGateApprover,
     VersionGateApproverParams,
 )
-from reconcile.aus.version_gates.handler import NoopGateHandler
+from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.aus.version_gates.sts_version_gate_handler import STSGateHandler
+from reconcile.test.ocm.aus.fixtures import NoopGateHandler
 from reconcile.test.ocm.fixtures import build_ocm_cluster
 from reconcile.utils.ocm.base import (
     PRODUCT_ID_OSD,
@@ -171,25 +173,25 @@ def integration() -> VersionGateApprover:
     ],
 )
 def test_get_relevant_gates_for_cluster(
-    integration: VersionGateApprover,
     version_gates: list[OCMVersionGate],
     cluster: OCMCluster,
     acked_version_gate_ids: set[str],
     expected_unacked_version_gate_ids: set[str],
 ) -> None:
-    unacked_gates = integration.get_relevant_gates_for_cluster(
+    unacked_gates = gates_to_agree(
         cluster=cluster,
         gates=version_gates,
-        acked_version_gate_ids=acked_version_gate_ids,
+        acked_gate_ids=acked_version_gate_ids,
     )
     assert [gate.id for gate in unacked_gates] == expected_unacked_version_gate_ids
 
 
-class MockGateHandler:
+class MockGateHandler(GateHandler):
     def __init__(self, handle_success: bool) -> None:
         self.handle_success = handle_success
 
-    def responsible_for(self, cluster: OCMCluster) -> bool:
+    @staticmethod
+    def responsible_for(cluster: OCMCluster) -> bool:
         return True
 
     def handle(

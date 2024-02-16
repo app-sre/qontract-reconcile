@@ -3,6 +3,7 @@ from typing import Callable, Optional, Tuple
 
 from sretoolbox.utils import threaded
 
+from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.gql_definitions.common.rosa_clusters import (
     ClusterSpecROSAV1,
     ClusterV1,
@@ -71,13 +72,14 @@ def init_sts_gate_handler(
     )
 
 
-class STSGateHandler:
+class STSGateHandler(GateHandler):
     def __init__(
         self, rosa_session_builder: dict[str, RosaSessionContextManager]
     ) -> None:
         self.rosa_session_builder = rosa_session_builder
 
-    def responsible_for(self, cluster: OCMCluster) -> bool:
+    @staticmethod
+    def responsible_for(cluster: OCMCluster) -> bool:
         return cluster.is_sts()
 
     def handle(

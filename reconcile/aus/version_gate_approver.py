@@ -6,7 +6,7 @@ from typing import (
 import semver
 
 from reconcile.aus.advanced_upgrade_service import aus_label_key
-from reconcile.aus.base import get_version_prefix
+from reconcile.aus.base import gates_to_agree
 from reconcile.aus.version_gates import ocp_gate_handler, sts_version_gate_handler
 from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.gql_definitions.common.ocm_environments import (
@@ -65,9 +65,6 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
                     dry_run=False,
                 ),
             ),
-            # right now we just ack all gate-ocp gates
-            # we could do better in the future, e.g. inspecting insights
-            # findings on the cluster
             ocp_gate_handler.GATE_LABEL: ocp_gate_handler.OCPGateHandler(),
         }
 
@@ -125,14 +122,15 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
         Process all clusters in an organization.
         """
         for cluster in clusters:
-            acked_version_gate_ids = {
-                agreement["version_gate"]["id"]
-                for agreement in get_version_agreement(ocm_api, cluster.ocm_cluster.id)
-            }
-            unacked_gates = self.get_relevant_gates_for_cluster(
+            unacked_gates = gates_to_agree(
                 cluster=cluster.ocm_cluster,
                 gates=gates,
-                acked_version_gate_ids=acked_version_gate_ids,
+                acked_gate_ids={
+                    agreement["version_gate"]["id"]
+                    for agreement in get_version_agreement(
+                        ocm_api, cluster.ocm_cluster.id
+                    )
+                },
             )
             if not unacked_gates:
                 continue
@@ -159,33 +157,3 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
                 create_version_agreement(ocm_api, gate.id, cluster.id)
             elif not success:
                 print(f"Failed to handle gate {gate.id} for cluster {cluster.name}")
-
-    def get_relevant_gates_for_cluster(
-        self,
-        cluster: OCMCluster,
-        gates: list[OCMVersionGate],
-        acked_version_gate_ids: set[str],
-    ) -> list[OCMVersionGate]:
-        """
-        Gets the unacknowledged gates relevant for the given cluster.
-        Relevant means:
-        - the gate applies to the cluster product
-        - the gate applies to the clusters configuration
-        - the gate applies to a currently existing minor version upgrade path
-        """
-        available_minor_versions = {
-            get_version_prefix(version) for version in cluster.available_upgrades()
-        }
-        cluster_minor_version = get_version_prefix(cluster.version.raw_id)
-        minor_version_upgrades = {
-            version
-            for version in available_minor_versions
-            if semver.match(f"{version}.0", f">{cluster_minor_version}.0")
-        }
-        return [
-            gate
-            for gate in gates
-            if gate.version_raw_id_prefix in minor_version_upgrades
-            and gate.id not in acked_version_gate_ids
-            and self.handlers[gate.label].responsible_for(cluster)
-        ]

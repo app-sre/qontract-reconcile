@@ -7,6 +7,7 @@ from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
 )
+from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.gql_definitions.fragments.aus_organization import (
     AUSOCMOrganization,
     OpenShiftClusterManagerSectorDependenciesV1,
@@ -29,8 +30,10 @@ from reconcile.utils.ocm.base import (
     OCMAddonInstallation,
     OCMAddonVersion,
     OCMModelLink,
+    OCMVersionGate,
 )
 from reconcile.utils.ocm.clusters import OCMCluster
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def build_upgrade_policy(
@@ -229,3 +232,26 @@ def build_cluster_upgrade_policy(
         schedule_type="manual",
         schedule=None,
     )
+
+
+class NoopGateHandler(GateHandler):
+    """
+    A generic handler for version gates. It feels responsible for all clusters
+    and does not do anything when handling a version gate.
+
+    This is useful when a version gate does not require any action to be taken
+    and the gate is just a wave-through.
+    """
+
+    @staticmethod
+    def responsible_for(_: OCMCluster) -> bool:
+        return True
+
+    def handle(
+        self,
+        ocm_api: OCMBaseClient,
+        cluster: OCMCluster,
+        gate: OCMVersionGate,
+        dry_run: bool,
+    ) -> bool:
+        return True

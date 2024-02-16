@@ -44,6 +44,7 @@ from reconcile.aus.models import (
     OrganizationUpgradeSpec,
     Sector,
 )
+from reconcile.aus.version_gates import is_gate_applicable_to_cluster
 from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
     query as aus_organizations_query,
 )
@@ -71,7 +72,6 @@ from reconcile.utils.ocm.upgrades import (
     create_control_plane_upgrade_policy,
     create_node_pool_upgrade_policy,
     create_upgrade_policy,
-    create_version_agreement,
     delete_addon_upgrade_policy,
     delete_control_plane_upgrade_policy,
     delete_upgrade_policy,
@@ -88,6 +88,7 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import (
+    get_version_prefix,
     parse_semver,
     sort_versions,
 )
@@ -299,21 +300,6 @@ class AdvancedUpgradeSchedulerBaseIntegration(
             )
 
 
-class GateAgreement(BaseModel):
-    gate: OCMVersionGate
-
-    def create(self, ocm_api: OCMBaseClient, cluster: OCMCluster) -> None:
-        logging.info(
-            f"create agreement for gate {self.gate.id} on cluster {cluster.name} (id={cluster.id})"
-        )
-        agreement = create_version_agreement(ocm_api, self.gate.id, cluster.id)
-        if agreement.get("version_gate") is None:
-            logging.error(
-                "Unexpected response while creating version "
-                f"agreement with id {self.gate.id} for cluster {cluster.name} (id={cluster.id})"
-            )
-
-
 class RemainingSoakDayMetricsBuilder(Protocol):
     def __call__(
         self, cluster_uuid: str, soaking_version: str
@@ -473,12 +459,6 @@ class UpgradePolicyHandler(BaseModel):
     action: str
     policy: AbstractUpgradePolicy
 
-    gates_to_agree: Optional[list[GateAgreement]]
-
-    def _create_gate_agreements(self, ocm_api: OCMBaseClient) -> None:
-        for gate in self.gates_to_agree or []:
-            gate.create(ocm_api, self.policy.cluster)
-
     def act(self, dry_run: bool, ocm_api: OCMBaseClient) -> None:
         logging.info(f"{self.action} {self.policy.summarize()}")
         if dry_run:
@@ -489,7 +469,6 @@ class UpgradePolicyHandler(BaseModel):
         elif self.action == "delete":
             self.policy.delete(ocm_api)
         elif self.action == "create":
-            self._create_gate_agreements(ocm_api)
             self.policy.create(ocm_api)
 
 
@@ -730,7 +709,7 @@ def gates_for_minor_version(
 def gates_to_agree(
     gates: list[OCMVersionGate],
     cluster: OCMCluster,
-    ocm_api: OCMBaseClient,
+    acked_gate_ids: set[str],
 ) -> list[OCMVersionGate]:
     """Check via OCM if a version is agreed
 
@@ -742,34 +721,11 @@ def gates_to_agree(
     Returns:
         list[OCMVersionGate]: list of gates a cluster has not agreed on yet
     """
-    applicable_gates = [
-        g
-        for g in gates
-        # todo: sts version gates need special handling - https://issues.redhat.com/browse/APPSRE-7949
-        #       until this is solved, we can't do automated upgrades for STS clusters that cross a version gate
-        #       once we have proper and secure handling get gate agreements for STS clusters, we can use this condition:
-        #       `and (not g.sts_only or g.sts_only == cluster.is_sts())`
-        if not g.sts_only
-        # consider only gates after the clusters current minor version
-        # OCM onls supports creating gate agreements for later minor versions than the
-        # current cluster version
-        and semver.match(
-            f"{cluster.minor_version()}.0", f"<{g.version_raw_id_prefix}.0"
-        )
-    ]
+    applicable_gates = [g for g in gates if is_gate_applicable_to_cluster(g, cluster)]
 
     if applicable_gates:
-        current_agreements = {
-            agreement["version_gate"]["id"]
-            for agreement in get_version_agreement(ocm_api, cluster.id)
-        }
-        return [gate for gate in applicable_gates if gate.id not in current_agreements]
+        return [gate for gate in applicable_gates if gate.id not in acked_gate_ids]
     return []
-
-
-def get_version_prefix(version: str) -> str:
-    semver = parse_semver(version)
-    return f"{semver.major}.{semver.minor}"
 
 
 def upgradeable_version(
@@ -1024,18 +980,24 @@ def calculate_diff(
                         "Skip creation of an upgrade policy."
                     )
                     continue
+                gates = gates_to_agree(
+                    gates=minor_version_gates,
+                    cluster=spec.cluster,
+                    acked_gate_ids={
+                        agreement["version_gate"]["id"]
+                        for agreement in get_version_agreement(ocm_api, spec.cluster.id)
+                    },
+                )
+                if gates:
+                    logging.debug(
+                        f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates for {target_version_prefix} - {gates} "
+                        "Skip creation of an upgrade policy until all of them have been acked by the version-gate-approver integration."
+                    )
                 diffs.append(
                     UpgradePolicyHandler(
                         action="create",
                         policy=_create_upgrade_policy(next_schedule, spec, version),
-                        gates_to_agree=[
-                            GateAgreement(gate=g)
-                            for g in gates_to_agree(
-                                minor_version_gates,
-                                spec.cluster,
-                                ocm_api,
-                            )
-                        ],
+                        gates_to_agree=gates,
                     )
                 )
             set_mutex(locked, spec.cluster.id, spec.upgrade_policy.conditions.mutexes)

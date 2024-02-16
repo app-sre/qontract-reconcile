@@ -95,8 +95,10 @@ def test_calculate_diff_no_lock(
     """
     Test case: there is no other upgrade lock, so the cluster upgrade can be scheduled
     """
-    gates_to_agree_mock = mocker.patch("reconcile.aus.base.gates_to_agree")
-    gates_to_agree_mock.return_value = []
+    get_version_agreement_mock = mocker.patch(
+        "reconcile.aus.base.get_version_agreement"
+    )
+    get_version_agreement_mock.return_value = []
 
     org_upgrade_spec = build_organization_upgrade_spec(
         specs=[
@@ -166,8 +168,10 @@ def test_calculate_diff_inter_lock(
     Test case: two clusters need an upgrade, but define the same mutex.
     only the first one will be upgraded
     """
-    gates_to_agree_mock = mocker.patch("reconcile.aus.base.gates_to_agree")
-    gates_to_agree_mock.return_value = []
+    get_version_agreement_mock = mocker.patch(
+        "reconcile.aus.base.get_version_agreement"
+    )
+    get_version_agreement_mock.return_value = []
 
     upgrade_policy_spec = build_upgrade_policy(
         workloads=["workload1"], soak_days=0, mutexes=["mutex1"]
