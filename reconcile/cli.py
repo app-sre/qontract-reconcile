@@ -2431,9 +2431,25 @@ def advanced_upgrade_scheduler(
     required=True,
     envvar="JOB_CONTROLLER_NAMESPACE",
 )
+@click.option(
+    "--job-controller-service-account",
+    help="The service-account used for ROSA jobs",
+    required=True,
+    envvar="JOB_CONTROLLER_SERVICE_ACCOUNT",
+)
+@click.option(
+    "--rosa-job-image",
+    help="The container image to use to run ROSA cli command jobs",
+    required=True,
+    envvar="ROSA_JOB_IMAGE",
+)
 @click.pass_context
 def version_gate_approver(
-    ctx, job_controller_cluster: str, job_controller_namespace: str
+    ctx,
+    job_controller_cluster: str,
+    job_controller_namespace: str,
+    job_controller_service_account: str,
+    rosa_job_image: Optional[str],
 ) -> None:
     from reconcile.aus.version_gate_approver import (
         VersionGateApprover,
@@ -2445,6 +2461,8 @@ def version_gate_approver(
             VersionGateApproverParams(
                 job_controller_cluster=job_controller_cluster,
                 job_controller_namespace=job_controller_namespace,
+                job_controller_service_account=job_controller_service_account,
+                rosa_job_image=rosa_job_image,
             )
         ),
         ctx=ctx.obj,

@@ -167,4 +167,5 @@ def rosa_job() -> RosaJob:
             region="us-east-1",
         ),
         ocm_token="1234567890",
+        service_account="my-sa",
     )

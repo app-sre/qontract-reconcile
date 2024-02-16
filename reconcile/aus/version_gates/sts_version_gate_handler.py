@@ -27,6 +27,8 @@ def init_sts_gate_handler(
     gql_query_func: Callable,
     secret_reader: SecretReaderBase,
     job_controller: K8sJobController,
+    service_account: str,
+    rosa_job_image: Optional[str] = None,
     thread_pool_size: int = 10,
 ) -> "STSGateHandler":
     """
@@ -37,15 +39,15 @@ def init_sts_gate_handler(
 
     def _rosa_session_builder(
         cluster: ClusterV1,
-        secret_reader: SecretReaderBase,
-        job_controller: K8sJobController,
     ) -> Optional[Tuple[ClusterV1, RosaSessionContextManager]]:
         return (
             cluster,
             rosa_session_ctx(
-                ROSACluster(**cluster.dict(by_alias=True)),
-                secret_reader,
-                job_controller,
+                cluster=ROSACluster(**cluster.dict(by_alias=True)),
+                secret_reader=secret_reader,
+                job_controller=job_controller,
+                image=rosa_job_image,
+                service_account=service_account,
             ),
         )
 
@@ -56,8 +58,6 @@ def init_sts_gate_handler(
             _rosa_session_builder,
             clusters,
             thread_pool_size,
-            secret_reader=secret_reader,
-            job_controller=job_controller,
         )
         if result
     ]
@@ -84,7 +84,7 @@ class STSGateHandler(GateHandler):
 
     def handle(
         self,
-        ocm_api: OCMBaseClient,
+        _: OCMBaseClient,
         cluster: OCMCluster,
         gate: OCMVersionGate,
         dry_run: bool,

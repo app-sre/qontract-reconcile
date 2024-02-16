@@ -102,6 +102,7 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
     org_id: str
     cmd: str
     image: str
+    service_account: str
 
     aws_credentials: AWSCredentials
     ocm_token: str
@@ -122,6 +123,7 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
             "org_id": self.org_id,
             "dry_run": self.dry_run,
             "image": self.image,
+            "service_account": self.service_account,
         }
 
     def annotations(self) -> dict[str, str]:
@@ -161,7 +163,7 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
                         )
                     ],
                     restart_policy="Never",
-                    service_account_name="default",
+                    service_account_name=self.service_account,
                     volumes=[
                         V1Volume(
                             name="workdir",

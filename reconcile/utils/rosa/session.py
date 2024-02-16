@@ -33,13 +33,15 @@ class RosaSession:
         aws_credentials: AWSCredentials,
         ocm_api: OCMBaseClient,
         job_controller: K8sJobController,
-        image: str,
+        image: Optional[str] = None,
+        service_account: Optional[str] = None,
     ):
         self.cluster = cluster
         self.aws_credentials = aws_credentials
         self.ocm_api = ocm_api
         self.job_controller = job_controller
-        self.image = image
+        self.image = image or "registry.ci.openshift.org/ci/rosa-aws-cli:latest"
+        self.service_account = service_account or "default"
         self._closed = False
 
     def close(self) -> None:
@@ -58,6 +60,7 @@ class RosaSession:
             aws_credentials=self.aws_credentials,
             ocm_token=self.ocm_api._access_token,
             image=image or self.image,
+            service_account=self.service_account,
         )
 
     def wrap_cli_command(self, cmd: str) -> str:
@@ -118,7 +121,8 @@ class RosaSessionContextManager:
         ocm_config: OCMAPIClientConfigurationProtocol,
         secret_reader: SecretReaderBase,
         job_controller: K8sJobController,
-        image: str,
+        image: Optional[str] = None,
+        service_account: Optional[str] = None,
     ):
         self.cluster = cluster
         self.aws_credentials = aws_credentials
@@ -126,6 +130,7 @@ class RosaSessionContextManager:
         self.secret_reader = secret_reader
         self.job_controller = job_controller
         self.image = image
+        self.service_account = service_account
 
         self._rosa_session: Optional[RosaSession] = None
 
@@ -136,6 +141,7 @@ class RosaSessionContextManager:
             ocm_api=init_ocm_base_client(self.ocm_config, self.secret_reader),
             job_controller=self.job_controller,
             image=self.image,
+            service_account=self.service_account,
         )
         return self._rosa_session
 
@@ -154,7 +160,8 @@ def rosa_session_ctx(
     cluster: ROSACluster,
     secret_reader: SecretReaderBase,
     job_controller: K8sJobController,
-    image: str = "registry.ci.openshift.org/ci/rosa-aws-cli:latest",
+    image: Optional[str] = None,
+    service_account: Optional[str] = None,
 ) -> RosaSessionContextManager:
     """
     Creates a context manager for a ROSA session. The ROSA session
@@ -188,5 +195,6 @@ def rosa_session_ctx(
         secret_reader=secret_reader,
         job_controller=job_controller,
         image=image,
+        service_account=service_account,
     )
     return rosa_session_builder

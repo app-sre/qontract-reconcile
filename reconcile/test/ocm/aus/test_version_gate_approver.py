@@ -63,6 +63,7 @@ def integration() -> VersionGateApprover:
         params=VersionGateApproverParams(
             job_controller_cluster="cluster",
             job_controller_namespace="namespace",
+            job_controller_service_account="sa",
         )
     )
     approver.handlers = {

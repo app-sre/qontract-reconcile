@@ -1,6 +1,7 @@
 from typing import (
     Callable,
     Iterable,
+    Optional,
 )
 
 import semver
@@ -44,6 +45,8 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 class VersionGateApproverParams(PydanticRunParams):
     job_controller_cluster: str
     job_controller_namespace: str
+    job_controller_service_account: str
+    rosa_job_image: Optional[str] = None
 
 
 class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams]):
@@ -56,6 +59,7 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
             sts_version_gate_handler.GATE_LABEL: sts_version_gate_handler.init_sts_gate_handler(
                 query_func,
                 self.secret_reader,
+                service_account=self.params.job_controller_service_account,
                 job_controller=build_job_controller(
                     integration=QONTRACT_INTEGRATION,
                     integration_version=QONTRACT_INTEGRATION_VERSION,
@@ -64,6 +68,7 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
                     secret_reader=self.secret_reader,
                     dry_run=False,
                 ),
+                rosa_job_image=self.params.rosa_job_image,
             ),
             ocp_gate_handler.GATE_LABEL: ocp_gate_handler.OCPGateHandler(),
         }
