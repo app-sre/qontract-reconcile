@@ -6,9 +6,12 @@ from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionVariablesV1,
+    TemplateV1,
 )
 from reconcile.templating.renderer import (
     LocalFilePersistence,
+    TemplateOutput,
+    TemplateRendererIntegration,
     join_path,
     unpack_dynamic_variables,
     unpack_static_variables,
@@ -21,6 +24,24 @@ def collection_variables(gql_class_factory: Callable) -> TemplateCollectionVaria
         TemplateCollectionVariablesV1,
         {"static": '{"foo": "bar"}', "dynamic": [{"name": "foo", "query": "query {}"}]},
     )
+
+
+@pytest.fixture
+def template_simple(gql_class_factory: Callable) -> TemplateV1:
+    return gql_class_factory(
+        TemplateV1,
+        {
+            "name": "test",
+            "condition": "{{1 == 1}}",
+            "targetPath": "/target_path",
+            "template": "template",
+        },
+    )
+
+
+@pytest.fixture
+def local_file_persistence(tmp_path: Path) -> LocalFilePersistence:
+    return LocalFilePersistence(str(tmp_path))
 
 
 def test_unpack_static_variables(
@@ -52,7 +73,7 @@ def test_join_path() -> None:
 
 def test_local_file_persistence_write(tmp_path: Path) -> None:
     lfp = LocalFilePersistence(str(tmp_path))
-    lfp.write("foo", "bar")
+    lfp.write([TemplateOutput(path="/foo", content="bar")])
     assert (tmp_path / "foo").read_text() == "bar"
 
 
@@ -61,3 +82,38 @@ def test_local_file_persistence_read(tmp_path: Path) -> None:
     test_file.write_text("hello")
     lfp = LocalFilePersistence(str(tmp_path))
     assert lfp.read("foo") == "hello"
+
+
+def test_process_template_simple(
+    template_simple: TemplateV1, local_file_persistence: LocalFilePersistence
+) -> None:
+    output = TemplateRendererIntegration.process_template(
+        template_simple, {}, local_file_persistence
+    )
+    assert output
+    assert output.path == "/target_path"
+    assert output.content == "template"
+
+
+def test_process_template_overwrite(
+    template_simple: TemplateV1, local_file_persistence: LocalFilePersistence
+) -> None:
+    local_file_persistence.write([TemplateOutput(path="/target_path", content="bar")])
+    output = TemplateRendererIntegration.process_template(
+        template_simple, {}, local_file_persistence
+    )
+    assert output
+    assert output.path == "/target_path"
+    assert output.content == "template"
+
+
+def test_process_template_match(
+    template_simple: TemplateV1, local_file_persistence: LocalFilePersistence
+) -> None:
+    local_file_persistence.write([
+        TemplateOutput(path="/target_path", content="template")
+    ])
+    output = TemplateRendererIntegration.process_template(
+        template_simple, {}, local_file_persistence
+    )
+    assert output is None
