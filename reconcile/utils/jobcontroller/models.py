@@ -5,7 +5,14 @@ from enum import Enum, IntFlag
 from typing import Any
 
 from deepdiff import DeepHash
-from kubernetes.client import V1Job, V1JobSpec, V1ObjectMeta
+from kubernetes.client import (
+    V1EnvVar,
+    V1EnvVarSource,
+    V1Job,
+    V1JobSpec,
+    V1ObjectMeta,
+    V1SecretKeySelector,
+)
 
 
 class JobStatus(str, Enum):
@@ -125,3 +132,18 @@ class K8sJob(ABC):
         job controller will manage the lifecycle of a kubernetes Secret.
         """
         return {}
+
+    def secret_data_to_env_vars_secret_refs(self) -> list[V1EnvVar]:
+        secret_name = self.name()
+        return [
+            V1EnvVar(
+                name=secret_key_name,
+                value_from=V1EnvVarSource(
+                    secret_key_ref=V1SecretKeySelector(
+                        name=secret_name,
+                        key=secret_key_name,
+                    )
+                ),
+            )
+            for secret_key_name in self.secret_data().keys()
+        ]

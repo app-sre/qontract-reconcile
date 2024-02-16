@@ -368,9 +368,8 @@ class K8sJobController:
         Stores the logs of a job in the given output directory.
         The filename will be the name of the job.
         """
-        self.oc.job_logs(
+        self.oc.job_logs_latest_pod(
             namespace=self.namespace,
-            follow=False,
             name=job_name,
             output=output_dir_path,
         )
