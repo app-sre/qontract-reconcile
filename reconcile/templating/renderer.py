@@ -1,13 +1,12 @@
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Optional, Any
+from typing import Any, Optional
 
 from ruamel import yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionV1,
-    TemplateCollectionVariablesQueriesV1,
     TemplateCollectionVariablesV1,
     query,
 )
@@ -72,15 +71,16 @@ def unpack_static_variables(
 
 
 def unpack_dynamic_variables(
-    dynamic_variables: list[TemplateCollectionVariablesQueriesV1],
+    collection_variables: TemplateCollectionVariablesV1,
 ) -> dict:
     variables: dict[str, Any] = {}
-    gql_no_validation = init_from_config(validate_schemas=False)
-    for dv in dynamic_variables:
-        variables[dv.name] = []
-        result = gql_no_validation.query(dv.query)
-        for key in result:
-            variables[dv.name].append(result[key])
+    if collection_variables.dynamic:
+        gql_no_validation = init_from_config(validate_schemas=False)
+        for dv in collection_variables.dynamic or []:
+            variables[dv.name] = []
+            result = gql_no_validation.query(dv.query)
+            for key in result or {}:
+                variables[dv.name].append(result[key])
     return variables
 
 
@@ -109,8 +109,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         for c in get_template_collections():
             variables = {}
             if c.variables:
-                if c.variables.dynamic:
-                    variables = unpack_dynamic_variables(c.variables.dynamic)
+                variables.update(unpack_dynamic_variables(c.variables))
                 variables.update(unpack_static_variables(c.variables))
 
             for template in c.templates:
