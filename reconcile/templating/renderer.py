@@ -1,12 +1,13 @@
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Optional
+from typing import Optional, Any
 
 from ruamel import yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionV1,
+    TemplateCollectionVariablesQueriesV1,
     TemplateCollectionVariablesV1,
     query,
 )
@@ -15,6 +16,7 @@ from reconcile.templating.rendering import (
     create_renderer,
 )
 from reconcile.utils import gql
+from reconcile.utils.gql import init_from_config
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -60,10 +62,25 @@ class LocalFilePersistence(FilePersistence):
             return f.read()
 
 
-def unpack_variables(collection_variables: TemplateCollectionVariablesV1) -> dict:
+def unpack_static_variables(
+    collection_variables: TemplateCollectionVariablesV1,
+) -> dict:
     variables = {}
     if collection_variables.static:
         variables = collection_variables.static
+    return variables
+
+
+def unpack_dynamic_variables(
+    dynamic_variables: list[TemplateCollectionVariablesQueriesV1],
+) -> dict:
+    variables: dict[str, Any] = {}
+    gql_no_validation = init_from_config(validate_schemas=False)
+    for dv in dynamic_variables:
+        variables[dv.name] = []
+        result = gql_no_validation.query(dv.query)
+        for key in result:
+            variables[dv.name].append(result[key])
     return variables
 
 
@@ -92,7 +109,9 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         for c in get_template_collections():
             variables = {}
             if c.variables:
-                variables = unpack_variables(c.variables)
+                if c.variables.dynamic:
+                    variables = unpack_dynamic_variables(c.variables.dynamic)
+                variables.update(unpack_static_variables(c.variables))
 
             for template in c.templates:
                 r = create_renderer(
