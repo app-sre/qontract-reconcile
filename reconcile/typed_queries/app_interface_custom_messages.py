@@ -16,7 +16,11 @@ def get_app_interface_custom_message(
     if not query_func:
         query_func = gql.get_api().query
     data = query(query_func=query_func)
-    for item in data.settings[0].custom_messages or []:
+    for item in (
+        data.settings[0].custom_messages
+        if data.settings and data.settings[0].custom_messages
+        else []
+    ):
         if item.q_id == desired_id:
             return item.content
     raise AppInterfaceSettingsError(f"custom message with id {desired_id} undefined.")
