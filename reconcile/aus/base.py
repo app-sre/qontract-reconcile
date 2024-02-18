@@ -19,7 +19,7 @@ from typing import (
 
 import semver
 from croniter import croniter
-from pydantic import BaseModel
+from pydantic import BaseModel, Extra
 from semver import VersionInfo
 
 from reconcile.aus.cluster_version_data import (
@@ -453,7 +453,7 @@ class NodePoolUpgradePolicy(AbstractUpgradePolicy):
         return f"node pool upgrade policy - {remove_none_values_from_dict(details)}"
 
 
-class UpgradePolicyHandler(BaseModel):
+class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
     """Class to handle upgrade policy actions"""
 
     action: str
@@ -997,7 +997,6 @@ def calculate_diff(
                     UpgradePolicyHandler(
                         action="create",
                         policy=_create_upgrade_policy(next_schedule, spec, version),
-                        gates_to_agree=gates,
                     )
                 )
             set_mutex(locked, spec.cluster.id, spec.upgrade_policy.conditions.mutexes)

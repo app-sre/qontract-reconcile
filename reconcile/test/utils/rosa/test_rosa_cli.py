@@ -9,12 +9,11 @@ from reconcile.utils.rosa.rosa_cli import RosaJob
     "change, expect_identity_to_change",
     [
         ({"cmd": "other cmd"}, True),
-        ({"account_name": "another_account"}, True),
-        ({"cluster_name": "another_cluster"}, True),
-        ({"org_id": "123"}, True),
-        ({"dry_run": True}, True),
+        ({"aws_account_id": "another-account-id"}, True),
+        ({"aws_region": "another-region"}, True),
+        ({"ocm_org_id": "another-token"}, False),
+        ({"service_account": "another-sa"}, True),
         ({"image": "another_image:latest"}, True),
-        ({"aws_credentials": {"access_key_id": "another_access_key"}}, False),
         ({"ocm_token": "another_ocm_token"}, False),
     ],
 )
@@ -31,9 +30,6 @@ def test_rosa_job_identity(
 def test_rosa_job_secret_data(rosa_job: RosaJob) -> None:
     secret_data = rosa_job.secret_data()
     assert set(secret_data.keys()) == {
-        "AWS_ACCESS_KEY_ID",
-        "AWS_SECRET_ACCESS_KEY",
-        "AWS_REGION",
         "OCM_TOKEN",
     }
 
@@ -44,8 +40,7 @@ def test_rosa_job_spec(rosa_job: RosaJob) -> None:
     assert container.image == rosa_job.image
     assert container.args == [rosa_job.cmd]
     assert {e.name for e in container.env or []} == {
-        "AWS_ACCESS_KEY_ID",
-        "AWS_SECRET_ACCESS_KEY",
+        "AWS_SHARED_CREDENTIALS_FILE",
         "AWS_REGION",
         "OCM_TOKEN",
     }

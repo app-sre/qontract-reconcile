@@ -120,7 +120,6 @@ def test_calculate_diff_no_lock(
                 schedule_type="manual",
                 next_run="2021-08-30T18:07:00Z",
             ),
-            gates_to_agree=[],
         )
     ]
 
@@ -193,7 +192,6 @@ def test_calculate_diff_inter_lock(
                 schedule_type="manual",
                 next_run="2021-08-30T18:07:00Z",
             ),
-            gates_to_agree=[],
         )
     ]
 

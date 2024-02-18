@@ -1,17 +1,17 @@
 import json
 import tempfile
-from typing import Callable, Generator
+from typing import Generator
 from unittest.mock import MagicMock
 
 import httpretty as httpretty_module
 import pytest
 
-from reconcile.utils.aws_api import AWSStaticCredentials
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils.jobcontroller.controller import K8sJobController
 from reconcile.utils.jobcontroller.models import JobStatus
-from reconcile.utils.rosa.model import ROSACluster
+from reconcile.utils.ocm_base_client import OCMAPIClientConfiguration, OCMBaseClient
 from reconcile.utils.rosa.rosa_cli import LogHandle, RosaJob
-from reconcile.utils.rosa.session import RosaSessionContextManager, rosa_session_ctx
+from reconcile.utils.rosa.session import RosaSession
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
@@ -36,54 +36,33 @@ def ocm_auth_mock(httpretty: httpretty_module, access_token_url: str) -> None:
 
 
 @pytest.fixture
-def account_automation_token() -> tuple[str, str]:
-    return "acc_path", "acc_field"
+def ocm_api_configuration(
+    access_token_url: str,
+    ocm_url: str,
+) -> OCMAPIClientConfiguration:
+    return OCMAPIClientConfiguration(
+        url=ocm_url,
+        access_token_client_id="some_client_id",
+        access_token_client_secret=VaultSecret(
+            field="some_field",
+            path="some_path",
+            format=None,
+            version=None,
+        ),
+        access_token_url=access_token_url,
+    )
 
 
 @pytest.fixture
-def rosa_cluster(
+def ocm_api(
     access_token_url: str,
     ocm_url: str,
-    account_automation_token: tuple[str, str],
-    gql_class_factory: Callable[..., ROSACluster],
-) -> ROSACluster:
-    return gql_class_factory(
-        ROSACluster,
-        {
-            "name": "cluster",
-            "spec": {
-                "id": "cluster",
-                "account": {
-                    "name": "account",
-                    "uid": "uid",
-                    "automationToken": {
-                        "path": account_automation_token[0],
-                        "field": account_automation_token[1],
-                    },
-                },
-                "product": "rosa",
-                "channel": "candidate",
-                "region": "us-east-1",
-            },
-            "ocm": {
-                "environment": {
-                    "url": ocm_url,
-                    "accessTokenClientId": "env_client_id",
-                    "accessTokenUrl": access_token_url,
-                    "accessTokenClientSecret": {
-                        "path": "env_path",
-                        "field": "env_field",
-                    },
-                },
-                "orgId": "org_id",
-                "accessTokenClientId": "org_client_id",
-                "accessTokenUrl": access_token_url,
-                "accessTokenClientSecret": {
-                    "path": "org_path",
-                    "field": "org_field",
-                },
-            },
-        },
+) -> OCMBaseClient:
+    return OCMBaseClient(
+        access_token_client_id="some_client_id",
+        access_token_client_secret="some_client_secret",
+        access_token_url=access_token_url,
+        url=ocm_url,
     )
 
 
@@ -104,10 +83,7 @@ def secret_reader() -> SecretReaderBase:
         spec=SecretReaderBase,
         autospec=True,
     )
-    sr.read_all_secret.return_value = {
-        "aws_access_key_id": "access_key_id",
-        "aws_secret_access_key": "secret_access_key",
-    }
+    sr.read_secret.return_value = "secret_value"
     return sr
 
 
@@ -120,24 +96,19 @@ def rosa_cli_image() -> str:
 
 
 @pytest.fixture
-def rosa_session_ctx_manager(
-    rosa_cluster: ROSACluster,
+def rosa_session(
+    ocm_api: OCMBaseClient,
     job_controller: K8sJobController,
-    secret_reader: SecretReaderBase,
     rosa_cli_image: str,
-) -> RosaSessionContextManager:
-    ctx_mgnr = rosa_session_ctx(
-        cluster=rosa_cluster,
+) -> RosaSession:
+    return RosaSession(
+        aws_account_id="123",
+        aws_region="us-east-1",
+        ocm_org_id="org-id",
+        ocm_api=ocm_api,
         job_controller=job_controller,
-        secret_reader=secret_reader,
         image=rosa_cli_image,
     )
-    ctx_mgnr.aws_credentials = AWSStaticCredentials(
-        access_key_id="access_key_id",
-        secret_access_key="secret_access_key",
-        region="us-east-1",
-    )
-    return ctx_mgnr
 
 
 @pytest.fixture
@@ -154,18 +125,14 @@ def log_handle(log_file: str) -> LogHandle:
 
 
 @pytest.fixture
-def rosa_job() -> RosaJob:
+def rosa_job(rosa_cli_image: str) -> RosaJob:
     return RosaJob(
-        account_name="account",
-        cluster_name="cluster",
-        org_id="org_id",
-        cmd="rosa whoami",
-        image=ROSA_CLI_IMAGE,
-        aws_credentials=AWSStaticCredentials(
-            access_key_id="access_key_id",
-            secret_access_key="secret_access_key",
-            region="us-east-1",
-        ),
+        aws_account_id="123",
+        aws_region="us-east-1",
+        ocm_org_id="org_id",
         ocm_token="1234567890",
+        cmd="rosa whoami",
+        image=rosa_cli_image,
         service_account="my-sa",
+        extra_annotations={},
     )

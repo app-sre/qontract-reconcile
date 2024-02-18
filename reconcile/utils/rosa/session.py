@@ -1,24 +1,15 @@
 import tempfile
-from types import TracebackType
-from typing import Optional, Type
+from typing import Optional
 
-from reconcile.utils.aws_api import AWSCredentials, AWSStaticCredentials
 from reconcile.utils.jobcontroller.controller import K8sJobController
 from reconcile.utils.jobcontroller.models import JobConcurrencyPolicy, JobStatus
-from reconcile.utils.ocm_base_client import (
-    OCMAPIClientConfiguration,
-    OCMAPIClientConfigurationProtocol,
-    OCMBaseClient,
-    init_ocm_base_client,
-)
-from reconcile.utils.rosa.model import ROSACluster
+from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.rosa.rosa_cli import (
     LogHandle,
     RosaCliException,
     RosaCliResult,
     RosaJob,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class RosaSession:
@@ -29,50 +20,54 @@ class RosaSession:
 
     def __init__(
         self,
-        cluster: ROSACluster,
-        aws_credentials: AWSCredentials,
+        aws_account_id: str,
+        aws_region: str,
+        ocm_org_id: str,
         ocm_api: OCMBaseClient,
         job_controller: K8sJobController,
         image: Optional[str] = None,
         service_account: Optional[str] = None,
     ):
-        self.cluster = cluster
-        self.aws_credentials = aws_credentials
+        self.aws_account_id = aws_account_id
+        self.aws_region = aws_region
+        self.ocm_org_id = ocm_org_id
         self.ocm_api = ocm_api
         self.job_controller = job_controller
         self.image = image or "registry.ci.openshift.org/ci/rosa-aws-cli:latest"
         self.service_account = service_account or "default"
-        self._closed = False
 
-    def close(self) -> None:
-        self._closed = True
-        self.ocm_api.close()
-
-    def is_closed(self) -> bool:
-        return self._closed
-
-    def assemble_job(self, cmd: str, image: Optional[str] = None) -> RosaJob:
+    def assemble_job(
+        self,
+        cmd: str,
+        annotations: Optional[dict[str, str]] = None,
+        image: Optional[str] = None,
+    ) -> RosaJob:
         return RosaJob(
-            account_name=self.cluster.spec.account.name,
-            cluster_name=self.cluster.name,
-            org_id=self.cluster.ocm.org_id,
+            aws_account_id=self.aws_account_id,
+            ocm_org_id=self.ocm_org_id,
             cmd=self.wrap_cli_command(cmd),
-            aws_credentials=self.aws_credentials,
+            aws_region=self.aws_region,
             ocm_token=self.ocm_api._access_token,
             image=image or self.image,
+            extra_annotations=annotations or {},
             service_account=self.service_account,
         )
 
     def wrap_cli_command(self, cmd: str) -> str:
         return f"rosa login > /dev/null && {cmd}"
 
-    def cli_execute(self, cmd: str, image: Optional[str] = None) -> RosaCliResult:
+    def cli_execute(
+        self,
+        cmd: str,
+        annotations: Optional[dict[str, str]] = None,
+        image: Optional[str] = None,
+    ) -> RosaCliResult:
         """
         Execute CLI commands in the context of a valid ROSA session (rosa login not required).
         The provided cmd needs to be a single command. If multiple commands are required, they
         need to be combined delimited with a ;
         """
-        job = self.assemble_job(cmd, image)
+        job = self.assemble_job(cmd, annotations, image)
 
         status = self.job_controller.enqueue_job_and_wait_for_completion(
             job,
@@ -88,113 +83,23 @@ class RosaSession:
         return RosaCliResult(status, cmd, LogHandle(log_file))
 
     def upgrade_account_roles(
-        self, role_prefix: str, minor_version: str, dry_run: bool
+        self, role_prefix: str, minor_version: str, channel_group: str, dry_run: bool
     ) -> None:
         if not dry_run:
             self.cli_execute(
-                f"rosa upgrade account-roles --prefix {role_prefix} --version {minor_version} --channel-group {self.cluster.spec.channel} -y -m=auto"
+                f"rosa upgrade account-roles --prefix {role_prefix} --version {minor_version} --channel-group {channel_group} -y -m=auto"
             )
 
     def upgrade_operator_roles(
-        self, role_prefix: str, minor_version: str, dry_run: bool
+        self,
+        cluster_id: str,
+        role_prefix: str,
+        minor_version: str,
+        channel_group: str,
+        dry_run: bool,
     ) -> None:
-        cluster_id = self.cluster.spec.q_id
-        if not cluster_id:
-            raise Exception(
-                f"Can't upgrade operator roles. Cluster {self.cluster.name} does not define spec.cluster_id"
-            )
         if not dry_run:
             self.cli_execute(
-                f"rosa upgrade operator-roles --cluster {cluster_id} --prefix {role_prefix} --version {minor_version}.z --channel-group {self.cluster.spec.channel} -y -m=auto"
+                cmd=f"rosa upgrade operator-roles --cluster {cluster_id} --prefix {role_prefix} --version {minor_version}.z --channel-group {channel_group} -y -m=auto",
+                annotations={"qontract.rosa.cluster_id": cluster_id},
             )
-
-
-class RosaSessionContextManager:
-    """
-    A context manager providing a fresh ROSA session when entering.
-    """
-
-    def __init__(
-        self,
-        cluster: ROSACluster,
-        aws_credentials: AWSCredentials,
-        ocm_config: OCMAPIClientConfigurationProtocol,
-        secret_reader: SecretReaderBase,
-        job_controller: K8sJobController,
-        image: Optional[str] = None,
-        service_account: Optional[str] = None,
-    ):
-        self.cluster = cluster
-        self.aws_credentials = aws_credentials
-        self.ocm_config = ocm_config
-        self.secret_reader = secret_reader
-        self.job_controller = job_controller
-        self.image = image
-        self.service_account = service_account
-
-        self._rosa_session: Optional[RosaSession] = None
-
-    def __enter__(self) -> RosaSession:
-        self._rosa_session = RosaSession(
-            cluster=self.cluster,
-            aws_credentials=self.aws_credentials,
-            ocm_api=init_ocm_base_client(self.ocm_config, self.secret_reader),
-            job_controller=self.job_controller,
-            image=self.image,
-            service_account=self.service_account,
-        )
-        return self._rosa_session
-
-    def __exit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
-    ) -> None:
-        if self._rosa_session:
-            self._rosa_session.close()
-            self._rosa_session = None
-
-
-def rosa_session_ctx(
-    cluster: ROSACluster,
-    secret_reader: SecretReaderBase,
-    job_controller: K8sJobController,
-    image: Optional[str] = None,
-    service_account: Optional[str] = None,
-) -> RosaSessionContextManager:
-    """
-    Creates a context manager for a ROSA session. The ROSA session
-    itself is managed by the context manager and no AWS session nor
-    OCM session is created at this point.
-    """
-
-    # build aws config
-    aws_secret = secret_reader.read_all_secret(cluster.spec.account.automation_token)
-    aws_credentials = AWSStaticCredentials(
-        access_key_id=aws_secret["aws_access_key_id"],
-        secret_access_key=aws_secret["aws_secret_access_key"],
-        region=cluster.spec.region,
-    )
-
-    # build OCM config
-    ocm_config = OCMAPIClientConfiguration(
-        url=cluster.ocm.environment.url,
-        access_token_client_id=cluster.ocm.access_token_client_id
-        or cluster.ocm.environment.access_token_client_id,
-        access_token_client_secret=cluster.ocm.access_token_client_secret
-        or cluster.ocm.environment.access_token_client_secret,
-        access_token_url=cluster.ocm.access_token_url
-        or cluster.ocm.environment.access_token_url,
-    )
-
-    rosa_session_builder = RosaSessionContextManager(
-        cluster=cluster,
-        aws_credentials=aws_credentials,
-        ocm_config=ocm_config,
-        secret_reader=secret_reader,
-        job_controller=job_controller,
-        image=image,
-        service_account=service_account,
-    )
-    return rosa_session_builder

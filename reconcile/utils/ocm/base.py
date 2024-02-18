@@ -14,7 +14,7 @@ from pydantic import (
     Field,
 )
 
-from reconcile.utils.aws_helper import get_role_name_from_arn
+from reconcile.utils.aws_helper import get_account_uid_from_arn, get_role_name_from_arn
 
 LabelSetTypeVar = TypeVar("LabelSetTypeVar", bound=BaseModel)
 ACTIVE_SUBSCRIPTION_STATES = {"Active", "Reserved"}
@@ -149,6 +149,10 @@ class OCMClusterAWSSettings(BaseModel):
     @property
     def sts_enabled(self) -> bool:
         return self.sts is not None and self.sts.enabled
+
+    @property
+    def aws_account_id(self) -> str:
+        return get_account_uid_from_arn(self.account_roles[0])
 
     @property
     def account_roles(self) -> list[str]:

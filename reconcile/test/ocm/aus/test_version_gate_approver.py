@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 from pytest_mock import MockerFixture
 
@@ -11,6 +13,8 @@ from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.aus.version_gates.sts_version_gate_handler import STSGateHandler
 from reconcile.test.ocm.aus.fixtures import NoopGateHandler
 from reconcile.test.ocm.fixtures import build_ocm_cluster
+from reconcile.utils.jobcontroller.controller import K8sJobController
+from reconcile.utils.jobcontroller.models import JobStatus
 from reconcile.utils.ocm.base import (
     PRODUCT_ID_OSD,
     PRODUCT_ID_ROSA,
@@ -58,7 +62,18 @@ def version_gates(
 
 
 @pytest.fixture
-def integration() -> VersionGateApprover:
+def job_controller() -> K8sJobController:
+    jc = MagicMock(
+        spec=K8sJobController,
+        autospec=True,
+    )
+    jc.store_job_logs.return_value = None
+    jc.enqueue_job_and_wait_for_completion.return_value = JobStatus.SUCCESS
+    return jc
+
+
+@pytest.fixture
+def integration(job_controller: K8sJobController) -> VersionGateApprover:
     approver = VersionGateApprover(
         params=VersionGateApproverParams(
             job_controller_cluster="cluster",
@@ -67,7 +82,9 @@ def integration() -> VersionGateApprover:
         )
     )
     approver.handlers = {
-        GATE_LABEL_STS: STSGateHandler(rosa_session_builder={}),
+        GATE_LABEL_STS: STSGateHandler(
+            job_controller=job_controller,
+        ),
         GATE_LABEL_OCP: NoopGateHandler(),
     }
     return approver
@@ -198,6 +215,7 @@ class MockGateHandler(GateHandler):
     def handle(
         self,
         ocm_api: OCMBaseClient,
+        ocm_org_id: str,
         cluster: OCMCluster,
         gate: OCMVersionGate,
         dry_run: bool,
@@ -234,6 +252,7 @@ def test_version_gate_approver_process_cluster(
         cluster=cluster,
         gates=[version_gate_4_13_ocp],
         ocm_api=ocm_api,
+        ocm_org_id="org_id",
         dry_run=False,
     )
 

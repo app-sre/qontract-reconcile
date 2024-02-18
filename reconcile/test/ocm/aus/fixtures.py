@@ -250,6 +250,7 @@ class NoopGateHandler(GateHandler):
     def handle(
         self,
         ocm_api: OCMBaseClient,
+        ocm_org_id: str,
         cluster: OCMCluster,
         gate: OCMVersionGate,
         dry_run: bool,

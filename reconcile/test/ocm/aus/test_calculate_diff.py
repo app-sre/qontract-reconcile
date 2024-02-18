@@ -160,7 +160,6 @@ def test_calculate_diff_create_cluster_upgrade_all_gates_agreed(
                 schedule_type="manual",
                 next_run="2021-08-30T18:07:00Z",
             ),
-            gates_to_agree=[],
         )
     ]
 
@@ -215,7 +214,6 @@ def test_calculate_diff_create_control_plane_upgrade_all_gates_agreed(
                 schedule_type="manual",
                 next_run="2021-08-30T18:07:00Z",
             ),
-            gates_to_agree=[],
         )
     ]
 

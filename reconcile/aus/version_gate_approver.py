@@ -56,10 +56,7 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
 
     def initialize_handlers(self, query_func: Callable) -> None:
         self.handlers: dict[str, GateHandler] = {
-            sts_version_gate_handler.GATE_LABEL: sts_version_gate_handler.init_sts_gate_handler(
-                query_func,
-                self.secret_reader,
-                service_account=self.params.job_controller_service_account,
+            sts_version_gate_handler.GATE_LABEL: sts_version_gate_handler.STSGateHandler(
                 job_controller=build_job_controller(
                     integration=QONTRACT_INTEGRATION,
                     integration_version=QONTRACT_INTEGRATION_VERSION,
@@ -68,6 +65,7 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
                     secret_reader=self.secret_reader,
                     dry_run=False,
                 ),
+                rosa_job_service_account=self.params.job_controller_service_account,
                 rosa_job_image=self.params.rosa_job_image,
             ),
             ocp_gate_handler.GATE_LABEL: ocp_gate_handler.OCPGateHandler(),
@@ -143,6 +141,7 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
                 cluster=cluster.ocm_cluster,
                 gates=unacked_gates,
                 ocm_api=ocm_api,
+                ocm_org_id=cluster.organization_id,
                 dry_run=dry_run,
             )
 
@@ -151,13 +150,20 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
         cluster: OCMCluster,
         gates: list[OCMVersionGate],
         ocm_api: OCMBaseClient,
+        ocm_org_id: str,
         dry_run: bool,
     ) -> None:
         """
         Process all unacknowledged gates for a cluster.
         """
         for gate in gates:
-            success = self.handlers[gate.label].handle(ocm_api, cluster, gate, dry_run)
+            success = self.handlers[gate.label].handle(
+                ocm_api=ocm_api,
+                ocm_org_id=ocm_org_id,
+                cluster=cluster,
+                gate=gate,
+                dry_run=dry_run,
+            )
             if success and not dry_run:
                 create_version_agreement(ocm_api, gate.id, cluster.id)
             elif not success:
