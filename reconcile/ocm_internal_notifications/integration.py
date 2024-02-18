@@ -109,8 +109,11 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
 
             if not dry_run and slack_user_ids:
                 users = " ".join([f"<@{uid}>" for uid in slack_user_ids])
-                instructions = get_app_interface_custom_message(
-                    "ocm-internal-notifications-instructions"
+                instructions = (
+                    get_app_interface_custom_message(
+                        "ocm-internal-notifications-instructions"
+                    )
+                    or ""
                 )
                 self.slack.chat_post_message(
                     f"hey {users} :wave: you have clusters stuck in uninstalling state in the {env.name} environment. {instructions}"
