@@ -53,17 +53,18 @@ def test_unpack_static_variables(
 def test_unpack_dynamic_variables_empty(
     mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
 ) -> None:
-    mocker.patch("reconcile.templating.renderer.init_from_config")
-    assert unpack_dynamic_variables(collection_variables) == {"foo": []}
+    gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
+    assert unpack_dynamic_variables(collection_variables, gql) == {"foo": []}
 
 
 def test_unpack_dynamic_variables(
     mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
 ) -> None:
-    gql = mocker.patch("reconcile.utils.gql.GqlApi", autospec=True)
+    gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
     gql.query.return_value = {"foo": [{"bar": "baz"}]}
-    mocker.patch("reconcile.templating.renderer.init_from_config", return_value=gql)
-    assert unpack_dynamic_variables(collection_variables) == {"foo": [[{"bar": "baz"}]]}
+    assert unpack_dynamic_variables(collection_variables, gql) == {
+        "foo": [[{"bar": "baz"}]]
+    }
 
 
 def test_join_path() -> None:

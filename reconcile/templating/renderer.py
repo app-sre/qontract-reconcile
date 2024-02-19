@@ -1,7 +1,7 @@
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import BaseModel
 from ruamel import yaml
@@ -74,24 +74,18 @@ class LocalFilePersistence(FilePersistence):
 def unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
 ) -> dict:
-    variables = {}
-    if collection_variables.static:
-        variables = collection_variables.static
-    return variables
+    return collection_variables.static or {}
 
 
 def unpack_dynamic_variables(
-    collection_variables: TemplateCollectionVariablesV1,
+    collection_variables: TemplateCollectionVariablesV1, gql: gql.GqlApi
 ) -> dict:
-    variables: dict[str, Any] = {}
-    if collection_variables.dynamic:
-        gql_no_validation = init_from_config(validate_schemas=False)
-        for dv in collection_variables.dynamic or []:
-            variables[dv.name] = []
-            result = gql_no_validation.query(dv.query)
-            for key in result or {}:
-                variables[dv.name].append(result[key])
-    return variables
+    if not collection_variables.dynamic:
+        return {}
+    return {
+        dv.name: list(gql.query(dv.query).values())
+        for dv in collection_variables.dynamic or []
+    }
 
 
 class TemplateRendererIntegrationParams(PydanticRunParams):
@@ -151,12 +145,15 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
 
     def run(self, dry_run: bool) -> None:
         outputs: list[TemplateOutput] = []
+        gql_no_validation = init_from_config(validate_schemas=False)
         persistence = LocalFilePersistence(self.params.app_interface_data_path)
 
         for c in get_template_collections():
             variables = {}
             if c.variables:
-                variables.update(unpack_dynamic_variables(c.variables))
+                variables.update(
+                    unpack_dynamic_variables(c.variables, gql_no_validation)
+                )
                 variables.update(unpack_static_variables(c.variables))
 
             for template in c.templates:
