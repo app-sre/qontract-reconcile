@@ -162,7 +162,8 @@ class Renderer:
             resource_identifier,
         )
         overrides = resource.setdefault("overrides", {})
-        overrides["engine_version"] = resource_engine_version
+        # ensure that the engine version is always a string
+        overrides["engine_version"] = f"{resource_engine_version}"
         with StringIO() as stream:
             yml.dump(content, stream)
             return stream.getvalue()
