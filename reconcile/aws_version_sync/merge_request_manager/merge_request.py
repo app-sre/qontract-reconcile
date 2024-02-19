@@ -2,8 +2,9 @@ import re
 import string
 
 from pydantic import BaseModel
-from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
+
+from reconcile.utils.ruaml import create_ruaml_instance
 
 PROMOTION_DATA_SEPARATOR = (
     "**AVS DATA - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
@@ -148,11 +149,7 @@ class Renderer:
         resource_engine_version: str,
     ) -> str:
         """Render the content of an MR for AVS based on the current content of a namespace file."""
-        yml = YAML(typ="rt")
-        yml.preserve_quotes = True
-        yml.explicit_start = True
-        # Lets prevent line wraps
-        yml.width = 4096
+        yml = create_ruaml_instance(explicit_start=True)
         content = yml.load(current_content)
         resource = self._find_resource(
             content,
