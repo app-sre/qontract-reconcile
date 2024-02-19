@@ -290,8 +290,10 @@ def test_extended_early_exit_run_hit_when_log_cached_log_output(
     expected_delete_args = expected_cache_key.build_cli_delete_args()
     mock_logger.info.assert_has_calls([
         call(
-            "logging cached log output, to delete cache, use "
-            "qontract-cli --config config.toml early-exit-cache delete %s",
+            "logging cached log output, to delete cache, use cli command "
+            "`qontract-cli --config config.toml early-exit-cache delete $ARGS` or "
+            "comment on merge request `/cache delete $ARGS`, "
+            "replace `$ARGS` with `%s`",
             expected_delete_args,
         ),
         call("log-output1"),
