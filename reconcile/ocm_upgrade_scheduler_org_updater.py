@@ -12,7 +12,7 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
-from reconcile.openshift_resources_base import process_jinja2_template
+from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.ocm import (
     OCMMap,
     OCMSpec,

@@ -140,7 +140,6 @@ from terrascript.resource import (
     random_id,
 )
 
-import reconcile.openshift_resources_base as orb
 import reconcile.utils.aws_helper as awsh
 from reconcile import queries
 from reconcile.github_org import get_default_config
@@ -176,6 +175,7 @@ from reconcile.utils.external_resources import (
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
+from reconcile.utils.jinja2.utils import process_extracurlyjinja2_template
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.password_validator import (
     PasswordPolicy,
@@ -5342,7 +5342,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             part = []
             for c in cloudinit_configs:
                 raw = self.get_raw_values(c["content"])
-                content = orb.process_extracurlyjinja2_template(
+                content = process_extracurlyjinja2_template(
                     body=raw["content"], vars=vars, secret_reader=self.secret_reader
                 )
                 # https://www.terraform.io/docs/language/expressions/strings.html#escape-sequences

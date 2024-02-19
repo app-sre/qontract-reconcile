@@ -162,7 +162,6 @@ module = [
     "reconcile.utils.imap_client",
     "reconcile.utils.instrumented_wrappers",
     "reconcile.utils.jenkins_api",
-    "reconcile.utils.jinja2_ext",
     "reconcile.utils.jjb_client",
     "reconcile.utils.ldap_client",
     "reconcile.utils.lean_terraform_client",
