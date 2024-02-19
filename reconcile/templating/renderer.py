@@ -75,6 +75,7 @@ class LocalFilePersistence(FilePersistence):
                 return f.read()
         except FileNotFoundError:
             logging.debug(f"File not found: {path}, need to create it")
+        return None
 
 
 def unpack_static_variables(

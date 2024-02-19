@@ -3,6 +3,7 @@ from typing import Callable
 
 import pytest
 from pytest_mock import MockerFixture
+from ruamel import yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionVariablesV1,
@@ -42,6 +43,11 @@ def template_simple(gql_class_factory: Callable) -> TemplateV1:
 @pytest.fixture
 def local_file_persistence(tmp_path: Path) -> LocalFilePersistence:
     return LocalFilePersistence(str(tmp_path))
+
+
+@pytest.fixture
+def ruaml_instance() -> yaml.YAML:
+    return yaml.YAML()
 
 
 def test_unpack_static_variables(
@@ -86,10 +92,12 @@ def test_local_file_persistence_read(tmp_path: Path) -> None:
 
 
 def test_process_template_simple(
-    template_simple: TemplateV1, local_file_persistence: LocalFilePersistence
+    template_simple: TemplateV1,
+    local_file_persistence: LocalFilePersistence,
+    ruaml_instance: yaml.YAML,
 ) -> None:
     output = TemplateRendererIntegration.process_template(
-        template_simple, {}, local_file_persistence
+        template_simple, {}, local_file_persistence, ruaml_instance
     )
     assert output
     assert output.path == "/target_path"
@@ -97,11 +105,13 @@ def test_process_template_simple(
 
 
 def test_process_template_overwrite(
-    template_simple: TemplateV1, local_file_persistence: LocalFilePersistence
+    template_simple: TemplateV1,
+    local_file_persistence: LocalFilePersistence,
+    ruaml_instance: yaml.YAML,
 ) -> None:
     local_file_persistence.write([TemplateOutput(path="/target_path", content="bar")])
     output = TemplateRendererIntegration.process_template(
-        template_simple, {}, local_file_persistence
+        template_simple, {}, local_file_persistence, ruaml_instance
     )
     assert output
     assert output.path == "/target_path"
@@ -109,12 +119,14 @@ def test_process_template_overwrite(
 
 
 def test_process_template_match(
-    template_simple: TemplateV1, local_file_persistence: LocalFilePersistence
+    template_simple: TemplateV1,
+    local_file_persistence: LocalFilePersistence,
+    ruaml_instance: yaml.YAML,
 ) -> None:
     local_file_persistence.write([
         TemplateOutput(path="/target_path", content="template")
     ])
     output = TemplateRendererIntegration.process_template(
-        template_simple, {}, local_file_persistence
+        template_simple, {}, local_file_persistence, ruaml_instance
     )
     assert output is None
