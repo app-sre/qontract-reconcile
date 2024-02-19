@@ -148,6 +148,9 @@ class OCMBaseClient:
         r = self._session.delete(f"{self._url}{api_path}", timeout=REQUEST_TIMEOUT_SEC)
         r.raise_for_status()
 
+    def close(self):
+        self._session.close()
+
 
 class OCMAPIClientConfigurationProtocol(Protocol):
     url: str

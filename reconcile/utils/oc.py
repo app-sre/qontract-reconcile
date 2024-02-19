@@ -735,6 +735,29 @@ class OCCli:  # pylint: disable=too-many-public-methods
         # collect logs to file async
         Popen(self.oc_base_cmd + cmd, stdout=output_file)
 
+    def job_logs_latest_pod(self, namespace, name, output):
+        pods = self.get_items("Pod", namespace=namespace, labels={"job-name": name})
+
+        finished_pods = [
+            pod for pod in pods if pod["status"].get("phase") in {"Failed", "Succeeded"}
+        ]
+        if not finished_pods:
+            raise JobNotRunningError(name)
+
+        latest_pod = sorted(
+            finished_pods, key=lambda pod: pod["metadata"]["creationTimestamp"]
+        )[-1]
+        cmd = [
+            "logs",
+            "--all-containers=true",
+            "-n",
+            namespace,
+            f"pod/{latest_pod['metadata']['name']}",
+        ]
+        output_file = open(os.path.join(output, name), "w", encoding="locale")
+        # collect logs to file async
+        Popen(self.oc_base_cmd + cmd, stdout=output_file)
+
     @staticmethod
     def get_service_account_username(user):
         namespace = user.split("/")[0]

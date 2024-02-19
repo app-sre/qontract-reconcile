@@ -314,7 +314,6 @@ It consists of:
 
 - [requirements-test.txt](requirements/requirements-test.txt) for unit test and linting dependencies
 - [requirements-type.txt](requirements/requirements-type.txt) for type checking dependencies
-- [requirements-format.txt](requirements/requirements-format.txt) for formatting dependencies
 - [requirements-dev.txt](requirements/requirements-dev.txt) installs all above mentioned dependencies
 
 ### Image build

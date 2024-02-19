@@ -5126,6 +5126,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "status_code": fr_data.get("status_code"),
                     },
                 }
+            elif action_type == "redirect":
+                redirect_data = action.get("redirect", {})
+                action_values = {
+                    "type": "redirect",
+                    "redirect": {
+                        "host": redirect_data.get("host"),
+                        "path": redirect_data.get("path"),
+                        "port": redirect_data.get("port"),
+                        "protocol": redirect_data.get("protocol"),
+                        "query": redirect_data.get("query"),
+                        "status_code": redirect_data.get("status_code"),
+                    },
+                }
             else:
                 raise KeyError(f"unknown alb rule action type {action_type}")
 

@@ -1,7 +1,9 @@
 import logging
 import os
 import re
+import textwrap
 import time
+from abc import ABC, abstractmethod
 from collections.abc import (
     Iterable,
     Iterator,
@@ -82,6 +84,118 @@ class MissingARNError(Exception):
 KeyStatus = Union[Literal["Active"], Literal["Inactive"]]
 
 GOVCLOUD_PARTITION = "aws-us-gov"
+
+
+class AWSCredentials(ABC):
+    @abstractmethod
+    def as_env_vars(self) -> dict[str, str]:
+        """
+        Returns a dictionary of environment variables that can be used to authenticate with AWS.
+        """
+        ...
+
+    @abstractmethod
+    def as_credentials_file(self, profile_name: str = "default") -> str:
+        """
+        Returns a string that can be used to write an AWS credentials file.
+        """
+        ...
+
+    @abstractmethod
+    def build_session(self) -> Session:
+        """
+        Builds an AWS session using these credentials.
+        """
+        ...
+
+    def get_temporary_credentials(
+        self, duration_seconds: int = 900
+    ) -> "AWSTemporaryCredentials":
+        """
+        Builds temporary AWS credentials from a session. This is similar to assuming a role,
+        in the sense that the credentials will expire after a certain amount of time.
+
+        These temporary credentials have the same permissions as the session they were built from, except:
+        - they can't be used for anything IAM related
+        - for the STS API only the AssumeRole and GetSessionToken actions are allowed
+        """
+        session = self.build_session()
+        response = session.client("sts").get_session_token(
+            DurationSeconds=duration_seconds
+        )
+        tmp_creds = response["Credentials"]
+        return AWSTemporaryCredentials(
+            access_key_id=tmp_creds["AccessKeyId"],
+            secret_access_key=tmp_creds["SecretAccessKey"],
+            session_token=tmp_creds["SessionToken"],
+            region=session.region_name,
+        )
+
+
+class AWSStaticCredentials(BaseModel, AWSCredentials):
+    """
+    A model representing AWS credentials.
+    """
+
+    access_key_id: str
+    secret_access_key: str
+    region: str
+
+    def as_env_vars(self) -> dict[str, str]:
+        return {
+            "AWS_ACCESS_KEY_ID": self.access_key_id,
+            "AWS_SECRET_ACCESS_KEY": self.secret_access_key,
+            "AWS_REGION": self.region,
+        }
+
+    def as_credentials_file(self, profile_name: str = "default") -> str:
+        return textwrap.dedent(
+            f"""\
+            [{profile_name}]
+            aws_access_key_id = {self.access_key_id}
+            aws_secret_access_key = {self.secret_access_key}
+            region = {self.region}
+            """
+        )
+
+    def build_session(self) -> Session:
+        return Session(
+            aws_access_key_id=self.access_key_id,
+            aws_secret_access_key=self.secret_access_key,
+            region_name=self.region,
+        )
+
+
+class AWSTemporaryCredentials(AWSStaticCredentials):
+    """
+    A model representing temporary AWS credentials.
+    """
+
+    session_token: str
+
+    def as_env_vars(self) -> dict[str, str]:
+        env_vars = super().as_env_vars()
+        env_vars["AWS_SESSION_TOKEN"] = self.session_token
+        return env_vars
+
+    def as_credentials_file(self, profile_name: str = "default") -> str:
+        return textwrap.dedent(
+            f"""\
+            [{profile_name}]
+            aws_access_key_id = {self.access_key_id}
+            aws_secret_access_key = {self.secret_access_key}
+            aws_session_token = {self.session_token}
+            region = {self.region}
+            """
+        )
+
+    def build_session(self) -> Session:
+        return Session(
+            aws_access_key_id=self.access_key_id,
+            aws_secret_access_key=self.secret_access_key,
+            aws_session_token=self.session_token,
+            region_name=self.region,
+        )
 
 
 class AmiTag(BaseModel):

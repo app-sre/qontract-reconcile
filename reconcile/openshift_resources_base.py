@@ -64,7 +64,7 @@ from reconcile.utils.openshift_resource import (
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretNotFound, SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.vault import (
@@ -289,7 +289,13 @@ class UnknownTemplateTypeError(Exception):
 
 @retry()
 def lookup_secret(
-    path, key, version=None, tvars=None, settings=None, secret_reader=None
+    path,
+    key,
+    version=None,
+    tvars=None,
+    allow_not_found=False,
+    settings=None,
+    secret_reader=None,
 ):
     if tvars is not None:
         path = process_jinja2_template(
@@ -307,6 +313,10 @@ def lookup_secret(
         if not secret_reader:
             secret_reader = SecretReader(settings)
         return secret_reader.read(secret)
+    except SecretNotFound as e:
+        if allow_not_found:
+            return None
+        raise FetchSecretError(e)
     except Exception as e:
         raise FetchSecretError(e)
 
@@ -456,11 +466,12 @@ def process_jinja2_template(
     if vars is None:
         vars = {}
     vars.update({
-        "vault": lambda p, k, v=None: lookup_secret(
+        "vault": lambda p, k, v=None, allow_not_found=False: lookup_secret(
             path=p,
             key=k,
             version=v,
             tvars=vars,
+            allow_not_found=allow_not_found,
             settings=settings,
             secret_reader=secret_reader,
         ),
@@ -1417,8 +1428,9 @@ def early_exit_monkey_patch():
             key,
             version=None,
             tvars=None,
+            allow_not_found=False,
             settings=None,
-            secret_reader=None: f"vault({path}, {key}, {version})",
+            secret_reader=None: f"vault({path}, {key}, {version}, {allow_not_found})",
             lambda repo,
             path,
             ref,
