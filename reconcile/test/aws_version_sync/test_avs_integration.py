@@ -472,7 +472,7 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
                 resource_provider=version_update_ai.resource_provider,
                 resource_identifier=version_update_ai.resource_identifier,
                 resource_engine=version_update_ai.resource_engine,
-                resource_engine_version=str(version_update_aws.resource_engine_version),
+                resource_engine_version="13.1",
             ),
             mocker.call(
                 namespace_file=ec_version_update_ai.namespace_file,
@@ -482,10 +482,61 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
                 resource_provider=ec_version_update_ai.resource_provider,
                 resource_identifier=ec_version_update_ai.resource_identifier,
                 resource_engine=ec_version_update_ai.resource_engine,
-                resource_engine_version=str(
-                    ec_version_update_aws.resource_engine_version
-                ),
+                resource_engine_version="13.1",
             ),
         ],
         any_order=True,
     )
+
+
+@pytest.mark.parametrize(
+    "er,expected",
+    [
+        (
+            ExternalResource(
+                namespace_file="/namespace-file.yml",
+                provider="aws",
+                provisioner=ExternalResourceProvisioner(
+                    uid="account-1", path="account-1.yml"
+                ),
+                resource_provider="rds",
+                resource_identifier="rds-1",
+                resource_engine="postgres",
+                resource_engine_version="13",
+            ),
+            "13",
+        ),
+        (
+            ExternalResource(
+                namespace_file="/namespace-file.yml",
+                provider="aws",
+                provisioner=ExternalResourceProvisioner(
+                    uid="account-1", path="account-1.yml"
+                ),
+                resource_provider="rds",
+                resource_identifier="rds-1",
+                resource_engine="postgres",
+                resource_engine_version="13.5",
+            ),
+            "13.5",
+        ),
+        (
+            ExternalResource(
+                namespace_file="/namespace-file.yml",
+                provider="aws",
+                provisioner=ExternalResourceProvisioner(
+                    uid="account-1", path="account-1.yml"
+                ),
+                resource_provider="rds",
+                resource_identifier="rds-1",
+                resource_engine="postgres",
+                resource_engine_version="13.5.1",
+            ),
+            "13.5.1",
+        ),
+    ],
+)
+def test_external_resources_resource_engine_version_string(
+    er: ExternalResource, expected: str
+) -> None:
+    assert er.resource_engine_version_string == expected
