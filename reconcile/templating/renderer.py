@@ -1,3 +1,4 @@
+import logging
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -47,7 +48,7 @@ class FilePersistence(ABC):
         pass
 
     @abstractmethod
-    def read(self, path: str) -> str:
+    def read(self, path: str) -> Optional[str]:
         pass
 
 
@@ -64,11 +65,16 @@ class LocalFilePersistence(FilePersistence):
             ) as f:
                 f.write(output.content)
 
-    def read(self, path: str) -> str:
-        with open(
-            f"{join_path(self.app_interface_data_path, path)}", "r", encoding="utf-8"
-        ) as f:
-            return f.read()
+    def read(self, path: str) -> Optional[str]:
+        try:
+            with open(
+                f"{join_path(self.app_interface_data_path, path)}",
+                "r",
+                encoding="utf-8",
+            ) as f:
+                return f.read()
+        except FileNotFoundError:
+            logging.debug(f"File not found: {path}, need to create it")
 
 
 def unpack_static_variables(
@@ -108,6 +114,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         template: TemplateV1,
         variables: dict,
         persistence: FilePersistence,
+        ruaml_instance: yaml.YAML,
     ) -> Optional[TemplateOutput]:
         r = create_renderer(
             template,
@@ -116,17 +123,15 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             ),
         )
         target_path = r.render_target_path()
-        current_str: Optional[str] = None
-        try:
-            current_str = persistence.read(
-                target_path,
-            )
-            y = yaml.YAML()
 
-            r.data.current = y.load(current_str)
-        except FileNotFoundError:
-            if template.patch:
-                raise ValueError(f"Can not patch non-existing file {target_path}")
+        current_str = persistence.read(
+            target_path,
+        )
+        if current_str is None and template.patch:
+            raise ValueError(f"Can not patch non-existing file {target_path}")
+
+        if current_str:
+            r.data.current = ruaml_instance.load(current_str)
 
         if r.render_condition():
             output = r.render_output()
@@ -148,6 +153,10 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         gql_no_validation = init_from_config(validate_schemas=False)
         persistence = LocalFilePersistence(self.params.app_interface_data_path)
 
+        ruaml_instance = yaml.YAML()
+        ruaml_instance.preserve_quotes = True
+        ruaml_instance.width = 4096
+
         for c in get_template_collections():
             variables = {}
             if c.variables:
@@ -161,6 +170,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     template,
                     variables,
                     persistence,
+                    ruaml_instance,
                 )
                 if output:
                     outputs.append(output)
