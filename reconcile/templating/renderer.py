@@ -100,10 +100,7 @@ class TemplateRendererIntegrationParams(PydanticRunParams):
 
 
 def join_path(base: str, sub: str) -> str:
-    # not using os.path.sep, since app-interface relies on unix paths
-    if sub.startswith(APP_INTERFACE_PATH_SEPERATOR):
-        return os.path.join(base, sub.lstrip(APP_INTERFACE_PATH_SEPERATOR))
-    return os.path.join(base, sub)
+    return os.path.join(base, sub.lstrip(APP_INTERFACE_PATH_SEPERATOR))
 
 
 class TemplateRendererIntegration(QontractReconcileIntegration):
