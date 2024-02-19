@@ -5,18 +5,20 @@ from typing import Any, Callable, Optional
 from kubernetes.client import (
     V1Container,
     V1EmptyDirVolumeSource,
+    V1EnvVar,
     V1JobSpec,
     V1ObjectMeta,
     V1PodSpec,
     V1PodTemplateSpec,
+    V1ProjectedVolumeSource,
+    V1SecretVolumeSource,
+    V1ServiceAccountTokenProjection,
     V1Volume,
     V1VolumeMount,
+    V1VolumeProjection,
 )
 from pydantic import BaseModel
 
-from reconcile.utils.aws_api import (
-    AWSCredentials,
-)
 from reconcile.utils.jobcontroller.models import JobStatus, K8sJob
 
 
@@ -97,44 +99,39 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
     with the required credentials and tokens.
     """
 
-    account_name: str
-    cluster_name: str
-    org_id: str
+    aws_account_id: str
+    aws_region: str
+    ocm_org_id: str
+    ocm_token: str
     cmd: str
     image: str
+    service_account: str
 
-    aws_credentials: AWSCredentials
-    ocm_token: str
-
-    dry_run: bool = False
+    extra_annotations: dict[str, str]
 
     def name_prefix(self) -> str:
-        prefix = "rosa-cli"
-        if self.dry_run:
-            prefix += "-dry-run"
-        return prefix
+        return "rosa-cli"
 
     def unit_of_work_identity(self) -> Any:
         return {
             "cmd": self.cmd,
-            "account_name": self.account_name,
-            "cluster_name": self.cluster_name,
-            "org_id": self.org_id,
-            "dry_run": self.dry_run,
+            "aws_account_id": self.aws_account_id,
+            "aws_region": self.aws_region,
             "image": self.image,
+            "service_account": self.service_account,
         }
 
     def annotations(self) -> dict[str, str]:
-        return {
-            "qontract.rosa.account_name": self.account_name,
-            "qontract.rosa.cluster_name": self.cluster_name,
-            "qontract.rosa.org_id": self.org_id,
+        _annotations = {
+            "qontract.rosa.aws_account_id": self.aws_account_id,
+            "qontract.rosa.aws_region": self.aws_region,
+            "qontract.rosa.ocm_org_id": self.ocm_org_id,
         }
+        _annotations.update(self.extra_annotations)
+        return _annotations
 
     def secret_data(self) -> dict[str, str]:
-        data = self.aws_credentials.as_env_vars()
-        data["OCM_TOKEN"] = self.ocm_token
-        return data
+        return {"OCM_TOKEN": self.ocm_token}
 
     def job_spec(self) -> V1JobSpec:
         return V1JobSpec(
@@ -151,24 +148,63 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
                             image=self.image,
                             command=["/bin/bash", "-c"],
                             args=[self.cmd],
-                            env=self.secret_data_to_env_vars_secret_refs(),
+                            env=[
+                                V1EnvVar(
+                                    name="AWS_SHARED_CREDENTIALS_FILE",
+                                    value="/.aws/credentials",
+                                ),
+                                V1EnvVar(
+                                    name="AWS_REGION",
+                                    value=self.aws_region,
+                                ),
+                            ]
+                            + self.secret_data_to_env_vars_secret_refs(),
                             volume_mounts=[
+                                V1VolumeMount(
+                                    name="aws-credentials",
+                                    mount_path="/.aws",
+                                ),
                                 V1VolumeMount(
                                     name="workdir",
                                     mount_path="/.config",
-                                )
+                                ),
+                                V1VolumeMount(
+                                    name="bound-sa-token",
+                                    mount_path="/var/run/secrets/openshift/serviceaccount",
+                                    read_only=True,
+                                ),
                             ],
                         )
                     ],
                     restart_policy="Never",
-                    service_account_name="default",
+                    service_account_name=self.service_account,
                     volumes=[
+                        V1Volume(
+                            name="aws-credentials",
+                            secret=V1SecretVolumeSource(
+                                secret_name="rosa-automation-sts-iam",
+                            ),
+                        ),
+                        V1Volume(
+                            name="bound-sa-token",
+                            projected=V1ProjectedVolumeSource(
+                                sources=[
+                                    V1VolumeProjection(
+                                        service_account_token=V1ServiceAccountTokenProjection(
+                                            audience="openshift",
+                                            expiration_seconds=3600,
+                                            path="token",
+                                        )
+                                    )
+                                ]
+                            ),
+                        ),
                         V1Volume(
                             name="workdir",
                             empty_dir=V1EmptyDirVolumeSource(
                                 size_limit="10Mi",
                             ),
-                        )
+                        ),
                     ],
                 ),
             ),
