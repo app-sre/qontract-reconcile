@@ -21,6 +21,17 @@ def get_account_uid_from_arn(arn):
     return arn.split(":")[4]
 
 
+def get_role_name_from_arn(arn: str) -> str:
+    # arn:aws:iam::12345:role/role-1 --> role-1
+    return arn.split("/")[-1]
+
+
+def is_aws_managed_resource(arn: str) -> bool:
+    # arn:aws:iam::aws:role/role-1 --> True
+    # arn:aws:iam::12345:role/role-1 --> False
+    return get_account_uid_from_arn(arn) == "aws"
+
+
 def get_details_from_role_link(role_link):
     # https://signin.aws.amazon.com/switchrole?
     # account=<uid>&roleName=<role_name> -->

@@ -2448,6 +2448,65 @@ def advanced_upgrade_scheduler(
     )
 
 
+@integration.command(short_help="Approves OCM cluster upgrade version gates.")
+@click.option(
+    "--job-controller-cluster",
+    help="The cluster holding the job-controller namepsace",
+    required=True,
+    envvar="JOB_CONTROLLER_CLUSTER",
+)
+@click.option(
+    "--job-controller-namespace",
+    help="The namespace used for ROSA jobs",
+    required=True,
+    envvar="JOB_CONTROLLER_NAMESPACE",
+)
+@click.option(
+    "--rosa-job-service-account",
+    help="The service-account used for ROSA jobs",
+    required=True,
+    envvar="ROSA_JOB_SERVICE_ACCOUNT",
+)
+@click.option(
+    "--rosa-job-image",
+    help="The container image to use to run ROSA cli command jobs",
+    required=False,
+    envvar="ROSA_JOB_IMAGE",
+)
+@click.option(
+    "--rosa-role",
+    help="The role to assume in the ROSA cluster account",
+    required=True,
+    envvar="ROSA_ROLE",
+)
+@click.pass_context
+def version_gate_approver(
+    ctx,
+    job_controller_cluster: str,
+    job_controller_namespace: str,
+    rosa_job_service_account: str,
+    rosa_role: str,
+    rosa_job_image: Optional[str],
+) -> None:
+    from reconcile.aus.version_gate_approver import (
+        VersionGateApprover,
+        VersionGateApproverParams,
+    )
+
+    run_class_integration(
+        integration=VersionGateApprover(
+            VersionGateApproverParams(
+                job_controller_cluster=job_controller_cluster,
+                job_controller_namespace=job_controller_namespace,
+                rosa_job_service_account=rosa_job_service_account,
+                rosa_job_image=rosa_job_image,
+                rosa_role=rosa_role,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage Databases and Database Users.")
 @vault_output_path
 @click.pass_context
