@@ -83,6 +83,7 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
 fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
   workloads
   schedule
+  versionGateApprovals
   conditions {
     mutexes
     soakDays

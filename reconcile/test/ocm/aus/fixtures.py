@@ -44,6 +44,7 @@ def build_upgrade_policy(
     return ClusterUpgradePolicyV1(
         schedule=schedule or "* * * * *",
         workloads=workloads or ["workload1"],
+        versionGateApprovals=None,
         conditions=ClusterUpgradePolicyConditionsV1(
             soakDays=soak_days,
             sector=sector,
