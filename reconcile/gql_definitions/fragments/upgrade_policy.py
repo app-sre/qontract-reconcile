@@ -34,4 +34,5 @@ class ClusterUpgradePolicyConditionsV1(ConfiguredBaseModel):
 class ClusterUpgradePolicyV1(ConfiguredBaseModel):
     workloads: list[str] = Field(..., alias="workloads")
     schedule: str = Field(..., alias="schedule")
+    version_gate_approvals: Optional[list[str]] = Field(..., alias="versionGateApprovals")
     conditions: ClusterUpgradePolicyConditionsV1 = Field(..., alias="conditions")
