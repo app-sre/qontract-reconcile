@@ -2067,10 +2067,14 @@ def cna_resources(
 
 @integration.command(short_help="Manage auto-promotions defined in SaaS files")
 @threaded()
+@click.option("--env-name", default=None, help="environment to filter saas files by")
+@click.option("--app-name", default=None, help="app to filter saas files by.")
 @click.pass_context
 def saas_auto_promotions_manager(
     ctx,
     thread_pool_size,
+    env_name,
+    app_name,
 ):
     import reconcile.saas_auto_promotions_manager.integration
 
@@ -2078,6 +2082,8 @@ def saas_auto_promotions_manager(
         reconcile.saas_auto_promotions_manager.integration,
         ctx.obj,
         thread_pool_size,
+        env_name=env_name,
+        app_name=app_name,
     )
 
 
