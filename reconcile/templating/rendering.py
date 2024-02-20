@@ -5,6 +5,7 @@ from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel
 from ruamel import yaml
 
+from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.jsonpath import parse_jsonpath
 
 
@@ -37,15 +38,12 @@ class Renderer(ABC):
     def __init__(self, template: Template, data: TemplateData):
         self.template = template
         self.data = data
-        self.jinja_env = SandboxedEnvironment()
 
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
         return {**self.data.variables, "current": self.data.current}
 
     def _render_template(self, template: str) -> str:
-        return self.jinja_env.from_string(template).render(
-            **self._jinja2_render_kwargs()
-        )
+        return process_jinja2_template(body=template, vars=self._jinja2_render_kwargs())
 
     @abstractmethod
     def render_output(self) -> str:
