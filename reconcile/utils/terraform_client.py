@@ -31,6 +31,9 @@ from sretoolbox.utils import (
 )
 
 import reconcile.utils.lean_terraform_client as lean_tf
+from reconcile.typed_queries.app_interface_custom_messages import (
+    get_app_interface_custom_message,
+)
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.aws_helper import get_region_from_availability_zone
 from reconcile.utils.external_resource_spec import (
@@ -357,11 +360,13 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                         name, resource_type, resource_name
                     ):
                         disabled_deletion_detected = True
-                        logging.error(
-                            "'delete' action is not enabled. "
-                            + "Please run the integration manually "
-                            + "with the '--enable-deletion' flag."
+                        instructions = (
+                            get_app_interface_custom_message(
+                                "disabled-deletion-instructions"
+                            )
+                            or ""
                         )
+                        logging.error(f"'delete' action is not enabled. {instructions}")
                     if resource_type == "aws_db_instance":
                         deletion_protected = resource_change["before"].get(
                             "deletion_protection"
