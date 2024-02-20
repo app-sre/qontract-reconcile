@@ -108,8 +108,8 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
     def __init__(self, params: TemplateRendererIntegrationParams) -> None:
         super().__init__(params)
 
-    @staticmethod
     def process_template(
+        self,
         template: TemplateV1,
         variables: dict,
         persistence: FilePersistence,
@@ -120,6 +120,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             TemplateData(
                 variables=variables,
             ),
+            secret_reader=self.secret_reader,
         )
         target_path = r.render_target_path()
 

@@ -7,6 +7,7 @@ from sretoolbox.utils import retry
 
 from reconcile.checkpoint import url_makes_sense
 from reconcile.github_users import init_github
+from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils import gql
 from reconcile.utils.jinja2.extensions import B64EncodeExtension, RaiseErrorExtension
 from reconcile.utils.jinja2.filters import (
@@ -19,6 +20,7 @@ from reconcile.utils.jinja2.filters import (
     urlescape,
     urlunescape,
 )
+from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.secret_reader import SecretNotFound, SecretReader, SecretReaderBase
 
 
@@ -80,6 +82,22 @@ def lookup_github_file_content(
     gh = init_github()
     c = gh.get_repo(repo).get_contents(path, ref).decoded_content
     return c.decode("utf-8")
+
+
+def openshift_namespace_exists(
+    cluster_name: str,
+    namespace: str,
+    secret_reader: SecretReaderBase,
+):
+    clusters = get_clusters_minimal(name=cluster_name)
+    oc_map = init_oc_map_from_clusters(clusters, secret_reader)
+    namespace = oc_map.get(cluster_name).get(
+        "default", "Namespace", name=namespace, allow_not_found=True
+    )
+    return (
+        namespace is not None
+        and namespace.get("status", {}).get("phase", "") == "Active"
+    )
 
 
 def lookup_graphql_query_results(query: str, **kwargs: dict[str, Any]) -> list[Any]:
@@ -156,6 +174,13 @@ def process_jinja2_template(
         "hash_list": hash_list,
         "query": lookup_graphql_query_results,
         "url": url_makes_sense,
+        "openshift_namespace_exists": lambda c, n: vars.get("mock", {}).get(
+            "openshift_namespace_exists", None
+        )
+        if vars.get("mock", {})
+        else openshift_namespace_exists(
+            cluster_name=c, namespace=n, secret_reader=secret_reader
+        ),
     })
     try:
         template = compile_jinja2_template(body, extra_curly)
