@@ -14,7 +14,7 @@ from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
-from reconcile.utils.ruaml import create_ruaml_instance
+from reconcile.utils.ruamel import create_ruamel_instance
 
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
@@ -86,7 +86,7 @@ class Renderer:
         """
         # TODO: make prettier
         # this function is hell - but well tested
-        yml = create_ruaml_instance(pure=True)
+        yml = create_ruamel_instance(pure=True)
         content = yml.load(current_content)
         targets = self._find_saas_file_targets(subscriber=subscriber, content=content)
         for target in targets:

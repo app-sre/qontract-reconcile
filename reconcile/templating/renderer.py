@@ -19,7 +19,7 @@ from reconcile.templating.rendering import (
 )
 from reconcile.utils import gql
 from reconcile.utils.gql import init_from_config
-from reconcile.utils.ruaml import create_ruaml_instance
+from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -152,7 +152,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         gql_no_validation = init_from_config(validate_schemas=False)
         persistence = LocalFilePersistence(self.params.app_interface_data_path)
 
-        ruaml_instance = create_ruaml_instance()
+        ruaml_instance = create_ruamel_instance()
 
         for c in get_template_collections():
             variables = {}
