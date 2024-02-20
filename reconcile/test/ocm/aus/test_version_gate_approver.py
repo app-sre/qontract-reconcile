@@ -4,22 +4,28 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.aus import version_gate_approver
+from reconcile.aus.advanced_upgrade_service import aus_label_key
 from reconcile.aus.base import gates_to_agree
 from reconcile.aus.version_gate_approver import (
     VersionGateApprover,
     VersionGateApproverParams,
+    get_enabled_gate_handlers,
 )
+from reconcile.aus.version_gates import ocp_gate_handler
 from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.aus.version_gates.sts_version_gate_handler import STSGateHandler
 from reconcile.test.ocm.aus.fixtures import NoopGateHandler
 from reconcile.test.ocm.fixtures import build_ocm_cluster
+from reconcile.test.ocm.test_utils_ocm_labels import build_subscription_label
 from reconcile.utils.jobcontroller.controller import K8sJobController
 from reconcile.utils.jobcontroller.models import JobStatus
 from reconcile.utils.ocm.base import (
     PRODUCT_ID_OSD,
     PRODUCT_ID_ROSA,
     OCMCluster,
+    OCMLabel,
     OCMVersionGate,
+    build_label_container,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -36,7 +42,7 @@ def version_gate_4_13_ocp() -> OCMVersionGate:
         "kind": "VersionGate",
         "id": VERSION_GATE_4_13_OCP_ID,
         "version_raw_id_prefix": "4.13",
-        "label": "api.openshift.com/gate-ocp",
+        "label": GATE_LABEL_OCP,
         "value": "4.13",
         "sts_only": False,
     })
@@ -48,7 +54,7 @@ def version_gate_4_13_sts() -> OCMVersionGate:
         "kind": "VersionGate",
         "id": VERSION_GATE_4_13_STS_ID,
         "version_raw_id_prefix": "4.13",
-        "label": "api.openshift.com/gate-sts",
+        "label": GATE_LABEL_STS,
         "value": "4.13",
         "sts_only": True,
     })
@@ -207,8 +213,9 @@ def test_get_relevant_gates_for_cluster(
 
 
 class MockGateHandler(GateHandler):
-    def __init__(self, handle_success: bool) -> None:
-        self.handle_success = handle_success
+    def __init__(self, gate_handler_result: bool, handler_failure: bool) -> None:
+        self.gate_handler_result = gate_handler_result
+        self.handler_failure = handler_failure
 
     @staticmethod
     def responsible_for(cluster: OCMCluster) -> bool:
@@ -222,16 +229,20 @@ class MockGateHandler(GateHandler):
         gate: OCMVersionGate,
         dry_run: bool,
     ) -> bool:
-        return self.handle_success
+        if self.handler_failure:
+            raise Exception("Handler failure")
+        return self.gate_handler_result
 
 
 @pytest.mark.parametrize(
-    "gate_handled",
+    "gate_handler_enabled, gate_handler_result, gate_acked",
     [
-        # the gate was handled, so we expect an agreement creation
-        True,
-        # the gate was not handled, so we expect no agreement creation
-        False,
+        # the gate handler was successful, so we expect an agreement creation
+        (True, True, True),
+        # the gate handler was not successful, so we expect no agreement creation
+        (True, False, False),
+        # the gate handler was not enabled, so we don't expect a call to the handler
+        (False, True, False),
     ],
 )
 def test_version_gate_approver_process_cluster(
@@ -239,7 +250,9 @@ def test_version_gate_approver_process_cluster(
     version_gate_4_13_ocp: OCMVersionGate,
     ocm_api: OCMBaseClient,
     mocker: MockerFixture,
-    gate_handled: bool,
+    gate_handler_enabled: bool,
+    gate_handler_result: bool,
+    gate_acked: bool,
 ) -> None:
     create_version_agreement_mock = mocker.patch.object(
         version_gate_approver, "create_version_agreement"
@@ -249,16 +262,79 @@ def test_version_gate_approver_process_cluster(
         version="4.12.17",
         available_upgrades=["4.13.1"],
     )
-    integration.handlers = {version_gate_4_13_ocp.label: MockGateHandler(gate_handled)}
+    integration.handlers = {
+        version_gate_4_13_ocp.label: MockGateHandler(
+            gate_handler_result=gate_handler_result,
+            handler_failure=not gate_handler_enabled,
+        )
+    }
     integration.process_cluster(
         cluster=cluster,
+        enabled_gate_handlers={version_gate_4_13_ocp.label}
+        if gate_handler_enabled
+        else set(),
         gates=[version_gate_4_13_ocp],
         ocm_api=ocm_api,
         ocm_org_id="org_id",
         dry_run=False,
     )
 
-    if gate_handled:
+    if gate_acked:
         create_version_agreement_mock.assert_called_once()
     else:
         create_version_agreement_mock.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "labels, expected_handlers",
+    [
+        (
+            [
+                build_subscription_label(
+                    key=aus_label_key("version-gate-approvals"),
+                    value="a",
+                    subs_id="sub_id",
+                )
+            ],
+            {"a"},
+        ),
+        (
+            [
+                build_subscription_label(
+                    key=aus_label_key("version-gate-approvals"),
+                    value="a,b,c",
+                    subs_id="sub_id",
+                )
+            ],
+            {"a", "b", "c"},
+        ),
+        (
+            [
+                build_subscription_label(
+                    key=aus_label_key("version-gate-approvals"),
+                    value="",
+                    subs_id="sub_id",
+                )
+            ],
+            {ocp_gate_handler.GATE_LABEL},
+        ),
+        (
+            [
+                build_subscription_label(
+                    key=aus_label_key("some-other-label"),
+                    value="a,b,c",
+                    subs_id="sub_id",
+                )
+            ],
+            {ocp_gate_handler.GATE_LABEL},
+        ),
+        (
+            [],
+            {ocp_gate_handler.GATE_LABEL},
+        ),
+    ],
+)
+def test_get_enabled_gate_handlers(
+    labels: list[OCMLabel] | None, expected_handlers: set[str]
+) -> None:
+    assert get_enabled_gate_handlers(build_label_container(labels)) == expected_handlers

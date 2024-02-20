@@ -18,7 +18,12 @@ from reconcile.utils.grouping import group_by
 from reconcile.utils.jobcontroller.controller import (
     build_job_controller,
 )
-from reconcile.utils.ocm.base import ClusterDetails, OCMCluster, OCMVersionGate
+from reconcile.utils.ocm.base import (
+    ClusterDetails,
+    LabelContainer,
+    OCMCluster,
+    OCMVersionGate,
+)
 from reconcile.utils.ocm.clusters import discover_clusters_by_labels
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.upgrades import (
@@ -150,6 +155,7 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
                 continue
             self.process_cluster(
                 cluster=cluster.ocm_cluster,
+                enabled_gate_handlers=get_enabled_gate_handlers(cluster.labels),
                 gates=unacked_gates,
                 ocm_api=ocm_api,
                 ocm_org_id=cluster.organization_id,
@@ -159,6 +165,7 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
     def process_cluster(
         self,
         cluster: OCMCluster,
+        enabled_gate_handlers: set[str],
         gates: list[OCMVersionGate],
         ocm_api: OCMBaseClient,
         ocm_org_id: str,
@@ -168,6 +175,8 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
         Process all unacknowledged gates for a cluster.
         """
         for gate in gates:
+            if gate.label in self.handlers and gate.label not in enabled_gate_handlers:
+                continue
             success = self.handlers[gate.label].handle(
                 ocm_api=ocm_api,
                 ocm_org_id=ocm_org_id,
@@ -179,3 +188,14 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
                 create_version_agreement(ocm_api, gate.id, cluster.id)
             elif not success:
                 print(f"Failed to handle gate {gate.id} for cluster {cluster.name}")
+
+
+def get_enabled_gate_handlers(labels: LabelContainer) -> set[str]:
+    """
+    Get the set of enabled gate handlers from the labels. Default to the OCP
+    gate to keep backwards compatibility (for now).
+    """
+    handler_csv = labels.get_label_value(aus_label_key("version-gate-approvals"))
+    if not handler_csv:
+        return {ocp_gate_handler.GATE_LABEL}
+    return set(handler_csv.split(","))
