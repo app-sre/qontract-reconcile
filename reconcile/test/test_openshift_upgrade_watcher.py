@@ -8,13 +8,14 @@ import pytest
 from reconcile import openshift_upgrade_watcher as ouw
 from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.test.fixtures import Fixtures
+from reconcile.utils.models import data_default_none
 
 fxt = Fixtures("openshift_upgrade_watcher")
 
 
 def load_cluster(path: str) -> ClusterV1:
     content = fxt.get_anymarkup(path)
-    return ClusterV1(**content)
+    return ClusterV1(**data_default_none(ClusterV1, content))
 
 
 @pytest.fixture

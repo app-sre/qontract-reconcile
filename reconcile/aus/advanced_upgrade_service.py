@@ -364,6 +364,9 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     mutexes: Optional[CSV] = Field(alias=aus_label_key("mutexes"))
     sector: Optional[str] = Field(alias=aus_label_key("sector"))
     blocked_versions: Optional[CSV] = Field(alias=aus_label_key("blocked-versions"))
+    version_gate_approvals: Optional[CSV] = Field(
+        alias=aus_label_key("version-gate-approvals")
+    )
     _schedule_validator = validator("schedule", allow_reuse=True)(cron_validator)
 
     def build_labels_dict(self) -> dict[str, str]:
@@ -388,6 +391,7 @@ def build_cluster_upgrade_policy_label_set(
     mutexes: Optional[list[str]] = None,
     sector: Optional[str] = None,
     blocked_versions: Optional[list[str]] = None,
+    version_gate_approvals: Optional[list[str]] = None,
 ) -> ClusterUpgradePolicyLabelSet:
     return ClusterUpgradePolicyLabelSet(**{
         aus_label_key("workloads"): ",".join(workloads),
@@ -397,6 +401,9 @@ def build_cluster_upgrade_policy_label_set(
         aus_label_key("sector"): sector,
         aus_label_key("blocked-versions"): ",".join(blocked_versions)
         if blocked_versions
+        else None,
+        aus_label_key("version-gate-approvals"): ",".join(version_gate_approvals)
+        if version_gate_approvals
         else None,
     })
 
@@ -410,6 +417,7 @@ def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicyV1:
     policy_labelset = build_labelset(labels, ClusterUpgradePolicyLabelSet)
     return ClusterUpgradePolicyV1(
         workloads=policy_labelset.workloads,
+        versionGateApprovals=policy_labelset.version_gate_approvals,
         schedule=policy_labelset.schedule,
         conditions=ClusterUpgradePolicyConditionsV1(
             soakDays=policy_labelset.soak_days,
