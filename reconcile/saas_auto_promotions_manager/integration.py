@@ -92,6 +92,8 @@ class SaasAutoPromotionsManager:
 
 def init_external_dependencies(
     dry_run: bool,
+    env_name: Optional[str] = None,
+    app_name: Optional[str] = None,
 ) -> tuple[PromotionState, VCS, SaasFilesInventory, MergeRequestManagerV2]:
     """
     Lets initialize everything that involves calls to external dependencies:
@@ -126,7 +128,7 @@ def init_external_dependencies(
         mr_parser=mr_parser,
         renderer=Renderer(),
     )
-    saas_files = get_saas_files()
+    saas_files = get_saas_files(env_name=env_name, app_name=app_name)
     saas_inventory = SaasFilesInventory(saas_files=saas_files)
     deployment_state = PromotionState(
         state=init_state(integration=OPENSHIFT_SAAS_DEPLOY, secret_reader=secret_reader)
@@ -143,6 +145,8 @@ def init_external_dependencies(
 def run(
     dry_run: bool,
     thread_pool_size: int,
+    env_name: Optional[str] = None,
+    app_name: Optional[str] = None,
     defer: Optional[Callable] = None,
 ) -> None:
     (
@@ -150,7 +154,9 @@ def run(
         vcs,
         saas_inventory,
         merge_request_manager_v2,
-    ) = init_external_dependencies(dry_run=dry_run)
+    ) = init_external_dependencies(
+        dry_run=dry_run, env_name=env_name, app_name=app_name
+    )
     if defer:
         defer(vcs.cleanup)
 
