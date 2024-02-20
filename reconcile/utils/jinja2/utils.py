@@ -20,6 +20,7 @@ from reconcile.utils.jinja2.filters import (
     urlescape,
     urlunescape,
 )
+from reconcile.utils.oc import OCCli
 from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.secret_reader import SecretNotFound, SecretReader, SecretReaderBase
 
@@ -87,17 +88,19 @@ def lookup_github_file_content(
 def openshift_namespace_exists(
     cluster_name: str,
     namespace: str,
-    secret_reader: SecretReaderBase,
-):
+    secret_reader: Optional[SecretReaderBase],
+) -> bool:
+    if not secret_reader:
+        return False
     clusters = get_clusters_minimal(name=cluster_name)
     oc_map = init_oc_map_from_clusters(clusters, secret_reader)
-    namespace = oc_map.get(cluster_name).get(
-        "default", "Namespace", name=namespace, allow_not_found=True
-    )
-    return (
-        namespace is not None
-        and namespace.get("status", {}).get("phase", "") == "Active"
-    )
+    oc = oc_map.get(cluster_name)
+    if isinstance(oc, OCCli):
+        namespace_object = oc.get(
+            "default", "Namespace", name=namespace, allow_not_found=True
+        )
+        return namespace_object.get("status", {}).get("phase", "") == "Active"
+    return False
 
 
 def lookup_graphql_query_results(query: str, **kwargs: dict[str, Any]) -> list[Any]:
@@ -174,14 +177,13 @@ def process_jinja2_template(
         "hash_list": hash_list,
         "query": lookup_graphql_query_results,
         "url": url_makes_sense,
-        "openshift_namespace_exists": lambda c, n: vars.get("mock", {}).get(
-            "openshift_namespace_exists", None
-        )
-        if vars.get("mock", {})
-        else openshift_namespace_exists(
+        "openshift_namespace_exists": lambda c, n: openshift_namespace_exists(
             cluster_name=c, namespace=n, secret_reader=secret_reader
         ),
     })
+    if "_template_mocks" in vars:
+        for k, v in vars["_template_mocks"].items():
+            vars[k] = lambda *args, **kwargs: v
     try:
         template = compile_jinja2_template(body, extra_curly)
         r = template.render(vars)
