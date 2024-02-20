@@ -64,3 +64,14 @@ RUN microdnf upgrade -y && \
     cp /tmp/work/run-integration.py /run-integration.py
 
 CMD [ "/run-integration.py" ]
+
+FROM prod-image as fedramp-prod-image
+ENV FEDRAMP_OC_VERSION=4.12.46
+
+# FedRamp is typically on older versions of OpenShift clusters than commercial so we build a new version of
+# the prod image just replacing oc and kubectl with our own version
+RUN curl -sfL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${FEDRAMP_OC_VERSION}/openshift-client-linux.tar.gz \
+    -o oc.tar.gz && \
+    tar -zvxf oc.tar.gz && \
+    mv oc kubectl /usr/local/bin && \
+    rm oc.tar.gz README.md
