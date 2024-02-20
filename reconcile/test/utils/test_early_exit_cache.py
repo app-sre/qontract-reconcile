@@ -9,6 +9,7 @@ from pytest_mock import MockerFixture
 from reconcile.utils.early_exit_cache import (
     CacheHeadResult,
     CacheKey,
+    CacheKeyWithDigest,
     CacheStatus,
     CacheValue,
     EarlyExitCache,
@@ -29,6 +30,14 @@ DRY_RUN_CACHE_KEY = CacheKey(
     shard="",
 )
 
+DRY_RUN_CACHE_KEY_WITH_DIGEST = CacheKeyWithDigest(
+    integration=INTEGRATION_NAME,
+    integration_version=INTEGRATION_VERSION,
+    dry_run=True,
+    cache_source_digest=CACHE_SOURCE_DIGEST,
+    shard="",
+)
+
 DRY_RUN_CACHE_VALUE = CacheValue(
     payload={"k1": "v1"},
     log_output="some-log-output-1",
@@ -40,6 +49,14 @@ NO_DRY_RUN_CACHE_KEY = CacheKey(
     integration_version=INTEGRATION_VERSION,
     dry_run=False,
     cache_source=CACHE_SOURCE,
+    shard="",
+)
+
+NO_DRY_RUN_CACHE_KEY_WITH_DIGEST = CacheKeyWithDigest(
+    integration=INTEGRATION_NAME,
+    integration_version=INTEGRATION_VERSION,
+    dry_run=False,
+    cache_source_digest=CACHE_SOURCE_DIGEST,
     shard="",
 )
 
@@ -130,6 +147,76 @@ def test_cache_key_string(
         shard=shard,
     )
     assert str(cache_key) == expected
+
+
+@pytest.mark.parametrize(
+    "integration, integration_version, dry_run, cache_source, shard, expected",
+    [
+        (
+            INTEGRATION_NAME,
+            INTEGRATION_VERSION,
+            False,
+            CACHE_SOURCE,
+            "",
+            f"--integration {INTEGRATION_NAME} "
+            f"--integration-version {INTEGRATION_VERSION} "
+            "--no-dry-run "
+            f"--cache-source-digest {CACHE_SOURCE_DIGEST}",
+        ),
+        (
+            INTEGRATION_NAME,
+            INTEGRATION_VERSION,
+            False,
+            CACHE_SOURCE,
+            "shard-1",
+            f"--integration {INTEGRATION_NAME} "
+            f"--integration-version {INTEGRATION_VERSION} "
+            "--no-dry-run "
+            f"--cache-source-digest {CACHE_SOURCE_DIGEST} "
+            "--shard shard-1",
+        ),
+        (
+            INTEGRATION_NAME,
+            INTEGRATION_VERSION,
+            True,
+            CACHE_SOURCE,
+            "",
+            f"--integration {INTEGRATION_NAME} "
+            f"--integration-version {INTEGRATION_VERSION} "
+            "--dry-run "
+            f"--cache-source-digest {CACHE_SOURCE_DIGEST}",
+        ),
+        (
+            INTEGRATION_NAME,
+            INTEGRATION_VERSION,
+            True,
+            CACHE_SOURCE,
+            "shard-1",
+            f"--integration {INTEGRATION_NAME} "
+            f"--integration-version {INTEGRATION_VERSION} "
+            "--dry-run "
+            f"--cache-source-digest {CACHE_SOURCE_DIGEST} "
+            "--shard shard-1",
+        ),
+    ],
+)
+def test_cache_key_build_cli_delete_args(
+    integration: str,
+    integration_version: str,
+    dry_run: bool,
+    cache_source: Any,
+    shard: str,
+    expected: str,
+) -> None:
+    cache_key = CacheKey(
+        integration=integration,
+        integration_version=integration_version,
+        dry_run=dry_run,
+        cache_source=cache_source,
+        shard=shard,
+    )
+    cli_delete_args = cache_key.build_cli_delete_args()
+    assert cli_delete_args == expected
 
 
 @pytest.fixture
@@ -446,3 +533,17 @@ def test_early_exit_cache_head_dry_run_hit(
             call(str(DRY_RUN_CACHE_KEY)),
         ],
     )
+
+
+@pytest.mark.parametrize(
+    "cache_key_with_digest",
+    [DRY_RUN_CACHE_KEY_WITH_DIGEST, NO_DRY_RUN_CACHE_KEY_WITH_DIGEST],
+)
+def test_early_exit_cache_delete(
+    early_exit_cache: EarlyExitCache,
+    state: Any,
+    cache_key_with_digest: CacheKeyWithDigest,
+) -> None:
+    early_exit_cache.delete(cache_key_with_digest)
+
+    state.rm.assert_called_once_with(str(cache_key_with_digest))

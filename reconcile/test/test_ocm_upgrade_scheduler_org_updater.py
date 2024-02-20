@@ -3,7 +3,7 @@ import json
 import pytest
 
 from reconcile.ocm_upgrade_scheduler_org_updater import render_policy
-from reconcile.openshift_resources_base import Jinja2TemplateError
+from reconcile.utils.jinja2.utils import Jinja2TemplateError
 from reconcile.utils.ocm import (
     OCMClusterNetwork,
     OCMSpec,

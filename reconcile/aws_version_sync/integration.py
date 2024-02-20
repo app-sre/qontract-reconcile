@@ -3,11 +3,13 @@ from collections.abc import (
     Callable,
     Iterable,
 )
+from enum import Enum
 from typing import Any
 
 import semver
 from pydantic import (
     BaseModel,
+    root_validator,
     validator,
 )
 
@@ -66,6 +68,12 @@ class ExternalResourceProvisioner(BaseModel):
     path: str | None = None
 
 
+class VersionFormat(str, Enum):
+    MAJOR = "major"
+    MAJOR_MINOR = "major_minor"
+    MAJOR_MINOR_PATCH = "major_minor_patch"
+
+
 class ExternalResource(BaseModel):
     namespace_file: str | None = None
     provider: str = "aws"
@@ -74,6 +82,8 @@ class ExternalResource(BaseModel):
     resource_identifier: str
     resource_engine: str
     resource_engine_version: semver.VersionInfo
+    # if None, it'll be set via root_validator
+    resource_engine_version_format: VersionFormat | None = None
     # used to map AWS cache name to resource_identifier
     redis_replication_group_id: str | None = None
 
@@ -97,6 +107,46 @@ class ExternalResource(BaseModel):
         if isinstance(v, semver.VersionInfo):
             return v
         return parse_semver(v, optional_minor_and_patch=True)
+
+    @root_validator(pre=True)
+    def set_resource_engine_version_format(cls, values: dict) -> dict:
+        resource_engine_version, resource_engine_version_format = (
+            values.get("resource_engine_version"),
+            values.get("resource_engine_version_format"),
+        )
+        if not resource_engine_version:
+            # make mypy happy
+            raise ValueError("resource_engine_version is required")
+
+        if resource_engine_version_format is None:
+            match resource_engine_version.count("."):
+                case 0:
+                    values["resource_engine_version_format"] = VersionFormat.MAJOR
+                case 1:
+                    values["resource_engine_version_format"] = VersionFormat.MAJOR_MINOR
+                case 2:
+                    values["resource_engine_version_format"] = (
+                        VersionFormat.MAJOR_MINOR_PATCH
+                    )
+                case _:
+                    raise ValueError(
+                        f"Invalid version format: {resource_engine_version}"
+                    )
+        return values
+
+    @property
+    def resource_engine_version_string(self) -> str:
+        match self.resource_engine_version_format:
+            case VersionFormat.MAJOR:
+                return f"{self.resource_engine_version.major}"
+            case VersionFormat.MAJOR_MINOR:
+                return f"{self.resource_engine_version.major}.{self.resource_engine_version.minor}"
+            case VersionFormat.MAJOR_MINOR_PATCH:
+                return f"{self.resource_engine_version.major}.{self.resource_engine_version.minor}.{self.resource_engine_version.patch}"
+            case _:
+                raise ValueError(
+                    f"Invalid version format: {self.resource_engine_version_format}"
+                )
 
 
 AwsExternalResources = list[ExternalResource]
@@ -319,7 +369,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                 resource_provider=app_interface_resource.resource_provider,
                 resource_identifier=app_interface_resource.resource_identifier,
                 resource_engine=app_interface_resource.resource_engine,
-                resource_engine_version=str(aws_resource.resource_engine_version),
+                resource_engine_version=aws_resource.resource_engine_version_string,
             )
 
     @defer

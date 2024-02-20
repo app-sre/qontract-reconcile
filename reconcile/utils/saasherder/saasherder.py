@@ -2031,7 +2031,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     @staticmethod
     def resolve_templated_parameters(saas_files: Iterable[SaasFile]) -> None:
         """Resolve templated target parameters in saas files."""
-        from reconcile.openshift_resources_base import (  # noqa: PLC0415 - # avoid circular import
+        from reconcile.utils.jinja2.utils import (  # noqa: PLC0415 - # avoid circular import
             compile_jinja2_template,
         )
 
