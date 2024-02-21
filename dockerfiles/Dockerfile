@@ -48,7 +48,6 @@ FROM quay.io/app-sre/qontract-reconcile-base:0.11.1 as prod-image
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}
-
 # Cache mount. We don't need te wheel files in the final image.
 # This COPY will create a layer with all the wheel files to install the app.
 # This layer is not needed in the final image, so we can leverage a cache mount
@@ -66,12 +65,9 @@ RUN microdnf upgrade -y && \
 CMD [ "/run-integration.py" ]
 
 FROM prod-image as fedramp-prod-image
-ENV FEDRAMP_OC_VERSION=4.12.46
+ENV OC_VERSION=4.10.15
 
 # FedRamp is typically on older versions of OpenShift clusters than commercial so we build a new version of
 # the prod image just replacing oc and kubectl with our own version
-RUN curl -sfL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${FEDRAMP_OC_VERSION}/openshift-client-linux.tar.gz \
-    -o oc.tar.gz && \
-    tar -zvxf oc.tar.gz && \
-    mv oc kubectl /usr/local/bin && \
-    rm oc.tar.gz README.md
+COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.1.0 \
+     /work/${OC_VERSION}/ /usr/local/bin/
