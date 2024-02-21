@@ -87,7 +87,13 @@ query Clusters($name: String) {
         availability_zones
         oidc_endpoint_url
         account {
+          name
           uid
+          terraformUsername
+          automationToken {
+            ... VaultSecret
+          }
+          resourcesDefaultRegion
           rosa {
             ocm_environments {
               ocm {

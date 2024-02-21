@@ -52,6 +52,7 @@ class AUSClusterUpgradePolicyLabelSource(LabelSource):
             mutexes=policy.conditions.mutexes,
             sector=policy.conditions.sector,
             blocked_versions=policy.conditions.blocked_versions,
+            version_gate_approvals=policy.version_gate_approvals,
         ).build_labels_dict()
 
 

@@ -62,6 +62,7 @@ fragment AWSVPC on AWSVPC_v1 {
 fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
   workloads
   schedule
+  versionGateApprovals
   conditions {
     mutexes
     soakDays
@@ -186,7 +187,13 @@ query Clusters($name: String) {
         availability_zones
         oidc_endpoint_url
         account {
+          name
           uid
+          terraformUsername
+          automationToken {
+            ... VaultSecret
+          }
+          resourcesDefaultRegion
           rosa {
             ocm_environments {
               ocm {
@@ -473,7 +480,11 @@ class RosaOcmSpecV1(ConfiguredBaseModel):
 
 
 class ClusterSpecROSAV1_AWSAccountV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
+    terraform_username: Optional[str] = Field(..., alias="terraformUsername")
+    automation_token: VaultSecret = Field(..., alias="automationToken")
+    resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
     rosa: Optional[RosaOcmSpecV1] = Field(..., alias="rosa")
 
 
