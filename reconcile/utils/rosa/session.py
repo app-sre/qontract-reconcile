@@ -1,3 +1,4 @@
+import logging
 import tempfile
 from typing import Optional
 
@@ -22,6 +23,7 @@ class RosaSession:
         self,
         aws_account_id: str,
         aws_region: str,
+        aws_iam_role: str,
         ocm_org_id: str,
         ocm_api: OCMBaseClient,
         job_controller: K8sJobController,
@@ -30,6 +32,7 @@ class RosaSession:
     ):
         self.aws_account_id = aws_account_id
         self.aws_region = aws_region
+        self.aws_iam_role = aws_iam_role
         self.ocm_org_id = ocm_org_id
         self.ocm_api = ocm_api
         self.job_controller = job_controller
@@ -44,10 +47,11 @@ class RosaSession:
     ) -> RosaJob:
         return RosaJob(
             aws_account_id=self.aws_account_id,
-            ocm_org_id=self.ocm_org_id,
-            cmd=self.wrap_cli_command(cmd),
+            aws_iam_role=self.aws_iam_role,
             aws_region=self.aws_region,
+            ocm_org_id=self.ocm_org_id,
             ocm_token=self.ocm_api._access_token,
+            cmd=cmd,
             image=image or self.image,
             extra_annotations=annotations or {},
             service_account=self.service_account,
@@ -86,20 +90,23 @@ class RosaSession:
         self, role_prefix: str, minor_version: str, channel_group: str, dry_run: bool
     ) -> None:
         if not dry_run:
-            self.cli_execute(
+            result = self.cli_execute(
                 f"rosa upgrade account-roles --prefix {role_prefix} --version {minor_version} --channel-group {channel_group} -y -m=auto"
             )
+            result.write_logs_to_logger(logging.info)
 
     def upgrade_operator_roles(
         self,
         cluster_id: str,
-        role_prefix: str,
-        minor_version: str,
-        channel_group: str,
         dry_run: bool,
     ) -> None:
+        """
+        Upgrades the operator roles of a cluster to match the latest
+        policy versions available for the cluster.
+        """
         if not dry_run:
-            self.cli_execute(
-                cmd=f"rosa upgrade operator-roles --cluster {cluster_id} --prefix {role_prefix} --version {minor_version}.z --channel-group {channel_group} -y -m=auto",
+            result = self.cli_execute(
+                cmd=f"rosa upgrade operator-roles --cluster {cluster_id} -y -m=auto",
                 annotations={"qontract.rosa.cluster_id": cluster_id},
             )
+            result.write_logs_to_logger(logging.info)

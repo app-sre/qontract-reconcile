@@ -1,5 +1,6 @@
 import itertools
 import os
+import textwrap
 from typing import Any, Callable, Optional
 
 from kubernetes.client import (
@@ -101,6 +102,7 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
 
     aws_account_id: str
     aws_region: str
+    aws_iam_role: str
     ocm_org_id: str
     ocm_token: str
     cmd: str
@@ -133,7 +135,23 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
     def secret_data(self) -> dict[str, str]:
         return {"OCM_TOKEN": self.ocm_token}
 
+    def assume_role_arn(self) -> str:
+        return f"arn:aws:iam::{self.aws_account_id}:role/{self.aws_iam_role}"
+
+    def assume_role_profile(self) -> str:
+        return textwrap.dedent(
+            f"""\
+            [default]
+            source_profile = jump-role
+            role_arn = {self.assume_role_arn()}
+            role_session_name = rosa-automation
+            """
+        )
+
     def job_spec(self) -> V1JobSpec:
+        # this command formats the output of `aws sts assume-role` into an AWS credentials file
+        prepare_aws_creds_cmd = f'cp $AWS_SHARED_CREDENTIALS_FILE /.config/aws-credentials ; echo -e "\n{self.assume_role_profile()}" >> /.config/aws-credentials'
+
         return V1JobSpec(
             backoff_limit=1,
             ttl_seconds_after_finished=3600,
@@ -142,16 +160,44 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
                     annotations=self.annotations(), labels=self.labels()
                 ),
                 spec=V1PodSpec(
-                    containers=[
+                    init_containers=[
+                        # prepare the AWS credentials file to assume role into the ROSA clusters AWS account
                         V1Container(
-                            name="rosa-cli",
+                            name="prepare-aws-creds",
                             image=self.image,
-                            command=["/bin/bash", "-c"],
-                            args=[self.cmd],
+                            command=["/bin/bash"],
+                            args=["-c", prepare_aws_creds_cmd],
                             env=[
                                 V1EnvVar(
                                     name="AWS_SHARED_CREDENTIALS_FILE",
-                                    value="/.aws/credentials",
+                                    value="/jump-role/credentials",
+                                ),
+                                V1EnvVar(
+                                    name="HOME",
+                                    value="/tmp",
+                                ),
+                            ],
+                            volume_mounts=[
+                                V1VolumeMount(
+                                    name="aws-credentials",
+                                    mount_path="/jump-role",
+                                ),
+                                V1VolumeMount(
+                                    name="workdir",
+                                    mount_path="/.config",
+                                ),
+                            ],
+                        ),
+                        # call `rosa login``
+                        V1Container(
+                            name="rosa-login",
+                            image=self.image,
+                            command=["/bin/bash", "-c"],
+                            args=["rosa login"],
+                            env=[
+                                V1EnvVar(
+                                    name="AWS_SHARED_CREDENTIALS_FILE",
+                                    value="/.config/aws-credentials",
                                 ),
                                 V1EnvVar(
                                     name="AWS_REGION",
@@ -161,9 +207,36 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
                             + self.secret_data_to_env_vars_secret_refs(),
                             volume_mounts=[
                                 V1VolumeMount(
-                                    name="aws-credentials",
-                                    mount_path="/.aws",
+                                    name="workdir",
+                                    mount_path="/.config",
                                 ),
+                                V1VolumeMount(
+                                    name="bound-sa-token",
+                                    mount_path="/var/run/secrets/openshift/serviceaccount",
+                                    read_only=True,
+                                ),
+                            ],
+                        ),
+                    ],
+                    containers=[
+                        # the actual job... do whatever `cmd` defines
+                        V1Container(
+                            name="rosa-cli",
+                            image=self.image,
+                            command=["/bin/bash", "-c"],
+                            args=[self.cmd],
+                            env=[
+                                V1EnvVar(
+                                    name="AWS_SHARED_CREDENTIALS_FILE",
+                                    value="/.config/aws-credentials",
+                                ),
+                                V1EnvVar(
+                                    name="AWS_REGION",
+                                    value=self.aws_region,
+                                ),
+                            ]
+                            + self.secret_data_to_env_vars_secret_refs(),
+                            volume_mounts=[
                                 V1VolumeMount(
                                     name="workdir",
                                     mount_path="/.config",
