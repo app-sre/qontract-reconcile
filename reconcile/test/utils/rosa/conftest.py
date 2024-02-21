@@ -104,6 +104,7 @@ def rosa_session(
     return RosaSession(
         aws_account_id="123",
         aws_region="us-east-1",
+        aws_iam_role="role",
         ocm_org_id="org-id",
         ocm_api=ocm_api,
         job_controller=job_controller,
@@ -129,6 +130,7 @@ def rosa_job(rosa_cli_image: str) -> RosaJob:
     return RosaJob(
         aws_account_id="123",
         aws_region="us-east-1",
+        aws_iam_role="role",
         ocm_org_id="org_id",
         ocm_token="1234567890",
         cmd="rosa whoami",

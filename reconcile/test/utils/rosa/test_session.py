@@ -45,6 +45,6 @@ def test_assemble_job_image_override(
 ) -> None:
     cmd = "rosa whoami"
     job = rosa_session.assemble_job(cmd=cmd, image=image_overwrite)
-    assert job.cmd == rosa_session.wrap_cli_command(cmd)
+    assert job.cmd == cmd
     assert job.ocm_token
     assert job.image == expected_image

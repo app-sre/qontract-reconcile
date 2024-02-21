@@ -35,3 +35,8 @@ def sort_versions(versions: Iterable[str]) -> list[str]:
 
 def is_version_bumped(current_version: str, previous_version: str) -> bool:
     return parse_semver(current_version) > parse_semver(previous_version)
+
+
+def get_version_prefix(version: str) -> str:
+    semver = parse_semver(version)
+    return f"{semver.major}.{semver.minor}"
