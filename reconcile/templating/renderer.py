@@ -87,13 +87,17 @@ def unpack_static_variables(
 
 def unpack_dynamic_variables(
     collection_variables: TemplateCollectionVariablesV1, gql: gql.GqlApi
-) -> dict:
+) -> dict[str, list]:
     if not collection_variables.dynamic:
         return {}
-    return {
-        dv.name: list(gql.query(dv.query).values())
-        for dv in collection_variables.dynamic or []
+    return_dict: dict[str, list] = {
+        dv.name: [] for dv in collection_variables.dynamic or []
     }
+    for dv in collection_variables.dynamic or []:
+        for rname, rdata in list(gql.query(dv.query).items()):
+            if rname == dv.name:
+                return_dict[dv.name] = rdata
+    return return_dict
 
 
 class TemplateRendererIntegrationParams(PydanticRunParams):
@@ -137,7 +141,9 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             output = r.render_output()
 
             if current_str != output:
-                print(f"diff in template {template.name} for target_path {target_path}")
+                logging.info(
+                    f"diff for template {template.name} in target path {target_path}"
+                )
                 return TemplateOutput(
                     path=target_path,
                     content=output,
