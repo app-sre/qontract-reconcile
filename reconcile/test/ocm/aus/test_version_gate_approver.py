@@ -235,14 +235,14 @@ class MockGateHandler(GateHandler):
 
 
 @pytest.mark.parametrize(
-    "gate_handler_enabled, gate_handler_result, gate_acked",
+    "gate_handler_enabled, gate_handler_result, expected_call_count",
     [
         # the gate handler was successful, so we expect an agreement creation
-        (True, True, True),
+        (True, True, 1),
         # the gate handler was not successful, so we expect no agreement creation
-        (True, False, False),
+        (True, False, 0),
         # the gate handler was not enabled, so we don't expect a call to the handler
-        (False, True, False),
+        (False, True, 0),
     ],
 )
 def test_version_gate_approver_process_cluster(
@@ -252,7 +252,7 @@ def test_version_gate_approver_process_cluster(
     mocker: MockerFixture,
     gate_handler_enabled: bool,
     gate_handler_result: bool,
-    gate_acked: bool,
+    expected_call_count: int,
 ) -> None:
     create_version_agreement_mock = mocker.patch.object(
         version_gate_approver, "create_version_agreement"
@@ -279,10 +279,7 @@ def test_version_gate_approver_process_cluster(
         dry_run=False,
     )
 
-    if gate_acked:
-        create_version_agreement_mock.assert_called_once()
-    else:
-        create_version_agreement_mock.assert_not_called()
+    assert create_version_agreement_mock.call_count == expected_call_count
 
 
 @pytest.mark.parametrize(
