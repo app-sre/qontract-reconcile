@@ -244,7 +244,7 @@ class NoopGateHandler(GateHandler):
     """
 
     @staticmethod
-    def responsible_for(_: OCMCluster) -> bool:
+    def gate_applicable_to_cluster(_: OCMCluster) -> bool:
         return True
 
     def handle(

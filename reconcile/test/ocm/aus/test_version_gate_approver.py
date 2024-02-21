@@ -218,7 +218,7 @@ class MockGateHandler(GateHandler):
         self.handler_failure = handler_failure
 
     @staticmethod
-    def responsible_for(cluster: OCMCluster) -> bool:
+    def gate_applicable_to_cluster(cluster: OCMCluster) -> bool:
         return True
 
     def handle(

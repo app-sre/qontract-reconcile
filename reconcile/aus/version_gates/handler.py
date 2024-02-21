@@ -11,9 +11,9 @@ class GateHandler(ABC):
 
     @staticmethod
     @abstractmethod
-    def responsible_for(cluster: OCMCluster) -> bool:
+    def gate_applicable_to_cluster(cluster: OCMCluster) -> bool:
         """
-        Check if the handler is responsible for the given cluster.
+        Check if the gate represented by this handler is applicable for the given cluster.
         """
         ...
 

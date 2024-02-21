@@ -726,7 +726,7 @@ def is_gate_applicable_to_cluster(gate: OCMVersionGate, cluster: OCMCluster) -> 
     # of cluster
     handler = HANDLERS.get(gate.label)
     if handler:
-        return handler.responsible_for(cluster)
+        return handler.gate_applicable_to_cluster(cluster)
     return False
 
 

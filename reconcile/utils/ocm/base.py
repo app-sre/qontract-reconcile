@@ -255,6 +255,9 @@ class OCMCluster(BaseModel):
     def is_osd(self) -> bool:
         return self.product.id == PRODUCT_ID_OSD
 
+    def is_rosa(self) -> bool:
+        return self.product.id == PRODUCT_ID_ROSA
+
     def is_rosa_classic(self) -> bool:
         return self.product.id == PRODUCT_ID_ROSA and not self.hypershift.enabled
 

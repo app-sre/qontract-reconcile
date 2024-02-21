@@ -25,7 +25,13 @@ class STSGateHandler(GateHandler):
         self.rosa_job_service_account = rosa_job_service_account
 
     @staticmethod
-    def responsible_for(cluster: OCMCluster) -> bool:
+    def gate_applicable_to_cluster(cluster: OCMCluster) -> bool:
+        """
+        The STS Gate is applicable to all clusters with STS enabled.
+        This could potentially also be OSD STS clusters. While this handler
+        does not handle OSD clusters as of now, it is still important that
+        we report the STS gate to be applicable to OSD STS clusters.
+        """
         return cluster.is_sts()
 
     def handle(
@@ -44,10 +50,19 @@ class STSGateHandler(GateHandler):
         ):
             # checked already but mypy :/
             return False
+
         if cluster.is_rosa_hypershift():
             # thanks to hypershift managed policies, there is nothing to do for us here
             # returning True will ack the version gate
             return True
+        if not cluster.is_rosa_classic():
+            # we manage roels only for rosa classic clusters
+            # returning here will prevent OSD STS clusters to be handled right now
+            logging.error(
+                f"Cluster {cluster.id} is not a ROSA cluster. "
+                "STS version gates are only handled for ROSA classic clusters."
+            )
+            return False
 
         rosa = RosaSession(
             aws_account_id=cluster.aws.aws_account_id,
