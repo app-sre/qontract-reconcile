@@ -108,9 +108,9 @@ def main(ai_path: str, template_path: str, run_validator: bool) -> None:
 
     templates_to_validate = {}
     for test in template.template_test:
-        diffs.extend(TemplateValidatorIntegration.validate_template(template, test))
+        diffs.extend(TemplateValidatorIntegration.validate_template(template, test, None))
 
-        renderer = TemplateValidatorIntegration._create_renderer(template, test)
+        renderer = TemplateValidatorIntegration._create_renderer(template, test, None)
         if renderer.render_condition():
             output = renderer.render_output()
             path = renderer.render_target_path()

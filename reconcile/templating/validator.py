@@ -17,6 +17,7 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "template-validator"
 
@@ -41,7 +42,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def _create_renderer(
-        template: TemplateV1, template_test: TemplateTestV1
+        template: TemplateV1, template_test: TemplateTestV1, secret_reader: SecretReaderBase
     ) -> Renderer:
         return create_renderer(
             template,
@@ -51,15 +52,16 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                     template_test.current or "", Loader=yaml.RoundTripLoader
                 ),
             ),
+            secret_reader=secret_reader,
         )
 
     @staticmethod
     def validate_template(
-        template: TemplateV1, template_test: TemplateTestV1
+        template: TemplateV1, template_test: TemplateTestV1, secret_reader: SecretReaderBase
     ) -> list[TemplateDiff]:
         diffs: list[TemplateDiff] = []
 
-        r = TemplateValidatorIntegration._create_renderer(template, template_test)
+        r = TemplateValidatorIntegration._create_renderer(template, template_test, secret_reader=secret_reader)
 
         # Check target path
         if template_test.expected_target_path:
