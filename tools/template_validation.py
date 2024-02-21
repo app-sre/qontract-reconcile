@@ -1,5 +1,6 @@
 import json
 import os.path
+import sys
 from pprint import pprint
 
 import click
@@ -93,6 +94,7 @@ def print_test_diffs(diffs: list[TemplateDiff]) -> None:
     is_flag=True,
 )
 def main(ai_path: str, template_path: str, run_validator: bool) -> None:
+    okay = True
     templateRaw = load_clean_yaml(ai_path, template_path)
 
     tests = []
@@ -104,11 +106,14 @@ def main(ai_path: str, template_path: str, run_validator: bool) -> None:
 
     templateRaw["templateTest"] = tests
     template: TemplateV1 = TemplateV1(**data_default_none(TemplateV1, templateRaw))
-    diffs: list[TemplateDiff] = []
 
     templates_to_validate = {}
     for test in template.template_test:
-        diffs.extend(TemplateValidatorIntegration.validate_template(template, test, None))
+        diffs: list[TemplateDiff] = []
+        print("Running tests:", test.name)
+        diffs.extend(
+            TemplateValidatorIntegration.validate_template(template, test, None)
+        )
 
         renderer = TemplateValidatorIntegration._create_renderer(template, test, None)
         if renderer.render_condition():
@@ -118,19 +123,28 @@ def main(ai_path: str, template_path: str, run_validator: bool) -> None:
                 linter.run(output, YamlLintConfig(file=f"{ai_path}/.yamllint"), "")
             )
             if lint_problems:
+                okay = False
                 print_lint_problems(lint_problems)
             if run_validator:
                 templates_to_validate[path] = output
 
-    if run_validator:
-        validation_errors = validate_template(
-            f"{ai_path}/data.json", templates_to_validate
-        )
-        if validation_errors:
-            print_validation_errors(validation_errors)
+        if run_validator:
+            validation_errors = validate_template(
+                f"{ai_path}/data.json", templates_to_validate
+            )
+            if validation_errors:
+                okay = False
+                print_validation_errors(validation_errors)
 
-    if diffs:
-        print_test_diffs(diffs)
+        if diffs:
+            okay = False
+            print_test_diffs(diffs)
+
+    if okay:
+        print("... passed")
+        sys.exit(0)
+    print("... failed")
+    sys.exit(1)
 
 
 if __name__ == "__main__":
