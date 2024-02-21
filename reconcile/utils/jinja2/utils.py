@@ -157,6 +157,9 @@ def process_jinja2_template(
         "query": lookup_graphql_query_results,
         "url": url_makes_sense,
     })
+    if "_template_mocks" in vars:
+        for k, v in vars["_template_mocks"].items():
+            vars[k] = lambda *args, **kwargs: v
     try:
         template = compile_jinja2_template(body, extra_curly)
         r = template.render(vars)

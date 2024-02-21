@@ -13,10 +13,12 @@ from reconcile.templating.renderer import (
     LocalFilePersistence,
     TemplateOutput,
     TemplateRendererIntegration,
+    TemplateRendererIntegrationParams,
     join_path,
     unpack_dynamic_variables,
     unpack_static_variables,
 )
+from reconcile.utils.secret_reader import SecretReader
 
 
 @pytest.fixture
@@ -48,6 +50,13 @@ def local_file_persistence(tmp_path: Path) -> LocalFilePersistence:
 @pytest.fixture
 def ruaml_instance() -> yaml.YAML:
     return yaml.YAML()
+
+
+@pytest.fixture
+def template_renderer_integration(mocker: MockerFixture) -> TemplateRendererIntegration:
+    return mocker.patch(
+        "reconcile.templating.renderer.TemplateRendererIntegration", autospec=True
+    )
 
 
 def test_unpack_static_variables(
@@ -95,8 +104,11 @@ def test_process_template_simple(
     template_simple: TemplateV1,
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
+    secret_reader: SecretReader,
 ) -> None:
-    output = TemplateRendererIntegration.process_template(
+    t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
+    t._secret_reader = secret_reader
+    output = t.process_template(
         template_simple, {}, local_file_persistence, ruaml_instance
     )
     assert output
@@ -108,9 +120,12 @@ def test_process_template_overwrite(
     template_simple: TemplateV1,
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
+    secret_reader: SecretReader,
 ) -> None:
     local_file_persistence.write([TemplateOutput(path="/target_path", content="bar")])
-    output = TemplateRendererIntegration.process_template(
+    t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
+    t._secret_reader = secret_reader
+    output = t.process_template(
         template_simple, {}, local_file_persistence, ruaml_instance
     )
     assert output
@@ -122,11 +137,14 @@ def test_process_template_match(
     template_simple: TemplateV1,
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
+    secret_reader: SecretReader,
 ) -> None:
     local_file_persistence.write([
         TemplateOutput(path="/target_path", content="template")
     ])
-    output = TemplateRendererIntegration.process_template(
+    t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
+    t._secret_reader = secret_reader
+    output = t.process_template(
         template_simple, {}, local_file_persistence, ruaml_instance
     )
     assert output is None
