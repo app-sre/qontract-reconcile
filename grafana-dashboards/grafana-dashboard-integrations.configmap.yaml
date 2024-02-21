@@ -91,12 +91,56 @@ data:
           "type": "table-old"
         },
         {
-          "columns": [],
           "datasource": {
+            "type": "prometheus",
             "uid": "$datasource"
           },
           "description": "",
-          "fontSize": "100%",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "displayMode": "auto",
+                "inspect": false
+              },
+              "decimals": 2,
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "displayName",
+                    "value": "Time"
+                  },
+                  {
+                    "id": "unit",
+                    "value": "time: YYYY-MM-DD HH:mm:ss"
+                  },
+                  {
+                    "id": "custom.align"
+                  }
+                ]
+              }
+            ]
+          },
           "gridPos": {
             "h": 7,
             "w": 12,
@@ -106,41 +150,24 @@ data:
           "id": 29,
           "interval": "",
           "links": [],
-          "scroll": true,
-          "showHeader": true,
-          "sort": {
-            "col": 0,
-            "desc": true
-          },
-          "styles": [
-            {
-              "alias": "Time",
-              "align": "auto",
-              "dateFormat": "YYYY-MM-DD HH:mm:ss",
-              "pattern": "Time",
-              "type": "date"
-            },
-            {
-              "alias": "",
-              "align": "auto",
-              "colors": [
-                "rgba(245, 54, 54, 0.9)",
-                "rgba(237, 129, 40, 0.89)",
-                "rgba(50, 172, 45, 0.97)"
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": [
+                "sum"
               ],
-              "decimals": 2,
-              "pattern": "/.*/",
-              "thresholds": [],
-              "type": "number",
-              "unit": "short"
-            }
-          ],
+              "show": false
+            },
+            "showHeader": true
+          },
+          "pluginVersion": "9.3.8",
           "targets": [
             {
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "sort(sum(increase(qontract_reconcile_run_status_total{status!~\"0|3|-9\"}[10m])) by (status, integration) > 0)",
+              "editorMode": "code",
+              "expr": "sort(sum(increase(qontract_reconcile_last_run_status[10m])) by (integration, shard_id) > 0)",
               "format": "table",
               "instant": true,
               "interval": "",
@@ -150,8 +177,15 @@ data:
             }
           ],
           "title": "Errors in the last 10m",
-          "transform": "table",
-          "type": "table-old"
+          "transformations": [
+            {
+              "id": "merge",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "table"
         },
         {
           "datasource": {
@@ -592,94 +626,98 @@ data:
           }
         },
         {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$datasource"
           },
           "description": "",
           "fieldConfig": {
             "defaults": {
-              "links": []
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineStyle": {
+                  "fill": "solid"
+                },
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "bool_yes_no"
             },
             "overrides": []
           },
-          "fill": 1,
-          "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 8,
             "x": 16,
             "y": 15
           },
-          "hiddenSeries": false,
           "id": 28,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
           "links": [],
-          "nullPointMode": "null",
           "options": {
-            "alertThreshold": true
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
           },
-          "percentage": false,
           "pluginVersion": "9.3.8",
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
           "targets": [
             {
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "sum(increase(qontract_reconcile_run_status_total{status!~\"0|3|-9\"}[5m])) by (integration, status)",
+              "editorMode": "code",
+              "expr": "sum(qontract_reconcile_last_run_status) by (integration, shard_id) > 0",
               "instant": false,
               "refId": "A"
             }
           ],
-          "thresholds": [],
-          "timeRegions": [],
           "title": "Integration Errors",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "mode": "time",
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "logBase": 1,
-              "show": true
-            },
-            {
-              "format": "short",
-              "logBase": 1,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false
-          }
+          "type": "timeseries"
         },
         {
           "datasource": {
