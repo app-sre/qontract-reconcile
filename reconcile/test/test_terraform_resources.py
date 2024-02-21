@@ -370,12 +370,16 @@ def test_run_with_extended_early_exit_run_enabled(
         log_cached_log_output=True,
         defer=defer,
     )
+    expected_cache_source = {
+        "terraform_configurations": mocks["ts"].terraform_configurations.return_value,
+        "resource_spec_inventory": mocks["ts"].resource_spec_inventory,
+    }
 
     mocks["extended_early_exit_run"].assert_called_once_with(
         integration=integ.QONTRACT_INTEGRATION,
         integration_version=integ.QONTRACT_INTEGRATION_VERSION,
         dry_run=True,
-        cache_source=mocks["ts"].terraform_configurations.return_value,
+        cache_source=expected_cache_source,
         shard="a",
         ttl_seconds=60,
         logger=mocks["logging"].getLogger.return_value,

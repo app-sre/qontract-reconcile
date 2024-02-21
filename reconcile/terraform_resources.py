@@ -67,7 +67,7 @@ from reconcile.utils.vault import (
 )
 
 QONTRACT_INTEGRATION = "terraform_resources"
-QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 3)
 QONTRACT_TF_PREFIX = "qrtf"
 
 
@@ -350,6 +350,11 @@ class MultipleAccountNamesInDryRunException(Exception):
     pass
 
 
+class CacheSource(TypedDict):
+    terraform_configurations: dict[str, str]
+    resource_spec_inventory: ExternalResourceSpecInventory
+
+
 @defer
 def run(
     dry_run: bool,
@@ -414,11 +419,15 @@ def run(
         "terraform-resources-extended-early-exit",
         default=False,
     ):
+        cache_source = CacheSource(
+            terraform_configurations=ts.terraform_configurations(),
+            resource_spec_inventory=ts.resource_spec_inventory,
+        )
         extended_early_exit_run(
             integration=QONTRACT_INTEGRATION,
             integration_version=QONTRACT_INTEGRATION_VERSION,
             dry_run=dry_run,
-            cache_source=ts.terraform_configurations(),
+            cache_source=cache_source,
             shard="_".join(account_name) if account_name else "",
             ttl_seconds=extended_early_exit_cache_ttl_seconds,
             logger=logging.getLogger(),
