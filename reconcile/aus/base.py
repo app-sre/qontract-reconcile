@@ -44,7 +44,7 @@ from reconcile.aus.models import (
     OrganizationUpgradeSpec,
     Sector,
 )
-from reconcile.aus.version_gates import is_gate_applicable_to_cluster
+from reconcile.aus.version_gates import HANDLERS
 from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
     query as aus_organizations_query,
 )
@@ -704,6 +704,30 @@ def gates_for_minor_version(
     target_version_prefix: str,
 ) -> list[OCMVersionGate]:
     return [g for g in gates if g.version_raw_id_prefix == target_version_prefix]
+
+
+def is_gate_applicable_to_cluster(gate: OCMVersionGate, cluster: OCMCluster) -> bool:
+    # check that the cluster has an upgrade path that crosses the gate version
+    minor_version_upgrade_paths = {
+        get_version_prefix(version) for version in cluster.available_upgrades()
+    }
+    if gate.version_raw_id_prefix not in minor_version_upgrade_paths:
+        return False
+
+    # consider only gates after the clusters current minor version
+    # OCM onls supports creating gate agreements for later minor versions than the
+    # current cluster version
+    if not semver.match(
+        f"{cluster.minor_version()}.0", f"<{gate.version_raw_id_prefix}.0"
+    ):
+        return False
+
+    # check the handler for the gate type if it is responsible for this kind
+    # of cluster
+    handler = HANDLERS.get(gate.label)
+    if handler:
+        return handler.responsible_for(cluster)
+    return False
 
 
 def gates_to_agree(
