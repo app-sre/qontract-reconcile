@@ -156,7 +156,7 @@ class OCMClusterAWSSettings(BaseModel):
 
     @property
     def account_roles(self) -> list[str]:
-        if not self.sts:
+        if not self.sts or not self.sts.enabled:
             return []
         roles = []
         if self.sts.role_arn:
@@ -169,11 +169,11 @@ class OCMClusterAWSSettings(BaseModel):
 
     @property
     def account_role_prefix(self) -> Optional[str]:
-        INSTALLER_ROLE_SUFFIX = "-Installer-Role"
-        for role in self.account_roles:
-            role_name = get_role_name_from_arn(role)
-            if role_name.endswith(INSTALLER_ROLE_SUFFIX):
-                return role_name[: -len(INSTALLER_ROLE_SUFFIX)]
+        INSTALLER_ROLE_BASE_NAME = "-Installer-Role"
+        installer_role_arn = self.sts.role_arn if self.sts else None
+        if installer_role_arn and installer_role_arn.endswith(INSTALLER_ROLE_BASE_NAME):
+            installer_role_name = get_role_name_from_arn(installer_role_arn)
+            return installer_role_name.removesuffix(INSTALLER_ROLE_BASE_NAME)
         return None
 
     @property
