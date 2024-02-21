@@ -291,6 +291,7 @@ data:
         },
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$datasource"
           },
           "description": "",
@@ -374,6 +375,7 @@ data:
               "datasource": {
                 "uid": "$datasource"
               },
+              "editorMode": "code",
               "expr": "histogram_quantile(0.50, sum by (integration, le) (qontract_reconcile_function_elapsed_seconds_since_bundle_commit_bucket{name=~\"reconcile\\\\.utils\\\\.oc\\\\.OC[^.]*\\\\.(apply|replace|delete)\",integration!~\"terraform-resources|sql-query\"}))",
               "instant": false,
               "interval": "",
@@ -943,7 +945,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(qontract_reconcile_extended_early_exit_applied_count{integration=\"terraform-resources\", cache_status=\"EXPIRED\"}) by (integration, shard) > 0",
+              "expr": "sum(qontract_reconcile_extended_early_exit_applied_count{cache_status=\"EXPIRED\"}) by (integration, shard) > 0",
               "instant": false,
               "range": true,
               "refId": "A"
