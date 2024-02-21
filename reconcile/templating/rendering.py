@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Protocol
 
-from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel
 from ruamel import yaml
 
+from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.jsonpath import parse_jsonpath
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class TemplateData(BaseModel):
@@ -34,17 +35,24 @@ class Template(Protocol):
 
 
 class Renderer(ABC):
-    def __init__(self, template: Template, data: TemplateData):
+    def __init__(
+        self,
+        template: Template,
+        data: TemplateData,
+        secret_reader: SecretReaderBase,
+    ):
         self.template = template
         self.data = data
-        self.jinja_env = SandboxedEnvironment()
+        self.secret_reader = secret_reader
 
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
         return {**self.data.variables, "current": self.data.current}
 
     def _render_template(self, template: str) -> str:
-        return self.jinja_env.from_string(template).render(
-            **self._jinja2_render_kwargs()
+        return process_jinja2_template(
+            body=template,
+            vars=self._jinja2_render_kwargs(),
+            secret_reader=self.secret_reader,
         )
 
     @abstractmethod
@@ -126,7 +134,15 @@ class PatchRenderer(Renderer):
         return yaml.dump(self.data.current, width=4096, Dumper=yaml.RoundTripDumper)
 
 
-def create_renderer(template: Template, data: TemplateData) -> Renderer:
+def create_renderer(
+    template: Template,
+    data: TemplateData,
+    secret_reader: SecretReaderBase,
+) -> Renderer:
     if template.patch:
-        return PatchRenderer(template=template, data=data)
-    return FullRenderer(template=template, data=data)
+        return PatchRenderer(template=template, data=data, secret_reader=secret_reader)
+    return FullRenderer(
+        template=template,
+        data=data,
+        secret_reader=secret_reader,
+    )

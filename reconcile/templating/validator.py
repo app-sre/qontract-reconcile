@@ -52,7 +52,6 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         for template in get_templates():
             for test in template.template_test:
                 logging.info(f"Running test {test.name} for template {template.name}")
-
                 r = create_renderer(
                     template,
                     TemplateData(
@@ -61,6 +60,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                             test.current or "", Loader=yaml.RoundTripLoader
                         ),
                     ),
+                    secret_reader=self.secret_reader,
                 )
                 if test.expected_target_path:
                     self.diff_result(
