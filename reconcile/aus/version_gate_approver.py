@@ -1,3 +1,4 @@
+import logging
 from typing import (
     Callable,
     Iterable,
@@ -187,7 +188,9 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
             if success and not dry_run:
                 create_version_agreement(ocm_api, gate.id, cluster.id)
             elif not success:
-                print(f"Failed to handle gate {gate.id} for cluster {cluster.name}")
+                logging.error(
+                    f"Failed to handle gate {gate.id} for cluster {cluster.name}"
+                )
 
 
 def get_enabled_gate_handlers(labels: LabelContainer) -> set[str]:
