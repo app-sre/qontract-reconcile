@@ -898,19 +898,20 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return False
 
     def _process_template(
-        self,
-        saas_file_name: str,
-        resource_template_name: str,
-        image_auth: ImageAuth,
-        url: str,
-        path: str,
-        provider: str,
-        hash_length: int,
-        target: SaasResourceTemplateTarget,
-        parameters: dict[str, str],
-        github: Github,
-        target_config_hash: str,
+        self, spec: TargetSpec
     ) -> tuple[list[Any], str, Optional[Promotion]]:
+        saas_file_name = spec.saas_file_name
+        resource_template_name = spec.resource_template_name
+        image_auth = spec.image_auth
+        url = spec.url
+        path = spec.path
+        provider = spec.provider
+        hash_length = spec.hash_length
+        target = spec.target
+        parameters = spec.parameters
+        github = spec.github
+        target_config_hash = spec.target_config_hash
+
         if provider == "openshift-template":
             environment_parameters = self._collect_parameters(
                 target.namespace.environment
@@ -1326,19 +1327,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             return None
 
         try:
-            resources, html_url, promotion = self._process_template(
-                saas_file_name=spec.saas_file_name,
-                resource_template_name=spec.resource_template_name,
-                image_auth=spec.image_auth,
-                url=spec.url,
-                path=spec.path,
-                provider=spec.provider,
-                hash_length=spec.hash_length,
-                target=spec.target,
-                parameters=spec.parameters,
-                github=spec.github,
-                target_config_hash=spec.target_config_hash,
-            )
+            resources, html_url, promotion = self._process_template(spec)
         except Exception as e:
             # error log message send in _process_template. We log here debug to have a
             # safeguard in case something breaks there unexpectedly. We cannot just
