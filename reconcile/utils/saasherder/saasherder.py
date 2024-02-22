@@ -998,25 +998,26 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         + f"{str(e)}"
                     )
                     raise
-                try:
-                    image_uri = f"{registry_image}:{image_tag}"
-                    img = Image(
-                        url=image_uri,
-                        username=image_auth.username,
-                        password=image_auth.password,
-                        auth_server=image_auth.auth_server,
+
+                image_uri = f"{registry_image}:{image_tag}"
+                error_prefix = (
+                    f"[{saas_file_name}/{resource_template_name}] {html_url}:"
+                )
+                img = self._get_image(
+                    image=image_uri,
+                    image_patterns=spec.image_patterns,
+                    image_auth=image_auth,
+                    error_prefix=error_prefix,
+                )
+                if not img:
+                    raise Exception(
+                        f"[{error_prefix}: error generating REPO_DIGEST for {image_uri}"
                     )
-                    if need_repo_digest:
-                        consolidated_parameters["REPO_DIGEST"] = img.url_digest
-                    if need_image_digest:
-                        consolidated_parameters["IMAGE_DIGEST"] = img.digest
-                except (rqexc.ConnectionError, rqexc.HTTPError) as e:
-                    logging.error(
-                        f"[{saas_file_name}/{resource_template_name}] "
-                        + f"{html_url}: error generating REPO_DIGEST for "
-                        + f"{image_uri}: {str(e)}"
-                    )
-                    raise
+
+                if need_repo_digest:
+                    consolidated_parameters["REPO_DIGEST"] = img.url_digest
+                if need_image_digest:
+                    consolidated_parameters["IMAGE_DIGEST"] = img.digest
 
             oc = OCLocal("cluster", None, None, local=True)
             try:
@@ -1654,10 +1655,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     image_uri = f"{image_registry}:{desired_image_tag}"
                     image_auth = self._initiate_image_auth(saas_file)
                     error_prefix = f"[{saas_file.name}/{rt.name}] {target.ref}:"
-                    error = self._check_image(
+                    image = self._get_image(
                         image_uri, saas_file.image_patterns, image_auth, error_prefix
                     )
-                    if error:
+                    if not image:
                         continue
 
                     trigger_spec = TriggerSpecContainerImage(
