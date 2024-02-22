@@ -98,3 +98,20 @@ def test_aws_api_typed_api_assume_role(aws_api: AWSApi, mocker: MockerFixture) -
     aws_api.sts.assume_role.assert_called_once_with(  # type: ignore
         account_id="account_id", role="role"
     )
+
+
+def test_aws_api_typed_api_get_temporary_credentials(
+    aws_api: AWSApi, mocker: MockerFixture
+) -> None:
+    mocker.patch.object(AWSApi, "sts")
+    aws_api.sts.get_session_token.return_value = AWSCredentials(  # type: ignore
+        AccessKeyId="access_key",
+        SecretAccessKey="secret_key",
+        SessionToken="session_token",
+        Expiration="1",
+    )
+    new_aws_api = aws_api.temporary_session(duration_seconds=1)
+    assert isinstance(new_aws_api, AWSApi)
+    aws_api.sts.get_session_token.assert_called_once_with(  # type: ignore
+        duration_seconds=1
+    )

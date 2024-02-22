@@ -40,25 +40,6 @@ class AWSCredentials(ABC):
         """
         ...
 
-    def get_temporary_credentials(
-        self, aws_api: AWSApi, duration_seconds: int = 900
-    ) -> AWSTemporaryCredentials:
-        """
-        Builds temporary AWS credentials from a session. This is similar to assuming a role,
-        in the sense that the credentials will expire after a certain amount of time.
-
-        These temporary credentials have the same permissions as the session they were built from, except:
-        - they can't be used for anything IAM related
-        - for the STS API only the AssumeRole and GetSessionToken actions are allowed
-        """
-        tmp_creds = aws_api.sts.get_session_token(duration_seconds=duration_seconds)
-        return AWSTemporaryCredentials(
-            access_key_id=tmp_creds.access_key_id,
-            secret_access_key=tmp_creds.secret_access_key,
-            session_token=tmp_creds.session_token,
-            region=aws_api.session.region_name,
-        )
-
 
 class AWSStaticCredentials(BaseModel, AWSCredentials):
     """
@@ -189,6 +170,25 @@ class AWSApi:
                 access_key_id=credentials.access_key_id,
                 secret_access_key=credentials.secret_access_key,
                 session_token=credentials.session_token,
+                region=self.session.region_name,
+            )
+        )
+
+    def temporary_session(self, duration_seconds: int = 900) -> AWSApi:
+        """Return a new AWSAPI with temporary AWS credentials from a session.
+
+        This is similar to assuming a role, in the sense that the credentials will expire after a certain amount of time.
+
+        These temporary credentials have the same permissions as the session they were built from, except:
+        - they can't be used for anything IAM related
+        - for the STS API only the AssumeRole and GetSessionToken actions are allowed
+        """
+        tmp_creds = self.sts.get_session_token(duration_seconds=duration_seconds)
+        return AWSApi(
+            AWSTemporaryCredentials(
+                access_key_id=tmp_creds.access_key_id,
+                secret_access_key=tmp_creds.secret_access_key,
+                session_token=tmp_creds.session_token,
                 region=self.session.region_name,
             )
         )
