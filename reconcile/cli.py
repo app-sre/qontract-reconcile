@@ -43,10 +43,10 @@ from reconcile.utils.runtime.runner import (
 )
 from reconcile.utils.unleash import get_feature_toggle_state
 
-TERRAFORM_VERSION = "0.13.7"
+TERRAFORM_VERSION = ["0.13.7"]
 TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 
-OC_VERSION = "4.12.46"
+OC_VERSIONS = ["4.12.46", "4.10.15"]
 OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$"
 
 
@@ -793,7 +793,7 @@ def github_validator(ctx):
 @integration.command(short_help="Configures ClusterRolebindings in OpenShift clusters.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -812,7 +812,7 @@ def openshift_clusterrolebindings(ctx, thread_pool_size, internal, use_jump_host
 @integration.command(short_help="Configures Rolebindings in OpenShift clusters.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -831,7 +831,7 @@ def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command(short_help="Manages OpenShift Groups.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -846,7 +846,7 @@ def openshift_groups(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command(short_help="Deletion of users from OpenShift clusters.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -863,7 +863,7 @@ def openshift_users(ctx, thread_pool_size, internal, use_jump_host):
 )
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @vault_output_path
@@ -1032,7 +1032,7 @@ def jira_watcher(ctx):
     short_help="Watches for OpenShift upgrades and sends notifications."
 )
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @threaded()
 @internal()
 @use_jump_host()
@@ -1181,7 +1181,7 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @integration.command(short_help="Manages OpenShift Resources.")
 @threaded()
 @binary(["oc", "ssh", "amtool"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -1216,7 +1216,7 @@ def openshift_resources(
 @throughput
 @use_jump_host()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
 @click.option("--env-name", default=None, help="environment to deploy to.")
 @trigger_integration
@@ -1258,7 +1258,7 @@ def openshift_saas_deploy(
     help="bundle sha to compare to to find changes",
 )
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @use_jump_host()
 @click.pass_context
 def openshift_saas_deploy_change_tester(
@@ -1293,7 +1293,7 @@ def saas_file_validator(ctx):
 @integration.command(short_help="Trigger deployments when a commit changed for a ref.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @include_trigger_trace
@@ -1316,7 +1316,7 @@ def openshift_saas_deploy_trigger_moving_commits(
 @integration.command(short_help="Trigger deployments when upstream job runs.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @include_trigger_trace
@@ -1339,7 +1339,7 @@ def openshift_saas_deploy_trigger_upstream_jobs(
 @integration.command(short_help="Trigger deployments when images are pushed.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @include_trigger_trace
@@ -1362,7 +1362,7 @@ def openshift_saas_deploy_trigger_images(
 @integration.command(short_help="Trigger deployments when configuration changes.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @include_trigger_trace
@@ -1385,7 +1385,7 @@ def openshift_saas_deploy_trigger_configs(
 @integration.command(short_help="Clean up deployment related resources.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -1444,7 +1444,7 @@ def gitlab_labeler(ctx, gitlab_project_id, gitlab_merge_request_id):
 @integration.command(short_help="Manages labels on OpenShift namespaces.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -1463,7 +1463,7 @@ def openshift_namespace_labels(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command(short_help="Manages OpenShift Namespaces.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -1488,7 +1488,7 @@ def openshift_namespaces(
 @integration.command(short_help="Manages OpenShift NetworkPolicies.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -1508,7 +1508,7 @@ def openshift_network_policies(ctx, thread_pool_size, internal, use_jump_host):
 @threaded()
 @take_over()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -1529,7 +1529,7 @@ def openshift_limitranges(ctx, thread_pool_size, internal, use_jump_host, take_o
 @threaded()
 @take_over()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -1549,7 +1549,7 @@ def openshift_resourcequotas(ctx, thread_pool_size, internal, use_jump_host, tak
 @integration.command(short_help="Manages OpenShift Secrets from Vault.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -1574,7 +1574,7 @@ def openshift_vault_secrets(
 @integration.command(short_help="Manages OpenShift Routes.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -1899,7 +1899,7 @@ def template_renderer(ctx, app_interface_data_path):
 @threaded()
 @binary(["terraform", "oc", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @enable_deletion(default=False)
@@ -2922,7 +2922,7 @@ def resource_scraper(ctx, namespace_name, resource_kind, vault_output_path):
 @integration.command(short_help="Manages user access for GABI instances.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -3056,7 +3056,7 @@ def vault_replication(ctx):
 @environment_name
 @threaded()
 @binary(["oc", "ssh", "helm"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.option(
@@ -3182,7 +3182,7 @@ def glitchtip_project_alerts(ctx, instance):
 @integration.command(short_help="Glitchtip project dsn as openshift secret.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.option("--instance", help="Reconcile just this instance.", default=None)
@@ -3203,7 +3203,7 @@ def glitchtip_project_dsn(ctx, thread_pool_size, internal, use_jump_host, instan
 @integration.command(short_help="Manages Skupper Networks.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
