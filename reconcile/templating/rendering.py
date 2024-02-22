@@ -7,6 +7,7 @@ from ruamel import yaml
 
 from reconcile.utils.jinja2.utils import Jinja2TemplateError, process_jinja2_template
 from reconcile.utils.jsonpath import parse_jsonpath
+from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
@@ -40,7 +41,7 @@ class Renderer(ABC):
         self,
         template: Template,
         data: TemplateData,
-        secret_reader: SecretReaderBase,
+        secret_reader: Optional[SecretReaderBase] = None,
     ):
         self.template = template
         self.data = data
@@ -108,7 +109,9 @@ class PatchRenderer(Renderer):
             )
         matched_value = matched_values[0]
 
-        data_to_add = yaml.safe_load(self._render_template(self.template.template))
+        data_to_add = create_ruamel_instance().load(
+            self._render_template(self.template.template)
+        )
 
         if isinstance(matched_value, list):
             if not self.template.patch.identifier:
@@ -142,7 +145,7 @@ class PatchRenderer(Renderer):
 def create_renderer(
     template: Template,
     data: TemplateData,
-    secret_reader: SecretReaderBase,
+    secret_reader: Optional[SecretReaderBase] = None,
 ) -> Renderer:
     if template.patch:
         return PatchRenderer(template=template, data=data, secret_reader=secret_reader)

@@ -2,7 +2,6 @@ import logging
 from difflib import context_diff
 from typing import Callable, Optional
 
-from build.lib.reconcile.templating.rendering import Renderer
 from pydantic import BaseModel
 from ruamel import yaml
 
@@ -11,10 +10,9 @@ from reconcile.gql_definitions.templating.templates import (
     TemplateV1,
     query,
 )
-from reconcile.templating.rendering import TemplateData, create_renderer
+from reconcile.templating.rendering import Renderer, TemplateData, create_renderer
 from reconcile.utils import gql
 from reconcile.utils.runtime.integration import (
-    PydanticRunParams,
     QontractReconcileIntegration,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
@@ -37,14 +35,11 @@ class TemplateDiff(BaseModel):
 
 
 class TemplateValidatorIntegration(QontractReconcileIntegration):
-    def __init__(self, params: PydanticRunParams) -> None:
-        super().__init__(params)
-
     @staticmethod
     def _create_renderer(
         template: TemplateV1,
         template_test: TemplateTestV1,
-        secret_reader: SecretReaderBase,
+        secret_reader: Optional[SecretReaderBase] = None,
     ) -> Renderer:
         return create_renderer(
             template,
@@ -61,7 +56,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
     def validate_template(
         template: TemplateV1,
         template_test: TemplateTestV1,
-        secret_reader: SecretReaderBase,
+        secret_reader: Optional[SecretReaderBase] = None,
     ) -> list[TemplateDiff]:
         diffs: list[TemplateDiff] = []
 
@@ -121,7 +116,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         for template in get_templates():
             for test in template.template_test:
                 logging.info(f"Running test {test.name} for template {template.name}")
-                diffs.extend(self.validate_template(template, test))
+                diffs.extend(self.validate_template(template, test, self.secret_reader))
 
         if diffs:
             for diff in diffs:

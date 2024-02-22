@@ -4,15 +4,13 @@ import sys
 from pprint import pprint
 
 import click
-
-from yamllint import linter
-from yamllint.config import YamlLintConfig
+from yamllint import linter  # type: ignore
+from yamllint.config import YamlLintConfig  # type: ignore
 
 from reconcile.gql_definitions.templating.templates import TemplateV1
 from reconcile.templating.validator import TemplateDiff, TemplateValidatorIntegration
 from reconcile.utils.models import data_default_none
 from reconcile.utils.ruamel import create_ruamel_instance
-
 
 
 def load_clean_yaml(ai_path: str, path: str) -> dict:
@@ -91,11 +89,9 @@ def main(ai_path: str, template_path: str) -> None:
     for test in template.template_test:
         diffs: list[TemplateDiff] = []
         print("Running tests:", test.name)
-        diffs.extend(
-            TemplateValidatorIntegration.validate_template(template, test, None)
-        )
+        diffs.extend(TemplateValidatorIntegration.validate_template(template, test))
 
-        renderer = TemplateValidatorIntegration._create_renderer(template, test, None)
+        renderer = TemplateValidatorIntegration._create_renderer(template, test)
         if renderer.render_condition():
             output = renderer.render_output()
             lint_problems = list(
