@@ -1126,38 +1126,33 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return images
 
     @staticmethod
-    def _check_image(
+    def _get_image(
         image: str,
         image_patterns: Iterable[str],
         image_auth: ImageAuth,
         error_prefix: str,
-    ) -> bool:
-        error = False
+    ) -> Optional[Image]:
         if not image_patterns:
-            error = True
             logging.error(
                 f"{error_prefix} imagePatterns is empty (does not contain {image})"
             )
+            return None
         if image_patterns and not any(image.startswith(p) for p in image_patterns):
-            error = True
             logging.error(f"{error_prefix} Image is not in imagePatterns: {image}")
+            return None
         try:
-            valid = Image(
+            return Image(
                 image,
                 username=image_auth.username,
                 password=image_auth.password,
                 auth_server=image_auth.auth_server,
             )
-            if not valid:
-                error = True
-                logging.error(f"{error_prefix} Image does not exist: {image}")
         except Exception as e:
-            error = True
             logging.error(
                 f"{error_prefix} Image is invalid: {image}. " + f"details: {str(e)}"
             )
 
-        return error
+        return None
 
     def _check_images(
         self,
@@ -1176,15 +1171,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.images.update(images)
         if not images:
             return False  # no errors
-        errors = threaded.run(
-            self._check_image,
+        images = threaded.run(
+            self._get_image,
             images,
             self.available_thread_pool_size,
             image_patterns=image_patterns,
             image_auth=image_auth,
             error_prefix=error_prefix,
         )
-        return any(errors)
+        return None in images
 
     def _initiate_github(
         self, saas_file: SaasFile, base_url: Optional[str] = None
