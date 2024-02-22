@@ -89,6 +89,9 @@ class RosaSession:
     def upgrade_account_roles(
         self, role_prefix: str, minor_version: str, channel_group: str, dry_run: bool
     ) -> None:
+        logging.info(
+            f"Upgrade account roles in AWS account {self.aws_account_id} to {minor_version} ({channel_group})"
+        )
         if not dry_run:
             result = self.cli_execute(
                 f"rosa upgrade account-roles --prefix {role_prefix} --version {minor_version} --channel-group {channel_group} -y -m=auto"
@@ -104,6 +107,9 @@ class RosaSession:
         Upgrades the operator roles of a cluster to match the latest
         policy versions available for the cluster.
         """
+        logging.info(
+            f"Upgrade operator roles in AWS account {self.aws_account_id} for cluster {cluster_id}"
+        )
         if not dry_run:
             result = self.cli_execute(
                 cmd=f"rosa upgrade operator-roles --cluster {cluster_id} -y -m=auto",
