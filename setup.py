@@ -71,7 +71,6 @@ setup(
         "jsonpatch~=1.33",
         "jsonpointer~=2.4",
         "yamllint==1.34.0",
-        "qontract-validator==0.1.0",
     ],
     test_suite="tests",
     classifiers=[

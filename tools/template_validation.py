@@ -4,9 +4,7 @@ import sys
 from pprint import pprint
 
 import click
-from ruamel import yaml
-from validator.bundle import load_bundle
-from validator.validator import validate_bundle
+
 from yamllint import linter
 from yamllint.config import YamlLintConfig
 
@@ -15,18 +13,6 @@ from reconcile.templating.validator import TemplateDiff, TemplateValidatorIntegr
 from reconcile.utils.models import data_default_none
 from reconcile.utils.ruamel import create_ruamel_instance
 
-
-def validate_template(bundle_file: str, templates: dict[str, str]) -> list[dict]:
-    with open(bundle_file, "r", encoding="utf-8") as b:
-        bundle = load_bundle(b)
-
-    for target_path, template_data in list(templates.items()):
-        bundle.data[target_path] = yaml.safe_load(template_data)
-
-    results = validate_bundle(bundle)
-    return [
-        result["result"] for result in results if result["result"]["status"] == "ERROR"
-    ]
 
 
 def load_clean_yaml(ai_path: str, path: str) -> dict:
@@ -87,13 +73,7 @@ def print_test_diffs(diffs: list[TemplateDiff]) -> None:
     default=None,
     required=True,
 )
-@click.option(
-    "--run-validator",
-    help="Should template validation invoke qontract-validator",
-    default=False,
-    is_flag=True,
-)
-def main(ai_path: str, template_path: str, run_validator: bool) -> None:
+def main(ai_path: str, template_path: str) -> None:
     okay = True
     templateRaw = load_clean_yaml(ai_path, template_path)
 
@@ -107,7 +87,7 @@ def main(ai_path: str, template_path: str, run_validator: bool) -> None:
     templateRaw["templateTest"] = tests
     template: TemplateV1 = TemplateV1(**data_default_none(TemplateV1, templateRaw))
 
-    templates_to_validate = {}
+    # templates_to_validate = {}
     for test in template.template_test:
         diffs: list[TemplateDiff] = []
         print("Running tests:", test.name)
@@ -118,23 +98,12 @@ def main(ai_path: str, template_path: str, run_validator: bool) -> None:
         renderer = TemplateValidatorIntegration._create_renderer(template, test, None)
         if renderer.render_condition():
             output = renderer.render_output()
-            path = renderer.render_target_path()
             lint_problems = list(
                 linter.run(output, YamlLintConfig(file=f"{ai_path}/.yamllint"), "")
             )
             if lint_problems:
                 okay = False
                 print_lint_problems(lint_problems)
-            if run_validator:
-                templates_to_validate[path] = output
-
-        if run_validator:
-            validation_errors = validate_template(
-                f"{ai_path}/data.json", templates_to_validate
-            )
-            if validation_errors:
-                okay = False
-                print_validation_errors(validation_errors)
 
         if diffs:
             okay = False
