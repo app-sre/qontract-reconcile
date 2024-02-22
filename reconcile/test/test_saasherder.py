@@ -651,19 +651,17 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
         self.get_commit_sha_patcher = patch.object(
             SaasHerder, "_get_commit_sha", autospec=True
         )
-        self.check_image_patcher = patch.object(
-            SaasHerder, "_check_image", autospec=True
-        )
+        self.get_image_patcher = patch.object(SaasHerder, "_get_image", autospec=True)
         self.initiate_gh = self.initiate_gh_patcher.start()
         self.get_commit_sha = self.get_commit_sha_patcher.start()
-        self.check_image = self.check_image_patcher.start()
+        self.get_image = self.get_image_patcher.start()
         self.maxDiff = None
 
     def tearDown(self) -> None:
         for p in (
             self.initiate_gh_patcher,
             self.get_commit_sha_patcher,
-            self.check_image_patcher,
+            self.get_image_patcher,
         ):
             p.stop()
 
@@ -680,7 +678,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
         saasherder.state = MagicMock()
         saasherder.state.get.return_value = "asha"
         self.get_commit_sha.return_value = "abcd4242"
-        self.check_image.return_value = None
+        self.get_image.return_value = MagicMock()
         expected = [
             TriggerSpecContainerImage(
                 saas_file_name=self.saas_file.name,
@@ -717,7 +715,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
         saasherder.state = MagicMock()
         saasherder.state.get.return_value = "asha"
         self.get_commit_sha.return_value = "abcd4242"
-        self.check_image.return_value = None
+        self.get_image.return_value = MagicMock()
         expected = [
             TriggerSpecContainerImage(
                 saas_file_name=self.saas_file.name,
