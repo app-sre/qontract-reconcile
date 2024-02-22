@@ -1510,7 +1510,7 @@ def rds_region(
     overrides: dict[str, str],
     defaults: dict[str, str],
     accounts: dict[str, Any],
-):
+) -> str | None:
     return (
         spec.resource.get("region")
         or rds_attr("region", overrides, defaults)
@@ -1542,6 +1542,7 @@ def rds(ctx):
             item = {
                 "identifier": spec.identifier,
                 "account": spec.provisioner_name,
+                "account_uid": accounts[spec.provisioner_name]["uid"],
                 "region": rds_region(spec, overrides, defaults, accounts),
                 "engine": rds_attr("engine", overrides, defaults),
                 "engine_version": rds_attr("engine_version", overrides, defaults),
@@ -1555,6 +1556,7 @@ def rds(ctx):
             "fields": [
                 {"key": "identifier", "sortable": True},
                 {"key": "account", "sortable": True},
+                {"key": "account_uid", "sortable": True},
                 {"key": "region", "sortable": True},
                 {"key": "engine", "sortable": True},
                 {"key": "engine_version", "sortable": True},
@@ -1578,6 +1580,7 @@ You can view the source of this Markdown to extract the JSON data.
         columns = [
             "identifier",
             "account",
+            "account_uid",
             "region",
             "engine",
             "engine_version",
