@@ -69,7 +69,7 @@ def test_unpack_dynamic_variables_empty(
     mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
-    assert unpack_dynamic_variables(collection_variables, gql) == {"foo": []}
+    assert unpack_dynamic_variables(collection_variables, gql) == {}
 
 
 def test_unpack_dynamic_variables(
@@ -86,9 +86,13 @@ def test_unpack_dynamic_variables_multiple_result(
     mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
-    gql.query.return_value = {"baz": [{"baz": "zab"}], "foo": [{"bar": "baz"}]}
+    gql.query.return_value = {
+        "baz": [{"baz": "zab"}],
+        "foo": [{"bar": "baz"}, {"faa": "baz"}],
+    }
     assert unpack_dynamic_variables(collection_variables, gql) == {
-        "foo": [{"bar": "baz"}]
+        "baz": [{"baz": "zab"}],
+        "foo": [{"bar": "baz"}, {"faa": "baz"}],
     }
 
 

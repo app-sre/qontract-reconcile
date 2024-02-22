@@ -90,14 +90,12 @@ def unpack_dynamic_variables(
 ) -> dict[str, list]:
     if not collection_variables.dynamic:
         return {}
-    return_dict: dict[str, list] = {
-        dv.name: [] for dv in collection_variables.dynamic or []
+
+    return {
+        rname: rdata
+        for dv in collection_variables.dynamic or []
+        for rname, rdata in list(gql.query(dv.query).items())
     }
-    for dv in collection_variables.dynamic or []:
-        for rname, rdata in list(gql.query(dv.query).items()):
-            if rname == dv.name:
-                return_dict[dv.name] = rdata
-    return return_dict
 
 
 class TemplateRendererIntegrationParams(PydanticRunParams):
@@ -168,7 +166,6 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     unpack_dynamic_variables(c.variables, gql_no_validation)
                 )
                 variables.update(unpack_static_variables(c.variables))
-
             for template in c.templates:
                 output = self.process_template(
                     template,
