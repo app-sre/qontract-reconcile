@@ -1141,6 +1141,26 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if image_patterns and not any(image.startswith(p) for p in image_patterns):
             logging.error(f"{error_prefix} Image is not in imagePatterns: {image}")
             return None
+
+        # .dockerconfigjson
+        if image_auth.docker_config:
+            # we rely on the secret in vault being ordered
+            # https://peps.python.org/pep-0468/
+            for registry, auth in image_auth.docker_config["auths"].items():
+                if not image.startswith(registry):
+                    continue
+                username, password = (
+                    base64.b64decode(auth["auth"]).decode("utf-8").split(":")
+                )
+                with suppress(Exception):
+                    return Image(
+                        image,
+                        username=username,
+                        password=password,
+                        auth_server=image_auth.auth_server,
+                    )
+
+        # basic auth fallback for backwards compatibility
         try:
             return Image(
                 image,
@@ -1213,20 +1233,24 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             return ImageAuth()
 
         creds = self.secret_reader.read_all_secret(saas_file.authentication.image)
-        required_keys = ["user", "token"]
-        ok = all(k in creds.keys() for k in required_keys)
+        required_docker_config_keys = [".dockerconfigjson"]
+        required_keys_basic_auth = ["user", "token"]
+        ok = all(k in creds.keys() for k in required_keys_basic_auth) or all(
+            k in creds.keys() for k in required_docker_config_keys
+        )
         if not ok:
             logging.warning(
                 "the specified image authentication secret "
                 + f"found in path {saas_file.authentication.image.path} "
-                + f"does not contain all required keys: {required_keys}"
+                + f"does not contain all required keys: {required_docker_config_keys} or {required_keys_basic_auth}"
             )
             return ImageAuth()
 
         return ImageAuth(
-            username=creds["user"],
-            password=creds["token"],
+            username=creds.get("user"),
+            password=creds.get("token"),
             auth_server=creds.get("url"),
+            docker_config=json.loads(creds.get(".dockerconfigjson") or "{}"),
         )
 
     def populate_desired_state(self, ri: ResourceInventory) -> None:

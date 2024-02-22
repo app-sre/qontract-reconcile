@@ -192,6 +192,7 @@ class ImageAuth:
     username: Optional[str] = None
     password: Optional[str] = None
     auth_server: Optional[str] = None
+    docker_config: Optional[dict[str, dict[str, str]]] = None
 
     def getDockerConfigJson(self) -> dict:
         return {
