@@ -160,12 +160,12 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         ruaml_instance = create_ruamel_instance()
 
         for c in get_template_collections():
-            variables = {}
             if c.variables:
-                variables.update(
-                    unpack_dynamic_variables(c.variables, gql_no_validation)
-                )
-                variables.update(unpack_static_variables(c.variables))
+                variables = {
+                    "dynamic": unpack_dynamic_variables(c.variables, gql_no_validation),
+                    "static": unpack_static_variables(c.variables),
+                }
+
             for template in c.templates:
                 output = self.process_template(
                     template,
