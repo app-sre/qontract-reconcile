@@ -178,6 +178,9 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
         for gate in gates:
             if gate.label in self.handlers and gate.label not in enabled_gate_handlers:
                 continue
+            logging.info(
+                f"handle gate {gate.label} for cluster {cluster.name} {{gate_id = {gate.id}), version = {gate.version_raw_id_prefix}, cluster_id = {cluster.id}, org_id = {ocm_org_id}}}"
+            )
             success = self.handlers[gate.label].handle(
                 ocm_api=ocm_api,
                 ocm_org_id=ocm_org_id,
@@ -189,7 +192,7 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
                 create_version_agreement(ocm_api, gate.id, cluster.id)
             elif not success:
                 logging.error(
-                    f"Failed to handle gate {gate.id} for cluster {cluster.name}"
+                    f"failed to handle gate {gate.label} for cluster {cluster.name} {{gate_id = {gate.id}), version = {gate.version_raw_id_prefix}, cluster_id = {cluster.id}, org_id = {ocm_org_id}}}"
                 )
 
 
