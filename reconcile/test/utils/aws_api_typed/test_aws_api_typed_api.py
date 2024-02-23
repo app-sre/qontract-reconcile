@@ -56,13 +56,13 @@ def test_aws_api_typed_api_close(aws_api: AWSApi, mocker: MockerFixture) -> None
         ),
     ],
 )
-def test_aws_api_typed_api_init_or_get_sub_api(
+def test_aws_api_typed_api_init_sub_api(
     aws_api: AWSApi, mocker: MockerFixture, api_cls: type[SubApi], client_name: str
 ) -> None:
     session_mock = mocker.MagicMock()
     session_mock.client.return_value = client = mocker.MagicMock()
     aws_api.session = session_mock
-    sub_api = aws_api._init_or_get_sub_api(api_cls)
+    sub_api = aws_api._init_sub_api(api_cls)
 
     assert isinstance(sub_api, api_cls)
     session_mock.client.assert_called_once_with(client_name)

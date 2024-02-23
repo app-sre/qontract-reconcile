@@ -125,7 +125,7 @@ class AWSApi:
             client.close()
         self._session_clients = []
 
-    def _init_or_get_sub_api(self, api_cls: type[SubApi]) -> SubApi:
+    def _init_sub_api(self, api_cls: type[SubApi]) -> SubApi:
         """Return a new or cached sub api client."""
         match api_cls:
             case reconcile.utils.aws_api_typed.iam.AWSApiIam:
@@ -146,17 +146,17 @@ class AWSApi:
     @cached_property
     def sts(self) -> AWSApiSts:
         """Return an AWS STS Api client."""
-        return self._init_or_get_sub_api(AWSApiSts)
+        return self._init_sub_api(AWSApiSts)
 
     @cached_property
     def organizations(self) -> AWSApiOrganizations:
         """Return an AWS Organizations Api client."""
-        return self._init_or_get_sub_api(AWSApiOrganizations)
+        return self._init_sub_api(AWSApiOrganizations)
 
     @cached_property
     def iam(self) -> AWSApiIam:
         """Return an AWS IAM Api client."""
-        return self._init_or_get_sub_api(AWSApiIam)
+        return self._init_sub_api(AWSApiIam)
 
     def assume_role(self, account_id: str, role: str) -> AWSApi:
         """Return a new AWSApi with the assumed role."""
