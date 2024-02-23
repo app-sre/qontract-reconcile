@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from abc import abstractmethod
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import (
     Any,
     Optional,
@@ -11,7 +11,6 @@ from typing import (
 
 import boto3
 from botocore.errorfactory import ClientError
-from jinja2 import Template
 from mypy_boto3_s3 import S3Client
 from pydantic import BaseModel
 
@@ -25,7 +24,7 @@ from reconcile.typed_queries.app_interface_state_settings import (
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
-from reconcile.utils import gql
+from reconcile.typed_queries.get_state_aws_account import get_state_aws_account
 from reconcile.utils.aws_api import aws_config_file_path
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
@@ -35,23 +34,6 @@ from reconcile.utils.secret_reader import (
 
 class StateInaccessibleException(Exception):
     pass
-
-
-STATE_ACCOUNT_QUERY = """
-{
-  accounts: awsaccounts_v1 (name: "{{ name }}")
-  {
-    name
-    resourcesDefaultRegion
-    automationToken {
-      path
-      field
-      version
-      format
-    }
-  }
-}
-"""
 
 
 def init_state(
@@ -101,7 +83,9 @@ class S3ProfileBasedStateConfiguration(S3StateConfiguration):
         return session.client("s3")
 
 
-def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfiguration:
+def acquire_state_settings(
+    secret_reader: SecretReaderBase, query_func: Callable | None = None
+) -> S3StateConfiguration:
     """
     Finds the settings for the app-interface state provider in the following order:
 
@@ -185,17 +169,17 @@ def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurat
         logging.debug(
             f"access state via {state_bucket_account_name} automation token from app-interface"
         )
-        account = _get_aws_account_by_name(state_bucket_account_name)
+        account = get_state_aws_account(
+            state_bucket_account_name, query_func=query_func
+        )
         if not account:
             raise StateInaccessibleException(
                 f"The AWS account {state_bucket_account_name} that holds the state bucket can't be found in app-interface."
             )
-        secret = secret_reader.read_all_secret(
-            VaultSecret(**account["automationToken"])
-        )
+        secret = secret_reader.read_all_secret(account.automation_token)
         return S3CredsBasedStateConfiguration(
             bucket=state_bucket_name,
-            region=state_bucket_region or account["resourcesDefaultRegion"],
+            region=state_bucket_region or account.resources_default_region,
             access_key_id=secret["aws_access_key_id"],
             secret_access_key=secret["aws_secret_access_key"],
         )
@@ -225,14 +209,6 @@ def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurat
         "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION and APP_INTERFACE_STATE_BUCKET_ACCOUNT if the mentioned AWS account is present in app-interface \n"
         "* state settings in app-interface-settings-1.yml"
     )
-
-
-def _get_aws_account_by_name(name: str) -> Optional[dict[str, Any]]:
-    query = Template(STATE_ACCOUNT_QUERY).render(name=name)
-    aws_accounts = gql.get_api().query(query)["accounts"]
-    if aws_accounts:
-        return aws_accounts[0]
-    return None
 
 
 class State:
