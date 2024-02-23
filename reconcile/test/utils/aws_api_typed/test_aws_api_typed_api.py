@@ -66,7 +66,6 @@ def test_aws_api_typed_api_init_or_get_sub_api(
 
     assert isinstance(sub_api, api_cls)
     session_mock.client.assert_called_once_with(client_name)
-    assert aws_api._api_cache[str(api_cls)] == sub_api
     assert aws_api._session_clients == [client]
 
 

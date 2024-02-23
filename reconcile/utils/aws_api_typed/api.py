@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import textwrap
 from abc import ABC, abstractmethod
+from functools import cached_property
 from typing import Any, TypeVar
 
 from boto3 import Session
@@ -111,7 +112,6 @@ class AWSApi:
     def __init__(self, aws_credentials: AWSCredentials) -> None:
         self.session = aws_credentials.build_session()
         self._session_clients: list[BaseClient] = []
-        self._api_cache: dict = {}
 
     def __enter__(self) -> AWSApi:
         return self
@@ -127,9 +127,6 @@ class AWSApi:
 
     def _init_or_get_sub_api(self, api_cls: type[SubApi]) -> SubApi:
         """Return a new or cached sub api client."""
-        if str(api_cls) in self._api_cache:
-            return self._api_cache[str(api_cls)]
-
         match api_cls:
             case reconcile.utils.aws_api_typed.iam.AWSApiIam:
                 client = self.session.client("iam")
@@ -143,21 +140,20 @@ class AWSApi:
             case _:
                 raise ValueError(f"Unknown API class: {api_cls}")
 
-        self._api_cache[str(api_cls)] = api
         self._session_clients.append(client)
         return api
 
-    @property
+    @cached_property
     def sts(self) -> AWSApiSts:
         """Return an AWS STS Api client."""
         return self._init_or_get_sub_api(AWSApiSts)
 
-    @property
+    @cached_property
     def organizations(self) -> AWSApiOrganizations:
         """Return an AWS Organizations Api client."""
         return self._init_or_get_sub_api(AWSApiOrganizations)
 
-    @property
+    @cached_property
     def iam(self) -> AWSApiIam:
         """Return an AWS IAM Api client."""
         return self._init_or_get_sub_api(AWSApiIam)
