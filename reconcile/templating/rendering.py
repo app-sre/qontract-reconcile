@@ -1,5 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
+from io import StringIO
 from typing import Any, Optional, Protocol
 
 from pydantic import BaseModel
@@ -46,6 +47,7 @@ class Renderer(ABC):
         self.template = template
         self.data = data
         self.secret_reader = secret_reader
+        self.ruaml_instace = create_ruamel_instance()
 
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
         return {**self.data.variables, "current": self.data.current}
@@ -109,9 +111,7 @@ class PatchRenderer(Renderer):
             )
         matched_value = matched_values[0]
 
-        data_to_add = create_ruamel_instance().load(
-            self._render_template(self.template.template)
-        )
+        data_to_add = self.ruaml_instace.load(self._render_template(self.template.template))
 
         if isinstance(matched_value, list):
             if not self.template.patch.identifier:
@@ -139,7 +139,9 @@ class PatchRenderer(Renderer):
         else:
             matched_value.update(data_to_add)
 
-        return yaml.dump(self.data.current, width=4096, Dumper=yaml.RoundTripDumper)
+        with StringIO() as s:
+            self.ruaml_instace.dump(self.data.current, s)
+            return s.getvalue()
 
 
 def create_renderer(
