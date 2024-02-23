@@ -2,9 +2,11 @@ import json
 import logging
 import os
 from abc import abstractmethod
+from collections.abc import Mapping
 from typing import (
     Any,
     Optional,
+    Self,
 )
 
 import boto3
@@ -264,19 +266,19 @@ class State:
                 f"Bucket {self.bucket} is not accessible - {str(details)}"
             )
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self.cleanup()
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """
         Closes the S3 client
         """
         self.client.close()
 
-    def exists(self, key):
+    def exists(self, key: str) -> bool:
         """
         Checks if a key exists in the state.
 
@@ -290,7 +292,7 @@ class State:
         exists, _ = self.head(key)
         return exists
 
-    def head(self, key) -> tuple[bool, dict[str, str]]:
+    def head(self, key: str) -> tuple[bool, dict[str, str]]:
         """
         Checks if a key exists in the state. Returns the metadata of a key in the state.
 
@@ -315,7 +317,7 @@ class State:
                 f"in bucket {self.bucket} - {str(details)}"
             )
 
-    def ls(self):
+    def ls(self) -> list[str]:
         """
         Returns a list of keys in the state
         """
@@ -339,7 +341,13 @@ class State:
 
         return [c["Key"].replace(self.state_path, "") for c in contents]
 
-    def add(self, key, value=None, metadata=None, force=False):
+    def add(
+        self,
+        key: str,
+        value: Any = None,
+        metadata: Mapping[str, str] | None = None,
+        force: bool = False,
+    ) -> None:
         """
         Adds a key/value to the state and fails if the key already exists
 
@@ -354,7 +362,9 @@ class State:
             raise KeyError(f"[state] key {key} already " f"exists in {self.state_path}")
         self._set(key, value, metadata=metadata)
 
-    def _set(self, key, value, metadata=None):
+    def _set(
+        self, key: str, value: Any, metadata: Mapping[str, str] | None = None
+    ) -> None:
         self.client.put_object(
             Bucket=self.bucket,
             Key=f"{self.state_path}/{key}",
@@ -362,7 +372,7 @@ class State:
             Metadata=metadata or {},
         )
 
-    def rm(self, key):
+    def rm(self, key: str) -> None:
         """
         Removes a key from the state and fails if the key does not exists
 
@@ -374,7 +384,7 @@ class State:
             raise KeyError(f"[state] key {key} does not exists in {self.state_path}")
         self.client.delete_object(Bucket=self.bucket, Key=f"{self.state_path}/{key}")
 
-    def get(self, key, *args):
+    def get(self, key: str, *args: Any) -> Any:
         """
         Gets a key value from the state and return the default
         value or raises and exception if the key does not exist.
@@ -392,7 +402,7 @@ class State:
                 return args[0]
             raise
 
-    def get_all(self, path):
+    def get_all(self, path: str) -> dict[str, Any]:
         """
         Gets all keys and values from the state in the specified path.
         """
@@ -402,7 +412,7 @@ class State:
             if k.startswith(f"/{path}")
         }
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> Any:
         try:
             response = self.client.get_object(
                 Bucket=self.bucket, Key=f"{self.state_path}/{item}"
@@ -415,5 +425,5 @@ class State:
         except json.decoder.JSONDecodeError:
             raise KeyError(item)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any) -> None:
         self._set(key, value)

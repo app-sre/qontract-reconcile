@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from typing import Optional
 
 import boto3
@@ -40,7 +41,7 @@ def accounts() -> list[dict[str, str]]:
 
 
 @pytest.fixture
-def s3_client(monkeypatch):
+def s3_client(monkeypatch: MonkeyPatch) -> Generator[S3Client, None, None]:
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
     monkeypatch.setenv("AWS_SECURITY_TOKEN", "testing")
