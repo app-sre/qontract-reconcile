@@ -70,6 +70,7 @@ setup(
         "dt==1.1.61",
         "jsonpatch~=1.33",
         "jsonpointer~=2.4",
+        "yamllint==1.34.0",
     ],
     test_suite="tests",
     classifiers=[
@@ -85,6 +86,7 @@ setup(
             "app-interface-metrics-exporter = tools.app_interface_metrics_exporter:main",
             "glitchtip-access-reporter = tools.glitchtip_access_reporter:main",
             "glitchtip-access-revalidation = tools.glitchtip_access_revalidation:main",
+            "template-validation = tools.template_validation:main",
             "qontract-cli = tools.qontract_cli:root",
         ],
     },

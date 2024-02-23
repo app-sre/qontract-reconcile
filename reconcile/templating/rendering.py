@@ -1,12 +1,13 @@
 import logging
 from abc import ABC, abstractmethod
+from io import StringIO
 from typing import Any, Optional, Protocol
 
 from pydantic import BaseModel
-from ruamel import yaml
 
 from reconcile.utils.jinja2.utils import Jinja2TemplateError, process_jinja2_template
 from reconcile.utils.jsonpath import parse_jsonpath
+from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
@@ -40,11 +41,12 @@ class Renderer(ABC):
         self,
         template: Template,
         data: TemplateData,
-        secret_reader: SecretReaderBase,
+        secret_reader: Optional[SecretReaderBase] = None,
     ):
         self.template = template
         self.data = data
         self.secret_reader = secret_reader
+        self.ruaml_instace = create_ruamel_instance()
 
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
         return {**self.data.variables, "current": self.data.current}
@@ -108,7 +110,9 @@ class PatchRenderer(Renderer):
             )
         matched_value = matched_values[0]
 
-        data_to_add = yaml.safe_load(self._render_template(self.template.template))
+        data_to_add = self.ruaml_instace.load(
+            self._render_template(self.template.template)
+        )
 
         if isinstance(matched_value, list):
             if not self.template.patch.identifier:
@@ -136,13 +140,15 @@ class PatchRenderer(Renderer):
         else:
             matched_value.update(data_to_add)
 
-        return yaml.dump(self.data.current, width=4096, Dumper=yaml.RoundTripDumper)
+        with StringIO() as s:
+            self.ruaml_instace.dump(self.data.current, s)
+            return s.getvalue()
 
 
 def create_renderer(
     template: Template,
     data: TemplateData,
-    secret_reader: SecretReaderBase,
+    secret_reader: Optional[SecretReaderBase] = None,
 ) -> Renderer:
     if template.patch:
         return PatchRenderer(template=template, data=data, secret_reader=secret_reader)
