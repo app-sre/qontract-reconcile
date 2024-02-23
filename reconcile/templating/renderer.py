@@ -92,9 +92,7 @@ def unpack_dynamic_variables(
         return {}
 
     return {
-        rname: rdata
-        for dv in collection_variables.dynamic or []
-        for rname, rdata in list(gql.query(dv.query).items())
+        dv.name: gql.query(dv.query) or {} for dv in collection_variables.dynamic or []
     }
 
 
