@@ -1,7 +1,6 @@
 import json
 import os.path
 import sys
-from pprint import pprint
 
 import click
 from yamllint import linter  # type: ignore
@@ -30,14 +29,6 @@ def load_yaml(to_load: str) -> dict:
     ruamel_instance = create_ruamel_instance()
     with open(to_load, "r", encoding="utf-8") as file:
         return ruamel_instance.load(file)
-
-
-def print_validation_errors(errors: list[dict]) -> None:
-    print("--------- VALIDATION ERRORS ---------")
-    print(f"Found {len(errors)} errors during validation:")
-    for error in errors:
-        pprint(error)
-    print("--------- END VALIDATION ERRORS ---------")
 
 
 def print_lint_problems(lint_problems: list[linter.LintProblem]) -> None:
