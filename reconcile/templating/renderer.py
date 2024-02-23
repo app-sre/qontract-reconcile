@@ -2,7 +2,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 from ruamel import yaml
@@ -87,7 +87,7 @@ def unpack_static_variables(
 
 def unpack_dynamic_variables(
     collection_variables: TemplateCollectionVariablesV1, gql: gql.GqlApi
-) -> dict[str, list]:
+) -> dict[str, dict[str, Any]]:
     if not collection_variables.dynamic:
         return {}
 
