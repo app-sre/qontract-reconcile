@@ -1,10 +1,11 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Protocol
 
 from pydantic import BaseModel
 from ruamel import yaml
 
-from reconcile.utils.jinja2.utils import process_jinja2_template
+from reconcile.utils.jinja2.utils import Jinja2TemplateError, process_jinja2_template
 from reconcile.utils.jsonpath import parse_jsonpath
 from reconcile.utils.secret_reader import SecretReaderBase
 
@@ -49,11 +50,15 @@ class Renderer(ABC):
         return {**self.data.variables, "current": self.data.current}
 
     def _render_template(self, template: str) -> str:
-        return process_jinja2_template(
-            body=template,
-            vars=self._jinja2_render_kwargs(),
-            secret_reader=self.secret_reader,
-        )
+        try:
+            return process_jinja2_template(
+                body=template,
+                vars=self._jinja2_render_kwargs(),
+                secret_reader=self.secret_reader,
+            )
+        except Jinja2TemplateError as e:
+            logging.error(f"Error rendering template {self.template.name}: {e}")
+            raise e
 
     @abstractmethod
     def render_output(self) -> str:

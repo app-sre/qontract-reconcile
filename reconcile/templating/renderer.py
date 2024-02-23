@@ -2,7 +2,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 from ruamel import yaml
@@ -87,12 +87,12 @@ def unpack_static_variables(
 
 def unpack_dynamic_variables(
     collection_variables: TemplateCollectionVariablesV1, gql: gql.GqlApi
-) -> dict:
+) -> dict[str, dict[str, Any]]:
     if not collection_variables.dynamic:
         return {}
+
     return {
-        dv.name: list(gql.query(dv.query).values())
-        for dv in collection_variables.dynamic or []
+        dv.name: gql.query(dv.query) or {} for dv in collection_variables.dynamic or []
     }
 
 
@@ -137,7 +137,9 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             output = r.render_output()
 
             if current_str != output:
-                print(f"diff in template {template.name} for target_path {target_path}")
+                logging.info(
+                    f"diff for template {template.name} in target path {target_path}"
+                )
                 return TemplateOutput(
                     path=target_path,
                     content=output,
@@ -156,12 +158,11 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         ruaml_instance = create_ruamel_instance()
 
         for c in get_template_collections():
-            variables = {}
             if c.variables:
-                variables.update(
-                    unpack_dynamic_variables(c.variables, gql_no_validation)
-                )
-                variables.update(unpack_static_variables(c.variables))
+                variables = {
+                    "dynamic": unpack_dynamic_variables(c.variables, gql_no_validation),
+                    "static": unpack_static_variables(c.variables),
+                }
 
             for template in c.templates:
                 output = self.process_template(
