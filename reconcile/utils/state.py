@@ -3,6 +3,7 @@ import logging
 import os
 from abc import abstractmethod
 from collections.abc import Callable, Mapping
+from types import TracebackType
 from typing import (
     Any,
     Optional,
@@ -403,3 +404,48 @@ class State:
 
     def __setitem__(self, key: str, value: Any) -> None:
         self._set(key, value)
+
+    def transaction(self, key: str, value: Any) -> "_TransactionContext":
+        """Get a context manager to set the key in the state if no exception occurs."""
+        return _TransactionContext(self, key, value)
+
+
+class _TransactionContext:
+    """A context manager to set a key in the state if no exception occurs."""
+
+    def __init__(
+        self,
+        state: State,
+        key: str,
+        value: Any,
+    ):
+        self.state = state
+        self.key = key
+        self.value = value
+
+    def __enter__(self) -> bool:
+        """Check if the key exists and store its previous value."""
+        self._previous_value = None
+        if _exists := self.state.exists(self.key):
+            self._previous_value = self.state[self.key]
+        return _exists
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        if exc_type:
+            # if an exception occurred, we don't want to write to the state
+            return
+
+        try:
+            # the key/value might have been changed in the meantime
+            if self.state[self.key] != self._previous_value:
+                raise RuntimeError(
+                    f"State key {self.key} has been changed during the transaction."
+                )
+        except KeyError:
+            pass
+        self.state[self.key] = self.value

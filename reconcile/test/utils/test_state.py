@@ -360,3 +360,50 @@ def test_state_get_aws_account_by_name() -> None:
     )
     assert isinstance(account, AWSAccountV1)
     assert account.name == "some-account"
+
+
+def test_state_transaction_not_set(
+    integration_state: State, s3_client: S3Client
+) -> None:
+    with integration_state.transaction("feature.foo.bar", "set") as exists:
+        assert not exists
+        # here should be the code that acts now
+    # and then the state should be updated
+    assert integration_state["feature.foo.bar"] == "set"
+
+
+def test_state_transaction_already_set(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    s3_client.put_object(
+        Bucket=integration_state.bucket,
+        Key=f"state/{integration}/feature.foo.bar",
+        Body='"set"',
+    )
+
+    assert integration_state["feature.foo.bar"] == "set"
+    with integration_state.transaction("feature.foo.bar", "set") as exists:
+        assert exists
+        # here should be the code that acts now
+
+
+def test_state_transaction_exception(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    try:
+        with integration_state.transaction("feature.foo.bar", "set") as exists:
+            assert not exists
+            raise FileNotFoundError("Some error")
+    except FileNotFoundError:
+        with pytest.raises(KeyError):
+            integration_state["feature.foo.bar"]
+
+
+def test_state_transaction_changed_during_the_transaction(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    with pytest.raises(RuntimeError):
+        with integration_state.transaction("feature.foo.bar", "set") as exists:
+            assert not exists
+            # simulate that the state was changed by another process
+            integration_state["feature.foo.bar"] = "set"
