@@ -4,7 +4,6 @@ from io import StringIO
 from typing import Any, Optional, Protocol
 
 from pydantic import BaseModel
-from ruamel import yaml
 
 from reconcile.utils.jinja2.utils import Jinja2TemplateError, process_jinja2_template
 from reconcile.utils.jsonpath import parse_jsonpath
@@ -111,7 +110,9 @@ class PatchRenderer(Renderer):
             )
         matched_value = matched_values[0]
 
-        data_to_add = self.ruaml_instace.load(self._render_template(self.template.template))
+        data_to_add = self.ruaml_instace.load(
+            self._render_template(self.template.template)
+        )
 
         if isinstance(matched_value, list):
             if not self.template.patch.identifier:
