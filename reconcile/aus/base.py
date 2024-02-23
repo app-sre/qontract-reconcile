@@ -566,6 +566,7 @@ def get_version_data_map(
     org_upgrade_spec: OrganizationUpgradeSpec,
     integration: str,
     addon_id: str = "",
+    inherit_version_data: bool = True,
     defer: Optional[Callable] = None,
 ) -> VersionDataMap:
     """Get a summary of versions history per OCM instance
@@ -575,6 +576,7 @@ def get_version_data_map(
         org_upgrade_spec (OrganizationUpgradeSpec): organization upgrade spec
         addon_id (str): optional addon id to get & store the addon specific state,
           additionally to the ocm org name
+        inherit_version_data: whether to inherit version data from other OCM orgs
         defer (Optional<Callable>): defer function
 
     Returns:
@@ -599,28 +601,31 @@ def get_version_data_map(
 
     # aggregate data from other ocm orgs
     # this is done *after* saving the state: we do not store the other orgs data in our state.
-    for other_ocm in org_upgrade_spec.org.inherit_version_data or []:
-        if org_upgrade_spec.org.org_id == other_ocm.org_id:
-            raise ValueError(
-                f"[{org_upgrade_spec.org.name} - {org_upgrade_spec.org.org_id}] OCM organization inherits version data from itself"
+    if inherit_version_data:
+        for other_ocm in org_upgrade_spec.org.inherit_version_data or []:
+            if org_upgrade_spec.org.org_id == other_ocm.org_id:
+                raise ValueError(
+                    f"[{org_upgrade_spec.org.name} - {org_upgrade_spec.org.org_id}] OCM organization inherits version data from itself"
+                )
+            if org_upgrade_spec.org.org_id not in [
+                o.org_id for o in other_ocm.publish_version_data or []
+            ]:
+                raise ValueError(
+                    f"[{org_upgrade_spec.org.name} - {org_upgrade_spec.org.org_id}] OCM organization inherits version data from "
+                    f"{other_ocm.org_id}, but this data is not published to it: "
+                    f"missing publishVersionData in {other_ocm.org_id}"
+                )
+            other_ocm_data = get_version_data(
+                state,
+                version_data_state_key(
+                    other_ocm.environment.name, other_ocm.org_id, addon_id
+                ),
             )
-        if org_upgrade_spec.org.org_id not in [
-            o.org_id for o in other_ocm.publish_version_data or []
-        ]:
-            raise ValueError(
-                f"[{org_upgrade_spec.org.name} - {org_upgrade_spec.org.org_id}] OCM organization inherits version data from "
-                f"{other_ocm.org_id}, but this data is not published to it: "
-                f"missing publishVersionData in {other_ocm.org_id}"
+            result.get(
+                org_upgrade_spec.org.environment.name, org_upgrade_spec.org.org_id
+            ).aggregate(
+                other_ocm_data, f"{other_ocm.environment.name}/{other_ocm.org_id}"
             )
-        other_ocm_data = get_version_data(
-            state,
-            version_data_state_key(
-                other_ocm.environment.name, other_ocm.org_id, addon_id
-            ),
-        )
-        result.get(
-            org_upgrade_spec.org.environment.name, org_upgrade_spec.org.org_id
-        ).aggregate(other_ocm_data, f"{other_ocm.environment.name}/{other_ocm.org_id}")
 
     return result
 
