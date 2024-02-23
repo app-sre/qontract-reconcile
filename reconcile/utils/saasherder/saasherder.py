@@ -898,19 +898,20 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return False
 
     def _process_template(
-        self,
-        saas_file_name: str,
-        resource_template_name: str,
-        image_auth: ImageAuth,
-        url: str,
-        path: str,
-        provider: str,
-        hash_length: int,
-        target: SaasResourceTemplateTarget,
-        parameters: dict[str, str],
-        github: Github,
-        target_config_hash: str,
+        self, spec: TargetSpec
     ) -> tuple[list[Any], str, Optional[Promotion]]:
+        saas_file_name = spec.saas_file_name
+        resource_template_name = spec.resource_template_name
+        image_auth = spec.image_auth
+        url = spec.url
+        path = spec.path
+        provider = spec.provider
+        hash_length = spec.hash_length
+        target = spec.target
+        parameters = spec.parameters
+        github = spec.github
+        target_config_hash = spec.target_config_hash
+
         if provider == "openshift-template":
             environment_parameters = self._collect_parameters(
                 target.namespace.environment
@@ -997,25 +998,26 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         + f"{str(e)}"
                     )
                     raise
-                try:
-                    image_uri = f"{registry_image}:{image_tag}"
-                    img = Image(
-                        url=image_uri,
-                        username=image_auth.username,
-                        password=image_auth.password,
-                        auth_server=image_auth.auth_server,
+
+                image_uri = f"{registry_image}:{image_tag}"
+                error_prefix = (
+                    f"[{saas_file_name}/{resource_template_name}] {html_url}:"
+                )
+                img = self._get_image(
+                    image=image_uri,
+                    image_patterns=spec.image_patterns,
+                    image_auth=image_auth,
+                    error_prefix=error_prefix,
+                )
+                if not img:
+                    raise Exception(
+                        f"[{error_prefix}: error generating REPO_DIGEST for {image_uri}"
                     )
-                    if need_repo_digest:
-                        consolidated_parameters["REPO_DIGEST"] = img.url_digest
-                    if need_image_digest:
-                        consolidated_parameters["IMAGE_DIGEST"] = img.digest
-                except (rqexc.ConnectionError, rqexc.HTTPError) as e:
-                    logging.error(
-                        f"[{saas_file_name}/{resource_template_name}] "
-                        + f"{html_url}: error generating REPO_DIGEST for "
-                        + f"{image_uri}: {str(e)}"
-                    )
-                    raise
+
+                if need_repo_digest:
+                    consolidated_parameters["REPO_DIGEST"] = img.url_digest
+                if need_image_digest:
+                    consolidated_parameters["IMAGE_DIGEST"] = img.digest
 
             oc = OCLocal("cluster", None, None, local=True)
             try:
@@ -1125,38 +1127,53 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return images
 
     @staticmethod
-    def _check_image(
+    def _get_image(
         image: str,
         image_patterns: Iterable[str],
         image_auth: ImageAuth,
         error_prefix: str,
-    ) -> bool:
-        error = False
+    ) -> Optional[Image]:
         if not image_patterns:
-            error = True
             logging.error(
                 f"{error_prefix} imagePatterns is empty (does not contain {image})"
             )
+            return None
         if image_patterns and not any(image.startswith(p) for p in image_patterns):
-            error = True
             logging.error(f"{error_prefix} Image is not in imagePatterns: {image}")
+            return None
+
+        # .dockerconfigjson
+        if image_auth.docker_config:
+            # we rely on the secret in vault being ordered
+            # https://peps.python.org/pep-0468/
+            for registry, auth in image_auth.docker_config["auths"].items():
+                if not image.startswith(registry):
+                    continue
+                username, password = (
+                    base64.b64decode(auth["auth"]).decode("utf-8").split(":")
+                )
+                with suppress(Exception):
+                    return Image(
+                        image,
+                        username=username,
+                        password=password,
+                        auth_server=image_auth.auth_server,
+                    )
+
+        # basic auth fallback for backwards compatibility
         try:
-            valid = Image(
+            return Image(
                 image,
                 username=image_auth.username,
                 password=image_auth.password,
                 auth_server=image_auth.auth_server,
             )
-            if not valid:
-                error = True
-                logging.error(f"{error_prefix} Image does not exist: {image}")
         except Exception as e:
-            error = True
             logging.error(
                 f"{error_prefix} Image is invalid: {image}. " + f"details: {str(e)}"
             )
 
-        return error
+        return None
 
     def _check_images(
         self,
@@ -1175,15 +1192,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.images.update(images)
         if not images:
             return False  # no errors
-        errors = threaded.run(
-            self._check_image,
+        images = threaded.run(
+            self._get_image,
             images,
             self.available_thread_pool_size,
             image_patterns=image_patterns,
             image_auth=image_auth,
             error_prefix=error_prefix,
         )
-        return any(errors)
+        return None in images
 
     def _initiate_github(
         self, saas_file: SaasFile, base_url: Optional[str] = None
@@ -1216,20 +1233,24 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             return ImageAuth()
 
         creds = self.secret_reader.read_all_secret(saas_file.authentication.image)
-        required_keys = ["user", "token"]
-        ok = all(k in creds.keys() for k in required_keys)
+        required_docker_config_keys = [".dockerconfigjson"]
+        required_keys_basic_auth = ["user", "token"]
+        ok = all(k in creds.keys() for k in required_keys_basic_auth) or all(
+            k in creds.keys() for k in required_docker_config_keys
+        )
         if not ok:
             logging.warning(
                 "the specified image authentication secret "
                 + f"found in path {saas_file.authentication.image.path} "
-                + f"does not contain all required keys: {required_keys}"
+                + f"does not contain all required keys: {required_docker_config_keys} or {required_keys_basic_auth}"
             )
             return ImageAuth()
 
         return ImageAuth(
-            username=creds["user"],
-            password=creds["token"],
+            username=creds.get("user"),
+            password=creds.get("token"),
             auth_server=creds.get("url"),
+            docker_config=json.loads(creds.get(".dockerconfigjson") or "{}"),
         )
 
     def populate_desired_state(self, ri: ResourceInventory) -> None:
@@ -1326,19 +1347,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             return None
 
         try:
-            resources, html_url, promotion = self._process_template(
-                saas_file_name=spec.saas_file_name,
-                resource_template_name=spec.resource_template_name,
-                image_auth=spec.image_auth,
-                url=spec.url,
-                path=spec.path,
-                provider=spec.provider,
-                hash_length=spec.hash_length,
-                target=spec.target,
-                parameters=spec.parameters,
-                github=spec.github,
-                target_config_hash=spec.target_config_hash,
-            )
+            resources, html_url, promotion = self._process_template(spec)
         except Exception as e:
             # error log message send in _process_template. We log here debug to have a
             # safeguard in case something breaks there unexpectedly. We cannot just
@@ -1670,10 +1679,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     image_uri = f"{image_registry}:{desired_image_tag}"
                     image_auth = self._initiate_image_auth(saas_file)
                     error_prefix = f"[{saas_file.name}/{rt.name}] {target.ref}:"
-                    error = self._check_image(
+                    image = self._get_image(
                         image_uri, saas_file.image_patterns, image_auth, error_prefix
                     )
-                    if error:
+                    if not image:
                         continue
 
                     trigger_spec = TriggerSpecContainerImage(

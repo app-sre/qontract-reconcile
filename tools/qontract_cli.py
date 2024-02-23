@@ -90,6 +90,7 @@ from reconcile.utils.early_exit_cache import (
     EarlyExitCache,
 )
 from reconcile.utils.environ import environ
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
@@ -1490,6 +1491,103 @@ def aws_terraform_resources(ctx):
     # do not sort
     ctx.obj["options"]["sort"] = False
     print_output(ctx.obj["options"], results.values(), columns)
+
+
+def rds_attr(
+    attr: str, overrides: dict[str, str], defaults: dict[str, str]
+) -> str | None:
+    return overrides.get(attr) or defaults.get(attr)
+
+
+def region_from_az(az: str | None) -> str | None:
+    if not az:
+        return None
+    return az[:-1]
+
+
+def rds_region(
+    spec: ExternalResourceSpec,
+    overrides: dict[str, str],
+    defaults: dict[str, str],
+    accounts: dict[str, Any],
+) -> str | None:
+    return (
+        spec.resource.get("region")
+        or rds_attr("region", overrides, defaults)
+        or region_from_az(spec.resource.get("availability_zone"))
+        or region_from_az(rds_attr("availability_zone", overrides, defaults))
+        or accounts[spec.provisioner_name].get("resourcesDefaultRegion")
+    )
+
+
+@get.command
+@click.pass_context
+def rds(ctx):
+    namespaces = tfr.get_namespaces()
+    accounts = {a["name"]: a for a in queries.get_aws_accounts()}
+    results = []
+    for namespace in namespaces:
+        specs = [
+            s
+            for s in get_external_resource_specs(
+                namespace.dict(by_alias=True), provision_provider=PROVIDER_AWS
+            )
+            if s.provider == "rds"
+        ]
+        for spec in specs:
+            defaults = yaml.safe_load(
+                gql.get_resource(spec.resource["defaults"])["content"]
+            )
+            overrides = json.loads(spec.resource.get("overrides") or "{}")
+            item = {
+                "identifier": spec.identifier,
+                "account": spec.provisioner_name,
+                "account_uid": accounts[spec.provisioner_name]["uid"],
+                "region": rds_region(spec, overrides, defaults, accounts),
+                "engine": rds_attr("engine", overrides, defaults),
+                "engine_version": rds_attr("engine_version", overrides, defaults),
+                "instance_class": rds_attr("instance_class", overrides, defaults),
+            }
+            results.append(item)
+
+    if ctx.obj["options"]["output"] == "md":
+        json_table = {
+            "filter": True,
+            "fields": [
+                {"key": "identifier", "sortable": True},
+                {"key": "account", "sortable": True},
+                {"key": "account_uid", "sortable": True},
+                {"key": "region", "sortable": True},
+                {"key": "engine", "sortable": True},
+                {"key": "engine_version", "sortable": True},
+                {"key": "instance_class", "sortable": True},
+            ],
+            "items": results,
+        }
+
+        print(
+            f"""
+You can view the source of this Markdown to extract the JSON data.
+
+{len(results)} RDS instances found.
+
+```json:table
+{json.dumps(json_table)}
+```
+            """
+        )
+    else:
+        columns = [
+            "identifier",
+            "account",
+            "account_uid",
+            "region",
+            "engine",
+            "engine_version",
+            "instance_class",
+        ]
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], results, columns)
 
 
 @get.command()
