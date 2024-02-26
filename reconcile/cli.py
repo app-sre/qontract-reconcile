@@ -2287,11 +2287,12 @@ def terraform_users(
     )
 
 @integration.command(short_help="Manage VPC creation")
+@account_name
 @click.pass_context
 def terraform_vpc_resources(ctx):
     import reconcile.terraform_vpc_resources
 
-    run_integration(reconcile.terraform_vpc_resources, ctx.obj)
+    run_integration(reconcile.terraform_vpc_resources, ctx.obj, account_name)
 
 @integration.command(
     short_help="Manage VPC peerings between OSD clusters and AWS accounts or other OSD clusters."
