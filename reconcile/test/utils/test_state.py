@@ -397,13 +397,3 @@ def test_state_transaction_exception(
     except FileNotFoundError:
         with pytest.raises(KeyError):
             integration_state["feature.foo.bar"]
-
-
-def test_state_transaction_changed_during_the_transaction(
-    integration_state: State, integration: str, s3_client: S3Client
-) -> None:
-    with pytest.raises(RuntimeError):
-        with integration_state.transaction("feature.foo.bar", "set") as exists:
-            assert not exists
-            # simulate that the state was changed by another process
-            integration_state["feature.foo.bar"] = "set"

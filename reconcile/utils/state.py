@@ -406,7 +406,13 @@ class State:
         self._set(key, value)
 
     def transaction(self, key: str, value: Any) -> "_TransactionContext":
-        """Get a context manager to set the key in the state if no exception occurs."""
+        """Get a context manager to set the key in the state if no exception occurs.
+
+        Attention!
+
+        This is not a locking mechanism. It is a way to ensure that a key is set in the state if no exception occurs.
+        This method is not thread-safe nor multi-process-safe! There is no locking mechanism in place.
+        """
         return _TransactionContext(self, key, value)
 
 
@@ -424,11 +430,16 @@ class _TransactionContext:
         self.value = value
 
     def __enter__(self) -> bool:
-        """Check if the key exists and store its previous value."""
+        """Return True if the key exists in the state, False otherwise.
+
+        Cache the previous value to avoid unnecessary updates.
+        """
         self._previous_value = None
-        if _exists := self.state.exists(self.key):
+        try:
             self._previous_value = self.state[self.key]
-        return _exists
+            return True
+        except KeyError:
+            return False
 
     def __exit__(
         self,
@@ -439,13 +450,7 @@ class _TransactionContext:
         if exc_type:
             # if an exception occurred, we don't want to write to the state
             return
-
-        try:
-            # the key/value might have been changed in the meantime
-            if self.state[self.key] != self._previous_value:
-                raise RuntimeError(
-                    f"State key {self.key} has been changed during the transaction."
-                )
-        except KeyError:
-            pass
+        if self._previous_value == self.value:
+            # if the value didn't change, we don't want to write to the state
+            return
         self.state[self.key] = self.value
