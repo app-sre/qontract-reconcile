@@ -16,6 +16,7 @@ from gitlab.v4.objects import (
     ProjectIssue,
     ProjectMergeRequest,
     ProjectMergeRequestResourceLabelEvent,
+    User,
 )
 from pytest_mock import MockerFixture
 
@@ -172,6 +173,13 @@ def project() -> Project:
 
 
 @pytest.fixture
+def user() -> User:
+    user = create_autospec(User)
+    user.username = "user"
+    return user
+
+
+@pytest.fixture
 def can_be_merged_merge_request() -> ProjectMergeRequest:
     mr = create_autospec(ProjectMergeRequest)
     mr.merge_status = "can_be_merged"
@@ -205,6 +213,7 @@ def success_merge_request_pipeline() -> dict:
 
 def test_merge_merge_requests(
     project: Project,
+    user: User,
     can_be_merged_merge_request: ProjectMergeRequest,
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
     success_merge_request_pipeline: dict,
@@ -217,6 +226,7 @@ def test_merge_merge_requests(
     mocked_gl.get_merge_request_pipelines.return_value = [
         success_merge_request_pipeline
     ]
+    mocked_gl.user = user
 
     gl_h.merge_merge_requests(
         False,
