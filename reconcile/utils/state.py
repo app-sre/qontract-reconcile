@@ -2,14 +2,16 @@ import json
 import logging
 import os
 from abc import abstractmethod
+from collections.abc import Callable, Mapping
+from types import TracebackType
 from typing import (
     Any,
     Optional,
+    Self,
 )
 
 import boto3
 from botocore.errorfactory import ClientError
-from jinja2 import Template
 from mypy_boto3_s3 import S3Client
 from pydantic import BaseModel
 
@@ -23,7 +25,7 @@ from reconcile.typed_queries.app_interface_state_settings import (
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
-from reconcile.utils import gql
+from reconcile.typed_queries.get_state_aws_account import get_state_aws_account
 from reconcile.utils.aws_api import aws_config_file_path
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
@@ -33,23 +35,6 @@ from reconcile.utils.secret_reader import (
 
 class StateInaccessibleException(Exception):
     pass
-
-
-STATE_ACCOUNT_QUERY = """
-{
-  accounts: awsaccounts_v1 (name: "{{ name }}")
-  {
-    name
-    resourcesDefaultRegion
-    automationToken {
-      path
-      field
-      version
-      format
-    }
-  }
-}
-"""
 
 
 def init_state(
@@ -99,7 +84,9 @@ class S3ProfileBasedStateConfiguration(S3StateConfiguration):
         return session.client("s3")
 
 
-def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfiguration:
+def acquire_state_settings(
+    secret_reader: SecretReaderBase, query_func: Callable | None = None
+) -> S3StateConfiguration:
     """
     Finds the settings for the app-interface state provider in the following order:
 
@@ -183,17 +170,17 @@ def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurat
         logging.debug(
             f"access state via {state_bucket_account_name} automation token from app-interface"
         )
-        account = _get_aws_account_by_name(state_bucket_account_name)
+        account = get_state_aws_account(
+            state_bucket_account_name, query_func=query_func
+        )
         if not account:
             raise StateInaccessibleException(
                 f"The AWS account {state_bucket_account_name} that holds the state bucket can't be found in app-interface."
             )
-        secret = secret_reader.read_all_secret(
-            VaultSecret(**account["automationToken"])
-        )
+        secret = secret_reader.read_all_secret(account.automation_token)
         return S3CredsBasedStateConfiguration(
             bucket=state_bucket_name,
-            region=state_bucket_region or account["resourcesDefaultRegion"],
+            region=state_bucket_region or account.resources_default_region,
             access_key_id=secret["aws_access_key_id"],
             secret_access_key=secret["aws_secret_access_key"],
         )
@@ -223,14 +210,6 @@ def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurat
         "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION and APP_INTERFACE_STATE_BUCKET_ACCOUNT if the mentioned AWS account is present in app-interface \n"
         "* state settings in app-interface-settings-1.yml"
     )
-
-
-def _get_aws_account_by_name(name: str) -> Optional[dict[str, Any]]:
-    query = Template(STATE_ACCOUNT_QUERY).render(name=name)
-    aws_accounts = gql.get_api().query(query)["accounts"]
-    if aws_accounts:
-        return aws_accounts[0]
-    return None
 
 
 class State:
@@ -264,19 +243,19 @@ class State:
                 f"Bucket {self.bucket} is not accessible - {str(details)}"
             )
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self.cleanup()
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """
         Closes the S3 client
         """
         self.client.close()
 
-    def exists(self, key):
+    def exists(self, key: str) -> bool:
         """
         Checks if a key exists in the state.
 
@@ -290,7 +269,7 @@ class State:
         exists, _ = self.head(key)
         return exists
 
-    def head(self, key) -> tuple[bool, dict[str, str]]:
+    def head(self, key: str) -> tuple[bool, dict[str, str]]:
         """
         Checks if a key exists in the state. Returns the metadata of a key in the state.
 
@@ -315,7 +294,7 @@ class State:
                 f"in bucket {self.bucket} - {str(details)}"
             )
 
-    def ls(self):
+    def ls(self) -> list[str]:
         """
         Returns a list of keys in the state
         """
@@ -339,7 +318,13 @@ class State:
 
         return [c["Key"].replace(self.state_path, "") for c in contents]
 
-    def add(self, key, value=None, metadata=None, force=False):
+    def add(
+        self,
+        key: str,
+        value: Any = None,
+        metadata: Mapping[str, str] | None = None,
+        force: bool = False,
+    ) -> None:
         """
         Adds a key/value to the state and fails if the key already exists
 
@@ -354,7 +339,9 @@ class State:
             raise KeyError(f"[state] key {key} already " f"exists in {self.state_path}")
         self._set(key, value, metadata=metadata)
 
-    def _set(self, key, value, metadata=None):
+    def _set(
+        self, key: str, value: Any, metadata: Mapping[str, str] | None = None
+    ) -> None:
         self.client.put_object(
             Bucket=self.bucket,
             Key=f"{self.state_path}/{key}",
@@ -362,7 +349,7 @@ class State:
             Metadata=metadata or {},
         )
 
-    def rm(self, key):
+    def rm(self, key: str) -> None:
         """
         Removes a key from the state and fails if the key does not exists
 
@@ -374,7 +361,7 @@ class State:
             raise KeyError(f"[state] key {key} does not exists in {self.state_path}")
         self.client.delete_object(Bucket=self.bucket, Key=f"{self.state_path}/{key}")
 
-    def get(self, key, *args):
+    def get(self, key: str, *args: Any) -> Any:
         """
         Gets a key value from the state and return the default
         value or raises and exception if the key does not exist.
@@ -392,7 +379,7 @@ class State:
                 return args[0]
             raise
 
-    def get_all(self, path):
+    def get_all(self, path: str) -> dict[str, Any]:
         """
         Gets all keys and values from the state in the specified path.
         """
@@ -402,7 +389,7 @@ class State:
             if k.startswith(f"/{path}")
         }
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> Any:
         try:
             response = self.client.get_object(
                 Bucket=self.bucket, Key=f"{self.state_path}/{item}"
@@ -415,5 +402,55 @@ class State:
         except json.decoder.JSONDecodeError:
             raise KeyError(item)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any) -> None:
         self._set(key, value)
+
+    def transaction(self, key: str, value: Any) -> "_TransactionContext":
+        """Get a context manager to set the key in the state if no exception occurs.
+
+        Attention!
+
+        This is not a locking mechanism. It is a way to ensure that a key is set in the state if no exception occurs.
+        This method is not thread-safe nor multi-process-safe! There is no locking mechanism in place.
+        """
+        return _TransactionContext(self, key, value)
+
+
+class _TransactionContext:
+    """A context manager to set a key in the state if no exception occurs."""
+
+    def __init__(
+        self,
+        state: State,
+        key: str,
+        value: Any,
+    ):
+        self.state = state
+        self.key = key
+        self.value = value
+
+    def __enter__(self) -> bool:
+        """Return True if the key exists in the state, False otherwise.
+
+        Cache the previous value to avoid unnecessary updates.
+        """
+        self._previous_value = None
+        try:
+            self._previous_value = self.state[self.key]
+            return True
+        except KeyError:
+            return False
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        if exc_type:
+            # if an exception occurred, we don't want to write to the state
+            return
+        if self._previous_value == self.value:
+            # if the value didn't change, we don't want to write to the state
+            return
+        self.state[self.key] = self.value
