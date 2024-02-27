@@ -148,6 +148,8 @@ objects:
             value: "${INTEGRATIONS_MANAGER_IMAGE_TAG_FROM_REF}"
           - name: INTEGRATION_NAME
             value: integrations-manager
+          - name: INTEGRATION_EXTRA_ARGS
+            value: "-i quay.io/app-sre/qontract-reconcile-fips"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
