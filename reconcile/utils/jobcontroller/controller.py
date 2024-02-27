@@ -261,7 +261,7 @@ class K8sJobController:
         script_data = job.scripts()
         # fail if both dicts have overlapping keys
         if not set(secret_data).isdisjoint(script_data):
-            raise Exception(
+            raise JobValidationError(
                 f"Secret data and script data have overlapping keys for {job.name()}"
             )
         data = {**secret_data, **script_data}

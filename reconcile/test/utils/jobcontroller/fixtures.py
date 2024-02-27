@@ -14,6 +14,7 @@ class SomeJob(K8sJob, BaseModel):
     identifying_attribute: str
     backoff_limit: int = 0
     credentials: Optional[dict[str, str]] = None
+    script: Optional[str] = None
 
     def name_prefix(self) -> str:
         return "some-job"
@@ -30,6 +31,15 @@ class SomeJob(K8sJob, BaseModel):
 
     def secret_data(self) -> dict[str, str]:
         return self.credentials or {}
+
+    def scripts(self) -> dict[str, str]:
+        return (
+            {
+                "script.sh": self.script,
+            }
+            if self.script
+            else {}
+        )
 
 
 class SomeJobV2(K8sJob, BaseModel):

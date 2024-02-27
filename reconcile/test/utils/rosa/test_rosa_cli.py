@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from reconcile.utils.rosa.rosa_cli import RosaJob
+from reconcile.utils.rosa.rosa_cli import EXEC_SCRIPT, RosaJob
 
 
 @pytest.mark.parametrize(
@@ -31,6 +31,13 @@ def test_rosa_job_secret_data(rosa_job: RosaJob) -> None:
     secret_data = rosa_job.secret_data()
     assert set(secret_data.keys()) == {
         "OCM_TOKEN",
+    }
+
+
+def test_rosa_job_scripts(rosa_job: RosaJob) -> None:
+    scripts = rosa_job.scripts()
+    assert set(scripts.keys()) == {
+        EXEC_SCRIPT,
     }
 
 
