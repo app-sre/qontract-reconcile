@@ -10,8 +10,12 @@ from kubernetes.client import (
     V1EnvVarSource,
     V1Job,
     V1JobSpec,
+    V1KeyToPath,
     V1ObjectMeta,
     V1SecretKeySelector,
+    V1SecretVolumeSource,
+    V1Volume,
+    V1VolumeMount,
 )
 
 
@@ -133,6 +137,13 @@ class K8sJob(ABC):
         """
         return {}
 
+    def scripts(self) -> dict[str, str]:
+        """
+        If a job relies on some scripts, it should return them here. The
+        job controller will manage the lifecycle of a kubernetes Secret containing them.
+        """
+        return {}
+
     def secret_data_to_env_vars_secret_refs(self) -> list[V1EnvVar]:
         secret_name = self.name()
         return [
@@ -147,3 +158,26 @@ class K8sJob(ABC):
             )
             for secret_key_name in self.secret_data().keys()
         ]
+
+    def scripts_volume_mount(self, directory: str) -> V1VolumeMount:
+        secret_name = self.name()
+        return V1VolumeMount(
+            name=secret_name,
+            mount_path=directory,
+        )
+
+    def scripts_volume(self) -> V1Volume:
+        secret_name = self.name()
+        return V1Volume(
+            name=secret_name,
+            secret=V1SecretVolumeSource(
+                secret_name=secret_name,
+                items=[
+                    V1KeyToPath(
+                        key=script_name,
+                        path=script_name,
+                    )
+                    for script_name in self.scripts().keys()
+                ],
+            ),
+        )

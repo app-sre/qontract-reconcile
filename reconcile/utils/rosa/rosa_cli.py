@@ -1,6 +1,8 @@
+import collections
 import itertools
 import os
 import textwrap
+from collections.abc import Iterable
 from typing import Any, Callable, Optional
 
 from kubernetes.client import (
@@ -22,6 +24,8 @@ from pydantic import BaseModel
 
 from reconcile.utils.jobcontroller.models import JobStatus, K8sJob
 
+SCRIPTS_MOUNT_PATH = "/scripts"
+EXEC_SCRIPT = "execute.sh"
 
 class LogHandle:
     """
@@ -32,10 +36,14 @@ class LogHandle:
     def __init__(self, log_file: str) -> None:
         self.log_file = log_file
 
-    def get_log_lines(self, max_lines: int = 5) -> list[str]:
+    def get_log_lines(
+        self, max_lines: int = 5, from_file_end: bool = False
+    ) -> Iterable[str]:
         if max_lines <= 0:
             return []
         with open(self.log_file, "r", encoding="utf-8") as f:
+            if from_file_end:
+                return collections.deque(f, maxlen=max_lines)
             return [line.rstrip() for line in itertools.islice(f, max_lines)]
 
     def write_logs_to_logger(self, logger: Callable[..., None]) -> None:
@@ -64,14 +72,22 @@ class RosaCliResult:
         self.command = command
         self.log_handle = log_handle
 
-    def get_log_lines(self, max_lines: int = 5) -> list[str]:
+    def get_log_lines(
+        self, max_lines: int = 5, from_file_end: bool = False
+    ) -> Iterable[str]:
         if self.log_handle:
-            return self.log_handle.get_log_lines(max_lines)
+            return self.log_handle.get_log_lines(
+                max_lines=max_lines, from_file_end=from_file_end
+            )
         return []
 
     def write_logs_to_logger(self, logger: Callable[..., None]) -> None:
         if self.log_handle:
             self.log_handle.write_logs_to_logger(logger)
+
+    def cleanup(self) -> None:
+        if self.log_handle:
+            self.log_handle.cleanup()
 
 
 class RosaCliException(Exception, RosaCliResult):
@@ -134,6 +150,9 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
 
     def secret_data(self) -> dict[str, str]:
         return {"OCM_TOKEN": self.ocm_token}
+
+    def scripts(self) -> dict[str, str]:
+        return {EXEC_SCRIPT: self.cmd}
 
     def assume_role_arn(self) -> str:
         return f"arn:aws:iam::{self.aws_account_id}:role/{self.aws_iam_role}"
@@ -223,8 +242,8 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
                         V1Container(
                             name="rosa-cli",
                             image=self.image,
-                            command=["/bin/bash", "-c"],
-                            args=[self.cmd],
+                            command=["/bin/bash"],
+                            args=[f"{SCRIPTS_MOUNT_PATH}/{EXEC_SCRIPT}"],
                             env=[
                                 V1EnvVar(
                                     name="AWS_SHARED_CREDENTIALS_FILE",
@@ -242,10 +261,15 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
                                     mount_path="/.config",
                                 ),
                                 V1VolumeMount(
+                                    name="workdir",
+                                    mount_path="/.aws",
+                                ),
+                                V1VolumeMount(
                                     name="bound-sa-token",
                                     mount_path="/var/run/secrets/openshift/serviceaccount",
                                     read_only=True,
                                 ),
+                                self.scripts_volume_mount(SCRIPTS_MOUNT_PATH),
                             ],
                         )
                     ],
@@ -278,6 +302,7 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
                                 size_limit="10Mi",
                             ),
                         ),
+                        self.scripts_volume(),
                     ],
                 ),
             ),
