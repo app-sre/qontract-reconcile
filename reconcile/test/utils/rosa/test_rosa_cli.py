@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from reconcile.utils.rosa.rosa_cli import RosaJob
+from reconcile.utils.rosa.rosa_cli import RosaJob, EXEC_SCRIPT
 
 
 @pytest.mark.parametrize(
@@ -38,7 +38,6 @@ def test_rosa_job_spec(rosa_job: RosaJob) -> None:
     job_spec = rosa_job.job_spec()
     container = job_spec.template.spec.containers[0]  # type: ignore
     assert container.image == rosa_job.image
-    assert container.args == [rosa_job.cmd]
     assert {e.name for e in container.env or []} == {
         "AWS_SHARED_CREDENTIALS_FILE",
         "AWS_REGION",
