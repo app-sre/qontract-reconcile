@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
+from pytest_mock import MockerFixture
 
 import reconcile.ocm_clusters as occ
 import reconcile.utils.ocm as ocmmod
@@ -17,6 +18,7 @@ from reconcile.ocm.types import (
     OSDClusterSpec,
     ROSAClusterSpec,
 )
+from reconcile.test.fixtures import Fixtures
 from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
 from reconcile.utils.ocm import (
     OCM,
@@ -24,9 +26,16 @@ from reconcile.utils.ocm import (
     SPEC_ATTR_SERVER_URL,
     OCMMap,
     ocm,
+    products,
 )
-
-from .fixtures import Fixtures
+from reconcile.utils.ocm.products import (
+    OCM_PRODUCT_OSD,
+    OCM_PRODUCT_ROSA,
+    OCMProductOsd,
+    OCMProductPortfolio,
+    OCMProductRosa,
+)
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 fxt = Fixtures("clusters")
 
@@ -333,20 +342,16 @@ def ocmmap_mock(ocm_osd_cluster_spec, ocm_mock):
 
 
 @pytest.fixture
-def ocm_secrets_reader():
-    with patch("reconcile.utils.ocm.ocm.SecretReader", autospec=True) as sr:
-        yield sr
-
-
-@pytest.fixture
-def ocm_mock(ocm_secrets_reader):
-    with patch.object(OCM, "_post") as _post:
-        with patch.object(OCM, "_patch", autospec=True) as _patch:
-            with patch.object(OCM, "whoami", autospec=True):
-                with patch.object(ocm, "init_ocm_base_client"):
-                    with patch.object(OCM, "get_provision_shard", autospec=True) as gps:
-                        gps.return_value = {"id": "provision_shard_id"}
-                        yield _post, _patch
+def ocm_mock(mocker: MockerFixture):
+    with patch.object(OCM, "whoami", autospec=True):
+        with patch.object(ocm, "init_ocm_base_client") as ioc:
+            ocm_api_mock = mocker.Mock(OCMBaseClient)
+            ioc.return_value = ocm_api_mock
+            yield ocm_api_mock.post, ocm_api_mock.patch
+            # todo check if we need this realy!!!
+            # with patch.object(OCM, "get_product_impl", autospec=True) as gpi:
+            #    gpi.return_value = osd_product
+            #    yield _post, _patch
 
 
 @pytest.fixture
@@ -360,6 +365,53 @@ def cluster_updates_mr_mock():
 def get_json_mock():
     with patch.object(OCM, "_get_json", autospec=True) as get_json:
         yield get_json
+
+
+@pytest.fixture
+def osd_product() -> typing.Generator[OCMProductOsd, None, None]:
+    with patch.object(products, "get_provisioning_shard_id") as g:
+        g.return_value = "provision_shard_id"
+        yield OCMProductOsd()
+
+
+@pytest.fixture
+def rosa_product() -> typing.Generator[OCMProductRosa, None, None]:
+    with patch.object(products, "get_provisioning_shard_id") as g:
+        g.return_value = "provision_shard_id"
+        yield OCMProductRosa()
+
+
+@pytest.fixture
+def product_portfolio(
+    osd_product: OCMProductOsd, rosa_product: OCMProductRosa
+) -> OCMProductPortfolio:
+    return OCMProductPortfolio(
+        products={
+            OCM_PRODUCT_OSD: osd_product,
+            OCM_PRODUCT_ROSA: rosa_product,
+        }
+    )
+
+
+@pytest.fixture
+def integration(
+    product_portfolio: OCMProductPortfolio,
+) -> typing.Generator[occ.OcmClusters, None, None]:
+    integration = occ.OcmClusters(
+        params=occ.OcmClustersParams(
+            job_controller_cluster="cluster",
+            job_controller_namespace="namespace",
+            rosa_job_image="image",
+            rosa_job_service_account="service_account",
+            rosa_role="role",
+            gitlab_project_id=None,
+            thread_pool_size=1,
+        )
+    )
+    with patch.object(
+        integration, "assemble_product_portfolio", return_value=product_portfolio
+    ):
+        yield integration
 
 
 def test_ocm_spec_population_rosa(rosa_cluster_fxt):
@@ -386,49 +438,49 @@ def test_ocm_spec_population_osd_with_extra(osd_cluster_fxt):
 
 
 def test_get_ocm_cluster_update_spec_no_changes(
-    ocm_mock, ocm_osd_cluster_spec: OCMSpec
+    osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
 ):
     current_spec = ocm_osd_cluster_spec
     desired_spec = ocm_osd_cluster_spec
     upd, err = occ.get_cluster_ocm_update_spec(
-        ocm_mock, "cluster1", current_spec, desired_spec
+        osd_product, "cluster1", current_spec, desired_spec
     )
     assert (upd, err) == ({}, False)
 
 
 def test_get_ocm_cluster_update_spec_network_banned(
-    ocm_mock, ocm_osd_cluster_spec: OCMSpec
+    osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
 ):
     current_spec = ocm_osd_cluster_spec
     desired_spec = current_spec.copy(deep=True)
     desired_spec.network.vpc = "0.0.0.0/0"
     _, err = occ.get_cluster_ocm_update_spec(
-        ocm_mock, "cluster1", current_spec, desired_spec
+        osd_product, "cluster1", current_spec, desired_spec
     )
     assert err is True
 
 
 @typing.no_type_check
 def test_get_ocm_cluster_update_spec_allowed_change(
-    ocm_mock, ocm_osd_cluster_spec: OCMSpec
+    osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
 ):
     current_spec = ocm_osd_cluster_spec
     desired_spec = current_spec.copy(deep=True)
     desired_spec.spec.storage = 2000
     upd, err = occ.get_cluster_ocm_update_spec(
-        ocm_mock, "cluster1", current_spec, desired_spec
+        osd_product, "cluster1", current_spec, desired_spec
     )
     assert (upd, err) == ({ocmmod.SPEC_ATTR_STORAGE: 2000}, False)
 
 
 def test_get_ocm_cluster_update_spec_not_allowed_change(
-    ocm_mock, ocm_osd_cluster_spec: OCMSpec
+    osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
 ):
     current_spec = ocm_osd_cluster_spec
     desired_spec = current_spec.copy(deep=True)
     desired_spec.spec.multi_az = not desired_spec.spec.multi_az
     upd, err = occ.get_cluster_ocm_update_spec(
-        ocm_mock, "cluster1", current_spec, desired_spec
+        osd_product, "cluster1", current_spec, desired_spec
     )
     assert (upd, err) == (
         {ocmmod.SPEC_ATTR_MULTI_AZ: desired_spec.spec.multi_az},
@@ -437,7 +489,7 @@ def test_get_ocm_cluster_update_spec_not_allowed_change(
 
 
 def test_get_ocm_cluster_update_spec_disable_uwm(
-    ocm_mock, ocm_osd_cluster_spec: OCMSpec
+    osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
 ):
     current_spec = ocm_osd_cluster_spec
     desired_spec = current_spec.copy(deep=True)
@@ -445,7 +497,7 @@ def test_get_ocm_cluster_update_spec_disable_uwm(
         not desired_spec.spec.disable_user_workload_monitoring
     )
     upd, err = occ.get_cluster_ocm_update_spec(
-        ocm_mock, "cluster1", current_spec, desired_spec
+        osd_product, "cluster1", current_spec, desired_spec
     )
     assert (upd, err) == (
         {
@@ -455,9 +507,15 @@ def test_get_ocm_cluster_update_spec_disable_uwm(
     )
 
 
-def test_noop_dry_run(queries_mock, ocmmap_mock, ocm_mock, cluster_updates_mr_mock):
+def test_noop_dry_run(
+    integration: occ.OcmClusters,
+    queries_mock,
+    ocmmap_mock,
+    ocm_mock,
+    cluster_updates_mr_mock,
+) -> None:
     with pytest.raises(SystemExit):
-        occ.run(False)
+        integration.run(False)
     # If get has not been called means no action has been performed
     _post, _patch = ocm_mock
     assert _post.call_count == 0
@@ -466,13 +524,14 @@ def test_noop_dry_run(queries_mock, ocmmap_mock, ocm_mock, cluster_updates_mr_mo
 
 
 def test_changed_id(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
     ocm_osd_cluster_raw_spec,
     ocm_osd_cluster_ai_spec,
     cluster_updates_mr_mock,
-):
+) -> None:
     # App Interface attributes are only considered if are null or blank
     # Won't be better to update them if have changed?
     ocm_osd_cluster_ai_spec["spec"]["id"] = ""
@@ -480,7 +539,7 @@ def test_changed_id(
     get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
 
     with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
+        integration.run(dry_run=False)
     _post, _patch = ocm_mock
     assert _post.call_count == 0
     assert _patch.call_count == 0
@@ -488,6 +547,7 @@ def test_changed_id(
 
 
 def test_ocm_osd_create_cluster(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -499,7 +559,7 @@ def test_ocm_osd_create_cluster(
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
 
     with pytest.raises(SystemExit) as sys_exit:
-        occ.run(dry_run=False)
+        integration.run(dry_run=False)
 
     assert sys_exit.value.code == 0
     _post, _patch = ocm_mock
@@ -513,6 +573,7 @@ def test_ocm_osd_create_cluster(
 
 
 def test_ocm_osd_create_cluster_without_machine_pools(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -525,7 +586,7 @@ def test_ocm_osd_create_cluster_without_machine_pools(
     queries_mock[1].return_value = [bad_spec]
 
     with pytest.raises(SystemExit) as sys_exit:
-        occ.run(dry_run=False)
+        integration.run(dry_run=False)
 
     assert sys_exit.value.code == 1
     _post, _patch = ocm_mock
@@ -535,6 +596,7 @@ def test_ocm_osd_create_cluster_without_machine_pools(
 
 
 def test_ocm_rosa_create_cluster(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -545,9 +607,11 @@ def test_ocm_rosa_create_cluster(
     get_json_mock.return_value = {"items": []}
     queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
 
-    with patch("reconcile.utils.ocm.random.choices", return_value=["c", "n", "z", "y"]):
+    with patch(
+        "reconcile.utils.ocm.products.random.choices", return_value=["c", "n", "z", "y"]
+    ):
         with pytest.raises(SystemExit) as sys_exit:
-            occ.run(dry_run=False)
+            integration.run(dry_run=False)
 
     assert sys_exit.value.code == 0
     _post, _patch = ocm_mock
@@ -561,6 +625,7 @@ def test_ocm_rosa_create_cluster(
 
 
 def test_ocm_rosa_create_cluster_without_machine_pools(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -572,9 +637,11 @@ def test_ocm_rosa_create_cluster_without_machine_pools(
     bad_spec = ocm_rosa_cluster_ai_spec | {"machinePools": []}
     queries_mock[1].return_value = [bad_spec]
 
-    with patch("reconcile.utils.ocm.random.choices", return_value=["c", "n", "z", "y"]):
+    with patch(
+        "reconcile.utils.ocm.products.random.choices", return_value=["c", "n", "z", "y"]
+    ):
         with pytest.raises(SystemExit) as sys_exit:
-            occ.run(dry_run=False)
+            integration.run(dry_run=False)
 
     assert sys_exit.value.code == 1
     _post, _patch = ocm_mock
@@ -584,6 +651,7 @@ def test_ocm_rosa_create_cluster_without_machine_pools(
 
 
 def test_ocm_rosa_update_cluster(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -595,7 +663,7 @@ def test_ocm_rosa_update_cluster(
     get_json_mock.return_value = {"items": [ocm_rosa_cluster_raw_spec]}
     queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
     with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
+        integration.run(dry_run=False)
     _post, _patch = ocm_mock
     assert _post.call_count == 0
     assert _patch.call_count == 1
@@ -603,6 +671,7 @@ def test_ocm_rosa_update_cluster(
 
 
 def test_ocm_rosa_update_cluster_dont_update_ocm_on_oidc_drift(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -614,7 +683,7 @@ def test_ocm_rosa_update_cluster_dont_update_ocm_on_oidc_drift(
     get_json_mock.return_value = {"items": [ocm_rosa_cluster_raw_spec]}
     queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
     with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
+        integration.run(dry_run=False)
     _post, _patch = ocm_mock
     assert _post.call_count == 0
     assert _patch.call_count == 0
@@ -622,6 +691,7 @@ def test_ocm_rosa_update_cluster_dont_update_ocm_on_oidc_drift(
 
 
 def test_ocm_rosa_update_cluster_with_machine_pools_change(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -642,7 +712,7 @@ def test_ocm_rosa_update_cluster_with_machine_pools_change(
     queries_mock[1].return_value = [new_spec]
 
     with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
+        integration.run(dry_run=False)
 
     _post, _patch = ocm_mock
     _post.assert_not_called()
@@ -651,6 +721,7 @@ def test_ocm_rosa_update_cluster_with_machine_pools_change(
 
 
 def test_ocm_osd_update_cluster(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -662,7 +733,7 @@ def test_ocm_osd_update_cluster(
     get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
     with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
+        integration.run(dry_run=False)
     _post, _patch = ocm_mock
     assert _post.call_count == 0
     assert _patch.call_count == 1
@@ -670,6 +741,7 @@ def test_ocm_osd_update_cluster(
 
 
 def test_ocm_osd_update_cluster_with_machine_pools_change(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -690,7 +762,7 @@ def test_ocm_osd_update_cluster_with_machine_pools_change(
     queries_mock[1].return_value = [new_spec]
 
     with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
+        integration.run(dry_run=False)
 
     _post, _patch = ocm_mock
     _post.assert_not_called()
@@ -699,6 +771,7 @@ def test_ocm_osd_update_cluster_with_machine_pools_change(
 
 
 def test_ocm_returns_a_rosa_cluster(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -712,7 +785,7 @@ def test_ocm_returns_a_rosa_cluster(
     }
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
     with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
+        integration.run(dry_run=False)
     _post, _patch = ocm_mock
     assert _post.call_count == 0
     assert _patch.call_count == 0
@@ -720,6 +793,7 @@ def test_ocm_returns_a_rosa_cluster(
 
 
 def test_changed_ocm_spec_disable_uwm(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -735,7 +809,7 @@ def test_changed_ocm_spec_disable_uwm(
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
 
     with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
+        integration.run(dry_run=False)
 
     _post, _patch = ocm_mock
     assert _patch.call_count == 1
@@ -744,6 +818,7 @@ def test_changed_ocm_spec_disable_uwm(
 
 
 def test_console_url_changes_ai(
+    integration: occ.OcmClusters,
     get_json_mock,
     queries_mock,
     ocm_mock,
@@ -757,7 +832,7 @@ def test_console_url_changes_ai(
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
 
     with pytest.raises(SystemExit):
-        occ.run(dry_run=False)
+        integration.run(dry_run=False)
 
     _post, _patch = ocm_mock
     assert _patch.call_count == 0
