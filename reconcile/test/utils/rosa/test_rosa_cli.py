@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from reconcile.utils.rosa.rosa_cli import RosaJob, EXEC_SCRIPT
+from reconcile.utils.rosa.rosa_cli import RosaJob
 
 
 @pytest.mark.parametrize(

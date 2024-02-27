@@ -27,6 +27,7 @@ from reconcile.utils.jobcontroller.models import JobStatus, K8sJob
 SCRIPTS_MOUNT_PATH = "/scripts"
 EXEC_SCRIPT = "execute.sh"
 
+
 class LogHandle:
     """
     Represents a handle to a log file and offers convenience methods to consume
