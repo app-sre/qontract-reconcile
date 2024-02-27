@@ -64,10 +64,17 @@ def test_aws_api_typed_iam_attach_user_policy(
     )
 
 
-def test_aws_api_typed_iam_create_account_alias(
+def test_aws_api_typed_iam_set_account_alias(
     aws_api_iam: AWSApiIam, iam_client: MagicMock
 ) -> None:
-    aws_api_iam.create_account_alias("account_alias")
+    aws_api_iam.set_account_alias("account_alias")
     iam_client.create_account_alias.assert_called_once_with(
         AccountAlias="account_alias",
     )
+
+
+def test_aws_api_typed_iam_get_account_alias(
+    aws_api_iam: AWSApiIam, iam_client: MagicMock
+) -> None:
+    iam_client.list_account_aliases.return_value = {"AccountAliases": ["account_alias"]}
+    assert aws_api_iam.get_account_alias() == "account_alias"
