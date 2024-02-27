@@ -10,7 +10,11 @@ from reconcile.test.utils.jobcontroller.fixtures import (
     build_job_status,
 )
 from reconcile.utils.jobcontroller.controller import K8sJobController
-from reconcile.utils.jobcontroller.models import JobConcurrencyPolicy, JobStatus
+from reconcile.utils.jobcontroller.models import (
+    JobConcurrencyPolicy,
+    JobStatus,
+    JobValidationError,
+)
 
 #
 # enqueue_job
@@ -294,13 +298,45 @@ def test_controller_wait_for_job_list_completion_no_timeout(
 #
 
 
-def test_build_secret(controller: K8sJobController) -> None:
+def test_build_secret_data_only(controller: K8sJobController) -> None:
     job = SomeJob(identifying_attribute="some-id", credentials={"super": "secret"})
     job_secret = controller.build_secret(job)
     assert job_secret
     assert job_secret.kind == "Secret"
     assert job_secret.metadata and job_secret.metadata.name == job.name()
-    assert job_secret.string_data == job.secret_data()
+    assert job_secret.string_data == {"super": "secret"}
+
+
+def test_build_secret_data_script(controller: K8sJobController) -> None:
+    job = SomeJob(identifying_attribute="some-id", script="echo 'hello'")
+    job_secret = controller.build_secret(job)
+    assert job_secret
+    assert job_secret.kind == "Secret"
+    assert job_secret.metadata and job_secret.metadata.name == job.name()
+    assert job_secret.string_data == {"script.sh": "echo 'hello'"}
+
+
+def test_build_secret_data_and_scripts(controller: K8sJobController) -> None:
+    job = SomeJob(
+        identifying_attribute="some-id",
+        credentials={"super": "secret"},
+        script="echo 'hello'",
+    )
+    job_secret = controller.build_secret(job)
+    assert job_secret
+    assert job_secret.kind == "Secret"
+    assert job_secret.metadata and job_secret.metadata.name == job.name()
+    assert job_secret.string_data == {"super": "secret", "script.sh": "echo 'hello'"}
+
+
+def test_build_secret_data_and_scripts_overlap(controller: K8sJobController) -> None:
+    job = SomeJob(
+        identifying_attribute="some-id",
+        credentials={"script.sh": "secret"},
+        script="echo 'hello'",
+    )
+    with pytest.raises(JobValidationError):
+        controller.build_secret(job)
 
 
 #

@@ -258,8 +258,16 @@ class K8sJobController:
 
     def build_secret(self, job: K8sJob) -> Optional[V1Secret]:
         secret_data = job.secret_data()
-        if not secret_data:
+        script_data = job.scripts()
+        # fail if both dicts have overlapping keys
+        if not set(secret_data).isdisjoint(script_data):
+            raise JobValidationError(
+                f"Secret data and script data have overlapping keys for {job.name()}"
+            )
+        data = {**secret_data, **script_data}
+        if not data:
             return None
+
         job_name = job.name()
         job_uid = self._lookup_job_uid(job_name)
         if not job_uid:
@@ -280,7 +288,7 @@ class K8sJobController:
                     )
                 ],
             ),
-            string_data=secret_data,
+            string_data=data,
         )
 
     def create_job(self, job: K8sJob) -> None:

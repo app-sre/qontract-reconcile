@@ -21,7 +21,7 @@ def test_log_handle_get_log_lines(
     max_lines: int, expected_lines: int, log_handle: LogHandle
 ) -> None:
     lines = log_handle.get_log_lines(max_lines=max_lines)
-    assert len(lines) == expected_lines
+    assert len(list(lines)) == expected_lines
     for line in lines:
         assert not line.endswith("\n")
 
