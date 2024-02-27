@@ -145,6 +145,10 @@ class K8sJob(ABC):
         return {}
 
     def secret_data_to_env_vars_secret_refs(self) -> list[V1EnvVar]:
+        """
+        Helper function to generate env var references from the `secret_data`,
+        to be used in container specs
+        """
         secret_name = self.name()
         return [
             V1EnvVar(
@@ -160,6 +164,10 @@ class K8sJob(ABC):
         ]
 
     def scripts_volume_mount(self, directory: str) -> V1VolumeMount:
+        """
+        Helper function to generate a volume mount for the `scripts` to be used
+        in container specs
+        """
         secret_name = self.name()
         return V1VolumeMount(
             name=secret_name,
@@ -167,6 +175,10 @@ class K8sJob(ABC):
         )
 
     def scripts_volume(self) -> V1Volume:
+        """
+        Helper function to generate a volume for the `scripts` to be used in
+        pod specs
+        """
         secret_name = self.name()
         return V1Volume(
             name=secret_name,
