@@ -3,6 +3,7 @@ import logging
 import os
 from abc import abstractmethod
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from types import TracebackType
 from typing import (
     Any,
@@ -405,8 +406,11 @@ class State:
     def __setitem__(self, key: str, value: Any) -> None:
         self._set(key, value)
 
-    def transaction(self, key: str, value: Any) -> "_TransactionContext":
+    def transaction(self, key: str, value: Any = None) -> "_TransactionContext":
         """Get a context manager to set the key in the state if no exception occurs.
+
+        You can set the value either via the value parameter or by setting the value attribute of the returned object.
+        If both are provided, the value attribute of the state object will take precedence.
 
         Attention!
 
@@ -416,41 +420,70 @@ class State:
         return _TransactionContext(self, key, value)
 
 
+@dataclass
+class StateObj:
+    """Represents a state object with a key and a value."""
+
+    key: str
+    exists: bool
+    new_value: Any
+    current_value: Any = None
+    _changed: bool = False
+
+    @property
+    def value(self) -> Any:
+        if self._changed:
+            return self.new_value
+        return self.current_value
+
+    @value.setter
+    def value(self, value: Any) -> None:
+        self._changed = True
+        self.new_value = value
+
+
+class AbortStateTransaction(Exception):
+    """Raise to abort a state transaction."""
+
+
 class _TransactionContext:
     """A context manager to set a key in the state if no exception occurs."""
 
-    def __init__(
-        self,
-        state: State,
-        key: str,
-        value: Any,
-    ):
+    def __init__(self, state: State, key: str, value: Any):
         self.state = state
-        self.key = key
-        self.value = value
+        self.state_obj = StateObj(key, new_value=value, exists=False)
 
-    def __enter__(self) -> bool:
-        """Return True if the key exists in the state, False otherwise.
+    def __enter__(self) -> StateObj:
+        """Return a state object.
 
         Cache the previous value to avoid unnecessary updates.
         """
-        self._previous_value = None
         try:
-            self._previous_value = self.state[self.key]
-            return True
+            self.state_obj.current_value = self.state[self.state_obj.key]
+            self.state_obj.exists = True
         except KeyError:
-            return False
+            self.state_obj.exists = False
+        return self.state_obj
 
     def __exit__(
         self,
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: TracebackType | None,
-    ) -> None:
+    ) -> bool | None:
         if exc_type:
             # if an exception occurred, we don't want to write to the state
-            return
-        if self._previous_value == self.value:
+            if isinstance(exc_value, AbortStateTransaction):
+                # user wants to abort the transaction
+                return True
+            return False
+        if self.state_obj.new_value is None:
+            # if the new value is None, we don't want to write to the state
+            return None
+        if self.state_obj.exists and (
+            self.state_obj.current_value == self.state_obj.new_value
+        ):
             # if the value didn't change, we don't want to write to the state
-            return
-        self.state[self.key] = self.value
+            return None
+        self.state[self.state_obj.key] = self.state_obj.new_value
+        return None
