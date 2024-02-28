@@ -19,7 +19,7 @@ from reconcile.utils.ruamel import create_ruamel_instance
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 )
-SAPM_VERSION = "2.1.2"
+SAPM_VERSION = "2.1.3"
 CONTENT_HASHES = "content_hashes"
 CHANNELS_REF = "channels"
 IS_BATCHABLE = "is_batchable"
@@ -140,9 +140,11 @@ class Renderer:
 {VERSION_REF}: {SAPM_VERSION}
         """
 
-    def render_title(self, is_draft: bool, canary: bool, channels: str) -> str:
+    def render_title(
+        self, is_draft: bool, canary: bool, channels: str, batch_size: int
+    ) -> str:
         canary_suffix = "Canary" if canary else ""
-        content = f"[SAPM{canary_suffix}] auto-promotion ID {int(hashlib.sha256(channels.encode('utf-8')).hexdigest(), 16) % 10**8}"
+        content = f"[SAPM{canary_suffix}] auto-promotion ID {int(hashlib.sha256(channels.encode('utf-8')).hexdigest(), 16) % 10**8} - batch size: {batch_size}"
         if is_draft:
             return f"Draft: {content}"
         return content
