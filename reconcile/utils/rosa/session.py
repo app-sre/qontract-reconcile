@@ -2,7 +2,7 @@ import logging
 import tempfile
 from typing import Optional
 
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel
 
 from reconcile.ocm.types import OCMSpec
@@ -158,11 +158,14 @@ def rosa_hcp_creation_script(cluster_name: str, cluster: OCMSpec, dry_run: bool)
     """
     Builds a bash script to install a ROSA clusters.
     """
-    template_path = PROJ_ROOT / "templates" / "rosa-hcp-cluster-creation.sh.j2"
-    with open(template_path, encoding="utf-8") as f:
-        template = Template(f.read(), keep_trailing_newline=True, trim_blocks=True)
-        return template.render(
-            cluster_name=cluster_name,
-            cluster=cluster,
-            dry_run=dry_run,
-        )
+    # template_path = PROJ_ROOT / "templates" / "rosa-hcp-cluster-creation.sh.j2"
+    # with open(template_path, encoding="utf-8") as f:
+    env = Environment(loader=FileSystemLoader(PROJ_ROOT / "templates"))
+    env.filters["split"] = lambda value, sep: value.split(sep)
+    template = env.get_template("rosa-hcp-cluster-creation.sh.j2")
+    # template = Template(f.read(), keep_trailing_newline=True, trim_blocks=True)
+    return template.render(
+        cluster_name=cluster_name,
+        cluster=cluster,
+        dry_run=dry_run,
+    )

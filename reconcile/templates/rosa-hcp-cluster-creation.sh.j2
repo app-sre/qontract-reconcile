@@ -42,11 +42,13 @@ rosa create cluster --cluster-name={{ cluster_name }} \
     --host-prefix 23 \
     --replicas {{ cluster.machine_pools | length }} \
     --compute-machine-type {{ cluster.machine_pools[0].instance_type }} \
-    {% if cluster.private -%}
+    {% if cluster.spec.private -%}
     --private \
     {% endif -%}
     {% if cluster.spec.disable_user_workload_monitoring -%}
     --disable-workload-monitoring \
     {% endif -%}
-    --channel-group {{ cluster.spec.channel }} \
+    {% if cluster.spec.provision_shard_id -%}
     --properties provision_shard_id:{{ cluster.spec.provision_shard_id }} \
+    {% endif -%}
+    --channel-group {{ cluster.spec.channel }}
