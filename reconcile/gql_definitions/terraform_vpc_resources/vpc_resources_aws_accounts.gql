@@ -1,0 +1,13 @@
+# qenerate: plugin=pydantic_v1
+
+query VPCResourcesAWSAccounts {
+  accounts: awsaccounts_v1 {
+    name
+    terraformState {
+      integrations {
+        key
+        integration
+      }
+    }
+  }
+}
