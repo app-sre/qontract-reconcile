@@ -133,7 +133,10 @@ def get_rules_and_tests(
 
     iterable = []
     for namespace in namespace_with_prom_rules:
-        for resource in namespace["openshiftResources"]:
+        prom_rules = [
+            r for r in namespace["openshiftResources"] if r["provider"] in PROVIDERS
+        ]
+        for resource in prom_rules:
             iterable.append(
                 RuleToFetch(
                     namespace=namespace,
