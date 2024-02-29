@@ -44,6 +44,9 @@ def run(dry_run, account_name: Optional[str] = None):
 
     if data:
         accounts = _filter_accounts(data)
+        if not accounts:
+            logging.error("No AWS accounts with 'terraform-vpc-resources' state found, nothing to do.")
+            sys.exit(ExitCodes.SUCCESS)
     else:
-        logging.error("No AWS accounts found")
-        sys.exit(ExitCodes.ERROR)
+        logging.error("No AWS accounts found, nothing to do.")
+        sys.exit(ExitCodes.SUCCESS)
