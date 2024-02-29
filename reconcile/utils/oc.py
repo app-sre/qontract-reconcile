@@ -735,7 +735,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         # collect logs to file async
         Popen(self.oc_base_cmd + cmd, stdout=output_file)
 
-    def job_logs_latest_pod(self, namespace, name, output) -> str:
+    def job_logs_latest_pod(self, namespace: str, name: str, output: str) -> str:
         pods = self.get_items("Pod", namespace=namespace, labels={"job-name": name})
 
         finished_pods = [

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+set -o pipefail
+
 CURRENT_CLUSTER_COUNT=$(rosa list clusters -o json | jq 'length')
 if (( CURRENT_CLUSTER_COUNT > 0 )); then
   echo "Error: This account already has a cluster. Only one cluster per account is supported."
