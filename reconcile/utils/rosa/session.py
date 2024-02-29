@@ -83,9 +83,6 @@ class RosaSession:
             service_account=self.service_account,
         )
 
-    def wrap_cli_command(self, cmd: str) -> str:
-        return f"rosa login > /dev/null && {cmd}"
-
     def cli_execute(
         self,
         cmd: str,
@@ -106,11 +103,10 @@ class RosaSession:
             concurrency_policy=JobConcurrencyPolicy.REPLACE_FAILED,
         )
         log_dir = tempfile.mkdtemp()
-        self.job_controller.store_job_logs(job.name(), log_dir)
-        log_file = f"{log_dir}/{job.name()}"
+        log_file_name = self.job_controller.store_job_logs(job.name(), log_dir)
         if status != JobStatus.SUCCESS:
-            raise RosaCliException(status, cmd, LogHandle(log_file))
-        return RosaCliResult(status, cmd, LogHandle(log_file))
+            raise RosaCliException(status, cmd, LogHandle(log_file_name))
+        return RosaCliResult(status, cmd, LogHandle(log_file_name))
 
     def create_hcp_cluster(
         self, cluster_name: str, spec: OCMSpec, dry_run: bool
