@@ -88,7 +88,7 @@ class RosaSession:
         cmd: str,
         annotations: Optional[dict[str, str]] = None,
         image: Optional[str] = None,
-        check_interval_seconds: Optional[int] = 5,
+        check_interval_seconds: int = 5,
         timeout_seconds: int = 60,
     ) -> RosaCliResult:
         """
@@ -115,7 +115,7 @@ class RosaSession:
         cluster_name: str,
         spec: OCMSpec,
         dry_run: bool,
-        check_interval_seconds: Optional[int] = 10,
+        check_interval_seconds: int = 10,
         timeout_seconds: int = 300,
     ) -> RosaCliResult:
         """
