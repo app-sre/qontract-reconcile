@@ -371,12 +371,12 @@ class K8sJobController:
         if sleep_interval_seconds > 0:
             self.time_module.sleep(sleep_interval_seconds)
 
-    def store_job_logs(self, job_name: str, output_dir_path: str) -> None:
+    def store_job_logs(self, job_name: str, output_dir_path: str) -> str:
         """
         Stores the logs of a job in the given output directory.
         The filename will be the name of the job.
         """
-        self.oc.job_logs_latest_pod(
+        return self.oc.job_logs_latest_pod(
             namespace=self.namespace,
             name=job_name,
             output=output_dir_path,
