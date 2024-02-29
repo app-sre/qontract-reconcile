@@ -2,6 +2,11 @@ import logging
 import tempfile
 from typing import Optional
 
+from jinja2 import Environment, FileSystemLoader
+from pydantic import BaseModel
+
+from reconcile.ocm.types import OCMSpec
+from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.jobcontroller.controller import K8sJobController
 from reconcile.utils.jobcontroller.models import JobConcurrencyPolicy, JobStatus
 from reconcile.utils.ocm_base_client import OCMBaseClient
@@ -11,6 +16,27 @@ from reconcile.utils.rosa.rosa_cli import (
     RosaCliResult,
     RosaJob,
 )
+
+
+class RosaSessionBuilder(BaseModel, arbitrary_types_allowed=True):
+    aws_iam_role: str
+    job_controller: K8sJobController
+    image: str
+    service_account: str
+
+    def build(
+        self, ocm_api: OCMBaseClient, aws_account_id: str, region: str, ocm_org_id: str
+    ) -> "RosaSession":
+        return RosaSession(
+            aws_account_id=aws_account_id,
+            aws_region=region,
+            aws_iam_role=self.aws_iam_role,
+            ocm_org_id=ocm_org_id,
+            ocm_api=ocm_api,
+            job_controller=self.job_controller,
+            image=self.image,
+            service_account=self.service_account,
+        )
 
 
 class RosaSession:
@@ -86,6 +112,16 @@ class RosaSession:
             raise RosaCliException(status, cmd, LogHandle(log_file))
         return RosaCliResult(status, cmd, LogHandle(log_file))
 
+    def create_hcp_cluster(
+        self, cluster_name: str, spec: OCMSpec, dry_run: bool
+    ) -> RosaCliResult:
+        """
+        Create a ROSA HCP cluster in the OCM org and AWS account of this session.
+        If dry-run is provided, cluster creation is simulated and invalid configuration
+        data is highlighted as errors.
+        """
+        return self.cli_execute(rosa_hcp_creation_script(cluster_name, spec, dry_run))
+
     def upgrade_account_roles(
         self, role_prefix: str, minor_version: str, channel_group: str, dry_run: bool
     ) -> None:
@@ -116,3 +152,20 @@ class RosaSession:
                 annotations={"qontract.rosa.cluster_id": cluster_id},
             )
             result.write_logs_to_logger(logging.info)
+
+
+def rosa_hcp_creation_script(cluster_name: str, cluster: OCMSpec, dry_run: bool) -> str:
+    """
+    Builds a bash script to install a ROSA clusters.
+    """
+    # template_path = PROJ_ROOT / "templates" / "rosa-hcp-cluster-creation.sh.j2"
+    # with open(template_path, encoding="utf-8") as f:
+    env = Environment(loader=FileSystemLoader(PROJ_ROOT / "templates"))
+    env.filters["split"] = lambda value, sep: value.split(sep)
+    template = env.get_template("rosa-hcp-cluster-creation.sh.j2")
+    # template = Template(f.read(), keep_trailing_newline=True, trim_blocks=True)
+    return template.render(
+        cluster_name=cluster_name,
+        cluster=cluster,
+        dry_run=dry_run,
+    )

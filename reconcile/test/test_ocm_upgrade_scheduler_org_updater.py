@@ -2,13 +2,9 @@ import json
 
 import pytest
 
+from reconcile.ocm.types import OCMClusterNetwork, OCMSpec, OSDClusterSpec
 from reconcile.ocm_upgrade_scheduler_org_updater import render_policy
 from reconcile.utils.jinja2.utils import Jinja2TemplateError
-from reconcile.utils.ocm import (
-    OCMClusterNetwork,
-    OCMSpec,
-    OSDClusterSpec,
-)
 
 
 @pytest.fixture

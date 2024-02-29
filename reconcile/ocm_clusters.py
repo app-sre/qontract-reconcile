@@ -4,7 +4,9 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Any
+from typing import Any, Optional
+
+import semver
 
 import reconcile.utils.mr.clusters_updates as cu
 import reconcile.utils.ocm as ocmmod
@@ -21,9 +23,22 @@ from reconcile.ocm.types import (
 )
 from reconcile.status import ExitCodes
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.jobcontroller.controller import build_job_controller
+from reconcile.utils.ocm.products import (
+    OCMProduct,
+    OCMProductPortfolio,
+    OCMValidationException,
+    build_product_portfolio,
+)
+from reconcile.utils.rosa.session import RosaSessionBuilder
+from reconcile.utils.runtime.integration import (
+    PydanticRunParams,
+    QontractReconcileIntegration,
+)
 from reconcile.utils.semver_helper import parse_semver
 
 QONTRACT_INTEGRATION = "ocm-clusters"
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
@@ -32,26 +47,24 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
     but the cluster only needs the target OCM environment where it belongs.
     This method changes the cluster dictionary to include just those.
     """
-    ocm_env = [
-        env
-        for env in cluster["spec"]["account"]["rosa"]["ocm_environments"]
-        if env["ocm"]["name"] == cluster["ocm"]["name"]
-    ]
-
-    if len(ocm_env) != 1:
-        logging.error(
-            "The cluster's OCM reference does not exist or it is duplicated in the AWS account manifest. "
-            "Check the cluster's AWS account rosa configuration. "
-            f"OCM:{cluster['ocm']['name']}, AWSAcc:{cluster['spec']['account']['uid']}"
-        )
-        sys.exit(ExitCodes.ERROR)
-
     uid = cluster["spec"]["account"]["uid"]
-    env = ocm_env[0]
-    # doing this allows to exclude account fields which can be queried in graphql
-    cluster["spec"]["account"] = ROSAClusterAWSAccount(
-        uid=uid,
-        rosa=ROSAOcmAwsAttrs(
+    rosa_ocm_configs = cluster["spec"]["account"]["rosa"]
+    rosa: ROSAOcmAwsAttrs | None = None
+    if rosa_ocm_configs:
+        ocm_env = [
+            env
+            for env in rosa_ocm_configs["ocm_environments"]
+            if env["ocm"]["name"] == cluster["ocm"]["name"]
+        ]
+        if len(ocm_env) != 1:
+            logging.error(
+                "The cluster's OCM reference does not exist or it is duplicated in the AWS account manifest. "
+                "Check the cluster's AWS account rosa configuration. "
+                f"OCM:{cluster['ocm']['name']}, AWSAcc:{cluster['spec']['account']['uid']}"
+            )
+            sys.exit(ExitCodes.ERROR)
+        env = ocm_env[0]
+        rosa = ROSAOcmAwsAttrs(
             creator_role_arn=env["creator_role_arn"],
             sts=ROSAOcmAwsStsAttrs(
                 installer_role_arn=env["installer_role_arn"],
@@ -59,7 +72,14 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
                 controlplane_role_arn=env.get("controlplane_role_arn"),
                 worker_role_arn=env["worker_role_arn"],
             ),
-        ),
+        )
+    else:
+        rosa = None
+
+    # doing this allows to exclude account fields which can be queried in graphql
+    cluster["spec"]["account"] = ROSAClusterAWSAccount(
+        uid=uid,
+        rosa=rosa,
     )
 
 
@@ -210,7 +230,7 @@ def get_app_interface_spec_updates(
 
 
 def get_cluster_ocm_update_spec(
-    ocm: ocmmod.OCM, cluster: str, current_spec: OCMSpec, desired_spec: OCMSpec
+    product: OCMProduct, cluster: str, current_spec: OCMSpec, desired_spec: OCMSpec
 ) -> tuple[dict[str, Any], bool]:
     """Get cluster updates to request to OCM api
 
@@ -220,8 +240,6 @@ def get_cluster_ocm_update_spec(
     :param desired_spec: Cluster spec retrieved from App-Interface
     :return: a tuple with the updates to request to OCM and a bool to notify errors
     """
-
-    impl = ocmmod.OCM_PRODUCTS_IMPL[current_spec.spec.product]
 
     error = False
     if not desired_spec.network.type:
@@ -237,13 +255,13 @@ def get_cluster_ocm_update_spec(
     current_ocm_spec = {
         k: v
         for k, v in cspec.items()
-        if v is not None and k not in impl.EXCLUDED_SPEC_FIELDS
+        if v is not None and k not in product.EXCLUDED_SPEC_FIELDS
     }
 
     desired_ocm_spec = {
         k: v
         for k, v in dspec.items()
-        if v is not None and k not in impl.EXCLUDED_SPEC_FIELDS
+        if v is not None and k not in product.EXCLUDED_SPEC_FIELDS
     }
 
     # Updated attributes in app-interface
@@ -258,7 +276,7 @@ def get_cluster_ocm_update_spec(
 
     diffs = deleted_attrs | updated_attrs
 
-    not_allowed_updates = set(diffs) - impl.ALLOWED_SPEC_UPDATE_FIELDS
+    not_allowed_updates = set(diffs) - product.ALLOWED_SPEC_UPDATE_FIELDS
     if not_allowed_updates:
         error = True
         logging.error(f"[{cluster}] invalid updates: {not_allowed_updates}")
@@ -267,7 +285,7 @@ def get_cluster_ocm_update_spec(
 
 
 def _app_interface_updates_mr(
-    clusters_updates: Mapping[str, Any], gitlab_project_id: str, dry_run: bool
+    clusters_updates: Mapping[str, Any], gitlab_project_id: Optional[str], dry_run: bool
 ):
     """Creates an MR to app-interface with the necessary cluster manifest updates
 
@@ -301,83 +319,133 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
     return cluster.get("ocm") is not None
 
 
-def run(dry_run: bool, gitlab_project_id=None, thread_pool_size=10):
-    settings = queries.get_app_interface_settings()
-    clusters = queries.get_clusters()
-    clusters = [
-        c
-        for c in clusters
-        if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
-    ]
-    if not clusters:
-        logging.debug("No OCM cluster definitions found in app-interface")
-        sys.exit(ExitCodes.SUCCESS)
+class OcmClustersParams(PydanticRunParams):
+    gitlab_project_id: Optional[str] = None
+    thread_pool_size: int = 10
 
-    ocm_map = ocmmod.OCMMap(
-        clusters=clusters,
-        integration=QONTRACT_INTEGRATION,
-        settings=settings,
-        init_provision_shards=True,
-    )
+    # rosa job controller params
+    job_controller_cluster: Optional[str] = None
+    job_controller_namespace: Optional[str] = None
+    rosa_job_service_account: Optional[str] = None
+    rosa_role: Optional[str] = None
+    rosa_job_image: Optional[str] = None
 
-    # current_state is the state got from the ocm api
-    current_state, pending_state = ocm_map.cluster_specs()
-    desired_state = fetch_desired_state(clusters)
 
-    error = False
-    clusters_updates = {}
+class OcmClusters(QontractReconcileIntegration[OcmClustersParams]):
+    @property
+    def name(self) -> str:
+        return QONTRACT_INTEGRATION
 
-    for cluster_name, desired_spec in desired_state.items():
-        current_spec = current_state.get(cluster_name)
-        if current_spec:
-            # App-Interface manifests updates.
-            # OCM populated attributes that are not set in app-interface.
-            # These updates are performed with a single MR out of this main loop
-            clusters_updates[cluster_name], err = get_app_interface_spec_updates(
-                cluster_name, current_spec, desired_spec
-            )
-            if err:
-                error = True
+    def rosa_session_builder(self) -> RosaSessionBuilder | None:
+        if (
+            self.params.job_controller_cluster is None
+            or self.params.job_controller_namespace is None
+            or self.params.rosa_job_service_account is None
+            or self.params.rosa_role is None
+            or self.params.rosa_job_image is None
+        ):
+            return None
+        return RosaSessionBuilder(
+            aws_iam_role=self.params.rosa_role,
+            image=self.params.rosa_job_image,
+            service_account=self.params.rosa_job_service_account,
+            job_controller=build_job_controller(
+                cluster=self.params.job_controller_cluster,
+                namespace=self.params.job_controller_namespace,
+                integration=self.name,
+                integration_version=QONTRACT_INTEGRATION_VERSION,
+                secret_reader=self.secret_reader,
+                dry_run=False,
+            ),
+        )
 
-            # OCM API Updates
-            # Changes made to app-interface manifests that need to be requested
-            # to the OCM Api
-            ocm = ocm_map.get(cluster_name)
-            update_spec, err = get_cluster_ocm_update_spec(
-                ocm, cluster_name, current_spec, desired_spec
-            )
-            if err:
-                error = True
-                continue
+    def assemble_product_portfolio(self) -> OCMProductPortfolio:
+        return build_product_portfolio(self.rosa_session_builder())
 
-            # update cluster
-            if update_spec:
-                logging.info(["update_cluster", cluster_name])
-                logging.debug(
-                    f"current_spec: {current_spec}, desired_spec: {desired_spec}"
+    def run(self, dry_run: bool) -> None:
+        settings = queries.get_app_interface_settings()
+        clusters = queries.get_clusters()
+        clusters = [
+            c
+            for c in clusters
+            if integration_is_enabled(self.name, c) and _cluster_is_compatible(c)
+        ]
+        if not clusters:
+            logging.debug("No OCM cluster definitions found in app-interface")
+            sys.exit(ExitCodes.SUCCESS)
+
+        product_portfolio = self.assemble_product_portfolio()
+        ocm_map = ocmmod.OCMMap(
+            clusters=clusters,
+            integration=self.name,
+            settings=settings,
+            init_provision_shards=True,
+            product_portfolio=product_portfolio,
+        )
+
+        # current_state is the state got from the ocm api
+        current_state, pending_state = ocm_map.cluster_specs()
+        desired_state = fetch_desired_state(clusters)
+
+        error = False
+        clusters_updates = {}
+
+        for cluster_name, desired_spec in desired_state.items():
+            current_spec = current_state.get(cluster_name)
+            if current_spec:
+                # App-Interface manifests updates.
+                # OCM populated attributes that are not set in app-interface.
+                # These updates are performed with a single MR out of this main loop
+                clusters_updates[cluster_name], err = get_app_interface_spec_updates(
+                    cluster_name, current_spec, desired_spec
                 )
+                if err:
+                    error = True
+
+                # OCM API Updates
+                # Changes made to app-interface manifests that need to be requested
+                # to the OCM Api
                 ocm = ocm_map.get(cluster_name)
-                ocm.update_cluster(cluster_name, update_spec, dry_run)
-
-        else:
-            # create cluster
-            if cluster_name in pending_state:
-                continue
-            logging.info(["create_cluster", cluster_name])
-            ocm = ocm_map.get(cluster_name)
-            try:
-                ocm.create_cluster(cluster_name, desired_spec, dry_run)
-            except NotImplementedError:
-                logging.error(
-                    f"[{cluster_name}] Create clusters is not currently implemented "
-                    f"for [{desired_spec.spec.product}] product type. Make sure the "
-                    "cluster exists and it is returned by the OCM api before adding "
-                    "its manifest to app-interface"
+                product = product_portfolio.get_product_impl(
+                    current_spec.spec.product, current_spec.spec.hypershift
                 )
-                error = True
-            except ocmmod.OCMValidationException as e:
-                logging.error("[%s] Error creating cluster: %s", cluster_name, e)
-                error = True
+                update_spec, err = get_cluster_ocm_update_spec(
+                    product, cluster_name, current_spec, desired_spec
+                )
+                if err:
+                    error = True
+                    continue
 
-    _app_interface_updates_mr(clusters_updates, gitlab_project_id, dry_run)
-    sys.exit(int(error))
+                # update cluster
+                if update_spec:
+                    logging.info(["update_cluster", cluster_name])
+                    logging.debug(
+                        f"current_spec: {current_spec}, desired_spec: {desired_spec}"
+                    )
+                    ocm = ocm_map.get(cluster_name)
+                    ocm.update_cluster(cluster_name, update_spec, dry_run)
+
+            else:
+                # create cluster
+                if cluster_name in pending_state:
+                    continue
+                logging.info(["create_cluster", cluster_name])
+                ocm = ocm_map.get(cluster_name)
+                try:
+                    ocm.create_cluster(cluster_name, desired_spec, dry_run)
+                except NotImplementedError:
+                    logging.error(
+                        f"[{cluster_name}] Create clusters is not currently implemented "
+                        f"for [{desired_spec.spec.product}] product type. Make sure the "
+                        "cluster exists and it is returned by the OCM api before adding "
+                        "its manifest to app-interface"
+                    )
+                    error = True
+                except OCMValidationException as e:
+                    logging.error("[%s] Error creating cluster: %s", cluster_name, e)
+                    error = True
+
+        _app_interface_updates_mr(
+            clusters_updates, self.params.gitlab_project_id, dry_run
+        )
+        sys.exit(int(error))

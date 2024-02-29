@@ -74,7 +74,7 @@ class ROSAOcmAwsAttrs(BaseModel):
 
 class ROSAClusterAWSAccount(BaseModel):
     uid: str
-    rosa: ROSAOcmAwsAttrs
+    rosa: ROSAOcmAwsAttrs | None
 
     class Config:
         extra = Extra.forbid

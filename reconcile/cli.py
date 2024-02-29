@@ -2235,12 +2235,65 @@ def ocm_groups(ctx, thread_pool_size):
 @integration.command(short_help="Manages clusters via OCM.")
 @gitlab_project_id
 @threaded()
+@click.option(
+    "--job-controller-cluster",
+    help="The cluster holding the job-controller namepsace",
+    required=False,
+    envvar="JOB_CONTROLLER_CLUSTER",
+)
+@click.option(
+    "--job-controller-namespace",
+    help="The namespace used for ROSA jobs",
+    required=False,
+    envvar="JOB_CONTROLLER_NAMESPACE",
+)
+@click.option(
+    "--rosa-job-service-account",
+    help="The service-account used for ROSA jobs",
+    required=False,
+    envvar="ROSA_JOB_SERVICE_ACCOUNT",
+)
+@click.option(
+    "--rosa-job-image",
+    help="The container image to use to run ROSA cli command jobs",
+    required=False,
+    envvar="ROSA_JOB_IMAGE",
+)
+@click.option(
+    "--rosa-role",
+    help="The role to assume in the ROSA cluster account",
+    required=False,
+    envvar="ROSA_ROLE",
+)
 @click.pass_context
-def ocm_clusters(ctx, gitlab_project_id, thread_pool_size):
-    import reconcile.ocm_clusters
+def ocm_clusters(
+    ctx,
+    gitlab_project_id: Optional[str],
+    thread_pool_size: int,
+    job_controller_cluster: Optional[str],
+    job_controller_namespace: Optional[str],
+    rosa_job_service_account: Optional[str],
+    rosa_role: Optional[str],
+    rosa_job_image: Optional[str],
+):
+    from reconcile.ocm_clusters import (
+        OcmClusters,
+        OcmClustersParams,
+    )
 
-    run_integration(
-        reconcile.ocm_clusters, ctx.obj, gitlab_project_id, thread_pool_size
+    run_class_integration(
+        integration=OcmClusters(
+            OcmClustersParams(
+                gitlab_project_id=gitlab_project_id,
+                thread_pool_size=thread_pool_size,
+                job_controller_cluster=job_controller_cluster,
+                job_controller_namespace=job_controller_namespace,
+                rosa_job_service_account=rosa_job_service_account,
+                rosa_job_image=rosa_job_image,
+                rosa_role=rosa_role,
+            )
+        ),
+        ctx=ctx.obj,
     )
 
 

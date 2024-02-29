@@ -89,7 +89,7 @@ class K8sJobController:
 
     @property
     def cache(self) -> dict[str, OpenshiftResource]:
-        if not self._cache:
+        if self._cache is None:
             return self.update_cache()
         return self._cache
 
