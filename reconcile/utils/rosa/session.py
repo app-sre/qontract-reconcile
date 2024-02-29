@@ -88,6 +88,8 @@ class RosaSession:
         cmd: str,
         annotations: Optional[dict[str, str]] = None,
         image: Optional[str] = None,
+        check_interval_seconds: Optional[int] = 5,
+        timeout_seconds: int = 60,
     ) -> RosaCliResult:
         """
         Execute CLI commands in the context of a valid ROSA session (rosa login not required).
@@ -98,8 +100,8 @@ class RosaSession:
 
         status = self.job_controller.enqueue_job_and_wait_for_completion(
             job,
-            check_interval_seconds=2,
-            timeout_seconds=60,
+            check_interval_seconds=check_interval_seconds,
+            timeout_seconds=timeout_seconds,
             concurrency_policy=JobConcurrencyPolicy.REPLACE_FAILED,
         )
         log_dir = tempfile.mkdtemp()
@@ -109,14 +111,23 @@ class RosaSession:
         return RosaCliResult(status, cmd, LogHandle(log_file_name))
 
     def create_hcp_cluster(
-        self, cluster_name: str, spec: OCMSpec, dry_run: bool
+        self,
+        cluster_name: str,
+        spec: OCMSpec,
+        dry_run: bool,
+        check_interval_seconds: Optional[int] = 10,
+        timeout_seconds: int = 300,
     ) -> RosaCliResult:
         """
         Create a ROSA HCP cluster in the OCM org and AWS account of this session.
         If dry-run is provided, cluster creation is simulated and invalid configuration
         data is highlighted as errors.
         """
-        return self.cli_execute(rosa_hcp_creation_script(cluster_name, spec, dry_run))
+        return self.cli_execute(
+            cmd=rosa_hcp_creation_script(cluster_name, spec, dry_run),
+            check_interval_seconds=check_interval_seconds,
+            timeout_seconds=timeout_seconds,
+        )
 
     def upgrade_account_roles(
         self, role_prefix: str, minor_version: str, channel_group: str, dry_run: bool
