@@ -262,7 +262,9 @@ class NodePool(AbstractPool):
             or self.taints != pool.taints
             or self.labels != pool.labels
             or self.aws_node_pool.instance_type != pool.instance_type
-            or self.subnet != pool.subnet
+            # if the nodepool in app-interface does not define a subnet explicitely
+            # we don't consider it a diff. we don't manage it
+            or (pool.subnet is not None and self.subnet != pool.subnet)
             or self._has_diff_autoscale(pool)
         )
 
@@ -373,7 +375,7 @@ def _classify_cluster_type(cluster: ClusterV1) -> ClusterType:
             raise ValueError(f"unknown cluster type for cluster {cluster.name}")
 
 
-def fetch_current_state_for_cluster(cluster, ocm):
+def fetch_current_state_for_cluster(cluster: ClusterV1, ocm: OCM) -> list[AbstractPool]:
     cluster_type = _classify_cluster_type(cluster)
     if cluster_type == ClusterType.ROSA_HCP:
         return [
