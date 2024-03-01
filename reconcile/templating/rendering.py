@@ -46,7 +46,7 @@ class Renderer(ABC):
         self.template = template
         self.data = data
         self.secret_reader = secret_reader
-        self.ruaml_instace = create_ruamel_instance()
+        self.ruamel_instance = create_ruamel_instance()
 
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
         return {**self.data.variables, "current": self.data.current}
@@ -110,7 +110,7 @@ class PatchRenderer(Renderer):
             )
         matched_value = matched_values[0]
 
-        data_to_add = self.ruaml_instace.load(
+        data_to_add = self.ruamel_instance.load(
             self._render_template(self.template.template)
         )
 
@@ -125,23 +125,23 @@ class PatchRenderer(Renderer):
                     f"Expected identifier {self.template.patch.identifier} in data to add"
                 )
 
-            data = next(
+            index = next(
                 (
-                    data
-                    for data in matched_value
+                    index
+                    for index, data in enumerate(matched_value)
                     if data.get(self.template.patch.identifier) == dta_identifier
                 ),
                 None,
             )
-            if data is None:
+            if index is None:
                 matched_value.append(data_to_add)
             else:
-                data.update(data_to_add)
+                matched_value[index] = data_to_add
         else:
             matched_value.update(data_to_add)
 
         with StringIO() as s:
-            self.ruaml_instace.dump(self.data.current, s)
+            self.ruamel_instance.dump(self.data.current, s)
             return s.getvalue()
 
 
