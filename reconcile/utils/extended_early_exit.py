@@ -100,13 +100,13 @@ def log_stream_handler(
     :param logger: A logger
     :return: A stream generator
     """
-    log_stream = StringIO()
-    log_handler = logging.StreamHandler(log_stream)
-    logger.addHandler(log_handler)
-    try:
-        yield log_stream
-    finally:
-        logger.removeHandler(log_handler)
+    with StringIO() as log_stream:
+        log_handler = logging.StreamHandler(log_stream)
+        logger.addHandler(log_handler)
+        try:
+            yield log_stream
+        finally:
+            logger.removeHandler(log_handler)
 
 
 def _log_cached_log_output(

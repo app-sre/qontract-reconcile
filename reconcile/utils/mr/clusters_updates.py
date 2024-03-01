@@ -57,15 +57,16 @@ class CreateClustersUpdates(MergeRequestBase):
             # content.update(cluster_updates) :(
             content.update(cluster_updates["root"])
 
-            new_content = StringIO()
-            yaml.dump(content, new_content)
+            with StringIO() as stream:
+                yaml.dump(content, stream)
+                new_content = stream.getvalue()
 
             msg = f"update cluster {cluster_name} spec fields"
             gitlab_cli.update_file(
                 branch_name=self.branch,
                 file_path=cluster_path,
                 commit_message=msg,
-                content=new_content.getvalue(),
+                content=new_content,
             )
 
         if not changes:

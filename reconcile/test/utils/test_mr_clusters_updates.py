@@ -36,13 +36,15 @@ class TestProcess(TestCase):
         c.process(cli)
         self.clusters[0]["spec"]["id"] = "42"
 
-        cnt = StringIO()
-        sut.yaml.dump(self.clusters[0], cnt)
+        with StringIO() as stream:
+            sut.yaml.dump(self.clusters[0], stream)
+            content = stream.getvalue()
+
         cli.update_file.assert_called_once_with(
             branch_name="abranch",
             file_path="/a/path",
             commit_message="update cluster cluster1 spec fields",
-            content=cnt.getvalue(),
+            content=content,
         )
         cancel.assert_not_called()
 
@@ -60,12 +62,13 @@ class TestProcess(TestCase):
         c.process(cli)
         self.clusters[0]["prometheusUrl"] = "aprometheusurl"
 
-        cnt = StringIO()
-        sut.yaml.dump(self.clusters[0], cnt)
+        with StringIO() as stream:
+            sut.yaml.dump(self.clusters[0], stream)
+            content = stream.getvalue()
         cli.update_file.assert_called_once_with(
             branch_name="abranch",
             file_path="/a/path",
             commit_message="update cluster cluster1 spec fields",
-            content=cnt.getvalue(),
+            content=content,
         )
         cancel.assert_not_called()
