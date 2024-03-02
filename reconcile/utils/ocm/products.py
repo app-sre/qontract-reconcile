@@ -303,6 +303,10 @@ class OCMProductOsd(OCMProduct):
 
 
 class OCMProductRosa(OCMProduct):
+    def __init__(self, rosa_session_builder: RosaSessionBuilder | None) -> None:
+        super().__init__()
+        self.rosa_session_builder = rosa_session_builder
+
     ALLOWED_SPEC_UPDATE_FIELDS = {
         SPEC_ATTR_CHANNEL,
         SPEC_ATTR_DISABLE_UWM,
@@ -329,18 +333,44 @@ class OCMProductRosa(OCMProduct):
         cluster: OCMSpec,
         dry_run: bool,
     ) -> None:
-        ocm_spec = self._get_create_cluster_spec(name, cluster)
-        api = f"{CS_API_BASE}/v1/clusters"
-        params = {}
-        if dry_run:
-            params["dryRun"] = "true"
-            if cluster.spec.hypershift:
-                logging.info(
-                    "Dry-Run is not yet implemented for Hosted clusters. Here is the payload:"
-                )
-                logging.info(ocm_spec)
-                return
-        ocm.post(api, ocm_spec, params)
+        
+        if not isinstance(cluster.spec, ROSAClusterSpec):
+            # make mypy happy
+            return
+        
+        if self.rosa_session_builder is None:
+            raise Exception(
+                "OCMProductHypershift is not configured with a rosa session builder"
+            )
+        
+        rosa_session = self.rosa_session_builder.build(
+            ocm, cluster.spec.account.uid, cluster.spec.region, org_id
+        )
+        try:
+            result = rosa_session.create_rosa_cluster(
+                cluster_name=name, spec=cluster, dry_run=dry_run
+            )
+            logging.info("cluster creation kicked off...")
+            result.write_logs_to_logger(logging.info)
+        except RosaCliException as e:
+            logs = "".join(e.get_log_lines(max_lines=10, from_file_end=True))
+            e.cleanup()
+            raise OCMValidationException(
+                f"last 10 lines from failed cluster creation job...\n\n{logs}"
+            )
+        
+        # ocm_spec = self._get_create_cluster_spec(name, cluster)
+        # api = f"{CS_API_BASE}/v1/clusters"
+        # params = {}
+        # if dry_run:
+        #     params["dryRun"] = "true"
+        #     if cluster.spec.hypershift:
+        #         logging.info(
+        #             "Dry-Run is not yet implemented for Hosted clusters. Here is the payload:"
+        #         )
+        #         logging.info(ocm_spec)
+        #         return
+        # ocm.post(api, ocm_spec, params)
 
     def update_cluster(
         self,
@@ -722,7 +752,7 @@ def build_product_portfolio(
     return OCMProductPortfolio(
         products={
             OCM_PRODUCT_OSD: OCMProductOsd(),
-            OCM_PRODUCT_ROSA: OCMProductRosa(),
+            OCM_PRODUCT_ROSA: OCMProductRosa(rosa_session_builder),
             OCM_PRODUCT_HYPERSHIFT: OCMProductHypershift(rosa_session_builder),
         }
     )
