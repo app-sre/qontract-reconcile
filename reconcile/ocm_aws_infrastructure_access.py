@@ -22,14 +22,6 @@ QONTRACT_INTEGRATION = "ocm-aws-infrastructure-access"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
-def get_clusters() -> Iterable[Mapping[str, Any]]:
-    return [
-        c
-        for c in queries.get_clusters(aws_infrastructure_access=True)
-        if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
-    ]
-
-
 def fetch_current_state(
     clusters: Iterable[Mapping[str, Any]],
 ) -> Tuple[OCMMap, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
@@ -186,6 +178,14 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
         cluster.get("ocm") is not None
         and cluster["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
     )
+
+
+def get_clusters() -> Iterable[Mapping[str, Any]]:
+    return [
+        c
+        for c in queries.get_clusters(aws_infrastructure_access=True)
+        if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
+    ]
 
 
 def run(dry_run):
