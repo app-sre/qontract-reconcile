@@ -642,6 +642,32 @@ CLUSTER_FILTER_QUERY = """
 {% endif %}
 """
 
+AWS_INFRASTRUCTURE_ACCESS_QUERY = """
+{% if aws_infrastructure_access %}
+awsInfrastructureAccess {
+  awsGroup {
+    account {
+      name
+      uid
+      terraformUsername
+      automationToken {
+        path
+        field
+        version
+        format
+      }
+    }
+    roles {
+      users {
+        org_username
+      }
+    }
+  }
+  accessLevel
+}
+{% endif %}
+"""
+
 CLUSTERS_QUERY = """
 {
   clusters: clusters_v1
@@ -714,29 +740,7 @@ CLUSTERS_QUERY = """
         }
       }
     }
-    {% if aws_infrastructure_access %}
-    awsInfrastructureAccess {
-      awsGroup {
-        account {
-          name
-          uid
-          terraformUsername
-          automationToken {
-            path
-            field
-            version
-            format
-          }
-        }
-        roles {
-          users {
-            org_username
-          }
-        }
-      }
-      accessLevel
-    }
-    {% endif %}
+    %s
     %s
     spec {
       product
@@ -956,6 +960,7 @@ CLUSTERS_QUERY = """
 """ % (
     indent(CLUSTER_FILTER_QUERY, 2 * " "),
     indent(JUMPHOST_FIELDS, 6 * " "),
+    indent(AWS_INFRASTRUCTURE_ACCESS_QUERY, 4 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 4 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 12 * " "),
 )
