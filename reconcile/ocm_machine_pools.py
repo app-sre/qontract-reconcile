@@ -306,7 +306,7 @@ class NodePool(AbstractPool):
           assignment for the nodepools
         * nodepools have been recreated on OCM side without app-interface involvement
         """
-        if pool.subnet is None or self.subnet != pool.subnet:
+        if pool.subnet is None and self.subnet != pool.subnet:
             return pool.copy(update={"subnet": self.subnet})
         return None
 
@@ -567,9 +567,7 @@ def calculate_spec_drift(
         desired_pool = desired_machine_pools.get(pool_key)
         if not desired_pool:
             continue
-        update = current_pool.get_pool_spec_to_update(
-            desired_machine_pools.get(pool_key)
-        )
+        update = current_pool.get_pool_spec_to_update(desired_pool)
         if update:
             cluster_path = desired_state[pool_key[0]].cluster_path
             spec_drift_updates.append((cluster_path, update))
@@ -607,7 +605,8 @@ def _cluster_is_compatible(cluster: ClusterV1) -> bool:
     return (
         cluster.ocm is not None
         and cluster.machine_pools is not None
-        and cluster.spec and cluster.spec.q_id is not None
+        and cluster.spec is not None
+        and cluster.spec.q_id is not None
     )
 
 

@@ -168,6 +168,7 @@ def test_calculate_diff_create():
     }
     desired = {
         "cluster1": DesiredMachinePool(
+            cluster_path="path",
             cluster_name="cluster1",
             cluster_type=ClusterType.OSD,
             pools=[
@@ -193,6 +194,7 @@ def test_calculate_diff_create():
 def test_calculate_diff_noop(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
+            cluster_path="path",
             cluster_name="cluster1",
             cluster_type=ClusterType.OSD,
             pools=[
@@ -216,6 +218,7 @@ def test_calculate_diff_noop(current_with_pool):
 def test_calculate_diff_update(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
+            cluster_path="path",
             cluster_name="cluster1",
             cluster_type=ClusterType.OSD,
             pools=[
@@ -267,6 +270,7 @@ def current_with_2_pools() -> Mapping[str, list[AbstractPool]]:
 def test_calculate_diff_delete(current_with_2_pools):
     desired = {
         "cluster1": DesiredMachinePool(
+            cluster_path="path",
             cluster_name="cluster1",
             cluster_type=ClusterType.OSD,
             pools=[
@@ -292,6 +296,7 @@ def test_calculate_diff_delete(current_with_2_pools):
 def test_calculate_diff_delete_all_fail_validation(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
+            cluster_path="path",
             cluster_name="cluster1",
             cluster_type=ClusterType.OSD,
             pools=[],
@@ -463,9 +468,11 @@ def osd_cluster_builder(
         return gql_class_factory(
             ClusterV1,
             {
+                "path": "path",
                 "name": "ocm-cluster",
                 "auth": [],
                 "spec": {
+                    "id": "id",
                     "product": "osd",
                 },
                 "ocm": {
@@ -489,9 +496,11 @@ def rosa_cluster_builder(
         return gql_class_factory(
             ClusterV1,
             {
+                "path": "path",
                 "name": "ocm-cluster",
                 "auth": [],
                 "spec": {
+                    "id": "id",
                     "product": "rosa",
                 },
                 "ocm": {
@@ -887,6 +896,7 @@ def hypershift_cluster_builder(
         return gql_class_factory(
             ClusterV1,
             {
+                "path": "path",
                 "name": "hypershift-cluster",
                 "auth": [],
                 "ocm": {
@@ -896,6 +906,7 @@ def hypershift_cluster_builder(
                     },
                 },
                 "spec": {
+                    "id": "id",
                     "product": "rosa",
                     "hypershift": True,
                 },
@@ -1104,3 +1115,45 @@ def test_run_delete_default_node_pool(
     run(False)
 
     mocks["OCM"].delete_node_pool.assert_called()
+
+
+def test_update_app_interface_with_subnet(
+    mocker: MockerFixture,
+    hypershift_cluster: ClusterV1,
+) -> None:
+    setup_mocks(
+        mocker,
+        clusters=[hypershift_cluster],
+        node_pools=[
+            {
+                "id": "workers",
+                "aws_node_pool": {"instance_type": "m5.xlarge"},
+                "replicas": 2,
+                "subnet": "subnet-1",
+            }
+        ],
+    )
+    update_app_interface_mock = mocker.patch(
+        "reconcile.ocm_machine_pools.update_app_interface",
+        autospec=True,
+    )
+
+    run(False)
+    update_app_interface_mock.assert_called_once_with(
+        False,
+        None,
+        [
+            (
+                hypershift_cluster.path,
+                ClusterMachinePoolV1(
+                    id="workers",
+                    instance_type="m5.xlarge",
+                    replicas=2,
+                    autoscale=None,
+                    labels=None,
+                    taints=None,
+                    subnet="subnet-1",
+                ),
+            )
+        ],
+    )
