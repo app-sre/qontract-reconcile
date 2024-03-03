@@ -74,7 +74,7 @@ def run(dry_run, thread_pool_size=10):
         sys.exit(ExitCodes.SUCCESS)
 
     ocm_map, current_state = fetch_current_state(clusters, thread_pool_size)
-    desired_state = openshift_groups.fetch_desired_state(oc_map=ocm_map)
+    desired_state = openshift_groups.fetch_desired_state(clusters=ocm_map.clusters())
 
     # we only manage dedicated-admins via OCM
     current_state = [s for s in current_state if s["group"] == "dedicated-admins"]
