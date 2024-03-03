@@ -714,6 +714,7 @@ CLUSTERS_QUERY = """
         }
       }
     }
+    {% if aws_infrastructure_access %}
     awsInfrastructureAccess {
       awsGroup {
         account {
@@ -735,6 +736,7 @@ CLUSTERS_QUERY = """
       }
       accessLevel
     }
+    {% endif %}
     %s
     spec {
       product
@@ -1010,12 +1012,13 @@ CLUSTERS_MINIMAL_QUERY = """
 )
 
 
-def get_clusters(minimal=False):
+def get_clusters(minimal: bool = False, aws_infrastructure_access: bool = False):
     """Returns all Clusters"""
     gqlapi = gql.get_api()
     tmpl = CLUSTERS_MINIMAL_QUERY if minimal else CLUSTERS_QUERY
     query = Template(tmpl).render(
         filter=None,
+        aws_infrastructure_access=aws_infrastructure_access,
     )
     return gqlapi.query(query)["clusters"]
 

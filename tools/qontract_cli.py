@@ -1020,7 +1020,7 @@ def cidr_blocks(ctx) -> None:
 
 def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
     settings = queries.get_app_interface_settings()
-    clusters = queries.get_clusters()
+    clusters = queries.get_clusters(aws_infrastructure_access=True)
     clusters = [c for c in clusters if c.get("ocm") is not None]
     accounts = {a["uid"]: a["name"] for a in queries.get_aws_accounts()}
     ocm_map = OCMMap(clusters=clusters, settings=settings)
