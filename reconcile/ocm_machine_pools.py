@@ -278,7 +278,9 @@ class NodePool(AbstractPool):
             or self.labels != pool.labels
             or self.aws_node_pool.instance_type != pool.instance_type
             # if the nodepool in app-interface does not define a subnet explicitely
-            # we don't consider it a diff. we don't manage it
+            # we don't consider it a diff. we don't manage it, but `get_pool_spec_to_update`
+            # will highlight it as a spec drift that is going to be fixed with an MR
+            # towards app-interface
             or (pool.subnet is not None and self.subnet != pool.subnet)
             or self._has_diff_autoscale(pool)
         )
