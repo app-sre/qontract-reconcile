@@ -54,24 +54,6 @@ query Clusters($name: String) {
         }
       }
     }
-    awsInfrastructureAccess {
-      awsGroup {
-        account {
-          name
-          uid
-          terraformUsername
-          automationToken {
-            ... VaultSecret
-          }
-        }
-        roles {
-          users {
-            org_username
-          }
-        }
-      }
-      accessLevel
-    }
     awsInfrastructureManagementAccounts {
       ... AWSInfrastructureManagementAccount
     }
