@@ -1,7 +1,7 @@
 import logging
 import sys
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Iterable, Tuple
 
 from reconcile import queries
 from reconcile.status import ExitCodes
@@ -22,7 +22,17 @@ QONTRACT_INTEGRATION = "ocm-aws-infrastructure-access"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
-def fetch_current_state(clusters):
+def get_clusters() -> Iterable[Mapping[str, Any]]:
+    return [
+        c
+        for c in queries.get_clusters(aws_infrastructure_access=True)
+        if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
+    ]
+
+
+def fetch_current_state(
+    clusters: Iterable[Mapping[str, Any]],
+) -> Tuple[OCMMap, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     current_state = []
     current_failed = []
     current_deleting = []
@@ -179,11 +189,7 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
 
 
 def run(dry_run):
-    clusters = [
-        c
-        for c in queries.get_clusters(aws_infrastructure_access=True)
-        if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
-    ]
+    clusters = get_clusters()
     if not clusters:
         logging.debug(
             "No OCM Aws infrastructure access definitions found in app-interface"
