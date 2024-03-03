@@ -154,24 +154,6 @@ query Clusters($name: String) {
         }
       }
     }
-    awsInfrastructureAccess {
-      awsGroup {
-        account {
-          name
-          uid
-          terraformUsername
-          automationToken {
-            ... VaultSecret
-          }
-        }
-        roles {
-          users {
-            org_username
-          }
-        }
-      }
-      accessLevel
-    }
     awsInfrastructureManagementAccounts {
       ... AWSInfrastructureManagementAccount
     }
@@ -416,31 +398,6 @@ class OpenShiftClusterManagerV1(ConfiguredBaseModel):
     sectors: Optional[list[OpenShiftClusterManagerSectorV1]] = Field(..., alias="sectors")
 
 
-class AWSAccountV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    uid: str = Field(..., alias="uid")
-    terraform_username: Optional[str] = Field(..., alias="terraformUsername")
-    automation_token: VaultSecret = Field(..., alias="automationToken")
-
-
-class UserV1(ConfiguredBaseModel):
-    org_username: str = Field(..., alias="org_username")
-
-
-class RoleV1(ConfiguredBaseModel):
-    users: list[UserV1] = Field(..., alias="users")
-
-
-class AWSGroupV1(ConfiguredBaseModel):
-    account: AWSAccountV1 = Field(..., alias="account")
-    roles: Optional[list[RoleV1]] = Field(..., alias="roles")
-
-
-class AWSInfrastructureAccessV1(ConfiguredBaseModel):
-    aws_group: AWSGroupV1 = Field(..., alias="awsGroup")
-    access_level: str = Field(..., alias="accessLevel")
-
-
 class ClusterSpecV1(ConfiguredBaseModel):
     product: str = Field(..., alias="product")
     hypershift: Optional[bool] = Field(..., alias="hypershift")
@@ -479,7 +436,7 @@ class RosaOcmSpecV1(ConfiguredBaseModel):
     ocm_environments: Optional[list[RosaOcmAwsSpecV1]] = Field(..., alias="ocm_environments")
 
 
-class ClusterSpecROSAV1_AWSAccountV1(ConfiguredBaseModel):
+class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
     terraform_username: Optional[str] = Field(..., alias="terraformUsername")
@@ -492,7 +449,7 @@ class ClusterSpecROSAV1(ClusterSpecV1):
     subnet_ids: Optional[list[str]] = Field(..., alias="subnet_ids")
     availability_zones: Optional[list[str]] = Field(..., alias="availability_zones")
     oidc_endpoint_url: Optional[str] = Field(..., alias="oidc_endpoint_url")
-    account: Optional[ClusterSpecROSAV1_AWSAccountV1] = Field(..., alias="account")
+    account: Optional[AWSAccountV1] = Field(..., alias="account")
 
 
 class ClusterExternalConfigurationV1(ConfiguredBaseModel):
@@ -579,19 +536,19 @@ class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1(Configu
     region: str = Field(..., alias="region")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1_AWSAccountV1(ConfiguredBaseModel):
+class AWSGroupV1_AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
     terraform_username: Optional[str] = Field(..., alias="terraformUsername")
     automation_token: VaultSecret = Field(..., alias="automationToken")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1(ConfiguredBaseModel):
-    account: ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1_AWSAccountV1 = Field(..., alias="account")
+class AWSGroupV1(ConfiguredBaseModel):
+    account: AWSGroupV1_AWSAccountV1 = Field(..., alias="account")
 
 
-class ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1(ConfiguredBaseModel):
-    aws_group: ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1_AWSGroupV1 = Field(..., alias="awsGroup")
+class AWSInfrastructureAccessV1(ConfiguredBaseModel):
+    aws_group: AWSGroupV1 = Field(..., alias="awsGroup")
     access_level: str = Field(..., alias="accessLevel")
 
 
@@ -626,7 +583,7 @@ class ClusterPeeringConnectionClusterRequesterV1_ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     network: Optional[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterNetworkV1] = Field(..., alias="network")
     spec: Optional[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterSpecV1] = Field(..., alias="spec")
-    aws_infrastructure_access: Optional[list[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_AWSInfrastructureAccessV1]] = Field(..., alias="awsInfrastructureAccess")
+    aws_infrastructure_access: Optional[list[AWSInfrastructureAccessV1]] = Field(..., alias="awsInfrastructureAccess")
     aws_infrastructure_management_accounts: Optional[list[AWSInfrastructureManagementAccount]] = Field(..., alias="awsInfrastructureManagementAccounts")
     peering: Optional[ClusterPeeringConnectionClusterRequesterV1_ClusterV1_ClusterPeeringV1] = Field(..., alias="peering")
 
@@ -666,7 +623,6 @@ class ClusterV1(ConfiguredBaseModel):
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     auth: list[Union[ClusterAuthGithubOrgTeamV1, ClusterAuthGithubOrgV1, ClusterAuthV1]] = Field(..., alias="auth")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")
-    aws_infrastructure_access: Optional[list[AWSInfrastructureAccessV1]] = Field(..., alias="awsInfrastructureAccess")
     aws_infrastructure_management_accounts: Optional[list[AWSInfrastructureManagementAccount]] = Field(..., alias="awsInfrastructureManagementAccounts")
     spec: Optional[Union[ClusterSpecROSAV1, ClusterSpecOSDV1, ClusterSpecV1]] = Field(..., alias="spec")
     external_configuration: Optional[ClusterExternalConfigurationV1] = Field(..., alias="externalConfiguration")

@@ -9,7 +9,6 @@ automationToken:
   format: null
   path: path/to/automation_token
   version: null
-awsInfrastructureAccess: []
 awsInfrastructureManagementAccounts: []
 clusterAdmin: true
 clusterAdminAutomationToken:
