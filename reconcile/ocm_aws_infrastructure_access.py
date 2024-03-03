@@ -200,3 +200,7 @@ def run(dry_run):
     act(
         dry_run, ocm_map, current_state, current_failed, desired_state, current_deleting
     )
+
+
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return {"state": fetch_desired_state()}
