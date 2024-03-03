@@ -60,7 +60,7 @@ def fetch_desired_state():
     # sections of cluster files
     clusters = [
         c
-        for c in queries.get_clusters()
+        for c in queries.get_clusters(aws_infrastructure_access=True)
         if c.get("ocm") is not None and c["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
     ]
     for cluster_info in clusters:
@@ -184,7 +184,7 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
 def run(dry_run):
     clusters = [
         c
-        for c in queries.get_clusters()
+        for c in queries.get_clusters(aws_infrastructure_access=True)
         if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
     ]
     if not clusters:
