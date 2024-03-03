@@ -91,3 +91,18 @@ def run(dry_run, thread_pool_size=10):
 
         if not dry_run:
             act(diff, ocm_map)
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    clusters = [
+        c["name"]
+        for c in queries.get_clusters()
+        if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
+    ]
+    desired_state = openshift_groups.fetch_desired_state(clusters=clusters)
+    # we only manage dedicated-admins via OCM
+    desired_state = [s for s in desired_state if s["group"] == "dedicated-admins"]
+
+    return {
+        "state": desired_state,
+    }
