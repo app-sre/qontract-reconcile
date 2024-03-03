@@ -120,7 +120,7 @@ def fetch_desired_state(
         for a in r.access or []:
             if not a.cluster or not a.group:
                 continue
-            if a.cluster.name not in clusters:
+            if clusters and a.cluster.name not in clusters:
                 continue
 
             user_keys = ob.determine_user_keys_for_access(
