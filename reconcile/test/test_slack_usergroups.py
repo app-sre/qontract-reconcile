@@ -19,7 +19,7 @@ from pytest_mock import MockerFixture
 
 import reconcile.slack_base as slackbase
 import reconcile.slack_usergroups as integ
-from reconcile.gql_definitions.slack_usergroups.clusters import ClusterV1
+from reconcile.gql_definitions.slack_usergroups.clusters import ClusterAuthV1, ClusterV1
 from reconcile.gql_definitions.slack_usergroups.permissions import (
     PagerDutyInstanceV1,
     PagerDutyTargetV1,
@@ -131,6 +131,8 @@ def test_get_users(fxt: Fixtures) -> None:
     users = get_users(q)
     assert len(users) == 2
     assert users[0].org_username == "user1-org-username"
+    assert users[0].roles
+    assert len(users[0].roles) == 1
     assert (
         users[1].roles
         and users[1].roles[0].access
@@ -240,6 +242,16 @@ def test_include_user_to_cluster_usergroup_user_has_cluster_access(
     cluster = ClusterV1(name="cluster", auth=[], disable={"integrations": []})
     # user_has_cluster_access -> False
     assert not integ.include_user_to_cluster_usergroup(user, cluster, ["user1"])
+
+
+def test_user_has_cluster_access(mocker: MockerFixture, user: UserV1) -> None:
+    cluster = ClusterV1(
+        name="cluster",
+        auth=[ClusterAuthV1(service="oidc")],
+        disable={"integrations": []},
+    )
+    assert integ.user_has_cluster_access(user, cluster, [user.org_username])
+    assert not integ.user_has_cluster_access(user, cluster, ["just-another-user"])
 
 
 def test_include_user_to_cluster_usergroup(mocker: MockerFixture, user: UserV1) -> None:
