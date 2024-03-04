@@ -5,8 +5,10 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.aus.cluster_version_data import VersionData
+from reconcile.aus.version_gates import ocp_gate_handler, sts_version_gate_handler
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.utils.ocm.base import OCMVersionGate
 
 
 @pytest.fixture
@@ -109,3 +111,51 @@ def ocm2_state(low_version: str, high_version: str) -> dict[str, Any]:
 @pytest.fixture
 def ocm2_version_data(ocm2_state: dict[str, Any]) -> VersionData:
     return VersionData(**ocm2_state)
+
+
+VERSION_GATE_4_12_OCP_ID = "e3ed7585-7033-11ed-ac97-0a580a830014"
+VERSION_GATE_4_13_OCP_ID = "f0bbef99-d1ea-11ed-aefd-0a580a800209"
+VERSION_GATE_4_13_STS_ID = "ec6fa2a0-d1ea-11ed-aefd-0a580a800209"
+
+
+@pytest.fixture
+def version_gate_4_12_ocp() -> OCMVersionGate:
+    return OCMVersionGate(**{
+        "kind": "VersionGate",
+        "id": VERSION_GATE_4_12_OCP_ID,
+        "version_raw_id_prefix": "4.12",
+        "label": ocp_gate_handler.GATE_LABEL,
+        "value": "4.12",
+        "sts_only": False,
+    })
+
+
+@pytest.fixture
+def version_gate_4_13_ocp() -> OCMVersionGate:
+    return OCMVersionGate(**{
+        "kind": "VersionGate",
+        "id": VERSION_GATE_4_13_OCP_ID,
+        "version_raw_id_prefix": "4.13",
+        "label": ocp_gate_handler.GATE_LABEL,
+        "value": "4.13",
+        "sts_only": False,
+    })
+
+
+@pytest.fixture
+def version_gate_4_13_sts() -> OCMVersionGate:
+    return OCMVersionGate(**{
+        "kind": "VersionGate",
+        "id": VERSION_GATE_4_13_STS_ID,
+        "version_raw_id_prefix": "4.13",
+        "label": sts_version_gate_handler.GATE_LABEL,
+        "value": "4.13",
+        "sts_only": True,
+    })
+
+
+@pytest.fixture
+def version_gates(
+    version_gate_4_13_ocp: OCMVersionGate, version_gate_4_13_sts: OCMVersionGate
+) -> list[OCMVersionGate]:
+    return [version_gate_4_13_ocp, version_gate_4_13_sts]

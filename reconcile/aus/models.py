@@ -56,10 +56,11 @@ class ClusterUpgradeSpec(BaseModel):
         return self.cluster.available_upgrades()
 
     @property
-    def effective_mutexes(self) -> list[str]:
-        mutexes = self.upgrade_policy.conditions.mutexes or []
-        mutexes.append(self.cluster.id)
+    def effective_mutexes(self) -> set[str]:
+        mutexes = set(self.upgrade_policy.conditions.mutexes or [])
+        mutexes.add(self.cluster.id)
         return mutexes
+
 
 class ClusterAddonUpgradeSpec(ClusterUpgradeSpec):
     addon: OCMAddonInstallation

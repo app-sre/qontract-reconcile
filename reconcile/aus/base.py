@@ -919,9 +919,9 @@ def calculate_diff(
     """
 
     def set_mutex(
-        locked: dict[str, str], cluster_id: str, mutexes: Optional[list[str]] = None
+        locked: dict[str, str], cluster_id: str, mutexes: Optional[set[str]] = None
     ) -> None:
-        for mutex in mutexes or []:
+        for mutex in mutexes or set():
             locked[mutex] = cluster_id
 
     diffs: list[UpgradePolicyHandler] = []
@@ -945,9 +945,7 @@ def calculate_diff(
             node_pool_update = _calculate_node_pool_diffs(ocm_api, spec, now)
             if node_pool_update:  # node pool update policy not yet created
                 diffs.append(node_pool_update)
-                set_mutex(
-                    locked, spec.cluster.id, spec.effective_mutexes
-                )
+                set_mutex(locked, spec.cluster.id, spec.effective_mutexes)
                 continue
 
         # ignore clusters with an existing upgrade policy
