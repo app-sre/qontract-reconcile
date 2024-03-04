@@ -923,6 +923,7 @@ def default_hypershift_worker_machine_pool() -> dict:
         "id": "workers",
         "instance_type": "m5.xlarge",
         "replicas": 2,
+        "subnet": "subnet-1",
     }
 
 
@@ -943,7 +944,7 @@ def expected_node_pool_create_payload() -> dict:
         "id": "workers",
         "labels": None,
         "replicas": 2,
-        "subnet": None,
+        "subnet": "subnet-1",
         "taints": [],
     }
 
@@ -970,6 +971,7 @@ def existing_updated_hypershift_node_pools() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1",
         }
     ]
 
@@ -1020,34 +1022,21 @@ def existing_multiple_hypershift_node_pools() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1",
         },
         {
             "id": "new-workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-2",
         },
     ]
-
-
-@pytest.fixture
-def expected_hypershift_node_pool_delete_payload() -> dict:
-    return {
-        "autoscaling": None,
-        "cluster": "hypershift-cluster",
-        "id": "new-workers",
-        "aws_node_pool": {"instance_type": "m5.xlarge"},
-        "labels": None,
-        "replicas": 3,
-        "subnet": None,
-        "taints": None,
-    }
 
 
 def test_run_delete_node_pool(
     mocker: MockerFixture,
     hypershift_cluster: ClusterV1,
     existing_multiple_hypershift_node_pools: list[dict],
-    expected_hypershift_node_pool_delete_payload: dict,
 ) -> None:
     mocks = setup_mocks(
         mocker,
@@ -1059,7 +1048,7 @@ def test_run_delete_node_pool(
 
     mocks["OCM"].delete_node_pool.assert_called_once_with(
         hypershift_cluster.name,
-        expected_hypershift_node_pool_delete_payload,
+        "new-workers",
     )
 
 
@@ -1069,6 +1058,7 @@ def non_default_hypershift_worker_machine_pool() -> dict:
         "id": "new-workers",
         "instance_type": "m5.xlarge",
         "replicas": 3,
+        "subnet": "subnet-3",
     }
 
 
@@ -1087,16 +1077,19 @@ def existing_multiple_hypershift_node_pools_with_defaults() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1",
         },
         {
             "id": "workers-1",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-2",
         },
         {
             "id": "new-workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-3",
         },
     ]
 
@@ -1121,6 +1114,7 @@ def test_update_app_interface_with_subnet(
     mocker: MockerFixture,
     hypershift_cluster: ClusterV1,
 ) -> None:
+    hypershift_cluster.machine_pools[0].subnet = None
     setup_mocks(
         mocker,
         clusters=[hypershift_cluster],

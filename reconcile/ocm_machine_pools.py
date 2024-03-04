@@ -247,7 +247,7 @@ class NodePool(AbstractPool):
     subnet: Optional[str]
 
     def delete(self, ocm: OCM) -> None:
-        ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
+        ocm.delete_node_pool(self.cluster, self.id)
 
     def create(self, ocm: OCM) -> None:
         spec = self.dict(by_alias=True)

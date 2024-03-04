@@ -575,7 +575,7 @@ class OCM:  # pylint: disable=too-many-public-methods
 
         return get_node_pools(self._ocm_client, cluster_id)
 
-    def delete_node_pool(self, cluster, spec):
+    def delete_node_pool(self, cluster, node_pool_id):
         """Deletes an existing Node Pool
 
         :param cluster: cluster name
@@ -585,7 +585,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         :type spec: dictionary
         """
         cluster_id = self.cluster_ids[cluster]
-        node_pool_id = spec["id"]
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/" + f"{node_pool_id}"
         self._delete(api)
 
