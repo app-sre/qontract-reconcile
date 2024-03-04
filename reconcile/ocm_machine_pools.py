@@ -547,34 +547,31 @@ def calculate_diff(
     return diffs, errors
 
 
+def _drift_updates(
+    current_pools: list[AbstractPool],
+    desired: DesiredMachinePool,
+) -> list[ClusterMachinePoolV1]:
+    current_machine_pools = {pool.id: pool for pool in current_pools}
+    return [
+        spec
+        for pool in desired.pools
+        if (current_pool := current_machine_pools.get(pool.q_id))
+        and (spec := current_pool.get_pool_spec_to_update(pool)) is not None
+    ]
+
+
 def calculate_spec_drift(
     current_state: Mapping[str, list[AbstractPool]],
     desired_state: Mapping[str, DesiredMachinePool],
-) -> list[tuple[str, ClusterMachinePoolV1]]:
+) -> dict[str, list[ClusterMachinePoolV1]]:
     """
     Finds spec drifts between OCM and app-interface and returns a list of them.
     """
-    current_machine_pools = {
-        (cluster_name, machine_pool.id): machine_pool
-        for cluster_name, machine_pools in current_state.items()
-        for machine_pool in machine_pools
+    return {
+        desired_state[k].cluster_path: updates
+        for k in current_state.keys() & desired_state.keys()
+        if (updates := _drift_updates(current_state[k], desired_state[k]))
     }
-
-    desired_machine_pools = {
-        (desired.cluster_name, desired_machine_pool.q_id): desired_machine_pool
-        for desired in desired_state.values()
-        for desired_machine_pool in desired.pools
-    }
-    spec_drift_updates: list[tuple[str, ClusterMachinePoolV1]] = []
-    for pool_key, current_pool in current_machine_pools.items():
-        desired_pool = desired_machine_pools.get(pool_key)
-        if not desired_pool:
-            continue
-        update = current_pool.get_pool_spec_to_update(desired_pool)
-        if update:
-            cluster_path = desired_state[pool_key[0]].cluster_path
-            spec_drift_updates.append((cluster_path, update))
-    return spec_drift_updates
 
 
 def update_ocm(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> None:
@@ -588,17 +585,17 @@ def update_ocm(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> 
 def update_app_interface(
     dry_run: bool,
     gitlab_project_id: Optional[str],
-    diffs: list[tuple[str, ClusterMachinePoolV1]],
+    diffs: dict[str, list[ClusterMachinePoolV1]],
 ) -> None:
     if not diffs:
         return
 
-    mr = ClustersMachinePoolUpdates()
-    for cluster_path, pool_update in diffs:
-        pool_dict = {
-            k: v for k, v in pool_update.dict(by_alias=True).items() if v is not None
+    mr = ClustersMachinePoolUpdates(
+        machine_pool_updates={
+            cluster_path: [pool.dict(by_alias=True) for pool in pool_updates]
+            for cluster_path, pool_updates in diffs.items()
         }
-        mr.add_machine_pool_update(cluster_path, pool_dict)
+    )
     if not dry_run:
         with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
             mr.submit(cli=mr_cli)

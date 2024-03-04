@@ -1143,9 +1143,8 @@ def test_update_app_interface_with_subnet(
     update_app_interface_mock.assert_called_once_with(
         False,
         None,
-        [
-            (
-                hypershift_cluster.path,
+        {
+            hypershift_cluster.path: [
                 ClusterMachinePoolV1(
                     id="workers",
                     instance_type="m5.xlarge",
@@ -1155,6 +1154,6 @@ def test_update_app_interface_with_subnet(
                     taints=None,
                     subnet="subnet-1",
                 ),
-            )
-        ],
+            ]
+        },
     )
