@@ -844,7 +844,7 @@ def verify_schedule_should_skip(
 def verify_lock_should_skip(
     desired: ClusterUpgradeSpec, locked: dict[str, str]
 ) -> bool:
-    mutexes = desired.upgrade_policy.conditions.mutexes or []
+    mutexes = desired.effective_mutexes
     if any(lock in locked for lock in mutexes):
         locking = {lock: locked[lock] for lock in mutexes if lock in locked}
         logging.debug(
@@ -930,7 +930,7 @@ def calculate_diff(
     locked: dict[str, str] = {}
     for spec in desired_state.specs:
         if spec.cluster.id in [s.cluster.id for s in current_state]:
-            for mutex in spec.upgrade_policy.conditions.mutexes or []:
+            for mutex in spec.effective_mutexes:
                 locked[mutex] = spec.cluster.id
 
     now = datetime.utcnow()
@@ -946,7 +946,7 @@ def calculate_diff(
             if node_pool_update:  # node pool update policy not yet created
                 diffs.append(node_pool_update)
                 set_mutex(
-                    locked, spec.cluster.id, spec.upgrade_policy.conditions.mutexes
+                    locked, spec.cluster.id, spec.effective_mutexes
                 )
                 continue
 
@@ -1024,7 +1024,7 @@ def calculate_diff(
                         policy=_create_upgrade_policy(next_schedule, spec, version),
                     )
                 )
-            set_mutex(locked, spec.cluster.id, spec.upgrade_policy.conditions.mutexes)
+            set_mutex(locked, spec.cluster.id, spec.effective_mutexes)
 
     return diffs
 
