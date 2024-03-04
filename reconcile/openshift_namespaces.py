@@ -114,6 +114,8 @@ def manage_namespaces(spec: Mapping[str, str], oc_map: OCMap, dry_run: bool) -> 
     exists = oc.project_exists(namespace)
     action = None
     if not exists and desired_state == NS_STATE_PRESENT:
+        if namespace.startswith("openshift-"):
+            raise ValueError('cannot request a project starting with "openshift-"')
         action = NS_ACTION_CREATE
     elif exists and desired_state == NS_STATE_ABSENT:
         action = NS_ACTION_DELETE
