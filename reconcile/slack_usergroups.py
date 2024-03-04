@@ -804,7 +804,9 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     users = get_users(gqlapi.query)
     for user in users:
         user.roles = [
-            role for role in user.roles or [] if role.tag_on_cluster_updates is False
+            role
+            for role in user.roles or []
+            if role.tag_on_cluster_updates is not False
         ]
     return {
         "permissions": [p.dict() for p in get_permissions(gqlapi.query)],
