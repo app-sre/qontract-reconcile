@@ -799,11 +799,20 @@ def run(
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     gqlapi = gql.get_api()
+    # exclude user.roles (cluster access roles) with tag_on_cluster_updates: false
+    # to speedup PR checks
+    users = get_users(gqlapi.query)
+    for user in users:
+        user.roles = [
+            role
+            for role in user.roles or []
+            if role.tag_on_cluster_updates is not False
+        ]
     return {
         "permissions": [p.dict() for p in get_permissions(gqlapi.query)],
         "pagerduty_instances": [
             p.dict() for p in get_pagerduty_instances(gqlapi.query)
         ],
-        "users": [u.dict() for u in get_users(gqlapi.query)],
+        "users": [u.dict() for u in users],
         "clusters": [c.dict() for c in get_clusters(gqlapi.query)],
     }
