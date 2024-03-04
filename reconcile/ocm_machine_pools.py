@@ -299,16 +299,17 @@ class NodePool(AbstractPool):
         if app-interface does not define a subnet explicitely or if the
         subnet is different from OCM, we consider the spec in app-interface oudated.
 
-        in such a case this method returns a clone of the current pool definition
+        In such a case this method returns a clone of the current pool definition
         in app-interface with the subnet updated to the one in OCM. if no update
         is required, None is returned
 
-        how can this happen?
-        * cluster gets created without specified subnets and ROSA CLI picks the subnet
+        How can this happen?
+        * a cluster was created without specified subnets and ROSA CLI picks the subnet
           assignment for the nodepools
         * nodepools have been recreated on OCM side without app-interface involvement
+          and the subnet changed
         """
-        if pool.subnet is None and self.subnet != pool.subnet:
+        if pool.subnet is None or self.subnet != pool.subnet:
             return pool.copy(update={"subnet": self.subnet})
         return None
 
