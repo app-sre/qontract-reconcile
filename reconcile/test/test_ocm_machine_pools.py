@@ -345,6 +345,13 @@ def test_pool_node_pool_invalid_diff_subnet(node_pool, cluster_machine_pool):
     assert node_pool.invalid_diff(cluster_machine_pool)
 
 
+def test_pool_node_pool_valid_diff_subnet(node_pool, cluster_machine_pool):
+    cluster_machine_pool.subnet = None
+    node_pool.subnet = "foo"
+    cluster_machine_pool.replicas = 2
+    assert not node_pool.has_diff(cluster_machine_pool)
+
+
 def test_pool_node_pool_invalid_diff_instance_type(node_pool, cluster_machine_pool):
     cluster_machine_pool.instance_type = "foo"
     assert node_pool.invalid_diff(cluster_machine_pool)
@@ -1114,7 +1121,7 @@ def test_update_app_interface_with_subnet(
     mocker: MockerFixture,
     hypershift_cluster: ClusterV1,
 ) -> None:
-    hypershift_cluster.machine_pools[0].subnet = None
+    hypershift_cluster.machine_pools[0].subnet = None  # type: ignore
     setup_mocks(
         mocker,
         clusters=[hypershift_cluster],
