@@ -844,7 +844,7 @@ def verify_schedule_should_skip(
 def verify_lock_should_skip(
     desired: ClusterUpgradeSpec, locked: dict[str, str]
 ) -> bool:
-    mutexes = desired.upgrade_policy.conditions.mutexes or []
+    mutexes = desired.effective_mutexes
     if any(lock in locked for lock in mutexes):
         locking = {lock: locked[lock] for lock in mutexes if lock in locked}
         logging.debug(
@@ -919,9 +919,9 @@ def calculate_diff(
     """
 
     def set_mutex(
-        locked: dict[str, str], cluster_id: str, mutexes: Optional[list[str]] = None
+        locked: dict[str, str], cluster_id: str, mutexes: Optional[set[str]] = None
     ) -> None:
-        for mutex in mutexes or []:
+        for mutex in mutexes or set():
             locked[mutex] = cluster_id
 
     diffs: list[UpgradePolicyHandler] = []
@@ -930,7 +930,7 @@ def calculate_diff(
     locked: dict[str, str] = {}
     for spec in desired_state.specs:
         if spec.cluster.id in [s.cluster.id for s in current_state]:
-            for mutex in spec.upgrade_policy.conditions.mutexes or []:
+            for mutex in spec.effective_mutexes:
                 locked[mutex] = spec.cluster.id
 
     now = datetime.utcnow()
@@ -945,9 +945,7 @@ def calculate_diff(
             node_pool_update = _calculate_node_pool_diffs(ocm_api, spec, now)
             if node_pool_update:  # node pool update policy not yet created
                 diffs.append(node_pool_update)
-                set_mutex(
-                    locked, spec.cluster.id, spec.upgrade_policy.conditions.mutexes
-                )
+                set_mutex(locked, spec.cluster.id, spec.effective_mutexes)
                 continue
 
         # ignore clusters with an existing upgrade policy
@@ -1024,7 +1022,7 @@ def calculate_diff(
                         policy=_create_upgrade_policy(next_schedule, spec, version),
                     )
                 )
-            set_mutex(locked, spec.cluster.id, spec.upgrade_policy.conditions.mutexes)
+            set_mutex(locked, spec.cluster.id, spec.effective_mutexes)
 
     return diffs
 

@@ -11,9 +11,13 @@ from reconcile.aus.version_gate_approver import (
     VersionGateApproverParams,
     get_enabled_gate_handlers,
 )
-from reconcile.aus.version_gates import ocp_gate_handler
+from reconcile.aus.version_gates import ocp_gate_handler, sts_version_gate_handler
 from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.aus.version_gates.sts_version_gate_handler import STSGateHandler
+from reconcile.test.ocm.aus.conftest import (
+    VERSION_GATE_4_13_OCP_ID,
+    VERSION_GATE_4_13_STS_ID,
+)
 from reconcile.test.ocm.aus.fixtures import NoopGateHandler
 from reconcile.test.ocm.fixtures import build_ocm_cluster
 from reconcile.test.ocm.test_utils_ocm_labels import build_subscription_label
@@ -28,43 +32,6 @@ from reconcile.utils.ocm.base import (
     build_label_container,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
-
-VERSION_GATE_4_13_OCP_ID = "f0bbef99-d1ea-11ed-aefd-0a580a800209"
-VERSION_GATE_4_13_STS_ID = "ec6fa2a0-d1ea-11ed-aefd-0a580a800209"
-
-GATE_LABEL_STS = "api.openshift.com/gate-sts"
-GATE_LABEL_OCP = "api.openshift.com/gate-ocp"
-
-
-@pytest.fixture
-def version_gate_4_13_ocp() -> OCMVersionGate:
-    return OCMVersionGate(**{
-        "kind": "VersionGate",
-        "id": VERSION_GATE_4_13_OCP_ID,
-        "version_raw_id_prefix": "4.13",
-        "label": GATE_LABEL_OCP,
-        "value": "4.13",
-        "sts_only": False,
-    })
-
-
-@pytest.fixture
-def version_gate_4_13_sts() -> OCMVersionGate:
-    return OCMVersionGate(**{
-        "kind": "VersionGate",
-        "id": VERSION_GATE_4_13_STS_ID,
-        "version_raw_id_prefix": "4.13",
-        "label": GATE_LABEL_STS,
-        "value": "4.13",
-        "sts_only": True,
-    })
-
-
-@pytest.fixture
-def version_gates(
-    version_gate_4_13_ocp: OCMVersionGate, version_gate_4_13_sts: OCMVersionGate
-) -> list[OCMVersionGate]:
-    return [version_gate_4_13_ocp, version_gate_4_13_sts]
 
 
 @pytest.fixture
@@ -89,11 +56,11 @@ def integration(job_controller: K8sJobController) -> VersionGateApprover:
         )
     )
     approver.handlers = {
-        GATE_LABEL_STS: STSGateHandler(
+        sts_version_gate_handler.GATE_LABEL: STSGateHandler(
             job_controller=job_controller,
             aws_iam_role="role",
         ),
-        GATE_LABEL_OCP: NoopGateHandler(),
+        ocp_gate_handler.GATE_LABEL: NoopGateHandler(),
     }
     return approver
 

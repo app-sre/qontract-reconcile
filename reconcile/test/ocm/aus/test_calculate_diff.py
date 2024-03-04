@@ -34,11 +34,57 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 @pytest.fixture
+def node_pool_mocks(mocker: MockerFixture) -> tuple[Mock, Mock, Mock]:
+    return (
+        mocker.patch("reconcile.aus.base.get_node_pools"),
+        mocker.patch("reconcile.aus.base.get_version"),
+        mocker.patch("reconcile.aus.base.get_node_pool_upgrade_policies"),
+    )
+
+
+@pytest.fixture
+def version_gate_mocks(mocker: MockerFixture) -> tuple[Mock, Mock]:
+    return (
+        mocker.patch("reconcile.aus.base.get_version_gates"),
+        mocker.patch("reconcile.aus.base.get_version_agreement"),
+    )
+
+
+@pytest.fixture
 def cluster() -> OCMCluster:
     return build_ocm_cluster(
         name="cluster-1",
         version="4.12.17",
         available_upgrades=["4.12.19"],
+    )
+
+
+@pytest.fixture
+def cluster_hypershift(
+    node_pool_mocks: tuple[Mock, Mock, Mock],
+    version_gate_mocks: tuple[Mock, Mock],
+    version_gate_4_12_ocp: OCMVersionGate,
+) -> OCMCluster:
+    node_pool_mocks[0].return_value = [
+        {"id": "np-1", "version": {"raw_id": "openshift-v4.12.16"}},
+        {"id": "np-2", "version": {"raw_id": "openshift-v4.12.16"}},
+    ]
+    node_pool_mocks[1].return_value = {"id": "4.12.16", "raw_id": "4.12.16"}
+    node_pool_mocks[2].return_value = []
+
+    version_gate_mocks[0].return_value = [version_gate_4_12_ocp]
+    version_gate_mocks[0].return_value = [
+        {
+            "id": f"{version_gate_4_12_ocp.id}-agreement",
+            "version_gate": version_gate_4_12_ocp.dict(by_alias=True),
+        }
+    ]
+
+    return build_ocm_cluster(
+        name="cluster-2",
+        version="4.12.17",
+        available_upgrades=["4.12.19"],
+        hypershift=True,
     )
 
 
@@ -314,10 +360,22 @@ def test_calculate_diff_not_soaked(
     assert not diffs
 
 
+@pytest.mark.parametrize(
+    "cluster_2_mutexes, expected_upgrade",
+    [
+        (["foo"], 0),
+        (["bar"], 1),
+        ([], 1),
+        (None, 1),
+    ],
+)
 def test_calculate_diff_mutex_set(
     ocm_api: OCMBaseClient,
     cluster: OCMCluster,
+    cluster_hypershift: OCMCluster,
     now: datetime,
+    cluster_2_mutexes: list[str],
+    expected_upgrade: int,
 ) -> None:
     workload = "wl"
     org_upgrade_spec = build_organization_upgrade_spec(
@@ -328,16 +386,21 @@ def test_calculate_diff_mutex_set(
                     workloads=[workload], soak_days=1, mutexes=["foo"]
                 ),
             ),
+            (
+                cluster_hypershift,
+                build_upgrade_policy(
+                    workloads=[workload], soak_days=1, mutexes=cluster_2_mutexes
+                ),
+            ),
         ],
     )
     diffs = base.calculate_diff(
         [
-            NodePoolUpgradePolicy(
+            ClusterUpgradePolicy(
                 cluster=cluster,
                 schedule_type="manual",
                 next_run="2021-08-30T18:06:00Z",
                 version="4.12.19",
-                node_pool="foo",
             )
         ],
         org_upgrade_spec,
@@ -349,16 +412,51 @@ def test_calculate_diff_mutex_set(
             soak_days=11,
         ),
     )
-    assert not diffs
+    assert len(diffs) == expected_upgrade
 
 
-@pytest.fixture
-def node_pool_mocks(mocker: MockerFixture) -> Tuple[Mock, Mock, Mock]:
-    return (
-        mocker.patch("reconcile.aus.base.get_node_pools"),
-        mocker.patch("reconcile.aus.base.get_version"),
-        mocker.patch("reconcile.aus.base.get_node_pool_upgrade_policies"),
+def test_calculate_diff_implicit_mutex_set(
+    ocm_api: OCMBaseClient,
+    cluster_hypershift: OCMCluster,
+    now: datetime,
+) -> None:
+    """
+    This tests that the implicit mutex set by the cluster is respected.
+    This prevents multiple node pool upgrades to happen for the same cluster.
+    """
+    workload = "wl"
+    org_upgrade_spec = build_organization_upgrade_spec(
+        specs=[
+            (
+                cluster_hypershift,
+                build_upgrade_policy(
+                    workloads=[workload],
+                    soak_days=1,
+                    mutexes=None,
+                ),
+            ),
+        ],
     )
+    diffs = base.calculate_diff(
+        [
+            NodePoolUpgradePolicy(
+                cluster=cluster_hypershift,
+                schedule_type="manual",
+                next_run="2021-08-30T18:06:00Z",
+                version="4.12.19",
+                node_pool="np-1",
+            )
+        ],
+        org_upgrade_spec,
+        ocm_api,
+        build_version_data(
+            check_in=now,
+            version=cluster_hypershift.available_upgrades()[0],
+            workload=workload,
+            soak_days=11,
+        ),
+    )
+    assert not diffs
 
 
 def test__calculate_node_pool_diffs(
