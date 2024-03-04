@@ -1,16 +1,10 @@
 from io import StringIO
 from typing import Any
 
-from ruamel.yaml import YAML
-
 from reconcile.change_owners.decision import DecisionCommand
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
-
-yaml = YAML()
-yaml.explicit_start = True
-# Lets prevent line wraps
-yaml.width = 4096
+from reconcile.utils.ruamel import create_ruamel_instance
 
 
 class ClustersMachinePoolUpdates(MergeRequestBase):
@@ -39,6 +33,7 @@ class ClustersMachinePoolUpdates(MergeRequestBase):
         return DecisionCommand.APPROVED.value
 
     def process(self, gitlab_cli: GitLabApi) -> None:
+        yaml = create_ruamel_instance(explicit_start=True, width=4096)
         changes = False
         for cluster_path, machine_pool_updates in self.machine_pool_updates.items():
             cluster_fs_path = f"data{cluster_path}"
