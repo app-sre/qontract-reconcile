@@ -333,16 +333,15 @@ class OCMProductRosa(OCMProduct):
         cluster: OCMSpec,
         dry_run: bool,
     ) -> None:
-        
         if not isinstance(cluster.spec, ROSAClusterSpec):
             # make mypy happy
             return
-        
+
         if self.rosa_session_builder is None:
             raise Exception(
                 "OCMProductHypershift is not configured with a rosa session builder"
             )
-        
+
         rosa_session = self.rosa_session_builder.build(
             ocm, cluster.spec.account.uid, cluster.spec.region, org_id
         )
@@ -358,7 +357,7 @@ class OCMProductRosa(OCMProduct):
             raise OCMValidationException(
                 f"last 10 lines from failed cluster creation job...\n\n{logs}"
             )
-        
+
         # ocm_spec = self._get_create_cluster_spec(name, cluster)
         # api = f"{CS_API_BASE}/v1/clusters"
         # params = {}

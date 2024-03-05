@@ -43,7 +43,9 @@ rosa create cluster -y --cluster-name={{ cluster_name }} \
     {% if cluster.spec.private -%}
     --private-link \
     {% endif -%}
+    {% if cluster.spec.multi_az -%}
     --multi-az \
+    {% endif -%}
     --oidc-config-id ${OIDC_CONFIG_ID} \
     --operator-roles-prefix {{ cluster_name }} \
     --subnet-ids {{ cluster.spec.subnet_ids | join(",") }} \

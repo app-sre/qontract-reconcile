@@ -89,3 +89,22 @@ def test_rosa_hcp_creation_script_dry_run(
         cluster_name="cluster-1", cluster=rosa_cluster_spec, dry_run=True
     )
     assert normalize_script(expected) == normalize_script(script)
+
+
+@pytest.fixture
+def rosa_classic_cluster_spec() -> OCMSpec:
+    cluster_data = Fixtures("clusters").get_anymarkup("rosa_classic_spec_ai.yml")
+    return OCMSpec(**data_default_none(OCMSpec, cluster_data))
+
+
+def test_rosa_classic_creation_script(
+    rosa_classic_cluster_spec: OCMSpec, script_result_fixtures: Fixtures
+) -> None:
+    expected = script_result_fixtures.get("rosa_classic_script_result.sh")
+    script = rosa_hcp_creation_script(
+        cluster_name="cluster-2", cluster=rosa_classic_cluster_spec, dry_run=False
+    )
+    print(expected)
+    print("--------------------")
+    print(script)
+    assert normalize_script(expected) == normalize_script(script)

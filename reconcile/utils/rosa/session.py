@@ -128,7 +128,7 @@ class RosaSession:
             check_interval_seconds=check_interval_seconds,
             timeout_seconds=timeout_seconds,
         )
-    
+
     def create_rosa_cluster(
         self,
         cluster_name: str,
@@ -143,7 +143,7 @@ class RosaSession:
         data is highlighted as errors.
         """
         return self.cli_execute(
-            cmd=rosa_creation_script(cluster_name, spec, dry_run),
+            cmd=rosa_hcp_creation_script(cluster_name, spec, dry_run),
             check_interval_seconds=check_interval_seconds,
             timeout_seconds=timeout_seconds,
         )
@@ -184,28 +184,15 @@ def rosa_hcp_creation_script(cluster_name: str, cluster: OCMSpec, dry_run: bool)
     """
     Builds a bash script to install a ROSA clusters.
     """
-    # template_path = PROJ_ROOT / "templates" / "rosa-hcp-cluster-creation.sh.j2"
-    # with open(template_path, encoding="utf-8") as f:
-    env = Environment(loader=FileSystemLoader(PROJ_ROOT / "templates"))
-    env.filters["split"] = lambda value, sep: value.split(sep)
-    template = env.get_template("rosa-hcp-cluster-creation.sh.j2")
-    # template = Template(f.read(), keep_trailing_newline=True, trim_blocks=True)
-    return template.render(
-        cluster_name=cluster_name,
-        cluster=cluster,
-        dry_run=dry_run,
-    )
 
-def rosa_creation_script(cluster_name: str, cluster: OCMSpec, dry_run: bool) -> str:
-    """
-    Builds a bash script to install a ROSA clusters.
-    """
-    # template_path = PROJ_ROOT / "templates" / "rosa-hcp-cluster-creation.sh.j2"
-    # with open(template_path, encoding="utf-8") as f:
     env = Environment(loader=FileSystemLoader(PROJ_ROOT / "templates"))
     env.filters["split"] = lambda value, sep: value.split(sep)
-    template = env.get_template("rosa-classic-cluster-creation.sh.j2")
-    # template = Template(f.read(), keep_trailing_newline=True, trim_blocks=True)
+
+    if cluster.spec.hypershift:
+        template = env.get_template("rosa-hcp-cluster-creation.sh.j2")
+    else:
+        template = env.get_template("rosa-classic-cluster-creation.sh.j2")
+
     return template.render(
         cluster_name=cluster_name,
         cluster=cluster,
