@@ -1307,6 +1307,20 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     )
                     self.add_resource(infra_account_name, tf_resource)
 
+            if accepter.api_security_group_id:
+                hcp_api_ingress_rule = aws_security_group_rule(
+                    f"api-access-from-{requester.tgw_id}",
+                    provider="aws." + acc_alias,
+                    type="ingress",
+                    security_group_id=accepter.api_security_group_id,
+                    cidr_blocks=requester.cidr_block,
+                    from_port=443,
+                    to_port=443,
+                    protocol="tcp",
+                    description=f"HCP API access from TGW attachment {requester.tgw_id}",
+                )
+                self.add_resource(infra_account_name, hcp_api_ingress_rule)
+
             # add rules to security groups of VPCs which are attached
             # to the transit gateway to allow traffic through the routes
             requester_rules = requester.rules
