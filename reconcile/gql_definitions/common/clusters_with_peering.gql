@@ -24,6 +24,8 @@ query ClustersWithPeering {
 
     spec {
       region
+      hypershift
+      private
       ... on ClusterSpecROSA_v1 {
         account {
           name
@@ -71,6 +73,7 @@ query ClustersWithPeering {
           cidrBlock
           manageSecurityGroups
           manageRoute53Associations
+          allowPrivateHcpApiAccess
           assumeRole
         }
         ... on ClusterPeeringConnectionClusterRequester_v1 {

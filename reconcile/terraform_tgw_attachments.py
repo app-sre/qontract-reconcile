@@ -85,6 +85,7 @@ class Accepter(BaseModel):
     route_table_ids: Optional[list[str]]
     subnets_id_az: Optional[list[dict]]
     account: AccountProviderInfo
+    api_security_group_id: Optional[str]
 
 
 class DesiredStateItem(BaseModel):
@@ -163,6 +164,7 @@ def _build_desired_state_tgw_connection(
         cluster_region,
         cluster_cidr_block,
         awsapi,
+        private_hcp=_is_private_hosted_control_plane(cluster_info),
     )
     if accepter.vpc_id is None:
         logging.error(f"[{cluster_name}] could not find VPC ID for cluster")
@@ -191,6 +193,14 @@ def _build_desired_state_tgw_connection(
             deleted=peer_connection.delete or False,
         )
         yield item
+
+
+def _is_private_hosted_control_plane(cluster_info: ClusterV1) -> bool:
+    return (
+        cluster_info.spec is not None
+        and bool(cluster_info.spec.hypershift)
+        and bool(cluster_info.spec.private)
+    )
 
 
 def _build_account_with_assume_role(
@@ -236,11 +246,18 @@ def _build_accepter(
     region: str,
     cidr_block: str,
     awsapi: AWSApi,
+    private_hcp: bool = False,
 ) -> Accepter:
-    (vpc_id, route_table_ids, subnets_id_az, _) = awsapi.get_cluster_vpc_details(
-        account.dict(by_alias=True),
-        route_tables=peer_connection.manage_routes,
-        subnets=True,
+    allow_hcp_private_api_access = (
+        private_hcp and peer_connection.allow_private_hcp_api_access
+    )
+    (vpc_id, route_table_ids, subnets_id_az, api_security_group_id) = (
+        awsapi.get_cluster_vpc_details(
+            account.dict(by_alias=True),
+            route_tables=peer_connection.manage_routes,
+            subnets=True,
+            hcp_vpc_endpoint_sg=allow_hcp_private_api_access,
+        )
     )
     return Accepter(
         cidr_block=cidr_block,
@@ -249,6 +266,7 @@ def _build_accepter(
         route_table_ids=route_table_ids,
         subnets_id_az=subnets_id_az,
         account=account,
+        api_security_group_id=api_security_group_id,
     )
 
 
