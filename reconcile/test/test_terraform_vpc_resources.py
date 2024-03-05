@@ -2,7 +2,6 @@ import logging
 
 import pytest
 
-import reconcile.terraform_vpc_resources as integ
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
@@ -13,6 +12,10 @@ from reconcile.gql_definitions.terraform_vpc_resources.vpc_resources_aws_account
     VPCResourcesAWSAccountsQueryData,
 )
 from reconcile.status import ExitCodes
+from reconcile.terraform_vpc_resources import (
+    TerraformVpcResources,
+    TerraformVpcResourcesParams,
+)
 
 
 @pytest.fixture
@@ -83,8 +86,9 @@ def test_log_message_for_no_aws_accounts(
     mocked_query = mocker.patch("reconcile.terraform_vpc_resources.query_aws_accounts")
     mocked_query.return_value = VPCResourcesAWSAccountsQueryData(accounts=[])
 
+    params = TerraformVpcResourcesParams(account_name=None)
     with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
-        integ.run(dry_run=True)
+        TerraformVpcResources(params).run(dry_run=True)
     assert sample.value.code == ExitCodes.SUCCESS
     assert ["No AWS accounts found, nothing to do."] == [
         rec.message for rec in caplog.records
@@ -114,8 +118,9 @@ def test_log_message_for_no_accounts_with_related_state(
         )
     ])
 
+    params = TerraformVpcResourcesParams(account_name=None)
     with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
-        integ.run(dry_run=True)
+        TerraformVpcResources(params).run(dry_run=True)
     assert sample.value.code == ExitCodes.SUCCESS
     assert ["No AWS accounts with 'terraform-vpc-resources' state found, nothing to do."] == [
         rec.message for rec in caplog.records

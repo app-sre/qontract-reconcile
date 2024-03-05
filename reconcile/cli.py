@@ -2291,9 +2291,15 @@ def terraform_users(
 @account_name
 @click.pass_context
 def terraform_vpc_resources(ctx, account_name):
-    import reconcile.terraform_vpc_resources
+    from reconcile.terraform_vpc_resources import (
+        TerraformVpcResources,
+        TerraformVpcResourcesParams,
+    )
 
-    run_integration(reconcile.terraform_vpc_resources, ctx.obj, account_name)
+    run_class_integration(
+        TerraformVpcResources(TerraformVpcResourcesParams(account_name=account_name)),
+        ctx.obj,
+    )
 
 
 @integration.command(
