@@ -30,6 +30,11 @@ class Publisher:
         ref: str,
         repo_url: str,
         uid: str,
+        saas_name: str,
+        saas_file_path: str,
+        namespace_name: str,
+        resource_template_name: str,
+        cluster_name: str,
         auth_code: Optional[HasSecret],
     ):
         self._ref = ref
@@ -39,6 +44,11 @@ class Publisher:
         self.commit_sha: str = ""
         self.deployment_info_by_channel: dict[str, Optional[DeploymentInfo]] = {}
         self.uid = uid
+        self.saas_name = saas_name
+        self.saas_file_path = saas_file_path
+        self.namespace_name = namespace_name
+        self.resource_template_name = resource_template_name
+        self.cluster_name = cluster_name
 
     def fetch_commit_shas_and_deployment_info(
         self, vcs: VCS, deployment_state: PromotionState

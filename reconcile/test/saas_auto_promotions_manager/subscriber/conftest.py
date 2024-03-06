@@ -48,6 +48,11 @@ def subscriber_builder(
                     ref="",
                     uid="",
                     repo_url="",
+                    cluster_name="",
+                    namespace_name="",
+                    saas_name="",
+                    saas_file_path="",
+                    resource_template_name="",
                     auth_code=None,
                 )
                 publisher.commit_sha = publisher_data[REAL_WORLD_SHA]

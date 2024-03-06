@@ -52,6 +52,11 @@ class SaasFilesInventory:
                             parent_resource_template_name=resource_template.name,
                         ),
                         repo_url=resource_template.url,
+                        saas_file_path=saas_file.path,
+                        saas_name=saas_file.name,
+                        namespace_name=target.namespace.name,
+                        cluster_name=target.namespace.cluster.name,
+                        resource_template_name=resource_template.name,
                         auth_code=auth_code,
                     )
                     has_subscriber = False

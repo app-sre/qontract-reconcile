@@ -13,6 +13,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler imp
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
 )
+from reconcile.saas_auto_promotions_manager.s3_exporter import S3Exporter
 from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
 )
@@ -38,6 +39,7 @@ def test_integration_test():
     )
     manager = SaasAutoPromotionsManager(
         deployment_state=create_autospec(spec=PromotionState),
+        s3_exporter=create_autospec(spec=S3Exporter),
         saas_file_inventory=SaasFilesInventory(saas_files=[]),
         vcs=vcs,
         merge_request_manager_v2=merge_request_manager_v2,
