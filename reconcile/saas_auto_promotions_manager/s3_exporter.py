@@ -63,7 +63,7 @@ class S3Exporter:
         data: dict[str, dict] = {}
         for publisher in publishers:
             publisher_data = PublisherData.from_publisher(publisher)
-            key = f"{publisher.saas_name}/{publisher.resource_template_name}/{publisher.cluster_name}/{publisher.namespace_name}"
+            key = f"{publisher.saas_name}/{publisher.resource_template_name}/{publisher.target_name}/{publisher.cluster_name}/{publisher.namespace_name}"
             data[key] = {
                 "commit_sha": publisher_data.commit_sha,
                 "deployment_state": publisher_data.deployment_state.value,

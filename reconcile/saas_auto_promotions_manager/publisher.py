@@ -34,6 +34,7 @@ class Publisher:
         saas_file_path: str,
         namespace_name: str,
         resource_template_name: str,
+        target_name: Optional[str],
         cluster_name: str,
         auth_code: Optional[HasSecret],
     ):
@@ -48,6 +49,7 @@ class Publisher:
         self.saas_file_path = saas_file_path
         self.namespace_name = namespace_name
         self.resource_template_name = resource_template_name
+        self.target_name = target_name if target_name else "default"
         self.cluster_name = cluster_name
 
     def fetch_commit_shas_and_deployment_info(

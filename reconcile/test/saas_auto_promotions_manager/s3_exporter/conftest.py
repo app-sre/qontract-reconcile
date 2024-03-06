@@ -16,6 +16,7 @@ def publisher_builder() -> Callable[[Mapping], Publisher]:
             saas_file_path="",
             namespace_name=data["namespace_name"],
             cluster_name=data["cluster_name"],
+            target_name=data.get("target_name"),
             resource_template_name=data["resource_template_name"],
             auth_code=None,
         )
