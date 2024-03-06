@@ -689,6 +689,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 group_name = aws_group["name"]
                 group_policies = aws_group["policies"]
                 account = aws_group["account"]
+                if account["sso"] is True:
+                    # AWS accounts with SSO enabled do not need IAM groups
+                    continue
                 account_name = account["name"]
                 if account_name not in groups:
                     groups[account_name] = {}
@@ -759,6 +762,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             for aws_group in aws_groups:
                 group_name = aws_group["name"]
                 account = aws_group["account"]
+                if account["sso"] is True:
+                    # AWS accounts with SSO enabled do not need IAM users
+                    continue
                 account_name = account["name"]
                 account_console_url = account["consoleUrl"]
 
@@ -841,6 +847,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     self.add_resource(account_name, tf_output)
 
             for user_policy in user_policies:
+                if user_policy["account"]["sso"] is True:
+                    # AWS accounts with SSO enabled do not need user policies
+                    continue
                 policy_name = user_policy["name"]
                 account_name = user_policy["account"]["name"]
                 for user in users:
