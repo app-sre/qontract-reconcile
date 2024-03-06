@@ -31,8 +31,16 @@ query AwsSamlRolesAwsGroupQuery {
       }
     }
     roles {
+      name
       users {
         org_username
+      }
+      user_policies {
+        name
+        policy
+        account {
+          uid
+        }
       }
     }
     policies
@@ -62,8 +70,20 @@ class UserV1(ConfiguredBaseModel):
     org_username: str = Field(..., alias="org_username")
 
 
+class AWSUserPolicyV1_AWSAccountV1(ConfiguredBaseModel):
+    uid: str = Field(..., alias="uid")
+
+
+class AWSUserPolicyV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    policy: Json = Field(..., alias="policy")
+    account: AWSUserPolicyV1_AWSAccountV1 = Field(..., alias="account")
+
+
 class RoleV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
     users: list[UserV1] = Field(..., alias="users")
+    user_policies: Optional[list[AWSUserPolicyV1]] = Field(..., alias="user_policies")
 
 
 class AWSGroupV1(ConfiguredBaseModel):

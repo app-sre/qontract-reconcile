@@ -90,16 +90,26 @@ class AwsSamlRolesIntegration(
     ) -> list[AWSGroupV1]:
         """Get all AWS groups with SSO enabled."""
         data = aws_groups_query(query_func)
-        return [
-            group
-            for group in data.aws_groups or []
-            if integration_is_enabled(self.name, group.account)
-            and (not account_name or group.account.name == account_name)
-            and group.account.sso
-            and group.roles
-            and group.policies
-            and any(role.users for role in group.roles)
-        ]
+        groups = []
+        for group in data.aws_groups or []:
+            if (
+                integration_is_enabled(self.name, group.account)  # noqa: PLR0916
+                and (not account_name or group.account.name == account_name)
+                and group.account.sso
+                and group.roles
+                and group.policies
+                and any(role.users for role in group.roles)
+            ):
+                # remove user policies from other AWS accounts
+                for role in group.roles:
+                    role.user_policies = [
+                        user_policy
+                        for user_policy in role.user_policies or []
+                        if user_policy.account.uid == group.account.uid
+                    ]
+                groups.append(group)
+
+        return groups
 
     def populate_saml_iam_roles(
         self, ts: TerrascriptClient, aws_groups: Iterable[AWSGroupV1]
@@ -113,12 +123,36 @@ class AwsSamlRolesIntegration(
                 raise ValueError(
                     f"Group {group.name} has duplicated policies: {policies}"
                 )
+            additional_role_policies = []
+            for role in group.roles or []:
+                for user_policy in role.user_policies or []:
+                    # patch policy statements and add a aws:userid condition
+                    for statement in user_policy.policy["Statement"]:
+                        condition = statement.setdefault("Condition", {})
+                        string_like = condition.setdefault("StringLike", {})
+                        string_like["aws:userid"] = [
+                            f"*:{user.org_username}" for user in role.users
+                        ]
+
+                    policy_name = f"saml-{group.name}-{role.name}-{user_policy.name}"
+                    ts.populate_iam_policy(
+                        account=group.account.name,
+                        name=policy_name,
+                        policy=user_policy.policy,
+                    )
+                    additional_role_policies.append(policy_name)
+
+            if len(set(additional_role_policies)) != len(additional_role_policies):
+                raise ValueError(
+                    f"Group {group.account.name}/{group.name} has duplicated user policies: {additional_role_policies}"
+                )
 
             ts.populate_saml_iam_role(
                 account=group.account.name,
                 name=group.name,
                 saml_provider_name=self.params.saml_idp_name,
-                policies=policies,
+                aws_managed_policies=policies,
+                customer_managed_policies=additional_role_policies,
                 max_session_duration_hours=self.params.max_session_duration_hours,
             )
 

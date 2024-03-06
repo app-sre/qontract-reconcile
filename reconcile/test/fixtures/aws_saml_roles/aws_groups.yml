@@ -5,7 +5,8 @@ aws_groups:
     uid: '1'
     sso: true
   roles:
-  - users:
+  - name: role-name
+    users:
     - org_username: user-1
     - org_username: user-2
   policies:
@@ -17,9 +18,39 @@ aws_groups:
     uid: '2'
     sso: true
   roles:
-  - users:
+  - name: role-name
+    users:
     - org_username: other-user-1
     - org_username: other-user-2
+    user_policies:
+    - name: performance-insights
+      policy: |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "pi:*",
+              "Resource": "*"
+            }
+          ]
+        }
+      account:
+        uid: '2'
+    - name: another-account-must-be-ignored
+      policy: |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "pi:*",
+              "Resource": "*"
+            }
+          ]
+        }
+      account:
+        uid: '999'
   policies:
   - AdministratorAccess
 
@@ -42,7 +73,8 @@ aws_groups:
     uid: '1'
     sso: false
   roles:
-  - users:
+  - name: role-name
+    users:
     - org_username: user-1
     - org_username: user-2
   policies:
@@ -54,7 +86,8 @@ aws_groups:
     uid: '1'
     sso: true
   roles:
-  - users: []
+  - name: role-name
+    users: []
   policies:
   - AdministratorAccess
 
@@ -73,7 +106,8 @@ aws_groups:
     uid: '1'
     sso: true
   roles:
-  - users:
+  - name: role-name
+    users:
     - org_username: user-1
     - org_username: user-2
   policies: []

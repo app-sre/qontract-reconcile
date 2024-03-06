@@ -88,7 +88,14 @@ def test_aws_saml_roles_get_aws_groups(
                 "name": "group-1",
                 "account": {"name": "account-1", "uid": "1", "sso": True},
                 "roles": [
-                    {"users": [{"org_username": "user-1"}, {"org_username": "user-2"}]}
+                    {
+                        "name": "role-name",
+                        "users": [
+                            {"org_username": "user-1"},
+                            {"org_username": "user-2"},
+                        ],
+                        "user_policies": [],
+                    }
                 ],
                 "policies": ["AdministratorAccess"],
             },
@@ -100,10 +107,27 @@ def test_aws_saml_roles_get_aws_groups(
                 "account": {"name": "account-2", "uid": "2", "sso": True},
                 "roles": [
                     {
+                        "name": "role-name",
                         "users": [
                             {"org_username": "other-user-1"},
                             {"org_username": "other-user-2"},
-                        ]
+                        ],
+                        "user_policies": [
+                            {
+                                "name": "performance-insights",
+                                "policy": """{
+                                    "Version": "2012-10-17",
+                                    "Statement": [
+                                        {
+                                            "Effect": "Allow",
+                                            "Action": "pi:*",
+                                            "Resource": "*"
+                                        }
+                                    ]
+                                }""",
+                                "account": {"uid": "2"},
+                            }
+                        ],
                     }
                 ],
                 "policies": ["AdministratorAccess"],
@@ -117,7 +141,14 @@ def test_aws_saml_roles_get_aws_groups(
                 "name": "group-1",
                 "account": {"name": "account-1", "uid": "1", "sso": True},
                 "roles": [
-                    {"users": [{"org_username": "user-1"}, {"org_username": "user-2"}]}
+                    {
+                        "name": "role-name",
+                        "users": [
+                            {"org_username": "user-1"},
+                            {"org_username": "user-2"},
+                        ],
+                        "user_policies": [],
+                    }
                 ],
                 "policies": ["AdministratorAccess"],
             },
@@ -135,14 +166,16 @@ def test_aws_saml_roles_populate_saml_iam_roles(
             account="account-1",
             name="group-1",
             saml_provider_name="saml-idp",
-            policies=["AdministratorAccess"],
+            aws_managed_policies=["AdministratorAccess"],
+            customer_managed_policies=[],
             max_session_duration_hours=1,
         ),
         mocker.call(
             account="account-2",
             name="group-2",
             saml_provider_name="saml-idp",
-            policies=["AdministratorAccess"],
+            aws_managed_policies=["AdministratorAccess"],
+            customer_managed_policies=["saml-group-2-role-name-performance-insights"],
             max_session_duration_hours=1,
         ),
     ])

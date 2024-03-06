@@ -12,8 +12,16 @@ query AwsSamlRolesAwsGroupQuery {
       }
     }
     roles {
+      name
       users {
         org_username
+      }
+      user_policies {
+        name
+        policy
+        account {
+          uid
+        }
       }
     }
     policies

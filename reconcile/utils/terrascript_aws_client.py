@@ -2554,18 +2554,30 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.add_resources(account, tf_resources)
 
+    def populate_iam_policy(self, account: str, name: str, policy: dict[str, Any]):
+        tf_aws_iam_policy = aws_iam_policy(
+            f"{account}-{name}", name=name, policy=json.dumps(policy)
+        )
+        self.add_resource(account, tf_aws_iam_policy)
+
     def populate_saml_iam_role(
         self,
         account: str,
         name: str,
         saml_provider_name: str,
-        policies: list[str],
+        aws_managed_policies: list[str],
+        customer_managed_policies: list[str] | None = None,
         max_session_duration_hours: int = 1,
     ) -> None:
         """Manage the an IAM role needed for SAML authentication."""
         managed_policy_arns = [
             f"arn:{self._get_partition(account)}:" + f"iam::aws:policy/{policy}"
-            for policy in policies
+            for policy in aws_managed_policies
+        ]
+        managed_policy_arns += [
+            f"arn:{self._get_partition(account)}:"
+            + f"iam::{self.uids[account]}:policy/{policy}"
+            for policy in customer_managed_policies or []
         ]
         assume_role_policy = {
             "Version": "2012-10-17",
