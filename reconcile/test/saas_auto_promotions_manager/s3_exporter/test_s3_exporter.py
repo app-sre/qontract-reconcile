@@ -7,7 +7,7 @@ from reconcile.saas_auto_promotions_manager.s3_exporter import S3Exporter
 from reconcile.utils.state import State
 
 
-def test_s3_exporter(publisher_builder: Callable[[Mapping], Publisher]):
+def test_s3_exporter(publisher_builder: Callable[[Mapping], Publisher]) -> None:
     state = create_autospec(spec=State)
     s3_exporter = S3Exporter(state=state, dry_run=False)
 
@@ -37,7 +37,7 @@ def test_s3_exporter(publisher_builder: Callable[[Mapping], Publisher]):
 
 def test_s3_exporter_failed_deployment(
     publisher_builder: Callable[[Mapping], Publisher],
-):
+) -> None:
     state = create_autospec(spec=State)
     s3_exporter = S3Exporter(state=state, dry_run=False)
 
@@ -67,7 +67,7 @@ def test_s3_exporter_failed_deployment(
 
 def test_s3_exporter_missing_deployment(
     publisher_builder: Callable[[Mapping], Publisher],
-):
+) -> None:
     state = create_autospec(spec=State)
     s3_exporter = S3Exporter(state=state, dry_run=False)
 
