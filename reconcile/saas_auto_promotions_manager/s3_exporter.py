@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
@@ -69,10 +68,9 @@ class S3Exporter:
                 "deployment_state": publisher_data.deployment_state.value,
             }
 
-        json_str = json.dumps(data)
         if not self._dry_run:
             self._state.add(
                 key="publisher-data.json",
-                value=json_str,
+                value=data,
                 force=True,
             )
