@@ -823,7 +823,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     output_value = (
                         "${" + tf_iam_user_login_profile.encrypted_password + "}"
                     )
-                    tf_output = Output(output_name_0_13, value=output_value)
+                    tf_output = Output(
+                        output_name_0_13, value=output_value, sensitive=True
+                    )
                     self.add_resource(account_name, tf_output)
 
             for user_policy in user_policies:
@@ -1633,7 +1635,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # db.ca_cert
             output_name_0_13 = output_prefix + "__db_ca_cert"
             output_value = self.secret_reader.read(ca_cert)
-            tf_resources.append(Output(output_name_0_13, value=output_value))
+            tf_resources.append(
+                Output(output_name_0_13, value=output_value, sensitive=True)
+            )
 
         region = self._region_from_availability_zone(az) or self.default_regions.get(
             account
@@ -1789,11 +1793,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # db.user
             output_name_0_13 = output_prefix + "__db_user"
             output_value = values["username"]
-            tf_resources.append(Output(output_name_0_13, value=output_value))
+            tf_resources.append(
+                Output(output_name_0_13, value=output_value, sensitive=True)
+            )
             # db.password
             output_name_0_13 = output_prefix + "__db_password"
             output_value = values["password"]
-            tf_resources.append(Output(output_name_0_13, value=output_value))
+            tf_resources.append(
+                Output(output_name_0_13, value=output_value, sensitive=True)
+            )
             # only add reset_password key to the terraform state
             # if reset_password_current_value is defined.
             # this means that if the reset_password field is removed
@@ -2342,7 +2350,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if values.get("transit_encryption_enabled", False):
             output_name_0_13 = output_prefix + "__db_auth_token"
             output_value = values["auth_token"]
-            tf_resources.append(Output(output_name_0_13, value=output_value))
+            tf_resources.append(
+                Output(output_name_0_13, value=output_value, sensitive=True)
+            )
 
         self.add_resources(account, tf_resources)
 
@@ -3270,11 +3280,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # sqs_aws_access_key_id
         output_name_0_13 = output_prefix + "__sqs_aws_access_key_id"
         output_value = "${" + access_key_tf_resource.id + "}"
-        tf_resources.append(Output(output_name_0_13, value=output_value))
+        tf_resources.append(
+            Output(output_name_0_13, value=output_value, sensitive=True)
+        )
         # sqs_aws_secret_access_key
         output_name_0_13 = output_prefix + "__sqs_aws_secret_access_key"
         output_value = "${" + access_key_tf_resource.secret + "}"
-        tf_resources.append(Output(output_name_0_13, value=output_value))
+        tf_resources.append(
+            Output(output_name_0_13, value=output_value, sensitive=True)
+        )
 
         # iam policy for queue
         values = {}
@@ -3925,11 +3939,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # aws_access_key_id
         output_name_0_13 = output_prefix + "__aws_access_key_id"
         output_value = "${" + tf_resource.id + "}"
-        tf_resources.append(Output(output_name_0_13, value=output_value))
+        tf_resources.append(
+            Output(output_name_0_13, value=output_value, sensitive=True)
+        )
         # aws_secret_access_key
         output_name_0_13 = output_prefix + "__aws_secret_access_key"
         output_value = "${" + tf_resource.secret + "}"
-        tf_resources.append(Output(output_name_0_13, value=output_value))
+        tf_resources.append(
+            Output(output_name_0_13, value=output_value, sensitive=True)
+        )
 
         return tf_resources
 
@@ -4651,11 +4669,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # master_user_name
             output_name_0_13 = output_prefix + "__master_user_name"
             output_value = master_user["master_user_name"]
-            tf_resources.append(Output(output_name_0_13, value=output_value))
+            tf_resources.append(
+                Output(output_name_0_13, value=output_value, sensitive=True)
+            )
             # master_user_password
             output_name_0_13 = output_prefix + "__master_user_password"
             output_value = master_user["master_user_password"]
-            tf_resources.append(Output(output_name_0_13, value=output_value))
+            tf_resources.append(
+                Output(output_name_0_13, value=output_value, sensitive=True)
+            )
 
         self.add_resources(account, tf_resources)
 
@@ -4756,11 +4778,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # certificate
             output_name_0_13 = output_prefix + "__certificate"
             output_value = certificate
-            tf_resources.append(Output(output_name_0_13, value=output_value))
+            tf_resources.append(
+                Output(output_name_0_13, value=output_value, sensitive=True)
+            )
             if caCertificate is not None:
                 output_name_0_13 = output_prefix + "__caCertificate"
                 output_value = caCertificate
-                tf_resources.append(Output(output_name_0_13, value=output_value))
+                tf_resources.append(
+                    Output(output_name_0_13, value=output_value, sensitive=True)
+                )
 
         self.add_resources(account, tf_resources)
 
