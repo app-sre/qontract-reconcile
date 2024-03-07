@@ -1,4 +1,3 @@
-import json
 from collections.abc import Callable, Mapping
 from unittest.mock import create_autospec
 
@@ -23,12 +22,12 @@ def test_s3_exporter(publisher_builder: Callable[[Mapping], Publisher]) -> None:
         })
     ]
 
-    expected = json.dumps({
+    expected = {
         "saas-1/template-1/target-1/cluster-1/namespace-1": {
             "commit_sha": "123",
             "deployment_state": "success",
         }
-    })
+    }
 
     s3_exporter.export_publisher_data(publishers=publishers)
     state.add.assert_called_once_with(
@@ -53,12 +52,12 @@ def test_s3_exporter_failed_deployment(
         })
     ]
 
-    expected = json.dumps({
+    expected = {
         "saas-1/template-1/default/cluster-1/namespace-1": {
             "commit_sha": "123",
             "deployment_state": "failed",
         }
-    })
+    }
 
     s3_exporter.export_publisher_data(publishers=publishers)
     state.add.assert_called_once_with(
@@ -83,12 +82,12 @@ def test_s3_exporter_missing_deployment(
         })
     ]
 
-    expected = json.dumps({
+    expected = {
         "saas-1/template-1/default/cluster-1/namespace-1": {
             "commit_sha": "123",
             "deployment_state": "missing",
         }
-    })
+    }
 
     s3_exporter.export_publisher_data(publishers=publishers)
     state.add.assert_called_once_with(
@@ -121,7 +120,7 @@ def test_s3_export_multiple(
         }),
     ]
 
-    expected = json.dumps({
+    expected = {
         "saas-1/template-1/default/cluster-1/namespace-1": {
             "commit_sha": "123",
             "deployment_state": "success",
@@ -130,7 +129,7 @@ def test_s3_export_multiple(
             "commit_sha": "456",
             "deployment_state": "failed",
         },
-    })
+    }
 
     s3_exporter.export_publisher_data(publishers=publishers)
     state.add.assert_called_once_with(
