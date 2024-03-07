@@ -41,7 +41,7 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpecInventory,
 )
 
-ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
+ALLOWED_TF_SHOW_FORMAT_VERSION = "1.2"
 DATE_FORMAT = "%Y-%m-%d"
 PROVIDER_LOG_REGEX = (
     r""".*\s(?:\[INFO]|\[WARN]|\[ERROR])\s.+\s(?:\[WARN]|\[ERROR])\s.*"""

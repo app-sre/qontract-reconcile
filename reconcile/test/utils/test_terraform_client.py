@@ -841,7 +841,7 @@ def test_terraform_plan(
     terraform_spec_builder: Callable[..., tfclient.TerraformSpec],
 ) -> None:
     mocked_lean_tf = mocker.patch("reconcile.utils.terraform_client.lean_tf")
-    mocked_lean_tf.show_json.return_value = {"format_version": "0.1"}
+    mocked_lean_tf.show_json.return_value = {"format_version": "1.2"}
     mocked_lean_tf.plan.return_value = (0, "", "")
     mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
