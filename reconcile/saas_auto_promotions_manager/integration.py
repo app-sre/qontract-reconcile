@@ -35,7 +35,7 @@ from reconcile.utils.defer import defer
 from reconcile.utils.promotion_state import PromotionState
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.state import init_state
+from reconcile.utils.state import State, init_state
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
 
@@ -100,7 +100,15 @@ def init_external_dependencies(
     dry_run: bool,
     env_name: Optional[str] = None,
     app_name: Optional[str] = None,
-) -> tuple[PromotionState, VCS, SaasFilesInventory, MergeRequestManagerV2, S3Exporter]:
+) -> tuple[
+    PromotionState,
+    VCS,
+    SaasFilesInventory,
+    MergeRequestManagerV2,
+    S3Exporter,
+    State,
+    State,
+]:
     """
     Lets initialize everything that involves calls to external dependencies:
     - VCS -> Gitlab / Github queries
@@ -136,11 +144,17 @@ def init_external_dependencies(
     )
     saas_files = get_saas_files(env_name=env_name, app_name=app_name)
     saas_inventory = SaasFilesInventory(saas_files=saas_files)
+    saas_deploy_state = init_state(
+        integration=OPENSHIFT_SAAS_DEPLOY, secret_reader=secret_reader
+    )
     deployment_state = PromotionState(
-        state=init_state(integration=OPENSHIFT_SAAS_DEPLOY, secret_reader=secret_reader)
+        state=saas_deploy_state,
+    )
+    sapm_state = init_state(
+        integration=QONTRACT_INTEGRATION, secret_reader=secret_reader
     )
     s3_exporter = S3Exporter(
-        state=init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader),
+        state=sapm_state,
         dry_run=dry_run,
     )
     return (
@@ -149,6 +163,8 @@ def init_external_dependencies(
         saas_inventory,
         merge_request_manager_v2,
         s3_exporter,
+        saas_deploy_state,
+        sapm_state,
     )
 
 
@@ -166,11 +182,15 @@ def run(
         saas_inventory,
         merge_request_manager_v2,
         s3_exporter,
+        saas_deploy_state,
+        sapm_state,
     ) = init_external_dependencies(
         dry_run=dry_run, env_name=env_name, app_name=app_name
     )
     if defer:
         defer(vcs.cleanup)
+        defer(saas_deploy_state.cleanup)
+        defer(sapm_state.cleanup)
 
     integration = SaasAutoPromotionsManager(
         deployment_state=deployment_state,
