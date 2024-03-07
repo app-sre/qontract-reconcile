@@ -19,6 +19,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.publisher import Publisher
+from reconcile.saas_auto_promotions_manager.s3_exporter import S3Exporter
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
@@ -49,6 +50,7 @@ class SaasAutoPromotionsManager:
         vcs: VCS,
         saas_file_inventory: SaasFilesInventory,
         merge_request_manager_v2: MergeRequestManagerV2,
+        s3_exporter: S3Exporter,
         thread_pool_size: int,
         dry_run: bool,
     ):
@@ -56,6 +58,7 @@ class SaasAutoPromotionsManager:
         self._vcs = vcs
         self._saas_file_inventory = saas_file_inventory
         self._merge_request_manager_v2 = merge_request_manager_v2
+        self._s3_exporter = s3_exporter
         self._thread_pool_size = thread_pool_size
         self._dry_run = dry_run
 
@@ -88,13 +91,16 @@ class SaasAutoPromotionsManager:
         self._compute_desired_subscriber_states()
         subscribers_with_diff = self._get_subscribers_with_diff()
         self._merge_request_manager_v2.reconcile(subscribers=subscribers_with_diff)
+        self._s3_exporter.export_publisher_data(
+            publishers=self._saas_file_inventory.publishers
+        )
 
 
 def init_external_dependencies(
     dry_run: bool,
     env_name: Optional[str] = None,
     app_name: Optional[str] = None,
-) -> tuple[PromotionState, VCS, SaasFilesInventory, MergeRequestManagerV2]:
+) -> tuple[PromotionState, VCS, SaasFilesInventory, MergeRequestManagerV2, S3Exporter]:
     """
     Lets initialize everything that involves calls to external dependencies:
     - VCS -> Gitlab / Github queries
@@ -133,11 +139,16 @@ def init_external_dependencies(
     deployment_state = PromotionState(
         state=init_state(integration=OPENSHIFT_SAAS_DEPLOY, secret_reader=secret_reader)
     )
+    s3_exporter = S3Exporter(
+        state=init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader),
+        dry_run=dry_run,
+    )
     return (
         deployment_state,
         vcs,
         saas_inventory,
         merge_request_manager_v2,
+        s3_exporter,
     )
 
 
@@ -154,6 +165,7 @@ def run(
         vcs,
         saas_inventory,
         merge_request_manager_v2,
+        s3_exporter,
     ) = init_external_dependencies(
         dry_run=dry_run, env_name=env_name, app_name=app_name
     )
@@ -165,6 +177,7 @@ def run(
         vcs=vcs,
         saas_file_inventory=saas_inventory,
         merge_request_manager_v2=merge_request_manager_v2,
+        s3_exporter=s3_exporter,
         thread_pool_size=thread_pool_size,
         dry_run=dry_run,
     )
