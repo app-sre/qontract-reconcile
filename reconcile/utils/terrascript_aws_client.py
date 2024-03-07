@@ -427,7 +427,28 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             ts += Terraform(
                 backend=TerrascriptClient.state_bucket_for_account(
                     self.integration, name, config
-                )
+                ),
+                required_providers={
+                    "aws": {
+                        "source": "hashicorp/aws",
+                        "version": self.versions.get(name),
+                    },
+                    # the time provider can be removed if all AWS accounts
+                    # upgrade to a provider version with this bug fix
+                    # https://github.com/hashicorp/terraform-provider-aws/pull/20926
+                    "time": {
+                        "source": "hashicorp/time",
+                        "version": "0.9.1",
+                    },
+                    "random": {
+                        "source": "hashicorp/random",
+                        "version": "3.4.3",
+                    },
+                    "template": {
+                        "source": "hashicorp/template",
+                        "version": "2.2.0",
+                    },
+                },
             )
             tss[name] = ts
             locks[name] = Lock()
