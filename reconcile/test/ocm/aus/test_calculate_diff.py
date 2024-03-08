@@ -138,6 +138,7 @@ def test_calculate_diff_create_cluster_upgrade_no_gates(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
+                True,
             ),
         ],
     )
@@ -183,6 +184,7 @@ def test_calculate_diff_create_cluster_upgrade_all_gates_agreed(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
+                True,
             ),
         ],
     )
@@ -237,6 +239,7 @@ def test_calculate_diff_create_control_plane_upgrade_all_gates_agreed(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
+                True,
             ),
         ],
     )
@@ -276,6 +279,7 @@ def test_calculate_diff_create_control_plane_upgrade_no_gates(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
+                True,
             ),
         ],
     )
@@ -315,6 +319,7 @@ def test_calculate_diff_create_control_plane_node_pool_only(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
+                True,
             ),
         ],
     )
@@ -343,6 +348,7 @@ def test_calculate_diff_not_soaked(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=12),
+                True,
             ),
         ],
     )
@@ -385,12 +391,14 @@ def test_calculate_diff_mutex_set(
                 build_upgrade_policy(
                     workloads=[workload], soak_days=1, mutexes=["foo"]
                 ),
+                True,
             ),
             (
                 cluster_hypershift,
                 build_upgrade_policy(
                     workloads=[workload], soak_days=1, mutexes=cluster_2_mutexes
                 ),
+                True,
             ),
         ],
     )
@@ -434,6 +442,7 @@ def test_calculate_diff_implicit_mutex_set(
                     soak_days=1,
                     mutexes=None,
                 ),
+                True,
             ),
         ],
     )

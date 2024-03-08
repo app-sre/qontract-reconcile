@@ -28,6 +28,7 @@ from reconcile.test.ocm.fixtures import (
     build_label,
     build_organization_label,
 )
+from reconcile.utils.clusterhealth.providerbase import EmptyClusterHealthProvider
 from reconcile.utils.ocm.base import (
     LabelContainer,
     build_label_container,
@@ -187,6 +188,7 @@ def test_build_org_upgrade_spec(
         ],
         org_labels=org_labels,
         version_data_inheritance=None,
+        cluster_health_provider=EmptyClusterHealthProvider(),
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -210,6 +212,7 @@ def test_build_org_upgrade_spec_with_cluster_error(
         ],
         org_labels=org_labels,
         version_data_inheritance=None,
+        cluster_health_provider=EmptyClusterHealthProvider(),
     )
     assert len(org_upgrade_spec.cluster_errors) == 1
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -237,6 +240,7 @@ def test_build_org_upgrade_spec_with_version_inheritance(
             inherit_from_orgs=[OrgRef(org_id="another-org", env_name="ocm-prod")],
             unverified_inheritance_from_orgs=[],
         ),
+        cluster_health_provider=EmptyClusterHealthProvider(),
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -266,6 +270,7 @@ def test_build_org_upgrade_spec_with_version_inheritance_no_publish(
                 OrgRef(org_id="another-org", env_name="ocm-prod")
             ],
         ),
+        cluster_health_provider=EmptyClusterHealthProvider(),
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 1
@@ -291,6 +296,7 @@ def test_build_org_upgrade_spec_missing_sector(
         ],
         org_labels=org_labels,
         version_data_inheritance=None,
+        cluster_health_provider=EmptyClusterHealthProvider(),
     )
     assert len(org_upgrade_spec.cluster_errors) == 1
     assert len(org_upgrade_spec.organization_errors) == 1
@@ -322,6 +328,7 @@ def test_build_org_upgrade_specs_for_ocm_env(ocm_env: OCMEnvironment) -> None:
             org_id: build_org_config_labels(),
         },
         inheritance_network={},
+        cluster_health_provider=EmptyClusterHealthProvider(),
     )
     assert org_id in upgrade_specs
 
@@ -355,6 +362,7 @@ def test_build_org_upgrade_specs_for_ocm_env_with_cluster_error(
             org_id: build_org_config_labels(),
         },
         inheritance_network={},
+        cluster_health_provider=EmptyClusterHealthProvider(),
     )
     assert org_id in upgrade_specs
 
@@ -545,6 +553,7 @@ def build_org_upgrade_specs(
             org_id: build_org_config_labels(),
         },
         inheritance_network={},
+        cluster_health_provider=EmptyClusterHealthProvider(),
     )
 
 

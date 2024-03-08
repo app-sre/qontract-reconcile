@@ -37,6 +37,7 @@ from reconcile.test.ocm.aus.fixtures import (
     build_upgrade_policy,
 )
 from reconcile.test.ocm.fixtures import build_ocm_cluster
+from reconcile.utils.clusterhealth.providerbase import ClusterHealth
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -107,6 +108,7 @@ def test_calculate_diff_no_lock(
                 build_upgrade_policy(
                     workloads=["workload1"], soak_days=0, mutexes=["mutex1"]
                 ),
+                True,
             ),
         ],
     )
@@ -147,8 +149,8 @@ def test_calculate_diff_locked_out(
     )
     org_upgrade_spec = build_organization_upgrade_spec(
         specs=[
-            (cluster_1, upgrade_policy_spec),
-            (cluster_2, upgrade_policy_spec),
+            (cluster_1, upgrade_policy_spec, True),
+            (cluster_2, upgrade_policy_spec, True),
         ],
     )
     diffs = base.calculate_diff(current_state, org_upgrade_spec, ocm_api, VersionData())
@@ -177,8 +179,8 @@ def test_calculate_diff_inter_lock(
     )
     org_upgrade_spec = build_organization_upgrade_spec(
         specs=[
-            (cluster_1, upgrade_policy_spec),
-            (cluster_2, upgrade_policy_spec),
+            (cluster_1, upgrade_policy_spec, True),
+            (cluster_2, upgrade_policy_spec, True),
         ],
     )
     diffs = base.calculate_diff([], org_upgrade_spec, ocm_api, VersionData())
@@ -206,6 +208,7 @@ def test_upgradeable_org_version_blocked(cluster_1: OCMCluster) -> None:
         org=build_organization(blocked_versions=[".*"]),
         cluster=cluster_1,
         upgradePolicy=build_upgrade_policy(workloads=["workload1"], soak_days=0),
+        health=ClusterHealth(source="source"),
     )
     x = base.upgradeable_version(upgrade_spec, VersionData(), None)
     assert x is None
@@ -218,6 +221,7 @@ def test_upgradeable_cluster_version_blocked(cluster_1: OCMCluster) -> None:
         upgradePolicy=build_upgrade_policy(
             workloads=["workload1"], soak_days=0, blocked_versions=[".*"]
         ),
+        health=ClusterHealth(source="source"),
     )
     x = base.upgradeable_version(upgrade_spec, VersionData(), None)
     assert x is None
@@ -230,6 +234,7 @@ def test_upgradeable_cluster_and_org_version_blocked(cluster_1: OCMCluster) -> N
         upgradePolicy=build_upgrade_policy(
             workloads=["workload1"], soak_days=0, blocked_versions=["4.13.0"]
         ),
+        health=ClusterHealth(source="source"),
     )
     upgrade_spec.cluster.version.available_upgrades = ["4.12.5"]
     assert base.upgradeable_version(upgrade_spec, VersionData(), None) is None
@@ -246,6 +251,7 @@ def test_upgradeable_version_no_block(cluster_1: OCMCluster) -> None:
         org=build_organization(),
         cluster=cluster_1,
         upgradePolicy=build_upgrade_policy(workloads=["workload1"], soak_days=0),
+        health=ClusterHealth(source="source"),
     )
     assert "4.12.19" == base.upgradeable_version(upgrade_spec, VersionData(), None)
 

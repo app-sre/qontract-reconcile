@@ -49,6 +49,7 @@ def test_get_version_data_map(
                         workloads=["workload-1"],
                         soak_days=1,
                     ),
+                    True,
                 )
             ],
         ),
@@ -115,6 +116,7 @@ def test_get_version_data_map_with_inheritance(
                         workloads=["workload-1"],
                         soak_days=1,
                     ),
+                    True,
                 )
             ],
         ),
@@ -135,7 +137,33 @@ def test_get_version_data_map_with_inheritance(
 #
 
 
-def test_update_history(ocm1_version_data: VersionData, mocker: MockerFixture) -> None:
+@pytest.mark.parametrize(
+    "cluster_health,expected_wl1_soak_days,expected_wl2_soak_days",
+    [
+        (
+            [True, True, True],
+            23.0,
+            7.0,
+        ),
+        (
+            [False, True, False],
+            22.0,
+            6.0,
+        ),
+        (
+            [False, False, False],
+            21.0,
+            6.0,
+        ),
+    ],
+)
+def test_update_history(
+    ocm1_version_data: VersionData,
+    mocker: MockerFixture,
+    cluster_health: list[bool],
+    expected_wl1_soak_days: float,
+    expected_wl2_soak_days: float,
+) -> None:
     """
     Test scenario: test that the two clusters with workload 1 increase the soakdays after one day by 2
     and that the cluster with workload 2 increases the soakdays after one day by 1
@@ -158,6 +186,7 @@ def test_update_history(ocm1_version_data: VersionData, mocker: MockerFixture) -
                     available_upgrades=["4.13.2"],
                 ),
                 build_upgrade_policy(workloads=["workload1"], soak_days=0),
+                cluster_health[0],
             ),
             (
                 build_ocm_cluster(
@@ -166,6 +195,7 @@ def test_update_history(ocm1_version_data: VersionData, mocker: MockerFixture) -
                     available_upgrades=["4.13.2"],
                 ),
                 build_upgrade_policy(workloads=["workload1"], soak_days=0),
+                cluster_health[1],
             ),
             (
                 build_ocm_cluster(
@@ -174,6 +204,7 @@ def test_update_history(ocm1_version_data: VersionData, mocker: MockerFixture) -
                     available_upgrades=["4.13.2"],
                 ),
                 build_upgrade_policy(workloads=["workload2"], soak_days=0),
+                cluster_health[2],
             ),
         ],
     )
@@ -185,10 +216,13 @@ def test_update_history(ocm1_version_data: VersionData, mocker: MockerFixture) -
             "4.12.1": {
                 "workloads": {
                     "workload1": {
-                        "soak_days": 23.0,
+                        "soak_days": expected_wl1_soak_days,
                         "reporting": ["cluster1", "cluster2"],
                     },
-                    "workload2": {"soak_days": 7.0, "reporting": ["cluster3"]},
+                    "workload2": {
+                        "soak_days": expected_wl2_soak_days,
+                        "reporting": ["cluster3"],
+                    },
                 }
             }
         },

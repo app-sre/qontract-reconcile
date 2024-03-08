@@ -26,6 +26,7 @@ from reconcile.gql_definitions.fragments.upgrade_policy import (
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.test.ocm.fixtures import build_ocm_cluster
+from reconcile.utils.clusterhealth.providerbase import ClusterHealth
 from reconcile.utils.ocm.base import (
     OCMAddonInstallation,
     OCMAddonVersion,
@@ -142,7 +143,7 @@ def build_organization(
 
 
 def build_organization_upgrade_spec(
-    specs: list[tuple[OCMCluster, ClusterUpgradePolicyV1]],
+    specs: list[tuple[OCMCluster, ClusterUpgradePolicyV1, bool]],
     org: Optional[AUSOCMOrganization] = None,
 ) -> OrganizationUpgradeSpec:
     org = org or build_organization()
@@ -153,8 +154,12 @@ def build_organization_upgrade_spec(
                 org=org,
                 cluster=cluster,
                 upgradePolicy=upgrade_policy,
+                health=ClusterHealth(
+                    errors=["some error occured"] if not cluster_health else [],
+                    source="source",
+                ),
             )
-            for cluster, upgrade_policy in specs
+            for cluster, upgrade_policy, cluster_health in specs
         ],
     )
 
@@ -168,6 +173,7 @@ def build_cluster_upgrade_spec(
     available_upgrades: Optional[list[str]] = None,
     mutexes: Optional[list[str]] = None,
     blocked_versions: Optional[list[str]] = None,
+    cluster_health: bool = True,
 ) -> ClusterUpgradeSpec:
     return ClusterUpgradeSpec(
         org=org or build_organization(),
@@ -179,6 +185,10 @@ def build_cluster_upgrade_spec(
             soak_days=soak_days,
             mutexes=mutexes,
             blocked_versions=blocked_versions,
+        ),
+        health=ClusterHealth(
+            errors=["some error occured"] if not cluster_health else [],
+            source="source",
         ),
     )
 
@@ -194,6 +204,7 @@ def build_addon_upgrade_spec(
     org: Optional[AUSOCMOrganization] = None,
     available_cluster_upgrades: Optional[list[str]] = None,
     available_addon_upgrades: Optional[list[str]] = None,
+    cluster_health: bool = True,
 ) -> ClusterAddonUpgradeSpec:
     return ClusterAddonUpgradeSpec(
         org=org or build_organization(),
@@ -215,6 +226,10 @@ def build_addon_upgrade_spec(
                 available_upgrades=available_addon_upgrades or [],
             ),
             state=addon_state,
+        ),
+        health=ClusterHealth(
+            errors=["some error occured"] if not cluster_health else [],
+            source="source",
         ),
     )
 

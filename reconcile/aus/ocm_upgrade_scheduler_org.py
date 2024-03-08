@@ -5,6 +5,7 @@ from reconcile.aus.models import (
 from reconcile.aus.ocm_upgrade_scheduler import OCMClusterUpgradeSchedulerIntegration
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+from reconcile.utils.clusterhealth.providerbase import ClusterHealthProvider
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
     discover_clusters_for_organizations,
@@ -33,29 +34,41 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
             ocm_api, [org.org_id for org in organizations]
         )
 
+        cluster_health_provider = self._build_cluster_health_provider_for_env(
+            ocm_env.name
+        )
+
         return {
             org.name: OrganizationUpgradeSpec(
                 org=org,
                 specs=self._build_cluster_upgrade_specs(
-                    org,
-                    {
+                    org=org,
+                    clusters_by_name={
                         c.ocm_cluster.name: c.ocm_cluster
                         for c in clusters
                         if c.organization_id == org.org_id
                     },
+                    cluster_health_provider=cluster_health_provider,
                 ),
             )
             for org in organizations
         }
 
     def _build_cluster_upgrade_specs(
-        self, org: AUSOCMOrganization, clusters_by_name: dict[str, OCMCluster]
+        self,
+        org: AUSOCMOrganization,
+        clusters_by_name: dict[str, OCMCluster],
+        cluster_health_provider: ClusterHealthProvider,
     ) -> list[ClusterUpgradeSpec]:
         return [
             ClusterUpgradeSpec(
                 org=org,
                 upgradePolicy=cluster.upgrade_policy,
                 cluster=clusters_by_name[cluster.name],
+                health=cluster_health_provider.cluster_health(
+                    cluster_external_id=clusters_by_name[cluster.name].external_id,
+                    org_id=org.org_id,
+                ),
             )
             for cluster in org.upgrade_policy_clusters or []
             # clusters that are not in the UUID dict will be ignored because

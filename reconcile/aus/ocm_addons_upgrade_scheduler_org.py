@@ -20,6 +20,7 @@ from reconcile.aus.models import (
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.utils import metrics
+from reconcile.utils.clusterhealth.providerbase import ClusterHealthProvider
 from reconcile.utils.ocm.addons import (
     OCMAddonInstallation,
     get_addon_latest_versions,
@@ -147,6 +148,10 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
             for cluster in clusters
         }
 
+        cluster_health_provider = self._build_cluster_health_provider_for_env(
+            ocm_env.name
+        )
+
         return {
             o.name: OrganizationUpgradeSpec(
                 org=o,
@@ -158,6 +163,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                         if c.organization_id == o.org_id
                     },
                     addons_per_cluster=addons_per_cluster,
+                    cluster_health_provider=cluster_health_provider,
                 ),
             )
             for o in organizations
@@ -168,6 +174,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
         org: AUSOCMOrganization,
         clusters_by_name: dict[str, OCMCluster],
         addons_per_cluster: dict[str, list[OCMAddonInstallation]],
+        cluster_health_provider: ClusterHealthProvider,
     ) -> list[ClusterAddonUpgradeSpec]:
         """
         builds a upgrade spec objects for each addon on each cluster
@@ -178,6 +185,10 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                 upgradePolicy=cluster.upgrade_policy,
                 cluster=clusters_by_name[cluster.name],
                 addon=addon,
+                health=cluster_health_provider.cluster_health(
+                    cluster_external_id=clusters_by_name[cluster.name].external_id,
+                    org_id=org.org_id,
+                ),
             )
             for cluster in org.upgrade_policy_clusters or []
             if cluster.name in clusters_by_name

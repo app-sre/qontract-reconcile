@@ -33,6 +33,7 @@ from reconcile.gql_definitions.fragments.upgrade_policy import (
     ClusterUpgradePolicyConditionsV1,
     ClusterUpgradePolicyV1,
 )
+from reconcile.utils.clusterhealth.providerbase import ClusterHealthProvider
 from reconcile.utils.models import (
     CSV,
     cron_validator,
@@ -128,6 +129,10 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             ocm_api=ocm_api, org_ids=set(organizations.keys())
         )
 
+        cluster_health_provider = self._build_cluster_health_provider_for_env(
+            ocm_env.name
+        )
+
         return _build_org_upgrade_specs_for_ocm_env(
             orgs=organizations,
             clusters_by_org=clusters_by_org,
@@ -135,6 +140,7 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             inheritance_network={
                 org_ref.org_id: vdi for org_ref, vdi in inheritance_network.items()
             },
+            cluster_health_provider=cluster_health_provider,
         )
 
     def signal_validation_issues(
@@ -218,6 +224,7 @@ def _build_org_upgrade_specs_for_ocm_env(
     clusters_by_org: dict[str, list[ClusterDetails]],
     labels_by_org: dict[str, LabelContainer],
     inheritance_network: dict[str, "VersionDataInheritance"],
+    cluster_health_provider: ClusterHealthProvider,
 ) -> dict[str, OrganizationUpgradeSpec]:
     """
     Builds the cluster upgrade specs for the given OCM environment.
@@ -225,10 +232,11 @@ def _build_org_upgrade_specs_for_ocm_env(
     """
     return {
         org_id: _build_org_upgrade_spec(
-            orgs[org_id],
-            clusters,
-            labels_by_org.get(org_id) or build_label_container(),
-            inheritance_network.get(org_id),
+            org=orgs[org_id],
+            clusters=clusters,
+            org_labels=labels_by_org.get(org_id) or build_label_container(),
+            version_data_inheritance=inheritance_network.get(org_id),
+            cluster_health_provider=cluster_health_provider,
         )
         for org_id, clusters in clusters_by_org.items()
     }
@@ -285,6 +293,7 @@ def _build_org_upgrade_spec(
     clusters: list[ClusterDetails],
     org_labels: LabelContainer,
     version_data_inheritance: Optional["VersionDataInheritance"],
+    cluster_health_provider: ClusterHealthProvider,
 ) -> OrganizationUpgradeSpec:
     """
     Build a upgrade policy spec for each cluster in the organization that
@@ -320,11 +329,15 @@ def _build_org_upgrade_spec(
     for c in clusters:
         try:
             upgrade_policy = _build_policy_from_labels(c.labels)
+            cluster_health = cluster_health_provider.cluster_health(
+                cluster_external_id=c.ocm_cluster.external_id, org_id=org.org_id
+            )
             org_upgrade_spec.add_spec(
                 ClusterUpgradeSpec(
                     org=org_upgrade_spec.org,
                     upgradePolicy=upgrade_policy,
                     cluster=c.ocm_cluster,
+                    health=cluster_health,
                 )
             )
         except ValidationError as validation_error:
