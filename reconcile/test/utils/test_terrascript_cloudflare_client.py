@@ -290,7 +290,6 @@ def test_create_cloudflare_resources_terraform_json(
             "cloudflare": [
                 {
                     "api_token": "api-token",
-                    "account_id": "account_id",
                     "rps": 4,
                 }
             ]
