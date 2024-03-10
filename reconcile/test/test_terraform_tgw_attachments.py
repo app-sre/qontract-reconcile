@@ -1133,7 +1133,7 @@ def test_early_exit_desired_state(
 
     expected_early_exit_desired_state = {
         "clusters": [cluster_with_tgw_connection.dict(by_alias=True)],
-        "accounts": [tgw_account.dict(by_alias=True), vpc_account.dict(by_alias=True)],
+        "accounts": [tgw_account.dict(by_alias=True)],
     }
 
     assert desired_state == expected_early_exit_desired_state
