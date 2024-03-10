@@ -168,6 +168,7 @@ def test_calculate_diff_create():
     }
     desired = {
         "cluster1": DesiredMachinePool(
+            cluster_path="path",
             cluster_name="cluster1",
             cluster_type=ClusterType.OSD,
             pools=[
@@ -193,6 +194,7 @@ def test_calculate_diff_create():
 def test_calculate_diff_noop(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
+            cluster_path="path",
             cluster_name="cluster1",
             cluster_type=ClusterType.OSD,
             pools=[
@@ -216,6 +218,7 @@ def test_calculate_diff_noop(current_with_pool):
 def test_calculate_diff_update(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
+            cluster_path="path",
             cluster_name="cluster1",
             cluster_type=ClusterType.OSD,
             pools=[
@@ -267,6 +270,7 @@ def current_with_2_pools() -> Mapping[str, list[AbstractPool]]:
 def test_calculate_diff_delete(current_with_2_pools):
     desired = {
         "cluster1": DesiredMachinePool(
+            cluster_path="path",
             cluster_name="cluster1",
             cluster_type=ClusterType.OSD,
             pools=[
@@ -292,6 +296,7 @@ def test_calculate_diff_delete(current_with_2_pools):
 def test_calculate_diff_delete_all_fail_validation(current_with_pool):
     desired = {
         "cluster1": DesiredMachinePool(
+            cluster_path="path",
             cluster_name="cluster1",
             cluster_type=ClusterType.OSD,
             pools=[],
@@ -338,6 +343,13 @@ def test_pool_node_pool_has_diff(node_pool, cluster_machine_pool):
 def test_pool_node_pool_invalid_diff_subnet(node_pool, cluster_machine_pool):
     cluster_machine_pool.subnet = "foo"
     assert node_pool.invalid_diff(cluster_machine_pool)
+
+
+def test_pool_node_pool_valid_diff_subnet(node_pool, cluster_machine_pool):
+    cluster_machine_pool.subnet = None
+    node_pool.subnet = "foo"
+    cluster_machine_pool.replicas = 2
+    assert not node_pool.has_diff(cluster_machine_pool)
 
 
 def test_pool_node_pool_invalid_diff_instance_type(node_pool, cluster_machine_pool):
@@ -463,9 +475,11 @@ def osd_cluster_builder(
         return gql_class_factory(
             ClusterV1,
             {
+                "path": "path",
                 "name": "ocm-cluster",
                 "auth": [],
                 "spec": {
+                    "id": "id",
                     "product": "osd",
                 },
                 "ocm": {
@@ -489,9 +503,11 @@ def rosa_cluster_builder(
         return gql_class_factory(
             ClusterV1,
             {
+                "path": "path",
                 "name": "ocm-cluster",
                 "auth": [],
                 "spec": {
+                    "id": "id",
                     "product": "rosa",
                 },
                 "ocm": {
@@ -887,6 +903,7 @@ def hypershift_cluster_builder(
         return gql_class_factory(
             ClusterV1,
             {
+                "path": "path",
                 "name": "hypershift-cluster",
                 "auth": [],
                 "ocm": {
@@ -896,6 +913,7 @@ def hypershift_cluster_builder(
                     },
                 },
                 "spec": {
+                    "id": "id",
                     "product": "rosa",
                     "hypershift": True,
                 },
@@ -912,6 +930,7 @@ def default_hypershift_worker_machine_pool() -> dict:
         "id": "workers",
         "instance_type": "m5.xlarge",
         "replicas": 2,
+        "subnet": "subnet-1",
     }
 
 
@@ -932,7 +951,7 @@ def expected_node_pool_create_payload() -> dict:
         "id": "workers",
         "labels": None,
         "replicas": 2,
-        "subnet": None,
+        "subnet": "subnet-1",
         "taints": [],
     }
 
@@ -959,6 +978,7 @@ def existing_updated_hypershift_node_pools() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1",
         }
     ]
 
@@ -1009,34 +1029,21 @@ def existing_multiple_hypershift_node_pools() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1",
         },
         {
             "id": "new-workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-2",
         },
     ]
-
-
-@pytest.fixture
-def expected_hypershift_node_pool_delete_payload() -> dict:
-    return {
-        "autoscaling": None,
-        "cluster": "hypershift-cluster",
-        "id": "new-workers",
-        "aws_node_pool": {"instance_type": "m5.xlarge"},
-        "labels": None,
-        "replicas": 3,
-        "subnet": None,
-        "taints": None,
-    }
 
 
 def test_run_delete_node_pool(
     mocker: MockerFixture,
     hypershift_cluster: ClusterV1,
     existing_multiple_hypershift_node_pools: list[dict],
-    expected_hypershift_node_pool_delete_payload: dict,
 ) -> None:
     mocks = setup_mocks(
         mocker,
@@ -1048,7 +1055,7 @@ def test_run_delete_node_pool(
 
     mocks["OCM"].delete_node_pool.assert_called_once_with(
         hypershift_cluster.name,
-        expected_hypershift_node_pool_delete_payload,
+        "new-workers",
     )
 
 
@@ -1058,6 +1065,7 @@ def non_default_hypershift_worker_machine_pool() -> dict:
         "id": "new-workers",
         "instance_type": "m5.xlarge",
         "replicas": 3,
+        "subnet": "subnet-3",
     }
 
 
@@ -1076,16 +1084,19 @@ def existing_multiple_hypershift_node_pools_with_defaults() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1",
         },
         {
             "id": "workers-1",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-2",
         },
         {
             "id": "new-workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-3",
         },
     ]
 
@@ -1104,3 +1115,45 @@ def test_run_delete_default_node_pool(
     run(False)
 
     mocks["OCM"].delete_node_pool.assert_called()
+
+
+def test_update_app_interface_with_subnet(
+    mocker: MockerFixture,
+    hypershift_cluster: ClusterV1,
+) -> None:
+    hypershift_cluster.machine_pools[0].subnet = None  # type: ignore
+    setup_mocks(
+        mocker,
+        clusters=[hypershift_cluster],
+        node_pools=[
+            {
+                "id": "workers",
+                "aws_node_pool": {"instance_type": "m5.xlarge"},
+                "replicas": 2,
+                "subnet": "subnet-1",
+            }
+        ],
+    )
+    update_app_interface_mock = mocker.patch(
+        "reconcile.ocm_machine_pools.update_app_interface",
+        autospec=True,
+    )
+
+    run(False)
+    update_app_interface_mock.assert_called_once_with(
+        False,
+        None,
+        {
+            hypershift_cluster.path: [
+                ClusterMachinePoolV1(
+                    id="workers",
+                    instance_type="m5.xlarge",
+                    replicas=2,
+                    autoscale=None,
+                    labels=None,
+                    taints=None,
+                    subnet="subnet-1",
+                ),
+            ]
+        },
+    )
