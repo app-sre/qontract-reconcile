@@ -339,7 +339,7 @@ class OCMProductRosa(OCMProduct):
 
         if self.rosa_session_builder is None:
             raise Exception(
-                "OCMProductHypershift is not configured with a rosa session builder"
+                "OCMProductROSA is not configured with a rosa session builder"
             )
 
         rosa_session = self.rosa_session_builder.build(

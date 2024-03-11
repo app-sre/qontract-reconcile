@@ -124,7 +124,7 @@ class RosaSession:
         data is highlighted as errors.
         """
         return self.cli_execute(
-            cmd=rosa_hcp_creation_script(cluster_name, spec, dry_run),
+            cmd=generate_rosa_creation_script(cluster_name, spec, dry_run),
             check_interval_seconds=check_interval_seconds,
             timeout_seconds=timeout_seconds,
         )
@@ -143,7 +143,7 @@ class RosaSession:
         data is highlighted as errors.
         """
         return self.cli_execute(
-            cmd=rosa_hcp_creation_script(cluster_name, spec, dry_run),
+            cmd=generate_rosa_creation_script(cluster_name, spec, dry_run),
             check_interval_seconds=check_interval_seconds,
             timeout_seconds=timeout_seconds,
         )
@@ -180,7 +180,7 @@ class RosaSession:
             result.write_logs_to_logger(logging.info)
 
 
-def rosa_hcp_creation_script(cluster_name: str, cluster: OCMSpec, dry_run: bool) -> str:
+def generate_rosa_creation_script(cluster_name: str, cluster: OCMSpec, dry_run: bool) -> str:
     """
     Builds a bash script to install a ROSA clusters.
     """
