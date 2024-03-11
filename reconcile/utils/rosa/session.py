@@ -180,7 +180,9 @@ class RosaSession:
             result.write_logs_to_logger(logging.info)
 
 
-def generate_rosa_creation_script(cluster_name: str, cluster: OCMSpec, dry_run: bool) -> str:
+def generate_rosa_creation_script(
+    cluster_name: str, cluster: OCMSpec, dry_run: bool
+) -> str:
     """
     Builds a bash script to install a ROSA clusters.
     """
