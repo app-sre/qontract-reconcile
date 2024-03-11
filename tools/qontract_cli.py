@@ -1230,10 +1230,22 @@ def aws_route53_zones(ctx):
     print_output(ctx.obj["options"], results, columns)
 
 
-@get.command()
+@root.group()
+@click.pass_context
+def cmd(ctx):
+    pass
+
+
+@cmd.group()
+@click.pass_context
+def oc(ctx):
+    pass
+
+
+@oc.command()
 @click.argument("cluster_name")
 @click.pass_context
-def bot_login(ctx, cluster_name):
+def login(ctx, cluster_name):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     clusters = queries.get_clusters()
@@ -1248,12 +1260,18 @@ def bot_login(ctx, cluster_name):
     print(f"oc login --server {server} --token {token}")
 
 
-@get.command(
+@cmd.group()
+@click.pass_context
+def ocm(ctx):
+    pass
+
+
+@ocm.command(
     short_help="obtain automation credentials for ocm organization by org name"
 )
 @click.argument("org_name")
 @click.pass_context
-def ocm_login(ctx, org_name):
+def login(ctx, org_name):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     ocms = [
@@ -1272,15 +1290,21 @@ def ocm_login(ctx, org_name):
     )
 
 
-@get.command(
+@root.group()
+@click.pass_context
+def env(ctx):
+    pass
+
+
+@env.command(
     short_help="obtain automation credentials for "
     "aws account by name. executing this "
     "command will set up the environment: "
-    "$(aws get aws-creds --account-name foo)"
+    "$(qc env aws [ACCOUNT_NAME])"
 )
 @click.argument("account_name")
 @click.pass_context
-def aws_creds(ctx, account_name):
+def aws(ctx, account_name):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     accounts = queries.get_aws_accounts(name=account_name)
@@ -1295,10 +1319,22 @@ def aws_creds(ctx, account_name):
     print(f"export AWS_SECRET_ACCESS_KEY={secret['aws_secret_access_key']}")
 
 
-@get.command(short_help='obtain "rosa create cluster" command by cluster name')
+@cmd.group()
+@click.pass_context
+def rosa(ctx):
+    pass
+
+
+@rosa.group()
+@click.pass_context
+def create(ctx):
+    pass
+
+
+@create.command(short_help='obtain "rosa create cluster" command by cluster name')
 @click.argument("cluster_name")
 @click.pass_context
-def rosa_create_cluster_command(ctx, cluster_name):
+def cluster(ctx, cluster_name):
     clusters = [c for c in get_clusters() if c.name == cluster_name]
     try:
         cluster = clusters[0]
