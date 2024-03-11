@@ -9,6 +9,7 @@ from reconcile.gql_definitions.terraform_vpc_resources.vpc_resources_aws_account
     AWSAccountV1,
     AWSTerraformStateIntegrationsV1,
     TerraformStateAWSV1,
+    VaultSecretV1,
     VPCResourcesAWSAccountsQueryData,
 )
 from reconcile.status import ExitCodes
@@ -19,11 +20,20 @@ from reconcile.terraform_vpc_resources import (
 
 
 @pytest.fixture
-def query_data():
+def query_data() -> VPCResourcesAWSAccountsQueryData:
     return VPCResourcesAWSAccountsQueryData(
         accounts=[
             AWSAccountV1(
                 name="some-account",
+                automationToken=VaultSecretV1(
+                    path="some-path",
+                    field="some-field",
+                    version=None,
+                    format=None,
+                ),
+                providerVersion="3.76.1",
+                resourcesDefaultRegion="us-east-1",
+                supportedDeploymentRegions=["us-east-1", "us-east-2"],
                 terraformState=TerraformStateAWSV1(
                     integrations=[
                         AWSTerraformStateIntegrationsV1(
@@ -35,6 +45,15 @@ def query_data():
             ),
             AWSAccountV1(
                 name="some-other-account",
+                automationToken=VaultSecretV1(
+                    path="some-path",
+                    field="some-field",
+                    version=None,
+                    format=None,
+                ),
+                providerVersion="3.76.1",
+                resourcesDefaultRegion="us-east-1",
+                supportedDeploymentRegions=["us-east-1", "us-east-2"],
                 terraformState=TerraformStateAWSV1(
                     integrations=[
                         AWSTerraformStateIntegrationsV1(
@@ -78,6 +97,7 @@ def mock_create_secret_reader(mocker):
 def test_log_message_for_no_aws_accounts(
     mocker,
     caplog,
+    gql_class_factory,
     mock_gql,
     mock_app_interface_vault_settings,
     mock_create_secret_reader,
