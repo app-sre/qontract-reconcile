@@ -8,15 +8,14 @@ from typing import (
     Optional,
 )
 
-from reconcile.gql_definitions.ldap_groups.aws_groups import AWSGroupV1
-from reconcile.gql_definitions.ldap_groups.aws_groups import query as aws_groups_query
-from reconcile.gql_definitions.ldap_groups.roles import RoleV1
+from reconcile.gql_definitions.ldap_groups.roles import AWSAccountSSO, RoleV1
 from reconcile.gql_definitions.ldap_groups.roles import query as roles_query
 from reconcile.gql_definitions.ldap_groups.settings import LdapGroupsSettingsV1
 from reconcile.gql_definitions.ldap_groups.settings import query as settings_query
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.differ import diff_iterables
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.exceptions import (
     AppInterfaceLdapGroupsSettingsError,
     AppInterfaceSettingsError,
@@ -47,10 +46,6 @@ class LdapGroupsIntegrationParams(PydanticRunParams):
     aws_sso_namespace: str
 
 
-def get_aws_group_ldap_name(namespace: str, aws_group: AWSGroupV1) -> str:
-    return f"{namespace}-{aws_group.account.uid}-{aws_group.name}"
-
-
 class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationParams]):
     """Manage LDAP groups based on App-Interface roles."""
 
@@ -64,19 +59,15 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         """Return the desired state for early exit."""
         if not query_func:
             query_func = gql.get_api().query
-        return {
-            "roles": [c.dict() for c in self.get_roles(query_func)],
-            "aws_groups": [c.dict() for c in self.get_aws_groups(query_func)],
-        }
+        return {"roles": [c.dict() for c in self.get_roles(query_func)]}
 
     @defer
     def run(self, dry_run: bool, defer: Optional[Callable] = None) -> None:
         """Run the integration."""
         gql_api = gql.get_api()
         roles = self.get_roles(gql_api.query)
-        aws_groups = self.get_aws_groups(gql_api.query)
-        if not roles and not aws_groups:
-            logging.debug("No roles and no aws groups found.")
+        if not roles:
+            logging.debug("No roles found.")
             return
         self.settings = self.get_integration_settings(gql_api.query)
         secret = self.secret_reader.read_all_secret(self.settings.credentials)
@@ -104,12 +95,12 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
             contact_list=self.settings.contact_list,
             owners=[owner],
         )
-        desired_groups_for_aws_groups = self.get_desired_groups_for_aws_groups(
-            aws_groups,
+        desired_groups_for_aws_roles = self.get_desired_groups_for_aws_roles(
+            roles,
             contact_list=self.settings.contact_list,
             owners=[owner],
         )
-        desired_groups = desired_groups_for_roles + desired_groups_for_aws_groups
+        desired_groups = desired_groups_for_roles + desired_groups_for_aws_roles
 
         group_names = self.get_managed_groups(state_obj)
         # take desired groups into account to support overtaking existing ones
@@ -154,32 +145,14 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
     def get_roles(self, query_func: Callable) -> list[RoleV1]:
         """Return the roles with ldap_group set."""
         data = roles_query(query_func, variables={})
-        roles = [role for role in data.roles or [] if role.ldap_group]
-        if duplicates := find_duplicates(role.ldap_group for role in roles):
+        roles = [role for role in data.roles or []]
+        if duplicates := find_duplicates(
+            role.ldap_group for role in roles if role.ldap_group
+        ):
             for dup in duplicates:
                 logging.error(f"{dup} is already in use by another role.")
             raise ValueError("Duplicate ldapGroup value(s) found.")
         return roles
-
-    def get_aws_groups(self, query_func: Callable) -> list[AWSGroupV1]:
-        """Return all aws groups for from accounts with enabled SSO."""
-        data = aws_groups_query(query_func, variables={})
-        aws_groups = [
-            group
-            for group in data.aws_groups or []
-            if group.roles
-            and group.account.sso
-            # exclude roles without users
-            and any(role.users for role in group.roles)
-        ]
-        if duplicates := find_duplicates(
-            get_aws_group_ldap_name(self.params.aws_sso_namespace, aws_group)
-            for aws_group in aws_groups
-        ):
-            for dup in duplicates:
-                logging.error(f"{dup} is already in use by another aws group.")
-            raise ValueError("Duplicate ldapGroup value(s) found.")
-        return aws_groups
 
     def get_desired_groups_for_roles(
         self, roles: Iterable[RoleV1], owners: Iterable[Entity], contact_list: str
@@ -199,44 +172,57 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
                 contact_list=contact_list,
             )
             for role in roles
-            # roles with empty ldap_group are already filtered out in get_roles; just make mypy happy
             if role.ldap_group
         ]
 
-    def get_desired_groups_for_aws_groups(
+    def _filter_aws_account(
+        self, accounts: Iterable[AWSAccountSSO]
+    ) -> list[AWSAccountSSO]:
+        """Return a unique list of AWS accounts to be used for AWS roles."""
+        filtered_account = {}
+        for account in accounts:
+            if not account.sso:
+                continue
+            if not integration_is_enabled(self.name, account):
+                continue
+            if account.uid in filtered_account:
+                continue
+            filtered_account[account.uid] = account
+        return list(filtered_account.values())
+
+    def get_desired_groups_for_aws_roles(
         self,
-        aws_groups: Iterable[AWSGroupV1],
+        roles: Iterable[RoleV1],
         owners: list[Entity],
         contact_list: str,
     ) -> list[Group]:
-        """Return the desired rover groups for the given aws groups."""
+        """Return the desired rover groups for all AWS roles."""
         groups = []
-        for aws_group in aws_groups:
-            if not aws_group.roles:
-                # aws groups without roles are filtered out in the query; just make mypy happy
+        for role in roles:
+            if not role.users or (not role.aws_groups and not role.user_policies):
                 continue
-
-            usernames = set(
-                user.org_username for role in aws_group.roles for user in role.users
-            )
-            groups.append(
-                Group(
-                    name=get_aws_group_ldap_name(
-                        self.params.aws_sso_namespace, aws_group
-                    ),
-                    description=f"AWS account: '{aws_group.account.name}' Role: '{aws_group.name}' Managed by qontract-reconcile",
-                    display_name=get_aws_group_ldap_name(
-                        self.params.aws_sso_namespace, aws_group
-                    ),
-                    members=[
-                        Entity(type=EntityType.USER, id=username)
-                        for username in usernames
-                    ],
-                    # only owners can modify the group (e.g. add/remove members)
-                    owners=owners,
-                    contact_list=contact_list,
+            user_policies = role.user_policies or []
+            aws_groups = role.aws_groups or []
+            for account in self._filter_aws_account([
+                i.account for i in user_policies + aws_groups
+            ]):
+                group_name = (
+                    f"{self.params.aws_sso_namespace}-{account.uid}-{role.name}"
                 )
-            )
+                groups.append(
+                    Group(
+                        name=group_name,
+                        description=f"AWS account: '{account.name}' Role: '{role.name}' Managed by qontract-reconcile",
+                        display_name=group_name,
+                        members=[
+                            Entity(type=EntityType.USER, id=user.org_username)
+                            for user in role.users
+                        ],
+                        # only owners can modify the group (e.g. add/remove members)
+                        owners=owners,
+                        contact_list=contact_list,
+                    )
+                )
 
         return groups
 

@@ -7,5 +7,15 @@ query LdapGroupsRolesQuery {
     users {
       org_username
     }
+    user_policies {
+      account {
+        ...AWSAccountSSO
+      }
+    }
+    aws_groups {
+      account {
+        ...AWSAccountSSO
+      }
+    }
   }
 }
