@@ -19,9 +19,18 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query VPCResourcesAWSAccounts {
-  accounts: awsaccounts_v1 {
+query VPCResourcesAWSAccounts($filter: JSON) {
+  accounts: awsaccounts_v1(filter: $filter) {
     name
+    automationToken {
+      path
+      field
+      format
+      version
+    }
+    providerVersion
+    resourcesDefaultRegion
+    supportedDeploymentRegions
     terraformState {
       integrations {
         key
@@ -39,6 +48,13 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
+class VaultSecretV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
+    field: str = Field(..., alias="field")
+    q_format: Optional[str] = Field(..., alias="format")
+    version: Optional[int] = Field(..., alias="version")
+
+
 class AWSTerraformStateIntegrationsV1(ConfiguredBaseModel):
     key: str = Field(..., alias="key")
     integration: str = Field(..., alias="integration")
@@ -50,6 +66,10 @@ class TerraformStateAWSV1(ConfiguredBaseModel):
 
 class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    automation_token: VaultSecretV1 = Field(..., alias="automationToken")
+    provider_version: str = Field(..., alias="providerVersion")
+    resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
+    supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
     terraform_state: Optional[TerraformStateAWSV1] = Field(..., alias="terraformState")
 
 
