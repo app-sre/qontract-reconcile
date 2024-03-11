@@ -450,7 +450,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "version": "2.2.0",
                     },
                 },
-                required_version=TERRAFORM_VERSION,
+                required_version=TERRAFORM_VERSION[0],
             )
             tss[name] = ts
             locks[name] = Lock()

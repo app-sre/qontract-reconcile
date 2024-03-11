@@ -107,7 +107,7 @@ def create_cloudflare_terrascript(
     terrascript += Terraform(
         backend=backend,
         required_providers=required_providers,
-        required_version=TERRAFORM_VERSION,
+        required_version=TERRAFORM_VERSION[0],
     )
 
     cloudflare_provider_values = {
