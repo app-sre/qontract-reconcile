@@ -42,7 +42,7 @@ This stage copies the `/work` directory from the `build-image` stage.
 
 The base image `prod-image` is used.
 
-This stage uses the external image `qontract-reconcile-oc`
+This stage uses the external image `qontract-reconcile-oc` to copy a specific `oc` version into the Qontract Reconcile image for use in FIPS environments.
 
 ### ENTRYPOINT and CMD
 
