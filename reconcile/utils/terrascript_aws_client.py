@@ -142,6 +142,7 @@ from terrascript.resource import (
 
 import reconcile.utils.aws_helper as awsh
 from reconcile import queries
+from reconcile.cli import TERRAFORM_VERSION
 from reconcile.github_org import get_default_config
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
@@ -449,6 +450,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "version": "2.2.0",
                     },
                 },
+                required_version=TERRAFORM_VERSION[0],
             )
             tss[name] = ts
             locks[name] = Lock()
