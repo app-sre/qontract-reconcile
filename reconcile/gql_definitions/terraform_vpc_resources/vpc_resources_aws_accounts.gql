@@ -1,8 +1,17 @@
 # qenerate: plugin=pydantic_v1
 
-query VPCResourcesAWSAccounts {
-  accounts: awsaccounts_v1 {
+query VPCResourcesAWSAccounts($filter: JSON) {
+  accounts: awsaccounts_v1(filter: $filter) {
     name
+    automationToken {
+      path
+      field
+      format
+      version
+    }
+    providerVersion
+    resourcesDefaultRegion
+    supportedDeploymentRegions
     terraformState {
       integrations {
         key
