@@ -48,7 +48,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             )
         ]
 
-    def run(self, dry_run: bool):
+    def run(self, dry_run: bool) -> None:
         account_name = self.params.account_name
 
         vault_settings = get_app_interface_vault_settings()
