@@ -11,7 +11,7 @@ from reconcile.aws_saml_roles.integration import (
     AwsSamlRolesIntegrationParams,
 )
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import AWSAccountV1
-from reconcile.gql_definitions.aws_saml_roles.aws_groups import AWSGroupV1
+from reconcile.gql_definitions.aws_saml_roles.roles import RoleV1
 from reconcile.test.fixtures import Fixtures
 
 
@@ -33,13 +33,13 @@ def intg() -> AwsSamlRolesIntegration:
 @pytest.fixture
 def fixture_query_func(
     fx: Fixtures,
-    data_factory: Callable[[type[AWSGroupV1], Mapping[str, Any]], Mapping[str, Any]],
+    data_factory: Callable[[type[RoleV1], Mapping[str, Any]], Mapping[str, Any]],
 ) -> Callable:
     def q(*args: Any, **kwargs: Any) -> dict:
         return {
-            "aws_groups": [
-                data_factory(AWSGroupV1, item)
-                for item in fx.get_anymarkup("aws_groups.yml")["aws_groups"]
+            "roles": [
+                data_factory(RoleV1, item)
+                for item in fx.get_anymarkup("roles.yml")["roles"]
             ]
         }
 
@@ -60,11 +60,3 @@ def fixture_query_func_aws_accounts(
         }
 
     return q
-
-
-@pytest.fixture
-def aws_groups(
-    intg: AwsSamlRolesIntegration,
-    fixture_query_func: Callable,
-) -> list[AWSGroupV1]:
-    return intg.get_aws_groups(fixture_query_func)

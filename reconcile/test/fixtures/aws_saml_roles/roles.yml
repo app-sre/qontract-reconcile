@@ -1,0 +1,145 @@
+roles:
+- name: role-one-account-with-user-policies
+  user_policies:
+  - name: performance-insights-access
+    policy: '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "pi:*", "Resource": "arn:aws:pi:*:*:metrics/rds/*"}]}'
+    account:
+      name: account-1
+      uid: 'uid-11111111'
+      sso: true
+  - name: rds-read-only
+    policy: '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": ["rds:DescribeDBInstances", "rds:DescribeDBClusters", "rds:DescribeGlobalClusters"], "Resource": "*"}]}'
+    account:
+      name: account-1
+      uid: 'uid-11111111'
+      sso: true
+  aws_groups: null
+
+- name: role-one-account-with-aws-groups
+  user_policies: null
+  aws_groups:
+  - account:
+      name: account-2
+      uid: 'uid-22222222'
+      sso: true
+    policies:
+    - IAMUserChangePassword
+    - CloudWatchReadOnlyAccess
+  - account:
+      name: account-2
+      uid: 'uid-22222222'
+      sso: true
+    policies:
+    - AmazonRDSReadOnlyAccess
+
+- name: role-one-account-with-user-policies-and-aws-groups
+  user_policies:
+  - name: performance-insights-access
+    policy: '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "pi:*", "Resource": "arn:aws:pi:*:*:metrics/rds/*"}]}'
+    account:
+      name: account-3
+      uid: 'uid-33333333'
+      sso: true
+  - name: rds-read-only
+    policy: '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": ["rds:DescribeDBInstances", "rds:DescribeDBClusters", "rds:DescribeGlobalClusters"], "Resource": "*"}]}'
+    account:
+      name: account-3
+      uid: 'uid-33333333'
+      sso: true
+  aws_groups:
+  - account:
+      name: account-3
+      uid: 'uid-33333333'
+      sso: true
+    policies:
+    - IAMUserChangePassword
+    - CloudWatchReadOnlyAccess
+  - account:
+      name: account-3
+      uid: 'uid-33333333'
+      sso: true
+    policies:
+    - AmazonRDSReadOnlyAccess
+
+- name: role-two-accounta-with-user-policies-and-aws-groups
+  user_policies:
+  - name: performance-insights-access
+    policy: '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "pi:*", "Resource": "arn:aws:pi:*:*:metrics/rds/*"}]}'
+    account:
+      name: account-2
+      uid: 'uid-22222222'
+      sso: true
+  - name: rds-read-only
+    policy: '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": ["rds:DescribeDBInstances", "rds:DescribeDBClusters", "rds:DescribeGlobalClusters"], "Resource": "*"}]}'
+    account:
+      name: account-3
+      uid: 'uid-33333333'
+      sso: true
+  aws_groups:
+  - account:
+      name: account-2
+      uid: 'uid-22222222'
+      sso: true
+    policies:
+    - IAMUserChangePassword
+    - CloudWatchReadOnlyAccess
+  - account:
+      name: account-3
+      uid: 'uid-33333333'
+      sso: true
+    policies:
+    - AmazonRDSReadOnlyAccess
+
+# all roles above must be excluded
+
+# empty
+- name: excluded-role
+  user_policies: null
+  aws_groups: null
+
+# sso: false
+- name: excluded-role
+  user_policies: null
+  aws_groups:
+  - account:
+      name: no-sso-account
+      uid: 'uid-00000000'
+      sso: false
+    policies:
+    - AdministratorAccess
+- name: excluded-role
+  user_policies:
+  - name: policy-name
+    policy: '{"Version": "2012-10-17", "Statement":[]}'
+    account:
+      name: no-sso-account
+      uid: 'uid-00000000'
+      sso: false
+  aws_groups: null
+
+# disable.integration.aws-saml-roles
+- name: excluded-role
+  user_policies:
+  - name: policy-name
+    policy: '{"Version": "2012-10-17", "Statement":[]}'
+    account:
+      name: integration-disabled-account
+      uid: 'uid-00000000'
+      sso: true
+      disable:
+        integrations:
+        - aws-saml-roles
+  aws_groups: null
+- name: excluded-role
+  user_policies: null
+  aws_groups:
+  - account:
+      name: integration-disabled-account
+      uid: 'uid-00000000'
+      sso: true
+      disable:
+        integrations:
+        - aws-saml-roles
+    policies:
+    - AdministratorAccess
+
