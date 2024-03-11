@@ -203,8 +203,8 @@ def get_aws_accounts(
         logging.error(message)
         raise ExcludeAccountsAndDryRunException(message)
 
-    if exclude_accounts and include_accounts:
-        message = "Using --exclude-accounts and --account-name at the same time is not allowed"
+    if any(a in exclude_accounts for a in include_accounts):
+        message = "Using --exclude-accounts and --account-name with the same account is not allowed"
         logging.error(message)
         raise ExcludeAccountsAndAccountNameException(message)
 
