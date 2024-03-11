@@ -11,8 +11,8 @@ from unittest.mock import (
 
 import pytest
 from terrascript import Terrascript
-from reconcile.cli import TERRAFORM_VERSION
 
+from reconcile.cli import TERRAFORM_VERSION
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.terraform.config import TerraformS3BackendConfig
