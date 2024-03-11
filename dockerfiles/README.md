@@ -49,7 +49,7 @@ This stage uses the external image `qontract-reconcile-oc`
 The ENTRYPOINT for the Dockerfile is the script [run.sh](../dev/run.sh) which is included from
 the 2nd build stage labed dev-image.
 
-The `ENTRYPOINT` is set to `/work/run.sh` and is passed the script [run-integration.py](../dev/run-integration.py)
+The `ENTRYPOINT` is set to `/work/run.sh` and is passed the script [run-integration.py](../hack/run-integration.py)
 as the `CMD` in the 3rd build stage labeled prod-image.
 
 ### Testing
