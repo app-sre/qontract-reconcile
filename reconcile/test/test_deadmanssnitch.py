@@ -6,7 +6,7 @@ import httpretty
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.deadmanssnitch_automation import (
+from reconcile.deadmanssnitch import (
     DeadMansSnitchIntegration,
     DiffHandler,
 )

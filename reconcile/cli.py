@@ -3335,11 +3335,11 @@ def acs_policies(ctx):
 
 @integration.command(short_help="Automate Deadmanssnitch Creation/Deletion")
 @click.pass_context
-def deadmanssnitch_automation(ctx):
-    from reconcile import deadmanssnitch_automation
+def deadmanssnitch(ctx):
+    from reconcile import deadmanssnitch
 
     run_class_integration(
-        integration=deadmanssnitch_automation.DeadMansSnitchIntegration(),
+        integration=deadmanssnitch.DeadMansSnitchIntegration(),
         ctx=ctx.obj,
     )
 

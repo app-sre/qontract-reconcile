@@ -29,7 +29,7 @@ from reconcile.utils.vault import (
     _VaultClient,
 )
 
-QONTRACT_INTEGRATION = "deadmanssnitch-automation"
+QONTRACT_INTEGRATION = "deadmanssnitch"
 SECRET_NOT_FOUND = "SECRET_NOT_FOUND"
 
 
@@ -67,15 +67,10 @@ class DiffHandler:
             case self.CREATE_SNITCH:
                 self.create_snitch(diff)
             case self.DELETE_SNITCH:
-                self.delete_snitch(diff)
+                self.deadmanssnitch_api.delete_snitch(diff["token"])
             case self.UPDATE_VAULT:
                 self.vault_client.write({"path": f"{self.settings.snitches_path}/deadmanssnitch-{diff['cluster_name']}-url", "data": diff['snitch_url']})
 
-    def delete_snitch(self, diff: dict[str, str]) -> None:
-        try:
-            self.deadmanssnitch_api.delete_snitch(diff["token"])
-        except Exception as e:
-            logging.error(str(e))
 
     def create_snitch(self, diff: dict[str, str]) -> None:
         tags = ["app-sre"]
@@ -90,10 +85,10 @@ class DiffHandler:
         }
         try:
             snitch = self.deadmanssnitch_api.create_snitch(payload=payload)
+            self.vault_client.write({"path": f"{self.settings.snitches_path}/deadmanssnitch-{diff['cluster_name']}-url", "data": snitch.check_in_url})
         except Exception as e:
             logging.error(str(e))
             return None
-        self.vault_client.write({"path": f"{self.settings.snitches_path}/deadmanssnitch-{diff['cluster_name']}-url", "data": snitch.check_in_url})
 
 
 class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
@@ -183,10 +178,8 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         diff_handler = DiffHandler(deadmanssnitch_api, settings)
         # desired state - filter cluster having enableDeadMansSnitch field
         clusters = [cluster for cluster in get_clusters_with_dms() if cluster.enable_dead_mans_snitch is not None]
-        logging.debug(clusters)
         # current state - get snitches for tag app-sre
         current_state = self.get_current_state(deadmanssnitch_api, clusters, settings.snitches_path)
-        logging.debug(current_state)
         if len(current_state) > 0 and len(clusters) > 0:
             diff = self.get_diff(current_states=current_state, desired_states=clusters, diff_handler=diff_handler)
             self.apply_diffs(dry_run, diff, diff_handler)
