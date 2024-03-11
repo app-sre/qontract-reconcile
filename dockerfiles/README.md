@@ -113,4 +113,3 @@ and runs the tox tests
 build-test:
 	@$(CONTAINER_ENGINE) build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
 ```
-```
