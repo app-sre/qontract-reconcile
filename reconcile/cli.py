@@ -3333,6 +3333,16 @@ def acs_policies(ctx):
         ctx=ctx.obj,
     )
 
+@integration.command(short_help="Automate Deadmanssnitch Creation/Deletion")
+@click.pass_context
+def deadmanssnitch_automation(ctx):
+    from reconcile import deadmanssnitch_automation
+
+    run_class_integration(
+        integration=deadmanssnitch_automation.DeadMansSnitchIntegration(),
+        ctx=ctx.obj,
+    )
+
 
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
     """

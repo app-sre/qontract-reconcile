@@ -1,0 +1,13 @@
+# qenerate: plugin=pydantic_v1
+
+query ClustersWithMonitoring($name: String) {
+  clusters: clusters_v1(name: $name) {
+    name
+    serverUrl
+    consoleUrl
+    alertmanagerUrl
+    prometheusUrl
+    managedClusterRoles
+    enableDeadMansSnitch
+  }
+}
