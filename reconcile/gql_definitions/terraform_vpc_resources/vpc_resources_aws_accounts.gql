@@ -3,6 +3,7 @@
 query VPCResourcesAWSAccounts($filter: JSON) {
   accounts: awsaccounts_v1(filter: $filter) {
     name
+    uid
     automationToken {
       path
       field
@@ -13,6 +14,8 @@ query VPCResourcesAWSAccounts($filter: JSON) {
     resourcesDefaultRegion
     supportedDeploymentRegions
     terraformState {
+      bucket
+      region
       integrations {
         key
         integration
