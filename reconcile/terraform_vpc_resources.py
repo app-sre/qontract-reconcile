@@ -24,10 +24,13 @@ from reconcile.utils.terrascript_aws_client import TerrascriptClient
 
 QONTRACT_INTEGRATION = "terraform_vpc_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+QONTRACT_TF_PREFIX = "qrtvr"
 
 
 class TerraformVpcResourcesParams(PydanticRunParams):
     account_name: Optional[str]
+    print_to_file: Optional[str]
+    thread_pool_size: int
 
 
 class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesParams]):
@@ -43,7 +46,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             if account.terraform_state
             and account.terraform_state.integrations
             and any(
-                integration.integration == "terraform-vpc-resources"
+                integration.integration == self.name
                 for integration in account.terraform_state.integrations
             )
         ]
@@ -76,14 +79,16 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         accounts_untyped: list[dict] = [acc.dict(by_alias=True) for acc in accounts]
         ts_client = TerrascriptClient(
             integration=QONTRACT_INTEGRATION,
-            integration_prefix="",
+            integration_prefix=QONTRACT_TF_PREFIX,
             thread_pool_size=1,
             accounts=accounts_untyped,
             secret_reader=secret_reader,
         )
 
-        working_dir = ts_client.dump()
+        working_dirs = ts_client.dump(print_to_file=self.params.print_to_file)
 
+        if self.params.print_to_file:
+            sys.exit(ExitCodes.SUCCESS)
     def get_desired_state_shard_config(self) -> DesiredStateShardConfig:
         return DesiredStateShardConfig(
             shard_arg_name="account_name",
