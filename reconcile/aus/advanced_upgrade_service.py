@@ -11,6 +11,10 @@ from pydantic import (
 )
 from pydantic.dataclasses import dataclass
 
+from reconcile.aus.healthchecks import (
+    AUSClusterHealthCheckProvider,
+    build_cluster_health_providers_for_organization,
+)
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
@@ -129,9 +133,7 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             ocm_api=ocm_api, org_ids=set(organizations.keys())
         )
 
-        cluster_health_provider = self._build_cluster_health_provider_for_env(
-            ocm_env.name
-        )
+        cluster_health_providers = self._health_check_providers_for_env(ocm_env.name)
 
         return _build_org_upgrade_specs_for_ocm_env(
             orgs=organizations,
@@ -140,7 +142,7 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             inheritance_network={
                 org_ref.org_id: vdi for org_ref, vdi in inheritance_network.items()
             },
-            cluster_health_provider=cluster_health_provider,
+            cluster_health_providers=cluster_health_providers,
         )
 
     def signal_validation_issues(
@@ -224,7 +226,7 @@ def _build_org_upgrade_specs_for_ocm_env(
     clusters_by_org: dict[str, list[ClusterDetails]],
     labels_by_org: dict[str, LabelContainer],
     inheritance_network: dict[str, "VersionDataInheritance"],
-    cluster_health_provider: ClusterHealthProvider,
+    cluster_health_providers: dict[str, ClusterHealthProvider],
 ) -> dict[str, OrganizationUpgradeSpec]:
     """
     Builds the cluster upgrade specs for the given OCM environment.
@@ -236,7 +238,10 @@ def _build_org_upgrade_specs_for_ocm_env(
             clusters=clusters,
             org_labels=labels_by_org.get(org_id) or build_label_container(),
             version_data_inheritance=inheritance_network.get(org_id),
-            cluster_health_provider=cluster_health_provider,
+            cluster_health_provider=build_cluster_health_providers_for_organization(
+                org=orgs[org_id],
+                providers=cluster_health_providers,
+            ),
         )
         for org_id, clusters in clusters_by_org.items()
     }
@@ -293,7 +298,7 @@ def _build_org_upgrade_spec(
     clusters: list[ClusterDetails],
     org_labels: LabelContainer,
     version_data_inheritance: Optional["VersionDataInheritance"],
-    cluster_health_provider: ClusterHealthProvider,
+    cluster_health_provider: AUSClusterHealthCheckProvider,
 ) -> OrganizationUpgradeSpec:
     """
     Build a upgrade policy spec for each cluster in the organization that

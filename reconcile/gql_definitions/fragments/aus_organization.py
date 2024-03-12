@@ -75,6 +75,11 @@ class OpenShiftClusterManagerUpgradePolicyClusterV1(ConfiguredBaseModel):
     upgrade_policy: ClusterUpgradePolicyV1 = Field(..., alias="upgradePolicy")
 
 
+class AusClusterHealthCheckV1(ConfiguredBaseModel):
+    provider: str = Field(..., alias="provider")
+    enforced: bool = Field(..., alias="enforced")
+
+
 class AUSOCMOrganization(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     environment: OCMEnvironment = Field(..., alias="environment")
@@ -91,3 +96,4 @@ class AUSOCMOrganization(ConfiguredBaseModel):
     sectors: Optional[list[OpenShiftClusterManagerSectorV1]] = Field(..., alias="sectors")
     upgrade_policy_allowed_workloads: Optional[list[str]] = Field(..., alias="upgradePolicyAllowedWorkloads")
     upgrade_policy_clusters: Optional[list[OpenShiftClusterManagerUpgradePolicyClusterV1]] = Field(..., alias="upgradePolicyClusters")
+    aus_cluster_health_checks: Optional[list[AusClusterHealthCheckV1]] = Field(..., alias="ausClusterHealthChecks")

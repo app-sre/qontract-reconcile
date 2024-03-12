@@ -20,6 +20,7 @@ from reconcile.aus.advanced_upgrade_service import (
     build_version_data_inheritance_network,
     discover_clusters,
 )
+from reconcile.aus.healthchecks import AUSClusterHealthCheckProvider
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.test.ocm.aus.fixtures import build_organization
@@ -188,7 +189,9 @@ def test_build_org_upgrade_spec(
         ],
         org_labels=org_labels,
         version_data_inheritance=None,
-        cluster_health_provider=EmptyClusterHealthProvider(),
+        cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
+            name="empty", provider=EmptyClusterHealthProvider(), enforce=True
+        ),
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -212,7 +215,9 @@ def test_build_org_upgrade_spec_with_cluster_error(
         ],
         org_labels=org_labels,
         version_data_inheritance=None,
-        cluster_health_provider=EmptyClusterHealthProvider(),
+        cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
+            name="empty", provider=EmptyClusterHealthProvider(), enforce=True
+        ),
     )
     assert len(org_upgrade_spec.cluster_errors) == 1
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -240,7 +245,9 @@ def test_build_org_upgrade_spec_with_version_inheritance(
             inherit_from_orgs=[OrgRef(org_id="another-org", env_name="ocm-prod")],
             unverified_inheritance_from_orgs=[],
         ),
-        cluster_health_provider=EmptyClusterHealthProvider(),
+        cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
+            name="empty", provider=EmptyClusterHealthProvider(), enforce=True
+        ),
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -270,7 +277,9 @@ def test_build_org_upgrade_spec_with_version_inheritance_no_publish(
                 OrgRef(org_id="another-org", env_name="ocm-prod")
             ],
         ),
-        cluster_health_provider=EmptyClusterHealthProvider(),
+        cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
+            name="empty", provider=EmptyClusterHealthProvider(), enforce=True
+        ),
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 1
@@ -296,7 +305,9 @@ def test_build_org_upgrade_spec_missing_sector(
         ],
         org_labels=org_labels,
         version_data_inheritance=None,
-        cluster_health_provider=EmptyClusterHealthProvider(),
+        cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
+            name="empty", provider=EmptyClusterHealthProvider(), enforce=True
+        ),
     )
     assert len(org_upgrade_spec.cluster_errors) == 1
     assert len(org_upgrade_spec.organization_errors) == 1
@@ -328,7 +339,7 @@ def test_build_org_upgrade_specs_for_ocm_env(ocm_env: OCMEnvironment) -> None:
             org_id: build_org_config_labels(),
         },
         inheritance_network={},
-        cluster_health_provider=EmptyClusterHealthProvider(),
+        cluster_health_providers={},
     )
     assert org_id in upgrade_specs
 
@@ -362,7 +373,7 @@ def test_build_org_upgrade_specs_for_ocm_env_with_cluster_error(
             org_id: build_org_config_labels(),
         },
         inheritance_network={},
-        cluster_health_provider=EmptyClusterHealthProvider(),
+        cluster_health_providers={},
     )
     assert org_id in upgrade_specs
 
@@ -553,7 +564,7 @@ def build_org_upgrade_specs(
             org_id: build_org_config_labels(),
         },
         inheritance_network={},
-        cluster_health_provider=EmptyClusterHealthProvider(),
+        cluster_health_providers={},
     )
 
 

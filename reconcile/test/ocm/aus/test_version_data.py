@@ -7,9 +7,13 @@ from pytest_mock import MockerFixture
 from reconcile.aus import base
 from reconcile.aus.base import get_version_data_map
 from reconcile.aus.cluster_version_data import VersionData
+from reconcile.aus.healthchecks import AUSClusterHealth
 from reconcile.test.ocm.aus.fixtures import (
+    build_cluster_health,
+    build_healthy_cluster_health,
     build_organization,
     build_organization_upgrade_spec,
+    build_unhealthy_cluster_health,
     build_upgrade_policy,
 )
 from reconcile.test.ocm.fixtures import build_ocm_cluster
@@ -49,7 +53,7 @@ def test_get_version_data_map(
                         workloads=["workload-1"],
                         soak_days=1,
                     ),
-                    True,
+                    build_cluster_health(),
                 )
             ],
         ),
@@ -116,7 +120,7 @@ def test_get_version_data_map_with_inheritance(
                         workloads=["workload-1"],
                         soak_days=1,
                     ),
-                    True,
+                    build_cluster_health(),
                 )
             ],
         ),
@@ -140,18 +144,43 @@ def test_get_version_data_map_with_inheritance(
 @pytest.mark.parametrize(
     "cluster_health,expected_wl1_soak_days,expected_wl2_soak_days",
     [
+        # all clusters health, soaking as expected
         (
-            [True, True, True],
+            [
+                build_healthy_cluster_health(),
+                build_healthy_cluster_health(),
+                build_healthy_cluster_health(),
+            ],
             23.0,
             7.0,
         ),
+        # all clusters unhealthy, but the health is not enforced, so soaking as if all clusters are healthy
         (
-            [False, True, False],
+            [
+                build_unhealthy_cluster_health(enforced=False),
+                build_unhealthy_cluster_health(enforced=False),
+                build_unhealthy_cluster_health(enforced=False),
+            ],
+            23.0,
+            7.0,
+        ),
+        # some clusters unhealthy, affects soaking
+        (
+            [
+                build_unhealthy_cluster_health(),
+                build_healthy_cluster_health(),
+                build_unhealthy_cluster_health(),
+            ],
             22.0,
             6.0,
         ),
+        # some clusters unhealthy, affects soaking
         (
-            [False, False, False],
+            [
+                build_unhealthy_cluster_health(),
+                build_unhealthy_cluster_health(),
+                build_unhealthy_cluster_health(),
+            ],
             21.0,
             6.0,
         ),
@@ -160,7 +189,7 @@ def test_get_version_data_map_with_inheritance(
 def test_update_history(
     ocm1_version_data: VersionData,
     mocker: MockerFixture,
-    cluster_health: list[bool],
+    cluster_health: list[AUSClusterHealth],
     expected_wl1_soak_days: float,
     expected_wl2_soak_days: float,
 ) -> None:

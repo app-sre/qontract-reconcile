@@ -23,6 +23,7 @@ from reconcile.aus.cluster_version_data import (
     WorkloadHistory,
 )
 from reconcile.test.ocm.aus.fixtures import (
+    build_cluster_health,
     build_cluster_upgrade_spec,
     build_organization_upgrade_spec,
     build_upgrade_policy,
@@ -138,7 +139,7 @@ def test_calculate_diff_create_cluster_upgrade_no_gates(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
-                True,
+                build_cluster_health(),
             ),
         ],
     )
@@ -184,7 +185,7 @@ def test_calculate_diff_create_cluster_upgrade_all_gates_agreed(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
-                True,
+                build_cluster_health(),
             ),
         ],
     )
@@ -239,7 +240,7 @@ def test_calculate_diff_create_control_plane_upgrade_all_gates_agreed(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
-                True,
+                build_cluster_health(),
             ),
         ],
     )
@@ -279,7 +280,7 @@ def test_calculate_diff_create_control_plane_upgrade_no_gates(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
-                True,
+                build_cluster_health(),
             ),
         ],
     )
@@ -319,7 +320,7 @@ def test_calculate_diff_create_control_plane_node_pool_only(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
-                True,
+                build_cluster_health(),
             ),
         ],
     )
@@ -348,7 +349,7 @@ def test_calculate_diff_not_soaked(
             (
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=12),
-                True,
+                build_cluster_health(),
             ),
         ],
     )
@@ -391,14 +392,14 @@ def test_calculate_diff_mutex_set(
                 build_upgrade_policy(
                     workloads=[workload], soak_days=1, mutexes=["foo"]
                 ),
-                True,
+                build_cluster_health(),
             ),
             (
                 cluster_hypershift,
                 build_upgrade_policy(
                     workloads=[workload], soak_days=1, mutexes=cluster_2_mutexes
                 ),
-                True,
+                build_cluster_health(),
             ),
         ],
     )
@@ -442,7 +443,7 @@ def test_calculate_diff_implicit_mutex_set(
                     soak_days=1,
                     mutexes=None,
                 ),
-                True,
+                build_cluster_health(),
             ),
         ],
     )

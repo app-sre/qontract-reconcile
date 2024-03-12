@@ -1,3 +1,7 @@
+from reconcile.aus.healthchecks import (
+    AUSClusterHealthCheckProvider,
+    build_cluster_health_providers_for_organization,
+)
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
@@ -5,7 +9,6 @@ from reconcile.aus.models import (
 from reconcile.aus.ocm_upgrade_scheduler import OCMClusterUpgradeSchedulerIntegration
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.utils.clusterhealth.providerbase import ClusterHealthProvider
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
     discover_clusters_for_organizations,
@@ -34,9 +37,7 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
             ocm_api, [org.org_id for org in organizations]
         )
 
-        cluster_health_provider = self._build_cluster_health_provider_for_env(
-            ocm_env.name
-        )
+        cluster_health_providers = self._health_check_providers_for_env(ocm_env.name)
 
         return {
             org.name: OrganizationUpgradeSpec(
@@ -48,7 +49,10 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
                         for c in clusters
                         if c.organization_id == org.org_id
                     },
-                    cluster_health_provider=cluster_health_provider,
+                    cluster_health_provider=build_cluster_health_providers_for_organization(
+                        org=org,
+                        providers=cluster_health_providers,
+                    ),
                 ),
             )
             for org in organizations
@@ -58,7 +62,7 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
         self,
         org: AUSOCMOrganization,
         clusters_by_name: dict[str, OCMCluster],
-        cluster_health_provider: ClusterHealthProvider,
+        cluster_health_provider: AUSClusterHealthCheckProvider,
     ) -> list[ClusterUpgradeSpec]:
         return [
             ClusterUpgradeSpec(

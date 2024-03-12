@@ -15,9 +15,9 @@ from pydantic import (
     PrivateAttr,
 )
 
+from reconcile.aus.healthchecks import AUSClusterHealth
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
-from reconcile.utils.clusterhealth.providerbase import ClusterHealth
 from reconcile.utils.ocm.addons import OCMAddonInstallation
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.semver_helper import parse_semver
@@ -31,7 +31,7 @@ class ClusterUpgradeSpec(BaseModel):
     org: AUSOCMOrganization
     cluster: OCMCluster
     upgrade_policy: ClusterUpgradePolicyV1 = Field(..., alias="upgradePolicy")
-    health: ClusterHealth
+    health: AUSClusterHealth
 
     @property
     def name(self) -> str:
@@ -62,10 +62,6 @@ class ClusterUpgradeSpec(BaseModel):
         mutexes = set(self.upgrade_policy.conditions.mutexes or [])
         mutexes.add(self.cluster.id)
         return mutexes
-
-    @property
-    def is_cluster_unhealthy(self) -> bool:
-        return self.health.has_health_errors()
 
 
 class ClusterAddonUpgradeSpec(ClusterUpgradeSpec):

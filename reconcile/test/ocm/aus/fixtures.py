@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from reconcile.aus.base import ClusterUpgradePolicy
+from reconcile.aus.healthchecks import AUSClusterHealth, AUSHealthError
 from reconcile.aus.models import (
     ClusterAddonUpgradeSpec,
     ClusterUpgradeSpec,
@@ -9,6 +10,7 @@ from reconcile.aus.models import (
 )
 from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.gql_definitions.fragments.aus_organization import (
+    AusClusterHealthCheckV1,
     AUSOCMOrganization,
     OpenShiftClusterManagerSectorDependenciesV1,
     OpenShiftClusterManagerSectorV1,
@@ -26,7 +28,6 @@ from reconcile.gql_definitions.fragments.upgrade_policy import (
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.test.ocm.fixtures import build_ocm_cluster
-from reconcile.utils.clusterhealth.providerbase import ClusterHealth
 from reconcile.utils.ocm.base import (
     OCMAddonInstallation,
     OCMAddonVersion,
@@ -82,6 +83,7 @@ def build_organization(
     sector_dependencies: Optional[dict[str, Optional[list[str]]]] = None,
     addonManagedUpgrades: bool = False,
     disabled_integrations: Optional[list[str]] = None,
+    health_checks: Optional[list[tuple[str, bool]]] = None,
 ) -> AUSOCMOrganization:
     org_id = org_id or "org-1-id"
     disable = (
@@ -139,11 +141,18 @@ def build_organization(
         ]
         if sector_dependencies
         else None,
+        ausClusterHealthChecks=[
+            AusClusterHealthCheckV1(
+                provider=provider,
+                enforced=encorced,
+            )
+            for provider, encorced in health_checks or []
+        ],
     )
 
 
 def build_organization_upgrade_spec(
-    specs: list[tuple[OCMCluster, ClusterUpgradePolicyV1, bool]],
+    specs: list[tuple[OCMCluster, ClusterUpgradePolicyV1, AUSClusterHealth]],
     org: Optional[AUSOCMOrganization] = None,
 ) -> OrganizationUpgradeSpec:
     org = org or build_organization()
@@ -154,10 +163,7 @@ def build_organization_upgrade_spec(
                 org=org,
                 cluster=cluster,
                 upgradePolicy=upgrade_policy,
-                health=ClusterHealth(
-                    errors=["some error occured"] if not cluster_health else [],
-                    source="source",
-                ),
+                health=cluster_health,
             )
             for cluster, upgrade_policy, cluster_health in specs
         ],
@@ -186,10 +192,9 @@ def build_cluster_upgrade_spec(
             mutexes=mutexes,
             blocked_versions=blocked_versions,
         ),
-        health=ClusterHealth(
-            errors=["some error occured"] if not cluster_health else [],
-            source="source",
-        ),
+        health=build_healthy_cluster_health()
+        if cluster_health
+        else build_unhealthy_cluster_health(),
     )
 
 
@@ -227,10 +232,9 @@ def build_addon_upgrade_spec(
             ),
             state=addon_state,
         ),
-        health=ClusterHealth(
-            errors=["some error occured"] if not cluster_health else [],
-            source="source",
-        ),
+        health=build_healthy_cluster_health()
+        if cluster_health
+        else build_unhealthy_cluster_health(),
     )
 
 
@@ -271,3 +275,30 @@ class NoopGateHandler(GateHandler):
         dry_run: bool,
     ) -> bool:
         return True
+
+
+def build_cluster_health(
+    errors: Optional[list[tuple[str, bool]]] = None,
+) -> AUSClusterHealth:
+    return AUSClusterHealth(
+        state={
+            "source": [
+                AUSHealthError(
+                    source="source",
+                    error=err_msg,
+                    enforce=enforce,
+                )
+                for err_msg, enforce in errors or []
+            ]
+        }
+    )
+
+
+def build_healthy_cluster_health() -> AUSClusterHealth:
+    return build_cluster_health([])
+
+
+def build_unhealthy_cluster_health(enforced: bool = True) -> AUSClusterHealth:
+    return build_cluster_health([
+        ("err", enforced),
+    ])
