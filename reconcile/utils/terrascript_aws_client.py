@@ -385,7 +385,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.secret_reader = SecretReader(settings=settings)
         self.configs: dict[str, dict] = {}
         self.populate_configs(filtered_accounts)
-        self.versions = {a["name"]: a["providerVersion"] for a in filtered_accounts}
+        self.versions: dict[str, str] = {
+            a["name"]: a["providerVersion"] for a in filtered_accounts
+        }
         tss = {}
         locks = {}
         self.supported_regions = {}
@@ -1507,12 +1509,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # we want to allow an empty name, so we
         # only validate names which are not empty
-        if values.get("name") and not self.validate_db_name(values["name"]):
+        db_name = values.get("name") or values.get("db_name")
+        if db_name and not self.validate_db_name(db_name):
             raise FetchResourceError(
                 f"[{account}] RDS name must contain 1 to 63 letters, "
                 + "numbers, or underscores. RDS name must begin with a "
                 + "letter. Subsequent characters can be letters, "
-                + f"underscores, or digits (0-9): {values['name']}"
+                + f"underscores, or digits (0-9): {db_name}"
             )
 
         if not values.get("apply_immediately"):
@@ -4046,6 +4049,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # to allow passing empty strings, False, etc
             if val is not None:
                 values[key] = val
+
+        if not self.versions.get(spec.provisioner_name).startswith("3"):
+            if spec.provider == "rds":
+                if db_name := values.pop("name", None):
+                    values["db_name"] = db_name
+                if values.get("replica_source"):
+                    values.pop("db_name", None)
+            if spec.provider == "elasticache":
+                if description := values.pop("replication_group_description", None):
+                    values["description"] = description
+                if num_cache_clusters := values.pop("number_cache_clusters", None):
+                    values["num_cache_clusters"] = num_cache_clusters
+                if cluster_mode := values.pop("cluster_mode", {}):
+                    for k, v in cluster_mode.items():
+                        values[k] = v
+                values.pop("availability_zones", None)
 
         return values
 
