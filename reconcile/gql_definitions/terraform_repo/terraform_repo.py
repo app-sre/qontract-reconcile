@@ -52,6 +52,7 @@ query TerraformRepo {
     projectPath
     delete
     requireFips
+    tfVersion
   }
 }
 """
@@ -90,6 +91,7 @@ class TerraformRepoV1(ConfiguredBaseModel):
     project_path: str = Field(..., alias="projectPath")
     delete: Optional[bool] = Field(..., alias="delete")
     require_fips: Optional[bool] = Field(..., alias="requireFips")
+    tf_version: str = Field(..., alias="tfVersion")
 
 
 class TerraformRepoQueryData(ConfiguredBaseModel):
