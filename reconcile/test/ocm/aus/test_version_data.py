@@ -1,5 +1,6 @@
 from unittest.mock import Mock
 
+import pytest
 from dateutil import parser
 from pytest_mock import MockerFixture
 
@@ -59,7 +60,29 @@ def test_get_version_data_map(
     assert org_data.stats and org_data.stats.inherited is None
 
 
+@pytest.mark.parametrize(
+    "inherit_version_data, expected_soak_days",
+    [
+        (
+            True,
+            {
+                "4.12.1": {"workload1": 24.0, "workload2": 6.0},
+                "4.12.2": {"workload1": 13.0},
+                "4.13.0": {"workload-1": 0.0},
+            },
+        ),
+        (
+            False,
+            {
+                "4.12.1": {"workload1": 21.0, "workload2": 6.0},
+                "4.13.0": {"workload-1": 0.0},
+            },
+        ),
+    ],
+)
 def test_get_version_data_map_with_inheritance(
+    inherit_version_data: bool,
+    expected_soak_days: dict,
     mocker: MockerFixture,
     state: Mock,
 ) -> None:
@@ -74,6 +97,7 @@ def test_get_version_data_map_with_inheritance(
     org_id = "org-1-id"
     version_data = get_version_data_map(
         dry_run=True,
+        inherit_version_data=inherit_version_data,
         org_upgrade_spec=build_organization_upgrade_spec(
             org=build_organization(
                 env_name=ocm_env,
@@ -97,7 +121,13 @@ def test_get_version_data_map_with_inheritance(
         integration="test",
     )
 
-    assert version_data.get("prod", org_id).stats.inherited
+    prod_version_data = version_data.get("prod", org_id)
+    soak_day_state = {
+        v: {w: wd.soak_days for w, wd in vh.workloads.items()}
+        for v, vh in prod_version_data.versions.items()
+    }
+    assert soak_day_state == expected_soak_days
+    assert (prod_version_data.stats.inherited is not None) == inherit_version_data
 
 
 #

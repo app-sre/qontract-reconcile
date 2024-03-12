@@ -23,12 +23,12 @@ def test_cannot_use_exclude_accounts_if_not_dry_run():
     assert "--exclude-accounts is only supported in dry-run mode" in str(excinfo.value)
 
 
-def test_cannot_use_exclude_account_with_account_name():
+def test_cannot_use_exclude_account_with_same_account_name():
     with pytest.raises(integ.ExcludeAccountsAndAccountNameException) as excinfo:
-        integ.run(True, exclude_accounts=("a", "b"), account_name=("c", "d"))
+        integ.run(True, exclude_accounts=("a", "b"), account_name=("b", "c", "d"))
 
     assert (
-        "Using --exclude-accounts and --account-name at the same time is not allowed"
+        "Using --exclude-accounts and --account-name with the same account is not allowed"
         in str(excinfo.value)
     )
 

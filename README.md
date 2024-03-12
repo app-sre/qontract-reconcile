@@ -321,8 +321,11 @@ It consists of:
 In order to speed up frequent builds and avoid issues with dependencies, docker image makes use
 [`qontract-reconcile-build`](https://quay.io/repository/app-sre/qontract-reconcile-base?tag=latest&tab=tags)
 image. See [`app-sre/coontainer-images`](https://github.com/app-sre/container-images) repository
-if you want to make changes to the base image. This repo [`Dockerfile`](dockerfiles/Dockerfile)
-must only contain instructions related to the python code build.
+if you want to make changes to the base image. 
+
+This repo [`Dockerfile`](dockerfiles/Dockerfile) must only contain instructions related to the python code build.
+
+The [README](dockerfiles/README.md) contains more information about the Dockerfile and the build stages.
 
 ## CI Tooling
 
