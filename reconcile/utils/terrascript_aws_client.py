@@ -4050,9 +4050,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if val is not None:
                 values[key] = val
 
-        if self.versions and not self.versions.get(spec.provisioner_name).startswith(
-            "3"
-        ):
+        if self.versions and not self.versions.get(
+            spec.provisioner_name, ""
+        ).startswith("3"):
             if spec.provider == "rds":
                 if db_name := values.pop("name", None):
                     values["db_name"] = db_name
