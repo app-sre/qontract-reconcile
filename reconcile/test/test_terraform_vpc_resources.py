@@ -1,4 +1,7 @@
 import logging
+import random
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 from pytest_mock import MockerFixture
@@ -7,7 +10,6 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
 from reconcile.gql_definitions.terraform_vpc_resources.vpc_resources_aws_accounts import (
-    AWSAccountV1,
     AWSTerraformStateIntegrationsV1,
     TerraformStateAWSV1,
     VaultSecretV1,
@@ -20,58 +22,33 @@ from reconcile.terraform_vpc_resources import (
 )
 
 
-@pytest.fixture
-def query_data() -> VPCResourcesAWSAccountsQueryData:
-    return VPCResourcesAWSAccountsQueryData(
-        accounts=[
-            AWSAccountV1(
-                name="some-account",
-                uid="some-uid",
-                automationToken=VaultSecretV1(
-                    path="some-path",
-                    field="some-field",
-                    version=None,
-                    format=None,
+def account_dict(name: str) -> dict[str, Any]:
+    # Generates a 12 digit uid using random
+    uid = "".join(str(random.randint(0, 9)) for _ in range(12))
+
+    return {
+        "name": name,
+        "uid": uid,
+        "automationToken": VaultSecretV1(
+            path="some-path",
+            field="some-field",
+            version=None,
+            format=None,
+        ),
+        "providerVersion": "3.76.1",
+        "resourcesDefaultRegion": "us-east-1",
+        "supportedDeploymentRegions": ["us-east-1", "us-east-2"],
+        "terraformState": TerraformStateAWSV1(
+            bucket="some-bucket",
+            region="us-east-1",
+            integrations=[
+                AWSTerraformStateIntegrationsV1(
+                    key="some-key",
+                    integration="some-integration",
                 ),
-                providerVersion="3.76.1",
-                resourcesDefaultRegion="us-east-1",
-                supportedDeploymentRegions=["us-east-1", "us-east-2"],
-                terraformState=TerraformStateAWSV1(
-                    bucket="some-bucket",
-                    region="us-east-1",
-                    integrations=[
-                        AWSTerraformStateIntegrationsV1(
-                            key="some-key",
-                            integration="some-integration",
-                        ),
-                    ],
-                ),
-            ),
-            AWSAccountV1(
-                name="some-other-account",
-                uid="some-uid",
-                automationToken=VaultSecretV1(
-                    path="some-path",
-                    field="some-field",
-                    version=None,
-                    format=None,
-                ),
-                providerVersion="3.76.1",
-                resourcesDefaultRegion="us-east-1",
-                supportedDeploymentRegions=["us-east-1", "us-east-2"],
-                terraformState=TerraformStateAWSV1(
-                    bucket="some-bucket",
-                    region="us-east-1",
-                    integrations=[
-                        AWSTerraformStateIntegrationsV1(
-                            key="terraform-vpc-resouces.tf.json",
-                            integration="terraform-vpc-resources",
-                        ),
-                    ],
-                ),
-            ),
-        ]
-    )
+            ],
+        ),
+    }
 
 
 @pytest.fixture
@@ -127,37 +104,14 @@ def test_log_message_for_no_accounts_with_related_state(
     mocker: MockerFixture,
     caplog: pytest.LogCaptureFixture,
     mock_gql: MockerFixture,
+    gql_class_factory: Callable,
     mock_app_interface_vault_settings: MockerFixture,
     mock_create_secret_reader: MockerFixture,
 ) -> None:
     # Mock a query with an account that doesn't have the related state
     mocked_query = mocker.patch("reconcile.terraform_vpc_resources.query_aws_accounts")
-    mocked_query.return_value = VPCResourcesAWSAccountsQueryData(
-        accounts=[
-            AWSAccountV1(
-                name="some-account",
-                uid="some-uid",
-                providerVersion="3.76.1",
-                resourcesDefaultRegion="us-east-1",
-                supportedDeploymentRegions=["us-east-1", "us-east-2"],
-                automationToken=VaultSecretV1(
-                    path="some-path",
-                    field="some-field",
-                    version=None,
-                    format=None,
-                ),
-                terraformState=TerraformStateAWSV1(
-                    bucket="some-bucket",
-                    region="us-east-1",
-                    integrations=[
-                        AWSTerraformStateIntegrationsV1(
-                            key="some-key",
-                            integration="some-integration",
-                        ),
-                    ],
-                ),
-            )
-        ]
+    mocked_query.return_value = gql_class_factory(
+        VPCResourcesAWSAccountsQueryData, {"accounts": [account_dict("some-account")]}
     )
 
     params = TerraformVpcResourcesParams(
