@@ -1,6 +1,7 @@
 import logging
 
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
@@ -25,6 +26,7 @@ def query_data() -> VPCResourcesAWSAccountsQueryData:
         accounts=[
             AWSAccountV1(
                 name="some-account",
+                uid="some-uid",
                 automationToken=VaultSecretV1(
                     path="some-path",
                     field="some-field",
@@ -35,16 +37,19 @@ def query_data() -> VPCResourcesAWSAccountsQueryData:
                 resourcesDefaultRegion="us-east-1",
                 supportedDeploymentRegions=["us-east-1", "us-east-2"],
                 terraformState=TerraformStateAWSV1(
+                    bucket="some-bucket",
+                    region="us-east-1",
                     integrations=[
                         AWSTerraformStateIntegrationsV1(
                             key="some-key",
                             integration="some-integration",
                         ),
-                    ]
+                    ],
                 ),
             ),
             AWSAccountV1(
                 name="some-other-account",
+                uid="some-uid",
                 automationToken=VaultSecretV1(
                     path="some-path",
                     field="some-field",
@@ -55,12 +60,14 @@ def query_data() -> VPCResourcesAWSAccountsQueryData:
                 resourcesDefaultRegion="us-east-1",
                 supportedDeploymentRegions=["us-east-1", "us-east-2"],
                 terraformState=TerraformStateAWSV1(
+                    bucket="some-bucket",
+                    region="us-east-1",
                     integrations=[
                         AWSTerraformStateIntegrationsV1(
                             key="terraform-vpc-resouces.tf.json",
                             integration="terraform-vpc-resources",
                         ),
-                    ]
+                    ],
                 ),
             ),
         ]
@@ -68,7 +75,7 @@ def query_data() -> VPCResourcesAWSAccountsQueryData:
 
 
 @pytest.fixture
-def mock_gql(mocker):
+def mock_gql(mocker: MockerFixture) -> MockerFixture:
     return mocker.patch(
         "reconcile.terraform_vpc_resources.gql",
         autospec=True,
@@ -76,7 +83,7 @@ def mock_gql(mocker):
 
 
 @pytest.fixture
-def mock_app_interface_vault_settings(mocker):
+def mock_app_interface_vault_settings(mocker: MockerFixture) -> MockerFixture:
     mocked_app_interfafe_vault_settings = mocker.patch(
         "reconcile.terraform_vpc_resources.get_app_interface_vault_settings",
         autospec=True,
@@ -88,20 +95,19 @@ def mock_app_interface_vault_settings(mocker):
 
 
 @pytest.fixture
-def mock_create_secret_reader(mocker):
+def mock_create_secret_reader(mocker: MockerFixture) -> MockerFixture:
     return mocker.patch(
         "reconcile.terraform_vpc_resources.create_secret_reader", autospec=True
     )
 
 
 def test_log_message_for_no_aws_accounts(
-    mocker,
-    caplog,
-    gql_class_factory,
-    mock_gql,
-    mock_app_interface_vault_settings,
-    mock_create_secret_reader,
-):
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+    mock_gql: MockerFixture,
+    mock_app_interface_vault_settings: MockerFixture,
+    mock_create_secret_reader: MockerFixture,
+) -> None:
     # Mock a query response without any accounts
     mocked_query = mocker.patch("reconcile.terraform_vpc_resources.query_aws_accounts")
     mocked_query.return_value = VPCResourcesAWSAccountsQueryData(accounts=[])
@@ -116,32 +122,46 @@ def test_log_message_for_no_aws_accounts(
 
 
 def test_log_message_for_no_accounts_with_related_state(
-    mocker,
-    caplog,
-    mock_gql,
-    mock_app_interface_vault_settings,
-    mock_create_secret_reader,
-):
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+    mock_gql: MockerFixture,
+    mock_app_interface_vault_settings: MockerFixture,
+    mock_create_secret_reader: MockerFixture,
+) -> None:
     # Mock a query with an account that doesn't have the related state
     mocked_query = mocker.patch("reconcile.terraform_vpc_resources.query_aws_accounts")
-    mocked_query.return_value = VPCResourcesAWSAccountsQueryData(accounts=[
-        AWSAccountV1(
-            name="some-account",
-            terraformState=TerraformStateAWSV1(
-                integrations=[
-                    AWSTerraformStateIntegrationsV1(
-                        key="some-key",
-                        integration="some-integration",
-                    ),
-                ]
-            ),
-        )
-    ])
+    mocked_query.return_value = VPCResourcesAWSAccountsQueryData(
+        accounts=[
+            AWSAccountV1(
+                name="some-account",
+                uid="some-uid",
+                providerVersion="3.76.1",
+                resourcesDefaultRegion="us-east-1",
+                supportedDeploymentRegions=["us-east-1", "us-east-2"],
+                automationToken=VaultSecretV1(
+                    path="some-path",
+                    field="some-field",
+                    version=None,
+                    format=None,
+                ),
+                terraformState=TerraformStateAWSV1(
+                    bucket="some-bucket",
+                    region="us-east-1",
+                    integrations=[
+                        AWSTerraformStateIntegrationsV1(
+                            key="some-key",
+                            integration="some-integration",
+                        ),
+                    ],
+                ),
+            )
+        ]
+    )
 
     params = TerraformVpcResourcesParams(account_name=None)
     with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
         TerraformVpcResources(params).run(dry_run=True)
     assert sample.value.code == ExitCodes.SUCCESS
-    assert ["No AWS accounts with 'terraform-vpc-resources' state found, nothing to do."] == [
-        rec.message for rec in caplog.records
-    ]
+    assert [
+        "No AWS accounts with 'terraform-vpc-resources' state found, nothing to do."
+    ] == [rec.message for rec in caplog.records]
