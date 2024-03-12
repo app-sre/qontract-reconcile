@@ -42,6 +42,7 @@ from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.jinja2.utils import (
     FetchSecretError,
     lookup_github_file_content,
+    lookup_s3_object,
     lookup_secret,
     process_extracurlyjinja2_template,
     process_jinja2_template,
@@ -1184,6 +1185,7 @@ def early_exit_monkey_patch():
     orig_lookup_github_file_content = lookup_github_file_content
     orig_url_makes_sense = url_makes_sense
     orig_check_alertmanager_config = check_alertmanager_config
+    orig_lookup_s3_object = lookup_s3_object
 
     try:
         yield _early_exit_monkey_patch_assign(
@@ -1209,6 +1211,7 @@ def early_exit_monkey_patch():
             orig_lookup_github_file_content,
             orig_url_makes_sense,
             orig_check_alertmanager_config,
+            orig_lookup_s3_object,
         )
 
 
@@ -1217,11 +1220,13 @@ def _early_exit_monkey_patch_assign(
     lookup_github_file_content,
     url_makes_sense,
     check_alertmanager_config,
+    lookup_s3_object,
 ):
     sys.modules[__name__].lookup_secret = lookup_secret
     sys.modules[__name__].lookup_github_file_content = lookup_github_file_content
     sys.modules[__name__].url_makes_sense = url_makes_sense
     sys.modules[__name__].check_alertmanager_config = check_alertmanager_config
+    sys.modules[__name__].lookup_s3_object = lookup_s3_object
 
 
 def desired_state_shard_config() -> DesiredStateShardConfig:
