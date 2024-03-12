@@ -59,6 +59,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 QONTRACT_INTEGRATION = "dynatrace-token-provider"
 SYNCSET_ID = "ext-dynatrace-tokens"
 SECRET_NAME = "dynatrace-token-dtp"
+SECRET_NAMESPACE = "dynatrace"
 DYNATRACE_INGESTION_TOKEN_NAME = "dynatrace-ingestion-token"
 DYNATRACE_OPERATOR_TOKEN_NAME = "dynatrace-operator-token"
 
@@ -354,7 +355,7 @@ class DynatraceTokenProviderIntegration(
                 {
                     "apiVersion": "v1",
                     "kind": "Secret",
-                    "metadata": {"name": SECRET_NAME},
+                    "metadata": {"name": SECRET_NAME, "namespace": SECRET_NAMESPACE},
                     "data": {
                         "apiUrl": f"{dt_api_url}",
                         "dataIngestTokenId": f"{ingestion_token.id}",
