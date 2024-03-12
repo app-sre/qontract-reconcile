@@ -1509,7 +1509,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # we want to allow an empty name, so we
         # only validate names which are not empty
-        db_name = values.get("name") or values.get("db_name")
+        db_name = values.get("name") or values.get("db_name") or ""
         if db_name and not self.validate_db_name(db_name):
             raise FetchResourceError(
                 f"[{account}] RDS name must contain 1 to 63 letters, "
@@ -1808,7 +1808,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(Output(output_name, value=output_value))
         # db.name
         output_name = output_prefix + "__db_name"
-        output_value = output_resource_db_name or values.get("name", "")
+        output_value = output_resource_db_name or db_name
         tf_resources.append(Output(output_name, value=output_value))
         # only set db user/password if not a replica or creation from snapshot
         if self._db_needs_auth(values):
