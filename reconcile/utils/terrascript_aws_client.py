@@ -4058,7 +4058,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     values["db_name"] = db_name
                 if values.get("replica_source"):
                     values.pop("db_name", None)
-            if spec.provider == "elasticache":
+            elif spec.provider == "elasticache":
                 if description := values.pop("replication_group_description", None):
                     values["description"] = description
                 if num_cache_clusters := values.pop("number_cache_clusters", None):
