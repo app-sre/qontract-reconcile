@@ -14,7 +14,6 @@ def get_deadmanssnitch_settings(
 ) -> DeadMansSnitchSettingsV1:
     api = gql_api if gql_api else gql.get_api()
     data = query(query_func=api.query)
-    if data.settings is not None:
-        if len(data.settings) > 0 and data.settings[0].dead_mans_snitch_settings is not None:
-            return data.settings[0].dead_mans_snitch_settings
+    if data.settings  and data.settings[0].dead_mans_snitch_settings is not None:
+        return data.settings[0].dead_mans_snitch_settings
     raise AppInterfaceSettingsError("deadmanssnitch settings missing")

@@ -57,10 +57,10 @@ class DiffHandler:
         return data
 
     def summarize(self, diffs: list[dict[str, str]]) -> str:
-        summary: str = ""
-        for diff in diffs:
-            summary += f"cluster name: {diff['cluster_name']} - action: {diff['action']}\n"
-        return summary
+        return "\n".join(
+            f"cluster name: {diff['cluster_name']} - action: {diff['action']}"
+            for diff in diffs
+        )
 
     def apply_diff(self, diff: dict[str, str]) -> None:
         match diff["action"]:
@@ -101,7 +101,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         super().__init__(NoParams())
         self.qontract_integration_version = make_semver(0, 1, 0)
 
-    def get_current_state(self, deadmanssnitch_api: DeadMansSnitchApi, clusters: ClusterV1, snitch_secret_path: str) -> list[dict[str, Any]]:
+    def get_current_state(self, deadmanssnitch_api: DeadMansSnitchApi, clusters: list[ClusterV1], snitch_secret_path: str) -> list[dict[str, Any]]:
         # current state includes for deadmanssnithch response and associated secret in vault
         current_state: list[dict[str, Any]] = []
         try:

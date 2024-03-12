@@ -36,7 +36,7 @@ class DeadMansSnitchApi:
 
     def get_snitches(self, tags: list[str]) -> list[Snitch]:
         full_url = f"{self.url}?tags={','.join(tags)}"
-        logging.info("Getting snitches for tags:%s", tags)
+        logging.debug("Getting snitches for tags:%s", tags)
         response = requests.get(url=full_url, auth=(self.token, ""))
         response.raise_for_status()
         snitches = [Snitch(**item) for item in response.json()]
@@ -46,7 +46,7 @@ class DeadMansSnitchApi:
         if payload.get("name") is None or payload.get("interval") is None:
             raise DeadManssnitchException("Invalid payload,name and interval are mandatory")
         headers = {"Content-Type": "application/json"}
-        logging.info("Creating new snitch with name:: %s ", payload["name"])
+        logging.debug("Creating new snitch with name:: %s ", payload["name"])
         response = requests.post(url=self.url, json=payload, auth=(self.token, ""), headers=headers)
         response.raise_for_status()
         response_json = response.json()
@@ -56,4 +56,4 @@ class DeadMansSnitchApi:
         delete_api_url = f"{self.url}/{token}"
         response = requests.delete(url=delete_api_url, auth=(self.token, ""))
         response.raise_for_status()
-        logging.info("Successfully deleted snich: %s", token)
+        logging.debug("Successfully deleted snich: %s", token)
