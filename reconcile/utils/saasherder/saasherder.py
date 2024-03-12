@@ -1010,9 +1010,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     error_prefix=error_prefix,
                 )
                 if not img:
-                    raise Exception(
-                        f"[{error_prefix}: error generating REPO_DIGEST for {image_uri}"
-                    )
+                    msg = f"{error_prefix} error get image for {image_uri}"
+                    logging.error(msg)
+                    raise Exception(msg)
 
                 if need_repo_digest:
                     consolidated_parameters["REPO_DIGEST"] = img.url_digest
