@@ -112,7 +112,9 @@ def test_log_message_for_no_aws_accounts(
     mocked_query = mocker.patch("reconcile.terraform_vpc_resources.query_aws_accounts")
     mocked_query.return_value = VPCResourcesAWSAccountsQueryData(accounts=[])
 
-    params = TerraformVpcResourcesParams(account_name=None)
+    params = TerraformVpcResourcesParams(
+        account_name=None, print_to_file=None, thread_pool_size=1
+    )
     with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
         TerraformVpcResources(params).run(dry_run=True)
     assert sample.value.code == ExitCodes.SUCCESS
@@ -158,7 +160,9 @@ def test_log_message_for_no_accounts_with_related_state(
         ]
     )
 
-    params = TerraformVpcResourcesParams(account_name=None)
+    params = TerraformVpcResourcesParams(
+        account_name=None, print_to_file=None, thread_pool_size=1
+    )
     with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
         TerraformVpcResources(params).run(dry_run=True)
     assert sample.value.code == ExitCodes.SUCCESS
