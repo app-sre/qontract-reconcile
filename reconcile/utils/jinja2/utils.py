@@ -5,9 +5,11 @@ import jinja2
 from jinja2.sandbox import SandboxedEnvironment
 from sretoolbox.utils import retry
 
+from reconcile import queries
 from reconcile.checkpoint import url_makes_sense
 from reconcile.github_users import init_github
 from reconcile.utils import gql
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.jinja2.extensions import B64EncodeExtension, RaiseErrorExtension
 from reconcile.utils.jinja2.filters import (
     eval_filter,
@@ -90,6 +92,26 @@ def lookup_graphql_query_results(query: str, **kwargs: dict[str, Any]) -> list[A
     return results
 
 
+def lookup_s3_object(
+    account_name: str,
+    bucket_name: str,
+    path: str,
+    region_name: Optional[str] = None,
+) -> str:
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_aws_accounts(name=account_name)
+    if not accounts:
+        raise Exception(f"aws account not found: {account_name}")
+
+    with AWSApi(1, accounts, settings=settings, init_users=False) as aws_api:
+        return aws_api.get_s3_object_content(
+            account_name,
+            bucket_name,
+            path,
+            region_name=region_name,
+        )
+
+
 @retry()
 def lookup_secret(
     path: str,
@@ -156,6 +178,7 @@ def process_jinja2_template(
         "hash_list": hash_list,
         "query": lookup_graphql_query_results,
         "url": url_makes_sense,
+        "s3": lookup_s3_object,
     })
     if "_template_mocks" in vars:
         for k, v in vars["_template_mocks"].items():

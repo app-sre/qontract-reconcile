@@ -60,6 +60,7 @@ if TYPE_CHECKING:
         ResourceRecordSetTypeDef,
         ResourceRecordTypeDef,
     )
+    from mypy_boto3_s3 import S3Client
 else:
     EC2Client = EC2ServiceResource = RouteTableTypeDef = SubnetTypeDef = (
         TransitGatewayTypeDef
@@ -71,7 +72,7 @@ else:
         HostedZoneTypeDef
     ) = RDSClient = DBInstanceMessageTypeDef = UpgradeTargetTypeDef = (
         OrganizationsClient
-    ) = object
+    ) = S3Client = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -244,6 +245,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     ) -> OrganizationsClient:
         session = self.get_session(account_name)
         return self.get_session_client(session, "organizations", region_name)
+
+    def _account_s3_client(
+        self, account_name: str, region_name: Optional[str] = None
+    ) -> S3Client:
+        session = self.get_session(account_name)
+        return self.get_session_client(session, "s3", region_name)
 
     def init_users(self):
         self.users = {}
@@ -1627,6 +1634,18 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def get_organization_billing_account(self, account_name: str) -> str:
         org = self._account_organizations_client(account_name)
         return org.describe_organization()["Organization"]["MasterAccountId"]
+
+    def get_s3_object_content(
+        self,
+        account_name: str,
+        bucket_name: str,
+        path: str,
+        region_name: Optional[str] = None,
+    ) -> str:
+        s3 = self._account_s3_client(account_name, region_name=region_name)
+        return (
+            s3.get_object(Bucket=bucket_name, Key=path)["Body"].read().decode("utf-8")
+        )
 
 
 def aws_config_file_path() -> Optional[str]:
