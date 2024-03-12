@@ -358,19 +358,6 @@ class OCMProductRosa(OCMProduct):
                 f"last 10 lines from failed cluster creation job...\n\n{logs}"
             )
 
-        # ocm_spec = self._get_create_cluster_spec(name, cluster)
-        # api = f"{CS_API_BASE}/v1/clusters"
-        # params = {}
-        # if dry_run:
-        #     params["dryRun"] = "true"
-        #     if cluster.spec.hypershift:
-        #         logging.info(
-        #             "Dry-Run is not yet implemented for Hosted clusters. Here is the payload:"
-        #         )
-        #         logging.info(ocm_spec)
-        #         return
-        # ocm.post(api, ocm_spec, params)
-
     def update_cluster(
         self,
         ocm: OCMBaseClient,

@@ -231,8 +231,6 @@ class DynatraceTokenProviderIntegration(
         existing_dtp_tokens: list[str],
         tenant_id: str,
     ) -> None:
-        if cluster.ocm_cluster.name == "hs-mc-ibv8l52c0":
-            print("here")
         existing_syncset = self.get_syncset(ocm_client, cluster)
         dt_env_url = f"https://{tenant_id}.live.dynatrace.com"
         if not existing_syncset:
