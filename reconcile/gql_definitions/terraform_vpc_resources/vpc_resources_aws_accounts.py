@@ -22,6 +22,7 @@ DEFINITION = """
 query VPCResourcesAWSAccounts($filter: JSON) {
   accounts: awsaccounts_v1(filter: $filter) {
     name
+    uid
     automationToken {
       path
       field
@@ -32,6 +33,8 @@ query VPCResourcesAWSAccounts($filter: JSON) {
     resourcesDefaultRegion
     supportedDeploymentRegions
     terraformState {
+      bucket
+      region
       integrations {
         key
         integration
@@ -61,11 +64,14 @@ class AWSTerraformStateIntegrationsV1(ConfiguredBaseModel):
 
 
 class TerraformStateAWSV1(ConfiguredBaseModel):
+    bucket: str = Field(..., alias="bucket")
+    region: str = Field(..., alias="region")
     integrations: list[AWSTerraformStateIntegrationsV1] = Field(..., alias="integrations")
 
 
 class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    uid: str = Field(..., alias="uid")
     automation_token: VaultSecretV1 = Field(..., alias="automationToken")
     provider_version: str = Field(..., alias="providerVersion")
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
