@@ -2586,12 +2586,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     ) -> None:
         """Manage the an IAM role needed for SAML authentication."""
         managed_policy_arns = [
-            f"arn:{self._get_partition(account)}:" + f"iam::aws:policy/{policy}"
+            f"arn:{self._get_partition(account)}:iam::aws:policy/{policy}"
             for policy in aws_managed_policies
         ]
         managed_policy_arns += [
-            f"arn:{self._get_partition(account)}:"
-            + f"iam::{self.uids[account]}:policy/{policy}"
+            f"arn:{self._get_partition(account)}:iam::{self.uids[account]}:policy/{policy}"
             for policy in customer_managed_policies or []
         ]
         assume_role_policy = {
