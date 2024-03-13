@@ -22,6 +22,7 @@ class Snitch(BaseModel):
     interval: str
     alert_type: str
     alert_email: list[str]
+    vault_data: Optional[str]
 
     def get_cluster_name(self) -> str:
         return self.name.split(".")[1]
@@ -33,11 +34,15 @@ class DeadMansSnitchApi:
     def __init__(self, token: str, url: str = BASE_URL) -> None:
         self.token = token
         self.url = url
+        self.session = requests.Session()
+
+    def close_session(self) -> None:
+        self.session.close()
 
     def get_snitches(self, tags: list[str]) -> list[Snitch]:
         full_url = f"{self.url}?tags={','.join(tags)}"
         logging.debug("Getting snitches for tags:%s", tags)
-        response = requests.get(url=full_url, auth=(self.token, ""))
+        response = self.session.get(url=full_url, auth=(self.token, ""))
         response.raise_for_status()
         snitches = [Snitch(**item) for item in response.json()]
         return snitches
@@ -47,13 +52,13 @@ class DeadMansSnitchApi:
             raise DeadManssnitchException("Invalid payload,name and interval are mandatory")
         headers = {"Content-Type": "application/json"}
         logging.debug("Creating new snitch with name:: %s ", payload["name"])
-        response = requests.post(url=self.url, json=payload, auth=(self.token, ""), headers=headers)
+        response = self.session.post(url=self.url, json=payload, auth=(self.token, ""), headers=headers)
         response.raise_for_status()
         response_json = response.json()
         return Snitch(**response_json)
 
     def delete_snitch(self, token: str) -> None:
         delete_api_url = f"{self.url}/{token}"
-        response = requests.delete(url=delete_api_url, auth=(self.token, ""))
+        response = self.session.delete(url=delete_api_url, auth=(self.token, ""))
         response.raise_for_status()
         logging.debug("Successfully deleted snich: %s", token)
