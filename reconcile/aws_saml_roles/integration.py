@@ -205,12 +205,12 @@ class AwsSamlRolesIntegration(
     ) -> None:
         """Populate the SAML IAM roles."""
         for role in aws_roles:
-            seen_custom_policies = []
+            seen_custom_policies = set()
             for custom_policy in role.custom_policies:
                 if (role.account, custom_policy.name) in seen_custom_policies:
                     # User policies are unique per account
                     continue
-                seen_custom_policies.append((role.account, custom_policy.name))
+                seen_custom_policies.add((role.account, custom_policy.name))
                 ts.populate_iam_policy(
                     account=role.account,
                     name=custom_policy.name,
