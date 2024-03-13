@@ -68,12 +68,12 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
                     account for account in accounts if account.name == account_name
                 ]
             if not accounts:
-                logging.error(
+                logging.warning(
                     "No AWS accounts with 'terraform-vpc-resources' state found, nothing to do."
                 )
                 sys.exit(ExitCodes.SUCCESS)
         else:
-            logging.error("No AWS accounts found, nothing to do.")
+            logging.warning("No AWS accounts found, nothing to do.")
             sys.exit(ExitCodes.SUCCESS)
 
         accounts_untyped: list[dict] = [acc.dict(by_alias=True) for acc in accounts]
