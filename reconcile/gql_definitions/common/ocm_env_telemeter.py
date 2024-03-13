@@ -33,6 +33,13 @@ fragment PrometheusInstance on PrometheusInstance_v1 {
         ... VaultSecret
       }
     }
+    ... on PrometheusInstanceOidcAuth_v1 {
+      accessTokenClientId
+      accessTokenUrl
+      accessTokenClientSecret {
+        ... VaultSecret
+      }
+    }
   }
 }
 

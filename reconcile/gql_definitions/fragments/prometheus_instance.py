@@ -34,9 +34,15 @@ class PrometheusInstanceBearerAuthV1(PrometheusInstanceAuthV1):
     token: VaultSecret = Field(..., alias="token")
 
 
+class PrometheusInstanceOidcAuthV1(PrometheusInstanceAuthV1):
+    access_token_client_id: str = Field(..., alias="accessTokenClientId")
+    access_token_url: str = Field(..., alias="accessTokenUrl")
+    access_token_client_secret: VaultSecret = Field(..., alias="accessTokenClientSecret")
+
+
 class PrometheusInstance(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     description: Optional[str] = Field(..., alias="description")
     base_url: str = Field(..., alias="baseUrl")
     query_path: Optional[str] = Field(..., alias="queryPath")
-    auth: Union[PrometheusInstanceBearerAuthV1, PrometheusInstanceAuthV1] = Field(..., alias="auth")
+    auth: Union[PrometheusInstanceOidcAuthV1, PrometheusInstanceBearerAuthV1, PrometheusInstanceAuthV1] = Field(..., alias="auth")

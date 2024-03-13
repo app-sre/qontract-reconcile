@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from reconcile.gql_definitions.fragments.prometheus_instance import (
     PrometheusInstance,
     PrometheusInstanceBearerAuthV1,
+    PrometheusInstanceOidcAuthV1,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
 
@@ -99,6 +100,20 @@ def init_prometheus_http_querier_from_prometheus_instance(
     match prometheus.auth:
         case PrometheusInstanceBearerAuthV1():
             auth_token = secret_reader.read_secret(prometheus.auth.token)
+        case PrometheusInstanceOidcAuthV1():
+            client_secret = secret_reader.read_secret(
+                prometheus.auth.access_token_client_secret
+            )
+            data = {
+                "grant_type": "client_credentials",
+                "client_id": prometheus.auth.access_token_client_id,
+                "client_secret": client_secret,
+            }
+            response = requests.post(
+                prometheus.auth.access_token_url, data=data, timeout=15
+            )
+            response.raise_for_status()
+            auth_token = response.json().get("access_token")
         case _:
             raise Exception(f"Unsupported auth type: {prometheus.auth.provider}")
 
