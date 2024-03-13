@@ -78,6 +78,10 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
       ... ClusterUpgradePolicyV1
     }
   }
+  ausClusterHealthChecks {
+    provider
+    enforced
+  }
 }
 
 fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {

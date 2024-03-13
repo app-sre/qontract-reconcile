@@ -1,0 +1,23 @@
+# qenerate: plugin=pydantic_v1
+
+fragment PrometheusInstance on PrometheusInstance_v1 {
+  name
+  description
+  baseUrl
+  queryPath
+  auth {
+    provider
+    ... on PrometheusInstanceBearerAuth_v1 {
+      token {
+        ... VaultSecret
+      }
+    }
+    ... on PrometheusInstanceOidcAuth_v1 {
+      accessTokenClientId
+      accessTokenUrl
+      accessTokenClientSecret {
+        ... VaultSecret
+      }
+    }
+  }
+}

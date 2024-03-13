@@ -1,3 +1,7 @@
+from reconcile.aus.healthchecks import (
+    AUSClusterHealthCheckProvider,
+    build_cluster_health_providers_for_organization,
+)
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
@@ -33,29 +37,42 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
             ocm_api, [org.org_id for org in organizations]
         )
 
+        cluster_health_providers = self._health_check_providers_for_env(ocm_env.name)
+
         return {
             org.name: OrganizationUpgradeSpec(
                 org=org,
                 specs=self._build_cluster_upgrade_specs(
-                    org,
-                    {
+                    org=org,
+                    clusters_by_name={
                         c.ocm_cluster.name: c.ocm_cluster
                         for c in clusters
                         if c.organization_id == org.org_id
                     },
+                    cluster_health_provider=build_cluster_health_providers_for_organization(
+                        org=org,
+                        providers=cluster_health_providers,
+                    ),
                 ),
             )
             for org in organizations
         }
 
     def _build_cluster_upgrade_specs(
-        self, org: AUSOCMOrganization, clusters_by_name: dict[str, OCMCluster]
+        self,
+        org: AUSOCMOrganization,
+        clusters_by_name: dict[str, OCMCluster],
+        cluster_health_provider: AUSClusterHealthCheckProvider,
     ) -> list[ClusterUpgradeSpec]:
         return [
             ClusterUpgradeSpec(
                 org=org,
                 upgradePolicy=cluster.upgrade_policy,
                 cluster=clusters_by_name[cluster.name],
+                health=cluster_health_provider.cluster_health(
+                    cluster_external_id=clusters_by_name[cluster.name].external_id,
+                    org_id=org.org_id,
+                ),
             )
             for cluster in org.upgrade_policy_clusters or []
             # clusters that are not in the UUID dict will be ignored because
