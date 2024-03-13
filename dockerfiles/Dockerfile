@@ -72,7 +72,7 @@ ENV OC_VERSION=4.10.15
 ENV TINI_VERSION v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--", "/work/dev/run.sh"]
+ENTRYPOINT ["/tini", "--", "/run-integration.py"]
 
 # oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
 # versions in these environments so in this case we extract an older version of oc and kubectl
