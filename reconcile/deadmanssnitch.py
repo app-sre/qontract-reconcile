@@ -111,7 +111,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
 
     def get_current_state(self, deadmanssnitch_api: DeadMansSnitchApi, clusters: list[ClusterV1], snitch_secret_path: str) -> dict[str,Snitch]:#list[dict[str, Any]]:
         # current state includes for deadmanssnithch response and associated secret in vault
-        current_state: list[dict[str, Any]] = []
+        current_state: dict[str,Snitch] = []
         try:
             snitches = deadmanssnitch_api.get_snitches(tags=["app-sre"])
             logging.debug(snitches)
