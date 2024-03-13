@@ -2416,7 +2416,6 @@ def ocm_upgrade_scheduler_org(
     run_class_integration(
         integration=OCMClusterUpgradeSchedulerOrgIntegration(
             AdvancedUpgradeSchedulerBaseIntegrationParams(
-                ocm_environment="ocm-production",
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
             )
