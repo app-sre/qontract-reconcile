@@ -1682,6 +1682,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     replica_region = self.default_regions.get(account)
 
                 source_values = self.init_values(source_info)
+                db_name = self._get_db_name_from_values(source_values)
                 if replica_region == region:
                     # replica is in the same region as source
                     values["replicate_source_db"] = replica_source
