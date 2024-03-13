@@ -177,24 +177,17 @@ class AwsSamlRolesIntegration(
                 account_name=account_name,
             ):
                 # AWS limits are checked via pydantic validators
-                custom_policies = []
-                managed_policies = []
-
-                for user_policy in user_policies:
-                    if user_policy.account.uid != sso_aws_account.uid:
-                        continue
-
-                    custom_policies.append(
-                        CustomPolicy(name=user_policy.name, policy=user_policy.policy)
-                    )
-
-                for aws_group in aws_groups:
-                    if aws_group.account.uid != sso_aws_account.uid:
-                        continue
-
-                    managed_policies.extend([
-                        ManagedPolicy(name=p) for p in aws_group.policies or []
-                    ])
+                custom_policies = [
+                    CustomPolicy(name=user_policy.name, policy=user_policy.policy)
+                    for user_policy in user_policies
+                    if user_policy.account.uid == sso_aws_account.uid
+                ]
+                managed_policies = [
+                    ManagedPolicy(name=p)
+                    for aws_group in aws_groups
+                    if aws_group.account.uid == sso_aws_account.uid
+                    for p in aws_group.policies or []
+                ]
 
                 aws_roles.append(
                     AwsRole(
