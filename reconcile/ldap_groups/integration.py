@@ -8,14 +8,14 @@ from typing import (
     Optional,
 )
 
-from reconcile.gql_definitions.ldap_groups.roles import AWSAccountSSO, RoleV1
+from reconcile.gql_definitions.ldap_groups.roles import RoleV1
 from reconcile.gql_definitions.ldap_groups.roles import query as roles_query
 from reconcile.gql_definitions.ldap_groups.settings import LdapGroupsSettingsV1
 from reconcile.gql_definitions.ldap_groups.settings import query as settings_query
 from reconcile.utils import gql
+from reconcile.utils.aws_helper import unique_sso_aws_accounts
 from reconcile.utils.defer import defer
 from reconcile.utils.differ import diff_iterables
-from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.exceptions import (
     AppInterfaceLdapGroupsSettingsError,
     AppInterfaceSettingsError,
@@ -175,21 +175,6 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
             if role.ldap_group
         ]
 
-    def _filter_aws_account(
-        self, accounts: Iterable[AWSAccountSSO]
-    ) -> list[AWSAccountSSO]:
-        """Return a unique list of AWS accounts to be used for AWS roles."""
-        filtered_account = {}
-        for account in accounts:
-            if not account.sso:
-                continue
-            if not integration_is_enabled(self.name, account):
-                continue
-            if account.uid in filtered_account:
-                continue
-            filtered_account[account.uid] = account
-        return list(filtered_account.values())
-
     def get_desired_groups_for_aws_roles(
         self,
         roles: Iterable[RoleV1],
@@ -203,9 +188,10 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
                 continue
             user_policies = role.user_policies or []
             aws_groups = role.aws_groups or []
-            for account in self._filter_aws_account([
-                i.account for i in user_policies + aws_groups
-            ]):
+            for account in unique_sso_aws_accounts(
+                integration=self.name,
+                accounts=[i.account for i in user_policies + aws_groups],
+            ):
                 group_name = (
                     f"{self.params.aws_sso_namespace}-{account.uid}-{role.name}"
                 )
