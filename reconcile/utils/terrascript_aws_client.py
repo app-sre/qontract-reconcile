@@ -4071,6 +4071,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     for k, v in cluster_mode.items():
                         values[k] = v
                 values.pop("availability_zones", None)
+            elif spec.provider == "msk":
+                if ebs_volume_size := values.get("broker_node_group_info", {}).pop(
+                    "ebs_volume_size", None
+                ):
+                    values["broker_node_group_info"].setdefault(
+                        "storage_info", {}
+                    ).setdefault("ebs_storage_info", {})[
+                        "volume_size"
+                    ] = ebs_volume_size
 
         return values
 
