@@ -5472,7 +5472,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tags = [
             {"key": k, "value": v, "propagate_at_launch": True} for k, v in tags.items()
         ]
-        if self.versions.get(account).startswith("3"):
+        if self.versions.get(account, "").startswith("3"):
             asg_value["tags"] = tags
         else:
             asg_value["tag"] = tags
