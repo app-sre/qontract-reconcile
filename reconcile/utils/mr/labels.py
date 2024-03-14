@@ -26,3 +26,5 @@ def change_owner_label(label: str) -> str:
 SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE = change_owner_label(
     "show-self-serviceable-in-review-queue"
 )
+# aws-version-sync
+AVS = "AVS"

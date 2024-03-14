@@ -108,6 +108,7 @@ from reconcile.utils.keycloak import (
     SSOClient,
 )
 from reconcile.utils.mr.labels import (
+    AVS,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
@@ -1975,6 +1976,7 @@ def app_interface_review_queue(ctx) -> None:
             if (
                 SELF_SERVICEABLE in labels
                 and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE not in labels
+                and AVS not in labels
             ):
                 continue
 
