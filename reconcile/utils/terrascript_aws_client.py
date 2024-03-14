@@ -1509,7 +1509,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # we want to allow an empty name, so we
         # only validate names which are not empty
-        db_name = values.get("name") or values.get("db_name") or ""
+        db_name = self._get_db_name_from_values(values)
         if db_name and not self.validate_db_name(db_name):
             raise FetchResourceError(
                 f"[{account}] RDS name must contain 1 to 63 letters, "
@@ -1682,6 +1682,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     replica_region = self.default_regions.get(account)
 
                 source_values = self.init_values(source_info)
+                db_name = self._get_db_name_from_values(source_values)
                 if replica_region == region:
                     # replica is in the same region as source
                     values["replicate_source_db"] = replica_source
@@ -1852,6 +1853,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if spec.identifier == source and spec.provider == provider:
                 return spec
         return None
+
+    def _get_db_name_from_values(self, values: dict) -> str:
+        return values.get("name") or values.get("db_name") or ""
 
     @staticmethod
     def _region_from_availability_zone(az):
@@ -4067,6 +4071,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     for k, v in cluster_mode.items():
                         values[k] = v
                 values.pop("availability_zones", None)
+            elif spec.provider == "msk":
+                if ebs_volume_size := values.get("broker_node_group_info", {}).pop(
+                    "ebs_volume_size", None
+                ):
+                    values["broker_node_group_info"].setdefault(
+                        "storage_info", {}
+                    ).setdefault("ebs_storage_info", {})[
+                        "volume_size"
+                    ] = ebs_volume_size
 
         return values
 
@@ -5456,9 +5469,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 override
             )
 
-        asg_value["tags"] = [
+        tags = [
             {"key": k, "value": v, "propagate_at_launch": True} for k, v in tags.items()
         ]
+        if self.versions.get(account, "").startswith("3"):
+            asg_value["tags"] = tags
+        else:
+            asg_value["tag"] = tags
         asg_resource = aws_autoscaling_group(identifier, **asg_value)
         tf_resources.append(asg_resource)
 

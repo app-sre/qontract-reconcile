@@ -1204,6 +1204,10 @@ def early_exit_monkey_patch():
             secret_reader=None: f"github({repo}, {path}, {ref})",
             lambda url: False,
             lambda data, path, alertmanager_config_key, decode_base64=False: True,
+            lambda account_name,
+            bucket_name,
+            path,
+            region_name=None: f"lookup_s3_object({account_name}, {bucket_name}, {path}, {region_name})",
         )
     finally:
         _early_exit_monkey_patch_assign(

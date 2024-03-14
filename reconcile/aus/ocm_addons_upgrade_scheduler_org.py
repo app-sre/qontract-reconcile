@@ -8,6 +8,10 @@ from reconcile.aus.base import (
     AddonUpgradePolicy,
 )
 from reconcile.aus.cluster_version_data import VersionData
+from reconcile.aus.healthchecks import (
+    AUSClusterHealthCheckProvider,
+    build_cluster_health_providers_for_organization,
+)
 from reconcile.aus.metrics import (
     AUSAddonUpgradePolicyInfoMetric,
     AUSAddonVersionRemainingSoakDaysGauge,
@@ -147,6 +151,8 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
             for cluster in clusters
         }
 
+        cluster_health_providers = self._health_check_providers_for_env(ocm_env.name)
+
         return {
             o.name: OrganizationUpgradeSpec(
                 org=o,
@@ -158,6 +164,10 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                         if c.organization_id == o.org_id
                     },
                     addons_per_cluster=addons_per_cluster,
+                    cluster_health_provider=build_cluster_health_providers_for_organization(
+                        org=o,
+                        providers=cluster_health_providers,
+                    ),
                 ),
             )
             for o in organizations
@@ -168,6 +178,7 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
         org: AUSOCMOrganization,
         clusters_by_name: dict[str, OCMCluster],
         addons_per_cluster: dict[str, list[OCMAddonInstallation]],
+        cluster_health_provider: AUSClusterHealthCheckProvider,
     ) -> list[ClusterAddonUpgradeSpec]:
         """
         builds a upgrade spec objects for each addon on each cluster
@@ -178,6 +189,10 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                 upgradePolicy=cluster.upgrade_policy,
                 cluster=clusters_by_name[cluster.name],
                 addon=addon,
+                health=cluster_health_provider.cluster_health(
+                    cluster_external_id=clusters_by_name[cluster.name].external_id,
+                    org_id=org.org_id,
+                ),
             )
             for cluster in org.upgrade_policy_clusters or []
             if cluster.name in clusters_by_name
