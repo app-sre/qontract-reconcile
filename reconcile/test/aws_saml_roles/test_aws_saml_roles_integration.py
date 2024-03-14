@@ -300,26 +300,25 @@ def test_aws_saml_roles_populate_saml_iam_roles(
         ),
     ]
     intg.populate_saml_iam_roles(ts, roles)
-    ts.populate_iam_policy.assert_has_calls([
-        mocker.call(
-            account="account-1",
-            name="rds-read-only",
-            policy={
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "rds:DescribeDBInstances",
-                            "rds:DescribeDBClusters",
-                            "rds:DescribeGlobalClusters",
-                        ],
-                        "Resource": "*",
-                    }
-                ],
-            },
-        ),
-    ])
+    ts.populate_iam_policy.assert_called_once_with(
+        account="account-1",
+        name="rds-read-only",
+        policy={
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "rds:DescribeDBInstances",
+                        "rds:DescribeDBClusters",
+                        "rds:DescribeGlobalClusters",
+                    ],
+                    "Resource": "*",
+                }
+            ],
+        },
+    )
+
     ts.populate_saml_iam_role.assert_has_calls([
         mocker.call(
             account="account-1",

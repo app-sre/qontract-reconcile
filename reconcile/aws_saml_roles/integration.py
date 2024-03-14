@@ -204,19 +204,19 @@ class AwsSamlRolesIntegration(
         self, ts: TerrascriptClient, aws_roles: Iterable[AwsRole]
     ) -> None:
         """Populate the SAML IAM roles."""
+        unique_policies = {
+            (role.account, custom_policy.name): custom_policy.policy
+            for role in aws_roles
+            for custom_policy in role.custom_policies
+        }
+        # User policies are unique per account
+        for (account, policy), policy_doc in unique_policies.items():
+            ts.populate_iam_policy(
+                account=account,
+                name=policy,
+                policy=policy_doc,
+            )
         for role in aws_roles:
-            seen_custom_policies = set()
-            for custom_policy in role.custom_policies:
-                if (role.account, custom_policy.name) in seen_custom_policies:
-                    # User policies are unique per account
-                    continue
-                seen_custom_policies.add((role.account, custom_policy.name))
-                ts.populate_iam_policy(
-                    account=role.account,
-                    name=custom_policy.name,
-                    policy=custom_policy.policy,
-                )
-
             ts.populate_saml_iam_role(
                 account=role.account,
                 name=role.name,
