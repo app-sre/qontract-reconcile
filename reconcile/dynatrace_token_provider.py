@@ -369,7 +369,7 @@ class DynatraceTokenProviderIntegration(
         }
 
     def base64_encode_str(self, string: str) -> str:
-        data_bytes = string.encode("utf-8")
+        data_bytes = (string + "\n").encode("utf-8")
         encoded = base64.b64encode(data_bytes)
         return encoded.decode("utf-8")
 
