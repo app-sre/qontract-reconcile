@@ -179,8 +179,8 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             )
             for cluster in desired_cluster_enabled_true & current_state.keys()
             # add to update set only if they exists, flag is set to true but vault and snitch url mismatch
-            if current_state[cluster].vault_data
-            and current_state[cluster].vault_data != current_state[cluster].check_in_url
+            if (cluster_data := current_state[cluster].vault_data)
+            and cluster_data.vault_data != cluster_data.check_in_url
         ]
         return create_snitches + delete_snitches + update_vault
 

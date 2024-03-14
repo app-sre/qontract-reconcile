@@ -13,4 +13,4 @@ def get_clusters_with_dms(
 ) -> list[ClusterV1]:
     api = gql_api if gql_api else gql.get_api()
     data = query(query_func=api.query)
-    return (data.clusters or [])
+    return data.clusters or []
