@@ -4,6 +4,7 @@ import pytest
 
 from reconcile.gql_definitions.templating.templates import TemplateTestV1, TemplateV1
 from reconcile.templating.validator import TemplateValidatorIntegration
+from reconcile.utils.ruamel import create_ruamel_instance
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ def test_validate_template(
 ) -> None:
     assert (
         TemplateValidatorIntegration.validate_template(
-            simple_template, simple_template_test
+            simple_template, simple_template_test, create_ruamel_instance()
         )
         == []
     )
@@ -50,7 +51,7 @@ def test_validate_template_diff(
 ) -> None:
     simple_template_test.expected_output = "baz"
     diff = TemplateValidatorIntegration.validate_template(
-        simple_template, simple_template_test
+        simple_template, simple_template_test, create_ruamel_instance()
     )
     assert diff
     assert (
@@ -64,7 +65,7 @@ def test_validate_output_template(
 ) -> None:
     assert (
         TemplateValidatorIntegration.validate_template(
-            simple_template, simple_template_test
+            simple_template, simple_template_test, create_ruamel_instance()
         )
         == []
     )
@@ -75,7 +76,7 @@ def test_validate_output_condition_diff(
 ) -> None:
     simple_template.condition = "{{1 == 2}}"
     diff = TemplateValidatorIntegration.validate_template(
-        simple_template, simple_template_test
+        simple_template, simple_template_test, create_ruamel_instance()
     )
     assert diff
     assert diff[0].diff == "Condition mismatch, got: False, expected: True"
@@ -86,7 +87,7 @@ def test_validate_target_path_diff(
 ) -> None:
     simple_template.target_path = "/{{foo}}/bar.yml"
     diff = TemplateValidatorIntegration.validate_template(
-        simple_template, simple_template_test
+        simple_template, simple_template_test, create_ruamel_instance()
     )
     assert diff
     assert (

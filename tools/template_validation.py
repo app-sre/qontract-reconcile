@@ -78,11 +78,12 @@ def main(ai_path: str, template_path: str) -> None:
 
     # templates_to_validate = {}
     for test in template.template_test:
+        ruaml_instance = create_ruamel_instance(explicit_start=True)
         diffs: list[TemplateDiff] = []
         print("Running tests:", test.name)
-        diffs.extend(TemplateValidatorIntegration.validate_template(template, test))
+        diffs.extend(TemplateValidatorIntegration.validate_template(template, test, ruaml_instance=ruaml_instance))
 
-        renderer = TemplateValidatorIntegration._create_renderer(template, test)
+        renderer = TemplateValidatorIntegration._create_renderer(template, test, ruaml_instance=ruaml_instance)
         if renderer.render_condition():
             output = renderer.render_output()
             lint_problems = list(
