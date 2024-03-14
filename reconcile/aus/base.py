@@ -29,10 +29,13 @@ from reconcile.aus.cluster_version_data import (
     get_version_data,
 )
 from reconcile.aus.metrics import (
+    CLUSTER_HEALTH_HEALTHY_METRIC_VALUE,
+    CLUSTER_HEALTH_UNHEALTHY_METRIC_VALUE,
     UPGRADE_BLOCKED_METRIC_VALUE,
     UPGRADE_LONG_RUNNING_METRIC_VALUE,
     UPGRADE_SCHEDULED_METRIC_VALUE,
     UPGRADE_STARTED_METRIC_VALUE,
+    AUSClusterHealthStateGauge,
     AUSClusterUpgradePolicyInfoMetric,
     AUSOCMEnvironmentError,
     AUSOrganizationErrorRate,
@@ -48,6 +51,9 @@ from reconcile.aus.version_gates import HANDLERS
 from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
     query as aus_organizations_query,
 )
+from reconcile.gql_definitions.common.ocm_env_telemeter import (
+    query as ocm_env_telemeter_query,
+)
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
@@ -57,6 +63,13 @@ from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePol
 from reconcile.utils import (
     gql,
     metrics,
+)
+from reconcile.utils.clusterhealth.providerbase import (
+    ClusterHealthProvider,
+)
+from reconcile.utils.clusterhealth.telemeter import (
+    TELEMETER_SOURCE,
+    TelemeterClusterHealthProvider,
 )
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -83,6 +96,9 @@ from reconcile.utils.ocm.upgrades import (
     get_version_gates,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
+from reconcile.utils.prometheus import (
+    init_prometheus_http_querier_from_prometheus_instance,
+)
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -298,6 +314,55 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                     hypershift=cluster_upgrade_spec.cluster.hypershift.enabled,
                 ),
             )
+            for (
+                source,
+                has_health_error,
+            ) in cluster_upgrade_spec.health.health_errors_by_source().items():
+                metrics.set_gauge(
+                    AUSClusterHealthStateGauge(
+                        integration=self.name,
+                        ocm_env=ocm_env,
+                        health_source=source,
+                        cluster_uuid=cluster_upgrade_spec.cluster_uuid,
+                    ),
+                    CLUSTER_HEALTH_UNHEALTHY_METRIC_VALUE
+                    if has_health_error
+                    else CLUSTER_HEALTH_HEALTHY_METRIC_VALUE,
+                )
+
+    def _health_check_providers_for_env(
+        self, ocm_env_name: str
+    ) -> dict[str, ClusterHealthProvider]:
+        providers: dict[str, ClusterHealthProvider] = {}
+        telemeter_provider = self._build_telemeter_health_check_provider_for_env(
+            ocm_env_name
+        )
+        if telemeter_provider:
+            providers[TELEMETER_SOURCE] = telemeter_provider
+        return providers
+
+    def _build_telemeter_health_check_provider_for_env(
+        self,
+        ocm_env_name: str,
+    ) -> Optional[TelemeterClusterHealthProvider]:
+        ocm_env = next(
+            iter(
+                ocm_env_telemeter_query(
+                    gql.get_api().query, variables={"name": ocm_env_name}
+                ).ocm_envs
+            ),
+            None,
+        )
+
+        if ocm_env and ocm_env.telemeter:
+            return TelemeterClusterHealthProvider(
+                querier=init_prometheus_http_querier_from_prometheus_instance(
+                    prometheus=ocm_env.telemeter,
+                    secret_reader=self.secret_reader,
+                )
+            )
+
+        return None
 
 
 class RemainingSoakDayMetricsBuilder(Protocol):
@@ -533,6 +598,17 @@ def update_history(
 
     # we iterate over clusters upgrade policies and update the version history
     for spec in org_upgrade_spec.specs:
+        # ... but we only care about healthy cluster
+        errors = spec.health.get_errors(only_enforced=True)
+        if errors:
+            logging.debug(
+                f"unhealthy cluster {spec.cluster.name} "
+                f"(id={spec.cluster.id}, org_id={spec.org.org_id}, org_name={spec.org.name}) "
+                f"will not contribute to soak days for {spec.cluster.version.raw_id} "
+                f"and workloads {spec.upgrade_policy.workloads}: "
+                f"{', '.join([e.error for e in errors])}"
+            )
+            continue
         current_version = spec.current_version
         cluster = spec.cluster.name
         workloads = spec.upgrade_policy.workloads
