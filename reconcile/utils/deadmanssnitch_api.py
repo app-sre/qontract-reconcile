@@ -47,7 +47,7 @@ class DeadMansSnitchApi:
         snitches = [Snitch(**item) for item in response.json()]
         return snitches
 
-    def create_snitch(self, payload: dict) -> Optional[Snitch]:
+    def create_snitch(self, payload: dict) -> Snitch:
         if payload.get("name") is None or payload.get("interval") is None:
             raise DeadManssnitchException("Invalid payload,name and interval are mandatory")
         headers = {"Content-Type": "application/json"}

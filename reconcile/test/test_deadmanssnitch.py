@@ -67,7 +67,7 @@ def cluster_gql_data(gql_class_factory: Callable[..., ClusterV1]) -> list[Cluste
     ]
 
 @httpretty.activate(allow_net_connect=False)
-def test_get_current_state(secret_reader: MagicMock, deadmanssnitch_api: DeadMansSnitchApi):
+def test_get_current_state(secret_reader: MagicMock, deadmanssnitch_api: DeadMansSnitchApi) -> None:
     httpretty.register_uri(
         httpretty.GET,
         f"{deadmanssnitch_api.url}?tags=appsre",
@@ -113,7 +113,7 @@ def test_get_current_state(secret_reader: MagicMock, deadmanssnitch_api: DeadMan
     current_state = dms_integration.get_current_state(deadmanssnitch_api=deadmanssnitch_api, clusters=clusters, snitch_secret_path="test_path")
     assert current_state["test_cluster_1"].vault_data == "secret"
 
-def test_diff_handler():
+def test_diff_handler() -> None:
     dms_integration = DeadMansSnitchIntegration()
     diff_data = dms_integration.get_diff(
         current_state={
@@ -217,7 +217,7 @@ def test_diff_handler():
     diff_data_map = [data.__dict__ for data in diff_data]
     assert diff_data_map == expected_output_map
 
-def test_apply_diff_for_create(vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1):
+def test_apply_diff_for_create(vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1) -> None:
     diff_data = [
         DiffData(
             cluster_name="create_cluster",
@@ -239,7 +239,7 @@ def test_apply_diff_for_create(vault_mock: MagicMock, deadmanssnitch_settings: D
         }
     )
 
-def test_apply_diff_for_delete(vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1):
+def test_apply_diff_for_delete(vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1) -> None:
     diff_data = [
         DiffData(
             cluster_name="create_cluster",
@@ -256,7 +256,7 @@ def test_apply_diff_for_delete(vault_mock: MagicMock, deadmanssnitch_settings: D
     )
 
 
-def test_appply_diff_for_update(deadmanssnitch_api: DeadMansSnitchApi, vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1):
+def test_appply_diff_for_update(deadmanssnitch_api: DeadMansSnitchApi, vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1) -> None:
     diff_data = [
         DiffData(
             cluster_name="test_cluster",

@@ -115,7 +115,7 @@ def test_create_snitch_failed(deadmanssnitch_api: DeadMansSnitchApi) -> None:
 
 
 @httpretty.activate(allow_net_connect=False)
-def test_delete_snitch(deadmanssnitch_api: DeadMansSnitchApi):
+def test_delete_snitch(deadmanssnitch_api: DeadMansSnitchApi) -> None:
     httpretty.register_uri(
         httpretty.DELETE,
         f"{deadmanssnitch_api.url}/{TOKEN}",

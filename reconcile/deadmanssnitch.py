@@ -39,11 +39,12 @@ class DiffData:
     def __init__(self, cluster_name: str, action: Action, data: str = None) -> None:
         self.cluster_name = cluster_name
         self.action = action
-        self.data = data
+        if self.data:
+            self.data = data
 
 class DiffHandler:
     """ Handler class which to create/delete/update vault based on action on DiffData"""
-    def __init__(self, deadmanssnitch_api: DeadMansSnitchApi, settings: DeadMansSnitchSettingsV1, vault_client: VaultClient = None) -> None:
+    def __init__(self, deadmanssnitch_api: DeadMansSnitchApi, settings: DeadMansSnitchSettingsV1, vault_client: VaultClient) -> None:
         self.deadmanssnitch_api = deadmanssnitch_api
         self.settings = settings
         self.vault_client = vault_client
@@ -101,7 +102,6 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
 
     def get_current_state(self, deadmanssnitch_api: DeadMansSnitchApi, clusters: list[ClusterV1], snitch_secret_path: str) -> dict[str, Snitch]:
         # current state includes for deadmanssnithch response and associated secret in vault
-        current_state: dict[str, Snitch] = []
         snitches = deadmanssnitch_api.get_snitches(tags=["app-sre"])
         # create snitch_map only for  the desired clusters
         snitches_with_cluster_mapping = {snitch.get_cluster_name(): snitch for snitch in snitches}
@@ -159,8 +159,6 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
 
     def run(self, dry_run: bool) -> None:
         # Initialize deadmanssnitch_api
-        settings: DeadMansSnitchSettingsV1 = None
-        token: str = ""
         settings = get_deadmanssnitch_settings()
         token = self.secret_reader.read({"path": settings.token_creds.path, "field": settings.token_creds.field})
         deadmanssnitch_api = DeadMansSnitchApi(token=token)
