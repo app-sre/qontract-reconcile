@@ -1,5 +1,9 @@
 import enum
 import logging
+from typing import (
+    Optional,
+    cast,
+)
 
 from reconcile.gql_definitions.common.app_interface_dms_settings import (
     DeadMansSnitchSettingsV1,
@@ -23,6 +27,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vault import (
     VaultClient,
+    _VaultClient,
 )
 
 QONTRACT_INTEGRATION = "deadmanssnitch"
@@ -36,7 +41,7 @@ class Action(enum.Enum):
 
 class DiffData:
     """Class to store the reconcile activity on current state derived from desired state """
-    def __init__(self, cluster_name: str, action: Action, data: str = None) -> None:
+    def __init__(self, cluster_name: str, action: Action, data: Optional[str] = None) -> None:
         self.cluster_name = cluster_name
         self.action = action
         if data:
@@ -44,7 +49,7 @@ class DiffData:
 
 class DiffHandler:
     """ Handler class which to create/delete/update vault based on action on DiffData"""
-    def __init__(self, deadmanssnitch_api: DeadMansSnitchApi, settings: DeadMansSnitchSettingsV1, vault_client: VaultClient) -> None:
+    def __init__(self, deadmanssnitch_api: DeadMansSnitchApi, settings: DeadMansSnitchSettingsV1, vault_client: _VaultClient) -> None:
         self.deadmanssnitch_api = deadmanssnitch_api
         self.settings = settings
         self.vault_client = vault_client
@@ -162,7 +167,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         settings = get_deadmanssnitch_settings()
         token = self.secret_reader.read({"path": settings.token_creds.path, "field": settings.token_creds.field})
         deadmanssnitch_api = DeadMansSnitchApi(token=token)
-        vault_client = VaultClient()
+        vault_client = cast(_VaultClient, VaultClient())
         diff_handler = DiffHandler(deadmanssnitch_api, settings, vault_client)
         # desired state - filter cluster having enableDeadMansSnitch field
         clusters = [cluster for cluster in get_clusters_with_dms() if cluster.enable_dead_mans_snitch is not None]
