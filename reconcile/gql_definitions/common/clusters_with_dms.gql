@@ -1,7 +1,7 @@
 # qenerate: plugin=pydantic_v1
 
-query ClustersWithMonitoring($name: String) {
-  clusters: clusters_v1(name: $name) {
+query ClustersWithMonitoring{
+  clusters: clusters_v1{
     name
     serverUrl
     consoleUrl

@@ -19,8 +19,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query ClustersWithMonitoring($name: String) {
-  clusters: clusters_v1(name: $name) {
+query ClustersWithMonitoring{
+  clusters: clusters_v1{
     name
     serverUrl
     consoleUrl

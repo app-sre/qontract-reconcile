@@ -1,13 +1,15 @@
 import json
 from typing import Callable
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, create_autospec
 
 import httpretty
 import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.deadmanssnitch import (
+    Action,
     DeadMansSnitchIntegration,
+    DiffData,
     DiffHandler,
 )
 from reconcile.gql_definitions.common.app_interface_dms_settings import (
@@ -17,7 +19,10 @@ from reconcile.gql_definitions.common.app_interface_dms_settings import (
 from reconcile.gql_definitions.common.clusters_with_dms import (
     ClusterV1,
 )
-from reconcile.utils.deadmanssnitch_api import DeadMansSnitchApi
+from reconcile.utils.deadmanssnitch_api import (
+    DeadMansSnitchApi,
+    Snitch,
+)
 
 TOKEN = "test_token"
 FAKE_URL = "https://fake.deadmanssnitch.com/v1/snitches"
@@ -106,30 +111,53 @@ def test_get_current_state(secret_reader: MagicMock, deadmanssnitch_api: DeadMan
     dms_integration = DeadMansSnitchIntegration()
     dms_integration._secret_reader = secret_reader
     current_state = dms_integration.get_current_state(deadmanssnitch_api=deadmanssnitch_api, clusters=clusters, snitch_secret_path="test_path")
-    assert current_state[0].get("vault_snitch_value") == "secret"
+    assert current_state["test_cluster_1"].vault_data == "secret"
 
-def test_diff_handler(deadmanssnitch_api: DeadMansSnitchApi, vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1):
+def test_diff_handler():
     dms_integration = DeadMansSnitchIntegration()
-    diff_handler = DiffHandler(deadmanssnitch_api=deadmanssnitch_api, vault_client=vault_mock, settings=deadmanssnitch_settings)
     diff_data = dms_integration.get_diff(
-        current_states=[
-            {
-                "cluster_name": "test_cluster_1",
-                "check_in_url": "testURL",
-                "vault_snitch_value": "testURL"
-            },
-            {
-                "cluster_name": "test_cluster_3",
-                "check_in_url": "testURL2",
-                "token": "test_token"
-            },
-            {
-                "cluster_name": "test_cluster_5",
-                "check_in_url": "testURL",
-                "vault_snitch_value": "testURL2"
-            }
-        ],
-        desired_states=[
+        current_state={
+            "test_cluster_1": Snitch(
+                name="test_cluster_1",
+                token="test_token",
+                status="healthy",
+                alert_email=["test_email"],
+                notes="test_notes",
+                check_in_url="testURL",
+                interval="15_minute",
+                href="test_href",
+                alert_type="test_type",
+                tags=["appsre"],
+                vault_data="testURL",
+            ),
+            "test_cluster_3": Snitch(
+                name="test_cluster_3",
+                token="test_token",
+                status="healthy",
+                alert_email=["test_email"],
+                notes="test_notes",
+                check_in_url="testURL2",
+                interval="15_minute",
+                href="test_href",
+                alert_type="test_type",
+                tags=["appsre"],
+                vault_data="testURL",
+            ),
+            "test_cluster_5": Snitch(
+                name="test_cluster_5",
+                token="test_token",
+                status="healthy",
+                alert_email=["test_email"],
+                notes="test_notes",
+                check_in_url="testURL",
+                interval="15_minute",
+                href="test_href",
+                alert_type="test_type",
+                tags=["appsre"],
+                vault_data="testURL2",
+            )
+        },
+        desired_state=[
             ClusterV1(
                 name="test_cluster_1",
                 serverUrl="testurl",
@@ -167,87 +195,75 @@ def test_diff_handler(deadmanssnitch_api: DeadMansSnitchApi, vault_mock: MagicMo
                 enableDeadMansSnitch=True,
             )
         ],
-        diff_handler=diff_handler,
     )
     expected_output = [
-        {
-            "action": "delete_snitch",
-            "cluster_name": "test_cluster_3",
-            "token": "test_token"
-        },
-        {
-            "action": "update_vault",
-            "cluster_name": "test_cluster_5",
-            "snitch_url": "testURL"
-        },
-        {
-            "action": "create_snitch",
-            "cluster_name": "test_cluster_new"
-        },
+        DiffData(
+            cluster_name="test_cluster_new",
+            action=Action.create_snitch,
+        ),
+        DiffData(
+            cluster_name="test_cluster_3",
+            data="test_token",
+            action=Action.delete_snitch,
+        ),
+        DiffData(
+            cluster_name="test_cluster_5",
+            data="testURL",
+            action=Action.update_vault,
+        ),
     ]
-    assert diff_data == expected_output
 
-@httpretty.activate(allow_net_connect=False)
-def test_apply_diff_for_create(deadmanssnitch_api: DeadMansSnitchApi, vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1):
-    httpretty.register_uri(
-        httpretty.POST,
-        deadmanssnitch_api.url,
-        body=json.dumps({
-            "token": "test_token",
-            "href": "testc",
-            "name": "prometheus.create_cluster.net",
-            "tags": ["app-sre"],
-            "notes": "test_notes",
-            "status": "healthy",
-            "check_in_url": "test_url",
-            "type": {"interval": "15_minute"},
+    expected_output_map = [data.__dict__ for data in expected_output]
+    diff_data_map = [data.__dict__ for data in diff_data]
+    assert diff_data_map == expected_output_map
+
+def test_apply_diff_for_create(vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1):
+    diff_data = [
+        DiffData(
+            cluster_name="create_cluster",
+            action=Action.create_snitch,
+        ),
+    ]
+    mocked_deadmanssnitch_api = create_autospec(DeadMansSnitchApi)
+    dms_integration = DeadMansSnitchIntegration()
+    diff_handler = DiffHandler(deadmanssnitch_api=mocked_deadmanssnitch_api, vault_client=vault_mock, settings=deadmanssnitch_settings)
+    dms_integration.apply_diffs(dry_run=False, diffs=diff_data, diff_handler=diff_handler)
+    mocked_deadmanssnitch_api.create_snitch.assert_called_once_with(
+        {
+            "name": "prometheus.create_cluster.devshift.net",
+            "alert_type": "Heartbeat",
             "interval": "15_minute",
-            "alert_type": "basic",
-            "alert_email": ["test_mail"]
-        }),
-        content_type="text/json",
-        status=201,
+            "tags": ["app-sre"],
+            "alert_email": ["test_email"],
+            "notes": "test_link",
+        }
     )
-    diff_data = [
-        {
-            "cluster_name": "create_cluster",
-            "action": "create_snitch",
-        },
-    ]
-    dms_integration = DeadMansSnitchIntegration()
-    diff_handler = DiffHandler(deadmanssnitch_api=deadmanssnitch_api, vault_client=vault_mock, settings=deadmanssnitch_settings)
-    dms_integration.apply_diffs(dry_run=False, diffs=diff_data, diff_handler=diff_handler)
-    assert httpretty.last_request().headers.get("Authorization") == "Basic dGVzdF90b2tlbjo="  # base 64 encoded form of "test_token"
 
-@httpretty.activate(allow_net_connect=False)
-def test_apply_diff_for_delete(deadmanssnitch_api: DeadMansSnitchApi, vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1):
-    httpretty.register_uri(
-        httpretty.DELETE,
-        f"{deadmanssnitch_api.url}/token_123",
-        status=200,
-    )
+def test_apply_diff_for_delete(vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1):
     diff_data = [
-        {
-            "cluster_name": "create_cluster",
-            "action": "delete_snitch",
-            "token": "token_123"
-        },
+        DiffData(
+            cluster_name="create_cluster",
+            action=Action.delete_snitch,
+            data="token_123"
+        ),
     ]
+    mocked_deadmanssnitch_api = create_autospec(DeadMansSnitchApi)
     dms_integration = DeadMansSnitchIntegration()
-    diff_handler = DiffHandler(deadmanssnitch_api=deadmanssnitch_api, vault_client=vault_mock, settings=deadmanssnitch_settings)
+    diff_handler = DiffHandler(deadmanssnitch_api=mocked_deadmanssnitch_api, vault_client=vault_mock, settings=deadmanssnitch_settings)
     dms_integration.apply_diffs(dry_run=False, diffs=diff_data, diff_handler=diff_handler)
-    assert httpretty.last_request().headers.get("Authorization") == "Basic dGVzdF90b2tlbjo="  # base 64 encoded form of "test_token"
+    mocked_deadmanssnitch_api.delete_snitch.assert_called_once_with(
+        "token_123"
+    )
 
 
 def test_appply_diff_for_update(deadmanssnitch_api: DeadMansSnitchApi, vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1):
     diff_data = [
-        {
-            "cluster_name": "test_cluster",
-            "action": "update_vault",
-            "snitch_url": "test_secret_url"
-        },
+        DiffData(
+            cluster_name="test_cluster",
+            action=Action.update_vault,
+            data="test_secret_url",
+        ),
     ]
-
     dms_integration = DeadMansSnitchIntegration()
     diff_handler = DiffHandler(deadmanssnitch_api=deadmanssnitch_api, vault_client=vault_mock, settings=deadmanssnitch_settings)
     dms_integration.apply_diffs(dry_run=False, diffs=diff_data, diff_handler=diff_handler)

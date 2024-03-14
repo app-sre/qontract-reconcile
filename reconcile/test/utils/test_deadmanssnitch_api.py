@@ -16,7 +16,7 @@ def deadmanssnitch_api() -> DeadMansSnitchApi:
 
 
 @httpretty.activate(allow_net_connect=False)
-def test_get_all_snitches(deadmanssnitch_api: DeadMansSnitchApi)-> None:
+def test_get_all_snitches(deadmanssnitch_api: DeadMansSnitchApi) -> None:
     httpretty.register_uri(
         httpretty.GET,
         f"{deadmanssnitch_api.url}?tags=appsre",
@@ -90,7 +90,7 @@ def test_create_snitch(deadmanssnitch_api: DeadMansSnitchApi) -> None:
 
 
 @httpretty.activate(allow_net_connect=False)
-def test_create_snitch_failed(deadmanssnitch_api: DeadMansSnitchApi)-> None:
+def test_create_snitch_failed(deadmanssnitch_api: DeadMansSnitchApi) -> None:
     httpretty.register_uri(
         httpretty.POST,
         deadmanssnitch_api.url,

@@ -1,10 +1,10 @@
 import logging
 from typing import (
+    Any,
     Optional,
 )
 
 import requests
-from typing import Any
 from pydantic import BaseModel
 
 BASE_URL = "https://api.deadmanssnitch.com/v1/snitches"
@@ -27,7 +27,7 @@ class Snitch(BaseModel):
     def get_cluster_name(self) -> str:
         return self.name.split(".")[1]
 
-    def to_dict(self)-> dict[str,Any]:
+    def to_dict(self) -> dict[str, Any]:
         return self.dict(by_alias=True)
 
 class DeadMansSnitchApi:
