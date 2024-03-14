@@ -74,13 +74,19 @@ def main(templates: tuple[str]) -> None:
             ruaml_instance = create_ruamel_instance(explicit_start=True)
             diffs: list[TemplateDiff] = []
             print("Running tests:", test.name)
-            diffs.extend(TemplateValidatorIntegration.validate_template(template, test, ruaml_instance=ruaml_instance))
+            diffs.extend(
+                TemplateValidatorIntegration.validate_template(
+                    template, test, ruaml_instance=ruaml_instance
+                )
+            )
 
-            renderer = TemplateValidatorIntegration._create_renderer(template, test, ruaml_instance=ruaml_instance)
+            renderer = TemplateValidatorIntegration._create_renderer(
+                template, test, ruaml_instance=ruaml_instance
+            )
             if renderer.render_condition():
                 output = renderer.render_output()
                 lint_problems = list(
-                    linter.run(output, YamlLintConfig(file=f".yamllint"), "")
+                    linter.run(output, YamlLintConfig(file=".yamllint"), "")
                 )
                 if lint_problems:
                     okay = False
