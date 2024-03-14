@@ -5469,7 +5469,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 override
             )
 
-        asg_value["tags"] = [
+        asg_value["tag"] = [
             {"key": k, "value": v, "propagate_at_launch": True} for k, v in tags.items()
         ]
         asg_resource = aws_autoscaling_group(identifier, **asg_value)
