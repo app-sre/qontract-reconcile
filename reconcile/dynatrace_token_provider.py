@@ -58,7 +58,7 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "dynatrace-token-provider"
-SYNCSET_ID = "ext-dynatrace-tokens"
+SYNCSET_ID = "ext-dynatrace-tokens-dtp"
 SECRET_NAME = "dynatrace-token-dtp"
 SECRET_NAMESPACE = "dynatrace"
 DYNATRACE_INGESTION_TOKEN_NAME = "dynatrace-ingestion-token"
