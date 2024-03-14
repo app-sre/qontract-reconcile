@@ -2,6 +2,7 @@ import logging
 from typing import (
     Any,
     Optional,
+    Self,
 )
 
 import requests
@@ -40,7 +41,10 @@ class DeadMansSnitchApi:
         self.url = url
         self.session = requests.Session()
 
-    def close_session(self) -> None:
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.session.close()
 
     def get_snitches(self, tags: list[str]) -> list[Snitch]:

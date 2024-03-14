@@ -206,21 +206,21 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             "path": settings.token_creds.path,
             "field": settings.token_creds.field,
         })
-        deadmanssnitch_api = DeadMansSnitchApi(token=token)
         vault_client = cast(_VaultClient, VaultClient())
-        diff_handler = DiffHandler(deadmanssnitch_api, settings, vault_client)
-        # desired state - filter cluster having enableDeadMansSnitch field
-        clusters = [
-            cluster
-            for cluster in get_clusters_with_dms()
-            if cluster.enable_dead_mans_snitch is not None
-        ]
-        # current state - get snitches for tag app-sre
-        current_state = self.get_current_state(
-            deadmanssnitch_api, clusters, settings.snitches_path
-        )
-        if len(current_state) > 0 and len(clusters) > 0:
-            diff = self.get_diff(current_state=current_state, desired_state=clusters)
-            self.apply_diffs(dry_run, diff, diff_handler)
-        # close session
-        deadmanssnitch_api.close_session()
+        with DeadMansSnitchApi(token=token) as deadmanssnitch_api:
+            diff_handler = DiffHandler(deadmanssnitch_api, settings, vault_client)
+            # desired state - filter cluster having enableDeadMansSnitch field
+            clusters = [
+                cluster
+                for cluster in get_clusters_with_dms()
+                if cluster.enable_dead_mans_snitch is not None
+            ]
+            # current state - get snitches for tag app-sre
+            current_state = self.get_current_state(
+                deadmanssnitch_api, clusters, settings.snitches_path
+            )
+            if current_state and clusters:
+                diff = self.get_diff(
+                    current_state=current_state, desired_state=clusters
+                )
+                self.apply_diffs(dry_run, diff, diff_handler)
