@@ -20,6 +20,12 @@ query JiraBoardsForPermissionValidation {
         priority
       }
     }
+    escalationPolicies {
+      name
+      channels {
+        jiraComponent
+      }
+    }
     disable {
       integrations
     }

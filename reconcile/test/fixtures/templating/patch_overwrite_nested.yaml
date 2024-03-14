@@ -21,6 +21,7 @@ current:
     oof: rab
 
 expected: |
+  ---
   version:
     bar: baz
     foo:
