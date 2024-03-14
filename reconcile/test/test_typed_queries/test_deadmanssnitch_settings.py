@@ -33,10 +33,20 @@ def test_get_clusters(
 ) -> None:
     data = gql_class_factory(
         DeadMansSnitchSettingsQueryData,
-        {"settings": [{"deadMansSnitchSettings": {"alertEmail": "test_mail", "notesLink": "test_link", "snitchesPath": "test_path", "tokenCreds": {"path": "xyz", "field": "xyz"}}}]},
+        {
+            "settings": [
+                {
+                    "deadMansSnitchSettings": {
+                        "alertEmail": "test_mail",
+                        "notesLink": "test_link",
+                        "snitchesPath": "test_path",
+                        "tokenCreds": {"path": "xyz", "field": "xyz"},
+                    }
+                }
+            ]
+        },
     )
     api = gql_api_builder(data.dict(by_alias=True))
     settings = get_deadmanssnitch_settings(gql_api=api)
     assert settings.alert_email == "test_mail"
     api.query.assert_called_once_with(DEFINITION)
-

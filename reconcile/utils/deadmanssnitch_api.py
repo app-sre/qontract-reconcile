@@ -8,8 +8,11 @@ import requests
 from pydantic import BaseModel
 
 BASE_URL = "https://api.deadmanssnitch.com/v1/snitches"
+
+
 class DeadManssnitchException(Exception):
     pass
+
 
 class Snitch(BaseModel):
     token: str
@@ -30,6 +33,7 @@ class Snitch(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         return self.dict(by_alias=True)
 
+
 class DeadMansSnitchApi:
     def __init__(self, token: str, url: str = BASE_URL) -> None:
         self.token = token
@@ -49,10 +53,14 @@ class DeadMansSnitchApi:
 
     def create_snitch(self, payload: dict) -> Snitch:
         if payload.get("name") is None or payload.get("interval") is None:
-            raise DeadManssnitchException("Invalid payload,name and interval are mandatory")
+            raise DeadManssnitchException(
+                "Invalid payload,name and interval are mandatory"
+            )
         headers = {"Content-Type": "application/json"}
         logging.debug("Creating new snitch with name:: %s ", payload["name"])
-        response = self.session.post(url=self.url, json=payload, auth=(self.token, ""), headers=headers)
+        response = self.session.post(
+            url=self.url, json=payload, auth=(self.token, ""), headers=headers
+        )
         response.raise_for_status()
         response_json = response.json()
         return Snitch(**response_json)
