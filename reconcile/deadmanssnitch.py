@@ -187,7 +187,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
     def apply_diffs(
         self, dry_run: bool, diffs: list[DiffData], diff_handler: DiffHandler
     ) -> None:
-        if len(diffs) == 0:
+        if not diffs:
             return
         logging.info(diff_handler.summarize(diffs=diffs))
         if dry_run:
