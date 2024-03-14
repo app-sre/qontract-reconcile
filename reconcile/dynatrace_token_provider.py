@@ -1,3 +1,4 @@
+import base64
 import logging
 import sys
 from datetime import timedelta
@@ -57,7 +58,7 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "dynatrace-token-provider"
-SYNCSET_ID = "ext-dynatrace-tokens"
+SYNCSET_ID = "ext-dynatrace-tokens-dtp"
 SECRET_NAME = "dynatrace-token-dtp"
 SECRET_NAMESPACE = "dynatrace"
 DYNATRACE_INGESTION_TOKEN_NAME = "dynatrace-ingestion-token"
@@ -357,15 +358,20 @@ class DynatraceTokenProviderIntegration(
                     "kind": "Secret",
                     "metadata": {"name": SECRET_NAME, "namespace": SECRET_NAMESPACE},
                     "data": {
-                        "apiUrl": f"{dt_api_url}",
-                        "dataIngestTokenId": f"{ingestion_token.id}",
-                        "dataIngestToken": f"{ingestion_token.token}",
-                        "apiTokenId": f"{operator_token.id}",
-                        "apiToken": f"{operator_token.token}",
+                        "apiUrl": f"{self.base64_encode_str(dt_api_url)}",
+                        "dataIngestTokenId": f"{self.base64_encode_str(ingestion_token.id)}",
+                        "dataIngestToken": f"{self.base64_encode_str(ingestion_token.token)}",
+                        "apiTokenId": f"{self.base64_encode_str(operator_token.id)}",
+                        "apiToken": f"{self.base64_encode_str(operator_token.token)}",
                     },
                 },
             ],
         }
+
+    def base64_encode_str(self, string: str) -> str:
+        data_bytes = (string + "\n").encode("utf-8")
+        encoded = base64.b64encode(data_bytes)
+        return encoded.decode("utf-8")
 
     def construct_syncset(
         self,
