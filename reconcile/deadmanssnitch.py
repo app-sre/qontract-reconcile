@@ -39,7 +39,7 @@ class DiffData:
     def __init__(self, cluster_name: str, action: Action, data: str = None) -> None:
         self.cluster_name = cluster_name
         self.action = action
-        if self.data:
+        if data:
             self.data = data
 
 class DiffHandler:
