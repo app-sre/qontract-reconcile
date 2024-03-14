@@ -155,7 +155,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         gql_no_validation = init_from_config(validate_schemas=False)
         persistence = LocalFilePersistence(self.params.app_interface_data_path)
 
-        ruaml_instance = create_ruamel_instance()
+        ruaml_instance = create_ruamel_instance(explicit_start=True)
 
         for c in get_template_collections():
             if c.variables:
