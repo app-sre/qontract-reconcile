@@ -24,7 +24,7 @@ from reconcile.utils.deadmanssnitch_api import (
 
 
 @pytest.fixture
-def deadmanssnitch_api() -> DeadMansSnitchApi:
+def deadmanssnitch_api() -> MockerFixture:
     return create_autospec(DeadMansSnitchApi)
 
 
@@ -69,7 +69,7 @@ def cluster_gql_data(gql_class_factory: Callable[..., ClusterV1]) -> list[Cluste
 
 
 def test_get_current_state(
-    secret_reader: MagicMock, deadmanssnitch_api: DeadMansSnitchApi
+    secret_reader: MagicMock, deadmanssnitch_api: MockerFixture
 ) -> None:
     deadmanssnitch_api.get_snitches.return_value = [
         Snitch(
@@ -221,7 +221,9 @@ def test_diff_handler() -> None:
 
 
 def test_apply_diff_for_create(
-    vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1
+    vault_mock: MagicMock,
+    deadmanssnitch_settings: DeadMansSnitchSettingsV1,
+    deadmanssnitch_api: MagicMock,
 ) -> None:
     diff_data = [
         DiffData(
@@ -229,17 +231,16 @@ def test_apply_diff_for_create(
             action=Action.create_snitch,
         ),
     ]
-    mocked_deadmanssnitch_api = create_autospec(DeadMansSnitchApi)
     dms_integration = DeadMansSnitchIntegration()
     diff_handler = DiffHandler(
-        deadmanssnitch_api=mocked_deadmanssnitch_api,
+        deadmanssnitch_api=deadmanssnitch_api,
         vault_client=vault_mock,
         settings=deadmanssnitch_settings,
     )
     dms_integration.apply_diffs(
         dry_run=False, diffs=diff_data, diff_handler=diff_handler
     )
-    mocked_deadmanssnitch_api.create_snitch.assert_called_once_with({
+    deadmanssnitch_api.create_snitch.assert_called_once_with({
         "name": "prometheus.create_cluster.devshift.net",
         "alert_type": "Heartbeat",
         "interval": "15_minute",
@@ -250,28 +251,29 @@ def test_apply_diff_for_create(
 
 
 def test_apply_diff_for_delete(
-    vault_mock: MagicMock, deadmanssnitch_settings: DeadMansSnitchSettingsV1
+    vault_mock: MagicMock,
+    deadmanssnitch_settings: DeadMansSnitchSettingsV1,
+    deadmanssnitch_api: MagicMock,
 ) -> None:
     diff_data = [
         DiffData(
             cluster_name="create_cluster", action=Action.delete_snitch, data="token_123"
         ),
     ]
-    mocked_deadmanssnitch_api = create_autospec(DeadMansSnitchApi)
     dms_integration = DeadMansSnitchIntegration()
     diff_handler = DiffHandler(
-        deadmanssnitch_api=mocked_deadmanssnitch_api,
+        deadmanssnitch_api=deadmanssnitch_api,
         vault_client=vault_mock,
         settings=deadmanssnitch_settings,
     )
     dms_integration.apply_diffs(
         dry_run=False, diffs=diff_data, diff_handler=diff_handler
     )
-    mocked_deadmanssnitch_api.delete_snitch.assert_called_once_with("token_123")
+    deadmanssnitch_api.delete_snitch.assert_called_once_with("token_123")
 
 
 def test_appply_diff_for_update(
-    deadmanssnitch_api: DeadMansSnitchApi,
+    deadmanssnitch_api: MagicMock,
     vault_mock: MagicMock,
     deadmanssnitch_settings: DeadMansSnitchSettingsV1,
 ) -> None:
@@ -298,7 +300,7 @@ def test_appply_diff_for_update(
 
 
 def test_failed_while_apply(
-    deadmanssnitch_api: DeadMansSnitchApi,
+    deadmanssnitch_api: MagicMock,
     mocker: MockerFixture,
     deadmanssnitch_settings: DeadMansSnitchSettingsV1,
 ) -> None:
