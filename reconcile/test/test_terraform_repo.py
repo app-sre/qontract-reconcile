@@ -21,8 +21,10 @@ from reconcile.utils.state import State
 
 A_REPO = "https://git-example/tf-repo-example"
 A_REPO_SHA = "a390f5cb20322c90861d6d80e9b70c6a579be1d0"
+A_REPO_VERSION = "1.4.5"
 B_REPO = "https://git-example/tf-repo-example2"
 B_REPO_SHA = "94edb90815e502b387c25358f5ec602e52d0bfbb"
+B_REPO_VERSION = "1.5.7"
 AWS_UID = "000000000000"
 AUTOMATION_TOKEN_PATH = "aws-secrets/terraform/foo"
 STATE_REGION = "us-east-1"
@@ -40,6 +42,7 @@ def existing_repo(aws_account) -> TerraformRepoV1:
         projectPath="tf",
         delete=False,
         requireFips=True,
+        tfVersion=A_REPO_VERSION,
     )
 
 
@@ -60,6 +63,7 @@ def existing_repo_output() -> str:
           region: {STATE_REGION}
           bucket_path: tf-repo
           require_fips: true
+          tf_version: {A_REPO_VERSION}
     """
 
 
@@ -73,6 +77,7 @@ def new_repo(aws_account_no_state) -> TerraformRepoV1:
         projectPath="tf",
         delete=False,
         requireFips=False,
+        tfVersion=B_REPO_VERSION,
     )
 
 
@@ -93,6 +98,7 @@ def new_repo_output() -> str:
           region: null
           bucket_path: null
           require_fips: false
+          tf_version: {B_REPO_VERSION}
     """
 
 
@@ -266,6 +272,7 @@ def test_get_repo_state(s3_state_builder, int_params, existing_repo):
                 "projectPath": "tf",
                 "delete": False,
                 "requireFips": True,
+                "tfVersion": A_REPO_VERSION,
                 "account": {
                     "name": "foo",
                     "uid": AWS_UID,

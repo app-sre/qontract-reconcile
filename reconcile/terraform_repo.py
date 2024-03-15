@@ -51,6 +51,7 @@ class RepoOutput(BaseModel):
     region: Optional[str]
     bucket_path: Optional[str]
     require_fips: bool
+    tf_version: str
 
 
 class OutputFile(BaseModel):
@@ -144,6 +145,7 @@ class TerraformRepoIntegration(
                 project_path=repo.project_path,
                 delete=repo.delete or False,
                 require_fips=repo.require_fips or False,
+                tf_version=repo.tf_version,
                 secret=RepoSecret(
                     path=repo.account.automation_token.path,
                     version=repo.account.automation_token.version,
