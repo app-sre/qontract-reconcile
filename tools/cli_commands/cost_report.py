@@ -3,9 +3,7 @@ from typing import Self
 
 from pydantic import BaseModel
 
-
-class App(BaseModel):
-    name: str
+from reconcile.typed_queries.cost_report.app_names import App
 
 
 class Report(BaseModel):
