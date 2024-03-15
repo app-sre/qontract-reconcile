@@ -22,11 +22,11 @@ from reconcile.terraform_vpc_resources import (
 )
 
 
-def account_dict(name: str) -> dict[str, Any]:
+def account_dict(name: str, with_state: bool = False) -> dict[str, Any]:
     # Generates a 12 digit uid using random
     uid = "".join(str(random.randint(0, 9)) for _ in range(12))
 
-    return {
+    data = {
         "name": name,
         "uid": uid,
         "automationToken": VaultSecretV1(
@@ -49,6 +49,20 @@ def account_dict(name: str) -> dict[str, Any]:
             ],
         ),
     }
+
+    if with_state:
+        data["terraformState"] = TerraformStateAWSV1(
+            bucket="some-bucket",
+            region="us-east-1",
+            integrations=[
+                AWSTerraformStateIntegrationsV1(
+                    key="some-key",
+                    integration="terraform-vpc-resources",
+                ),
+            ],
+        )
+
+    return data
 
 
 @pytest.fixture
@@ -123,3 +137,40 @@ def test_log_message_for_no_accounts_with_related_state(
     assert [
         "No AWS accounts with 'terraform-vpc-resources' state found, nothing to do."
     ] == [rec.message for rec in caplog.records]
+
+
+def test_log_messagem_for_no_vpcs_found(
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+    mock_gql: MockerFixture,
+    gql_class_factory: Callable,
+    mock_app_interface_vault_settings: MockerFixture,
+    mock_create_secret_reader: MockerFixture,
+) -> None:
+    mocked_accounts_query = mocker.patch(
+        "reconcile.terraform_vpc_resources.query_aws_accounts"
+    )
+    mocked_accounts_query.return_value = gql_class_factory(
+        VPCResourcesAWSAccountsQueryData,
+        {
+            "accounts": [
+                account_dict("some-account", True),
+                account_dict("some-other-account"),
+            ]
+        },
+    )
+
+    mocked_vpcs_query = mocker.patch(
+        "reconcile.terraform_vpc_resources.get_aws_vpcs", autspec=True
+    )
+    mocked_vpcs_query.return_value = []
+
+    params = TerraformVpcResourcesParams(
+        account_name=None, print_to_file=None, thread_pool_size=1
+    )
+    with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
+        TerraformVpcResources(params).run(dry_run=True)
+    assert sample.value.code == ExitCodes.SUCCESS
+    assert ["No AWS VPCs found, nothing to do."] == [
+        rec.message for rec in caplog.records
+    ]
