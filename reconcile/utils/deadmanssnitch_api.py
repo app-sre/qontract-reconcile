@@ -35,7 +35,7 @@ class Snitch(BaseModel):
 
 class DeadMansSnitchApi:
     def __init__(
-        self, token: str, url: str = BASE_URL, timeout=REQUEST_TIMEOUT
+        self, token: str, url: str = BASE_URL, timeout: int = REQUEST_TIMEOUT
     ) -> None:
         self.token = token
         self.url = url
