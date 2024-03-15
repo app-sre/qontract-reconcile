@@ -2115,7 +2115,7 @@ def change_types(ctx) -> None:
         data.append({
             "name": ct.name,
             "description": ct.description,
-            "applicable to": f"{ct.context_type.value} {ct.context_schema or '' }",
+            "applicable to": f"{ct.context_type.value} {ct.context_schema or ''}",
             "# usages": usage_statistics[ct.name],
         })
     columns = ["name", "description", "applicable to", "# usages"]

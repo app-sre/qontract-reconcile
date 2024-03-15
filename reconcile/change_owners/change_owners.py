@@ -140,7 +140,7 @@ def write_coverage_report_to_mr(
     approver_reachability = set()
     for d in change_decisions:
         approvers = [
-            f"{cr.context} - { ' '.join([f'@{a.org_username}' if a.tag_on_merge_requests else a.org_username for a in cr.approvers]) }"
+            f"{cr.context} - {' '.join([f'@{a.org_username}' if a.tag_on_merge_requests else a.org_username for a in cr.approvers])}"
             for cr in d.change_responsibles
         ]
         for cr in d.change_responsibles:
