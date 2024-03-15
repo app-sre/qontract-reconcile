@@ -34,9 +34,12 @@ class Snitch(BaseModel):
 
 
 class DeadMansSnitchApi:
-    def __init__(self, token: str, url: str = BASE_URL) -> None:
+    def __init__(
+        self, token: str, url: str = BASE_URL, timeout=REQUEST_TIMEOUT
+    ) -> None:
         self.token = token
         self.url = url
+        self.timeout = timeout
         self.session = requests.Session()
 
     def __enter__(self) -> Self:
@@ -49,7 +52,7 @@ class DeadMansSnitchApi:
         full_url = f"{self.url}?tags={','.join(tags)}"
         logging.debug("Getting snitches for tags:%s", tags)
         response = self.session.get(
-            url=full_url, auth=(self.token, ""), timeout=REQUEST_TIMEOUT
+            url=full_url, auth=(self.token, ""), timeout=self.timeout
         )
         response.raise_for_status()
         snitches = [Snitch(**item) for item in response.json()]
@@ -67,7 +70,7 @@ class DeadMansSnitchApi:
             json=payload,
             auth=(self.token, ""),
             headers=headers,
-            timeout=REQUEST_TIMEOUT,
+            timeout=self.timeout,
         )
         response.raise_for_status()
         response_json = response.json()
@@ -76,7 +79,7 @@ class DeadMansSnitchApi:
     def delete_snitch(self, token: str) -> None:
         delete_api_url = f"{self.url}/{token}"
         response = self.session.delete(
-            url=delete_api_url, auth=(self.token, ""), timeout=REQUEST_TIMEOUT
+            url=delete_api_url, auth=(self.token, ""), timeout=self.timeout
         )
         response.raise_for_status()
         logging.debug("Successfully deleted snich: %s", token)
