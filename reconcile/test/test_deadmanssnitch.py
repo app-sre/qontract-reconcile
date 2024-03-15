@@ -1,8 +1,6 @@
-import json
 from typing import Callable
 from unittest.mock import MagicMock, create_autospec
 
-import httpretty
 import pytest
 from pytest_mock import MockerFixture
 
@@ -24,13 +22,10 @@ from reconcile.utils.deadmanssnitch_api import (
     Snitch,
 )
 
-TOKEN = "test_token"
-FAKE_URL = "https://fake.deadmanssnitch.com/v1/snitches"
-
 
 @pytest.fixture
 def deadmanssnitch_api() -> DeadMansSnitchApi:
-    return DeadMansSnitchApi(token=TOKEN, url=FAKE_URL)
+    return create_autospec(DeadMansSnitchApi)
 
 
 @pytest.fixture
@@ -73,32 +68,23 @@ def cluster_gql_data(gql_class_factory: Callable[..., ClusterV1]) -> list[Cluste
     ]
 
 
-@httpretty.activate(allow_net_connect=False)
 def test_get_current_state(
     secret_reader: MagicMock, deadmanssnitch_api: DeadMansSnitchApi
 ) -> None:
-    httpretty.register_uri(
-        httpretty.GET,
-        f"{deadmanssnitch_api.url}?tags=appsre",
-        body=json.dumps([
-            {
-                "token": "test",
-                "href": "testc",
-                "name": "prometheus.test_cluster_1.net",
-                "tags": ["app-sre"],
-                "notes": "test_notes",
-                "status": "healthy",
-                "check_in_url": "test_url",
-                "type": {"interval": "15_minute"},
-                "interval": "15_minute",
-                "alert_type": "basic",
-                "alert_email": ["test_mail"],
-            }
-        ]),
-        content_type="text/json",
-        status=200,
-    )
-
+    deadmanssnitch_api.get_snitches.return_value = [
+        Snitch(
+            name="prometheus.test_cluster_1.net",
+            token="test",
+            href="testc",
+            status="healthy",
+            alert_type="basic",
+            alert_email=["test_mail"],
+            interval="15_minute",
+            check_in_url="test_url",
+            tags=["app-sre"],
+            notes="test_notes",
+        )
+    ]
     clusters = [
         ClusterV1(
             name="test_cluster_1",
@@ -339,5 +325,4 @@ def test_failed_while_apply(
         dms_integration.apply_diffs(
             dry_run=False, diffs=diff_data, diff_handler=diff_handler
         )
-
     assert "Errors occurred while applying diffs" in str(eg.value)

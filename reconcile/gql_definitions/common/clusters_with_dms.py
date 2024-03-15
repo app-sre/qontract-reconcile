@@ -20,7 +20,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 DEFINITION = """
 query ClustersWithMonitoring($filter: JSON){
-  clusters: clusters_v1(filter:$filter){
+  clusters: clusters_v1(filter: $filter) {
     name
     serverUrl
     consoleUrl
