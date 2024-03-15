@@ -78,10 +78,13 @@ class DiffHandler:
             case Action.delete_snitch:
                 self.deadmanssnitch_api.delete_snitch(diff.data)
             case Action.update_vault:
-                self.vault_client.write({
-                    "path": f"{self.settings.snitches_path}/deadmanssnitch-{diff.cluster_name}-url",
-                    "data": diff.data,
-                })
+                self.vault_client.write(
+                    {
+                        "path": self.settings.snitches_path,
+                        "data": {f"deadmanssnitch-{diff.cluster_name}-url": diff.data},
+                    },
+                    decode_base64=False,
+                )
 
     def create_snitch(self, cluster_name: str) -> None:
         tags = ["app-sre"]
@@ -96,10 +99,13 @@ class DiffHandler:
         }
 
         snitch = self.deadmanssnitch_api.create_snitch(payload=payload)
-        self.vault_client.write({
-            "path": f"{self.settings.snitches_path}/deadmanssnitch-{cluster_name}-url",
-            "data": snitch.check_in_url,
-        })
+        self.vault_client.write(
+            {
+                "path": self.settings.snitches_path,
+                "data": {f"deadmanssnitch-{cluster_name}-url": snitch.check_in_url},
+            },
+            decode_base64=False,
+        )
 
 
 class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):

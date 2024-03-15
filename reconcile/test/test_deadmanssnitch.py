@@ -293,10 +293,13 @@ def test_appply_diff_for_update(
     dms_integration.apply_diffs(
         dry_run=False, diffs=diff_data, diff_handler=diff_handler
     )
-    vault_mock.write.assert_called_once_with({
-        "path": f"{deadmanssnitch_settings.snitches_path}/deadmanssnitch-test_cluster-url",
-        "data": "test_secret_url",
-    })
+    vault_mock.write.assert_called_once_with(
+        {
+            "path": deadmanssnitch_settings.snitches_path,
+            "data": {"deadmanssnitch-test_cluster-url": "test_secret_url"},
+        },
+        decode_base64=False,
+    )
 
 
 def test_failed_while_apply(
