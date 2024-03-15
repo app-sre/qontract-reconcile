@@ -375,7 +375,7 @@ def test_terraform_generic_secret_output_key_too_long(
     long_key = "a" * (SECRET_MAX_KEY_LENGTH + 1)
     spec.resource["output_format"] = {
         "provider": "generic-secret",
-        "data": f"{ long_key }: value",
+        "data": f"{long_key}: value",
     }
     spec.secret = resource_secret
 

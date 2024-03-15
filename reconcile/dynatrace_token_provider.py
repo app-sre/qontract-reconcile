@@ -75,7 +75,7 @@ class ReconcileErrorSummary(Exception):
 
     def __str__(self) -> str:
         formatted_exceptions = "\n".join([f"- {e}" for e in self.exceptions])
-        return f"Reconcile exceptions:\n{ formatted_exceptions }"
+        return f"Reconcile exceptions:\n{formatted_exceptions}"
 
 
 class DTPBaseMetric(BaseModel):

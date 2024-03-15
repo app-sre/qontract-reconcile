@@ -45,7 +45,7 @@ class Diff:
             absolute_sub_path = sub_path
         elif sub_path_str.startswith(self.path_str()):
             absolute_sub_path = parse_jsonpath(
-                f"${sub_path_str[len(self.path_str()):]}"
+                f"${sub_path_str[len(self.path_str()) :]}"
             )
         else:
             raise Exception(
