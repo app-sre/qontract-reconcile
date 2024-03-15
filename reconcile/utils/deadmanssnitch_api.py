@@ -9,6 +9,7 @@ import requests
 from pydantic import BaseModel
 
 BASE_URL = "https://api.deadmanssnitch.com/v1/snitches"
+REQUEST_TIMEOUT = 60
 
 
 class DeadManssnitchException(Exception):
@@ -31,9 +32,6 @@ class Snitch(BaseModel):
     def get_cluster_name(self) -> str:
         return self.name.split(".")[1]
 
-    def to_dict(self) -> dict[str, Any]:
-        return self.dict(by_alias=True)
-
 
 class DeadMansSnitchApi:
     def __init__(self, token: str, url: str = BASE_URL) -> None:
@@ -50,7 +48,9 @@ class DeadMansSnitchApi:
     def get_snitches(self, tags: list[str]) -> list[Snitch]:
         full_url = f"{self.url}?tags={','.join(tags)}"
         logging.debug("Getting snitches for tags:%s", tags)
-        response = self.session.get(url=full_url, auth=(self.token, ""))
+        response = self.session.get(
+            url=full_url, auth=(self.token, ""), timeout=REQUEST_TIMEOUT
+        )
         response.raise_for_status()
         snitches = [Snitch(**item) for item in response.json()]
         return snitches
@@ -63,7 +63,11 @@ class DeadMansSnitchApi:
         headers = {"Content-Type": "application/json"}
         logging.debug("Creating new snitch with name:: %s ", payload["name"])
         response = self.session.post(
-            url=self.url, json=payload, auth=(self.token, ""), headers=headers
+            url=self.url,
+            json=payload,
+            auth=(self.token, ""),
+            headers=headers,
+            timeout=REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         response_json = response.json()
@@ -71,6 +75,8 @@ class DeadMansSnitchApi:
 
     def delete_snitch(self, token: str) -> None:
         delete_api_url = f"{self.url}/{token}"
-        response = self.session.delete(url=delete_api_url, auth=(self.token, ""))
+        response = self.session.delete(
+            url=delete_api_url, auth=(self.token, ""), timeout=REQUEST_TIMEOUT
+        )
         response.raise_for_status()
         logging.debug("Successfully deleted snich: %s", token)
