@@ -309,3 +309,35 @@ def test_appply_diff_for_update(
         "path": f"{deadmanssnitch_settings.snitches_path}/deadmanssnitch-test_cluster-url",
         "data": "test_secret_url",
     })
+
+
+def test_failed_while_apply(
+    deadmanssnitch_api: DeadMansSnitchApi,
+    mocker: MockerFixture,
+    deadmanssnitch_settings: DeadMansSnitchSettingsV1,
+) -> None:
+    diff_data = [
+        DiffData(
+            cluster_name="test_cluster",
+            action=Action.update_vault,
+            data="test_secret_url",
+        ),
+    ]
+    vault_mock = mocker.patch(
+        "reconcile.utils.vault._VaultClient.write",
+        autospec=True,
+        side_effect=Exception("mock vault"),
+    )
+    dms_integration = DeadMansSnitchIntegration()
+    diff_handler = DiffHandler(
+        deadmanssnitch_api=deadmanssnitch_api,
+        vault_client=vault_mock,
+        settings=deadmanssnitch_settings,
+    )
+
+    with pytest.raises(ExceptionGroup) as eg:
+        dms_integration.apply_diffs(
+            dry_run=False, diffs=diff_data, diff_handler=diff_handler
+        )
+
+    assert "Errors occurred while applying diffs" in str(eg.value)

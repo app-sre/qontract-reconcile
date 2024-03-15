@@ -22,7 +22,9 @@ def test_no_clusters(
     api = gql_api_builder(data.dict(by_alias=True))
     clusters = get_clusters_with_dms(gql_api=api)
     assert len(clusters) == 0
-    api.query.assert_called_once_with(DEFINITION)
+    api.query.assert_called_once_with(
+        DEFINITION, {"filter": {"enableDeadMansSnitch": {"ne": None}}}
+    )
 
 
 def test_get_clusters(
@@ -44,4 +46,6 @@ def test_get_clusters(
     api = gql_api_builder(data.dict(by_alias=True))
     clusters = get_clusters_with_dms(gql_api=api)
     assert len(clusters) == 1
-    api.query.assert_called_once_with(DEFINITION)
+    api.query.assert_called_once_with(
+        DEFINITION, {"filter": {"enableDeadMansSnitch": {"ne": None}}}
+    )

@@ -175,11 +175,11 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             DiffData(
                 cluster_name=cluster,
                 action=Action.update_vault,
-                data=current_state[cluster].check_in_url,
+                data=cluster_data.check_in_url,
             )
             for cluster in desired_cluster_enabled_true & current_state.keys()
             # add to update set only if they exists, flag is set to true but vault and snitch url mismatch
-            if (cluster_data := current_state[cluster].vault_data)
+            if (cluster_data := current_state[cluster])
             and cluster_data.vault_data != cluster_data.check_in_url
         ]
         return create_snitches + delete_snitches + update_vault
@@ -192,12 +192,14 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         logging.info(diff_handler.summarize(diffs=diffs))
         if dry_run:
             return
+        errors = []
         for diff in diffs:
             try:
                 diff_handler.apply_diff(diff)
             except Exception as e:
-                logging.error(str(e))
-                continue
+                errors.append(e)
+        if errors:
+            raise ExceptionGroup("Errors occurred while applying diffs", errors)
 
     def run(self, dry_run: bool) -> None:
         # Initialize deadmanssnitch_api
@@ -209,13 +211,8 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         vault_client = cast(_VaultClient, VaultClient())
         with DeadMansSnitchApi(token=token) as deadmanssnitch_api:
             diff_handler = DiffHandler(deadmanssnitch_api, settings, vault_client)
-            # desired state - filter cluster having enableDeadMansSnitch field
-            clusters = [
-                cluster
-                for cluster in get_clusters_with_dms()
-                if cluster.enable_dead_mans_snitch is not None
-            ]
-            # current state - get snitches for tag app-sre
+            # desired state - get the  clusters having enableDeadMansSnitch field
+            clusters = get_clusters_with_dms()
             current_state = self.get_current_state(
                 deadmanssnitch_api, clusters, settings.snitches_path
             )
