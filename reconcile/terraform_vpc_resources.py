@@ -51,6 +51,17 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             )
         ]
 
+    def _filter_vpcs_per_account(
+        self, account: AWSAccountV1, vpcs: Iterable[AWSVPC]
+    ) -> Iterable[AWSVPC]:
+        return [
+            vpc
+            for vpc in vpcs
+            if (
+                vpc.account.name == account.name
+            )
+        ]
+
     def run(self, dry_run: bool) -> None:
         account_name = self.params.account_name
 
@@ -74,6 +85,11 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
                 sys.exit(ExitCodes.SUCCESS)
         else:
             logging.warning("No AWS accounts found, nothing to do.")
+            sys.exit(ExitCodes.SUCCESS)
+
+        vpcs = get_aws_vpcs(gql_api=gql.get_api())
+        if not vpcs:
+            logging.warning("No AWS VPCs found, nothing to do.")
             sys.exit(ExitCodes.SUCCESS)
 
         accounts_untyped: list[dict] = [acc.dict(by_alias=True) for acc in accounts]
