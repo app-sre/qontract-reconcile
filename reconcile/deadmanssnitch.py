@@ -216,8 +216,5 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             current_state = self.get_current_state(
                 deadmanssnitch_api, clusters, settings.snitches_path
             )
-            if current_state and clusters:
-                diff = self.get_diff(
-                    current_state=current_state, desired_state=clusters
-                )
-                self.apply_diffs(dry_run, diff, diff_handler)
+            diff = self.get_diff(current_state=current_state, desired_state=clusters)
+            self.apply_diffs(dry_run, diff, diff_handler)
