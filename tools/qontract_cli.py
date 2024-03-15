@@ -131,6 +131,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from tools.cli_commands.cost_report import CostReportCommand
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
@@ -2513,6 +2514,13 @@ def alerts(ctx, file_path):
     print_output(ctx.obj["options"], data, columns)
 
 
+@get.command()
+@click.pass_context
+def cost_report(ctx):
+    command = CostReportCommand.create()
+    print(command.execute())
+
+
 @root.group(name="set")
 @output
 @click.pass_context
@@ -2584,11 +2592,11 @@ def ls(ctx, integration):
     )
 
 
-@state.command()  # type: ignore
+@state.command(name="get")  # type: ignore
 @click.argument("integration")
 @click.argument("key")
 @click.pass_context
-def get(ctx, integration, key):
+def state_get(ctx, integration, key):
     state = init_state(integration=integration)
     value = state.get(key)
     print(value)
