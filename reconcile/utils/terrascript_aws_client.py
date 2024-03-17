@@ -416,15 +416,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 default_tags=DEFAULT_TAGS,
             )
 
-            # the time provider can be removed if all AWS accounts
-            # upgrade to a provider version with this bug fix
-            # https://github.com/hashicorp/terraform-provider-aws/pull/20926
-            ts += time(version="0.9.1")
-
-            ts += provider.random(version="3.4.3")
-
-            ts += provider.template(version="2.2.0")
-
             ts += Terraform(
                 backend=TerrascriptClient.state_bucket_for_account(
                     self.integration, name, config
