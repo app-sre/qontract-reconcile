@@ -86,8 +86,9 @@ def fetch_desired_state(
                     break
             if not found:
                 raise RunnerException(
-                    f"Could not find RDS identifier {identifier} "
-                    f'for account {account} in namespace {namespace["name"]}'
+                    f'[gabi:{g["name"]} (path: {g["path"]})] Could not find RDS identifier {identifier} '
+                    f'for account {account} in namespace {namespace["name"]}. '
+                    "If this is a removed read only instance, consider updating the identifier to the source replica."
                 )
             users = get_usernames(g["users"], namespace["cluster"])
             resource = construct_gabi_oc_resource(g["name"], expiration_date, users)

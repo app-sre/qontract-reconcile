@@ -1,5 +1,6 @@
 gql_response:
   - name: gabi1
+    path: data/services/gabi/instances/gabi1.yml
     expirationDate: '2023-01-01'
     users:
     - github_username: user1
@@ -22,6 +23,7 @@ gql_response:
           auth:
             - service: github-org-team
   - name: gabi2
+    path: data/services/gabi/instances/gabi2.yml
     expirationDate: '2023-01-01'    
     users:
     - github_username: user1
