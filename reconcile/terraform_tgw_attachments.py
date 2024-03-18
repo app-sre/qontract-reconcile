@@ -489,7 +489,10 @@ def run(
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    return _fetch_desired_state_data_source().dict(by_alias=True)
+    desired_state = _fetch_desired_state_data_source()
+    for a in desired_state.accounts:
+        a.deletion_approvals = []
+    return desired_state.dict(by_alias=True)
 
 
 def desired_state_shard_config() -> DesiredStateShardConfig:
