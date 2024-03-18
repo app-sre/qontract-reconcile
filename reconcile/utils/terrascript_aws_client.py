@@ -843,13 +843,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             for user_policy in user_policies:
                 policy_name = user_policy["name"]
                 account_name = user_policy["account"]["name"]
-                account_uid = user_policy["account"]["uid"]
                 for user in users:
-                    # replace known keys with values
                     user_name = self._get_aws_username(user)
-                    policy = user_policy["policy"]
-                    policy = policy.replace("${aws:username}", user_name)
-                    policy = policy.replace("${aws:accountid}", account_uid)
 
                     # Ref: terraform aws_iam_policy
                     tf_iam_user = self.get_tf_iam_user(user_name)
@@ -857,7 +852,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     tf_aws_iam_policy = aws_iam_policy(
                         identifier,
                         name=identifier,
-                        policy=policy,
+                        policy=user_policy["policy"],
                     )
                     self.add_resource(account_name, tf_aws_iam_policy)
                     # Ref: terraform aws_iam_user_policy_attachment
