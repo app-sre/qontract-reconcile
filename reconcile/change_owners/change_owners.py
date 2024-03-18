@@ -143,6 +143,8 @@ def write_coverage_report_to_mr(
             f"{cr.context} - {' '.join([f'@{a.org_username}' if a.tag_on_merge_requests else a.org_username for a in cr.approvers])}"
             for cr in d.change_responsibles
         ]
+        if d.coverable_by_fragment_decisions:
+            approvers.append("automatically approved if all sub-properties are approved")
         for cr in d.change_responsibles:
             approver_reachability.update({
                 ar.render_for_mr_report() for ar in cr.approver_reachability or []
@@ -199,6 +201,17 @@ def write_coverage_report_to_mr(
 def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> None:
     results = []
     for d in change_decisions:
+        if d.coverable_by_fragment_decisions:
+            results.append({
+                "file": d.file.path,
+                "schema": d.file.schema,
+                "changed path": d.diff.path,
+                "change type": "...",
+                "origin": "...",
+                "context": "coverable by fragments",
+                "approver_reachability": "",
+                "disabled": False,
+            })
         if d.coverage:
             for ctx in d.coverage:
                 results.append({
