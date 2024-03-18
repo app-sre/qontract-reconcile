@@ -5,6 +5,8 @@ from typing import (
     cast,
 )
 
+from pydantic import BaseModel
+
 from reconcile.gql_definitions.common.app_interface_dms_settings import (
     DeadMansSnitchSettingsV1,
 )
@@ -40,16 +42,12 @@ class Action(enum.Enum):
     update_vault = "update_vault_data"
 
 
-class DiffData:
+class DiffData(BaseModel):
     """Class to store the reconcile activity on current state derived from desired state"""
 
-    def __init__(
-        self, cluster_name: str, action: Action, data: Optional[str] = None
-    ) -> None:
-        self.cluster_name = cluster_name
-        self.action = action
-        if data:
-            self.data = data
+    cluster_name: str
+    action: Action
+    data: Optional[str]
 
 
 class DiffHandler:

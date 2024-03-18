@@ -215,9 +215,7 @@ def test_diff_handler() -> None:
         ),
     ]
 
-    expected_output_map = [data.__dict__ for data in expected_output]
-    diff_data_map = [data.__dict__ for data in diff_data]
-    assert diff_data_map == expected_output_map
+    assert expected_output == diff_data
 
 
 def test_apply_diff_for_create(
