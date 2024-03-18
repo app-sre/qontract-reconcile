@@ -80,6 +80,10 @@ class DiffCoverage:
     parent: Optional["DiffCoverage"] = None
 
     @property
+    def diff_fragments(self) -> Sequence["DiffCoverage"]:
+        return self._split_into
+
+    @property
     def change_owner_labels(self) -> set[str]:
         """
         Returns a list of change-owner labels of all involved change-type contexts.
