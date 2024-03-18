@@ -9,7 +9,6 @@ from unittest.mock import Mock
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.gql_definitions.ldap_groups.aws_groups import AWSGroupV1
 from reconcile.gql_definitions.ldap_groups.roles import RoleV1
 from reconcile.ldap_groups.integration import (
     LdapGroupsIntegration,
@@ -62,24 +61,6 @@ def roles(
 
 
 @pytest.fixture
-def aws_groups(
-    fx: Fixtures,
-    data_factory: Callable[[type[AWSGroupV1], Mapping[str, Any]], Mapping[str, Any]],
-    intg: LdapGroupsIntegration,
-    raw_fixture_data_aws_groups: dict[str, Any],
-) -> list[AWSGroupV1]:
-    def q(*args: Any, **kwargs: Any) -> dict:
-        return {
-            "aws_groups": [
-                data_factory(AWSGroupV1, item)
-                for item in raw_fixture_data_aws_groups["aws_groups"]
-            ]
-        }
-
-    return intg.get_aws_groups(q)
-
-
-@pytest.fixture
 def group(owners: Iterable[Entity]) -> Group:
     # keep in sync with fx/roles.yml
     return Group(
@@ -89,6 +70,29 @@ def group(owners: Iterable[Entity]) -> Group:
         contact_list="email@example.org",
         owners=owners,
         display_name="ai-dev-test-group (App-Interface))",
+        notes=None,
+        rover_group_member_query=None,
+        rover_group_inclusions=None,
+        rover_group_exclusions=None,
+        members=[
+            Entity(type=EntityType.USER, id="pike"),
+            Entity(type=EntityType.USER, id="uhura"),
+        ],
+        member_of=None,
+        namespace=None,
+    )
+
+
+@pytest.fixture
+def group2(owners: Iterable[Entity]) -> Group:
+    # keep in sync with fx/roles.yml
+    return Group(
+        name="ai-dev-test-group-2",
+        description="Persisted App-Interface role. Managed by qontract-reconcile",
+        member_approval_type="self-service",
+        contact_list="email@example.org",
+        owners=owners,
+        display_name="ai-dev-test-group-2 (App-Interface))",
         notes=None,
         rover_group_member_query=None,
         rover_group_inclusions=None,
