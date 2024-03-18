@@ -39,6 +39,7 @@ mandatory
 policy
 account {
   name
+  sso
   uid
 }
 """
@@ -57,6 +58,7 @@ TF_QUERY = """
       policies
       account {
         name
+        sso
         consoleUrl
         uid
         policies {
