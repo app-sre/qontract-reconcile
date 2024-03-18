@@ -144,7 +144,9 @@ def write_coverage_report_to_mr(
             for cr in d.change_responsibles
         ]
         if d.coverable_by_fragment_decisions:
-            approvers.append("automatically approved if all sub-properties are approved")
+            approvers.append(
+                "automatically approved if all sub-properties are approved"
+            )
         for cr in d.change_responsibles:
             approver_reachability.update({
                 ar.render_for_mr_report() for ar in cr.approver_reachability or []
