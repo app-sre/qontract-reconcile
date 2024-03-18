@@ -50,15 +50,21 @@ class DiffData(BaseModel, ABC):
 
 
 class CreateSnitchDiffData(DiffData):
+    """Class to store data used to create snitch"""
+
     action = Action.create_snitch
 
 
 class UpdateVaultDiffData(DiffData):
+    """Class to store data used to update vault with snitch url"""
+
     action = Action.update_vault
     check_in_url: str
 
 
 class DeleteSnitchDiffData(DiffData):
+    """Class to store data used to delete snitch"""
+
     action = Action.delete_snitch
     token: str
 
