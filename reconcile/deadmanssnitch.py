@@ -1,7 +1,7 @@
 import enum
 import logging
+from abc import ABC
 from typing import (
-    Optional,
     cast,
 )
 
@@ -42,12 +42,25 @@ class Action(enum.Enum):
     update_vault = "update_vault_data"
 
 
-class DiffData(BaseModel):
-    """Class to store the reconcile activity on current state derived from desired state"""
+class DiffData(BaseModel, ABC):
+    """Base class to store the reconcile activity on current state derived from desired state"""
 
     cluster_name: str
     action: Action
-    data: Optional[str]
+
+
+class CreateSnitchDiffData(DiffData):
+    action = Action.create_snitch
+
+
+class UpdateVaultDiffData(DiffData):
+    action = Action.update_vault
+    check_in_url: str
+
+
+class DeleteSnitchDiffData(DiffData):
+    action = Action.delete_snitch
+    token: str
 
 
 class DiffHandler:
@@ -70,16 +83,18 @@ class DiffHandler:
         )
 
     def apply_diff(self, diff: DiffData) -> None:
-        match diff.action:
-            case Action.create_snitch:
-                self.create_snitch(diff.cluster_name)
-            case Action.delete_snitch:
-                self.deadmanssnitch_api.delete_snitch(diff.data)
-            case Action.update_vault:
+        match diff:
+            case CreateSnitchDiffData(cluster_name=cluster_name):
+                self.create_snitch(cluster_name)
+            case DeleteSnitchDiffData(cluster_name=cluster_name, token=token):
+                self.deadmanssnitch_api.delete_snitch(token)
+            case UpdateVaultDiffData(
+                cluster_name=cluster_name, check_in_url=check_in_url
+            ):
                 self.vault_client.write(
                     {
                         "path": self.settings.snitches_path,
-                        "data": {f"deadmanssnitch-{diff.cluster_name}-url": diff.data},
+                        "data": {f"deadmanssnitch-{cluster_name}-url": check_in_url},
                     },
                     decode_base64=False,
                 )
@@ -162,24 +177,22 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             if not cluster.enable_dead_mans_snitch
         ]
         create_snitches = [
-            DiffData(cluster_name=cluster, action=Action.create_snitch)
+            CreateSnitchDiffData(cluster_name=cluster)
             # add cluster to create set only in case they do not exist in current state
             for cluster in desired_cluster_enabled_true - current_state.keys()
         ]
         delete_snitches = [
-            DiffData(
+            DeleteSnitchDiffData(
                 cluster_name=cluster,
-                action=Action.delete_snitch,
-                data=current_state[cluster].token,
+                token=current_state[cluster].token,
             )
             # add to delete set only if they exists in current state and flag is set to false
             for cluster in desired_cluster_enabled_false & current_state.keys()
         ]
         update_vault = [
-            DiffData(
+            UpdateVaultDiffData(
                 cluster_name=cluster,
-                action=Action.update_vault,
-                data=cluster_data.check_in_url,
+                check_in_url=cluster_data.check_in_url,
             )
             for cluster in desired_cluster_enabled_true & current_state.keys()
             # add to update set only if they exists, flag is set to true but vault and snitch url mismatch

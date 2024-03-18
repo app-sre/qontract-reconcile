@@ -76,7 +76,7 @@ class DeadMansSnitchApi:
         response_json = response.json()
         return Snitch(**response_json)
 
-    def delete_snitch(self, token: Optional[str]) -> None:
+    def delete_snitch(self, token: str) -> None:
         delete_api_url = f"{self.url}/{token}"
         response = self.session.delete(
             url=delete_api_url, auth=(self.token, ""), timeout=self.timeout

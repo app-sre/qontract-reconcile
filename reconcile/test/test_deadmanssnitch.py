@@ -5,10 +5,11 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.deadmanssnitch import (
-    Action,
+    CreateSnitchDiffData,
     DeadMansSnitchIntegration,
-    DiffData,
+    DeleteSnitchDiffData,
     DiffHandler,
+    UpdateVaultDiffData,
 )
 from reconcile.gql_definitions.common.app_interface_dms_settings import (
     DeadMansSnitchSettingsV1,
@@ -199,19 +200,16 @@ def test_diff_handler() -> None:
         ],
     )
     expected_output = [
-        DiffData(
+        CreateSnitchDiffData(
             cluster_name="test_cluster_new",
-            action=Action.create_snitch,
         ),
-        DiffData(
+        DeleteSnitchDiffData(
             cluster_name="test_cluster_3",
-            data="test_token",
-            action=Action.delete_snitch,
+            token="test_token",
         ),
-        DiffData(
+        UpdateVaultDiffData(
             cluster_name="test_cluster_5",
-            data="testURL",
-            action=Action.update_vault,
+            check_in_url="testURL",
         ),
     ]
 
@@ -224,9 +222,8 @@ def test_apply_diff_for_create(
     deadmanssnitch_api: MagicMock,
 ) -> None:
     diff_data = [
-        DiffData(
+        CreateSnitchDiffData(
             cluster_name="create_cluster",
-            action=Action.create_snitch,
         ),
     ]
     dms_integration = DeadMansSnitchIntegration()
@@ -254,9 +251,7 @@ def test_apply_diff_for_delete(
     deadmanssnitch_api: MagicMock,
 ) -> None:
     diff_data = [
-        DiffData(
-            cluster_name="create_cluster", action=Action.delete_snitch, data="token_123"
-        ),
+        DeleteSnitchDiffData(cluster_name="create_cluster", token="token_123"),
     ]
     dms_integration = DeadMansSnitchIntegration()
     diff_handler = DiffHandler(
@@ -276,10 +271,9 @@ def test_appply_diff_for_update(
     deadmanssnitch_settings: DeadMansSnitchSettingsV1,
 ) -> None:
     diff_data = [
-        DiffData(
+        UpdateVaultDiffData(
             cluster_name="test_cluster",
-            action=Action.update_vault,
-            data="test_secret_url",
+            check_in_url="test_secret_url",
         ),
     ]
     dms_integration = DeadMansSnitchIntegration()
@@ -306,10 +300,9 @@ def test_failed_while_apply(
     deadmanssnitch_settings: DeadMansSnitchSettingsV1,
 ) -> None:
     diff_data = [
-        DiffData(
+        UpdateVaultDiffData(
             cluster_name="test_cluster",
-            action=Action.update_vault,
-            data="test_secret_url",
+            check_in_url="test_secret_url",
         ),
     ]
     vault_mock = mocker.patch(
