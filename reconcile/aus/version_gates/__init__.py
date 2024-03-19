@@ -1,6 +1,10 @@
 from typing import Type
 
-from reconcile.aus.version_gates import ocp_gate_handler, sts_version_gate_handler, ingress_gate_handler
+from reconcile.aus.version_gates import (
+    ingress_gate_handler,
+    ocp_gate_handler,
+    sts_version_gate_handler,
+)
 from reconcile.aus.version_gates.handler import GateHandler
 
 HANDLERS: dict[str, Type[GateHandler]] = {
