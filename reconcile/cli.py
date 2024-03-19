@@ -15,6 +15,7 @@ from typing import (
 
 import click
 import sentry_sdk
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 from reconcile.status import (
     ExitCodes,
@@ -66,7 +67,23 @@ def before_breadcrumb(crumb, hint):
 
 # Enable Sentry
 if os.getenv("SENTRY_DSN"):
-    sentry_sdk.init(os.environ["SENTRY_DSN"], before_breadcrumb=before_breadcrumb)
+    match os.environ.get("SENTRY_EVENT_LEVEL", "CRITICAL").upper():
+        case "CRITICAL":
+            sentry_event_level = logging.CRITICAL
+        case "ERROR":
+            sentry_event_level = logging.ERROR
+        case _:
+            raise ValueError(
+                "Invalid value for SENTRY_EVENT_LEVEL. Must be CRITICAL or ERROR."
+            )
+
+    sentry_sdk.init(
+        os.environ["SENTRY_DSN"],
+        before_breadcrumb=before_breadcrumb,
+        integrations=[
+            LoggingIntegration(event_level=sentry_event_level),
+        ],
+    )
 
 
 def config_file(function):
