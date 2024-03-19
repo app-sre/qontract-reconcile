@@ -25,6 +25,8 @@ class IngressGateHandler(GateHandler):
     ) -> bool:
         # there is no automatic remediation for this gate
         # users need to manually do the required changes to their clusters
-        # or their clusters are not affected and they can accept the gate
-        # in the upgradePolicy.versionGateApprovals field
+        # and then need to ack the gate on their own or let version-gate-approver
+        # do it for them when they list this gate under upgradePolicy.versionGateApprovals
+        # in their cluster file or the sre-capabilities.aus.version-gate-approvals
+        # OCM subscription label
         return True
