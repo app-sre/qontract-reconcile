@@ -1,6 +1,7 @@
 import enum
 import logging
 from abc import ABC
+from collections.abc import Sequence
 from typing import (
     cast,
 )
@@ -82,7 +83,7 @@ class DiffHandler:
         self.settings = settings
         self.vault_client = vault_client
 
-    def summarize(self, diffs: list[DiffData]) -> str:
+    def summarize(self, diffs: Sequence[DiffData]) -> str:
         return "\n".join(
             f"cluster name: {diff.cluster_name} - action: {diff.action.value}"
             for diff in diffs
@@ -182,12 +183,12 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             for cluster in desired_state
             if not cluster.enable_dead_mans_snitch
         ]
-        create_snitches = [
+        create_snitches: list[DiffData] = [
             CreateSnitchDiffData(cluster_name=cluster)
             # add cluster to create set only in case they do not exist in current state
             for cluster in desired_cluster_enabled_true - current_state.keys()
         ]
-        delete_snitches = [
+        delete_snitches: list[DiffData] = [
             DeleteSnitchDiffData(
                 cluster_name=cluster,
                 token=current_state[cluster].token,
@@ -195,7 +196,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             # add to delete set only if they exists in current state and flag is set to false
             for cluster in desired_cluster_enabled_false & current_state.keys()
         ]
-        update_vault = [
+        update_vault: list[DiffData] = [
             UpdateVaultDiffData(
                 cluster_name=cluster,
                 check_in_url=cluster_data.check_in_url,
