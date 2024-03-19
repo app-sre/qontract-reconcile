@@ -8,6 +8,7 @@ from reconcile.deadmanssnitch import (
     CreateSnitchDiffData,
     DeadMansSnitchIntegration,
     DeleteSnitchDiffData,
+    DiffData,
     DiffHandler,
     UpdateVaultDiffData,
 )
@@ -221,7 +222,7 @@ def test_apply_diff_for_create(
     deadmanssnitch_settings: DeadMansSnitchSettingsV1,
     deadmanssnitch_api: MagicMock,
 ) -> None:
-    diff_data = [
+    diff_data: list[DiffData] = [
         CreateSnitchDiffData(
             cluster_name="create_cluster",
         ),
@@ -250,7 +251,7 @@ def test_apply_diff_for_delete(
     deadmanssnitch_settings: DeadMansSnitchSettingsV1,
     deadmanssnitch_api: MagicMock,
 ) -> None:
-    diff_data = [
+    diff_data: list[DiffData] = [
         DeleteSnitchDiffData(cluster_name="create_cluster", token="token_123"),
     ]
     dms_integration = DeadMansSnitchIntegration()
@@ -270,7 +271,7 @@ def test_appply_diff_for_update(
     vault_mock: MagicMock,
     deadmanssnitch_settings: DeadMansSnitchSettingsV1,
 ) -> None:
-    diff_data = [
+    diff_data: list[DiffData] = [
         UpdateVaultDiffData(
             cluster_name="test_cluster",
             check_in_url="test_secret_url",
@@ -299,7 +300,7 @@ def test_failed_while_apply(
     mocker: MockerFixture,
     deadmanssnitch_settings: DeadMansSnitchSettingsV1,
 ) -> None:
-    diff_data = [
+    diff_data: list[DiffData] = [
         UpdateVaultDiffData(
             cluster_name="test_cluster",
             check_in_url="test_secret_url",
