@@ -457,8 +457,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.accounts = {a["name"]: a for a in filtered_accounts}
         self.uids = {a["name"]: a["uid"] for a in filtered_accounts}
+        # default_regions info is needed in populate_tf_resource_rds, even in disabled accounts
         self.default_regions = {
-            a["name"]: a["resourcesDefaultRegion"] for a in filtered_accounts
+            a["name"]: a["resourcesDefaultRegion"] for a in accounts
         }
         self.partitions = {
             a["name"]: a.get("partition") or "aws" for a in filtered_accounts
