@@ -131,7 +131,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
-from tools.cli_commands.cost_report import CostReportCommand
+from tools.cli_commands.cost_report.command import CostReportCommand
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,

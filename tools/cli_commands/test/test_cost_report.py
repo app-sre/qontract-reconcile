@@ -4,12 +4,12 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.typed_queries.cost_report.app_names import App
-from tools.cli_commands.cost_report import CostReportCommand, Report
+from tools.cli_commands.cost_report.command import CostReportCommand, Report
 
 
 @pytest.fixture
 def mock_gql(mocker: MockerFixture) -> Any:
-    return mocker.patch("tools.cli_commands.cost_report.gql")
+    return mocker.patch("tools.cli_commands.cost_report.command.gql")
 
 
 def test_cost_report_create(mock_gql: Any) -> None:
@@ -26,7 +26,7 @@ def cost_report_command(mock_gql: Any) -> CostReportCommand:
 
 @pytest.fixture
 def mock_get_app_names(mocker: MockerFixture) -> Any:
-    return mocker.patch("tools.cli_commands.cost_report.get_app_names")
+    return mocker.patch("tools.cli_commands.cost_report.command.get_app_names")
 
 
 PARENT_APP = App(name="parent", parent_app_name=None)
