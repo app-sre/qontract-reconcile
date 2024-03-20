@@ -1,0 +1,21 @@
+# qenerate: plugin=pydantic_v1
+
+query ReservedNetworks {
+  networks: network_v1 {
+    name
+    networkAddress
+    parentNetwork {
+      networkAddress
+    }
+    inUseBy {
+      vpc{
+        name
+        account {
+          name
+          uid
+          consoleUrl
+        }
+      }
+    }
+  }
+}
