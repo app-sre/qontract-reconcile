@@ -100,7 +100,6 @@ class TemplateRendererIntegrationParams(PydanticRunParams):
     app_interface_data_path: Optional[str]
 
 
-
 def join_path(base: str, sub: str) -> str:
     return os.path.join(base, sub.lstrip(APP_INTERFACE_PATH_SEPERATOR))
 
@@ -147,16 +146,16 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 )
         return None
 
-    def reconcile(self, dry_run:bool, persistence: FilePersistence, ruaml_instance: yaml.YAML) -> None:
+    def reconcile(
+        self, dry_run: bool, persistence: FilePersistence, ruaml_instance: yaml.YAML
+    ) -> None:
         outputs: list[TemplateOutput] = []
         gql_no_validation = init_from_config(validate_schemas=False)
-
 
         for c in get_template_collections():
             if c.variables:
                 variables = {
-                    "dynamic": unpack_dynamic_variables(c.variables,
-                                                        gql_no_validation),
+                    "dynamic": unpack_dynamic_variables(c.variables, gql_no_validation),
                     "static": unpack_static_variables(c.variables),
                 }
 
@@ -178,7 +177,6 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         return QONTRACT_INTEGRATION
 
     def run(self, dry_run: bool) -> None:
-
         if self.params.app_interface_data_path:
             persistence = LocalFilePersistence(self.params.app_interface_data_path)
         else:
