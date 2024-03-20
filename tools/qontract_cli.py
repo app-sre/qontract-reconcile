@@ -967,6 +967,38 @@ def clusters_network(ctx, name):
 
 @get.command()
 @click.pass_context
+def network_reservations(ctx) -> None:
+    from reconcile.typed_queries.reserved_networks import get_networks
+    columns = [ "name", "network Address", "parent Network", "VPCName", "VPCID", "Region" ]
+    network_table = []
+    for network in get_networks()[0][1]:
+        if network.in_use_by and network.in_use_by.vpc:
+            parentAddress = "none"
+            if network.parent_network:
+                parentAddress = network.parent_network.network_address
+
+            network_table.append({
+                    "name": network.name,
+                    "network Address": network.network_address,
+                    "parent Network": parentAddress,
+                    "VPCName": network.in_use_by.vpc.name,
+                    "VPCID": network.in_use_by.vpc.vpc_id,
+                    "Region": network.in_use_by.vpc.region
+                })
+        else:
+            network_table.append({
+                    "name": network.name,
+                    "network Address": network.network_address,
+                    "parent Network": parentAddress,
+                    "VPCName": "Unclaimed network",
+                    "VPCID": "Unclaimed network",
+                    "Region": "Unclaimed network",
+                })
+    print_output(ctx.obj["options"],network_table,columns)
+
+
+@get.command()
+@click.pass_context
 def cidr_blocks(ctx) -> None:
     import ipaddress
 
