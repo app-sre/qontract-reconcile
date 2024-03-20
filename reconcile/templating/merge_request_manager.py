@@ -1,6 +1,6 @@
 import logging
+import re
 import string
-from typing import re
 
 from gitlab.v4.objects import ProjectMergeRequest
 from pydantic import BaseModel
@@ -204,12 +204,12 @@ class MergeRequestManager:
             self._open_mrs.append(OpenMergeRequest(raw=mr, template_info=template_info))
 
     def create_tr_merge_request(self, output: list[TemplateOutput]) -> None:
-        collection = [o.collection for o in output]
-        template_hash = [o.template_hash for o in output]
-        assert len(collection) == 1
-        assert len(template_hash) == 1
-        collection = collection[0]
-        template_hash = template_hash[0]
+        collections = [o.input.collection for o in output if o.input]
+        template_hashes = [o.input.template_hash for o in output if o.input]
+        assert len(collections) == 1
+        assert len(template_hashes) == 1
+        collection = collections[0]
+        template_hash = template_hashes[0]
 
         """Create a new MR with the rendered template."""
         if mr := self._merge_request_already_exists(collection):

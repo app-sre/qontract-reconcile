@@ -180,7 +180,9 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     "static": unpack_static_variables(c.variables),
                 }
 
-            template_hash = hashlib.sha256(sorted([str(t) for t in c.templates]))
+            template_hash = hashlib.sha256(
+                "".join(sorted([str(t) for t in c.templates])).encode("utf-8")
+            ).digest()
 
             for template in c.templates:
                 output = self.process_template(
