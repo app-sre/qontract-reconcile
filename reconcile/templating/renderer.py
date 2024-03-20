@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 from abc import ABC, abstractmethod
@@ -13,6 +14,7 @@ from reconcile.gql_definitions.templating.template_collection import (
     TemplateV1,
     query,
 )
+from reconcile.templating.merge_request_manager import MergeRequestManager
 from reconcile.templating.rendering import (
     TemplateData,
     create_renderer,
@@ -24,6 +26,7 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "template-renderer"
 
@@ -38,7 +41,13 @@ def get_template_collections(
     return query(query_func).template_collection_v1 or []
 
 
+class TemplateInput(BaseModel):
+    collection: str
+    template_hash: str
+
+
 class TemplateOutput(BaseModel):
+    input: Optional[TemplateInput]
     path: str
     content: str
 
@@ -77,6 +86,18 @@ class LocalFilePersistence(FilePersistence):
         except FileNotFoundError:
             logging.debug(f"File not found: {path}, need to create it")
         return None
+
+
+class GitlabFilePersistence(FilePersistence):
+    def __init__(self, vcs: VCS, mr_manager: MergeRequestManager) -> None:
+        self.vcs = vcs
+        self.mr_manager = mr_manager
+
+    def write(self, outputs: list[TemplateOutput]) -> None:
+        self.mr_manager.create_tr_merge_request(outputs)
+
+    def read(self, path: str) -> Optional[str]:
+        return self.vcs.get_file_content_from_app_interface_master(path)
 
 
 def unpack_static_variables(
@@ -159,6 +180,8 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     "static": unpack_static_variables(c.variables),
                 }
 
+            template_hash = hashlib.sha256(sorted([str(t) for t in c.templates]))
+
             for template in c.templates:
                 output = self.process_template(
                     template,
@@ -167,6 +190,10 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     ruaml_instance,
                 )
                 if output:
+                    output.input = TemplateInput(
+                        collection=c.name,
+                        template_hash=template_hash,
+                    )
                     outputs.append(output)
 
             if not dry_run:

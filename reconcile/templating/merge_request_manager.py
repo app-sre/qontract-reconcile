@@ -28,7 +28,7 @@ COMPILED_REGEXES = {
     ]
 }
 
-AVS_DESC = string.Template(
+MR_DESC = string.Template(
     f"""
 This MR is triggered by app-interface's [template-rendering](https://github.com/app-sre/qontract-reconcile/blob/master/reconcile/templating/renderer.py).
 
@@ -87,7 +87,7 @@ class Parser:
 
 
 def render_description(collection: str, template_hash: str) -> str:
-    return AVS_DESC.substitute(provider=collection, template_hash=template_hash)
+    return MR_DESC.substitute(provider=collection, template_hash=template_hash)
 
 
 def render_title(collection: str) -> str:
@@ -203,9 +203,14 @@ class MergeRequestManager:
 
             self._open_mrs.append(OpenMergeRequest(raw=mr, template_info=template_info))
 
-    def create_tr_merge_request(
-        self, output: list[TemplateOutput], collection: str, template_hash: str
-    ) -> None:
+    def create_tr_merge_request(self, output: list[TemplateOutput]) -> None:
+        collection = [o.collection for o in output]
+        template_hash = [o.template_hash for o in output]
+        assert len(collection) == 1
+        assert len(template_hash) == 1
+        collection = collection[0]
+        template_hash = template_hash[0]
+
         """Create a new MR with the rendered template."""
         if mr := self._merge_request_already_exists(collection):
             if mr.template_info.template_hash == template_hash:
