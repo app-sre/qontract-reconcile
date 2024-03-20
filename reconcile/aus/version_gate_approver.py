@@ -9,7 +9,11 @@ import semver
 
 from reconcile.aus.advanced_upgrade_service import aus_label_key
 from reconcile.aus.base import gates_to_agree, get_orgs_for_environment
-from reconcile.aus.version_gates import ocp_gate_handler, sts_version_gate_handler
+from reconcile.aus.version_gates import (
+    ingress_gate_handler,
+    ocp_gate_handler,
+    sts_version_gate_handler,
+)
 from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
@@ -75,6 +79,7 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
                 rosa_job_image=self.params.rosa_job_image,
             ),
             ocp_gate_handler.GATE_LABEL: ocp_gate_handler.OCPGateHandler(),
+            ingress_gate_handler.GATE_LABEL: ingress_gate_handler.IngressGateHandler(),
         }
 
     def run(self, dry_run: bool) -> None:
