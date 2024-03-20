@@ -2,7 +2,7 @@ from collections.abc import Callable
 
 import pytest
 
-from reconcile.templating.rendering import PatchRenderer, TemplateData
+from reconcile.templating.lib.rendering import PatchRenderer, TemplateData
 from reconcile.utils.secret_reader import SecretReader
 
 

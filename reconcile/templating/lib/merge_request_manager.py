@@ -1,11 +1,12 @@
 import logging
 import re
 import string
+from dataclasses import dataclass
 
 from gitlab.v4.objects import ProjectMergeRequest
 from pydantic import BaseModel
 
-from reconcile.templating.renderer import TemplateOutput
+from reconcile.templating.lib.model import TemplateOutput
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr import MergeRequestBase
 from reconcile.utils.vcs import VCS
@@ -94,7 +95,8 @@ def render_title(collection: str) -> str:
     return f'[auto] Rendered Templates for collection "{collection}"'
 
 
-class OpenMergeRequest(BaseModel):
+@dataclass
+class OpenMergeRequest:
     raw: ProjectMergeRequest
     template_info: TemplateInfo
 
@@ -204,12 +206,12 @@ class MergeRequestManager:
             self._open_mrs.append(OpenMergeRequest(raw=mr, template_info=template_info))
 
     def create_tr_merge_request(self, output: list[TemplateOutput]) -> None:
-        collections = [o.input.collection for o in output if o.input]
-        template_hashes = [o.input.template_hash for o in output if o.input]
+        collections = {o.input.collection for o in output if o.input}
+        template_hashes = {o.input.template_hash for o in output if o.input}
         assert len(collections) == 1
         assert len(template_hashes) == 1
-        collection = collections[0]
-        template_hash = template_hashes[0]
+        collection = collections.pop()
+        template_hash = template_hashes.pop()
 
         """Create a new MR with the rendered template."""
         if mr := self._merge_request_already_exists(collection):

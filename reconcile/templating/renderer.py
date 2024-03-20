@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any, Optional
 
-from pydantic import BaseModel
+import gitlab
 from ruamel import yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
@@ -14,11 +14,15 @@ from reconcile.gql_definitions.templating.template_collection import (
     TemplateV1,
     query,
 )
-from reconcile.templating.merge_request_manager import MergeRequestManager
-from reconcile.templating.rendering import (
+from reconcile.templating.lib.merge_request_manager import MergeRequestManager, Parser
+from reconcile.templating.lib.model import TemplateInput, TemplateOutput
+from reconcile.templating.lib.rendering import (
     TemplateData,
     create_renderer,
 )
+from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
+from reconcile.typed_queries.github_orgs import get_github_orgs
+from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.gql import init_from_config
 from reconcile.utils.ruamel import create_ruamel_instance
@@ -39,17 +43,6 @@ def get_template_collections(
     if not query_func:
         query_func = gql.get_api().query
     return query(query_func).template_collection_v1 or []
-
-
-class TemplateInput(BaseModel):
-    collection: str
-    template_hash: str
-
-
-class TemplateOutput(BaseModel):
-    input: Optional[TemplateInput]
-    path: str
-    content: str
 
 
 class FilePersistence(ABC):
@@ -97,7 +90,11 @@ class GitlabFilePersistence(FilePersistence):
         self.mr_manager.create_tr_merge_request(outputs)
 
     def read(self, path: str) -> Optional[str]:
-        return self.vcs.get_file_content_from_app_interface_master(path)
+        try:
+            current = self.vcs.get_file_content_from_app_interface_master(path)
+        except gitlab.exceptions.GitlabGetError:
+            return None
+        return current
 
 
 def unpack_static_variables(
@@ -182,7 +179,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
 
             template_hash = hashlib.sha256(
                 "".join(sorted([str(t) for t in c.templates])).encode("utf-8")
-            ).digest()
+            ).hexdigest()
 
             for template in c.templates:
                 output = self.process_template(
@@ -209,8 +206,20 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         if self.params.app_interface_data_path:
             persistence = LocalFilePersistence(self.params.app_interface_data_path)
         else:
-            # Todo: Add support for remote gitlab persistence
-            pass
+            vcs = VCS(
+                secret_reader=self.secret_reader,
+                github_orgs=get_github_orgs(),
+                gitlab_instances=get_gitlab_instances(),
+                app_interface_repo_url=get_app_interface_repo_url(),
+                dry_run=dry_run,
+                allow_deleting_mrs=False,
+                allow_opening_mrs=True,
+            )
+            merge_request_manager = MergeRequestManager(
+                vcs=vcs,
+                parser=Parser(),
+            )
+            persistence = GitlabFilePersistence(vcs, merge_request_manager)
 
         ruaml_instance = create_ruamel_instance(explicit_start=True)
 

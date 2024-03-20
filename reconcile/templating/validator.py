@@ -10,7 +10,7 @@ from reconcile.gql_definitions.templating.templates import (
     TemplateV1,
     query,
 )
-from reconcile.templating.rendering import Renderer, TemplateData, create_renderer
+from reconcile.templating.lib.rendering import Renderer, TemplateData, create_renderer
 from reconcile.utils import gql
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
