@@ -61,13 +61,14 @@ class PrometheusHttpQuerier(BaseModel):
     auth_token: str
 
     def instant_vector_query(self, query: str) -> list[PrometheusVector]:
-        response = requests.get(
-            self.query_url,
-            params={"query": query},
-            headers={
-                "Authorization": f"Bearer {self.auth_token}",
-            },
-        )
+        with requests.Session() as session:
+            response = session.get(
+                self.query_url,
+                params={"query": query},
+                headers={
+                    "Authorization": f"Bearer {self.auth_token}",
+                },
+            )
 
         response.raise_for_status()
 
