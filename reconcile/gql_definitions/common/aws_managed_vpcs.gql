@@ -1,0 +1,7 @@
+# qenerate: plugin=pydantic_v1
+
+query AWSManagedVPC {
+  managed_vpcs: aws_managed_vpcs_v1 {
+    ... AWSManagedVPC
+  }
+}
