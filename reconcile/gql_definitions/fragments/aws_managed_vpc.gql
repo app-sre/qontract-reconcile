@@ -1,0 +1,17 @@
+# qenerate: plugin=pydantic_v1
+
+fragment AWSManagedVPC on AWSManagedVPC_v1 {
+  name
+  description
+  account {
+    name
+    uid
+    terraformUsername
+    automationToken {
+      ... VaultSecret
+    }
+  }
+  network {
+    networkAddress
+  }
+}
