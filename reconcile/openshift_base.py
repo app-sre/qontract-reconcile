@@ -690,7 +690,7 @@ def should_take_over(
             ri.register_error()
             logging.error(
                 f"[{cluster}/{namespace}] resource '{resource_type}/{name}' present "
-                f" and managed by another caller: {current.caller}"
+                f"and managed by another caller: {current.caller}"
             )
     return False
 
