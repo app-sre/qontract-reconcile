@@ -41,6 +41,7 @@ https://github.com/helm/helm/releases
 | sleepDurationSecs         | time to sleep in seconds between integration executions                  | 600s                                                                    |
 | state                     | integration is stateful                                                  | false                                                                   |
 | storage                   | size of cache storage                                                    | 1Gi                                                                     |
+| storageClassName          | kubernetes storage class name of the cache volume                        | gp2                                                                     |
 | trigger                   | integration is an openshift-saas-deploy trigger                          | false                                                                   |
 | cron                      | cron expression for integration execution                                | nil                                                                     |
 | dashdotdb                 | integration interacts with dashdotdb                                     | false                                                                   |
