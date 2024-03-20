@@ -2201,7 +2201,7 @@ def terraform_tgw_attachments(
         print_to_file,
         enable_deletion,
         thread_pool_size,
-        account_name,
+        account_name=account_name,
     )
 
 
