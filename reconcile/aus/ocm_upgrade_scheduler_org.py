@@ -32,31 +32,33 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
 
         # lookup cluster in OCM to figure out if they exist
         # and to get their UUID
-        ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
-        clusters = discover_clusters_for_organizations(
-            ocm_api, [org.org_id for org in organizations]
-        )
-
-        cluster_health_providers = self._health_check_providers_for_env(ocm_env.name)
-
-        return {
-            org.name: OrganizationUpgradeSpec(
-                org=org,
-                specs=self._build_cluster_upgrade_specs(
-                    org=org,
-                    clusters_by_name={
-                        c.ocm_cluster.name: c.ocm_cluster
-                        for c in clusters
-                        if c.organization_id == org.org_id
-                    },
-                    cluster_health_provider=build_cluster_health_providers_for_organization(
-                        org=org,
-                        providers=cluster_health_providers,
-                    ),
-                ),
+        with init_ocm_base_client(ocm_env, self.secret_reader) as ocm_api:
+            clusters = discover_clusters_for_organizations(
+                ocm_api, [org.org_id for org in organizations]
             )
-            for org in organizations
-        }
+
+            cluster_health_providers = self._health_check_providers_for_env(
+                ocm_env.name
+            )
+
+            return {
+                org.name: OrganizationUpgradeSpec(
+                    org=org,
+                    specs=self._build_cluster_upgrade_specs(
+                        org=org,
+                        clusters_by_name={
+                            c.ocm_cluster.name: c.ocm_cluster
+                            for c in clusters
+                            if c.organization_id == org.org_id
+                        },
+                        cluster_health_provider=build_cluster_health_providers_for_organization(
+                            org=org,
+                            providers=cluster_health_providers,
+                        ),
+                    ),
+                )
+                for org in organizations
+            }
 
     def _build_cluster_upgrade_specs(
         self,

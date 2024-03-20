@@ -99,13 +99,13 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         org_to_env: dict[str, OCMEnvironment] = {}
         labels_by_org: dict[str, list[OCMOrganizationLabel]] = defaultdict(list)
         for env in self.get_ocm_environments(filter=False):
-            ocm_api = init_ocm_base_client(env, self.secret_reader)
-            for label in get_organization_labels(
-                ocm_api=ocm_api,
-                filter=Filter().like("key", aus_label_key("version-data.%")),
-            ):
-                labels_by_org[label.organization_id].append(label)
-                org_to_env[label.organization_id] = env
+            with init_ocm_base_client(env, self.secret_reader) as ocm_api:
+                for label in get_organization_labels(
+                    ocm_api=ocm_api,
+                    filter=Filter().like("key", aus_label_key("version-data.%")),
+                ):
+                    labels_by_org[label.organization_id].append(label)
+                    org_to_env[label.organization_id] = env
 
         # ... and build the inheritance network
         return build_version_data_inheritance_network({
@@ -123,15 +123,15 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         organizations = {
             org.org_id: org for org in self.get_orgs_for_environment(ocm_env)
         }
-        ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
-        clusters_by_org = discover_clusters(
-            ocm_api=ocm_api,
-            org_ids=set(organizations.keys()),
-            ignore_sts_clusters=self.params.ignore_sts_clusters,
-        )
-        labels_by_org = _get_org_labels(
-            ocm_api=ocm_api, org_ids=set(organizations.keys())
-        )
+        with init_ocm_base_client(ocm_env, self.secret_reader) as ocm_api:
+            clusters_by_org = discover_clusters(
+                ocm_api=ocm_api,
+                org_ids=set(organizations.keys()),
+                ignore_sts_clusters=self.params.ignore_sts_clusters,
+            )
+            labels_by_org = _get_org_labels(
+                ocm_api=ocm_api, org_ids=set(organizations.keys())
+            )
 
         cluster_health_providers = self._health_check_providers_for_env(ocm_env.name)
 
@@ -149,12 +149,12 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         self, dry_run: bool, org_upgrade_spec: OrganizationUpgradeSpec
     ) -> None:
         if not dry_run:
-            ocm_api = init_ocm_base_client(
+            with init_ocm_base_client(
                 org_upgrade_spec.org.environment, self.secret_reader
-            )
-            _signal_validation_issues_for_org(
-                ocm_api=ocm_api, org_upgrade_spec=org_upgrade_spec
-            )
+            ) as ocm_api:
+                _signal_validation_issues_for_org(
+                    ocm_api=ocm_api, org_upgrade_spec=org_upgrade_spec
+                )
 
     def signal_reconcile_issues(
         self,
