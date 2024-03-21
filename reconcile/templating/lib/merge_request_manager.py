@@ -11,14 +11,14 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr import MergeRequestBase
 from reconcile.utils.vcs import VCS
 
-PROMOTION_DATA_SEPARATOR = (
+DATA_SEPARATOR = (
     "**TEMPLATE RENDERING DATA - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 )
 TR_VERSION = "1.0.0"
-TR_LABEL = "RENDERED"
+TR_LABEL = "template-output"
 
 VERSION_REF = "tr_version"
-COLLECTION_REF = "provider"
+COLLECTION_REF = "collection"
 TEMPLATE_HASH_REF = "template_hash"
 
 COMPILED_REGEXES = {
@@ -26,6 +26,7 @@ COMPILED_REGEXES = {
     for i in [
         VERSION_REF,
         COLLECTION_REF,
+        TEMPLATE_HASH_REF,
     ]
 }
 
@@ -37,10 +38,11 @@ Please **do not remove the {TR_LABEL} label** from this MR!
 
 Parts of this description are used by the Template Renderer to manage the MR.
 
-{PROMOTION_DATA_SEPARATOR}
+{DATA_SEPARATOR}
 
 * {VERSION_REF}: {TR_VERSION}
-* {COLLECTION_REF}: $provider
+* {COLLECTION_REF}: $collection
+* {TEMPLATE_HASH_REF}: $template_hash
 """
 )
 
@@ -74,8 +76,8 @@ class Parser:
         return self._find_by_regex(COMPILED_REGEXES[name], content)
 
     def parse(self, description: str) -> TemplateInfo:
-        """Parse the description of an MR for AVS."""
-        parts = description.split(PROMOTION_DATA_SEPARATOR)
+        """Parse the description of an MR"""
+        parts = description.split(DATA_SEPARATOR)
         if not len(parts) == 2:
             raise ParserError("Could not find data separator in MR description")
 
@@ -88,7 +90,7 @@ class Parser:
 
 
 def render_description(collection: str, template_hash: str) -> str:
-    return MR_DESC.substitute(provider=collection, template_hash=template_hash)
+    return MR_DESC.substitute(collection=collection, template_hash=template_hash)
 
 
 def render_title(collection: str) -> str:
@@ -127,12 +129,20 @@ class TemplateRenderingMR(MergeRequestBase):
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         for content in self._content:
-            gitlab_cli.update_file(
-                branch_name=self.branch,
-                file_path=f"data{content.path}",
-                commit_message="aws version sync",
-                content=content.content,
-            )
+            if content.is_new:
+                gitlab_cli.create_file(
+                    branch_name=self.branch,
+                    file_path=f"data{content.path}",
+                    commit_message="aws version sync",
+                    content=content.content,
+                )
+            else:
+                gitlab_cli.update_file(
+                    branch_name=self.branch,
+                    file_path=f"data{content.path}",
+                    commit_message="aws version sync",
+                    content=content.content,
+                )
 
 
 class MergeRequestManager:
@@ -144,6 +154,7 @@ class MergeRequestManager:
         self._parser = parser
         self._open_mrs: list[OpenMergeRequest] = []
         self._open_mrs_with_problems: list[OpenMergeRequest] = []
+        self._housekeeping_ran = False
 
     def _merge_request_already_exists(
         self,
@@ -204,10 +215,15 @@ class MergeRequestManager:
                 continue
 
             self._open_mrs.append(OpenMergeRequest(raw=mr, template_info=template_info))
+        self._housekeeping_ran = True
 
     def create_tr_merge_request(self, output: list[TemplateOutput]) -> None:
+        if not self._housekeeping_ran:
+            self.housekeeping()
+
         collections = {o.input.collection for o in output if o.input}
         template_hashes = {o.input.template_hash for o in output if o.input}
+        # From the way the code is written, we can assert that there is only one collection and one template hash
         assert len(collections) == 1
         assert len(template_hashes) == 1
         collection = collections.pop()

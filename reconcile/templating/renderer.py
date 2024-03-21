@@ -87,6 +87,7 @@ class GitlabFilePersistence(FilePersistence):
         self.mr_manager = mr_manager
 
     def write(self, outputs: list[TemplateOutput]) -> None:
+        self.mr_manager.housekeeping()
         self.mr_manager.create_tr_merge_request(outputs)
 
     def read(self, path: str) -> Optional[str]:
@@ -161,6 +162,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 return TemplateOutput(
                     path=target_path,
                     content=output,
+                    is_new=current_str is None,
                 )
         return None
 
@@ -203,6 +205,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         return QONTRACT_INTEGRATION
 
     def run(self, dry_run: bool) -> None:
+        persistence: FilePersistence
         if self.params.app_interface_data_path:
             persistence = LocalFilePersistence(self.params.app_interface_data_path)
         else:

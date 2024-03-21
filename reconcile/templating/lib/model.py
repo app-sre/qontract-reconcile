@@ -10,5 +10,6 @@ class TemplateInput(BaseModel):
 
 class TemplateOutput(BaseModel):
     input: Optional[TemplateInput]
+    is_new: bool = False
     path: str
     content: str
