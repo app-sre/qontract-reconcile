@@ -28,9 +28,11 @@ query ReservedNetworks {
     }
     inUseBy {
       vpc {
-        name
-        region
-        vpc_id
+        account {
+          name
+          uid
+          consoleUrl
+        }
       }
     }
   }
@@ -48,14 +50,18 @@ class NetworkV1_NetworkV1(ConfiguredBaseModel):
     network_address: str = Field(..., alias="networkAddress")
 
 
-class AWSVPCV1(ConfiguredBaseModel):
+class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    region: str = Field(..., alias="region")
-    vpc_id: str = Field(..., alias="vpc_id")
+    uid: str = Field(..., alias="uid")
+    console_url: str = Field(..., alias="consoleUrl")
+
+
+class AWSManagedVPCV1(ConfiguredBaseModel):
+    account: AWSAccountV1 = Field(..., alias="account")
 
 
 class NetworkInUseByV1(ConfiguredBaseModel):
-    vpc: Optional[AWSVPCV1] = Field(..., alias="vpc")
+    vpc: Optional[AWSManagedVPCV1] = Field(..., alias="vpc")
 
 
 class NetworkV1(ConfiguredBaseModel):

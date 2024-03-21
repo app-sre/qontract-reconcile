@@ -969,7 +969,12 @@ def clusters_network(ctx, name):
 @click.pass_context
 def network_reservations(ctx) -> None:
     from reconcile.typed_queries.reserved_networks import get_networks
-    columns = [ "name", "network Address", "parent Network", "VPCName", "VPCID", "Region" ]
+    def markdown_link(ctx, text, url):
+        if ctx.obj["options"]["output"] == "md":
+            return f"[{text}]({url})"
+        else:
+            return url
+    columns = [ "name", "network Address", "parent Network", "Account Name", "Account UID", "Console Login URL" ]
     network_table = []
     for network in get_networks()[0][1]:
         if network.in_use_by and network.in_use_by.vpc:
@@ -981,18 +986,18 @@ def network_reservations(ctx) -> None:
                     "name": network.name,
                     "network Address": network.network_address,
                     "parent Network": parentAddress,
-                    "VPCName": network.in_use_by.vpc.name,
-                    "VPCID": network.in_use_by.vpc.vpc_id,
-                    "Region": network.in_use_by.vpc.region
+                    "Account Name": network.in_use_by.vpc.account.name,
+                    "Account UID": network.in_use_by.vpc.account.uid,
+                    "Console Login URL": markdown_link(ctx, network.in_use_by.vpc.account.console_url, network.in_use_by.vpc.account.console_url),
                 })
         else:
             network_table.append({
                     "name": network.name,
                     "network Address": network.network_address,
                     "parent Network": parentAddress,
-                    "VPCName": "Unclaimed network",
-                    "VPCID": "Unclaimed network",
-                    "Region": "Unclaimed network",
+                    "Account Name": "Unclaimed network",
+                    "Account UID": "Unclaimed network",
+                    "Console Login URL": "Unclaimed network",
                 })
     print_output(ctx.obj["options"],network_table,columns)
 

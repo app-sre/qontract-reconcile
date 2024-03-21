@@ -9,9 +9,11 @@ query ReservedNetworks {
     }
     inUseBy {
       vpc {
-        name
-        region
-        vpc_id
+        account {
+          name
+          uid
+          consoleUrl
+        }
       }
     }
   }
