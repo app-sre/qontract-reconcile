@@ -107,14 +107,14 @@ class CostReportCommand:
             child_apps_total=child_apps_total,
             parent_app_name=parent_app_name,
             services_delta_value=response.meta.delta.value,
-            services_delta_percentage=response.meta.delta.percentage,
+            services_delta_percentage=response.meta.delta.percent,
             services_total=services_total,
             total=total,
             services=[
                 ServiceReport(
                     service=service.service,
                     delta_value=value.delta_value,
-                    delta_percentage=value.delta_percentage,
+                    delta_percentage=value.delta_percent,
                     total=value.cost.total.value,
                 )
                 for data in response.data
