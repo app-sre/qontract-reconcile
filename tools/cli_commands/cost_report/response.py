@@ -1,45 +1,47 @@
+from decimal import Decimal
+from typing import List
+
 from pydantic import BaseModel
 
 
-class Delta(BaseModel):
-    value: float
+class DeltaResponse(BaseModel):
+    value: Decimal
     percentage: float
 
 
-class Money(BaseModel):
-    value: float
+class MoneyResponse(BaseModel):
+    value: Decimal
     units: str
 
 
-class CostTotal(BaseModel):
-    total: Money
+class CostTotalResponse(BaseModel):
+    total: MoneyResponse
 
 
-class TotalMeta(BaseModel):
-    cost: CostTotal
+class TotalMetaResponse(BaseModel):
+    cost: CostTotalResponse
 
 
-class ReportMeta(BaseModel):
-    delta: Delta
-    total: TotalMeta
+class ReportMetaResponse(BaseModel):
+    delta: DeltaResponse
+    total: TotalMetaResponse
 
 
-class ServiceCostValue(BaseModel):
-    delta_value: float
+class ServiceCostValueResponse(BaseModel):
+    delta_value: Decimal
     delta_percentage: float
-    cost: CostTotal
+    cost: CostTotalResponse
 
 
-class ServiceCost(BaseModel):
+class ServiceCostResponse(BaseModel):
     service: str
-    values: list[ServiceCostValue]
+    values: List[ServiceCostValueResponse]
 
 
-class Cost(BaseModel):
-    date: str
-    services: ServiceCost
+class CostResponse(BaseModel):
+    services: List[ServiceCostResponse]
 
 
-class ReportCost(BaseModel):
-    meta: ReportMeta
-    data: list[Cost]
+class ReportCostResponse(BaseModel):
+    meta: ReportMetaResponse
+    data: List[CostResponse]
