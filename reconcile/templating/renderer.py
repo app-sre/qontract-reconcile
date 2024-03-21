@@ -1,8 +1,10 @@
 import hashlib
+import json
 import logging
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 import gitlab
@@ -30,9 +32,13 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.state import State, init_state
 from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "template-renderer"
+
+# Renders templates again to detect drift after one day
+CACHE_TTL_MINUTES = 24 * 60
 
 APP_INTERFACE_PATH_SEPERATOR = "/"
 
@@ -167,12 +173,17 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         return None
 
     def reconcile(
-        self, dry_run: bool, persistence: FilePersistence, ruaml_instance: yaml.YAML
+        self,
+        dry_run: bool,
+        persistence: FilePersistence,
+        ruaml_instance: yaml.YAML,
+        state: Optional[State] = None,
     ) -> None:
         outputs: list[TemplateOutput] = []
         gql_no_validation = init_from_config(validate_schemas=False)
 
         for c in get_template_collections():
+            variables = {}
             if c.variables:
                 variables = {
                     "dynamic": unpack_dynamic_variables(c.variables, gql_no_validation),
@@ -180,8 +191,18 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 }
 
             template_hash = hashlib.sha256(
-                "".join(sorted([str(t) for t in c.templates])).encode("utf-8")
+                "".join(
+                    sorted([str(t) for t in c.templates] + [json.dumps(variables)])
+                ).encode("utf-8")
             ).hexdigest()
+
+            if state and state.exists(c.name):
+                val = state.get(c.name)
+                if val["hash"] == template_hash and datetime.fromisoformat(
+                    val["timestamp"]
+                ) > (datetime.utcnow() - timedelta(minutes=CACHE_TTL_MINUTES)):
+                    logging.debug(f"Skipping {c.name} because it hasn't changed")
+                    break
 
             for template in c.templates:
                 output = self.process_template(
@@ -199,6 +220,15 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
 
             if not dry_run:
                 persistence.write(outputs)
+                if state:
+                    state.add(
+                        c.name,
+                        {
+                            "hash": template_hash,
+                            "timestamp": datetime.utcnow().isoformat(),
+                        },
+                        force=True,
+                    )
 
     @property
     def name(self) -> str:
@@ -206,6 +236,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
 
     def run(self, dry_run: bool) -> None:
         persistence: FilePersistence
+        s3_state: Optional[State] = None
         if self.params.app_interface_data_path:
             persistence = LocalFilePersistence(self.params.app_interface_data_path)
         else:
@@ -224,6 +255,8 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             )
             persistence = GitlabFilePersistence(vcs, merge_request_manager)
 
+            s3_state = init_state(QONTRACT_INTEGRATION, self.secret_reader)
+
         ruaml_instance = create_ruamel_instance(explicit_start=True)
 
-        self.reconcile(dry_run, persistence, ruaml_instance)
+        self.reconcile(dry_run, persistence, ruaml_instance, state=s3_state)
