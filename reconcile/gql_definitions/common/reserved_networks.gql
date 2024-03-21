@@ -8,8 +8,7 @@ query ReservedNetworks {
       networkAddress
     }
     inUseBy {
-      vpc{
-        name
+      vpc {
         account {
           name
           uid

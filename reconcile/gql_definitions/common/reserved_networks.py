@@ -27,8 +27,7 @@ query ReservedNetworks {
       networkAddress
     }
     inUseBy {
-      vpc{
-        name
+      vpc {
         account {
           name
           uid
@@ -58,7 +57,6 @@ class AWSAccountV1(ConfiguredBaseModel):
 
 
 class VPCRequestV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
     account: AWSAccountV1 = Field(..., alias="account")
 
 

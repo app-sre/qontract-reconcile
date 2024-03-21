@@ -978,7 +978,7 @@ def clusters_network(ctx, name):
 @click.pass_context
 def network_reservations(ctx) -> None:
     from reconcile.typed_queries.reserved_networks import get_networks
-    columns = [ "name", "network Address", "parent Network", "Account Name", "Account UID", "Console Link" ]
+    columns = [ "name", "network Address", "parent Network", "Account Name", "Account UID", "Console Login URL" ]
     network_table = []
     def md_link(url) -> str:
         if ctx.obj["options"]["output"] == "md":
@@ -998,7 +998,7 @@ def network_reservations(ctx) -> None:
                     "parent Network": parentAddress,
                     "Account Name": network.in_use_by.vpc.account.name,
                     "Account UID": network.in_use_by.vpc.account.uid,
-                    "Console Link": md_link(network.in_use_by.vpc.account.console_url),
+                    "Console Login URL": md_link(network.in_use_by.vpc.account.console_url),
                 })
         else:
             network_table.append({
@@ -1007,7 +1007,7 @@ def network_reservations(ctx) -> None:
                     "parent Network": parentAddress,
                     "Account Name": "Unclaimed network",
                     "Account UID": "Unclaimed network",
-                    "Console Link": "Unclaimed network",
+                    "Console Login URL": "Unclaimed network",
                 })
     print_output(ctx.obj["options"],network_table,columns)
 
