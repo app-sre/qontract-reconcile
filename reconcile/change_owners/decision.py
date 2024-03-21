@@ -15,7 +15,7 @@ from reconcile.change_owners.approver import (
     ApproverReachability,
 )
 from reconcile.change_owners.bundle import FileRef
-from reconcile.change_owners.change_types import ChangeTypeContext
+from reconcile.change_owners.change_types import ChangeTypeContext, DiffCoverage
 from reconcile.change_owners.changes import BundleFileChange
 from reconcile.change_owners.diff import Diff
 
@@ -78,6 +78,7 @@ class ChangeDecision:
     file: FileRef
     diff: Diff
     coverage: list[ChangeTypeContext]
+    coverable_by_fragment_decisions: bool = False
 
     def __post_init__(self) -> None:
         self.approve: dict[str, bool] = defaultdict(bool)
@@ -86,15 +87,21 @@ class ChangeDecision:
 
     def apply_decision(
         self, ctx: ChangeTypeContext, decision_cmd: DecisionCommand
-    ) -> None:
+    ) -> "ChangeDecision":
+        return self.apply_context_decision(ctx.context, decision_cmd)
+
+    def apply_context_decision(
+        self, context: str, decision_cmd: DecisionCommand
+    ) -> "ChangeDecision":
         if decision_cmd == DecisionCommand.APPROVED:
-            self.approve[ctx.context] = True
+            self.approve[context] = True
         elif decision_cmd == DecisionCommand.CANCEL_APPROVED:
-            self.approve[ctx.context] = False
+            self.approve[context] = False
         elif decision_cmd == DecisionCommand.HOLD:
-            self.hold[ctx.context] = True
+            self.hold[context] = True
         elif decision_cmd == DecisionCommand.CANCEL_HOLD:
-            self.hold[ctx.context] = False
+            self.hold[context] = False
+        return self
 
     def auto_approve(self, ctx: ChangeTypeContext, decision: bool) -> None:
         self.context_auto_approval[ctx.context] = decision
@@ -142,41 +149,75 @@ def apply_decisions_to_changes(
     to generate the coverage report and to reason about the approval
     state of the MR.
     """
-    approvers_decisions_by_name = {
-        d.approver_name: d.command for d in approver_decisions
-    }
 
     diff_decisions = []
     for c in changes:
         for d in c.diff_coverage:
-            change_decision = ChangeDecision(
-                file=c.fileref, diff=d.diff, coverage=d.coverage
-            )
-            diff_decisions.append(change_decision)
-
-            for change_type_context in change_decision.coverage:
-                # approvers of a disabled change-type are ignored
-                if change_type_context.disabled:
-                    continue
-
-                # a context is auto-approved if
-                #  * it has only one approver
-                #  * the approver is an auto-approver
-                #  * the approver has not issued an explicit hold decision
-                context_auto_approved = (
-                    len(change_type_context.approvers) == 1
-                    and change_type_context.approvers[0].org_username
-                    in auto_approver_usernames
-                    and approvers_decisions_by_name.get(
-                        change_type_context.approvers[0].org_username
-                    )
-                    != DecisionCommand.HOLD
+            diff_decisions.append(
+                _apply_decision_to_diff(
+                    c,
+                    d,
+                    approver_decisions,
+                    auto_approver_usernames,
                 )
-                change_decision.auto_approve(change_type_context, context_auto_approved)
+            )
 
-                for decision in approver_decisions:
-                    if change_type_context.includes_approver(decision.approver_name):
-                        change_decision.apply_decision(
-                            change_type_context, decision.command
-                        )
     return diff_decisions
+
+
+def _apply_decision_to_diff(
+    c: BundleFileChange,
+    diff: DiffCoverage,
+    approver_decisions: Iterable[Decision],
+    auto_approver_usernames: set[str],
+) -> ChangeDecision:
+    approvers_decisions_by_name = {
+        d.approver_name: d.command for d in approver_decisions
+    }
+    change_decision = ChangeDecision(
+        file=c.fileref, diff=diff.diff, coverage=diff.coverage
+    )
+
+    # if the diff is splittable in parts, and each of these parts is covered by
+    # a change-type, then we consider the diff approved if all parts have
+    # been approved by their respective change-type approvers
+    if diff.diff_fragments and diff.is_covered_by_splits():
+        change_decision.coverable_by_fragment_decisions = True
+        fragment_decisions = [
+            _apply_decision_to_diff(
+                c, fragment, approver_decisions, auto_approver_usernames
+            )
+            for fragment in diff.diff_fragments
+        ]
+        if all(
+            fragment.is_approved() and not fragment.is_held()
+            for fragment in fragment_decisions
+        ):
+            change_decision.apply_context_decision(
+                "fragments", DecisionCommand.APPROVED
+            )
+
+    for change_type_context in diff.coverage:
+        # approvers of a disabled change-type are ignored
+        if change_type_context.disabled:
+            continue
+
+        # a context is auto-approved if
+        #  * it has only one approver
+        #  * the approver is an auto-approver
+        #  * the approver has not issued an explicit hold decision
+        context_auto_approved = (
+            len(change_type_context.approvers) == 1
+            and change_type_context.approvers[0].org_username in auto_approver_usernames
+            and approvers_decisions_by_name.get(
+                change_type_context.approvers[0].org_username
+            )
+            != DecisionCommand.HOLD
+        )
+        change_decision.auto_approve(change_type_context, context_auto_approved)
+
+        for decision in approver_decisions:
+            if change_type_context.includes_approver(decision.approver_name):
+                change_decision.apply_decision(change_type_context, decision.command)
+
+    return change_decision

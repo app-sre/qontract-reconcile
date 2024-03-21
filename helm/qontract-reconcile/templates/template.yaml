@@ -29,7 +29,7 @@ objects:
         name: cache
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        storageClassName: gp2
+        storageClassName: {{ default "gp2" $integration.storageClassName }}
         resources:
           requests:
             storage: {{ default "1Gi" $integration.storage }}

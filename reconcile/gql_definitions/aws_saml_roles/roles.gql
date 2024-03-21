@@ -1,13 +1,11 @@
 # qenerate: plugin=pydantic_v1
 
-query LdapGroupsRolesQuery {
+query AwsSamlRolesQuery {
   roles: roles_v1 {
     name
-    ldapGroup
-    users {
-      org_username
-    }
     user_policies {
+      name
+      policy
       account {
         ...AWSAccountSSO
       }
@@ -16,6 +14,7 @@ query LdapGroupsRolesQuery {
       account {
         ...AWSAccountSSO
       }
+      policies
     }
   }
 }

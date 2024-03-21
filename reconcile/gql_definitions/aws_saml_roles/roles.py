@@ -17,20 +17,34 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.aws_account_sso import AWSAccountSSO
+
 
 DEFINITION = """
-query LdapGroupsAwsGroupQuery {
-  aws_groups: awsgroups_v1 {
+fragment AWSAccountSSO on AWSAccount_v1 {
+  name
+  uid
+  sso
+  disable {
+    integrations
+  }
+}
+
+query AwsSamlRolesQuery {
+  roles: roles_v1 {
     name
-    account {
+    user_policies {
       name
-      uid
-      sso
-    }
-    roles {
-      users {
-        org_username
+      policy
+      account {
+        ...AWSAccountSSO
       }
+    }
+    aws_groups {
+      account {
+        ...AWSAccountSSO
+      }
+      policies
     }
   }
 }
@@ -43,31 +57,28 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
-class AWSAccountV1(ConfiguredBaseModel):
+class AWSUserPolicyV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    uid: str = Field(..., alias="uid")
-    sso: Optional[bool] = Field(..., alias="sso")
-
-
-class UserV1(ConfiguredBaseModel):
-    org_username: str = Field(..., alias="org_username")
-
-
-class RoleV1(ConfiguredBaseModel):
-    users: list[UserV1] = Field(..., alias="users")
+    policy: Json = Field(..., alias="policy")
+    account: AWSAccountSSO = Field(..., alias="account")
 
 
 class AWSGroupV1(ConfiguredBaseModel):
+    account: AWSAccountSSO = Field(..., alias="account")
+    policies: Optional[list[str]] = Field(..., alias="policies")
+
+
+class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    account: AWSAccountV1 = Field(..., alias="account")
-    roles: Optional[list[RoleV1]] = Field(..., alias="roles")
-
-
-class LdapGroupsAwsGroupQueryQueryData(ConfiguredBaseModel):
+    user_policies: Optional[list[AWSUserPolicyV1]] = Field(..., alias="user_policies")
     aws_groups: Optional[list[AWSGroupV1]] = Field(..., alias="aws_groups")
 
 
-def query(query_func: Callable, **kwargs: Any) -> LdapGroupsAwsGroupQueryQueryData:
+class AwsSamlRolesQueryQueryData(ConfiguredBaseModel):
+    roles: Optional[list[RoleV1]] = Field(..., alias="roles")
+
+
+def query(query_func: Callable, **kwargs: Any) -> AwsSamlRolesQueryQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -80,7 +91,7 @@ def query(query_func: Callable, **kwargs: Any) -> LdapGroupsAwsGroupQueryQueryDa
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        LdapGroupsAwsGroupQueryQueryData: queried data parsed into generated classes
+        AwsSamlRolesQueryQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return LdapGroupsAwsGroupQueryQueryData(**raw_data)
+    return AwsSamlRolesQueryQueryData(**raw_data)

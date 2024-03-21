@@ -48,6 +48,12 @@ query JiraBoardsForPermissionValidation {
         priority
       }
     }
+    escalationPolicies {
+      name
+      channels {
+        jiraComponent
+      }
+    }
     disable {
       integrations
     }
@@ -76,6 +82,15 @@ class JiraSeverityPriorityMappingsV1(ConfiguredBaseModel):
     mappings: list[SeverityPriorityMappingV1] = Field(..., alias="mappings")
 
 
+class AppEscalationPolicyChannelsV1(ConfiguredBaseModel):
+    jira_component: Optional[str] = Field(..., alias="jiraComponent")
+
+
+class AppEscalationPolicyV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    channels: AppEscalationPolicyChannelsV1 = Field(..., alias="channels")
+
+
 class DisableJiraBoardAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
@@ -89,6 +104,7 @@ class JiraBoardV1(ConfiguredBaseModel):
     issue_reopen_state: Optional[str] = Field(..., alias="issueReopenState")
     issue_security_id: Optional[str] = Field(..., alias="issueSecurityId")
     severity_priority_mappings: JiraSeverityPriorityMappingsV1 = Field(..., alias="severityPriorityMappings")
+    escalation_policies: Optional[list[AppEscalationPolicyV1]] = Field(..., alias="escalationPolicies")
     disable: Optional[DisableJiraBoardAutomationsV1] = Field(..., alias="disable")
 
 

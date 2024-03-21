@@ -126,7 +126,7 @@ class ReconcileErrorSummary(Exception):
 
     def __str__(self) -> str:
         formatted_exceptions = "\n".join([f"- {e}" for e in self.exceptions])
-        return f"Reconcile exceptions:\n{ formatted_exceptions }"
+        return f"Reconcile exceptions:\n{formatted_exceptions}"
 
 
 class AdvancedUpgradeSchedulerBaseIntegration(
@@ -1093,7 +1093,7 @@ def calculate_diff(
                 )
                 if gates:
                     gate_ids = [gate.id for gate in gates]
-                    logging.debug(
+                    logging.info(
                         f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates for {target_version_prefix} - {gate_ids} "
                         "Skip creation of an upgrade policy until all of them have been acked by the version-gate-approver integration or a user."
                     )

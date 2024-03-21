@@ -56,6 +56,7 @@ class ValidationError(IntFlag):
     INVALID_PRIORITY = auto()
     PERMISSION_ERROR = auto()
     PUBLIC_PROJECT_NO_SECURITY_LEVEL = auto()
+    INVALID_COMPONENT = auto()
 
 
 def board_is_valid(
@@ -77,6 +78,16 @@ def board_is_valid(
                 f"[{board.name}] AppSRE Jira Bot user does not have the permission to change the issue status."
             )
             error |= ValidationError.CANT_TRANSITION_ISSUES
+
+        components = jira.components()
+        for escalation_policy in board.escalation_policies or []:
+            jira_component = escalation_policy.channels.jira_component
+            if jira_component and jira_component not in components:
+                logging.error(
+                    f"[{board.name}] escalation policy '{escalation_policy.name}' references a non existing Jira component "
+                    f"'{jira_component}'. Valid components: {components}"
+                )
+                error |= ValidationError.INVALID_COMPONENT
 
         issue_type = board.issue_type if board.issue_type else default_issue_type
         project_issue_types = jira.project_issue_types(board.name)

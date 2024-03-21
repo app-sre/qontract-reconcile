@@ -12,11 +12,11 @@ from reconcile.utils.models import data_default_none
 from reconcile.utils.ruamel import create_ruamel_instance
 
 
-def load_clean_yaml(ai_path: str, path: str) -> dict:
-    if not path.startswith("/data/"):
-        to_load = os.path.join(ai_path, "data", path.lstrip("/"))
+def load_clean_yaml(path: str) -> dict:
+    if not path.startswith("data/"):
+        to_load = os.path.join("data", path.lstrip("/"))
     else:
-        to_load = os.path.join(ai_path, path.lstrip("/"))
+        to_load = os.path.join(path.lstrip("/"))
 
     y = load_yaml(to_load)
 
@@ -50,51 +50,51 @@ def print_test_diffs(diffs: list[TemplateDiff]) -> None:
 
 
 @click.command()
-@click.option(
-    "--ai-path",
-    help="Path to the bundle file",
-    default=None,
-    required=True,
+@click.argument(
+    "templates",
+    nargs=-1,
 )
-@click.option(
-    "--template-path",
-    help="Path to the template file",
-    default=None,
-    required=True,
-)
-def main(ai_path: str, template_path: str) -> None:
-    okay = True
-    templateRaw = load_clean_yaml(ai_path, template_path)
+def main(templates: tuple[str]) -> None:
+    for template_path in templates:
+        okay = True
+        templateRaw = load_clean_yaml(template_path)
 
-    tests = []
-    for testRaw in templateRaw["templateTest"]:
-        test_yaml = load_clean_yaml(ai_path, testRaw["$ref"])
-        variables = json.dumps(test_yaml["variables"])
-        test_yaml["variables"] = variables
-        tests.append(test_yaml)
+        tests = []
+        for testRaw in templateRaw["templateTest"]:
+            test_yaml = load_clean_yaml(testRaw["$ref"])
+            variables = json.dumps(test_yaml["variables"])
+            test_yaml["variables"] = variables
+            tests.append(test_yaml)
 
-    templateRaw["templateTest"] = tests
-    template: TemplateV1 = TemplateV1(**data_default_none(TemplateV1, templateRaw))
+        templateRaw["templateTest"] = tests
+        template: TemplateV1 = TemplateV1(**data_default_none(TemplateV1, templateRaw))
 
-    # templates_to_validate = {}
-    for test in template.template_test:
-        diffs: list[TemplateDiff] = []
-        print("Running tests:", test.name)
-        diffs.extend(TemplateValidatorIntegration.validate_template(template, test))
-
-        renderer = TemplateValidatorIntegration._create_renderer(template, test)
-        if renderer.render_condition():
-            output = renderer.render_output()
-            lint_problems = list(
-                linter.run(output, YamlLintConfig(file=f"{ai_path}/.yamllint"), "")
+        # templates_to_validate = {}
+        for test in template.template_test:
+            ruaml_instance = create_ruamel_instance(explicit_start=True)
+            diffs: list[TemplateDiff] = []
+            print("Running tests:", test.name)
+            diffs.extend(
+                TemplateValidatorIntegration.validate_template(
+                    template, test, ruaml_instance=ruaml_instance
+                )
             )
-            if lint_problems:
-                okay = False
-                print_lint_problems(lint_problems)
 
-        if diffs:
-            okay = False
-            print_test_diffs(diffs)
+            renderer = TemplateValidatorIntegration._create_renderer(
+                template, test, ruaml_instance=ruaml_instance
+            )
+            if renderer.render_condition():
+                output = renderer.render_output()
+                lint_problems = list(
+                    linter.run(output, YamlLintConfig(file=".yamllint"), "")
+                )
+                if lint_problems:
+                    okay = False
+                    print_lint_problems(lint_problems)
+
+            if diffs:
+                okay = False
+                print_test_diffs(diffs)
 
     if okay:
         print("... passed")

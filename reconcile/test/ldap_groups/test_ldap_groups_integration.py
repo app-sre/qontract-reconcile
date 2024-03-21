@@ -9,12 +9,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from reconcile.gql_definitions.ldap_groups.aws_groups import AWSGroupV1
 from reconcile.gql_definitions.ldap_groups.roles import RoleV1
-from reconcile.ldap_groups.integration import (
-    LdapGroupsIntegration,
-    get_aws_group_ldap_name,
-)
+from reconcile.ldap_groups.integration import LdapGroupsIntegration
 from reconcile.utils.internal_groups.client import NotFound
 from reconcile.utils.internal_groups.models import (
     Entity,
@@ -23,23 +19,12 @@ from reconcile.utils.internal_groups.models import (
 )
 
 
-def test_get_aws_group_ldap_name(aws_groups: Sequence[AWSGroupV1]) -> None:
-    assert (
-        get_aws_group_ldap_name("prefix", aws_groups[0])
-        == "prefix-123456789-shiny-Group"
-    )
-
-
 def test_get_early_exit_desired_state(
-    intg: LdapGroupsIntegration,
-    roles: Sequence[RoleV1],
-    aws_groups: Sequence[AWSGroupV1],
+    intg: LdapGroupsIntegration, roles: Sequence[RoleV1]
 ) -> None:
     intg.get_roles = lambda *args, **kwargs: roles  # type: ignore
-    intg.get_aws_groups = lambda *args, **kwargs: aws_groups  # type: ignore
     state = intg.get_early_exit_desired_state(query_func=lambda *args, **kwargs: None)
     assert "roles" in state
-    assert "aws_groups" in state
 
 
 def test_ldap_groups_integration_get_managed_groups(
@@ -78,57 +63,126 @@ def test_ldap_groups_integration_get_roles(
         gql_class_factory(
             RoleV1,
             {
+                "name": "no-ldap-group-set",
+                "ldapGroup": None,
+                "users": [{"org_username": "jeanluc"}, {"org_username": "riker"}],
+            },
+        ),
+        gql_class_factory(
+            RoleV1,
+            {
                 "name": "test-group",
                 "ldapGroup": "ai-dev-test-group",
-                "users": [
-                    {"org_username": "pike"},
-                    {"org_username": "uhura"},
-                ],
+                "users": [{"org_username": "pike"}, {"org_username": "uhura"}],
             },
-        )
-    ]
-
-
-def test_ldap_groups_integration_get_aws_groups(
-    gql_class_factory: Callable, aws_groups: Sequence[AWSGroupV1]
-) -> None:
-    assert aws_groups == [
+        ),
         gql_class_factory(
-            AWSGroupV1,
+            RoleV1,
             {
-                "name": "shiny-Group",
-                "account": {
-                    "name": "aws-account-1",
-                    "uid": "123456789",
-                    "sso": True,
-                },
-                "roles": [
+                "name": "ldap-and-aws-role",
+                "ldapGroup": "ai-dev-test-group-2",
+                "users": [{"org_username": "pike"}, {"org_username": "uhura"}],
+                "user_policies": None,
+                "aws_groups": [
                     {
-                        "users": [
-                            {"org_username": "user-1"},
-                            {
-                                "org_username": "user-2",
-                            },
-                        ]
+                        "account": {
+                            "name": "account-1",
+                            "uid": "123456789",
+                            "sso": True,
+                        }
                     }
                 ],
             },
         ),
         gql_class_factory(
-            AWSGroupV1,
+            RoleV1,
             {
-                "name": "second-Group",
-                "account": {
-                    "name": "aws-account-1",
-                    "uid": "987654321",
-                    "sso": True,
-                },
-                "roles": [
+                "name": "aws-role-aws-groups",
+                "ldapGroup": None,
+                "users": [{"org_username": "pike"}, {"org_username": "uhura"}],
+                "user_policies": None,
+                "aws_groups": [
                     {
-                        "users": [
-                            {"org_username": "user-1"},
-                        ]
+                        "account": {
+                            "name": "account-1",
+                            "uid": "123456789",
+                            "sso": True,
+                        }
                     }
+                ],
+            },
+        ),
+        gql_class_factory(
+            RoleV1,
+            {
+                "name": "aws-role-user-policies",
+                "ldapGroup": None,
+                "users": [{"org_username": "pike"}, {"org_username": "uhura"}],
+                "user_policies": [
+                    {
+                        "account": {
+                            "name": "account-1",
+                            "uid": "123456789",
+                            "sso": True,
+                        }
+                    }
+                ],
+                "aws_groups": None,
+            },
+        ),
+        gql_class_factory(
+            RoleV1,
+            {
+                "name": "aws-role-multiple-accounts",
+                "ldapGroup": None,
+                "users": [{"org_username": "pike"}, {"org_username": "uhura"}],
+                "user_policies": [
+                    {
+                        "account": {
+                            "name": "user-policy-account-1",
+                            "uid": "USER-POLICY-ACCOUNT-1-UID",
+                            "sso": True,
+                        }
+                    },
+                    {
+                        "account": {
+                            "name": "user-policy-account-2",
+                            "uid": "USER-POLICY-ACCOUNT-2-UID",
+                            "sso": False,
+                        }
+                    },
+                    {
+                        "account": {
+                            "name": "user-policy-account-1",
+                            "uid": "USER-POLICY-ACCOUNT-3-UID",
+                            "sso": True,
+                            "disable": {"integrations": ["ldap-groups"]},
+                        }
+                    },
+                ],
+                "aws_groups": [
+                    {
+                        "account": {
+                            "name": "aws-groups-account-1",
+                            "uid": "AWS-GROUPS-ACCOUNT-1-UID",
+                            "sso": True,
+                        }
+                    },
+                    {
+                        "account": {
+                            "name": "aws-groups-account-2",
+                            "uid": "AWS-GROUPS-ACCOUNT-2-UID",
+                            "sso": False,
+                        }
+                    },
+                    {
+                        "account": {
+                            "name": "aws-groups-account-1",
+                            "uid": "AWS-GROUPS-ACCOUNT-3-UID",
+                            "sso": True,
+                            "disable": {"integrations": ["ldap-groups"]},
+                        }
+                    },
                 ],
             },
         ),
@@ -157,54 +211,110 @@ def test_ldap_groups_integration_get_desired_groups_for_roles(
     roles: Iterable[RoleV1],
     owners: Iterable[Entity],
     group: Group,
+    group2: Group,
 ) -> None:
     assert intg.get_desired_groups_for_roles(
         roles=roles,
         owners=owners,
         contact_list="email@example.org",
-    ) == [group]
+    ) == [group, group2]
 
 
-def test_ldap_groups_integration_get_desired_groups_for_aws_groups(
+def test_ldap_groups_integration_get_desired_groups_for_aws_roles(
     intg: LdapGroupsIntegration,
-    aws_groups: Iterable[AWSGroupV1],
+    roles: Iterable[RoleV1],
     owners: list[Entity],
 ) -> None:
-    assert intg.get_desired_groups_for_aws_groups(
-        aws_groups=aws_groups,
-        owners=owners,
-        contact_list="email@example.org",
+    assert intg.get_desired_groups_for_aws_roles(
+        roles=roles, owners=owners, contact_list="email@example.org"
     ) == [
         Group(
-            name="rover-prefix-123456789-shiny-Group",
-            description="AWS account: 'aws-account-1' Role: 'shiny-Group' Managed by qontract-reconcile",
+            name="rover-prefix-123456789-ldap-and-aws-role",
+            description="AWS account: 'account-1' Role: 'ldap-and-aws-role' Managed by qontract-reconcile",
             member_approval_type="self-service",
             contact_list="email@example.org",
-            owners=owners,
-            display_name="rover-prefix-123456789-shiny-Group",
+            owners=[Entity(type=EntityType.SERVICE_ACCOUNT, id="service-account-1")],
+            display_name="rover-prefix-123456789-ldap-and-aws-role",
             notes=None,
             rover_group_member_query=None,
             rover_group_inclusions=None,
             rover_group_exclusions=None,
             members=[
-                Entity(type=EntityType.USER, id="user-1"),
-                Entity(type=EntityType.USER, id="user-2"),
+                Entity(type=EntityType.USER, id="pike"),
+                Entity(type=EntityType.USER, id="uhura"),
             ],
             member_of=None,
             namespace=None,
         ),
         Group(
-            name="rover-prefix-987654321-second-Group",
-            description="AWS account: 'aws-account-1' Role: 'second-Group' Managed by qontract-reconcile",
+            name="rover-prefix-123456789-aws-role-aws-groups",
+            description="AWS account: 'account-1' Role: 'aws-role-aws-groups' Managed by qontract-reconcile",
             member_approval_type="self-service",
             contact_list="email@example.org",
-            owners=owners,
-            display_name="rover-prefix-987654321-second-Group",
+            owners=[Entity(type=EntityType.SERVICE_ACCOUNT, id="service-account-1")],
+            display_name="rover-prefix-123456789-aws-role-aws-groups",
             notes=None,
             rover_group_member_query=None,
             rover_group_inclusions=None,
             rover_group_exclusions=None,
-            members=[Entity(type=EntityType.USER, id="user-1")],
+            members=[
+                Entity(type=EntityType.USER, id="pike"),
+                Entity(type=EntityType.USER, id="uhura"),
+            ],
+            member_of=None,
+            namespace=None,
+        ),
+        Group(
+            name="rover-prefix-123456789-aws-role-user-policies",
+            description="AWS account: 'account-1' Role: 'aws-role-user-policies' Managed by qontract-reconcile",
+            member_approval_type="self-service",
+            contact_list="email@example.org",
+            owners=[Entity(type=EntityType.SERVICE_ACCOUNT, id="service-account-1")],
+            display_name="rover-prefix-123456789-aws-role-user-policies",
+            notes=None,
+            rover_group_member_query=None,
+            rover_group_inclusions=None,
+            rover_group_exclusions=None,
+            members=[
+                Entity(type=EntityType.USER, id="pike"),
+                Entity(type=EntityType.USER, id="uhura"),
+            ],
+            member_of=None,
+            namespace=None,
+        ),
+        Group(
+            name="rover-prefix-USER-POLICY-ACCOUNT-1-UID-aws-role-multiple-accounts",
+            description="AWS account: 'user-policy-account-1' Role: 'aws-role-multiple-accounts' Managed by qontract-reconcile",
+            member_approval_type="self-service",
+            contact_list="email@example.org",
+            owners=[Entity(type=EntityType.SERVICE_ACCOUNT, id="service-account-1")],
+            display_name="rover-prefix-USER-POLICY-ACCOUNT-1-UID-aws-role-multiple-accounts",
+            notes=None,
+            rover_group_member_query=None,
+            rover_group_inclusions=None,
+            rover_group_exclusions=None,
+            members=[
+                Entity(type=EntityType.USER, id="pike"),
+                Entity(type=EntityType.USER, id="uhura"),
+            ],
+            member_of=None,
+            namespace=None,
+        ),
+        Group(
+            name="rover-prefix-AWS-GROUPS-ACCOUNT-1-UID-aws-role-multiple-accounts",
+            description="AWS account: 'aws-groups-account-1' Role: 'aws-role-multiple-accounts' Managed by qontract-reconcile",
+            member_approval_type="self-service",
+            contact_list="email@example.org",
+            owners=[Entity(type=EntityType.SERVICE_ACCOUNT, id="service-account-1")],
+            display_name="rover-prefix-AWS-GROUPS-ACCOUNT-1-UID-aws-role-multiple-accounts",
+            notes=None,
+            rover_group_member_query=None,
+            rover_group_inclusions=None,
+            rover_group_exclusions=None,
+            members=[
+                Entity(type=EntityType.USER, id="pike"),
+                Entity(type=EntityType.USER, id="uhura"),
+            ],
             member_of=None,
             namespace=None,
         ),

@@ -14,6 +14,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 class TemplateData(BaseModel):
     variables: dict[str, Any]
     current: Optional[dict[str, Any]]
+    current_with_explicit_start: Optional[bool] = False
 
 
 class TemplatePatch(Protocol):
@@ -46,7 +47,7 @@ class Renderer(ABC):
         self.template = template
         self.data = data
         self.secret_reader = secret_reader
-        self.ruamel_instance = create_ruamel_instance()
+        self.ruamel_instance = create_ruamel_instance(explicit_start=True)
 
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
         return {**self.data.variables, "current": self.data.current}
