@@ -5,6 +5,8 @@ from requests_oauthlib import OAuth2Session
 
 from tools.cli_commands.cost_report.response import ReportCostResponse
 
+REQUEST_TIMEOUT = 60
+
 
 class CostManagementApi:
     def __init__(
@@ -14,8 +16,10 @@ class CostManagementApi:
         client_id: str,
         client_secret: str,
         scope: List[str] | None = None,
+        request_timeout: int | None = REQUEST_TIMEOUT,
     ) -> None:
         self.base_url = base_url
+        self.request_timeout = request_timeout
         client = BackendApplicationClient(client_id=client_id)
         self.session = OAuth2Session(client_id=client_id, client=client, scope=scope)
         # TODO: handle auto refetch token
@@ -49,5 +53,7 @@ class CostManagementApi:
             url=f"{self.base_url}/reports/aws/costs/",
             headers={"Content-Type": "application/json"},
             params=params,
+            timeout=self.request_timeout,
         )
+        response.raise_for_status()
         return ReportCostResponse.parse_obj(response.json())

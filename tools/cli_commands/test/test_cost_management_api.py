@@ -1,11 +1,13 @@
 from collections.abc import Callable
 from decimal import Decimal
-from typing import Any
+from typing import Any, Tuple
 
 import httpretty
 import pytest
 import requests
+from httpretty.core import HTTPrettyRequest
 from pytest_mock import MockerFixture
+from requests import HTTPError
 
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
 from tools.cli_commands.cost_report.response import (
@@ -166,3 +168,27 @@ def test_get_aws_costs_report(
     report_cost_response = cost_management_api.get_aws_costs_report(app="test")
 
     assert report_cost_response == EXPECTED_REPORT_COST_RESPONSE
+
+
+@httpretty.activate(allow_net_connect=False, verbose=True)
+def test_get_aws_costs_report_error(
+    cost_management_api: CostManagementApi,
+    fx: Callable,
+) -> None:
+    def callback(
+        _request: HTTPrettyRequest,
+        _url: str,
+        headers: dict,
+    ) -> Tuple[int, dict, str]:
+        return 500, headers, ""
+
+    httpretty.register_uri(
+        httpretty.GET,
+        f"{BASE_URL}/reports/aws/costs/",
+        body=callback,
+    )
+
+    with pytest.raises(HTTPError) as error:
+        cost_management_api.get_aws_costs_report(app="test")
+
+    assert error.value.response.status_code == 500
