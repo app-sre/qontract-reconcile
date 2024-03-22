@@ -39,6 +39,7 @@ class ServiceCostResponse(BaseModel):
 
 
 class CostResponse(BaseModel):
+    date: str
     services: List[ServiceCostResponse]
 
 

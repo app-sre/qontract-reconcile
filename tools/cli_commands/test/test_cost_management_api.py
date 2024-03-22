@@ -108,6 +108,7 @@ EXPECTED_REPORT_COST_RESPONSE = ReportCostResponse(
     ),
     data=[
         CostResponse(
+            date="2024-02",
             services=[
                 ServiceCostResponse(
                     service="AmazonEC2",
@@ -139,7 +140,7 @@ EXPECTED_REPORT_COST_RESPONSE = ReportCostResponse(
                         )
                     ],
                 ),
-            ]
+            ],
         ),
     ],
 )

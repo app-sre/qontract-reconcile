@@ -83,7 +83,7 @@ def report_cost_response_builder(
         "meta": {
             "delta": {
                 "value": delta_value,
-                "percentage": delta_percentage,
+                "percent": delta_percentage,
             },
             "total": {
                 "cost": {
@@ -96,13 +96,14 @@ def report_cost_response_builder(
         },
         "data": [
             {
+                "date": "2024-02",
                 "services": [
                     {
                         "service": service,
                         "values": [
                             {
                                 "delta_value": delta_value,
-                                "delta_percentage": delta_percentage,
+                                "delta_percent": delta_percentage,
                                 "cost": {
                                     "total": {
                                         "value": total,
@@ -112,7 +113,7 @@ def report_cost_response_builder(
                             }
                         ],
                     },
-                ]
+                ],
             }
         ],
     })
@@ -137,6 +138,7 @@ PARENT_APP_REPORT = Report(
     parent_app_name=None,
     child_apps=["child"],
     child_apps_total=Decimal(2000),
+    date="2024-02",
     services=[
         ServiceReport(
             service="service1",
@@ -156,6 +158,7 @@ CHILD_APP_REPORT = Report(
     parent_app_name="parent",
     child_apps=[],
     child_apps_total=Decimal(0),
+    date="2024-02",
     services=[
         ServiceReport(
             service="service2",

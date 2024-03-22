@@ -15,6 +15,7 @@ class Report(BaseModel):
     app_name: str
     child_apps: List[str]
     child_apps_total: Decimal
+    date: str
     parent_app_name: str | None
     services: List[ServiceReport]
     services_delta_percentage: float

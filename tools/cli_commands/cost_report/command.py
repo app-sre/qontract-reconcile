@@ -101,10 +101,12 @@ class CostReportCommand:
         )
         services_total = response.meta.total.cost.total.value
         total = services_total + child_apps_total
+        date = next((d.date for d in response.data), "")
         return Report(
             app_name=app_name,
             child_apps=child_apps,
             child_apps_total=child_apps_total,
+            date=date,
             parent_app_name=parent_app_name,
             services_delta_value=response.meta.delta.value,
             services_delta_percentage=response.meta.delta.percent,
@@ -128,7 +130,13 @@ class CostReportCommand:
         cls,
     ) -> Self:
         gql_api = gql.get_api()
-        cost_management_api = CostManagementApi()
+        cost_management_api = CostManagementApi(
+            base_url="",
+            token_url="",
+            client_id="",
+            client_secret="",
+            scope=None,
+        )
         return cls(
             gql_api=gql_api,
             cost_management_api=cost_management_api,
