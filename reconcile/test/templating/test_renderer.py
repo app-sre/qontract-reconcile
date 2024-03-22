@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Callable
 
 import pytest
+from gitlab import GitlabGetError
 from pytest_mock import MockerFixture
 from ruamel import yaml
 
@@ -11,7 +12,9 @@ from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionVariablesV1,
     TemplateV1,
 )
+from reconcile.templating.lib.merge_request_manager import MergeRequestManager
 from reconcile.templating.renderer import (
+    GitlabFilePersistence,
     LocalFilePersistence,
     TemplateOutput,
     TemplateRendererIntegration,
@@ -23,6 +26,7 @@ from reconcile.templating.renderer import (
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
+from reconcile.utils.vcs import VCS
 
 
 @pytest.fixture
@@ -130,6 +134,37 @@ def test_local_file_persistence_read(tmp_path: Path) -> None:
     test_file.write_text("hello")
     lfp = LocalFilePersistence(str(tmp_path))
     assert lfp.read("foo") == "hello"
+
+
+def test_gitlab_file_persistence_write(mocker: MockerFixture) -> None:
+    vcs = mocker.MagicMock(VCS)
+    mr_manager = mocker.MagicMock(MergeRequestManager)
+    output = [TemplateOutput(path="/foo", content="bar")]
+    gfp = GitlabFilePersistence(vcs, mr_manager)
+    gfp.write(output)
+
+    mr_manager.housekeeping.assert_called_once()
+    mr_manager.create_tr_merge_request.assert_called_once_with(output)
+
+
+def test_gitlable_file_persistence_read_found(mocker: MockerFixture) -> None:
+    vcs = mocker.MagicMock(VCS)
+    vcs.get_file_content_from_app_interface_master.return_value = "hello"
+    mr_manager = mocker.MagicMock(MergeRequestManager)
+    gfp = GitlabFilePersistence(vcs, mr_manager)
+
+    assert gfp.read("foo") == "hello"
+    vcs.get_file_content_from_app_interface_master.assert_called_once_with("foo")
+
+
+def test_gitlable_file_persistence_read_miss(mocker: MockerFixture) -> None:
+    vcs = mocker.MagicMock(VCS)
+    vcs.get_file_content_from_app_interface_master.side_effect = GitlabGetError()
+    mr_manager = mocker.MagicMock(MergeRequestManager)
+    gfp = GitlabFilePersistence(vcs, mr_manager)
+
+    assert gfp.read("foo") is None
+    vcs.get_file_content_from_app_interface_master.assert_called_once_with("foo")
 
 
 def test_process_template_simple(
