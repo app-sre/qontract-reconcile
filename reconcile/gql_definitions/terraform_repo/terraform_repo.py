@@ -53,6 +53,14 @@ query TerraformRepo {
     delete
     requireFips
     tfVersion
+    variables {
+      inputs {
+        ...VaultSecret
+      }
+      outputs {
+        ...VaultSecret
+      }
+    }
   }
 }
 """
@@ -83,6 +91,11 @@ class AWSAccountV1(ConfiguredBaseModel):
     terraform_state: Optional[TerraformStateAWSV1] = Field(..., alias="terraformState")
 
 
+class TerraformRepoVariablesV1(ConfiguredBaseModel):
+    inputs: VaultSecret = Field(..., alias="inputs")
+    outputs: VaultSecret = Field(..., alias="outputs")
+
+
 class TerraformRepoV1(ConfiguredBaseModel):
     account: AWSAccountV1 = Field(..., alias="account")
     name: str = Field(..., alias="name")
@@ -92,6 +105,7 @@ class TerraformRepoV1(ConfiguredBaseModel):
     delete: Optional[bool] = Field(..., alias="delete")
     require_fips: Optional[bool] = Field(..., alias="requireFips")
     tf_version: str = Field(..., alias="tfVersion")
+    variables: Optional[TerraformRepoVariablesV1] = Field(..., alias="variables")
 
 
 class TerraformRepoQueryData(ConfiguredBaseModel):

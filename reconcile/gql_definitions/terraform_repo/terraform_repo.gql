@@ -25,5 +25,13 @@ query TerraformRepo {
     delete
     requireFips
     tfVersion
+    variables {
+      inputs {
+        ...VaultSecret
+      }
+      outputs {
+        ...VaultSecret
+      }
+    }
   }
 }

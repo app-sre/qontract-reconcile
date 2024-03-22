@@ -12,8 +12,10 @@ from pydantic import (
 )
 
 from reconcile import queries
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     TerraformRepoV1,
+    TerraformRepoVariablesV1,
     query,
 )
 from reconcile.utils import gql
@@ -35,10 +37,6 @@ from reconcile.utils.state import (
 )
 
 
-class RepoSecret(BaseModel):
-    path: str
-    version: Optional[int]
-
 
 class RepoOutput(BaseModel):
     repository: str
@@ -46,7 +44,8 @@ class RepoOutput(BaseModel):
     ref: str
     project_path: str
     delete: bool
-    secret: RepoSecret
+    aws_creds: VaultSecret
+    variables: Optional[TerraformRepoVariablesV1]
     bucket: Optional[str]
     region: Optional[str]
     bucket_path: Optional[str]
@@ -146,10 +145,8 @@ class TerraformRepoIntegration(
                 delete=repo.delete or False,
                 require_fips=repo.require_fips or False,
                 tf_version=repo.tf_version,
-                secret=RepoSecret(
-                    path=repo.account.automation_token.path,
-                    version=repo.account.automation_token.version,
-                ),
+                aws_creds=repo.account.automation_token,
+                variables=repo.variables
             )
             # terraform-repo will store its statefiles in a specified directory if there is a
             # terraform-state yaml file associated with the AWS account and a configuration is

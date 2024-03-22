@@ -10,6 +10,7 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     AWSAccountV1,
     TerraformRepoV1,
+    TerraformRepoVariablesV1,
     TerraformStateAWSV1,
 )
 from reconcile.terraform_repo import (
@@ -33,7 +34,7 @@ STATE_PROVIDER = "s3"
 
 
 @pytest.fixture
-def existing_repo(aws_account) -> TerraformRepoV1:
+def existing_repo(aws_account, tf_variables) -> TerraformRepoV1:
     return TerraformRepoV1(
         name="a_repo",
         repository=A_REPO,
@@ -43,11 +44,12 @@ def existing_repo(aws_account) -> TerraformRepoV1:
         delete=False,
         requireFips=True,
         tfVersion=A_REPO_VERSION,
+        variables=tf_variables
     )
 
 
 @pytest.fixture
-def existing_repo_output() -> str:
+def existing_repo_output(tf_variables) -> str:
     return f"""
         dry_run: true
         repos:
@@ -64,6 +66,7 @@ def existing_repo_output() -> str:
           bucket_path: tf-repo
           require_fips: true
           tf_version: {A_REPO_VERSION}
+          variables: {tf_variables.dict()}
     """
 
 
@@ -78,6 +81,7 @@ def new_repo(aws_account_no_state) -> TerraformRepoV1:
         delete=False,
         requireFips=False,
         tfVersion=B_REPO_VERSION,
+        variables=None
     )
 
 
@@ -99,12 +103,20 @@ def new_repo_output() -> str:
           bucket_path: null
           require_fips: false
           tf_version: {B_REPO_VERSION}
+          variables: null
     """
 
 
 @pytest.fixture()
 def automation_token() -> VaultSecret:
     return VaultSecret(path=AUTOMATION_TOKEN_PATH, version=1, field="all", format=None)
+
+@pytest.fixture()
+def tf_variables() -> TerraformRepoVariablesV1:
+    return TerraformRepoVariablesV1(
+        inputs=VaultSecret(path="terraform-repo/inputs/abc", field="all", version=2, format=None),
+        outputs=VaultSecret(path="terraform-repo/outputs/abc", field="all", version=2, format=None)
+    )
 
 
 @pytest.fixture()
@@ -259,7 +271,7 @@ def test_delete_repo_without_flag(existing_repo, int_params):
         )
 
 
-def test_get_repo_state(s3_state_builder, int_params, existing_repo):
+def test_get_repo_state(s3_state_builder, int_params, existing_repo, tf_variables):
     state = s3_state_builder({
         "ls": [
             "/a_repo",
@@ -273,6 +285,7 @@ def test_get_repo_state(s3_state_builder, int_params, existing_repo):
                 "delete": False,
                 "requireFips": True,
                 "tfVersion": A_REPO_VERSION,
+                "variables": tf_variables,
                 "account": {
                     "name": "foo",
                     "uid": AWS_UID,
