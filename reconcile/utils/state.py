@@ -3,6 +3,7 @@ import logging
 import os
 from abc import abstractmethod
 from collections.abc import Callable, Mapping
+from json import JSONEncoder
 from types import TracebackType
 from typing import (
     Any,
@@ -40,6 +41,7 @@ class StateInaccessibleException(Exception):
 def init_state(
     integration: str,
     secret_reader: Optional[SecretReaderBase] = None,
+    encoder: type = JSONEncoder,
 ) -> "State":
     if not secret_reader:
         vault_settings = get_app_interface_vault_settings()
@@ -51,6 +53,7 @@ def init_state(
         integration=integration,
         bucket=s3_settings.bucket,
         client=s3_settings.build_client(),
+        encoder=encoder,
     )
 
 
@@ -229,11 +232,18 @@ class State:
     or not accessible
     """
 
-    def __init__(self, integration: str, bucket: str, client: S3Client) -> None:
+    def __init__(
+        self,
+        integration: str,
+        bucket: str,
+        client: S3Client,
+        encoder: type = JSONEncoder,
+    ) -> None:
         """Initiates S3 client from AWSApi."""
         self.state_path = f"state/{integration}" if integration else "state"
         self.bucket = bucket
         self.client = client
+        self.encoder = encoder
 
         # check if the bucket exists
         try:
@@ -345,7 +355,7 @@ class State:
         self.client.put_object(
             Bucket=self.bucket,
             Key=f"{self.state_path}/{key}",
-            Body=json.dumps(value),
+            Body=json.dumps(value, cls=self.encoder),
             Metadata=metadata or {},
         )
 
