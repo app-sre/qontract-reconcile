@@ -86,17 +86,14 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
         gql_api = gql.get_api()
         self.initialize_handlers(gql_api.query)
         environments = ocm_environment_query(gql_api.query).environments
-        ocm_apis = {
-            env.name: init_ocm_base_client(env, self.secret_reader)
-            for env in environments
-        }
         for env in environments:
-            self.process_environment(
-                ocm_env_name=env.name,
-                ocm_api=ocm_apis[env.name],
-                query_func=gql_api.query,
-                dry_run=dry_run,
-            )
+            with init_ocm_base_client(env, self.secret_reader) as ocm_api:
+                self.process_environment(
+                    ocm_env_name=env.name,
+                    ocm_api=ocm_api,
+                    query_func=gql_api.query,
+                    dry_run=dry_run,
+                )
 
     def process_environment(
         self,
@@ -128,13 +125,13 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
         )
 
         for org in organizations:
-            ocm_org_api = init_ocm_base_client_for_org(org, self.secret_reader)
-            self.process_organization(
-                clusters=clusters_by_org_id.get(org.org_id, []),
-                gates=gates,
-                ocm_api=ocm_org_api,
-                dry_run=dry_run,
-            )
+            with init_ocm_base_client_for_org(org, self.secret_reader) as ocm_org_api:
+                self.process_organization(
+                    clusters=clusters_by_org_id.get(org.org_id, []),
+                    gates=gates,
+                    ocm_api=ocm_org_api,
+                    dry_run=dry_run,
+                )
 
     def process_organization(
         self,
