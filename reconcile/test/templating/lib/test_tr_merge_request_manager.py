@@ -36,7 +36,7 @@ def test_parser_parse() -> None:
 
     t = Parser().parse(render_description(collection, shasum))
     assert t.collection == collection
-    assert t.template_hash == shasum
+    assert t.collection_hash == shasum
 
 
 @pytest.mark.parametrize("is_new,create,update", [(True, 1, 0), (False, 0, 1)])
@@ -71,7 +71,7 @@ def test_create_tr_merge_request_create(
     mrm.create_tr_merge_request(
         [
             TemplateOutput(
-                input=TemplateInput(collection="foo", template_hash="abc"),
+                input=TemplateInput(collection="foo", collection_hash="abc"),
                 is_new=True,
                 content="",
                 path="",
@@ -93,13 +93,13 @@ def test_create_tr_merge_request_found(
     mrm._open_mrs.append(
         OpenMergeRequest(
             raw=mocker.patch("gitlab.v4.objects.ProjectMergeRequest", autospec=True),
-            template_info=TemplateInfo(collection="foo", template_hash=thash),
+            template_info=TemplateInfo(collection="foo", collection_hash=thash),
         )
     )
     mrm.create_tr_merge_request(
         [
             TemplateOutput(
-                input=TemplateInput(collection="foo", template_hash="abc"),
+                input=TemplateInput(collection="foo", collection_hash="abc"),
                 is_new=True,
                 content="",
                 path="",

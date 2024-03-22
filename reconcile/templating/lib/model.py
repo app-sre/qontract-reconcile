@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class TemplateInput(BaseModel):
     collection: str
-    template_hash: str
+    collection_hash: str
 
 
 class TemplateOutput(BaseModel):

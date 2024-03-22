@@ -19,14 +19,14 @@ TR_LABEL = "template-output"
 
 VERSION_REF = "tr_version"
 COLLECTION_REF = "collection"
-TEMPLATE_HASH_REF = "template_hash"
+TEMPLATE_COLLECTION_HASH_REF = "collection_hash"
 
 COMPILED_REGEXES = {
     i: re.compile(rf".*{i}: (.*)$", re.MULTILINE)
     for i in [
         VERSION_REF,
         COLLECTION_REF,
-        TEMPLATE_HASH_REF,
+        TEMPLATE_COLLECTION_HASH_REF,
     ]
 }
 
@@ -42,14 +42,14 @@ Parts of this description are used by the Template Renderer to manage the MR.
 
 * {VERSION_REF}: $version
 * {COLLECTION_REF}: $collection
-* {TEMPLATE_HASH_REF}: $template_hash
+* {TEMPLATE_COLLECTION_HASH_REF}: $collection_hash
 """
 )
 
 
 class TemplateInfo(BaseModel):
     collection: str
-    template_hash: str
+    collection_hash: str
 
 
 class ParserError(Exception):
@@ -85,15 +85,15 @@ class Parser:
             raise ParserVersionError("Version is outdated")
         return TemplateInfo(
             collection=self._find_by_name(COLLECTION_REF, parts[1]),
-            template_hash=self._find_by_name(TEMPLATE_HASH_REF, parts[1]),
+            collection_hash=self._find_by_name(TEMPLATE_COLLECTION_HASH_REF, parts[1]),
         )
 
 
 def render_description(
-    collection: str, template_hash: str, version: str = TR_VERSION
+    collection: str, collection_hash: str, version: str = TR_VERSION
 ) -> str:
     return MR_DESC.substitute(
-        collection=collection, template_hash=template_hash, version=version
+        collection=collection, collection_hash=collection_hash, version=version
     )
 
 
@@ -137,14 +137,14 @@ class TemplateRenderingMR(MergeRequestBase):
                 gitlab_cli.create_file(
                     branch_name=self.branch,
                     file_path=f"data{content.path}",
-                    commit_message="aws version sync",
+                    commit_message="termplate rendering output",
                     content=content.content,
                 )
             else:
                 gitlab_cli.update_file(
                     branch_name=self.branch,
                     file_path=f"data{content.path}",
-                    commit_message="aws version sync",
+                    commit_message="termplate rendering output",
                     content=content.content,
                 )
 
@@ -226,16 +226,16 @@ class MergeRequestManager:
             self.housekeeping()
 
         collections = {o.input.collection for o in output if o.input}
-        template_hashes = {o.input.template_hash for o in output if o.input}
+        collection_hashes = {o.input.collection_hash for o in output if o.input}
         # From the way the code is written, we can assert that there is only one collection and one template hash
         assert len(collections) == 1
-        assert len(template_hashes) == 1
+        assert len(collection_hashes) == 1
         collection = collections.pop()
-        template_hash = template_hashes.pop()
+        collection_hash = collection_hashes.pop()
 
         """Create a new MR with the rendered template."""
         if mr := self._merge_request_already_exists(collection):
-            if mr.template_info.template_hash == template_hash:
+            if mr.template_info.collection_hash == collection_hash:
                 logging.info(
                     "MR already exists and has the same template hash. Skipping",
                 )
@@ -249,10 +249,10 @@ class MergeRequestManager:
                 )
             return None
 
-        description = render_description(collection, template_hash)
+        description = render_description(collection, collection_hash)
         title = render_title(collection)
 
-        logging.info("Opening MR for %s with hash (%s)", collection, template_hash)
+        logging.info("Opening MR for %s with hash (%s)", collection, collection_hash)
         mr_labels = [TR_LABEL]
 
         self._vcs.open_app_interface_merge_request(

@@ -214,7 +214,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 if output:
                     output.input = TemplateInput(
                         collection=c.name,
-                        template_hash=template_hash,
+                        collection_hash=template_hash,
                     )
                     outputs.append(output)
 
