@@ -7,18 +7,23 @@ from pydantic import BaseModel
 class ServiceReport(BaseModel):
     service: str
     delta_value: Decimal
-    delta_percentage: float
+    delta_percent: float
+    total: Decimal
+
+
+class ChildAppReport(BaseModel):
+    name: str
     total: Decimal
 
 
 class Report(BaseModel):
     app_name: str
-    child_apps: List[str]
+    child_apps: List[ChildAppReport]
     child_apps_total: Decimal
     date: str
     parent_app_name: str | None
     services: List[ServiceReport]
-    services_delta_percentage: float
+    services_delta_percent: float
     services_delta_value: Decimal
     services_total: Decimal
     total: Decimal

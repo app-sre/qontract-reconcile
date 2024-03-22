@@ -6,8 +6,9 @@ from typing import List, Self
 from reconcile.typed_queries.cost_report.app_names import App, get_app_names
 from reconcile.utils import gql
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
-from tools.cli_commands.cost_report.model import Report, ServiceReport
+from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
 from tools.cli_commands.cost_report.response import ReportCostResponse
+from tools.cli_commands.cost_report.view import render_report
 
 
 class CostReportCommand:
@@ -58,7 +59,7 @@ class CostReportCommand:
         return reports
 
     def render(self, reports: Mapping[str, Report]) -> str:
-        return ""
+        return render_report(reports)
 
     def _dfs_reports(
         self,
@@ -96,27 +97,34 @@ class CostReportCommand:
         reports: Mapping[str, Report],
         response: ReportCostResponse,
     ) -> Report:
+        child_app_reports = [
+            ChildAppReport(
+                name=child_app,
+                total=reports[child_app].total,
+            )
+            for child_app in child_apps
+        ]
         child_apps_total = Decimal(
-            sum(reports[child_app].total for child_app in child_apps)
+            sum(child_app.total for child_app in child_app_reports)
         )
         services_total = response.meta.total.cost.total.value
         total = services_total + child_apps_total
         date = next((d.date for d in response.data), "")
         return Report(
             app_name=app_name,
-            child_apps=child_apps,
+            child_apps=child_app_reports,
             child_apps_total=child_apps_total,
             date=date,
             parent_app_name=parent_app_name,
             services_delta_value=response.meta.delta.value,
-            services_delta_percentage=response.meta.delta.percent,
+            services_delta_percent=response.meta.delta.percent,
             services_total=services_total,
             total=total,
             services=[
                 ServiceReport(
                     service=service.service,
                     delta_value=value.delta_value,
-                    delta_percentage=value.delta_percent,
+                    delta_percent=value.delta_percent,
                     total=value.cost.total.value,
                 )
                 for data in response.data

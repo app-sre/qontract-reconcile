@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
 
@@ -6,7 +7,7 @@ from pytest_mock import MockerFixture
 
 from reconcile.typed_queries.cost_report.app_names import App
 from tools.cli_commands.cost_report.command import CostReportCommand
-from tools.cli_commands.cost_report.model import Report, ServiceReport
+from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
 from tools.cli_commands.cost_report.response import ReportCostResponse
 
 
@@ -56,9 +57,14 @@ CHILD_APP = App(name="child", parent_app_name="parent")
 def test_cost_report_execute(
     cost_report_command: CostReportCommand,
     mock_get_app_names: Any,
+    fx: Callable,
 ) -> None:
+    expected_output = fx("empty_cost_report.md")
     mock_get_app_names.return_value = []
-    assert cost_report_command.execute() == ""
+
+    output = cost_report_command.execute()
+
+    assert output.rstrip() == expected_output.rstrip()
 
 
 def test_cost_report_get_apps(
@@ -136,20 +142,22 @@ CHILD_APP_COST_RESPONSE = report_cost_response_builder(
 PARENT_APP_REPORT = Report(
     app_name="parent",
     parent_app_name=None,
-    child_apps=["child"],
+    child_apps=[
+        ChildAppReport(name="child", total=Decimal(2000)),
+    ],
     child_apps_total=Decimal(2000),
     date="2024-02",
     services=[
         ServiceReport(
             service="service1",
             delta_value=Decimal(100),
-            delta_percentage=10,
+            delta_percent=10,
             total=Decimal(1000),
         )
     ],
     services_total=Decimal(1000),
     services_delta_value=Decimal(100),
-    services_delta_percentage=10,
+    services_delta_percent=10,
     total=Decimal(3000),
 )
 
@@ -163,13 +171,13 @@ CHILD_APP_REPORT = Report(
         ServiceReport(
             service="service2",
             delta_value=Decimal(200),
-            delta_percentage=20,
+            delta_percent=20,
             total=Decimal(2000),
         )
     ],
     services_total=Decimal(2000),
     services_delta_value=Decimal(200),
-    services_delta_percentage=20,
+    services_delta_percent=20,
     total=Decimal(2000),
 )
 
@@ -198,5 +206,16 @@ def test_cost_report_get_reports(
     assert reports == expected_reports
 
 
-def test_cost_report_render(cost_report_command: CostReportCommand) -> None:
-    assert cost_report_command.render({}) == ""
+def test_cost_report_render(
+    cost_report_command: CostReportCommand,
+    fx: Callable,
+) -> None:
+    expected_output = fx("cost_report.md")
+    reports = {
+        "parent": PARENT_APP_REPORT,
+        "child": CHILD_APP_REPORT,
+    }
+
+    output = cost_report_command.render(reports)
+
+    assert output == expected_output
