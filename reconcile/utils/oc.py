@@ -14,13 +14,10 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
+from io import TextIOWrapper
 from subprocess import Popen
 from threading import Lock
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any, Optional, Union
 
 import urllib3
 from kubernetes.client import (  # type: ignore[attr-defined]
@@ -725,15 +722,32 @@ class OCCli:  # pylint: disable=too-many-public-methods
         if not ready_pods:
             raise JobNotRunningError(name)
 
-    def job_logs(self, namespace, name, follow, output):
-        self.wait_for_job_running(namespace, name)
+    def job_logs(
+        self,
+        namespace,
+        name,
+        follow,
+        output,
+        wait_for_job_running=True,
+        wait_for_logs_process=False,
+    ):
+        if wait_for_job_running:
+            self.wait_for_job_running(namespace, name)
+
         cmd = ["logs", "--all-containers=true", "-n", namespace, f"job/{name}"]
         if follow:
             cmd.append("-f")
         # pylint: disable=consider-using-with
-        output_file = open(os.path.join(output, name), "w", encoding="locale")
-        # collect logs to file async
-        Popen(self.oc_base_cmd + cmd, stdout=output_file)
+        if isinstance(output, TextIOWrapper):
+            output_file = output
+        else:
+            output_file = open(os.path.join(output, name), "w", encoding="locale")
+
+        if wait_for_logs_process:
+            subprocess.run(self.oc_base_cmd + cmd, stdout=output_file, check=False)
+        else:
+            # collect logs to file async
+            Popen(self.oc_base_cmd + cmd, stdout=output_file)
 
     def job_logs_latest_pod(self, namespace: str, name: str, output: str) -> str:
         pods = self.get_items("Pod", namespace=namespace, labels={"job-name": name})
