@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
@@ -6,6 +7,7 @@ from pytest_mock import MockerFixture
 from ruamel import yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
+    TemplateCollectionV1,
     TemplateCollectionVariablesV1,
     TemplateV1,
 )
@@ -18,7 +20,9 @@ from reconcile.templating.renderer import (
     unpack_dynamic_variables,
     unpack_static_variables,
 )
+from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.state import State
 
 
 @pytest.fixture
@@ -38,6 +42,20 @@ def template_simple(gql_class_factory: Callable) -> TemplateV1:
             "condition": "{{1 == 1}}",
             "targetPath": "/target_path",
             "template": "template",
+        },
+    )
+
+
+@pytest.fixture
+def template_collection(
+    gql_class_factory: Callable, template_simple: TemplateV1
+) -> TemplateCollectionV1:
+    return gql_class_factory(
+        TemplateCollectionV1,
+        {
+            "name": "test",
+            "variables": None,
+            "templates": [template_simple.dict(by_alias=True)],
         },
     )
 
@@ -162,3 +180,54 @@ def test_process_template_match(
         template_simple, {}, local_file_persistence, ruaml_instance
     )
     assert output is None
+
+
+def test_reconcile_state_mismatch(
+    mocker: MockerFixture, template_collection: TemplateCollectionV1
+) -> None:
+    t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
+    state = mocker.MagicMock(State)
+    state.exists.return_value = True
+    pt = mocker.patch.object(t, "process_template")
+    mocker.patch("reconcile.templating.renderer.init_from_config")
+    gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
+    gtc.return_value = [template_collection]
+    p = mocker.MagicMock(LocalFilePersistence)
+    t.reconcile(
+        False,
+        p,
+        create_ruamel_instance(),
+        state,
+    )
+
+    pt.assert_called_once()
+    state.add.assert_called_once()
+    p.write.assert_called_once()
+
+
+def test_reconcile_state_match(
+    mocker: MockerFixture, template_collection: TemplateCollectionV1
+) -> None:
+    t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
+    state = mocker.MagicMock(State)
+    state.exists.return_value = True
+    # Hash optained using debugger
+    state.get.return_value = {
+        "hash": "f8e46492df18572b06967588c8074ef5a4a7ba2810d5f901ea94098f80856568",
+        "timestamp": datetime.now().isoformat(),
+    }
+    pt = mocker.patch.object(t, "process_template")
+    mocker.patch("reconcile.templating.renderer.init_from_config")
+    gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
+    gtc.return_value = [template_collection]
+    p = mocker.MagicMock(LocalFilePersistence)
+
+    t.reconcile(
+        False,
+        p,
+        create_ruamel_instance(),
+        state,
+    )
+
+    pt.assert_not_called()
+    p.write.assert_not_called()

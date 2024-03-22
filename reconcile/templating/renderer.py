@@ -176,7 +176,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         self,
         dry_run: bool,
         persistence: FilePersistence,
-        ruaml_instance: yaml.YAML,
+        ruamel_instance: yaml.YAML,
         state: Optional[State] = None,
     ) -> None:
         outputs: list[TemplateOutput] = []
@@ -209,7 +209,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     template,
                     variables,
                     persistence,
-                    ruaml_instance,
+                    ruamel_instance,
                 )
                 if output:
                     output.input = TemplateInput(
@@ -236,7 +236,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
 
     def run(self, dry_run: bool) -> None:
         persistence: FilePersistence
-        s3_state: Optional[State] = None
+        state: Optional[State] = None
         if self.params.app_interface_data_path:
             persistence = LocalFilePersistence(self.params.app_interface_data_path)
         else:
@@ -255,8 +255,8 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             )
             persistence = GitlabFilePersistence(vcs, merge_request_manager)
 
-            s3_state = init_state(QONTRACT_INTEGRATION, self.secret_reader)
+            state = init_state(QONTRACT_INTEGRATION, self.secret_reader)
 
         ruaml_instance = create_ruamel_instance(explicit_start=True)
 
-        self.reconcile(dry_run, persistence, ruaml_instance, state=s3_state)
+        self.reconcile(dry_run, persistence, ruaml_instance, state=state)
