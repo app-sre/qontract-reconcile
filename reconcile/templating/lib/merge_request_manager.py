@@ -40,7 +40,7 @@ Parts of this description are used by the Template Renderer to manage the MR.
 
 {DATA_SEPARATOR}
 
-* {VERSION_REF}: {TR_VERSION}
+* {VERSION_REF}: $version
 * {COLLECTION_REF}: $collection
 * {TEMPLATE_HASH_REF}: $template_hash
 """
@@ -89,8 +89,12 @@ class Parser:
         )
 
 
-def render_description(collection: str, template_hash: str) -> str:
-    return MR_DESC.substitute(collection=collection, template_hash=template_hash)
+def render_description(
+    collection: str, template_hash: str, version: str = TR_VERSION
+) -> str:
+    return MR_DESC.substitute(
+        collection=collection, template_hash=template_hash, version=version
+    )
 
 
 def render_title(collection: str) -> str:
