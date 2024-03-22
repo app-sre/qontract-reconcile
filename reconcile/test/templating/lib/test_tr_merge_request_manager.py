@@ -108,9 +108,10 @@ def test_create_tr_merge_request_found(
     )
     if closed:
         vcs.close_app_interface_mr.assert_called_once()
+        vcs.open_app_interface_merge_request.assert_called_once()
     else:
         vcs.close_app_interface_mr.assert_not_called()
-    vcs.open_app_interface_merge_request.assert_not_called()
+        vcs.open_app_interface_merge_request.assert_not_called()
 
 
 @pytest.mark.parametrize(

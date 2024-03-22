@@ -246,7 +246,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 gitlab_instances=get_gitlab_instances(),
                 app_interface_repo_url=get_app_interface_repo_url(),
                 dry_run=dry_run,
-                allow_deleting_mrs=False,
+                allow_deleting_mrs=True,
                 allow_opening_mrs=True,
             )
             merge_request_manager = MergeRequestManager(

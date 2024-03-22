@@ -239,15 +239,15 @@ class MergeRequestManager:
                 logging.info(
                     "MR already exists and has the same template hash. Skipping",
                 )
+                return None
             else:
                 logging.info(
-                    "Template hash changed. Closing it",
+                    "Collection Hash changed. Closing it",
                 )
                 self._vcs.close_app_interface_mr(
                     mr.raw,
-                    "Closing this MR because the template hash has changed.",
+                    "Closing this MR because the collection hash has changed.",
                 )
-            return None
 
         description = render_description(collection, collection_hash)
         title = render_title(collection)
