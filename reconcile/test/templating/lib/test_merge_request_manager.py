@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 
 import pytest
-from build.lib.reconcile.utils.vcs import VCS
 from gitlab.v4.objects import ProjectMergeRequest
 from pytest_mock import MockerFixture
 
@@ -16,6 +15,7 @@ from reconcile.templating.lib.merge_request_manager import (
 )
 from reconcile.templating.lib.model import TemplateInput, TemplateOutput
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.vcs import VCS
 
 
 @pytest.fixture
