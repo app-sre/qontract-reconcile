@@ -452,7 +452,8 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         details = {
             "cluster": self.cluster.name,
             "cluster_id": self.cluster.id,
-            "version": self.version,
+            "from_version": self.cluster.version.raw_id,
+            "to_version": self.version,
             "next_run": self.next_run,
         }
         return f"cluster upgrade policy - {remove_none_values_from_dict(details)}"
