@@ -1100,6 +1100,7 @@ def calculate_diff(
                         f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates for {target_version_prefix} - {missing_gate_ids} "
                         "Skip creation of an upgrade policy until all of them have been acked by the version-gate-approver integration or a user."
                     )
+                    continue
                 diffs.append(
                     UpgradePolicyHandler(
                         action="create",
