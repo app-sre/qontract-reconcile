@@ -452,7 +452,8 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         details = {
             "cluster": self.cluster.name,
             "cluster_id": self.cluster.id,
-            "version": self.version,
+            "from_version": self.cluster.version.raw_id,
+            "to_version": self.version,
             "next_run": self.next_run,
         }
         return f"cluster upgrade policy - {remove_none_values_from_dict(details)}"
@@ -1078,12 +1079,12 @@ def calculate_diff(
                 #
                 # this might change in the future - revisite for 4.16
                 if not minor_version_gates:
-                    logging.debug(
+                    logging.info(
                         f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] no gates found for {target_version_prefix}. "
                         "Skip creation of an upgrade policy."
                     )
                     continue
-                gates = gates_to_agree(
+                gates_with_missing_agreements = gates_to_agree(
                     gates=minor_version_gates,
                     cluster=spec.cluster,
                     acked_gate_ids={
@@ -1091,10 +1092,12 @@ def calculate_diff(
                         for agreement in get_version_agreement(ocm_api, spec.cluster.id)
                     },
                 )
-                if gates:
-                    gate_ids = [gate.id for gate in gates]
+                if gates_with_missing_agreements:
+                    missing_gate_ids = [
+                        gate.id for gate in gates_with_missing_agreements
+                    ]
                     logging.info(
-                        f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates for {target_version_prefix} - {gate_ids} "
+                        f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates with missing agreements for {target_version_prefix} - {missing_gate_ids} "
                         "Skip creation of an upgrade policy until all of them have been acked by the version-gate-approver integration or a user."
                     )
                     continue
