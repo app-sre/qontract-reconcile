@@ -89,6 +89,7 @@ class AddonServiceV1(AddonService):
     """
     The original addon-service API that is part of CS.
     """
+
     def addon_base_api_path(self) -> str:
         return "/api/clusters_mgmt/v1"
 
