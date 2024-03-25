@@ -3,7 +3,7 @@ import re
 import pytest
 from pydantic import BaseModel
 
-from reconcile.utils.mergerequest_manager.parser import (
+from reconcile.utils.merge_request_manager.parser import (
     Parser,
     ParserError,
     ParserVersionError,

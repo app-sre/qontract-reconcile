@@ -4,7 +4,7 @@ import string
 from pydantic import BaseModel
 from ruamel.yaml.compat import StringIO
 
-from reconcile.utils.mergerequest_manager.parser import Parser
+from reconcile.utils.merge_request_manager.parser import Parser
 from reconcile.utils.ruamel import create_ruamel_instance
 
 PROMOTION_DATA_SEPARATOR = (

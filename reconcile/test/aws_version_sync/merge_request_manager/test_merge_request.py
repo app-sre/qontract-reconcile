@@ -16,7 +16,7 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     Renderer,
     create_parser,
 )
-from reconcile.utils.mergerequest_manager.parser import ParserError, ParserVersionError
+from reconcile.utils.merge_request_manager.parser import ParserError, ParserVersionError
 
 
 @pytest.mark.parametrize(

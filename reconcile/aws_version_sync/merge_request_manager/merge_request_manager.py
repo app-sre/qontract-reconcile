@@ -12,7 +12,7 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     Renderer,
 )
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.mergerequest_manager.parser import ParserError, ParserVersionError
+from reconcile.utils.merge_request_manager.parser import ParserError, ParserVersionError
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
 from reconcile.utils.vcs import VCS
