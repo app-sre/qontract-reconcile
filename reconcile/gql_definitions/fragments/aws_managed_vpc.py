@@ -37,8 +37,12 @@ class NetworkV1(ConfiguredBaseModel):
     network_address: str = Field(..., alias="networkAddress")
 
 
+class ManagedVPCCIDRBlockV1(ConfiguredBaseModel):
+    network: NetworkV1 = Field(..., alias="network")
+
+
 class AWSManagedVPC(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     description: Optional[str] = Field(..., alias="description")
     account: AWSAccountV1 = Field(..., alias="account")
-    network: NetworkV1 = Field(..., alias="network")
+    cidr_block: ManagedVPCCIDRBlockV1 = Field(..., alias="cidr_block")

@@ -8,10 +8,12 @@ fragment AWSManagedVPC on AWSManagedVPC_v1 {
     uid
     terraformUsername
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
   }
-  network {
-    networkAddress
+  cidr_block {
+    network {
+      networkAddress
+    }
   }
 }

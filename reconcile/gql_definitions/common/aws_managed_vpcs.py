@@ -29,11 +29,13 @@ fragment AWSManagedVPC on AWSManagedVPC_v1 {
     uid
     terraformUsername
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
   }
-  network {
-    networkAddress
+  cidr_block {
+    network {
+      networkAddress
+    }
   }
 }
 
@@ -46,7 +48,7 @@ fragment VaultSecret on VaultSecret_v1 {
 
 query AWSManagedVPC {
   managed_vpcs: aws_managed_vpcs_v1 {
-    ... AWSManagedVPC
+    ...AWSManagedVPC
   }
 }
 """
