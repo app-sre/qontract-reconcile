@@ -458,7 +458,9 @@ class TransistionStateObj:
 
     @property
     def value(self) -> Any:
-        return self._value or self._init_value
+        if self._value is not None:
+            return self._value
+        return self._init_value
 
     @value.setter
     def value(self, value: Any) -> None:

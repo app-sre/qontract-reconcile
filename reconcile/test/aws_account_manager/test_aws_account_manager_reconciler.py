@@ -572,6 +572,7 @@ def test_aws_account_manager_reconcile_check_quota_change_requests_pending(
             DesiredValue=2.0,
         )
     )
+
     reconciler._check_quota_change_requests(aws_api, "account", ["id1"])
     aws_api.service_quotas.get_requested_service_quota_change.assert_called_once()
 
@@ -588,6 +589,7 @@ def test_aws_account_manager_reconcile_check_quota_change_requests_closed(
             DesiredValue=2.0,
         )
     )
+
     reconciler._check_quota_change_requests(aws_api, "account", ["id1"])
     aws_api.service_quotas.get_requested_service_quota_change.assert_called_once()
 
