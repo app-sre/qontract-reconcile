@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Optional, Protocol
+from typing import Optional, Protocol, TextIO
 
 from kubernetes.client import (  # type: ignore[attr-defined]
     ApiClient,
@@ -380,4 +380,14 @@ class K8sJobController:
             namespace=self.namespace,
             name=job_name,
             output=output_dir_path,
+        )
+
+    def get_job_logs(self, job_name: str, output: str | TextIO) -> None:
+        return self.oc.job_logs(
+            namespace=self.namespace,
+            name=job_name,
+            output=output,
+            follow=False,
+            wait_for_job_running=False,
+            wait_for_logs_process=True,
         )

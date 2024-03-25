@@ -8,6 +8,7 @@ from abc import (
 from datetime import (
     datetime,
     timedelta,
+    timezone,
 )
 from typing import (
     Callable,
@@ -74,6 +75,7 @@ from reconcile.utils.clusterhealth.telemeter import (
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.filtering import remove_none_values_from_dict
+from reconcile.utils.ocm.addons import AddonService, AddonServiceV1, AddonServiceV2
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
     get_node_pools,
@@ -81,14 +83,11 @@ from reconcile.utils.ocm.clusters import (
 )
 from reconcile.utils.ocm.upgrades import (
     OCMVersionGate,
-    create_addon_upgrade_policy,
     create_control_plane_upgrade_policy,
     create_node_pool_upgrade_policy,
     create_upgrade_policy,
-    delete_addon_upgrade_policy,
     delete_control_plane_upgrade_policy,
     delete_upgrade_policy,
-    get_addon_upgrade_policies,
     get_control_plane_upgrade_policies,
     get_node_pool_upgrade_policies,
     get_upgrade_policies,
@@ -365,6 +364,34 @@ class AdvancedUpgradeSchedulerBaseIntegration(
         return None
 
 
+def init_addon_service(ocm_env: OCMEnvironment) -> AddonService:
+    """
+    Initialize the right version of addon-service for an OCM environment.
+    Since this is just temporary until all OCM environments are on v2, we
+    use a label on the OCM environmentschema to determine which version to use.
+    """
+    addon_service_version = (ocm_env.labels or {}).get(
+        "feature_flag_addon_service_version"
+    ) or "v2"
+    return init_addon_service_version(addon_service_version)
+
+
+def init_addon_service_version(addon_service_version: str) -> AddonService:
+    """
+    Initialize the right version of addon-service based on the version string.
+    Supported versions are:
+    - v1: part of CS
+    - v2: standalone service using upgrade-plans instead of upgrade-policies
+    """
+    match addon_service_version:
+        case "v1":
+            return AddonServiceV1()
+        case "v2":
+            return AddonServiceV2()
+        case _:
+            raise ValueError(f"Unknown addon service version: {addon_service_version}")
+
+
 class RemainingSoakDayMetricsBuilder(Protocol):
     def __call__(
         self, cluster_uuid: str, soaking_version: str
@@ -397,27 +424,39 @@ class AbstractUpgradePolicy(ABC, BaseModel):
         pass
 
 
+def addon_upgrade_policy_soonest_next_run() -> str:
+    now = datetime.now(tz=timezone.utc)
+    next_run = now + timedelta(minutes=MIN_DELTA_MINUTES)
+    return next_run.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 class AddonUpgradePolicy(AbstractUpgradePolicy):
     """Class to create and delete Addon upgrade policies in OCM"""
 
     addon_id: str
+    addon_service: AddonService
+
+    class Config:
+        arbitrary_types_allowed = True
 
     def create(self, ocm_api: OCMBaseClient) -> None:
-        item = {
-            "version": self.version,
-            "schedule_type": "manual",
-            "addon_id": self.addon_id,
-            "cluster_id": self.cluster.id,
-            "upgrade_type": "ADDON",
-        }
-        create_addon_upgrade_policy(ocm_api, self.cluster.id, item)
+        self.addon_service.create_addon_upgrade_policy(
+            ocm_api=ocm_api,
+            cluster_id=self.cluster.id,
+            addon_id=self.addon_id,
+            schedule_type="manual",
+            version=self.version,
+            next_run=self.next_run or addon_upgrade_policy_soonest_next_run(),
+        )
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
         if not self.id:
             raise ValueError(
                 "Cannot delete addon upgrade policy without id (not created yet)"
             )
-        delete_addon_upgrade_policy(ocm_api, self.cluster.id, self.id)
+        self.addon_service.delete_addon_upgrade_policy(
+            ocm_api=ocm_api, cluster_id=self.cluster.id, policy_id=self.id
+        )
 
     def summarize(self) -> str:
         details = {
@@ -452,7 +491,8 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         details = {
             "cluster": self.cluster.name,
             "cluster_id": self.cluster.id,
-            "version": self.version,
+            "from_version": self.cluster.version.raw_id,
+            "to_version": self.version,
             "next_run": self.next_run,
         }
         return f"cluster upgrade policy - {remove_none_values_from_dict(details)}"
@@ -543,15 +583,18 @@ def fetch_current_state(
     addons: bool = False,
 ) -> list[AbstractUpgradePolicy]:
     current_state: list[AbstractUpgradePolicy] = []
+    addon_service = init_addon_service(org_upgrade_spec.org.environment)
     for spec in org_upgrade_spec.specs:
         if addons and isinstance(spec, ClusterAddonUpgradeSpec):
             addon_spec = cast(ClusterAddonUpgradeSpec, spec)
-            upgrade_policies = get_addon_upgrade_policies(
+            upgrade_policies = addon_service.get_addon_upgrade_policies(
                 ocm_api, spec.cluster.id, addon_id=addon_spec.addon.addon.id
             )
             for upgrade_policy in upgrade_policies:
                 upgrade_policy["cluster"] = spec.cluster
-                current_state.append(AddonUpgradePolicy(**upgrade_policy))
+                current_state.append(
+                    AddonUpgradePolicy(**upgrade_policy, addon_service=addon_service)
+                )
         elif spec.cluster.is_rosa_hypershift():
             upgrade_policies = get_control_plane_upgrade_policies(
                 ocm_api, spec.cluster.id
@@ -1014,6 +1057,7 @@ def calculate_diff(
             for mutex in spec.effective_mutexes:
                 locked[mutex] = spec.cluster.id
 
+    addon_service = init_addon_service(desired_state.org.environment)
     now = datetime.utcnow()
     gates = get_version_gates(ocm_api)
     for spec in desired_state.specs:
@@ -1062,6 +1106,7 @@ def calculate_diff(
                             schedule_type="manual",
                             addon_id=addon_id,
                             upgrade_type="ADDON",
+                            addon_service=addon_service,
                         ),
                     )
                 )
@@ -1078,12 +1123,12 @@ def calculate_diff(
                 #
                 # this might change in the future - revisite for 4.16
                 if not minor_version_gates:
-                    logging.debug(
+                    logging.info(
                         f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] no gates found for {target_version_prefix}. "
                         "Skip creation of an upgrade policy."
                     )
                     continue
-                gates = gates_to_agree(
+                gates_with_missing_agreements = gates_to_agree(
                     gates=minor_version_gates,
                     cluster=spec.cluster,
                     acked_gate_ids={
@@ -1091,12 +1136,15 @@ def calculate_diff(
                         for agreement in get_version_agreement(ocm_api, spec.cluster.id)
                     },
                 )
-                if gates:
-                    gate_ids = [gate.id for gate in gates]
+                if gates_with_missing_agreements:
+                    missing_gate_ids = [
+                        gate.id for gate in gates_with_missing_agreements
+                    ]
                     logging.info(
-                        f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates for {target_version_prefix} - {gate_ids} "
+                        f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates with missing agreements for {target_version_prefix} - {missing_gate_ids} "
                         "Skip creation of an upgrade policy until all of them have been acked by the version-gate-approver integration or a user."
                     )
+                    continue
                 diffs.append(
                     UpgradePolicyHandler(
                         action="create",

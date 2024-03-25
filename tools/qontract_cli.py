@@ -46,6 +46,8 @@ from reconcile.aus.base import (
     AbstractUpgradePolicy,
     AdvancedUpgradeSchedulerBaseIntegration,
     AdvancedUpgradeSchedulerBaseIntegrationParams,
+    addon_upgrade_policy_soonest_next_run,
+    init_addon_service_version,
 )
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.change_owners.bundle import NoOpFileDiffResolver
@@ -834,7 +836,6 @@ def upgrade_cluster_addon(
     ocm_org: str, cluster: str, addon: str, dry_run: bool, force: bool
 ) -> None:
     import reconcile.aus.ocm_addons_upgrade_scheduler_org as oauso
-    from reconcile.utils.ocm.upgrades import create_addon_upgrade_policy
 
     settings = queries.get_app_interface_settings()
     ocms = queries.get_openshift_cluster_managers()
@@ -886,14 +887,21 @@ def upgrade_cluster_addon(
         )
     print(["create", ocm_org, cluster, addon, ocm_addon_version])
     if not dry_run:
-        spec = {
-            "version": ocm_addon_version,
-            "schedule_type": "manual",
-            "addon_id": addon,
-            "cluster_id": ocm.cluster_ids[cluster],
-            "upgrade_type": "ADDON",
-        }
-        create_addon_upgrade_policy(ocm._ocm_client, ocm.cluster_ids[cluster], spec)
+        # detection addon service version
+        ocm_env_labels = json.loads(ocm_info["environment"].get("labels") or "{}")
+        addon_service_version = (
+            ocm_env_labels.get("feature_flag_addon_service_version") or "v2"
+        )
+        addon_service = init_addon_service_version(addon_service_version)
+
+        addon_service.create_addon_upgrade_policy(
+            ocm_api=ocm._ocm_client,
+            cluster_id=ocm.cluster_ids[cluster],
+            addon_id=ocm_addon["id"],
+            schedule_type="manual",
+            version=ocm_addon_version,
+            next_run=addon_upgrade_policy_soonest_next_run(),
+        )
 
 
 def has_cluster_account_access(cluster: dict[str, Any]):

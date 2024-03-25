@@ -6,6 +6,7 @@ from typing import (
     Any,
     Callable,
 )
+from unittest.mock import ANY
 
 import pytest
 from dateutil import parser
@@ -39,6 +40,7 @@ from reconcile.test.ocm.aus.fixtures import (
     build_upgrade_policy,
 )
 from reconcile.test.ocm.fixtures import build_ocm_cluster
+from reconcile.utils.ocm.addons import AddonService
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -569,7 +571,14 @@ def control_plane_upgrade_policy(cluster_2: OCMCluster) -> ControlPlaneUpgradePo
 
 
 @pytest.fixture
-def addon_upgrade_policy(cluster_1: OCMCluster) -> AddonUpgradePolicy:
+def addon_service(mocker: MockerFixture) -> AddonService:
+    return mocker.MagicMock(spec=AddonService, autospec=True)
+
+
+@pytest.fixture
+def addon_upgrade_policy(
+    cluster_1: OCMCluster, addon_service: AddonService
+) -> AddonUpgradePolicy:
     return AddonUpgradePolicy(
         id="test-policy-id",
         cluster=cluster_1,
@@ -577,6 +586,7 @@ def addon_upgrade_policy(cluster_1: OCMCluster) -> AddonUpgradePolicy:
         version="1.2.3",
         next_run="soon",
         addon_id="test-addon",
+        addon_service=addon_service,
     )
 
 
@@ -697,47 +707,40 @@ def test_policy_handler_delete_control_plane_upgrade(
 def test_policy_handler_create_addon_upgrade(
     addon_upgrade_policy: AddonUpgradePolicy,
     ocm_api: OCMBaseClient,
-    mocker: MockerFixture,
+    addon_service: AddonService,
 ) -> None:
-    create_addon_upgrade_policy_mock = mocker.patch.object(
-        base, "create_addon_upgrade_policy", autospec=True
-    )
     handler = base.UpgradePolicyHandler(
         policy=addon_upgrade_policy,
         action="create",
     )
     base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
-    create_addon_upgrade_policy_mock.assert_called_once_with(
-        ocm_api,
-        addon_upgrade_policy.cluster.id,
-        {
-            "version": addon_upgrade_policy.version,
-            "schedule_type": addon_upgrade_policy.schedule_type,
-            "cluster_id": addon_upgrade_policy.cluster.id,
-            "upgrade_type": "ADDON",
-            "addon_id": addon_upgrade_policy.addon_id,
-        },
+    addon_service.create_addon_upgrade_policy.assert_called_once_with(  # type: ignore
+        ocm_api=ocm_api,
+        addon_id=addon_upgrade_policy.addon_id,
+        cluster_id=addon_upgrade_policy.cluster.id,
+        schedule_type="manual",
+        version=addon_upgrade_policy.version,
+        next_run=ANY,
     )
+    addon_service.delete_addon_upgrade_policy.assert_not_called()  # type: ignore
 
 
 def test_policy_handler_delete_addon_upgrade(
     addon_upgrade_policy: AddonUpgradePolicy,
     ocm_api: OCMBaseClient,
-    mocker: MockerFixture,
+    addon_service: AddonService,
 ) -> None:
-    delete_addon_upgrade_policy_mock = mocker.patch.object(
-        base, "delete_addon_upgrade_policy", autospec=True
-    )
     handler = base.UpgradePolicyHandler(
         policy=addon_upgrade_policy,
         action="delete",
     )
     base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
-    delete_addon_upgrade_policy_mock.assert_called_once_with(
-        ocm_api,
-        addon_upgrade_policy.cluster.id,
-        addon_upgrade_policy.id,
+    addon_service.delete_addon_upgrade_policy.assert_called_once_with(  # type: ignore
+        ocm_api=ocm_api,
+        cluster_id=addon_upgrade_policy.cluster.id,
+        policy_id=addon_upgrade_policy.id,
     )
+    addon_service.create_addon_upgrade_policy.assert_not_called()  # type: ignore
 
 
 #
