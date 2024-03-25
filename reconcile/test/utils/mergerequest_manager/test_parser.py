@@ -69,14 +69,14 @@ class TestModel(BaseModel):
     data_ref1: str
 
 
-def test_paser_pass(parser: Parser, description: str)-> None:
+def test_paser_pass(parser: Parser, description: str) -> None:
     result = parser.parse(description)
 
     assert isinstance(result, TestModel)
     assert result.data_ref1 == "data1"
 
 
-def test_parser_fail_missing_version(parser: Parser, data_seperator: str)-> None:
+def test_parser_fail_missing_version(parser: Parser, data_seperator: str) -> None:
     with pytest.raises(
         ParserError,
         match=re.escape(
@@ -90,7 +90,7 @@ TESTING
 """)
 
 
-def test_parser_version_fail(parser: Parser, description: str)-> None:
+def test_parser_version_fail(parser: Parser, description: str) -> None:
     parser.expected_version = "2.0.0"
     with pytest.raises(ParserVersionError):
         parser.parse(description)

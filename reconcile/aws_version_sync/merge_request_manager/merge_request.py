@@ -4,6 +4,7 @@ import string
 from pydantic import BaseModel
 from ruamel.yaml.compat import StringIO
 
+from reconcile.utils.mergerequest_manager.parser import Parser
 from reconcile.utils.ruamel import create_ruamel_instance
 
 PROMOTION_DATA_SEPARATOR = (
@@ -63,46 +64,14 @@ class AVSInfo(BaseModel):
     resource_engine_version: str
 
 
-class ParserError(Exception):
-    """Raised when some information cannot be found."""
-
-
-class ParserVersionError(Exception):
-    """Raised when the AVS version is outdated."""
-
-
-class Parser:
-    """This class is only concerned with parsing an MR deescription rendered by the Renderer."""
-
-    def _find_by_regex(self, pattern: re.Pattern, content: str) -> str:
-        if matches := pattern.search(content):
-            groups = matches.groups()
-            if len(groups) == 1:
-                return groups[0]
-
-        raise ParserError(f"Could not find {pattern} in MR description")
-
-    def _find_by_name(self, name: str, content: str) -> str:
-        return self._find_by_regex(COMPILED_REGEXES[name], content)
-
-    def parse(self, description: str) -> AVSInfo:
-        """Parse the description of an MR for AVS."""
-        parts = description.split(PROMOTION_DATA_SEPARATOR)
-        if not len(parts) == 2:
-            raise ParserError("Could not find data separator in MR description")
-
-        if AVS_VERSION != self._find_by_name(VERSION_REF, parts[1]):
-            raise ParserVersionError("Version is outdated")
-        return AVSInfo(
-            provider=self._find_by_name(PROVIDER_REF, parts[1]),
-            account_id=self._find_by_name(ACCOUNT_ID_REF, parts[1]),
-            resource_provider=self._find_by_name(RESOURCE_PROVIDER_REF, parts[1]),
-            resource_identifier=self._find_by_name(RESOURCE_IDENTIFIER_REF, parts[1]),
-            resource_engine=self._find_by_name(RESOURCE_ENGINE_REF, parts[1]),
-            resource_engine_version=self._find_by_name(
-                RESOURCE_ENGINE_VERSION_REF, parts[1]
-            ),
-        )
+def create_parser() -> Parser:
+    return Parser(
+        klass=AVSInfo,
+        compiled_regexes=COMPILED_REGEXES,
+        version_ref=VERSION_REF,
+        expected_version=AVS_VERSION,
+        data_separator=PROMOTION_DATA_SEPARATOR,
+    )
 
 
 class Renderer:

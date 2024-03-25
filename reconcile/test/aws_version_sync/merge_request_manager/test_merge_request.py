@@ -13,11 +13,10 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     RESOURCE_PROVIDER_REF,
     VERSION_REF,
     AVSInfo,
-    Parser,
-    ParserError,
-    ParserVersionError,
     Renderer,
+    create_parser,
 )
+from reconcile.utils.mergerequest_manager.parser import ParserError, ParserVersionError
 
 
 @pytest.mark.parametrize(
@@ -103,7 +102,7 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     ],
 )
 def test_parser_parse(description: str, expected: AVSInfo) -> None:
-    parser = Parser()
+    parser = create_parser()
     assert parser.parse(description) == expected
 
 

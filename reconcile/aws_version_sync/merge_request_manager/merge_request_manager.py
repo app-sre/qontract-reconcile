@@ -9,11 +9,10 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     AVS_LABEL,
     AVSInfo,
     Parser,
-    ParserError,
-    ParserVersionError,
     Renderer,
 )
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.mergerequest_manager.parser import ParserError, ParserVersionError
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
 from reconcile.utils.vcs import VCS
@@ -133,7 +132,8 @@ class MergeRequestManager:
                     mr, "Closing this MR because of bad description format."
                 )
                 continue
-
+            # make mypy happy
+            assert isinstance(avs_info, AVSInfo)
             self._open_mrs.append(OpenMergeRequest(raw=mr, avs_info=avs_info))
 
     def _merge_request_already_exists(
