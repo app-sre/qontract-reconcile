@@ -2,7 +2,7 @@
 
 ## Summary
 
-Total AWS Cost for 2024-02: $3000.00
+Total AWS Cost for 2024-02: $3,000.00
 
 ```json:table
 {
@@ -10,9 +10,9 @@ Total AWS Cost for 2024-02: $3000.00
   "items": [
     {
       "name": "parent",
-      "child_apps_total": 2000,
-      "services_total": 1000,
-      "total": 3000
+      "child_apps_total": 2000.0,
+      "services_total": 1000.0,
+      "total": 3000.0
     }
   ],
   "fields": [
@@ -22,18 +22,18 @@ Total AWS Cost for 2024-02: $3000.00
       "sortable": true
     },
     {
-      "key": "child_apps_total",
-      "label": "Child Apps Cost",
+      "key": "services_total",
+      "label": "Self App ($)",
       "sortable": true
     },
     {
-      "key": "services_total",
-      "label": "Self App Cost",
+      "key": "child_apps_total",
+      "label": "Child Apps ($)",
       "sortable": true
     },
     {
       "key": "total",
-      "label": "Total Cost",
+      "label": "Total ($)",
       "sortable": true
     }
   ]
@@ -44,7 +44,7 @@ Total AWS Cost for 2024-02: $3000.00
 
 ### child
 
-AWS Services Cost: $2000.00, +$200.00 (+20.00%) compared to previous month.
+AWS Services Cost: $2,000.00, +$200.00 (+20.00%) compared to previous month.
 
 ```json:table
 {
@@ -52,9 +52,9 @@ AWS Services Cost: $2000.00, +$200.00 (+20.00%) compared to previous month.
   "items": [
     {
       "service": "service2",
-      "delta_value": 200,
+      "delta_value": 200.0,
       "delta_percent": 20.0,
-      "total": 2000
+      "total": 2000.0
     }
   ],
   "fields": [
@@ -65,17 +65,17 @@ AWS Services Cost: $2000.00, +$200.00 (+20.00%) compared to previous month.
     },
     {
       "key": "delta_value",
-      "label": "Change",
+      "label": "Change ($)",
       "sortable": true
     },
     {
       "key": "delta_percent",
-      "label": "Change Percent",
+      "label": "Change (%)",
       "sortable": true
     },
     {
       "key": "total",
-      "label": "Total",
+      "label": "Total ($)",
       "sortable": true
     }
   ]
@@ -84,7 +84,7 @@ AWS Services Cost: $2000.00, +$200.00 (+20.00%) compared to previous month.
 
 ### parent
 
-AWS Services Cost: $1000.00, +$100.00 (+10.00%) compared to previous month.
+AWS Services Cost: $1,000.00, +$100.00 (+10.00%) compared to previous month.
 
 ```json:table
 {
@@ -92,9 +92,9 @@ AWS Services Cost: $1000.00, +$100.00 (+10.00%) compared to previous month.
   "items": [
     {
       "service": "service1",
-      "delta_value": 100,
+      "delta_value": 100.0,
       "delta_percent": 10.0,
-      "total": 1000
+      "total": 1000.0
     }
   ],
   "fields": [
@@ -105,24 +105,24 @@ AWS Services Cost: $1000.00, +$100.00 (+10.00%) compared to previous month.
     },
     {
       "key": "delta_value",
-      "label": "Change",
+      "label": "Change ($)",
       "sortable": true
     },
     {
       "key": "delta_percent",
-      "label": "Change Percent",
+      "label": "Change (%)",
       "sortable": true
     },
     {
       "key": "total",
-      "label": "Total",
+      "label": "Total ($)",
       "sortable": true
     }
   ]
 }
 ```
 
-Child Apps Cost: $2000.00
+Child Apps Cost: $2,000.00
 
 ```json:table
 {
@@ -130,7 +130,7 @@ Child Apps Cost: $2000.00
   "items": [
     {
       "name": "child",
-      "total": 2000
+      "total": 2000.0
     }
   ],
   "fields": [
@@ -141,11 +141,11 @@ Child Apps Cost: $2000.00
     },
     {
       "key": "total",
-      "label": "Total",
+      "label": "Total ($)",
       "sortable": true
     }
   ]
 }
 ```
 
-Total Cost: $3000.00
+Total Cost: $3,000.00

@@ -39,7 +39,7 @@ APP = """\
 """
 
 AWS_SERVICES_COST = """\
-AWS Services Cost: {services_total}, {services_delta_value} ({services_delta_percent}) \
+AWS Services Cost: {services_total}, {services_delta_value}{services_delta_percent} \
 compared to previous month.
 
 ```json:table
@@ -80,19 +80,20 @@ class SummaryItem(BaseModel):
 
 
 def format_cost_value(value: Decimal) -> str:
-    return f"${value:.2f}"
+    return f"${value:,.2f}"
 
 
 def format_delta_value(value: Decimal) -> str:
-    if value > 0:
-        return f"+${value:.2f}"
-    elif value < 0:
-        return f"-${abs(value):.2f}"
-    return "$0.00"
+    if value >= 0:
+        return f"+${value:,.2f}"
+    else:
+        return f"-${abs(value):,.2f}"
 
 
-def format_delta_percent(value: float) -> str:
-    return f"{value:+.2f}%"
+def format_delta_percent(value: float | None) -> str:
+    if value is None:
+        return ""
+    return f" ({value:+.2f}%)"
 
 
 def render_summary(reports: Mapping[str, Report]) -> str:
@@ -101,14 +102,14 @@ def render_summary(reports: Mapping[str, Report]) -> str:
         for name, report in reports.items()
         if report.parent_app_name is None
     }
-    date = next((report.date for report in root_apps.values()), "")
-    total_cost = Decimal(sum(report.total for report in root_apps.values()))
+    date = next((d for report in root_apps.values() if (d := report.date)), "")
+    total_cost = round(Decimal(sum(report.total for report in root_apps.values())), 2)
     summary_items = [
         SummaryItem(
             name=name,
-            child_apps_total=report.child_apps_total,
-            services_total=report.services_total,
-            total=report.total,
+            child_apps_total=round(report.child_apps_total, 2),
+            services_total=round(report.services_total, 2),
+            total=round(report.total, 2),
         )
         for name, report in root_apps.items()
     ]
@@ -117,9 +118,9 @@ def render_summary(reports: Mapping[str, Report]) -> str:
         items=sorted(summary_items, key=lambda item: item.total, reverse=True),
         fields=[
             TableField(key="name", label="Name", sortable=True),
-            TableField(key="child_apps_total", label="Child Apps Cost", sortable=True),
-            TableField(key="services_total", label="Self App Cost", sortable=True),
-            TableField(key="total", label="Total Cost", sortable=True),
+            TableField(key="services_total", label="Self App ($)", sortable=True),
+            TableField(key="child_apps_total", label="Child Apps ($)", sortable=True),
+            TableField(key="total", label="Total ($)", sortable=True),
         ],
     )
     return SUMMARY.format(
@@ -130,14 +131,26 @@ def render_summary(reports: Mapping[str, Report]) -> str:
 
 
 def render_aws_services_cost(report: Report) -> str:
+    services = [
+        s.copy(
+            update={
+                "delta_value": round(s.delta_value, 2),
+                "delta_percent": round(s.delta_percent, 2)
+                if s.delta_percent is not None
+                else None,
+                "total": round(s.total, 2),
+            }
+        )
+        for s in report.services
+    ]
     json_table = JsonTable(
         filter=True,
-        items=sorted(report.services, key=lambda service: service.total, reverse=True),
+        items=sorted(services, key=lambda service: service.total, reverse=True),
         fields=[
             TableField(key="service", label="Service", sortable=True),
-            TableField(key="delta_value", label="Change", sortable=True),
-            TableField(key="delta_percent", label="Change Percent", sortable=True),
-            TableField(key="total", label="Total", sortable=True),
+            TableField(key="delta_value", label="Change ($)", sortable=True),
+            TableField(key="delta_percent", label="Change (%)", sortable=True),
+            TableField(key="total", label="Total ($)", sortable=True),
         ],
     )
     return AWS_SERVICES_COST.format(
@@ -149,12 +162,20 @@ def render_aws_services_cost(report: Report) -> str:
 
 
 def render_child_apps_cost(report: Report) -> str:
+    child_apps = [
+        app.copy(
+            update={
+                "total": round(app.total, 2),
+            }
+        )
+        for app in report.child_apps
+    ]
     json_table = JsonTable(
         filter=True,
-        items=sorted(report.child_apps, key=lambda app: app.total, reverse=True),
+        items=sorted(child_apps, key=lambda app: app.total, reverse=True),
         fields=[
             TableField(key="name", label="Name", sortable=True),
-            TableField(key="total", label="Total", sortable=True),
+            TableField(key="total", label="Total ($)", sortable=True),
         ],
     )
     return CHILD_APPS_COST.format(
@@ -170,13 +191,15 @@ def render_total_cost(report) -> str:
 
 
 def render_app_cost(name: str, report: Report) -> str:
-    cost_details = [render_aws_services_cost(report)]
+    cost_details = []
+    if report.services:
+        cost_details.append(render_aws_services_cost(report))
     if report.child_apps:
         cost_details.append(render_child_apps_cost(report))
         cost_details.append(render_total_cost(report))
     return APP.format(
         app_name=name,
-        cost_details="\n".join(cost_details),
+        cost_details="\n".join(cost_details) if cost_details else "No data",
     )
 
 

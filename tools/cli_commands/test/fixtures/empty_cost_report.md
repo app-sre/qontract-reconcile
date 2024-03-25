@@ -15,18 +15,18 @@ Total AWS Cost for : $0.00
       "sortable": true
     },
     {
-      "key": "child_apps_total",
-      "label": "Child Apps Cost",
+      "key": "services_total",
+      "label": "Self App ($)",
       "sortable": true
     },
     {
-      "key": "services_total",
-      "label": "Self App Cost",
+      "key": "child_apps_total",
+      "label": "Child Apps ($)",
       "sortable": true
     },
     {
       "key": "total",
-      "label": "Total Cost",
+      "label": "Total ($)",
       "sortable": true
     }
   ]

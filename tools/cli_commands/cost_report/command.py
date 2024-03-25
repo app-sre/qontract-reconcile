@@ -109,7 +109,7 @@ class CostReportCommand:
         )
         services_total = response.meta.total.cost.total.value
         total = services_total + child_apps_total
-        date = next((d.date for d in response.data), "")
+        date = next((d for data in response.data if (d := data.date)), "")
         return Report(
             app_name=app_name,
             child_apps=child_app_reports,
