@@ -91,6 +91,7 @@ Month over month change for 2024-02:
 ### child
 
 AWS Services Cost: $2,000.00, +$200.00 (+20.00%) compared to previous month.
+View in [Cost Management Console](https://console.redhat.com/openshift/cost-management/explorer?dateRangeType=previous_month&filter[limit]=10&filter[offset]=0&filter_by[tag:app]=child&group_by[service]=*&order_by[cost]=desc&perspective=aws).
 
 ```json:table
 {
@@ -131,6 +132,7 @@ AWS Services Cost: $2,000.00, +$200.00 (+20.00%) compared to previous month.
 ### parent
 
 AWS Services Cost: $1,000.00, +$100.00 (+10.00%) compared to previous month.
+View in [Cost Management Console](https://console.redhat.com/openshift/cost-management/explorer?dateRangeType=previous_month&filter[limit]=10&filter[offset]=0&filter_by[tag:app]=parent&group_by[service]=*&order_by[cost]=desc&perspective=aws).
 
 ```json:table
 {

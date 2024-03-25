@@ -52,11 +52,23 @@ APP = """\
 AWS_SERVICES_COST = """\
 AWS Services Cost: {services_total}, {services_delta_value}{services_delta_percent} \
 compared to previous month.
+View in [Cost Management Console]({cost_management_console_url}).
 
 ```json:table
 {json_table}
 ```
 """
+
+COST_MANAGEMENT_CONSOLE_EXPLORE_URL = (
+    "{base_url}/explorer?"
+    "dateRangeType=previous_month&"
+    "filter[limit]=10&"
+    "filter[offset]=0&"
+    "filter_by[tag:app]={app}"
+    "&group_by[service]=*"
+    "&order_by[cost]=desc&"
+    "perspective=aws"
+)
 
 CHILD_APPS_COST = """\
 Child Apps Cost: {child_apps_total}
@@ -181,7 +193,23 @@ def render_month_over_month_change(reports: Mapping[str, Report]) -> str:
     )
 
 
-def render_aws_services_cost(report: Report) -> str:
+def build_cost_management_console_url(base_url: str, app: str) -> str:
+    return (
+        f"{base_url}/explorer?"
+        "dateRangeType=previous_month&"
+        "filter[limit]=10&"
+        "filter[offset]=0&"
+        f"filter_by[tag:app]={app}&"
+        "group_by[service]=*&"
+        "order_by[cost]=desc&"
+        "perspective=aws"
+    )
+
+
+def render_aws_services_cost(
+    report: Report,
+    cost_management_console_base_url: str,
+) -> str:
     services = [
         s.copy(
             update={
@@ -205,6 +233,10 @@ def render_aws_services_cost(report: Report) -> str:
         ],
     )
     return AWS_SERVICES_COST.format(
+        cost_management_console_url=build_cost_management_console_url(
+            cost_management_console_base_url,
+            report.app_name,
+        ),
         services_total=format_cost_value(report.services_total),
         services_delta_value=format_delta_value(report.services_delta_value),
         services_delta_percent=format_delta_percent(report.services_delta_percent),
@@ -241,10 +273,19 @@ def render_total_cost(report) -> str:
     )
 
 
-def render_app_cost(name: str, report: Report) -> str:
+def render_app_cost(
+    name: str,
+    report: Report,
+    cost_management_console_base_url: str,
+) -> str:
     cost_details = []
     if report.services:
-        cost_details.append(render_aws_services_cost(report))
+        cost_details.append(
+            render_aws_services_cost(
+                report,
+                cost_management_console_base_url,
+            )
+        )
     if report.child_apps:
         cost_details.append(render_child_apps_cost(report))
         cost_details.append(render_total_cost(report))
@@ -254,10 +295,17 @@ def render_app_cost(name: str, report: Report) -> str:
     )
 
 
-def render_cost_breakdown(reports: Mapping[str, Report]) -> str:
+def render_cost_breakdown(
+    reports: Mapping[str, Report],
+    cost_management_console_base_url: str,
+) -> str:
     return COST_BREAKDOWN.format(
         apps="\n".join(
-            render_app_cost(name, report)
+            render_app_cost(
+                name,
+                report,
+                cost_management_console_base_url,
+            )
             for name, report in sorted(
                 reports.items(),
                 key=lambda item: item[0].lower(),
@@ -266,10 +314,16 @@ def render_cost_breakdown(reports: Mapping[str, Report]) -> str:
     )
 
 
-def render_report(reports: Mapping[str, Report]) -> str:
+def render_report(
+    reports: Mapping[str, Report],
+    cost_management_console_base_url: str,
+) -> str:
     return LAYOUT.format(
         header=HEADER,
         summary=render_summary(reports),
         month_over_month_change=render_month_over_month_change(reports),
-        cost_breakdown=render_cost_breakdown(reports),
+        cost_breakdown=render_cost_breakdown(
+            reports,
+            cost_management_console_base_url,
+        ),
     )

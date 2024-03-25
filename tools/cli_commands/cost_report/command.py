@@ -16,9 +16,11 @@ class CostReportCommand:
         self,
         gql_api: gql.GqlApi,
         cost_management_api: CostManagementApi,
+        cost_management_console_base_url: str,
     ) -> None:
         self.gql_api = gql_api
         self.cost_management_api = cost_management_api
+        self.cost_management_console_base_url = cost_management_console_base_url
 
     def execute(self) -> str:
         apps = self.get_apps()
@@ -59,7 +61,10 @@ class CostReportCommand:
         return reports
 
     def render(self, reports: Mapping[str, Report]) -> str:
-        return render_report(reports)
+        return render_report(
+            reports=reports,
+            cost_management_console_base_url=self.cost_management_console_base_url,
+        )
 
     def _dfs_reports(
         self,
@@ -138,6 +143,7 @@ class CostReportCommand:
         cls,
     ) -> Self:
         gql_api = gql.get_api()
+        # TODO: fetch from config
         cost_management_api = CostManagementApi(
             base_url="",
             token_url="",
@@ -148,4 +154,5 @@ class CostReportCommand:
         return cls(
             gql_api=gql_api,
             cost_management_api=cost_management_api,
+            cost_management_console_base_url="https://console.redhat.com/openshift/cost-management",
         )

@@ -10,6 +10,10 @@ from tools.cli_commands.cost_report.command import CostReportCommand
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
 from tools.cli_commands.cost_report.response import ReportCostResponse
 
+COST_MANAGEMENT_CONSOLE_BASE_URL = (
+    "https://console.redhat.com/openshift/cost-management"
+)
+
 
 @pytest.fixture
 def mock_gql(mocker: MockerFixture) -> Any:
@@ -34,6 +38,10 @@ def test_cost_report_create(
     assert cost_report_command.gql_api == mock_gql.get_api.return_value
     assert (
         cost_report_command.cost_management_api == mock_cost_management_api.return_value
+    )
+    assert (
+        cost_report_command.cost_management_console_base_url
+        == COST_MANAGEMENT_CONSOLE_BASE_URL
     )
 
 
