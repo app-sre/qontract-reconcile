@@ -25,6 +25,7 @@ from reconcile.utils.state import (
     S3ProfileBasedStateConfiguration,
     State,
     StateInaccessibleException,
+    TransistionStateObj,
     acquire_state_settings,
 )
 
@@ -363,18 +364,6 @@ def test_state_get_aws_account_by_name() -> None:
     assert account.name == "some-account"
 
 
-def test_state_transaction_state_obj(integration_state: State) -> None:
-    with integration_state.transaction("feature.foo.bar", "set") as state:
-        assert state.key == "feature.foo.bar"
-        assert state.new_value == "set"
-        assert state.current_value is None
-        assert state.value == state.current_value
-        state.value = "changed"
-        assert state.new_value == "changed"
-        assert state.value == state.new_value
-        assert not state.exists
-
-
 def test_state_transaction_key_exists(
     integration_state: State, integration: str, s3_client: S3Client
 ) -> None:
@@ -488,3 +477,29 @@ def test_state_transaction_abort(
 
     with pytest.raises(KeyError):
         integration_state["feature.foo.bar"]
+
+
+def test_state_transaction_state_obj_nothing_set() -> None:
+    # nothing set yet
+    obj = TransistionStateObj(key="key")
+    assert obj.value is None
+    assert not obj.changed
+    assert not obj.exists
+
+    obj.value = "value"
+    assert obj.value == "value"
+    assert obj.changed
+    assert not obj.exists
+
+
+def test_state_transaction_state_obj_init_value() -> None:
+    # init value but no current one
+    obj = TransistionStateObj(key="key", _init_value="value")
+    assert obj.value == "value"
+    assert not obj.changed
+    assert obj.exists
+
+    obj.value = "another-value"
+    assert obj.value == "another-value"
+    assert obj.changed
+    assert obj.exists

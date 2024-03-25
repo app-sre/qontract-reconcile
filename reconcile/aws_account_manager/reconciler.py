@@ -91,7 +91,6 @@ class AWSReconciler:
                     raise RuntimeError(
                         f"Unexpected account creation status: {status.state}"
                     )
-        return None
 
     def _tag_account(
         self,
@@ -140,7 +139,6 @@ class AWSReconciler:
                 uid=uid,
                 destination_parent_id=destionation.id,
             )
-
             _state.value = ou
 
     def _set_account_alias(self, aws_api: AWSApi, name: str, alias: str | None) -> None:

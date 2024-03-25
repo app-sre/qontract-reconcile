@@ -1,10 +1,10 @@
+import contextlib
 import json
 import logging
 import os
 from abc import abstractmethod
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Generator, Mapping
 from dataclasses import dataclass
-from types import TracebackType
 from typing import (
     Any,
     Optional,
@@ -213,6 +213,10 @@ def acquire_state_settings(
     )
 
 
+class AbortStateTransaction(Exception):
+    """Raise to abort a state transaction."""
+
+
 class State:
     """
     A state object to be used by stateful integrations.
@@ -406,7 +410,10 @@ class State:
     def __setitem__(self, key: str, value: Any) -> None:
         self._set(key, value)
 
-    def transaction(self, key: str, value: Any = None) -> "_TransactionContext":
+    @contextlib.contextmanager
+    def transaction(
+        self, key: str, value: Any = None
+    ) -> Generator["TransistionStateObj", None, None]:
         """Get a context manager to set the key in the state if no exception occurs.
 
         You can set the value either via the value parameter or by setting the value attribute of the returned object.
@@ -417,73 +424,42 @@ class State:
         This is not a locking mechanism. It is a way to ensure that a key is set in the state if no exception occurs.
         This method is not thread-safe nor multi-process-safe! There is no locking mechanism in place.
         """
-        return _TransactionContext(self, key, value)
+        try:
+            _current_value = self[key]
+        except KeyError:
+            _current_value = None
+        state_obj = TransistionStateObj(key, _init_value=_current_value)
+        try:
+            yield state_obj
+        except AbortStateTransaction:
+            return
+        else:
+            if state_obj.changed:
+                self[state_obj.key] = state_obj.value
+            elif value is not None and state_obj.value != value:
+                self[state_obj.key] = value
 
 
 @dataclass
-class StateObj:
-    """Represents a state object with a key and a value."""
+class TransistionStateObj:
+    """Represents a transistion state object with a key and a value."""
 
     key: str
-    exists: bool
-    new_value: Any
-    current_value: Any = None
-    _changed: bool = False
+    _init_value: Any = None
+    _value: Any = None
+
+    @property
+    def changed(self) -> bool:
+        return self._value is not None
+
+    @property
+    def exists(self) -> bool:
+        return self._init_value is not None
 
     @property
     def value(self) -> Any:
-        if self._changed:
-            return self.new_value
-        return self.current_value
+        return self._value or self._init_value
 
     @value.setter
     def value(self, value: Any) -> None:
-        self._changed = True
-        self.new_value = value
-
-
-class AbortStateTransaction(Exception):
-    """Raise to abort a state transaction."""
-
-
-class _TransactionContext:
-    """A context manager to set a key in the state if no exception occurs."""
-
-    def __init__(self, state: State, key: str, value: Any):
-        self.state = state
-        self.state_obj = StateObj(key, new_value=value, exists=False)
-
-    def __enter__(self) -> StateObj:
-        """Return a state object.
-
-        Cache the previous value to avoid unnecessary updates.
-        """
-        try:
-            self.state_obj.current_value = self.state[self.state_obj.key]
-            self.state_obj.exists = True
-        except KeyError:
-            self.state_obj.exists = False
-        return self.state_obj
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> bool | None:
-        if exc_type:
-            # if an exception occurred, we don't want to write to the state
-            if isinstance(exc_value, AbortStateTransaction):
-                # user wants to abort the transaction
-                return True
-            return False
-        if self.state_obj.new_value is None:
-            # if the new value is None, we don't want to write to the state
-            return None
-        if self.state_obj.exists and (
-            self.state_obj.current_value == self.state_obj.new_value
-        ):
-            # if the value didn't change, we don't want to write to the state
-            return None
-        self.state[self.state_obj.key] = self.state_obj.new_value
-        return None
+        self._value = value
