@@ -39,7 +39,7 @@ APP = """\
 """
 
 AWS_SERVICES_COST = """\
-AWS Services Cost: {services_total}, {services_delta_value} ({services_delta_percentage}) \
+AWS Services Cost: {services_total}, {services_delta_value} ({services_delta_percent}) \
 compared to previous month.
 
 ```json:table
@@ -136,14 +136,14 @@ def render_aws_services_cost(report: Report) -> str:
         fields=[
             TableField(key="service", label="Service", sortable=True),
             TableField(key="delta_value", label="Change", sortable=True),
-            TableField(key="delta_percentage", label="Change Percent", sortable=True),
+            TableField(key="delta_percent", label="Change Percent", sortable=True),
             TableField(key="total", label="Total", sortable=True),
         ],
     )
     return AWS_SERVICES_COST.format(
         services_total=format_cost_value(report.services_total),
         services_delta_value=format_delta_value(report.services_delta_value),
-        services_delta_percentage=format_delta_percent(report.services_delta_percent),
+        services_delta_percent=format_delta_percent(report.services_delta_percent),
         json_table=json_table.json(indent=2),
     )
 

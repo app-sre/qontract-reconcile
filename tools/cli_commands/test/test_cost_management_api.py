@@ -70,6 +70,7 @@ def test_cost_management_api_init(
         token_url=TOKEN_URL,
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
+        scope=SCOPE,
     )
     mock_session.return_value.close.assert_called_once_with()
 

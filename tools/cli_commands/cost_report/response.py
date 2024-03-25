@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 class DeltaResponse(BaseModel):
     value: Decimal
-    percent: float
+    percent: float | None
 
 
 class MoneyResponse(BaseModel):
@@ -29,7 +29,7 @@ class ReportMetaResponse(BaseModel):
 
 class ServiceCostValueResponse(BaseModel):
     delta_value: Decimal
-    delta_percent: float
+    delta_percent: float | None
     cost: CostTotalResponse
 
 

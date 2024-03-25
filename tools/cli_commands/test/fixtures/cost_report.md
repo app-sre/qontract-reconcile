@@ -69,7 +69,7 @@ AWS Services Cost: $2000.00, +$200.00 (+20.00%) compared to previous month.
       "sortable": true
     },
     {
-      "key": "delta_percentage",
+      "key": "delta_percent",
       "label": "Change Percent",
       "sortable": true
     },
@@ -109,7 +109,7 @@ AWS Services Cost: $1000.00, +$100.00 (+10.00%) compared to previous month.
       "sortable": true
     },
     {
-      "key": "delta_percentage",
+      "key": "delta_percent",
       "label": "Change Percent",
       "sortable": true
     },

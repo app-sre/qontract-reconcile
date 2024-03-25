@@ -81,7 +81,7 @@ def test_cost_report_get_apps(
 
 def report_cost_response_builder(
     delta_value: int,
-    delta_percentage: int,
+    delta_percent: int,
     total: int,
     service: str,
 ) -> ReportCostResponse:
@@ -89,7 +89,7 @@ def report_cost_response_builder(
         "meta": {
             "delta": {
                 "value": delta_value,
-                "percent": delta_percentage,
+                "percent": delta_percent,
             },
             "total": {
                 "cost": {
@@ -109,7 +109,7 @@ def report_cost_response_builder(
                         "values": [
                             {
                                 "delta_value": delta_value,
-                                "delta_percent": delta_percentage,
+                                "delta_percent": delta_percent,
                                 "cost": {
                                     "total": {
                                         "value": total,
@@ -127,14 +127,14 @@ def report_cost_response_builder(
 
 PARENT_APP_COST_RESPONSE = report_cost_response_builder(
     delta_value=100,
-    delta_percentage=10,
+    delta_percent=10,
     total=1000,
     service="service1",
 )
 
 CHILD_APP_COST_RESPONSE = report_cost_response_builder(
     delta_value=200,
-    delta_percentage=20,
+    delta_percent=20,
     total=2000,
     service="service2",
 )

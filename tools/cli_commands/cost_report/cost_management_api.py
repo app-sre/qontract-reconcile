@@ -27,6 +27,7 @@ class CostManagementApi:
             token_url=token_url,
             client_id=client_id,
             client_secret=client_secret,
+            scope=scope,
         )
 
     def __enter__(self) -> Self:
