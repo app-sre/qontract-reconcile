@@ -18,7 +18,7 @@ DEFAULT_INT = 42
 
 
 def data_default_none(
-    klass: type[BaseModel], data: MutableMapping[str, Any]
+    klass: type[BaseModel], data: MutableMapping[str, Any], use_defaults: bool = True
 ) -> MutableMapping[str, Any]:
     """Set default values to None for required but optional fields."""
     for field in klass.__fields__.values():
@@ -29,6 +29,8 @@ def data_default_none(
             # Settings defaults
             if field.allow_none:
                 data[field.alias] = None
+            elif not use_defaults:
+                raise ValueError(f"Field {field.alias} is required but not set.")
             elif isinstance(field.type_, type) and issubclass(field.type_, str):
                 data[field.alias] = DEFAULT_STRING
             elif isinstance(field.type_, type) and issubclass(field.type_, bool):
