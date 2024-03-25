@@ -9,6 +9,7 @@ from tools.cli_commands.cost_report.model import Report
 LAYOUT = """\
 {header}
 {summary}
+{month_over_month_change}
 {cost_breakdown}\
 """
 
@@ -20,6 +21,16 @@ SUMMARY = """\
 ## Summary
 
 Total AWS Cost for {date}: {total_cost}
+
+```json:table
+{json_table}
+```
+"""
+
+MONTH_OVER_MONTH_CHANGE = """\
+## Month Over Month Change
+
+Month over month change for {date}:
 
 ```json:table
 {json_table}
@@ -79,6 +90,13 @@ class SummaryItem(BaseModel):
     total: Decimal
 
 
+class MonthOverMonthChangeItem(BaseModel):
+    name: str
+    delta_value: Decimal
+    delta_percent: float | None
+    total: Decimal
+
+
 def format_cost_value(value: Decimal) -> str:
     return f"${value:,.2f}"
 
@@ -96,13 +114,16 @@ def format_delta_percent(value: float | None) -> str:
     return f" ({value:+.2f}%)"
 
 
+def get_date(reports: Mapping[str, Report]) -> str:
+    return next((d for report in reports.values() if (d := report.date)), "")
+
+
 def render_summary(reports: Mapping[str, Report]) -> str:
     root_apps = {
         name: report
         for name, report in reports.items()
         if report.parent_app_name is None
     }
-    date = next((d for report in root_apps.values() if (d := report.date)), "")
     total_cost = round(Decimal(sum(report.total for report in root_apps.values())), 2)
     summary_items = [
         SummaryItem(
@@ -124,8 +145,38 @@ def render_summary(reports: Mapping[str, Report]) -> str:
         ],
     )
     return SUMMARY.format(
-        date=date,
+        date=get_date(reports),
         total_cost=format_cost_value(total_cost),
+        json_table=json_table.json(indent=2),
+    )
+
+
+def render_month_over_month_change(reports: Mapping[str, Report]) -> str:
+    items = [
+        MonthOverMonthChangeItem(
+            name=name,
+            delta_value=round(report.services_delta_value, 2),
+            delta_percent=(
+                round(report.services_delta_percent, 2)
+                if report.services_delta_percent is not None
+                else None
+            ),
+            total=round(report.services_total, 2),
+        )
+        for name, report in reports.items()
+    ]
+    json_table = JsonTable(
+        filter=True,
+        items=sorted(items, key=lambda item: item.delta_value, reverse=True),
+        fields=[
+            TableField(key="name", label="Name", sortable=True),
+            TableField(key="delta_value", label="Change ($)", sortable=True),
+            TableField(key="delta_percent", label="Change (%)", sortable=True),
+            TableField(key="total", label="Total ($)", sortable=True),
+        ],
+    )
+    return MONTH_OVER_MONTH_CHANGE.format(
+        date=get_date(reports),
         json_table=json_table.json(indent=2),
     )
 
@@ -206,7 +257,11 @@ def render_app_cost(name: str, report: Report) -> str:
 def render_cost_breakdown(reports: Mapping[str, Report]) -> str:
     return COST_BREAKDOWN.format(
         apps="\n".join(
-            render_app_cost(name, report) for name, report in sorted(reports.items())
+            render_app_cost(name, report)
+            for name, report in sorted(
+                reports.items(),
+                key=lambda item: item[0].lower(),
+            )
         )
     )
 
@@ -215,5 +270,6 @@ def render_report(reports: Mapping[str, Report]) -> str:
     return LAYOUT.format(
         header=HEADER,
         summary=render_summary(reports),
+        month_over_month_change=render_month_over_month_change(reports),
         cost_breakdown=render_cost_breakdown(reports),
     )

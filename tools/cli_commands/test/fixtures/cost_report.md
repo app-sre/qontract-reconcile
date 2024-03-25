@@ -40,6 +40,52 @@ Total AWS Cost for 2024-02: $3,000.00
 }
 ```
 
+## Month Over Month Change
+
+Month over month change for 2024-02:
+
+```json:table
+{
+  "filter": true,
+  "items": [
+    {
+      "name": "child",
+      "delta_value": 200.0,
+      "delta_percent": 20.0,
+      "total": 2000.0
+    },
+    {
+      "name": "parent",
+      "delta_value": 100.0,
+      "delta_percent": 10.0,
+      "total": 1000.0
+    }
+  ],
+  "fields": [
+    {
+      "key": "name",
+      "label": "Name",
+      "sortable": true
+    },
+    {
+      "key": "delta_value",
+      "label": "Change ($)",
+      "sortable": true
+    },
+    {
+      "key": "delta_percent",
+      "label": "Change (%)",
+      "sortable": true
+    },
+    {
+      "key": "total",
+      "label": "Total ($)",
+      "sortable": true
+    }
+  ]
+}
+```
+
 ## Cost Breakdown
 
 ### child
