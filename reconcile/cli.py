@@ -2469,6 +2469,7 @@ def ocm_addons_upgrade_scheduler_org(
     run_class_integration(
         integration=OCMAddonsUpgradeSchedulerOrgIntegration(
             AdvancedUpgradeSchedulerBaseIntegrationParams(
+                ocm_environment="ocm-integration",
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
             )

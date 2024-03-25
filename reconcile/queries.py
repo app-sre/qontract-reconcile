@@ -1280,6 +1280,7 @@ OCM_QUERY = """
     environment {
       name
       url
+      labels
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {

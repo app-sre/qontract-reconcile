@@ -6,6 +6,7 @@ from reconcile.aus import base as aus
 from reconcile.aus.base import (
     AbstractUpgradePolicy,
     AddonUpgradePolicy,
+    init_addon_service,
 )
 from reconcile.aus.cluster_version_data import VersionData
 from reconcile.aus.healthchecks import (
@@ -26,8 +27,6 @@ from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.utils import metrics
 from reconcile.utils.ocm.addons import (
     OCMAddonInstallation,
-    get_addon_latest_versions,
-    get_addons_for_cluster,
 )
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
@@ -137,15 +136,17 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
         if not organizations:
             return {}
 
+        addon_service = init_addon_service(ocm_env)
+
         # lookup cluster in OCM to figure out if they exist
         # and to get their UUID
         with init_ocm_base_client(ocm_env, self.secret_reader) as ocm_api:
             clusters = discover_clusters_for_organizations(
                 ocm_api, [org.org_id for org in organizations]
             )
-            addon_latest_versions = get_addon_latest_versions(ocm_api)
+            addon_latest_versions = addon_service.get_addon_latest_versions(ocm_api)
             addons_per_cluster: dict[str, list[OCMAddonInstallation]] = {
-                cluster.ocm_cluster.name: get_addons_for_cluster(
+                cluster.ocm_cluster.name: addon_service.get_addons_for_cluster(
                     ocm_api=ocm_api,
                     cluster_id=cluster.ocm_cluster.id,
                     addon_latest_versions=addon_latest_versions,
@@ -260,6 +261,9 @@ def calculate_diff(
                         id=current.id,
                         addon_id=current.addon_id,
                         schedule_type=current.schedule_type,
+                        addon_service=init_addon_service(
+                            org_upgrade_spec.org.environment
+                        ),
                     ),
                 )
             )
