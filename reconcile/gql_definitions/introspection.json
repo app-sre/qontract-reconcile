@@ -26077,7 +26077,7 @@
                                 "name": null,
                                 "ofType": {
                                     "kind": "OBJECT",
-                                    "name": "Network_v1",
+                                    "name": "ManagedVPCCIDRBlock_v1",
                                     "ofType": null
                                 }
                             },

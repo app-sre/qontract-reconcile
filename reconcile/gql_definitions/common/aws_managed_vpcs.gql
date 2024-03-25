@@ -2,6 +2,6 @@
 
 query AWSManagedVPC {
   managed_vpcs: aws_managed_vpcs_v1 {
-    ... AWSManagedVPC
+    ...AWSManagedVPC
   }
 }
