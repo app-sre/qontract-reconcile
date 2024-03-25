@@ -86,6 +86,9 @@ class AddonService:
 
 
 class AddonServiceV1(AddonService):
+    """
+    The original addon-service API that is part of CS.
+    """
     def addon_base_api_path(self) -> str:
         return "/api/clusters_mgmt/v1"
 
@@ -158,6 +161,10 @@ class AddonServiceV1(AddonService):
 
 
 class AddonServiceV2(AddonService):
+    """
+    The dedicated addon-service API that is part of OCM.
+    """
+
     def addon_base_api_path(self) -> str:
         return "/api/addons_mgmt/v1"
 
@@ -190,7 +197,7 @@ class AddonServiceV2(AddonService):
         next_run: str,
     ) -> None:
         """
-        Creates a new Addon Upgrade Policy
+        Schedules an addon upgrade. Leverages addon-service upgrade plans behind the scene.
         """
         spec = {
             "version": version,
@@ -207,7 +214,7 @@ class AddonServiceV2(AddonService):
         self, ocm_api: OCMBaseClient, cluster_id: str, policy_id: str
     ) -> None:
         """
-        Deletes an existing Addon Upgrade Policy
+        Deletes an existing upgrade plan.
         """
         ocm_api.delete(
             f"{self.addon_base_api_path()}/clusters/{cluster_id}/upgrade_plan/{policy_id}"

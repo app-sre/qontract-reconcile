@@ -365,6 +365,11 @@ class AdvancedUpgradeSchedulerBaseIntegration(
 
 
 def init_addon_service(ocm_env: OCMEnvironment) -> AddonService:
+    """
+    Initialize the right version of addon-service for an OCM environment.
+    Since this is just temporary until all OCM environments are on v2, we
+    use a label on the OCM environmentschema to determine which version to use.
+    """
     addon_service_version = (ocm_env.labels or {}).get(
         "feature_flag_addon_service_version"
     ) or "v2"
@@ -372,6 +377,12 @@ def init_addon_service(ocm_env: OCMEnvironment) -> AddonService:
 
 
 def init_addon_service_version(addon_service_version: str) -> AddonService:
+    """
+    Initialize the right version of addon-service based on the version string.
+    Supported versions are:
+    - v1: part of CS
+    - v2: standalone service using upgrade-plans instead of upgrade-policies
+    """
     match addon_service_version:
         case "v1":
             return AddonServiceV1()
