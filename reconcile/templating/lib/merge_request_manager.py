@@ -8,6 +8,11 @@ from pydantic import BaseModel
 
 from reconcile.templating.lib.model import TemplateOutput
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.mergerequest_manager.parser import (
+    Parser,
+    ParserError,
+    ParserVersionError,
+)
 from reconcile.utils.mr import MergeRequestBase
 from reconcile.utils.vcs import VCS
 
@@ -47,46 +52,14 @@ Parts of this description are used by the Template Renderer to manage the MR.
 )
 
 
-class TemplateInfo(BaseModel):
-    collection: str
-    collection_hash: str
-
-
-class ParserError(Exception):
-    """Raised when some information cannot be found."""
-
-
-class ParserVersionError(Exception):
-    """Raised when the version is outdated."""
-
-
-class Parser:
-    # TODO: Create base class for parser, to make it reusable
-    """This class is only concerned with parsing an MR description rendered by the Renderer."""
-
-    def _find_by_regex(self, pattern: re.Pattern, content: str) -> str:
-        if matches := pattern.search(content):
-            groups = matches.groups()
-            if len(groups) == 1:
-                return groups[0]
-
-        raise ParserError(f"Could not find {pattern} in MR description")
-
-    def _find_by_name(self, name: str, content: str) -> str:
-        return self._find_by_regex(COMPILED_REGEXES[name], content)
-
-    def parse(self, description: str) -> TemplateInfo:
-        """Parse the description of an MR"""
-        parts = description.split(DATA_SEPARATOR)
-        if not len(parts) == 2:
-            raise ParserError("Could not find data separator in MR description")
-
-        if TR_VERSION != self._find_by_name(VERSION_REF, parts[1]):
-            raise ParserVersionError("Version is outdated")
-        return TemplateInfo(
-            collection=self._find_by_name(COLLECTION_REF, parts[1]),
-            collection_hash=self._find_by_name(TEMPLATE_COLLECTION_HASH_REF, parts[1]),
-        )
+def create_parser() -> Parser:
+    return Parser(
+        klass=TemplateInfo,
+        compiled_regexes=COMPILED_REGEXES,
+        version_ref=VERSION_REF,
+        expected_version=TR_VERSION,
+        data_separator=DATA_SEPARATOR,
+    )
 
 
 def render_description(
@@ -99,6 +72,11 @@ def render_description(
 
 def render_title(collection: str) -> str:
     return f'[auto] Rendered Templates for collection "{collection}"'
+
+
+class TemplateInfo(BaseModel):
+    collection: str
+    collection_hash: str
 
 
 @dataclass
@@ -217,7 +195,8 @@ class MergeRequestManager:
                     mr, "Closing this MR because of bad description format."
                 )
                 continue
-
+            # make mypy happy
+            assert isinstance(template_info, TemplateInfo)
             self._open_mrs.append(OpenMergeRequest(raw=mr, template_info=template_info))
         self._housekeeping_ran = True
 

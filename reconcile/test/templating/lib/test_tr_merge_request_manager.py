@@ -8,9 +8,9 @@ from reconcile.templating.lib.merge_request_manager import (
     TR_LABEL,
     MergeRequestManager,
     OpenMergeRequest,
-    Parser,
     TemplateInfo,
     TemplateRenderingMR,
+    create_parser,
     render_description,
 )
 from reconcile.templating.lib.model import TemplateInput, TemplateOutput
@@ -26,15 +26,15 @@ def gitlab_cli(mocker: MockerFixture) -> GitLabApi:
 @pytest.fixture
 def mergereqeustmanager(mocker: MockerFixture) -> tuple[MergeRequestManager, Mock]:
     vcs = mocker.MagicMock(VCS)
-    return MergeRequestManager(vcs, Parser()), vcs
+    return MergeRequestManager(vcs, create_parser()), vcs
 
 
 def test_parser_parse() -> None:
-    # TODO: just a simple test, cause want to reusae other parser classes later
     collection = "foo bar"
     shasum = "e8460885f1031d12f4853a4fe0ebf9680c7d82ff21e2159fd89a3983f853203f"
 
-    t = Parser().parse(render_description(collection, shasum))
+    t = create_parser().parse(render_description(collection, shasum))
+    assert isinstance(t, TemplateInfo)
     assert t.collection == collection
     assert t.collection_hash == shasum
 

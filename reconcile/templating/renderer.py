@@ -16,7 +16,10 @@ from reconcile.gql_definitions.templating.template_collection import (
     TemplateV1,
     query,
 )
-from reconcile.templating.lib.merge_request_manager import MergeRequestManager, Parser
+from reconcile.templating.lib.merge_request_manager import (
+    MergeRequestManager,
+    create_parser,
+)
 from reconcile.templating.lib.model import TemplateInput, TemplateOutput
 from reconcile.templating.lib.rendering import (
     TemplateData,
@@ -251,7 +254,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             )
             merge_request_manager = MergeRequestManager(
                 vcs=vcs,
-                parser=Parser(),
+                parser=create_parser(),
             )
             persistence = GitlabFilePersistence(vcs, merge_request_manager)
 
