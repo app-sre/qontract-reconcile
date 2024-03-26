@@ -216,6 +216,15 @@ class AwsAccountMgmtIntegration(
             # having a state per flavor and payer account makes it easier in a shared environment
             reconciler.state.state_path = default_state_path
             reconciler.state.state_path += f"/{payer_account.name}"
+            aws_account_manager_role = (
+                payer_account.automation_role.aws_account_manager
+                if payer_account.automation_role
+                else None
+            )
+            if not aws_account_manager_role:
+                raise ValueError(
+                    f"awsAccountManager role is not defined for account {payer_account.name}"
+                )
 
             secret = self.secret_reader.read_all_secret(payer_account.automation_token)
             with AWSApi(
@@ -225,15 +234,6 @@ class AwsAccountMgmtIntegration(
                     region=payer_account.resources_default_region,
                 )
             ) as payer_account_aws_api:
-                if not (
-                    aws_account_manager_role
-                    := payer_account.automation_role.aws_account_manager
-                    if payer_account.automation_role
-                    else None
-                ):
-                    raise ValueError(
-                        f"awsAccountManager role is not defined for account {payer_account.name}"
-                    )
                 with payer_account_aws_api.assume_role(
                     account_id=payer_account.uid,
                     role=aws_account_manager_role,
