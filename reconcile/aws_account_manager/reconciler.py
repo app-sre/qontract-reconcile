@@ -100,8 +100,7 @@ class AWSReconciler:
         uid: str,
         tags: dict[str, str],
     ) -> None:
-        new_tags = default_tags.copy()
-        new_tags.update(tags or {})
+        new_tags = default_tags | tags
         with self.state.transaction(state_key(name, TASK_TAG_ACCOUNT)) as _state:
             if _state.exists and _state.value == new_tags:
                 # account already tagged, nothing to do
