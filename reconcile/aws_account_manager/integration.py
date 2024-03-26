@@ -171,7 +171,6 @@ class AwsAccountMgmtIntegration(
         """Reconcile organization accounts."""
         for account in organization_accounts:
             assert account.organization  # mypy
-            assert account.quota_limits  # mypy
             reconciler.reconcile_organization_account(
                 aws_api=aws_api,
                 default_tags=self.params.default_tags,
