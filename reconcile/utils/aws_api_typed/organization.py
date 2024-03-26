@@ -1,5 +1,5 @@
 from collections.abc import Iterable, Mapping
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, Field
 
@@ -17,25 +17,29 @@ class AwsOrganizationOU(BaseModel):
     name: str = Field(..., alias="Name")
     children: list["AwsOrganizationOU"] = []
 
+    def locate(
+        self, path: list[str], ignore_case: bool = True
+    ) -> Optional["AwsOrganizationOU"]:
+        name, *sub = path
+        match = self.name.lower() == name.lower() if ignore_case else self.name == name
+        if not match:
+            return None
+        if not sub:
+            return self
+        return next(
+            (
+                result
+                for child in self.children
+                if (result := child.locate(sub, ignore_case=ignore_case))
+            ),
+            None,
+        )
+
     def find(self, path: str, ignore_case: bool = True) -> "AwsOrganizationOU":
-        """Return an organizational unit by its path."""
-        name, *rest = path.strip("/").split("/")
-        subs = "/".join(rest)
-        if ignore_case:
-            node_a = self.name.lower()
-            node_b = name.lower()
-        else:
-            node_a = self.name
-            node_b = name
-        if node_a == node_b:
-            if not rest:
-                return self
-            for child in self.children:
-                try:
-                    return child.find(subs)
-                except KeyError:
-                    pass
-        raise KeyError(f"OU not found: {path}")
+        node = self.locate(path.strip("/").split("/"), ignore_case=ignore_case)
+        if not node:
+            raise KeyError(f"OU not found: {path}")
+        return node
 
 
 class AWSAccountStatus(BaseModel):
