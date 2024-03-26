@@ -13,6 +13,7 @@ from reconcile.utils.aws_api_typed.organization import AwsOrganizationOU
 from reconcile.utils.aws_api_typed.service_quotas import (
     AWSResourceAlreadyExistsException,
 )
+from reconcile.utils.aws_api_typed.support import SUPPORT_PLAN
 from reconcile.utils.state import AbortStateTransaction, State
 
 TASK_CREATE_ACCOUNT = "create-account"
@@ -270,10 +271,15 @@ class AWSReconciler:
     ) -> str | None:
         """Enable enterprise support for the account."""
         with self.state.transaction(
-            state_key(name, TASK_ENABLE_ENTERPRISE_SUPPORT)
+            state_key(name, TASK_ENABLE_ENTERPRISE_SUPPORT), ""
         ) as _state:
             if _state.exists:
                 return _state.value
+
+            if aws_api.support.get_support_level() == SUPPORT_PLAN.ENTERPRISE:
+                if self.dry_run:
+                    raise AbortStateTransaction("Dry run")
+                return None
 
             logging.info(f"Enabling enterprise support for {name}")
             if self.dry_run:

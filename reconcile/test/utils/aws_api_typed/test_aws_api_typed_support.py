@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.utils.aws_api_typed.support import AWSApiSupport
+from reconcile.utils.aws_api_typed.support import SUPPORT_PLAN, AWSApiSupport
 
 if TYPE_CHECKING:
     from mypy_boto3_support import SupportClient
@@ -69,3 +69,41 @@ def test_aws_api_typed_support_create_case(
         language=language,
         severityCode=severity,
     )
+
+
+@pytest.mark.parametrize(
+    "security_levels, expected_support_level",
+    [
+        ([{"code": "Low"}], SUPPORT_PLAN.DEVELOPER),
+        ([{"code": "Low"}, {"code": "Normal"}], SUPPORT_PLAN.DEVELOPER),
+        (
+            [{"code": "Low"}, {"code": "Normal"}, {"code": "High"}],
+            SUPPORT_PLAN.BUSINESS,
+        ),
+        (
+            [{"code": "Low"}, {"code": "Normal"}, {"code": "High"}, {"code": "Urgent"}],
+            SUPPORT_PLAN.BUSINESS,
+        ),
+        (
+            [
+                {"code": "Low"},
+                {"code": "Normal"},
+                {"code": "High"},
+                {"code": "Urgent"},
+                {"code": "Critical"},
+            ],
+            SUPPORT_PLAN.ENTERPRISE,
+        ),
+    ],
+)
+def test_aws_api_typed_support_get_support_level(
+    aws_api_support: AWSApiSupport,
+    support_client: MagicMock,
+    security_levels: list[dict],
+    expected_support_level: SUPPORT_PLAN,
+) -> None:
+    support_client.describe_severity_levels.return_value = {
+        "severityLevels": security_levels
+    }
+
+    assert aws_api_support.get_support_level() == expected_support_level

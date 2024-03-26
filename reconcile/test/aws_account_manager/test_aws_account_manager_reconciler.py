@@ -35,7 +35,7 @@ from reconcile.utils.aws_api_typed.service_quotas import (
     AWSQuota,
     AWSRequestedServiceQuotaChange,
 )
-from reconcile.utils.aws_api_typed.support import AWSCase
+from reconcile.utils.aws_api_typed.support import SUPPORT_PLAN, AWSCase
 from reconcile.utils.state import State
 
 
@@ -638,12 +638,24 @@ def test_aws_account_manager_reconcile_check_quota_change_requests_state_exists_
 def test_aws_account_manager_reconcile_enable_enterprise_support(
     aws_api: MagicMock, reconciler: AWSReconciler
 ) -> None:
+    aws_api.support.get_support_level.return_value = SUPPORT_PLAN.BASIC
     aws_api.support.create_case.return_value = "case-id"
     assert (
         reconciler._enable_enterprise_support(aws_api, "account", "123456789012")
         == "case-id"
     )
     aws_api.support.create_case.assert_called_once()
+
+
+def test_aws_account_manager_reconcile_enable_enterprise_support_already_enabled(
+    aws_api: MagicMock, reconciler: AWSReconciler
+) -> None:
+    aws_api.support.get_support_level.return_value = SUPPORT_PLAN.ENTERPRISE
+    assert (
+        reconciler._enable_enterprise_support(aws_api, "account", "123456789012")
+        is None
+    )
+    aws_api.support.create_case.assert_not_called()
 
 
 def test_aws_account_manager_reconcile_enable_enterprise_support_state_exists(
