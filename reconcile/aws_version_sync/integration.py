@@ -14,8 +14,8 @@ from pydantic import (
 )
 
 from reconcile.aws_version_sync.merge_request_manager.merge_request import (
-    Parser,
     Renderer,
+    create_parser,
 )
 from reconcile.aws_version_sync.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
@@ -393,7 +393,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
         merge_request_manager = MergeRequestManager(
             vcs=vcs,
             renderer=Renderer(),
-            parser=Parser(),
+            parser=create_parser(),
             auto_merge_enabled=get_feature_toggle_state(
                 integration_name=f"{self.name}-allow-auto-merge-mrs", default=False
             ),
