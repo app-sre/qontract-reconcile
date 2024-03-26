@@ -62,11 +62,11 @@ class MergeRequestManager:
         self._auto_merge_enabled = auto_merge_enabled
 
     def _merge_request_already_exists(self, aws_acccount_file_path: str) -> bool:
-        for mr in self._open_mrs:
-            for diff in mr.changes()["changes"]:
-                if aws_acccount_file_path == diff["new_path"]:
-                    return True
-        return False
+        return any(
+            aws_acccount_file_path == diff["new_path"]
+            for mr in self._open_mrs
+            for diff in mr.changes()["changes"]
+        )
 
     def fetch_open_merge_requests(self) -> None:
         all_open_mrs = self._vcs.get_open_app_interface_merge_requests()
