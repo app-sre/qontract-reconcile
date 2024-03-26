@@ -4,7 +4,7 @@ import logging
 import os
 from abc import abstractmethod
 from collections.abc import Callable, Generator, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (
     Any,
     Optional,
@@ -413,7 +413,7 @@ class State:
     @contextlib.contextmanager
     def transaction(
         self, key: str, value: Any = None
-    ) -> Generator["TransistionStateObj", None, None]:
+    ) -> Generator["TransactionStateObj", None, None]:
         """Get a context manager to set the key in the state if no exception occurs.
 
         You can set the value either via the value parameter or by setting the value attribute of the returned object.
@@ -428,7 +428,7 @@ class State:
             _current_value = self[key]
         except KeyError:
             _current_value = None
-        state_obj = TransistionStateObj(key, _init_value=_current_value)
+        state_obj = TransactionStateObj(key, value=_current_value)
         try:
             yield state_obj
         except AbortStateTransaction:
@@ -441,27 +441,20 @@ class State:
 
 
 @dataclass
-class TransistionStateObj:
+class TransactionStateObj:
     """Represents a transistion state object with a key and a value."""
 
     key: str
-    _init_value: Any = None
-    _value: Any = None
+    value: Any = None
+    _init_value: Any = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._init_value = self.value
 
     @property
     def changed(self) -> bool:
-        return self._value is not None
+        return self.value != self._init_value
 
     @property
     def exists(self) -> bool:
         return self._init_value is not None
-
-    @property
-    def value(self) -> Any:
-        if self._value is not None:
-            return self._value
-        return self._init_value
-
-    @value.setter
-    def value(self, value: Any) -> None:
-        self._value = value

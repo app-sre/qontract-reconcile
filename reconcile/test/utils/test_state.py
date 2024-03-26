@@ -25,7 +25,7 @@ from reconcile.utils.state import (
     S3ProfileBasedStateConfiguration,
     State,
     StateInaccessibleException,
-    TransistionStateObj,
+    TransactionStateObj,
     acquire_state_settings,
 )
 
@@ -481,7 +481,7 @@ def test_state_transaction_abort(
 
 def test_state_transaction_state_obj_nothing_set() -> None:
     # nothing set yet
-    obj = TransistionStateObj(key="key")
+    obj = TransactionStateObj(key="key")
     assert obj.value is None
     assert not obj.changed
     assert not obj.exists
@@ -494,7 +494,7 @@ def test_state_transaction_state_obj_nothing_set() -> None:
 
 def test_state_transaction_state_obj_init_value() -> None:
     # init value but no current one
-    obj = TransistionStateObj(key="key", _init_value="value")
+    obj = TransactionStateObj(key="key", value="value")
     assert obj.value == "value"
     assert not obj.changed
     assert obj.exists
