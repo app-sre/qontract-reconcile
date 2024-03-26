@@ -88,7 +88,7 @@ class AwsAccountMgmtIntegration(
     def get_aws_accounts(
         self, query_func: Callable, account_name: str | None = None
     ) -> tuple[list[AWSAccountV1], list[AWSAccountV1]]:
-        """Get all AWS payer accounts with their organization accounts."""
+        """Get all AWS payer and non-organization accounts."""
         data = aws_accounts_query(query_func)
 
         all_aws_accounts = [
