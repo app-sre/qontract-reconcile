@@ -503,3 +503,13 @@ def test_state_transaction_state_obj_init_value() -> None:
     assert obj.value == "another-value"
     assert obj.changed
     assert obj.exists
+
+
+def test_state_transaction_state_obj_bool() -> None:
+    # init value but no current one
+    obj = TransactionStateObj(key="key", value=True)
+    assert obj.value is True
+    obj.value = False
+    assert obj.value is False
+    assert obj.changed
+    assert obj.exists
