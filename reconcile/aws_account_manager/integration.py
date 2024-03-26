@@ -103,12 +103,11 @@ class AwsAccountMgmtIntegration(
             for account in all_aws_accounts
             if account.organization_accounts or account.account_requests
         ]
-        all_organization_account_names = []
-        for payer_account in payer_accounts:
-            all_organization_account_names += [
-                org_account.name
-                for org_account in payer_account.organization_accounts or []
-            ]
+        all_organization_account_names = {
+            org_account.name
+            for payer_account in payer_accounts
+            for org_account in payer_account.organization_accounts or []
+        }
 
         non_organization_accounts = [
             account
