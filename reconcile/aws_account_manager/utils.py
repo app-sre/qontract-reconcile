@@ -1,4 +1,3 @@
-import logging
 from collections import Counter
 
 from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
@@ -14,14 +13,15 @@ def validate(account: AWSAccountV1) -> bool:
         for quota_limit in account.quota_limits or []
         for quota in quota_limit.quotas or []
     ])
-    error = None
-    for quota, cnt in quotas.items():
-        if cnt > 1:
-            error = f"Quota service_code={quota[0]}, quota_code={quota[1]} is referenced multiple times in account {account.name}"
-            logging.error(error)
-
-    if error:
-        raise ValueError("Multiple quotas are referenced in the account")
+    errors = [
+        ValueError(
+            f"Quota service_code={service_code}, quota_code={quota_code} is referenced multiple times in account {account.name}"
+        )
+        for (service_code, quota_code), cnt in quotas.items()
+        if cnt > 1
+    ]
+    if errors:
+        raise ExceptionGroup("Multiple quotas are referenced in the account", errors)
 
     if account.organization_accounts or account.account_requests:
         # it's payer account

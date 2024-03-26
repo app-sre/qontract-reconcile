@@ -96,8 +96,10 @@ class AwsAccountMgmtIntegration(
             for account in data.accounts or []
             if integration_is_enabled(self.name, account)
             and (not account_name or account.name == account_name)
-            and validate(account)
         ]
+        for account in all_aws_accounts:
+            validate(account)
+
         payer_accounts = [
             account
             for account in all_aws_accounts
