@@ -113,7 +113,7 @@ class AWSApiOrganizations:
         """Return the organizational unit ID of an account."""
         resp = self.client.list_parents(ChildId=uid)
         for p in resp.get("Parents", []):
-            if p["Type"] in set(["ORGANIZATIONAL_UNIT", "ROOT"]):
+            if p["Type"] in {"ORGANIZATIONAL_UNIT", "ROOT"}:
                 return p["Id"]
         raise AWSAccountNotFoundException(f"Account {uid} not found!")
 
