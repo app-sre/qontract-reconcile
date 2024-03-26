@@ -217,18 +217,18 @@ class AWSReconciler:
                 raise AbortStateTransaction("Dry run")
 
             ids = []
-            try:
-                for new_quota in new_quotas:
+            for new_quota in new_quotas:
+                try:
                     req = aws_api.service_quotas.request_service_quota_change(
                         service_code=new_quota.service_code,
                         quota_code=new_quota.quota_code,
                         desired_value=new_quota.value,
                     )
-                    ids.append(req.id)
-            except AWSResourceAlreadyExistsException:
-                raise AbortStateTransaction(
-                    "A quota increase for this service_code/quota_code pair already exists. Try it again later."
-                )
+                except AWSResourceAlreadyExistsException:
+                    raise AbortStateTransaction(
+                        f"A quota increase for this {new_quota.service_code}/{new_quota.quota_code} already exists. Try it again later."
+                    )
+                ids.append(req.id)
 
             _state.value = {"last_applied_quotas": quotas_dict, "ids": ids}
             return ids
