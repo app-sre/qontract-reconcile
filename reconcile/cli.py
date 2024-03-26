@@ -951,9 +951,7 @@ def aws_saml_roles(
     )
 
 
-@integration.command(
-    short_help="Manage AWS organization accounts for AWS payer accounts."
-)
+@integration.command(short_help="Create and manage AWS accounts.")
 @account_name
 @click.option(
     "--flavor",
