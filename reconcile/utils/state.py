@@ -434,7 +434,7 @@ class State:
         except AbortStateTransaction:
             return
         else:
-            if state_obj.changed:
+            if state_obj.changed and state_obj.value != _current_value:
                 self[state_obj.key] = state_obj.value
             elif value is not None and state_obj.value != value:
                 self[state_obj.key] = value
