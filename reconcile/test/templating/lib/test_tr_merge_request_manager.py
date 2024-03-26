@@ -1,13 +1,10 @@
 from unittest.mock import Mock
 
 import pytest
-from gitlab.v4.objects import ProjectMergeRequest
 from pytest_mock import MockerFixture
 
 from reconcile.templating.lib.merge_request_manager import (
-    TR_LABEL,
     MergeRequestManager,
-    OpenMergeRequest,
     TemplateInfo,
     TemplateRenderingMR,
     create_parser,
@@ -15,6 +12,7 @@ from reconcile.templating.lib.merge_request_manager import (
 )
 from reconcile.templating.lib.model import TemplateInput, TemplateOutput
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.merge_request_manager.merge_request_manager import OpenMergeRequest
 from reconcile.utils.vcs import VCS
 
 
@@ -93,7 +91,7 @@ def test_create_tr_merge_request_found(
     mrm._open_mrs.append(
         OpenMergeRequest(
             raw=mocker.patch("gitlab.v4.objects.ProjectMergeRequest", autospec=True),
-            template_info=TemplateInfo(collection="foo", collection_hash=thash),
+            mr_info=TemplateInfo(collection="foo", collection_hash=thash),
         )
     )
     mrm.create_tr_merge_request(
@@ -112,57 +110,3 @@ def test_create_tr_merge_request_found(
     else:
         vcs.close_app_interface_mr.assert_not_called()
         vcs.open_app_interface_merge_request.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "attributes,closed_reason",
-    [
-        (
-            {
-                "description": render_description("foo", "abc"),
-                "has_conflicts": False,
-            },
-            "",
-        ),
-        (
-            {
-                "description": "description",
-                "has_conflicts": True,
-            },
-            "Closing this MR because of a merge-conflict.",
-        ),
-        (
-            {
-                "description": render_description("foo", "abc", version="fooo"),
-                "has_conflicts": False,
-            },
-            "Closing this MR because it has an outdated integration version",
-        ),
-        (
-            {
-                "description": "foo-bar",
-                "has_conflicts": False,
-            },
-            "Closing this MR because of bad description format.",
-        ),
-    ],
-)
-def test_housekeeping(
-    attributes: dict,
-    closed_reason: str,
-    mergereqeustmanager: tuple[MergeRequestManager, Mock],
-    mocker: MockerFixture,
-) -> None:
-    mrm, vcs = mergereqeustmanager
-    mr = mocker.MagicMock(ProjectMergeRequest)
-    mr.labels = [TR_LABEL]
-    mr.attributes = attributes
-    vcs.get_open_app_interface_merge_requests.return_value = [mr]
-    mrm._open_mrs = []
-    mrm.housekeeping()
-    if closed_reason:
-        vcs.close_app_interface_mr.assert_called_with(mr, closed_reason)
-    else:
-        vcs.close_app_interface_mr.assert_not_called()
-        assert mrm._open_mrs[0].raw == mr
-        assert mrm._housekeeping_ran

@@ -15,16 +15,17 @@ from pytest_mock import MockerFixture
 from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     AVS_LABEL,
     AVSInfo,
-    Parser,
     Renderer,
 )
 from reconcile.aws_version_sync.merge_request_manager.merge_request_manager import (
     AVSMR,
     MergeRequestManager,
-    OpenMergeRequest,
 )
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.merge_request_manager.parser import ParserError, ParserVersionError
+from reconcile.utils.merge_request_manager.merge_request_manager import OpenMergeRequest
+from reconcile.utils.merge_request_manager.parser import (
+    Parser,
+)
 from reconcile.utils.mr.labels import AUTO_MERGE
 from reconcile.utils.vcs import VCS
 
@@ -93,105 +94,6 @@ def mrm_builder(
     return builder
 
 
-def test_merge_request_manager_fetch_avs_managed_open_merge_requests(
-    mrm_builder: Callable[
-        [Iterable[ProjectMergeRequest]],
-        tuple[MergeRequestManager, MagicMock, MagicMock, MagicMock],
-    ],
-) -> None:
-    mrm, vcs_mock, _, _ = mrm_builder([
-        mr_builder(labels=[AVS_LABEL]),
-        mr_builder(labels=["OtherLabel"]),
-    ])
-    mrm.fetch_avs_managed_open_merge_requests()
-    assert len(mrm._open_raw_mrs) == 1
-    vcs_mock.get_open_app_interface_merge_requests.assert_called_once()
-
-
-def test_merge_request_manager_housekeeping_has_conflicts(
-    mrm_builder: Callable[
-        [],
-        tuple[MergeRequestManager, MagicMock, MagicMock, MagicMock],
-    ],
-) -> None:
-    mr = mr_builder(has_conflicts=True)
-    mrm, vcs_mock, _, _ = mrm_builder()
-    mrm._open_raw_mrs = [mr]
-    mrm.housekeeping()
-    vcs_mock.close_app_interface_mr.assert_called_once_with(mr, ANY)
-    assert len(mrm._open_mrs) == 0
-
-
-def test_merge_request_manager_housekeeping_outdated_version(
-    mrm_builder: Callable[
-        [],
-        tuple[MergeRequestManager, MagicMock, MagicMock, MagicMock],
-    ],
-) -> None:
-    mr = mr_builder(description="description")
-    mrm, vcs_mock, _, parser_mock = mrm_builder()
-    parser_mock.parse.side_effect = ParserVersionError
-
-    mrm._open_raw_mrs = [mr]
-    mrm.housekeeping()
-    vcs_mock.close_app_interface_mr.assert_called_once_with(mr, ANY)
-    parser_mock.parse.assert_called_once_with(description="description")
-    assert len(mrm._open_mrs) == 0
-
-
-def test_merge_request_manager_housekeeping_parse_error(
-    mrm_builder: Callable[
-        [],
-        tuple[MergeRequestManager, MagicMock, MagicMock, MagicMock],
-    ],
-) -> None:
-    mr = mr_builder(description="description")
-    mrm, vcs_mock, _, parser_mock = mrm_builder()
-    parser_mock.parse.side_effect = ParserError
-
-    mrm._open_raw_mrs = [mr]
-    mrm.housekeeping()
-    vcs_mock.close_app_interface_mr.assert_called_once_with(mr, ANY)
-    parser_mock.parse.assert_called_once_with(description="description")
-    assert len(mrm._open_mrs) == 0
-
-
-def test_merge_request_manager_housekeeping(
-    mrm_builder: Callable[
-        [],
-        tuple[MergeRequestManager, MagicMock, MagicMock, MagicMock],
-    ],
-) -> None:
-    mr1 = mr_builder(description="description")
-    mr2 = mr_builder(description="description")
-    mrm, vcs_mock, _, parser_mock = mrm_builder()
-    avs_info1 = AVSInfo(
-        provider="provider",
-        account_id="account_id",
-        resource_provider="resource_provider",
-        resource_identifier="resource_identifier",
-        resource_engine="resource_engine",
-        resource_engine_version="resource_engine_version",
-    )
-    avs_info2 = AVSInfo(
-        provider="provider",
-        account_id="account_id",
-        resource_provider="resource_provider",
-        resource_identifier="resource_identifier",
-        resource_engine="resource_engine",
-        resource_engine_version="resource_engine_version",
-    )
-    parser_mock.parse.side_effect = [avs_info1, avs_info2]
-
-    mrm._open_raw_mrs = [mr1, mr2]
-    mrm.housekeeping()
-    vcs_mock.close_app_interface_mr.assert_not_called()
-    assert mrm._open_mrs == [
-        OpenMergeRequest(raw=mr1, avs_info=avs_info1),
-        OpenMergeRequest(raw=mr2, avs_info=avs_info2),
-    ]
-
-
 def test_merge_request_manager_create_avs_merge_request_renderer_called(
     mrm_builder: Callable[
         [],
@@ -241,7 +143,7 @@ def test_merge_request_manager_create_avs_merge_request_close_outdated_mr_first(
     mrm._open_mrs = [
         OpenMergeRequest(
             raw=raw_mr,
-            avs_info=AVSInfo(
+            mr_info=AVSInfo(
                 provider="provider",
                 account_id="account_id",
                 resource_provider="resource_provider",
