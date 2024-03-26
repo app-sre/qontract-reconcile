@@ -5,7 +5,7 @@ import jinja2
 
 from reconcile.aws_account_manager.merge_request_manager import MergeRequestManager
 from reconcile.aws_account_manager.reconciler import AWSReconciler
-from reconcile.aws_account_manager.utils import is_valid
+from reconcile.aws_account_manager.utils import validate
 from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
     AWSAccountManaged,
     AWSAccountRequestV1,
@@ -96,7 +96,7 @@ class AwsAccountMgmtIntegration(
             for account in data.accounts or []
             if integration_is_enabled(self.name, account)
             and (not account_name or account.name == account_name)
-            and is_valid(account)
+            and validate(account)
         ]
         payer_accounts = [
             account
