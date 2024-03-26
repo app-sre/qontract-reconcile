@@ -255,14 +255,16 @@ class AWSReconciler:
                 req = aws_api.service_quotas.get_requested_service_quota_change(
                     request_id=request_id
                 )
-                if req.status in set(["CASE_CLOSED", "APPROVED"]):
-                    _state.value.append(request_id)
-                    continue
-
-                if req.status in set(["DENIED", "INVALID_REQUEST", "NOT_APPROVED"]):
-                    raise RuntimeError(
-                        f"Quota change request {request_id} failed: {req.status}"
-                    )
+                match req.status:
+                    case "CASE_CLOSED" | "APPROVED":
+                        _state.value.append(request_id)
+                    case "DENIED" | "INVALID_REQUEST" | "NOT_APPROVED":
+                        raise RuntimeError(
+                            f"Quota change request {request_id} failed: {req.status}"
+                        )
+                    case _:
+                        # everything else is considered in progress
+                        pass
 
     def _enable_enterprise_support(
         self, aws_api: AWSApi, name: str, uid: str
