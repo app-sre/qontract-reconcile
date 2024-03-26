@@ -26,6 +26,7 @@ fragment AWSAccountManaged on AWSAccount_v1 {
   name
   uid
   alias
+  terraformUsername
   premiumSupport
   organization {
     ou

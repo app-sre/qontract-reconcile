@@ -355,11 +355,14 @@ class AWSReconciler:
         name: str,
         alias: str | None,
         quotas: Iterable[Quota],
+        create_initial_user: bool,
     ) -> AWSAccessKey | None:
         """Reconcile/update the AWS account. Return the initial user access key if a new user was created."""
         self._set_account_alias(aws_api, name, alias)
         if request_ids := self._request_quotas(aws_api, name, quotas):
             self._check_quota_change_requests(aws_api, name, request_ids)
+        if not create_initial_user:
+            return None
         return self._create_initial_user(
             aws_api, name, initial_user_name, initial_user_policy_arn
         )

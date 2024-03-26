@@ -168,6 +168,7 @@ def test_aws_account_manager_utils_integration_reconcile_account(
             AWSQuotaV1(serviceCode="ec2", quotaCode="L-1216C47A", value=64.0),
             AWSQuotaV1(serviceCode="eks", quotaCode="L-1194D53C", value=102.0),
         ],
+        create_initial_user=True,
     )
     intg.save_access_key.assert_called_once_with(non_org_account.name, "access_key")
 

@@ -817,8 +817,35 @@ def test_aws_account_manager_reconcile_reconcile_account(
         "account",
         "alias",
         quotas=[AWSQuotaV1(serviceCode="serviceA", quotaCode="codeA", value=1.0)],
+        create_initial_user=True,
     )
     reconciler._set_account_alias.assert_called_once()
     reconciler._request_quotas.assert_called_once()
     reconciler._check_quota_change_requests.assert_called_once()
     reconciler._create_initial_user.assert_called_once()
+
+
+def test_aws_account_manager_reconcile_reconcile_account_no_initial_user(
+    aws_api: MagicMock, reconciler: AWSReconciler
+) -> None:
+    reconciler._set_account_alias = MagicMock()  # type: ignore
+    reconciler._request_quotas = MagicMock(return_value=["id1"])  # type: ignore
+    reconciler._check_quota_change_requests = MagicMock()  # type: ignore
+    reconciler._create_initial_user = MagicMock()  # type: ignore
+
+    assert (
+        reconciler.reconcile_account(
+            aws_api,
+            "user-name",
+            "policy-arn",
+            "account",
+            "alias",
+            quotas=[AWSQuotaV1(serviceCode="serviceA", quotaCode="codeA", value=1.0)],
+            create_initial_user=False,
+        )
+        is None
+    )
+    reconciler._set_account_alias.assert_called_once()
+    reconciler._request_quotas.assert_called_once()
+    reconciler._check_quota_change_requests.assert_called_once()
+    reconciler._create_initial_user.assert_not_called()

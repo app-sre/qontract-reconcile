@@ -192,15 +192,18 @@ class AwsAccountMgmtIntegration(
         aws_api: AWSApi,
         reconciler: AWSReconciler,
         account: AWSAccountManaged,
+        create_initial_user: bool = True,
     ) -> None:
         """Reconcile an AWS account."""
         if access_key := reconciler.reconcile_account(
             aws_api=aws_api,
-            initial_user_name=self.params.initial_user_name,
+            initial_user_name=account.terraform_username
+            or self.params.initial_user_name,
             initial_user_policy_arn=self.params.initial_user_policy_arn,
             name=account.name,
             alias=account.alias,
             quotas=[q for ql in account.quota_limits or [] for q in ql.quotas],
+            create_initial_user=create_initial_user,
         ):
             self.save_access_key(account.name, access_key)
 
@@ -271,7 +274,9 @@ class AwsAccountMgmtIntegration(
                     region=account.resources_default_region,
                 )
             ) as account_aws_api:
-                self.reconcile_account(account_aws_api, reconciler, account)
+                self.reconcile_account(
+                    account_aws_api, reconciler, account, create_initial_user=False
+                )
 
     @defer
     def run(self, dry_run: bool, defer: Callable | None = None) -> None:
