@@ -131,10 +131,10 @@ class AWSReconciler:
                 return
 
             logging.info(f"Moving account {name} to {ou}")
+            destination = self._get_destination_ou(aws_api, destination_path=ou)
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
 
-            destination = self._get_destination_ou(aws_api, destination_path=ou)
             aws_api.organizations.move_account(
                 uid=uid,
                 destination_parent_id=destination.id,
