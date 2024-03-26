@@ -25,7 +25,7 @@ def test_aws_account_manager_utils_is_valid_overlapping_quotas(
             quotas=[AWSQuotaV1(serviceCode="service", quotaCode="code", value=2.0)],
         ),
     ]
-    with pytest.raises(ValueError):
+    with pytest.raises(ExceptionGroup):
         validate(non_org_account)
 
 
