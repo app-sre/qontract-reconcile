@@ -988,7 +988,7 @@ def aws_saml_roles(
     "--account-tmpl-resource",
     help="Resource name of the account template-collection template in the app-interface.",
     required=True,
-    default="/aws/account-tmpl.yml",
+    default="/aws-account-manager/account-tmpl.yml",
 )
 @click.option(
     "--template-collection-root-path",
