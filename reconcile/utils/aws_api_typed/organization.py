@@ -1,3 +1,4 @@
+import functools
 from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Optional
 
@@ -41,6 +42,9 @@ class AwsOrganizationOU(BaseModel):
             raise KeyError(f"OU not found: {path}")
         return node
 
+    def __hash__(self) -> int:
+        return hash(self.id)
+
 
 class AWSAccountStatus(BaseModel):
     id: str = Field(..., alias="Id")
@@ -69,6 +73,7 @@ class AWSApiOrganizations:
     def __init__(self, client: OrganizationsClient) -> None:
         self.client = client
 
+    @functools.lru_cache(maxsize=None)
     def get_organizational_units_tree(
         self, root: AwsOrganizationOU | None = None
     ) -> AwsOrganizationOU:
