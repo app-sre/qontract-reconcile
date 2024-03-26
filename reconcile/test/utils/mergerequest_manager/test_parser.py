@@ -56,7 +56,7 @@ def parser(
     version_ref: str,
     data_seperator: str,
 ) -> Parser:
-    return Parser(
+    return Parser[TestModel](
         klass=TestModel,
         compiled_regexes=compiled_regexes,
         version_ref=version_ref,

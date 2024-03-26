@@ -65,7 +65,7 @@ class AVSInfo(BaseModel):
 
 
 def create_parser() -> Parser:
-    return Parser(
+    return Parser[AVSInfo](
         klass=AVSInfo,
         compiled_regexes=COMPILED_REGEXES,
         version_ref=VERSION_REF,

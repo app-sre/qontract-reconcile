@@ -132,8 +132,7 @@ class MergeRequestManager:
                     mr, "Closing this MR because of bad description format."
                 )
                 continue
-            # make mypy happy
-            assert isinstance(avs_info, AVSInfo)
+
             self._open_mrs.append(OpenMergeRequest(raw=mr, avs_info=avs_info))
 
     def _merge_request_already_exists(

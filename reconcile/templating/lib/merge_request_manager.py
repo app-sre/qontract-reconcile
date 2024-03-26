@@ -53,7 +53,7 @@ Parts of this description are used by the Template Renderer to manage the MR.
 
 
 def create_parser() -> Parser:
-    return Parser(
+    return Parser[TemplateInfo](
         klass=TemplateInfo,
         compiled_regexes=COMPILED_REGEXES,
         version_ref=VERSION_REF,
@@ -195,8 +195,6 @@ class MergeRequestManager:
                     mr, "Closing this MR because of bad description format."
                 )
                 continue
-            # make mypy happy
-            assert isinstance(template_info, TemplateInfo)
             self._open_mrs.append(OpenMergeRequest(raw=mr, template_info=template_info))
         self._housekeeping_ran = True
 
