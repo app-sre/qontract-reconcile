@@ -78,6 +78,10 @@ class AwsAccountMgmtIntegration(
     def render_account_tmpl_file(
         template: str, account_request: AWSAccountRequestV1, uid: str, settings: dict
     ) -> str:
+        # render initial_user_secret_vault_path
+        settings["initial_user_secret_vault_path"] = settings[
+            "initial_user_secret_vault_path"
+        ].format(account_name=account_request.name)
         tmpl = jinja2.Template(template, undefined=jinja2.StrictUndefined).render({
             "accountRequest": account_request.dict(by_alias=True),
             "uid": uid,
@@ -159,7 +163,7 @@ class AwsAccountMgmtIntegration(
                     uid=uid,
                     settings=self.params.dict(),
                 ),
-                account_request_file_path=account_request.path,
+                account_request_file_path=f"data/{account_request.path.strip('/')}",
             )
 
     def reconcile_organization_accounts(
