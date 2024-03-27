@@ -76,7 +76,6 @@ class AWSApiOrganizations:
             self._get_organizational_units_tree
         )
 
-    @functools.lru_cache(maxsize=None)
     def _get_organizational_units_tree(
         self, root: AwsOrganizationOU | None = None
     ) -> AwsOrganizationOU:
