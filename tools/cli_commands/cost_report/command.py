@@ -1,7 +1,9 @@
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, MutableMapping
 from decimal import Decimal
-from typing import List, Self
+from typing import List, Self, Tuple
+
+from sretoolbox.utils import threaded
 
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
@@ -14,6 +16,8 @@ from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
 from tools.cli_commands.cost_report.response import ReportCostResponse
 from tools.cli_commands.cost_report.view import render_report
+
+THREAD_POOL_SIZE = 10
 
 
 class CostReportCommand:
@@ -38,16 +42,18 @@ class CostReportCommand:
         """
         return get_app_names(self.gql_api)
 
+    def _fetch_report(self, app: App) -> Tuple[str, ReportCostResponse]:
+        return app.name, self.cost_management_api.get_aws_costs_report(app.name)
+
+    def _fetch_reports(self, apps: Iterable[App]) -> dict[str, ReportCostResponse]:
+        results = threaded.run(self._fetch_report, apps, THREAD_POOL_SIZE)
+        return dict(results)
+
     def get_reports(self, apps: Iterable[App]) -> dict[str, Report]:
         """
         Fetch reports from cost management API and build reports with parent-child app tree.
         """
-
-        # TODO: Fetch reports concurrently
-        responses = {
-            app.name: self.cost_management_api.get_aws_costs_report(app.name)
-            for app in apps
-        }
+        responses = self._fetch_reports(apps)
 
         child_apps_by_parent = defaultdict(list)
         for app in apps:
