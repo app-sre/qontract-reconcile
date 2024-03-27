@@ -37,12 +37,14 @@ class NetworkV1(ConfiguredBaseModel):
     network_address: str = Field(..., alias="networkAddress")
 
 
-class ManagedVPCCIDRBlockV1(ConfiguredBaseModel):
-    network: NetworkV1 = Field(..., alias="network")
+class VPCRequestSubnets(ConfiguredBaseModel):
+    private: Optional[list[str]] = Field(..., alias="private")
+    public: Optional[list[str]] = Field(..., alias="public")
 
 
-class AWSManagedVPC(ConfiguredBaseModel):
+class VPCRequest(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    description: Optional[str] = Field(..., alias="description")
     account: AWSAccountV1 = Field(..., alias="account")
-    cidr_block: ManagedVPCCIDRBlockV1 = Field(..., alias="cidr_block")
+    region: str = Field(..., alias="region")
+    cidr_block: NetworkV1 = Field(..., alias="cidr_block")
+    subnets: Optional[VPCRequestSubnets] = Field(..., alias="subnets")

@@ -17,13 +17,12 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.aws_managed_vpc import AWSManagedVPC
+from reconcile.gql_definitions.fragments.aws_vpc_request import VPCRequest
 
 
 DEFINITION = """
-fragment AWSManagedVPC on AWSManagedVPC_v1 {
+fragment VPCRequest on VPCRequest_v1 {
   name
-  description
   account {
     name
     uid
@@ -32,10 +31,13 @@ fragment AWSManagedVPC on AWSManagedVPC_v1 {
       ...VaultSecret
     }
   }
+  region
   cidr_block {
-    network {
-      networkAddress
-    }
+    networkAddress
+  }
+  subnets {
+    private
+    public
   }
 }
 
@@ -46,9 +48,9 @@ fragment VaultSecret on VaultSecret_v1 {
     format
 }
 
-query AWSManagedVPC {
-  managed_vpcs: aws_managed_vpcs_v1 {
-    ...AWSManagedVPC
+query VPCRequest {
+  vpc_requests: aws_vpc_request_v1 {
+    ...VPCRequest
   }
 }
 """
@@ -60,11 +62,11 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
-class AWSManagedVPCQueryData(ConfiguredBaseModel):
-    managed_vpcs: Optional[list[AWSManagedVPC]] = Field(..., alias="managed_vpcs")
+class VPCRequestQueryData(ConfiguredBaseModel):
+    vpc_requests: Optional[list[VPCRequest]] = Field(..., alias="vpc_requests")
 
 
-def query(query_func: Callable, **kwargs: Any) -> AWSManagedVPCQueryData:
+def query(query_func: Callable, **kwargs: Any) -> VPCRequestQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -77,7 +79,7 @@ def query(query_func: Callable, **kwargs: Any) -> AWSManagedVPCQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        AWSManagedVPCQueryData: queried data parsed into generated classes
+        VPCRequestQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return AWSManagedVPCQueryData(**raw_data)
+    return VPCRequestQueryData(**raw_data)

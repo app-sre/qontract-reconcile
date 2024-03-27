@@ -1,8 +1,7 @@
 # qenerate: plugin=pydantic_v1
 
-fragment AWSManagedVPC on AWSManagedVPC_v1 {
+fragment VPCRequest on VPCRequest_v1 {
   name
-  description
   account {
     name
     uid
@@ -11,9 +10,12 @@ fragment AWSManagedVPC on AWSManagedVPC_v1 {
       ...VaultSecret
     }
   }
+  region
   cidr_block {
-    network {
-      networkAddress
-    }
+    networkAddress
+  }
+  subnets {
+    private
+    public
   }
 }

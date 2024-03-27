@@ -1,0 +1,7 @@
+# qenerate: plugin=pydantic_v1
+
+query VPCRequest {
+  vpc_requests: aws_vpc_request_v1 {
+    ...VPCRequest
+  }
+}
