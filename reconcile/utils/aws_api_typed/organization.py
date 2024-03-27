@@ -72,9 +72,12 @@ class AWSAccountNotFoundException(Exception):
 class AWSApiOrganizations:
     def __init__(self, client: OrganizationsClient) -> None:
         self.client = client
+        self.get_organizational_units_tree = functools.lru_cache(maxsize=None)(
+            self._get_organizational_units_tree
+        )
 
     @functools.lru_cache(maxsize=None)
-    def get_organizational_units_tree(
+    def _get_organizational_units_tree(
         self, root: AwsOrganizationOU | None = None
     ) -> AwsOrganizationOU:
         """List all organizational units for a given root recursively."""
