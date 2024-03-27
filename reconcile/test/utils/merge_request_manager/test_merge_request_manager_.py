@@ -2,6 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 from gitlab.v4.objects import ProjectMergeRequest
+from pydantic import BaseModel
 from pytest_mock import MockerFixture
 
 from reconcile.test.utils.merge_request_manager.conftest import desc_string
@@ -18,12 +19,25 @@ def gitlab_cli(mocker: MockerFixture) -> GitLabApi:
     return mocker.MagicMock(GitLabApi)
 
 
+class TestData(BaseModel):
+    data_ref1: str
+
+
+class TestMRManager(MergeRequestManagerBase):
+    def __init__(self, vcs: VCS, parser: Parser, label: str):
+        super().__init__(vcs, parser, label)
+
+    def create_merge_request(self, data: BaseModel) -> None:
+        return None
+
+
 @pytest.fixture
 def mergereqeustmanager(
     parser: Parser, mocker: MockerFixture
-) -> tuple[MergeRequestManagerBase, Mock]:
+) -> tuple[TestMRManager, Mock]:
     vcs = mocker.MagicMock(VCS)
-    return MergeRequestManagerBase(vcs, parser, "foo"), vcs
+
+    return TestMRManager(vcs, parser, "foo"), vcs
 
 
 @pytest.mark.parametrize(
@@ -66,7 +80,7 @@ def mergereqeustmanager(
 def test_housekeeping(
     attributes: dict,
     closed_reason: str,
-    mergereqeustmanager: tuple[MergeRequestManagerBase, Mock],
+    mergereqeustmanager: tuple[TestMRManager, Mock],
     mocker: MockerFixture,
 ) -> None:
     mrm, vcs = mergereqeustmanager
@@ -86,7 +100,7 @@ def test_housekeeping(
 
 
 def test_merge_request_manager_fetch_avs_managed_open_merge_requests(
-    mergereqeustmanager: tuple[MergeRequestManagerBase, Mock],
+    mergereqeustmanager: tuple[TestMRManager, Mock],
     mocker: MockerFixture,
 ) -> None:
     mrm, vcs = mergereqeustmanager

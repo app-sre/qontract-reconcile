@@ -1,6 +1,7 @@
 import logging
 
 from gitlab.exceptions import GitlabGetError
+from pydantic import BaseModel
 
 from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     AVS_LABEL,
@@ -48,6 +49,17 @@ class AVSMR(MergeRequestBase):
         )
 
 
+class MrData(BaseModel):
+    namespace_file: str
+    provider: str
+    provisioner_ref: str
+    provisioner_uid: str
+    resource_provider: str
+    resource_identifier: str
+    resource_engine: str
+    resource_engine_version: str
+
+
 class MergeRequestManager(MergeRequestManagerBase):
     """
     Manager for AVS merge requests. This class
@@ -68,18 +80,21 @@ class MergeRequestManager(MergeRequestManagerBase):
         self._renderer = renderer
         self._auto_merge_enabled = auto_merge_enabled
 
-    def create_avs_merge_request(
+    def create_merge_request(
         self,
-        namespace_file: str,
-        provider: str,
-        provisioner_ref: str,
-        provisioner_uid: str,
-        resource_provider: str,
-        resource_identifier: str,
-        resource_engine: str,
-        resource_engine_version: str,
+        data: MrData,
     ) -> None:
         """Open new MR (if not already present) for an external resource and close any outdated before."""
+
+        namespace_file = data.namespace_file
+        provider = data.provider
+        provisioner_ref = data.provisioner_ref
+        provisioner_uid = data.provisioner_uid
+        resource_provider = data.resource_provider
+        resource_identifier = data.resource_identifier
+        resource_engine = data.resource_engine
+        resource_engine_version = data.resource_engine_version
+
         if mr := self._merge_request_already_exists({
             "provider": provider,
             "account_id": provisioner_uid,

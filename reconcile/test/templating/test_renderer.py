@@ -144,7 +144,7 @@ def test_gitlab_file_persistence_write(mocker: MockerFixture) -> None:
     gfp.write(output)
 
     mr_manager.housekeeping.assert_called_once()
-    mr_manager.create_tr_merge_request.assert_called_once_with(output)
+    mr_manager.create_merge_request.assert_called_once_with(output)
 
 
 def test_gitlable_file_persistence_read_found(mocker: MockerFixture) -> None:

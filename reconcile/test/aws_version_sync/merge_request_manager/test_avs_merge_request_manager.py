@@ -20,6 +20,7 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request import (
 from reconcile.aws_version_sync.merge_request_manager.merge_request_manager import (
     AVSMR,
     MergeRequestManager,
+    MrData,
 )
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.merge_request_manager import OpenMergeRequest
@@ -108,15 +109,17 @@ def test_merge_request_manager_create_avs_merge_request_renderer_called(
         "namespace-file-content"
     )
 
-    mrm.create_avs_merge_request(
-        namespace_file="namespace_file",
-        provider="provider",
-        provisioner_ref="provisioner_ref",
-        provisioner_uid="provisioner_uid",
-        resource_provider="resource_provider",
-        resource_identifier="resource_identifier",
-        resource_engine="resource_engine",
-        resource_engine_version="42.1",
+    mrm.create_merge_request(
+        MrData(
+            namespace_file="namespace_file",
+            provider="provider",
+            provisioner_ref="provisioner_ref",
+            provisioner_uid="provisioner_uid",
+            resource_provider="resource_provider",
+            resource_identifier="resource_identifier",
+            resource_engine="resource_engine",
+            resource_engine_version="42.1",
+        )
     )
 
     renderer_mock.render_merge_request_content.assert_called_once_with(
@@ -154,15 +157,17 @@ def test_merge_request_manager_create_avs_merge_request_close_outdated_mr_first(
         )
     ]
 
-    mrm.create_avs_merge_request(
-        namespace_file="namespace_file",
-        provider="provider",
-        provisioner_ref="provisioner_ref",
-        provisioner_uid="account_id",
-        resource_provider="resource_provider",
-        resource_identifier="resource_identifier",
-        resource_engine="resource_engine",
-        resource_engine_version="42.1",
+    mrm.create_merge_request(
+        MrData(
+            namespace_file="namespace_file",
+            provider="provider",
+            provisioner_ref="provisioner_ref",
+            provisioner_uid="account_id",
+            resource_provider="resource_provider",
+            resource_identifier="resource_identifier",
+            resource_engine="resource_engine",
+            resource_engine_version="42.1",
+        )
     )
 
     vcs_mock.close_app_interface_mr.assert_called_once_with(raw_mr, ANY)
@@ -177,15 +182,17 @@ def test_merge_request_manager_create_avs_merge_request(
 ) -> None:
     mrm, vcs_mock, _, _ = mrm_builder()
 
-    mrm.create_avs_merge_request(
-        namespace_file="namespace_file",
-        provider="provider",
-        provisioner_ref="provisioner_ref",
-        provisioner_uid="account_id",
-        resource_provider="resource_provider",
-        resource_identifier="resource_identifier",
-        resource_engine="resource_engine",
-        resource_engine_version="42.1",
+    mrm.create_merge_request(
+        MrData(
+            namespace_file="namespace_file",
+            provider="provider",
+            provisioner_ref="provisioner_ref",
+            provisioner_uid="account_id",
+            resource_provider="resource_provider",
+            resource_identifier="resource_identifier",
+            resource_engine="resource_engine",
+            resource_engine_version="42.1",
+        )
     )
 
     vcs_mock.close_app_interface_mr.assert_not_called()
@@ -201,15 +208,17 @@ def test_merge_request_manager_create_avs_merge_request_auto_merge_on(
     mrm, vcs_mock, _, _ = mrm_builder()
     mrm._auto_merge_enabled = True
 
-    mrm.create_avs_merge_request(
-        namespace_file="namespace_file",
-        provider="provider",
-        provisioner_ref="provisioner_ref",
-        provisioner_uid="account_id",
-        resource_provider="resource_provider",
-        resource_identifier="resource_identifier",
-        resource_engine="resource_engine",
-        resource_engine_version="42.1",
+    mrm.create_merge_request(
+        MrData(
+            namespace_file="namespace_file",
+            provider="provider",
+            provisioner_ref="provisioner_ref",
+            provisioner_uid="account_id",
+            resource_provider="resource_provider",
+            resource_identifier="resource_identifier",
+            resource_engine="resource_engine",
+            resource_engine_version="42.1",
+        )
     )
 
     vcs_mock.close_app_interface_mr.assert_not_called()
@@ -226,15 +235,17 @@ def test_merge_request_manager_create_avs_merge_request_auto_merge_off(
     mrm, vcs_mock, _, _ = mrm_builder()
     mrm._auto_merge_enabled = False
 
-    mrm.create_avs_merge_request(
-        namespace_file="namespace_file",
-        provider="provider",
-        provisioner_ref="provisioner_ref",
-        provisioner_uid="account_id",
-        resource_provider="resource_provider",
-        resource_identifier="resource_identifier",
-        resource_engine="resource_engine",
-        resource_engine_version="42.1",
+    mrm.create_merge_request(
+        MrData(
+            namespace_file="namespace_file",
+            provider="provider",
+            provisioner_ref="provisioner_ref",
+            provisioner_uid="account_id",
+            resource_provider="resource_provider",
+            resource_identifier="resource_identifier",
+            resource_engine="resource_engine",
+            resource_engine_version="42.1",
+        )
     )
 
     vcs_mock.close_app_interface_mr.assert_not_called()

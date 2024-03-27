@@ -1,4 +1,5 @@
 import logging
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
@@ -29,6 +30,10 @@ class MergeRequestManagerBase:
         self._open_mrs: list[OpenMergeRequest] = []
         self._open_mrs_with_problems: list[OpenMergeRequest] = []
         self._housekeeping_ran = False
+
+    @abstractmethod
+    def create_merge_request(self, data: Any) -> None:
+        pass
 
     def _merge_request_already_exists(
         self,

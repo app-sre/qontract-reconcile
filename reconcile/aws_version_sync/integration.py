@@ -19,6 +19,7 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request import (
 )
 from reconcile.aws_version_sync.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
+    MrData,
 )
 from reconcile.aws_version_sync.utils import (
     get_values,
@@ -359,15 +360,17 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             # make mypy happy
             assert app_interface_resource.namespace_file
             assert app_interface_resource.provisioner.path
-            merge_request_manager.create_avs_merge_request(
-                namespace_file=app_interface_resource.namespace_file,
-                provider=app_interface_resource.provider,
-                provisioner_ref=app_interface_resource.provisioner.path,
-                provisioner_uid=app_interface_resource.provisioner.uid,
-                resource_provider=app_interface_resource.resource_provider,
-                resource_identifier=app_interface_resource.resource_identifier,
-                resource_engine=app_interface_resource.resource_engine,
-                resource_engine_version=aws_resource.resource_engine_version_string,
+            merge_request_manager.create_merge_request(
+                MrData(
+                    namespace_file=app_interface_resource.namespace_file,
+                    provider=app_interface_resource.provider,
+                    provisioner_ref=app_interface_resource.provisioner.path,
+                    provisioner_uid=app_interface_resource.provisioner.uid,
+                    resource_provider=app_interface_resource.resource_provider,
+                    resource_identifier=app_interface_resource.resource_identifier,
+                    resource_engine=app_interface_resource.resource_engine,
+                    resource_engine_version=aws_resource.resource_engine_version_string,
+                )
             )
 
     @defer

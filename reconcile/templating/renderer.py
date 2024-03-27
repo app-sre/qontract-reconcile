@@ -97,7 +97,7 @@ class GitlabFilePersistence(FilePersistence):
 
     def write(self, outputs: list[TemplateOutput]) -> None:
         self.mr_manager.housekeeping()
-        self.mr_manager.create_tr_merge_request(outputs)
+        self.mr_manager.create_merge_request(outputs)
 
     def read(self, path: str) -> Optional[str]:
         try:

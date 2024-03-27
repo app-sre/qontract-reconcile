@@ -124,7 +124,7 @@ class MergeRequestManager(MergeRequestManagerBase):
     def __init__(self, vcs: VCS, parser: Parser):
         super().__init__(vcs, parser, TR_LABEL)
 
-    def create_tr_merge_request(self, output: list[TemplateOutput]) -> None:
+    def create_merge_request(self, output: list[TemplateOutput]) -> None:
         if not self._housekeeping_ran:
             self.housekeeping()
 

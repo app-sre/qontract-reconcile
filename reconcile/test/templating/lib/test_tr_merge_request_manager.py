@@ -57,7 +57,7 @@ def test_create_tr_merge_request_fail(
     mergereqeustmanager: tuple[MergeRequestManager, Mock],
 ) -> None:
     with pytest.raises(AssertionError):
-        mergereqeustmanager[0].create_tr_merge_request(
+        mergereqeustmanager[0].create_merge_request(
             [TemplateOutput(is_new=True, content="", path="")],
         )
 
@@ -66,7 +66,7 @@ def test_create_tr_merge_request_create(
     mergereqeustmanager: tuple[MergeRequestManager, Mock],
 ) -> None:
     mrm, vcs = mergereqeustmanager
-    mrm.create_tr_merge_request(
+    mrm.create_merge_request(
         [
             TemplateOutput(
                 input=TemplateInput(collection="foo", collection_hash="abc"),
@@ -94,7 +94,7 @@ def test_create_tr_merge_request_found(
             mr_info=TemplateInfo(collection="foo", collection_hash=thash),
         )
     )
-    mrm.create_tr_merge_request(
+    mrm.create_merge_request(
         [
             TemplateOutput(
                 input=TemplateInput(collection="foo", collection_hash="abc"),
