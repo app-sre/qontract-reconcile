@@ -6,6 +6,12 @@ from oauthlib.oauth2 import BackendApplicationClient, TokenExpiredError
 from requests import Response
 from requests_oauthlib import OAuth2Session
 
+FETCH_TOKEN_HEADERS = {
+    "Accept": "application/json",
+    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+    "Connection": "close",  # Close connection to avoid RemoteDisconnected ConnectionError
+}
+
 
 class OAuth2BackendApplicationSession:
     """
@@ -51,6 +57,7 @@ class OAuth2BackendApplicationSession:
                 client_id=self.client_id,
                 client_secret=self.client_secret,
                 scope=self.scope,
+                headers=FETCH_TOKEN_HEADERS,
             )
 
     def request(

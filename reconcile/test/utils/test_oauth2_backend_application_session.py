@@ -15,6 +15,12 @@ CLIENT_SECRET = "client_secret"
 TOKEN_URL = "https://token_url"
 SCOPE = ["some-scope"]
 
+EXPECTED_FETCH_TOKEN_HEADERS = {
+    "Accept": "application/json",
+    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+    "Connection": "close",
+}
+
 
 @pytest.fixture
 def mock_backend_application_client(mocker: MockerFixture) -> Any:
@@ -76,6 +82,7 @@ def test_first_request_auto_fetch_token(
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
         scope=SCOPE,
+        headers=EXPECTED_FETCH_TOKEN_HEADERS,
     )
     mocked_oauth2_session.request.assert_called_once_with(
         method="GET",
@@ -130,6 +137,7 @@ def test_request_when_token_is_expired(
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
         scope=SCOPE,
+        headers=EXPECTED_FETCH_TOKEN_HEADERS,
     )
     mocked_oauth2_session.request.assert_has_calls([
         call(
@@ -168,4 +176,5 @@ def test_fetch_token(
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
         scope=SCOPE,
+        headers=EXPECTED_FETCH_TOKEN_HEADERS,
     )
