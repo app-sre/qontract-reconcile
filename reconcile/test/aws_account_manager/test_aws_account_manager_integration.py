@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from textwrap import dedent
 from unittest.mock import MagicMock
 
 import pytest
@@ -26,27 +27,24 @@ def test_aws_account_manager_utils_integration_early_exit(
 def test_aws_account_manager_utils_integration_render_account_tmpl_files(
     intg: AwsAccountMgmtIntegration, account_request: AWSAccountRequestV1
 ) -> None:
-    tmpl = """
+    tmpl = dedent("""
     # test access variables
     {{ accountRequest.name }}
     {{ uid }}
     {{ settings.whatever }}
-    """
+    """)
     output = intg.render_account_tmpl_file(
         template=tmpl,
         account_request=account_request,
         uid="123456",
         settings={"whatever": "whatever"},
     )
-    assert (
-        output
-        == f"""
+    assert output == dedent(f"""
     # test access variables
     {account_request.name}
     123456
     whatever
-    """
-    )
+    """)
 
 
 def test_aws_account_manager_utils_integration_get_aws_accounts(
@@ -123,8 +121,8 @@ def test_aws_account_manager_utils_integration_create_accounts_create_account_fi
         email=account_request.account_owner.email,
     )
     merge_request_manager.create_account_file.assert_called_once_with(
-        account_request_file_path="/aws/data/request.yml",
-        account_tmpl_file_content="account-template - 1111111111",
+        account_request_file_path="data/aws/data/request.yml",
+        account_tmpl_file_content="account-template - 1111111111\n",
         account_tmpl_file_path="data/templating/collections/aws-account/data.yml",
     )
 

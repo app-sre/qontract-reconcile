@@ -78,16 +78,18 @@ class AwsAccountMgmtIntegration(
     def render_account_tmpl_file(
         template: str, account_request: AWSAccountRequestV1, uid: str, settings: dict
     ) -> str:
-        # render initial_user_secret_vault_path
-        settings["initial_user_secret_vault_path"] = settings[
-            "initial_user_secret_vault_path"
-        ].format(account_name=account_request.name)
+        for k, v in settings.items():
+            if not isinstance(v, str):
+                continue
+            # render string templates with account name
+            settings[k] = v.format(account_name=account_request.name)
         tmpl = jinja2.Template(template, undefined=jinja2.StrictUndefined).render({
             "accountRequest": account_request.dict(by_alias=True),
             "uid": uid,
             "settings": settings,
         })
-        return tmpl
+        # our yaml files must end with a newline
+        return tmpl + "\n"
 
     def get_aws_accounts(
         self, query_func: Callable, account_name: str | None = None
