@@ -1,8 +1,8 @@
 from typing import Any, List, Self
 
-from oauthlib.oauth2 import BackendApplicationClient
-from requests_oauthlib import OAuth2Session
-
+from reconcile.utils.oauth2_backend_application_session import (
+    OAuth2BackendApplicationSession,
+)
 from tools.cli_commands.cost_report.response import ReportCostResponse
 
 REQUEST_TIMEOUT = 60
@@ -20,13 +20,10 @@ class CostManagementApi:
     ) -> None:
         self.base_url = base_url
         self.request_timeout = request_timeout
-        client = BackendApplicationClient(client_id=client_id)
-        self.session = OAuth2Session(client_id=client_id, client=client, scope=scope)
-        # TODO: handle auto refetch token
-        self.session.fetch_token(
-            token_url=token_url,
+        self.session = OAuth2BackendApplicationSession(
             client_id=client_id,
             client_secret=client_secret,
+            token_url=token_url,
             scope=scope,
         )
 

@@ -24,16 +24,10 @@ from tools.cli_commands.cost_report.response import (
 
 
 @pytest.fixture
-def mock_client(mocker: MockerFixture) -> Any:
-    return mocker.patch(
-        "tools.cli_commands.cost_report.cost_management_api.BackendApplicationClient"
-    )
-
-
-@pytest.fixture
 def mock_session(mocker: MockerFixture) -> Any:
     return mocker.patch(
-        "tools.cli_commands.cost_report.cost_management_api.OAuth2Session"
+        "tools.cli_commands.cost_report.cost_management_api.OAuth2BackendApplicationSession",
+        autospec=True,
     )
 
 
@@ -45,7 +39,6 @@ SCOPE = ["some-scope"]
 
 
 def test_cost_management_api_init(
-    mock_client: Any,
     mock_session: Any,
 ) -> None:
     with CostManagementApi(
@@ -60,16 +53,10 @@ def test_cost_management_api_init(
     assert api.base_url == BASE_URL
     assert api.session == mock_session.return_value
 
-    mock_client.assert_called_once_with(client_id=CLIENT_ID)
     mock_session.assert_called_once_with(
         client_id=CLIENT_ID,
-        client=mock_client.return_value,
-        scope=SCOPE,
-    )
-    mock_session.return_value.fetch_token.assert_called_once_with(
-        token_url=TOKEN_URL,
-        client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
+        token_url=TOKEN_URL,
         scope=SCOPE,
     )
     mock_session.return_value.close.assert_called_once_with()
@@ -77,19 +64,17 @@ def test_cost_management_api_init(
 
 @pytest.fixture
 def cost_management_api(
-    mock_client: Any,
     mock_session: Any,
 ) -> CostManagementApi:
-    api = CostManagementApi(
+    # swap to requests.request to skip oauth2 logic
+    mock_session.return_value.request.side_effect = requests.request
+    return CostManagementApi(
         base_url=BASE_URL,
         token_url=TOKEN_URL,
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
         scope=SCOPE,
     )
-    # switch session to requests.Session for testing with httpretty, skip oauth part
-    api.session = requests.Session()  # type: ignore[assignment]
-    return api
 
 
 EXPECTED_REPORT_COST_RESPONSE = ReportCostResponse(
