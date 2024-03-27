@@ -991,7 +991,6 @@ def network_reservations(ctx) -> None:
         if network.parent_network:
             parentAddress = network.parent_network.network_address
         if network.in_use_by and network.in_use_by.vpc:
-            
             network_table.append({
                     "name": network.name,
                     "network Address": network.network_address,
