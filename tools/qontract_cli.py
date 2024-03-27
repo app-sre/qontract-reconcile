@@ -977,11 +977,10 @@ def network_reservations(ctx) -> None:
     columns = [ "name", "network Address", "parent Network", "Account Name", "Account UID", "Console Login URL" ]
     network_table = []
     for network in get_networks()[0][1]:
+        parentAddress = "none"
+        if network.parent_network:
+            parentAddress = network.parent_network.network_address
         if network.in_use_by and network.in_use_by.vpc:
-            parentAddress = "none"
-            if network.parent_network:
-                parentAddress = network.parent_network.network_address
-
             network_table.append({
                     "name": network.name,
                     "network Address": network.network_address,
