@@ -9,6 +9,7 @@ from reconcile.test.utils.merge_request_manager.conftest import desc_string
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.merge_request_manager import (
     MergeRequestManagerBase,
+    OpenMergeRequest,
 )
 from reconcile.utils.merge_request_manager.parser import Parser
 from reconcile.utils.vcs import VCS
@@ -25,7 +26,7 @@ class TestData(BaseModel):
 
 class TestMRManager(MergeRequestManagerBase):
     def __init__(self, vcs: VCS, parser: Parser, label: str):
-        super().__init__(vcs, parser, label)
+        super().__init__(vcs, parser, label, OpenMergeRequest)
 
     def create_merge_request(self, data: BaseModel) -> None:
         return None

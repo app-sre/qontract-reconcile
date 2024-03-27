@@ -60,7 +60,11 @@ class MrData(BaseModel):
     resource_engine_version: str
 
 
-class MergeRequestManager(MergeRequestManagerBase):
+class MRInfo(OpenMergeRequest):
+    mr_info: AVSInfo
+
+
+class MergeRequestManager(MergeRequestManagerBase[MRInfo]):
     """
     Manager for AVS merge requests. This class
     is responsible for housekeeping (closing old/bad MRs) and
@@ -74,9 +78,9 @@ class MergeRequestManager(MergeRequestManagerBase):
     def __init__(
         self, vcs: VCS, renderer: Renderer, parser: Parser, auto_merge_enabled: bool
     ):
-        super().__init__(vcs, parser, AVS_LABEL)
-        self._open_mrs: list[OpenMergeRequest] = []
-        self._open_mrs_with_problems: list[OpenMergeRequest] = []
+        super().__init__(vcs, parser, AVS_LABEL, MRInfo)
+        self._open_mrs: list[MRInfo] = []
+        self._open_mrs_with_problems: list[MRInfo] = []
         self._renderer = renderer
         self._auto_merge_enabled = auto_merge_enabled
 
@@ -102,7 +106,6 @@ class MergeRequestManager(MergeRequestManagerBase):
             "resource_identifier": resource_identifier,
             "resource_engine": resource_engine,
         }):
-            assert isinstance(mr.mr_info, AVSInfo)
             if mr.mr_info.resource_engine_version == resource_engine_version:
                 # an MR for this external resource already exists
                 return None

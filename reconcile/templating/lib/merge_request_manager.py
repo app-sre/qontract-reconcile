@@ -8,6 +8,7 @@ from reconcile.templating.lib.model import TemplateOutput
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.merge_request_manager import (
     MergeRequestManagerBase,
+    OpenMergeRequest,
 )
 from reconcile.utils.merge_request_manager.parser import (
     Parser,
@@ -120,9 +121,13 @@ class TemplateRenderingMR(MergeRequestBase):
                 )
 
 
-class MergeRequestManager(MergeRequestManagerBase):
+class MRInfo(OpenMergeRequest):
+    mr_info: TemplateInfo
+
+
+class MergeRequestManager(MergeRequestManagerBase[MRInfo]):
     def __init__(self, vcs: VCS, parser: Parser):
-        super().__init__(vcs, parser, TR_LABEL)
+        super().__init__(vcs, parser, TR_LABEL, MRInfo)
 
     def create_merge_request(self, output: list[TemplateOutput]) -> None:
         if not self._housekeeping_ran:
@@ -138,7 +143,6 @@ class MergeRequestManager(MergeRequestManagerBase):
 
         """Create a new MR with the rendered template."""
         if mr := self._merge_request_already_exists({"collection": collection}):
-            assert isinstance(mr.mr_info, TemplateInfo)
             if mr.mr_info.collection_hash == collection_hash:
                 logging.info(
                     "MR already exists and has the same template hash. Skipping",

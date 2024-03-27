@@ -1,7 +1,7 @@
 import logging
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from gitlab.v4.objects import ProjectMergeRequest
 from pydantic import BaseModel
@@ -20,15 +20,19 @@ class OpenMergeRequest:
     mr_info: BaseModel
 
 
-class MergeRequestManagerBase:
+T = TypeVar("T", bound=OpenMergeRequest)
+
+
+class MergeRequestManagerBase(Generic[T]):
     """ """
 
-    def __init__(self, vcs: VCS, parser: Parser, mr_label: str):
+    def __init__(self, vcs: VCS, parser: Parser, mr_label: str, omr_klass: type[T]):
         self._vcs = vcs
         self._parser = parser
         self._mr_label = mr_label
-        self._open_mrs: list[OpenMergeRequest] = []
-        self._open_mrs_with_problems: list[OpenMergeRequest] = []
+        self._omr_klass = omr_klass
+        self._open_mrs: list[T] = []
+        self._open_mrs_with_problems: list[T] = []
         self._housekeeping_ran = False
 
     @abstractmethod
@@ -38,7 +42,7 @@ class MergeRequestManagerBase:
     def _merge_request_already_exists(
         self,
         expected_data: dict[str, Any],
-    ) -> OpenMergeRequest | None:
+    ) -> T | None:
         for mr in self._open_mrs:
             mr_info_dict = mr.mr_info.dict()
             if all(
@@ -96,5 +100,5 @@ class MergeRequestManagerBase:
                     mr, "Closing this MR because of bad description format."
                 )
                 continue
-            self._open_mrs.append(OpenMergeRequest(raw=mr, mr_info=mr_info))
+            self._open_mrs.append(self._omr_klass(raw=mr, mr_info=mr_info))
         self._housekeeping_ran = True
