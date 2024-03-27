@@ -94,21 +94,15 @@ class AWSReconciler:
                     )
 
     def _tag_account(
-        self,
-        aws_api: AWSApi,
-        default_tags: dict[str, str],
-        name: str,
-        uid: str,
-        tags: dict[str, str],
+        self, aws_api: AWSApi, name: str, uid: str, tags: dict[str, str]
     ) -> None:
-        new_tags = default_tags | tags
         with self.state.transaction(state_key(name, TASK_TAG_ACCOUNT)) as _state:
-            if _state.exists and _state.value == new_tags:
+            if _state.exists and _state.value == tags:
                 # account already tagged, nothing to do
                 return
 
-            logging.info(f"Tagging account {name}: {new_tags}")
-            _state.value = new_tags
+            logging.info(f"Tagging account {name}: {tags}")
+            _state.value = tags
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
 
@@ -116,7 +110,7 @@ class AWSReconciler:
                 aws_api.organizations.untag_resource(
                     resource_id=uid, tag_keys=_state.value.keys()
                 )
-            aws_api.organizations.tag_resource(resource_id=uid, tags=new_tags)
+            aws_api.organizations.tag_resource(resource_id=uid, tags=tags)
 
     def _get_destination_ou(
         self, aws_api: AWSApi, destination_path: str
@@ -338,7 +332,6 @@ class AWSReconciler:
     def reconcile_organization_account(
         self,
         aws_api: AWSApi,
-        default_tags: dict[str, str],
         name: str,
         uid: str,
         ou: str,
@@ -346,7 +339,7 @@ class AWSReconciler:
         enterprise_support: bool,
     ) -> None:
         """Reconcile the AWS account on the organization level."""
-        self._tag_account(aws_api, default_tags, name, uid, tags)
+        self._tag_account(aws_api, name, uid, tags)
         self._move_account(aws_api, name, uid, ou)
         if enterprise_support and (
             case_id := self._enable_enterprise_support(aws_api, name, uid)

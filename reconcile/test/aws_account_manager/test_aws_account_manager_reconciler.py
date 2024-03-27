@@ -171,13 +171,11 @@ def test_aws_account_manager_reconcile_org_account_exists_state_exists(
 def test_aws_account_manager_reconcile_tag_account(
     aws_api: MagicMock, reconciler: AWSReconciler
 ) -> None:
-    reconciler._tag_account(
-        aws_api, {"default": "tag"}, "account", "123456789012", {"new": "tag"}
-    )
+    reconciler._tag_account(aws_api, "account", "123456789012", {"new": "tag"})
 
     aws_api.organizations.tag_resource.assert_called_once_with(
         resource_id="123456789012",
-        tags={"default": "tag", "new": "tag"},
+        tags={"new": "tag"},
     )
     aws_api.organizations.untag_resource.assert_not_called()
 
@@ -185,12 +183,8 @@ def test_aws_account_manager_reconcile_tag_account(
 def test_aws_account_manager_reconcile_tag_account_state_exists_and_is_tagged(
     aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
 ) -> None:
-    state_exists(
-        state_key("account", TASK_TAG_ACCOUNT), {"default": "tag", "new": "tag"}
-    )
-    reconciler._tag_account(
-        aws_api, {"default": "tag"}, "account", "123456789012", {"new": "tag"}
-    )
+    state_exists(state_key("account", TASK_TAG_ACCOUNT), {"new": "tag"})
+    reconciler._tag_account(aws_api, "account", "123456789012", {"new": "tag"})
 
     aws_api.organizations.tag_resource.assert_not_called()
     aws_api.organizations.untag_resource.assert_not_called()
@@ -199,26 +193,20 @@ def test_aws_account_manager_reconcile_tag_account_state_exists_and_is_tagged(
 def test_aws_account_manager_reconcile_tag_account_state_exists_and_needs_update(
     aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
 ) -> None:
-    state_exists(
-        state_key("account", TASK_TAG_ACCOUNT), {"default": "tag", "foo": "bar"}
-    )
-    reconciler._tag_account(
-        aws_api, {"default": "tag"}, "account", "123456789012", {"new": "tag"}
-    )
+    state_exists(state_key("account", TASK_TAG_ACCOUNT), {"foo": "bar"})
+    reconciler._tag_account(aws_api, "account", "123456789012", {"new": "tag"})
 
     aws_api.organizations.untag_resource(aws_api, ["default", "new"])
     aws_api.organizations.tag_resource.assert_called_once_with(
         resource_id="123456789012",
-        tags={"default": "tag", "new": "tag"},
+        tags={"new": "tag"},
     )
 
 
 def test_aws_account_manager_reconcile_tag_account_dry_run(
     aws_api: MagicMock, reconciler_dry_run: AWSReconciler
 ) -> None:
-    reconciler_dry_run._tag_account(
-        aws_api, {"default": "tag"}, "account", "123456789012", {"new": "tag"}
-    )
+    reconciler_dry_run._tag_account(aws_api, "account", "123456789012", {"new": "tag"})
     aws_api.organizations.tag_resource.assert_not_called()
     aws_api.organizations.untag_resource.assert_not_called()
 
@@ -753,7 +741,6 @@ def test_aws_account_manager_reconcile_reconcile_organization_account_no_enterpr
     reconciler._check_enterprise_support_status = MagicMock()  # type: ignore
     reconciler.reconcile_organization_account(
         aws_api,
-        {"default": "tag"},
         "account",
         "uid",
         "ou",
@@ -775,7 +762,6 @@ def test_aws_account_manager_reconcile_reconcile_organization_account(
     reconciler._check_enterprise_support_status = MagicMock()  # type: ignore
     reconciler.reconcile_organization_account(
         aws_api,
-        {"default": "tag"},
         "account",
         "uid",
         "ou",
@@ -797,7 +783,6 @@ def test_aws_account_manager_reconcile_reconcile_organization_account_no_case_id
     reconciler._check_enterprise_support_status = MagicMock()  # type: ignore
     reconciler.reconcile_organization_account(
         aws_api,
-        {"default": "tag"},
         "account",
         "uid",
         "ou",

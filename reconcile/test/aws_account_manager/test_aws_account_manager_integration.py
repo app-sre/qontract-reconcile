@@ -139,11 +139,10 @@ def test_aws_account_manager_utils_integration_reconcile_organization_accounts(
     intg.reconcile_organization_accounts(aws_api, reconciler, [org_account])
     reconciler.reconcile_organization_account.assert_called_once_with(
         aws_api=aws_api,
-        default_tags={},
         enterprise_support=False,
         name="jeanluc",
         ou="/Root/alpha quadrant/uss enterprise/ncc-1701-d",
-        tags={"ship": "USS Enterprise"},
+        tags={"ship": "USS Enterprise", "app-interface-name": "jeanluc"},
         uid="111111111111",
     )
     intg.reconcile_account.assert_called_once()

@@ -173,11 +173,12 @@ class AwsAccountMgmtIntegration(
             assert account.organization  # mypy
             reconciler.reconcile_organization_account(
                 aws_api=aws_api,
-                default_tags=self.params.default_tags,
                 name=account.name,
                 uid=account.uid,
                 ou=account.organization.ou,
-                tags=account.organization.tags,
+                tags=self.params.default_tags
+                | account.organization.tags
+                | {"app-interface-name": account.name},
                 enterprise_support=account.premium_support,
             )
 
