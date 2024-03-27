@@ -44,7 +44,6 @@ class AWSAccountManaged(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
     alias: Optional[str] = Field(..., alias="alias")
-    terraform_username: Optional[str] = Field(..., alias="terraformUsername")
     premium_support: bool = Field(..., alias="premiumSupport")
     organization: Optional[AWSOrganizationV1] = Field(..., alias="organization")
     quota_limits: Optional[list[AWSQuotaLimitsV1]] = Field(..., alias="quotaLimits")

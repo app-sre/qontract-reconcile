@@ -13,7 +13,7 @@ from reconcile.aws_account_manager.reconciler import (
     TASK_CHECK_ENTERPRISE_SUPPORT_STATUS,
     TASK_CHECK_SERVICE_QUOTA_STATUS,
     TASK_CREATE_ACCOUNT,
-    TASK_CREATE_INITIAL_USER,
+    TASK_CREATE_IAM_USER,
     TASK_DESCRIBE_ACCOUNT,
     TASK_ENABLE_ENTERPRISE_SUPPORT,
     TASK_MOVE_ACCOUNT,
@@ -305,76 +305,6 @@ def test_aws_account_manager_reconcile_set_account_alias_dry_run(
 ) -> None:
     reconciler_dry_run._set_account_alias(aws_api, "account", "alias")
     aws_api.iam.set_account_alias.assert_not_called()
-
-
-def test_aws_account_manager_reconcile_create_initial_user(
-    aws_api: MagicMock, reconciler: AWSReconciler
-) -> None:
-    aws_api.iam.create_access_key.return_value = AWSAccessKey(
-        AccessKeyId="key-id", SecretAccessKey="secret-key"
-    )
-    access_key = reconciler._create_initial_user(
-        aws_api, "account", "user-name", "policy-arn"
-    )
-    assert access_key
-    assert access_key.access_key_id == "key-id"
-    assert access_key.secret_access_key == "secret-key"
-    aws_api.iam.create_user.assert_called_once_with(user_name="user-name")
-    aws_api.iam.attach_user_policy.assert_called_once_with(
-        user_name="user-name", policy_arn="policy-arn"
-    )
-    aws_api.iam.create_access_key.assert_called_once_with(user_name="user-name")
-
-
-def test_aws_account_manager_reconcile_create_initial_user_state_exists_and_done(
-    aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
-) -> None:
-    state_exists(state_key("account", TASK_CREATE_INITIAL_USER), "user-name")
-    assert (
-        reconciler._create_initial_user(aws_api, "account", "user-name", "policy-arn")
-        is None
-    )
-    aws_api.iam.create_user.assert_not_called()
-    aws_api.iam.attach_user_policy.assert_not_called()
-    aws_api.iam.create_access_key.assert_not_called()
-
-
-def test_aws_account_manager_reconcile_create_initial_user_state_exists_and_other_user(
-    aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
-) -> None:
-    state_exists(state_key("account", TASK_CREATE_INITIAL_USER), "some-other-user")
-    aws_api.iam.create_access_key.return_value = AWSAccessKey(
-        AccessKeyId="key-id", SecretAccessKey="secret-key"
-    )
-    assert reconciler._create_initial_user(
-        aws_api, "account", "user-name", "policy-arn"
-    )
-    aws_api.iam.create_user.assert_called_once()
-    aws_api.iam.attach_user_policy.assert_called_once()
-    aws_api.iam.create_access_key.assert_called_once()
-
-
-def test_aws_account_manager_reconcile_create_initial_user_dry_run(
-    aws_api: MagicMock, reconciler_dry_run: AWSReconciler
-) -> None:
-    reconciler_dry_run._create_initial_user(
-        aws_api, "account", "user-name", "policy-arn"
-    )
-    aws_api.iam.create_user.assert_not_called()
-    aws_api.iam.attach_user_policy.assert_not_called()
-    aws_api.iam.create_access_key.assert_not_called()
-
-
-def test_aws_account_manager_reconcile_create_initial_user_alredy_exists(
-    aws_api: MagicMock, reconciler: AWSReconciler
-) -> None:
-    aws_api.iam.create_user.side_effect = AWSEntityAlreadyExistsException(
-        "User already exists"
-    )
-    assert (
-        reconciler._create_initial_user(aws_api, "account", "user-name", "policy-arn")
-        is None
-    )
 
 
 def test_aws_account_manager_reconcile_request_quotas(
@@ -732,6 +662,70 @@ def test_aws_account_manager_reconcile_create_organization_account_not_created_y
     reconciler.create_organization_account(aws_api, "account", "email") is None
 
 
+def test_aws_account_manager_reconcile_create_iam_user(
+    aws_api: MagicMock, reconciler: AWSReconciler
+) -> None:
+    aws_api.iam.create_access_key.return_value = AWSAccessKey(
+        AccessKeyId="key-id", SecretAccessKey="secret-key"
+    )
+    access_key = reconciler.create_iam_user(
+        aws_api, "account", "user-name", "policy-arn"
+    )
+    assert access_key
+    assert access_key.access_key_id == "key-id"
+    assert access_key.secret_access_key == "secret-key"
+    aws_api.iam.create_user.assert_called_once_with(user_name="user-name")
+    aws_api.iam.attach_user_policy.assert_called_once_with(
+        user_name="user-name", policy_arn="policy-arn"
+    )
+    aws_api.iam.create_access_key.assert_called_once_with(user_name="user-name")
+
+
+def test_aws_account_manager_reconcile_create_iam_user_state_exists_and_done(
+    aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
+) -> None:
+    state_exists(state_key("account", TASK_CREATE_IAM_USER), "user-name")
+    assert (
+        reconciler.create_iam_user(aws_api, "account", "user-name", "policy-arn")
+        is None
+    )
+    aws_api.iam.create_user.assert_not_called()
+    aws_api.iam.attach_user_policy.assert_not_called()
+    aws_api.iam.create_access_key.assert_not_called()
+
+
+def test_aws_account_manager_reconcile_create_iam_user_state_exists_and_other_user(
+    aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
+) -> None:
+    state_exists(state_key("account", TASK_CREATE_IAM_USER), "some-other-user")
+    aws_api.iam.create_access_key.return_value = AWSAccessKey(
+        AccessKeyId="key-id", SecretAccessKey="secret-key"
+    )
+    assert reconciler.create_iam_user(aws_api, "account", "user-name", "policy-arn")
+    aws_api.iam.create_user.assert_called_once()
+    aws_api.iam.attach_user_policy.assert_called_once()
+    aws_api.iam.create_access_key.assert_called_once()
+
+
+def test_aws_account_manager_reconcile_create_iam_user_dry_run(
+    aws_api: MagicMock, reconciler_dry_run: AWSReconciler
+) -> None:
+    reconciler_dry_run.create_iam_user(aws_api, "account", "user-name", "policy-arn")
+    aws_api.iam.create_user.assert_not_called()
+    aws_api.iam.attach_user_policy.assert_not_called()
+    aws_api.iam.create_access_key.assert_not_called()
+
+
+def test_aws_account_manager_reconcile_create_iam_user_alredy_exists(
+    aws_api: MagicMock, reconciler: AWSReconciler
+) -> None:
+    aws_api.iam.create_user.side_effect = AWSEntityAlreadyExistsException(
+        "User already exists"
+    )
+    with pytest.raises(AWSEntityAlreadyExistsException):
+        reconciler.create_iam_user(aws_api, "account", "user-name", "policy-arn")
+
+
 def test_aws_account_manager_reconcile_reconcile_organization_account_no_enterprise_support(
     aws_api: MagicMock, reconciler: AWSReconciler
 ) -> None:
@@ -801,25 +795,16 @@ def test_aws_account_manager_reconcile_reconcile_account(
     reconciler._set_account_alias = MagicMock()  # type: ignore
     reconciler._request_quotas = MagicMock(return_value=["id1"])  # type: ignore
     reconciler._check_quota_change_requests = MagicMock()  # type: ignore
-    reconciler._create_initial_user = MagicMock(  # type: ignore
-        return_value=AWSAccessKey(
-            AccessKeyId="access-key", SecretAccessKey="secret-key"
-        )
-    )
 
-    assert reconciler.reconcile_account(
+    reconciler.reconcile_account(
         aws_api,
-        "user-name",
-        "policy-arn",
         "account",
         "alias",
         quotas=[AWSQuotaV1(serviceCode="serviceA", quotaCode="codeA", value=1.0)],
-        create_initial_user=True,
     )
     reconciler._set_account_alias.assert_called_once()
     reconciler._request_quotas.assert_called_once()
     reconciler._check_quota_change_requests.assert_called_once()
-    reconciler._create_initial_user.assert_called_once()
 
 
 def test_aws_account_manager_reconcile_reconcile_account_no_initial_user(
@@ -828,21 +813,13 @@ def test_aws_account_manager_reconcile_reconcile_account_no_initial_user(
     reconciler._set_account_alias = MagicMock()  # type: ignore
     reconciler._request_quotas = MagicMock(return_value=["id1"])  # type: ignore
     reconciler._check_quota_change_requests = MagicMock()  # type: ignore
-    reconciler._create_initial_user = MagicMock()  # type: ignore
 
-    assert (
-        reconciler.reconcile_account(
-            aws_api,
-            "user-name",
-            "policy-arn",
-            "account",
-            "alias",
-            quotas=[AWSQuotaV1(serviceCode="serviceA", quotaCode="codeA", value=1.0)],
-            create_initial_user=False,
-        )
-        is None
+    reconciler.reconcile_account(
+        aws_api,
+        "account",
+        "alias",
+        quotas=[AWSQuotaV1(serviceCode="serviceA", quotaCode="codeA", value=1.0)],
     )
     reconciler._set_account_alias.assert_called_once()
     reconciler._request_quotas.assert_called_once()
     reconciler._check_quota_change_requests.assert_called_once()
-    reconciler._create_initial_user.assert_not_called()

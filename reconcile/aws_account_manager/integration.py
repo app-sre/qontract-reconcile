@@ -157,6 +157,18 @@ class AwsAccountMgmtIntegration(
                 )
             ):
                 continue
+
+            with aws_api.assume_role(
+                account_id=uid, role=self.params.organization_account_role
+            ) as account_role_api:
+                if access_key := reconciler.create_iam_user(
+                    aws_api=account_role_api,
+                    name=account_request.name,
+                    user_name=self.params.initial_user_name,
+                    user_policy_arn=self.params.initial_user_policy_arn,
+                ):
+                    self.save_access_key(account_request.name, access_key)
+
             merge_request_manager.create_account_file(
                 account_tmpl_file_path=f"{self.params.template_collection_root_path}/{account_request.name}.yml",
                 account_tmpl_file_content=self.render_account_tmpl_file(
@@ -201,17 +213,12 @@ class AwsAccountMgmtIntegration(
         create_initial_user: bool = True,
     ) -> None:
         """Reconcile an AWS account."""
-        if access_key := reconciler.reconcile_account(
+        reconciler.reconcile_account(
             aws_api=aws_api,
-            initial_user_name=account.terraform_username
-            or self.params.initial_user_name,
-            initial_user_policy_arn=self.params.initial_user_policy_arn,
             name=account.name,
             alias=account.alias,
             quotas=[q for ql in account.quota_limits or [] for q in ql.quotas],
-            create_initial_user=create_initial_user,
-        ):
-            self.save_access_key(account.name, access_key)
+        )
 
     def reconcile_payer_accounts(
         self,
@@ -280,9 +287,7 @@ class AwsAccountMgmtIntegration(
                     region=account.resources_default_region,
                 )
             ) as account_aws_api:
-                self.reconcile_account(
-                    account_aws_api, reconciler, account, create_initial_user=False
-                )
+                self.reconcile_account(account_aws_api, reconciler, account)
 
     @defer
     def run(self, dry_run: bool, defer: Callable | None = None) -> None:

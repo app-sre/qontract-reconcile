@@ -7,7 +7,6 @@ from reconcile.aws_account_manager.utils import state_key
 from reconcile.utils.aws_api_typed.api import AWSApi
 from reconcile.utils.aws_api_typed.iam import (
     AWSAccessKey,
-    AWSEntityAlreadyExistsException,
 )
 from reconcile.utils.aws_api_typed.organization import AwsOrganizationOU
 from reconcile.utils.aws_api_typed.service_quotas import (
@@ -21,7 +20,7 @@ TASK_DESCRIBE_ACCOUNT = "describe-account"
 TASK_TAG_ACCOUNT = "tag-account"
 TASK_MOVE_ACCOUNT = "move-account"
 TASK_ACCOUNT_ALIAS = "account-alias"
-TASK_CREATE_INITIAL_USER = "create-initial-user"
+TASK_CREATE_IAM_USER = "create-iam-user"
 TASK_REQUEST_SERVICE_QUOTA = "request-service-quota"
 TASK_CHECK_SERVICE_QUOTA_STATUS = "check-service-quota-status"
 TASK_ENABLE_ENTERPRISE_SUPPORT = "enable-enterprise-support"
@@ -149,35 +148,6 @@ class AWSReconciler:
                 raise AbortStateTransaction("Dry run")
 
             aws_api.iam.set_account_alias(account_alias=new_alias)
-
-    def _create_initial_user(
-        self,
-        aws_api: AWSApi,
-        name: str,
-        initial_user_name: str,
-        initial_user_policy_arn: str,
-    ) -> AWSAccessKey | None:
-        """Create an initial IAM user."""
-        with self.state.transaction(
-            state_key(name, TASK_CREATE_INITIAL_USER), initial_user_name
-        ) as _state:
-            if _state.exists and _state.value == initial_user_name:
-                return None
-
-            logging.info(f"Creating IAM user '{initial_user_name}' for {name}")
-            if self.dry_run:
-                raise AbortStateTransaction("Dry run")
-
-            try:
-                aws_api.iam.create_user(user_name=initial_user_name)
-                aws_api.iam.attach_user_policy(
-                    user_name=initial_user_name,
-                    policy_arn=initial_user_policy_arn,
-                )
-                return aws_api.iam.create_access_key(user_name=initial_user_name)
-            except AWSEntityAlreadyExistsException:
-                # user already exists. I hope this is ok
-                return None
 
     def _request_quotas(
         self, aws_api: AWSApi, name: str, quotas: Iterable[Quota]
@@ -329,6 +299,31 @@ class AWSReconciler:
                 return uid
         return None
 
+    def create_iam_user(
+        self,
+        aws_api: AWSApi,
+        name: str,
+        user_name: str,
+        user_policy_arn: str,
+    ) -> AWSAccessKey | None:
+        """Create an IAM user and return its access key."""
+        with self.state.transaction(
+            state_key(name, TASK_CREATE_IAM_USER), user_name
+        ) as _state:
+            if _state.exists and _state.value == user_name:
+                return None
+
+            logging.info(f"Creating IAM user '{user_name}' for {name}")
+            if self.dry_run:
+                raise AbortStateTransaction("Dry run")
+
+            aws_api.iam.create_user(user_name=user_name)
+            aws_api.iam.attach_user_policy(
+                user_name=user_name,
+                policy_arn=user_policy_arn,
+            )
+            return aws_api.iam.create_access_key(user_name=user_name)
+
     def reconcile_organization_account(
         self,
         aws_api: AWSApi,
@@ -347,21 +342,9 @@ class AWSReconciler:
             self._check_enterprise_support_status(aws_api, case_id)
 
     def reconcile_account(
-        self,
-        aws_api: AWSApi,
-        initial_user_name: str,
-        initial_user_policy_arn: str,
-        name: str,
-        alias: str | None,
-        quotas: Iterable[Quota],
-        create_initial_user: bool,
-    ) -> AWSAccessKey | None:
+        self, aws_api: AWSApi, name: str, alias: str | None, quotas: Iterable[Quota]
+    ) -> None:
         """Reconcile/update the AWS account. Return the initial user access key if a new user was created."""
         self._set_account_alias(aws_api, name, alias)
         if request_ids := self._request_quotas(aws_api, name, quotas):
             self._check_quota_change_requests(aws_api, name, request_ids)
-        if not create_initial_user:
-            return None
-        return self._create_initial_user(
-            aws_api, name, initial_user_name, initial_user_policy_arn
-        )

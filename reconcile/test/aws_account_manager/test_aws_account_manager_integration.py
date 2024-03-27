@@ -97,7 +97,41 @@ def test_aws_account_manager_utils_integration_create_accounts(
         name=account_request.name,
         email=account_request.account_owner.email,
     )
+    reconciler.create_iam_user.assert_not_called()
     merge_request_manager.create_account_file.assert_not_called()
+
+
+def test_aws_account_manager_utils_integration_create_accounts_save_access_key(
+    aws_api: MagicMock,
+    reconciler: MagicMock,
+    merge_request_manager: MagicMock,
+    account_request: AWSAccountRequestV1,
+    intg: AwsAccountMgmtIntegration,
+) -> None:
+    intg.save_access_key = MagicMock()  # type: ignore
+    reconciler.create_organization_account.return_value = "1111111111"
+    reconciler.create_iam_user.return_value = "access-key"
+    intg.create_accounts(
+        aws_api,
+        reconciler,
+        merge_request_manager,
+        "account-template - {{ uid }}",
+        [account_request],
+    )
+    aws_api.assume_role.assert_called_once_with(
+        account_id="1111111111", role="OrganizationAccountAccessRole"
+    )
+    reconciler.create_organization_account.assert_called_once_with(
+        aws_api=aws_api,
+        name=account_request.name,
+        email=account_request.account_owner.email,
+    )
+    merge_request_manager.create_account_file.assert_called_once_with(
+        account_request_file_path="data/aws/data/request.yml",
+        account_tmpl_file_content="account-template - 1111111111\n",
+        account_tmpl_file_path="data/templating/collections/aws-account/data.yml",
+    )
+    intg.save_access_key.assert_called_once()
 
 
 def test_aws_account_manager_utils_integration_create_accounts_create_account_file(
@@ -108,6 +142,7 @@ def test_aws_account_manager_utils_integration_create_accounts_create_account_fi
     intg: AwsAccountMgmtIntegration,
 ) -> None:
     reconciler.create_organization_account.return_value = "1111111111"
+    reconciler.create_iam_user.return_value = None
     intg.create_accounts(
         aws_api,
         reconciler,
@@ -152,22 +187,17 @@ def test_aws_account_manager_utils_integration_reconcile_account(
     non_org_account: AWSAccountV1,
     intg: AwsAccountMgmtIntegration,
 ) -> None:
-    intg.save_access_key = MagicMock()  # type: ignore
     reconciler.reconcile_account.return_value = "access_key"
     intg.reconcile_account(aws_api, reconciler, non_org_account)
     reconciler.reconcile_account.assert_called_once_with(
         aws_api=aws_api,
         alias=None,
-        initial_user_name="terraform",
-        initial_user_policy_arn="arn:aws:iam::aws:policy/AdministratorAccess",
         name="q",
         quotas=[
             AWSQuotaV1(serviceCode="ec2", quotaCode="L-1216C47A", value=64.0),
             AWSQuotaV1(serviceCode="eks", quotaCode="L-1194D53C", value=102.0),
         ],
-        create_initial_user=True,
     )
-    intg.save_access_key.assert_called_once_with(non_org_account.name, "access_key")
 
 
 def test_aws_account_manager_utils_integration_reconcile_account_already_done(
