@@ -88,7 +88,7 @@ def cost_management_api(
         scope=SCOPE,
     )
     # switch session to requests.Session for testing with httpretty, skip oauth part
-    api.session = requests.Session()
+    api.session = requests.Session()  # type: ignore[assignment]
     return api
 
 

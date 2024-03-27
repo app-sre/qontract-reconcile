@@ -267,7 +267,7 @@ def render_child_apps_cost(report: Report) -> str:
     )
 
 
-def render_total_cost(report) -> str:
+def render_total_cost(report: Report) -> str:
     return TOTAL_COST.format(
         total=format_cost_value(report.total),
     )
@@ -278,20 +278,23 @@ def render_app_cost(
     report: Report,
     cost_management_console_base_url: str,
 ) -> str:
-    cost_details = []
+    cost_details_sections = []
     if report.services:
-        cost_details.append(
+        cost_details_sections.append(
             render_aws_services_cost(
                 report,
                 cost_management_console_base_url,
             )
         )
     if report.child_apps:
-        cost_details.append(render_child_apps_cost(report))
-        cost_details.append(render_total_cost(report))
+        cost_details_sections.append(render_child_apps_cost(report))
+        cost_details_sections.append(render_total_cost(report))
+    cost_details = (
+        "\n".join(cost_details_sections) if cost_details_sections else "No data"
+    )
     return APP.format(
         app_name=name,
-        cost_details="\n".join(cost_details) if cost_details else "No data",
+        cost_details=cost_details,
     )
 
 
@@ -299,19 +302,18 @@ def render_cost_breakdown(
     reports: Mapping[str, Report],
     cost_management_console_base_url: str,
 ) -> str:
-    return COST_BREAKDOWN.format(
-        apps="\n".join(
-            render_app_cost(
-                name,
-                report,
-                cost_management_console_base_url,
-            )
-            for name, report in sorted(
-                reports.items(),
-                key=lambda item: item[0].lower(),
-            )
+    apps = "\n".join(
+        render_app_cost(
+            name,
+            report,
+            cost_management_console_base_url,
+        )
+        for name, report in sorted(
+            reports.items(),
+            key=lambda item: item[0].lower(),
         )
     )
+    return COST_BREAKDOWN.format(apps=apps)
 
 
 def render_report(

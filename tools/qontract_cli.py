@@ -2592,7 +2592,7 @@ def ls(ctx, integration):
     )
 
 
-@state.command(name="get")  # type: ignore
+@state.command(name="get")
 @click.argument("integration")
 @click.argument("key")
 @click.pass_context

@@ -53,11 +53,11 @@ class CostReportCommand:
         for app in apps:
             child_apps_by_parent[app.parent_app_name].append(app.name)
 
-        reports = {}
+        reports: dict[str, Report] = {}
         root_apps = child_apps_by_parent.get(None, [])
-        for app in root_apps:
+        for app_name in root_apps:
             self._dfs_reports(
-                app,
+                app_name,
                 None,
                 child_apps_by_parent=child_apps_by_parent,
                 responses=responses,
@@ -102,7 +102,7 @@ class CostReportCommand:
     @staticmethod
     def _build_report(
         app_name: str,
-        parent_app_name: str,
+        parent_app_name: str | None,
         child_apps: List[str],
         reports: Mapping[str, Report],
         response: ReportCostResponse,
@@ -139,7 +139,7 @@ class CostReportCommand:
                 )
                 for data in response.data
                 for service in data.services
-                if len(service.values) == 1 and (value := service.values[0])
+                if len(service.values) == 1 and (value := service.values[0]) is not None
             ],
         )
 

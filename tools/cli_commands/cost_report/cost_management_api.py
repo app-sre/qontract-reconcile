@@ -46,7 +46,7 @@ class CostManagementApi:
             "filter[resolution]": "monthly",
             "filter[tag:app]": app,
             "filter[time_scope_units]": "month",
-            "filter[time_scope_value]": -2,
+            "filter[time_scope_value]": "-2",
             "group_by[service]": "*",
         }
         response = self.session.request(

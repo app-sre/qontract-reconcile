@@ -45,7 +45,7 @@ def child_app(
 
 
 @pytest.fixture
-def apps(
+def apps_response(
     gql_class_factory: Callable[..., AppNamesQueryData],
     parent_app: AppV1,
     child_app: AppV1,
@@ -74,10 +74,10 @@ def expected_apps(
 
 def test_get_app_names(
     gql_api_builder: Callable[..., GqlApi],
-    apps: AppNamesQueryData,
+    apps_response: AppNamesQueryData,
     expected_apps: list[App],
 ) -> None:
-    gql_api = gql_api_builder(apps.dict(by_alias=True))
+    gql_api = gql_api_builder(apps_response.dict(by_alias=True))
 
     apps = get_app_names(gql_api)
 

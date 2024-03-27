@@ -268,14 +268,16 @@ def test_cost_report_get_reports(
         "child": CHILD_APP_REPORT,
     }
 
-    def side_effect(app_name):
+    def side_effect(app_name: str) -> ReportCostResponse:
         match app_name:
             case "parent":
                 return PARENT_APP_COST_RESPONSE
             case "child":
                 return CHILD_APP_COST_RESPONSE
+            case _:
+                raise Exception("Unexpected app name")
 
-    cost_report_command.cost_management_api.get_aws_costs_report.side_effect = (
+    cost_report_command.cost_management_api.get_aws_costs_report.side_effect = (  # type: ignore[attr-defined]
         side_effect
     )
 
