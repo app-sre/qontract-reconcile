@@ -44,7 +44,7 @@ class MergeRequestManagerBase:
 
         return None
 
-    def _fetch_avs_managed_open_merge_requests(self) -> list[ProjectMergeRequest]:
+    def _fetch_managed_open_merge_requests(self) -> list[ProjectMergeRequest]:
         all_open_mrs = self._vcs.get_open_app_interface_merge_requests()
         return [mr for mr in all_open_mrs if self._mr_label in mr.labels]
 
@@ -58,7 +58,7 @@ class MergeRequestManagerBase:
         --> if we update the template output, we automatically close
         old open MRs and replace them with new ones.
         """
-        for mr in self._fetch_avs_managed_open_merge_requests():
+        for mr in self._fetch_managed_open_merge_requests():
             attrs = mr.attributes
             desc = attrs.get("description")
             has_conflicts = attrs.get("has_conflicts", False)

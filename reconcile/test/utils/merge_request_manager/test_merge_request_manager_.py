@@ -94,6 +94,6 @@ def test_merge_request_manager_fetch_avs_managed_open_merge_requests(
     mr.labels = ["foo"]
     vcs.get_open_app_interface_merge_requests.return_value = [mr]
 
-    mrs = mrm._fetch_avs_managed_open_merge_requests()
+    mrs = mrm._fetch_managed_open_merge_requests()
     assert len(mrs) == 1
     vcs.get_open_app_interface_merge_requests.assert_called_once()

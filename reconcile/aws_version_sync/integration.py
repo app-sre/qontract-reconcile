@@ -337,8 +337,6 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
         external_resources_aws: AwsExternalResources,
         external_resources_app_interface: AppInterfaceExternalResources,
     ) -> None:
-        # initialize the merge request manager
-        merge_request_manager._fetch_avs_managed_open_merge_requests()
         # housekeeping: close old/bad MRs
         merge_request_manager.housekeeping()
         diff = diff_iterables(
