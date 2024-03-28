@@ -15,6 +15,8 @@ accounts:
     field: all
   enableDeletion: true
   premiumSupport: true
+  terraformState:
+    integrations: []
 
 - sso: false
   name: account-2
@@ -32,6 +34,8 @@ accounts:
     field: all
   enableDeletion: true
   premiumSupport: true
+  terraformState:
+    integrations: []
 
 # integration disabled
 - sso: false
@@ -53,3 +57,24 @@ accounts:
   disable:
     integrations:
     - aws-saml-idp
+  terraformState:
+    integrations: []
+
+# no terraformState
+- sso: false
+  name: account-2
+  uid: '1'
+  resourcesDefaultRegion: us-east-1
+  supportedDeploymentRegions:
+  - us-east-1
+  - us-east-2
+  providerVersion: 3.76.0
+  accountOwners:
+  - name: 'owner'
+    email: email@example.com
+  automationToken:
+    path: /path/to/token
+    field: all
+  enableDeletion: true
+  premiumSupport: true
+
