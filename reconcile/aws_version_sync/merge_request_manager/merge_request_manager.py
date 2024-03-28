@@ -12,7 +12,6 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request import (
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.merge_request_manager import (
     MergeRequestManagerBase,
-    OpenMergeRequest,
 )
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
@@ -60,11 +59,7 @@ class MrData(BaseModel):
     resource_engine_version: str
 
 
-class MRInfo(OpenMergeRequest):
-    mr_info: AVSInfo
-
-
-class MergeRequestManager(MergeRequestManagerBase[MRInfo]):
+class MergeRequestManager(MergeRequestManagerBase[AVSInfo]):
     """
     Manager for AVS merge requests. This class
     is responsible for housekeeping (closing old/bad MRs) and
@@ -78,9 +73,7 @@ class MergeRequestManager(MergeRequestManagerBase[MRInfo]):
     def __init__(
         self, vcs: VCS, renderer: Renderer, parser: Parser, auto_merge_enabled: bool
     ):
-        super().__init__(vcs, parser, AVS_LABEL, MRInfo)
-        self._open_mrs: list[MRInfo] = []
-        self._open_mrs_with_problems: list[MRInfo] = []
+        super().__init__(vcs, parser, AVS_LABEL)
         self._renderer = renderer
         self._auto_merge_enabled = auto_merge_enabled
 

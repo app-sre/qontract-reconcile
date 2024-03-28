@@ -13,26 +13,24 @@ from reconcile.utils.merge_request_manager.parser import (
 )
 from reconcile.utils.vcs import VCS
 
+T = TypeVar("T", bound=BaseModel)
+
 
 @dataclass
-class OpenMergeRequest:
+class OpenMergeRequest(Generic[T]):
     raw: ProjectMergeRequest
-    mr_info: BaseModel
-
-
-T = TypeVar("T", bound=OpenMergeRequest)
+    mr_info: T
 
 
 class MergeRequestManagerBase(Generic[T]):
     """ """
 
-    def __init__(self, vcs: VCS, parser: Parser, mr_label: str, omr_klass: type[T]):
+    def __init__(self, vcs: VCS, parser: Parser, mr_label: str):
         self._vcs = vcs
         self._parser = parser
         self._mr_label = mr_label
-        self._omr_klass = omr_klass
-        self._open_mrs: list[T] = []
-        self._open_mrs_with_problems: list[T] = []
+        self._open_mrs: list[OpenMergeRequest] = []
+        self._open_mrs_with_problems: list[OpenMergeRequest] = []
         self._housekeeping_ran = False
 
     @abstractmethod
@@ -42,7 +40,7 @@ class MergeRequestManagerBase(Generic[T]):
     def _merge_request_already_exists(
         self,
         expected_data: dict[str, Any],
-    ) -> T | None:
+    ) -> OpenMergeRequest | None:
         for mr in self._open_mrs:
             mr_info_dict = mr.mr_info.dict()
             if all(
@@ -100,5 +98,5 @@ class MergeRequestManagerBase(Generic[T]):
                     mr, "Closing this MR because of bad description format."
                 )
                 continue
-            self._open_mrs.append(self._omr_klass(raw=mr, mr_info=mr_info))
+            self._open_mrs.append(OpenMergeRequest(raw=mr, mr_info=mr_info))
         self._housekeeping_ran = True

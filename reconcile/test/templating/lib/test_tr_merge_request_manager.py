@@ -5,7 +5,6 @@ from pytest_mock import MockerFixture
 
 from reconcile.templating.lib.merge_request_manager import (
     MergeRequestManager,
-    MRInfo,
     TemplateInfo,
     TemplateRenderingMR,
     create_parser,
@@ -13,6 +12,7 @@ from reconcile.templating.lib.merge_request_manager import (
 )
 from reconcile.templating.lib.model import TemplateInput, TemplateOutput
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.merge_request_manager.merge_request_manager import OpenMergeRequest
 from reconcile.utils.vcs import VCS
 
 
@@ -89,7 +89,7 @@ def test_create_tr_merge_request_found(
 ) -> None:
     mrm, vcs = mergereqeustmanager
     mrm._open_mrs.append(
-        MRInfo(
+        OpenMergeRequest(
             raw=mocker.patch("gitlab.v4.objects.ProjectMergeRequest", autospec=True),
             mr_info=TemplateInfo(collection="foo", collection_hash=thash),
         )

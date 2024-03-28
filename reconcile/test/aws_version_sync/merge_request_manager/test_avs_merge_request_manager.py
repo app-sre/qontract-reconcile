@@ -21,9 +21,9 @@ from reconcile.aws_version_sync.merge_request_manager.merge_request_manager impo
     AVSMR,
     MergeRequestManager,
     MrData,
-    MRInfo,
 )
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.merge_request_manager.merge_request_manager import OpenMergeRequest
 from reconcile.utils.merge_request_manager.parser import (
     Parser,
 )
@@ -144,7 +144,7 @@ def test_merge_request_manager_create_avs_merge_request_close_outdated_mr_first(
     mrm, vcs_mock, _, _ = mrm_builder()
 
     mrm._open_mrs = [
-        MRInfo(
+        OpenMergeRequest(
             raw=raw_mr,
             mr_info=AVSInfo(
                 provider="provider",

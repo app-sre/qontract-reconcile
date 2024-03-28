@@ -8,7 +8,6 @@ from reconcile.templating.lib.model import TemplateOutput
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.merge_request_manager import (
     MergeRequestManagerBase,
-    OpenMergeRequest,
 )
 from reconcile.utils.merge_request_manager.parser import (
     Parser,
@@ -121,13 +120,9 @@ class TemplateRenderingMR(MergeRequestBase):
                 )
 
 
-class MRInfo(OpenMergeRequest):
-    mr_info: TemplateInfo
-
-
-class MergeRequestManager(MergeRequestManagerBase[MRInfo]):
+class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
     def __init__(self, vcs: VCS, parser: Parser):
-        super().__init__(vcs, parser, TR_LABEL, MRInfo)
+        super().__init__(vcs, parser, TR_LABEL)
 
     def create_merge_request(self, output: list[TemplateOutput]) -> None:
         if not self._housekeeping_ran:
