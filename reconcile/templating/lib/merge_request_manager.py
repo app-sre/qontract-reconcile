@@ -1,17 +1,16 @@
 import logging
 import re
 import string
-from dataclasses import dataclass
 
-from gitlab.v4.objects import ProjectMergeRequest
 from pydantic import BaseModel
 
 from reconcile.templating.lib.model import TemplateOutput
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.merge_request_manager.merge_request_manager import (
+    MergeRequestManagerBase,
+)
 from reconcile.utils.merge_request_manager.parser import (
     Parser,
-    ParserError,
-    ParserVersionError,
 )
 from reconcile.utils.mr import MergeRequestBase
 from reconcile.utils.vcs import VCS
@@ -79,12 +78,6 @@ class TemplateInfo(BaseModel):
     collection_hash: str
 
 
-@dataclass
-class OpenMergeRequest:
-    raw: ProjectMergeRequest
-    template_info: TemplateInfo
-
-
 class TemplateRenderingMR(MergeRequestBase):
     name = "TemplateRendering"
 
@@ -127,78 +120,11 @@ class TemplateRenderingMR(MergeRequestBase):
                 )
 
 
-class MergeRequestManager:
-    # TODO: Create base class for Merge Request Manager, to make it reusable
-    """ """
-
+class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
     def __init__(self, vcs: VCS, parser: Parser):
-        self._vcs = vcs
-        self._parser = parser
-        self._open_mrs: list[OpenMergeRequest] = []
-        self._open_mrs_with_problems: list[OpenMergeRequest] = []
-        self._housekeeping_ran = False
+        super().__init__(vcs, parser, TR_LABEL)
 
-    def _merge_request_already_exists(
-        self,
-        collection: str,
-    ) -> OpenMergeRequest | None:
-        for mr in self._open_mrs:
-            if mr.template_info.collection == collection:
-                return mr
-
-        return None
-
-    def _fetch_avs_managed_open_merge_requests(self) -> list[ProjectMergeRequest]:
-        all_open_mrs = self._vcs.get_open_app_interface_merge_requests()
-        return [mr for mr in all_open_mrs if TR_LABEL in mr.labels]
-
-    def housekeeping(self) -> None:
-        """
-        Close bad MRs:
-        - bad description format
-        - wrong version
-        - merge conflict
-
-        --> if we update the template output, we automatically close
-        old open MRs and replace them with new ones.
-        """
-        for mr in self._fetch_avs_managed_open_merge_requests():
-            attrs = mr.attributes
-            desc = attrs.get("description")
-            has_conflicts = attrs.get("has_conflicts", False)
-            if has_conflicts:
-                logging.info(
-                    "Merge-conflict detected. Closing %s",
-                    mr.attributes.get("web_url", "NO_WEBURL"),
-                )
-                self._vcs.close_app_interface_mr(
-                    mr, "Closing this MR because of a merge-conflict."
-                )
-                continue
-            try:
-                template_info = self._parser.parse(description=desc)
-            except ParserVersionError:
-                logging.info(
-                    "Old MR version detected! Closing %s",
-                    mr.attributes.get("web_url", "NO_WEBURL"),
-                )
-                self._vcs.close_app_interface_mr(
-                    mr, "Closing this MR because it has an outdated integration version"
-                )
-                continue
-            except ParserError:
-                logging.info(
-                    "Bad MR description format. Closing %s",
-                    mr.attributes.get("web_url", "NO_WEBURL"),
-                )
-                self._vcs.close_app_interface_mr(
-                    mr, "Closing this MR because of bad description format."
-                )
-                continue
-            self._open_mrs.append(OpenMergeRequest(raw=mr, template_info=template_info))
-        self._housekeeping_ran = True
-
-    def create_tr_merge_request(self, output: list[TemplateOutput]) -> None:
+    def create_merge_request(self, output: list[TemplateOutput]) -> None:
         if not self._housekeeping_ran:
             self.housekeeping()
 
@@ -211,8 +137,8 @@ class MergeRequestManager:
         collection_hash = collection_hashes.pop()
 
         """Create a new MR with the rendered template."""
-        if mr := self._merge_request_already_exists(collection):
-            if mr.template_info.collection_hash == collection_hash:
+        if mr := self._merge_request_already_exists({"collection": collection}):
+            if mr.mr_info.collection_hash == collection_hash:
                 logging.info(
                     "MR already exists and has the same template hash. Skipping",
                 )
