@@ -79,7 +79,7 @@ def test_get_current_state(
             consoleUrl="test_c_url",
             alertmanagerUrl="test_alert_manager",
             managedClusterRoles=True,
-            prometheusUrl="test_prom_url",
+            prometheusUrl="https://prometheus.test_cluster_1.net",
             enableDeadMansSnitch=True,
         ),
         ClusterV1(
@@ -88,7 +88,7 @@ def test_get_current_state(
             consoleUrl="test_c_url",
             alertmanagerUrl="test_alert_manager",
             managedClusterRoles=True,
-            prometheusUrl="test_prom_url",
+            prometheusUrl="https://prometheus.test_cluster_2.net",
             enableDeadMansSnitch=True,
         ),
     ]
@@ -101,6 +101,10 @@ def test_get_current_state(
         deadmanssnitch_api=deadmanssnitch_api,
         clusters=clusters,
         snitch_secret_path="test_path",
+        cluster_to_prometheus_mapping={
+            "test_cluster_1": "prometheus.test_cluster_1.net",
+            "test_cluster_2": "https://prometheus.test_cluster_2.net",
+        },
     )
     assert current_state["test_cluster_1"].vault_data == "secret"
 
@@ -121,7 +125,7 @@ def test_integration_for_create(
     mocker.patch("reconcile.deadmanssnitch.get_clusters_with_dms").return_value = [
         ClusterV1(
             name="create_cluster",
-            prometheusUrl="prometheus.create_cluster.devshift.net",
+            prometheusUrl="https://prometheus.create_cluster.devshift.net",
             enableDeadMansSnitch=True,
             alertmanagerUrl="alertmanager.create_cluster.devshift.net",
             managedClusterRoles=True,
@@ -156,7 +160,7 @@ def test_integration_for_delete(
     mocker.patch("reconcile.deadmanssnitch.get_clusters_with_dms").return_value = [
         ClusterV1(
             name="create_cluster",
-            prometheusUrl="prometheus.create_cluster.devshift.net",
+            prometheusUrl="https://prometheus.create_cluster.devshift.net",
             enableDeadMansSnitch=False,
             alertmanagerUrl="alertmanager.create_cluster.devshift.net",
             managedClusterRoles=True,
@@ -204,7 +208,7 @@ def test_integration_for_update_vault(
     mocker.patch("reconcile.deadmanssnitch.get_clusters_with_dms").return_value = [
         ClusterV1(
             name="test_cluster",
-            prometheusUrl="prometheus.create_cluster.devshift.net",
+            prometheusUrl="https://prometheus.create_cluster.devshift.net",
             enableDeadMansSnitch=True,
             alertmanagerUrl="alertmanager.create_cluster.devshift.net",
             managedClusterRoles=True,
@@ -216,7 +220,7 @@ def test_integration_for_update_vault(
         "reconcile.deadmanssnitch.DeadMansSnitchApi.get_snitches"
     ).return_value = [
         Snitch(
-            name="prometheus.test_cluster.devshift.net",
+            name="prometheus.create_cluster.devshift.net",
             token="test",
             href="testc",
             status="healthy",
@@ -254,7 +258,7 @@ def test_integration_while_failed(
     mocker.patch("reconcile.deadmanssnitch.get_clusters_with_dms").return_value = [
         ClusterV1(
             name="create_cluster",
-            prometheusUrl="prometheus.create_cluster.devshift.net",
+            prometheusUrl="https://prometheus.create_cluster.devshift.net",
             enableDeadMansSnitch=True,
             alertmanagerUrl="alertmanager.create_cluster.devshift.net",
             managedClusterRoles=True,

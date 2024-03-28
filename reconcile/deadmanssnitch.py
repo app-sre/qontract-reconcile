@@ -37,6 +37,10 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
+    @staticmethod
+    def remove_http_header(url: str) -> str:
+        return url.replace("https://", "")
+
     def __init__(self) -> None:
         super().__init__(NoParams())
         self.qontract_integration_version = make_semver(0, 1, 0)
@@ -52,11 +56,13 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             decode_base64=False,
         )
 
-    def add_vault_data(self, snitch: Snitch, snitch_secret_path: str) -> Snitch:
+    def add_vault_data(
+        self, cluster_name: str, snitch: Snitch, snitch_secret_path: str
+    ) -> Snitch:
         try:
             full_secret_path = {
                 "path": snitch_secret_path,
-                "field": f"deadmanssnitch-{snitch.get_cluster_name()}-url",
+                "field": f"deadmanssnitch-{cluster_name}-url",
             }
             snitch.vault_data = self.secret_reader.read(full_secret_path).strip()
         except SecretNotFound:
@@ -68,26 +74,33 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         deadmanssnitch_api: DeadMansSnitchApi,
         clusters: list[ClusterV1],
         snitch_secret_path: str,
+        cluster_to_prometheus_mapping: dict[str, str],
     ) -> dict[str, Snitch]:
         # current state includes for deadmanssnithch response and associated secret in vault
         snitches = deadmanssnitch_api.get_snitches(tags=["app-sre"])
         # create snitch_map only for  the desired clusters
         snitches_with_cluster_mapping = {
-            snitch.get_cluster_name(): snitch for snitch in snitches
+            cluster.name: snitch
+            for snitch in snitches
+            for cluster in clusters
+            if (cluster_to_prometheus_mapping.get(cluster.name) == snitch.name)
         }
         current_state = {
-            cluster.name: self.add_vault_data(snitch, snitch_secret_path)
+            cluster.name: self.add_vault_data(cluster.name, snitch, snitch_secret_path)
             for cluster in clusters
             if (snitch := snitches_with_cluster_mapping.get(cluster.name))
         }
         return current_state
 
     def create_snitch(
-        self, cluster: ClusterV1, deadmanssnitch_api: DeadMansSnitchApi
+        self,
+        cluster: ClusterV1,
+        deadmanssnitch_api: DeadMansSnitchApi,
+        cluster_prom_mapping: dict[str, str],
     ) -> None:
         alert_email = [self.settings.alert_email]
         payload = {
-            "name": cluster.prometheus_url,
+            "name": cluster_prom_mapping.get(cluster.name),
             "alert_type": self.settings.alert_type,
             "interval": self.settings.interval,
             "tags": self.settings.tags,
@@ -104,32 +117,32 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         dry_run: bool,
         deadmanssnitch_api: DeadMansSnitchApi,
         cluster: ClusterV1,
+        cluster_to_prometheus_mapping: dict[str, str],
         snitch: Optional[Snitch] = None,
     ) -> None:
-        match (cluster.enable_dead_mans_snitch, snitch):
+        if cluster.enable_dead_mans_snitch and snitch is None:
             # if cluster's enable_dead_mans_snitch is set to True and it is not present in current state, create snitch
-            case (True, None):
-                logging.info("[cluster_name:%s] [Action:create_snitch]", cluster.name)
-                if not dry_run:
-                    self.create_snitch(cluster, deadmanssnitch_api)
+            logging.info("[cluster_name:%s] [Action:create_snitch]", cluster.name)
+            if not dry_run:
+                self.create_snitch(
+                    cluster, deadmanssnitch_api, cluster_to_prometheus_mapping
+                )
+        if not cluster.enable_dead_mans_snitch and snitch:
+            # if cluster's enable_dead_mans_snitch is set to False and it is present in current state, delete snitch
+            logging.info("[cluster_name:%s] [Action:delete_snitch_url]", cluster.name)
+            if not dry_run:
+                deadmanssnitch_api.delete_snitch(snitch.token)
+        if cluster.enable_dead_mans_snitch and snitch:
             # if cluster's enable_dead_mans_snitch is set to True and it is present in current state,update vault only if
             # vault url and check_in_url is different
-            case (True, Snitch(check_in_url=check_in_url, vault_data=vault_data)):
-                if vault_data and check_in_url != vault_data:
-                    logging.info(
-                        "[cluster_name:%s] [Action:update_vault_value]", cluster.name
-                    )
-                    if not dry_run:
-                        self.write_snitch_to_vault(
-                            cluster_name=cluster.name, snitch_url=check_in_url
-                        )
-            # if cluster's enable_dead_mans_snitch is set to False and it is present in current state, delete snitch
-            case (False, Snitch(token=token)):
+            if snitch.needs_vault_update():
                 logging.info(
-                    "[cluster_name:%s] [Action:delete_snitch_url]", cluster.name
+                    "[cluster_name:%s] [Action:update_vault_value]", cluster.name
                 )
                 if not dry_run:
-                    deadmanssnitch_api.delete_snitch(token)
+                    self.write_snitch_to_vault(
+                        cluster_name=cluster.name, snitch_url=snitch.check_in_url
+                    )
 
     def run(self, dry_run: bool) -> None:
         # Initialize deadmanssnitch_api
@@ -140,9 +153,18 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         with DeadMansSnitchApi(token=token) as deadmanssnitch_api:
             # desired state - get the  clusters having enableDeadMansSnitch field
             clusters = get_clusters_with_dms()
+            # create a mapping between prometheus url without the https:// and cluster name
+            cluster_to_prometheus_mapping = {
+                cluster.name: cluster.prometheus_url.replace("https://", "")
+                for cluster in clusters
+            }
             current_state = self.get_current_state(
-                deadmanssnitch_api, clusters, self.settings.snitches_path
+                deadmanssnitch_api,
+                clusters,
+                self.settings.snitches_path,
+                cluster_to_prometheus_mapping,
             )
+
             errors = []
             # for each cluster reconcile against the current_state of it.
             for cluster in clusters:
@@ -152,6 +174,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
                         deadmanssnitch_api,
                         cluster,
                         snitch=current_state.get(cluster.name),
+                        cluster_to_prometheus_mapping=cluster_to_prometheus_mapping,
                     )
                 except Exception as e:
                     errors.append(e)
