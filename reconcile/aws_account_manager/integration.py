@@ -1,4 +1,5 @@
 from collections.abc import Callable, Iterable
+from datetime import datetime, timezone
 from typing import Any
 
 import jinja2
@@ -88,13 +89,14 @@ class AwsAccountMgmtIntegration(
             undefined=jinja2.StrictUndefined,
             trim_blocks=True,
             lstrip_blocks=True,
+            keep_trailing_newline=True,
         ).render({
             "accountRequest": account_request.dict(by_alias=True),
             "uid": uid,
             "settings": settings,
+            "timestamp": int(datetime.now(tz=timezone.utc).timestamp()),
         })
-        # our yaml files must end with a newline
-        return tmpl + "\n"
+        return tmpl
 
     def get_aws_accounts(
         self, query_func: Callable, account_name: str | None = None

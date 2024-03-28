@@ -3,7 +3,10 @@ from textwrap import dedent
 from unittest.mock import ANY, MagicMock
 
 import pytest
+from dateutil import parser
+from pytest_mock import MockerFixture
 
+from reconcile.aws_account_manager import integration
 from reconcile.aws_account_manager.integration import AwsAccountMgmtIntegration
 from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
     AWSAccountRequestV1,
@@ -25,13 +28,18 @@ def test_aws_account_manager_utils_integration_early_exit(
 
 
 def test_aws_account_manager_utils_integration_render_account_tmpl_files(
-    intg: AwsAccountMgmtIntegration, account_request: AWSAccountRequestV1
+    mocker: MockerFixture,
+    intg: AwsAccountMgmtIntegration,
+    account_request: AWSAccountRequestV1,
 ) -> None:
+    datetime_mock = mocker.patch.object(integration, "datetime", autospec=True)
+    datetime_mock.now.return_value = parser.parse("2024-09-30T20:15:00.00000")
     tmpl = dedent("""
     # test access variables
     {{ accountRequest.name }}
     {{ uid }}
     {{ settings.whatever }}
+        {{ timestamp }}
     """)
     output = intg.render_account_tmpl_file(
         template=tmpl,
@@ -44,6 +52,7 @@ def test_aws_account_manager_utils_integration_render_account_tmpl_files(
     {account_request.name}
     123456
     whatever
+        1727720100
     """)
 
 
@@ -129,7 +138,7 @@ def test_aws_account_manager_utils_integration_create_accounts_save_access_key(
     merge_request_manager.create_account_file.assert_called_once_with(
         title=ANY,
         account_request_file_path="data/aws/data/request.yml",
-        account_tmpl_file_content="account-template - 1111111111\n",
+        account_tmpl_file_content="account-template - 1111111111",
         account_tmpl_file_path="data/templating/collections/aws-account/data.yml",
     )
     intg.save_access_key.assert_called_once()
@@ -159,7 +168,7 @@ def test_aws_account_manager_utils_integration_create_accounts_create_account_fi
     merge_request_manager.create_account_file.assert_called_once_with(
         title=ANY,
         account_request_file_path="data/aws/data/request.yml",
-        account_tmpl_file_content="account-template - 1111111111\n",
+        account_tmpl_file_content="account-template - 1111111111",
         account_tmpl_file_path="data/templating/collections/aws-account/data.yml",
     )
 
