@@ -178,5 +178,5 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
                     )
                 except Exception as e:
                     errors.append(e)
-                if errors:
-                    raise ExceptionGroup("Errors occurred while reconcile", errors)
+            if errors:
+                raise ExceptionGroup("Errors occurred while reconcile", errors)
