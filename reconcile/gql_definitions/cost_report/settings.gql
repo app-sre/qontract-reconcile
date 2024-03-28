@@ -1,0 +1,11 @@
+# qenerate: plugin=pydantic_v1
+
+query CostReportAppInterfaceSettings {
+  settings: app_interface_settings_v1 {
+    costReport {
+      credentials {
+        ...VaultSecret
+      }
+    }
+  }
+}

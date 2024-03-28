@@ -1,0 +1,229 @@
+{
+  "meta": {
+    "count": 1,
+    "limit": 100,
+    "offset": 0,
+    "currency": "USD",
+    "delta": {
+      "value": 100,
+      "percent": 10
+    },
+    "cost_type": "calculated_amortized_cost",
+    "filter": {
+      "resolution": "monthly",
+      "time_scope_value": "-2",
+      "time_scope_units": "month",
+      "tag:app": [
+        "test"
+      ]
+    },
+    "group_by": {
+      "service": [
+        "*"
+      ]
+    },
+    "order_by": {},
+    "exclude": {},
+    "total": {
+      "infrastructure": {
+        "raw": {
+          "value": 1000,
+          "units": "USD"
+        },
+        "markup": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "usage": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "total": {
+          "value": 1000,
+          "units": "USD"
+        }
+      },
+      "supplementary": {
+        "raw": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "markup": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "usage": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "total": {
+          "value": 0.0,
+          "units": "USD"
+        }
+      },
+      "cost": {
+        "raw": {
+          "value": 1000,
+          "units": "USD"
+        },
+        "markup": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "usage": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "total": {
+          "value": 1000,
+          "units": "USD"
+        }
+      }
+    }
+  },
+  "links": {
+    "first": "/api/cost-management/v1/reports/aws/costs/?cost_type=calculated_amortized_cost&delta=cost&filter%5Bresolution%5D=monthly&filter%5Btag%3Aapp%5D=test&filter%5Btime_scope_units%5D=month&filter%5Btime_scope_value%5D=-2&group_by%5Bservice%5D=%2A&limit=100&offset=0",
+    "next": null,
+    "previous": null,
+    "last": "/api/cost-management/v1/reports/aws/costs/?cost_type=calculated_amortized_cost&delta=cost&filter%5Bresolution%5D=monthly&filter%5Btag%3Aapp%5D=test&filter%5Btime_scope_units%5D=month&filter%5Btime_scope_value%5D=-2&group_by%5Bservice%5D=%2A&limit=100&offset=0"
+  },
+  "data": [
+    {
+      "date": "2024-02",
+      "services": [
+        {
+          "service": "AmazonEC2",
+          "values": [
+            {
+              "date": "2024-02",
+              "service": "AmazonEC2",
+              "source_uuid": [],
+              "delta_value": 200,
+              "delta_percent": 10,
+              "infrastructure": {
+                "raw": {
+                  "value": 800,
+                  "units": "USD"
+                },
+                "markup": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "usage": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "total": {
+                  "value": 800,
+                  "units": "USD"
+                }
+              },
+              "supplementary": {
+                "raw": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "markup": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "usage": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "total": {
+                  "value": 0.0,
+                  "units": "USD"
+                }
+              },
+              "cost": {
+                "raw": {
+                  "value": 800,
+                  "units": "USD"
+                },
+                "markup": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "usage": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "total": {
+                  "value": 800,
+                  "units": "USD"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "service": "AmazonS3",
+          "values": [
+            {
+              "date": "2024-02",
+              "service": "AmazonS3",
+              "source_uuid": [],
+              "delta_value": -100,
+              "delta_percent": -10,
+              "infrastructure": {
+                "raw": {
+                  "value": 200,
+                  "units": "USD"
+                },
+                "markup": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "usage": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "total": {
+                  "value": 200,
+                  "units": "USD"
+                }
+              },
+              "supplementary": {
+                "raw": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "markup": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "usage": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "total": {
+                  "value": 0.0,
+                  "units": "USD"
+                }
+              },
+              "cost": {
+                "raw": {
+                  "value": 200,
+                  "units": "USD"
+                },
+                "markup": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "usage": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "total": {
+                  "value": 200,
+                  "units": "USD"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+# qenerate: plugin=pydantic_v1
+
+query AppNames {
+  apps: apps_v1 {
+    name
+    parentApp {
+      name
+    }
+  }
+}
