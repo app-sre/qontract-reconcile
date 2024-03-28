@@ -3431,6 +3431,17 @@ def acs_policies(ctx):
     )
 
 
+@integration.command(short_help="Automate Deadmanssnitch Creation/Deletion")
+@click.pass_context
+def deadmanssnitch(ctx):
+    from reconcile import deadmanssnitch
+
+    run_class_integration(
+        integration=deadmanssnitch.DeadMansSnitchIntegration(),
+        ctx=ctx.obj,
+    )
+
+
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
     """
     returns all integrations known to cli.py via click introspection
