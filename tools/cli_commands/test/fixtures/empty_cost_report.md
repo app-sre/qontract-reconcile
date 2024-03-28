@@ -1,3 +1,5 @@
+[TOC]
+
 # Cost Report
 
 ## Summary
