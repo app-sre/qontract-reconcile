@@ -974,7 +974,7 @@ def network_reservations(ctx) -> None:
             return f"[{text}]({url})"
         else:
             return url
-    columns = [ "name", "network Address", "parent Network", "Account Name", "Account UID", "Console Login URL" ]
+    columns = ["name", "network Address", "parent Network", "Account Name", "Account UID", "Console Login URL"]
     network_table = []
     for network in get_networks()[0][1]:
         parentAddress = "none"
@@ -998,7 +998,7 @@ def network_reservations(ctx) -> None:
                     "Account UID": "Unclaimed network",
                     "Console Login URL": "Unclaimed network",
                 })
-    print_output(ctx.obj["options"],network_table,columns)
+    print_output(ctx.obj["options"], network_table, columns)
 
 
 @get.command()
