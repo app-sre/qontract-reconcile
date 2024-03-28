@@ -20,6 +20,10 @@ class AWSUser(BaseModel):
     path: str = Field(..., alias="Path")
 
 
+class AWSEntityAlreadyExistsException(Exception):
+    """Raised when the user already exists in IAM."""
+
+
 class AWSApiIam:
     def __init__(self, client: IAMClient) -> None:
         self.client = client
@@ -33,10 +37,11 @@ class AWSApiIam:
 
     def create_user(self, user_name: str) -> AWSUser:
         """Create a new IAM user."""
-        user = self.client.create_user(
-            UserName=user_name,
-        )
-        return AWSUser(**user["User"])
+        try:
+            user = self.client.create_user(UserName=user_name)
+            return AWSUser(**user["User"])
+        except self.client.exceptions.EntityAlreadyExistsException:
+            raise AWSEntityAlreadyExistsException(f"User {user_name} already exists")
 
     def attach_user_policy(self, user_name: str, policy_arn: str) -> None:
         """Attach a policy to a user."""
@@ -45,6 +50,16 @@ class AWSApiIam:
             PolicyArn=policy_arn,
         )
 
-    def create_account_alias(self, account_alias: str) -> None:
-        """Create an account alias."""
-        self.client.create_account_alias(AccountAlias=account_alias)
+    def get_account_alias(self) -> str:
+        """Get the account alias."""
+        return self.client.list_account_aliases()["AccountAliases"][0]
+
+    def set_account_alias(self, account_alias: str) -> None:
+        """Set the account alias."""
+        try:
+            self.client.create_account_alias(AccountAlias=account_alias)
+        except self.client.exceptions.EntityAlreadyExistsException:
+            if self.get_account_alias() != account_alias:
+                raise ValueError(
+                    "Account alias already exists for another AWS account. Choose another one!"
+                )

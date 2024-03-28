@@ -951,6 +951,85 @@ def aws_saml_roles(
     )
 
 
+@integration.command(short_help="Create and manage AWS accounts.")
+@account_name
+@click.option(
+    "--flavor",
+    help="Flavor of the AWS account manager.",
+    required=True,
+    default="app-interface-commercial",
+)
+@click.option(
+    "--tag",
+    "-t",
+    type=(str, str),
+    multiple=True,
+    default=[("managed-by", "app-interface")],
+)
+@click.option(
+    "--initial-user-name",
+    help="The name of the initial user to be created in the account.",
+    required=True,
+    default="terraform",
+)
+@click.option(
+    "--initial-user-policy-arn",
+    help="The ARN of the policy that is attached to the initial user.",
+    required=True,
+    default="arn:aws:iam::aws:policy/AdministratorAccess",
+)
+@click.option(
+    "--initial-user-secret-vault-path",
+    help="The path in Vault to store the initial user secret. Python format string with access to 'account_name' attribute.",
+    required=True,
+    default="app-sre/creds/terraform/{account_name}/config",
+)
+@click.option(
+    "--account-tmpl-resource",
+    help="Resource name of the account template-collection template in the app-interface.",
+    required=True,
+    default="/aws-account-manager/account-tmpl.yml",
+)
+@click.option(
+    "--template-collection-root-path",
+    help="File path to the root directory to store new account template-collections.",
+    required=True,
+    default="data/templating/collections/aws-account",
+)
+@click.pass_context
+def aws_account_manager(
+    ctx,
+    account_name,
+    flavor,
+    tag,
+    initial_user_name,
+    initial_user_policy_arn,
+    initial_user_secret_vault_path,
+    account_tmpl_resource,
+    template_collection_root_path,
+):
+    from reconcile.aws_account_manager.integration import (
+        AwsAccountMgmtIntegration,
+        AwsAccountMgmtIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=AwsAccountMgmtIntegration(
+            AwsAccountMgmtIntegrationParams(
+                account_name=account_name,
+                flavor=flavor,
+                default_tags=dict(tag),
+                initial_user_name=initial_user_name,
+                initial_user_policy_arn=initial_user_policy_arn,
+                initial_user_secret_vault_path=initial_user_secret_vault_path,
+                account_tmpl_resource=account_tmpl_resource,
+                template_collection_root_path=template_collection_root_path,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage Jenkins roles association via REST API.")
 @click.pass_context
 def jenkins_roles(ctx):

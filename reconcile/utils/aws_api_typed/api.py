@@ -11,10 +11,14 @@ from pydantic import BaseModel
 
 import reconcile.utils.aws_api_typed.iam
 import reconcile.utils.aws_api_typed.organization
+import reconcile.utils.aws_api_typed.service_quotas
 import reconcile.utils.aws_api_typed.sts
+import reconcile.utils.aws_api_typed.support
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
 from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
+from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
 from reconcile.utils.aws_api_typed.sts import AWSApiSts
+from reconcile.utils.aws_api_typed.support import AWSApiSupport
 
 SubApi = TypeVar("SubApi")
 
@@ -109,6 +113,29 @@ class AWSTemporaryCredentials(AWSStaticCredentials):
 
 
 class AWSApi:
+    """High-level API for AWS services.
+
+    This class provides a high-level API for AWS services like
+
+    * IAM
+    * Organizations
+    * Service Quotas
+    * STS
+    * Support
+
+    It also provides a way to assume roles and create temporary sessions.
+
+    Example:
+
+    with AWSApi(AWSStaticCredentials(...)) as api:
+        with api.assume_role(... role="MyRole") as role_api:
+            role_api.iam.create_user(...)
+
+
+    This new fully-tested and fully-typed API will replace the old one in the near future.
+    Feel free to implement missing methods and AWS servcies as needed.
+    """
+
     def __init__(self, aws_credentials: AWSCredentials) -> None:
         self.session = aws_credentials.build_session()
         self._session_clients: list[BaseClient] = []
@@ -134,8 +161,14 @@ class AWSApi:
             case reconcile.utils.aws_api_typed.organization.AWSApiOrganizations:
                 client = self.session.client("organizations")
                 api = api_cls(client)
+            case reconcile.utils.aws_api_typed.service_quotas.AWSApiServiceQuotas:
+                client = self.session.client("service-quotas")
+                api = api_cls(client)
             case reconcile.utils.aws_api_typed.sts.AWSApiSts:
                 client = self.session.client("sts")
+                api = api_cls(client)
+            case reconcile.utils.aws_api_typed.support.AWSApiSupport:
+                client = self.session.client("support")
                 api = api_cls(client)
             case _:
                 raise ValueError(f"Unknown API class: {api_cls}")
@@ -144,9 +177,9 @@ class AWSApi:
         return api
 
     @cached_property
-    def sts(self) -> AWSApiSts:
-        """Return an AWS STS Api client."""
-        return self._init_sub_api(AWSApiSts)
+    def iam(self) -> AWSApiIam:
+        """Return an AWS IAM Api client."""
+        return self._init_sub_api(AWSApiIam)
 
     @cached_property
     def organizations(self) -> AWSApiOrganizations:
@@ -154,9 +187,19 @@ class AWSApi:
         return self._init_sub_api(AWSApiOrganizations)
 
     @cached_property
-    def iam(self) -> AWSApiIam:
-        """Return an AWS IAM Api client."""
-        return self._init_sub_api(AWSApiIam)
+    def service_quotas(self) -> AWSApiServiceQuotas:
+        """Return an AWS Service Quotas Api client."""
+        return self._init_sub_api(AWSApiServiceQuotas)
+
+    @cached_property
+    def sts(self) -> AWSApiSts:
+        """Return an AWS STS Api client."""
+        return self._init_sub_api(AWSApiSts)
+
+    @cached_property
+    def support(self) -> AWSApiSupport:
+        """Return an AWS Support Api client."""
+        return self._init_sub_api(AWSApiSupport)
 
     def assume_role(self, account_id: str, role: str) -> AWSApi:
         """Return a new AWSApi with the assumed role."""
