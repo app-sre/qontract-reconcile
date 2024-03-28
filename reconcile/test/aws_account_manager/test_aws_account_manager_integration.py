@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from textwrap import dedent
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
@@ -127,6 +127,7 @@ def test_aws_account_manager_utils_integration_create_accounts_save_access_key(
         email=account_request.account_owner.email,
     )
     merge_request_manager.create_account_file.assert_called_once_with(
+        title=ANY,
         account_request_file_path="data/aws/data/request.yml",
         account_tmpl_file_content="account-template - 1111111111\n",
         account_tmpl_file_path="data/templating/collections/aws-account/data.yml",
@@ -156,6 +157,7 @@ def test_aws_account_manager_utils_integration_create_accounts_create_account_fi
         email=account_request.account_owner.email,
     )
     merge_request_manager.create_account_file.assert_called_once_with(
+        title=ANY,
         account_request_file_path="data/aws/data/request.yml",
         account_tmpl_file_content="account-template - 1111111111\n",
         account_tmpl_file_path="data/templating/collections/aws-account/data.yml",

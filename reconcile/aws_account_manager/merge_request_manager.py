@@ -74,6 +74,7 @@ class MergeRequestManager:
 
     def create_account_file(
         self,
+        title: str,
         account_tmpl_file_path: str,
         account_tmpl_file_content: str,
         account_request_file_path: str,
@@ -100,7 +101,7 @@ class MergeRequestManager:
             mr_labels.append(AUTO_MERGE)
         self._vcs.open_app_interface_merge_request(
             mr=AwsAccountMR(
-                title="AWS account template collection file",
+                title=title,
                 description=f"New AWS account template collection file {account_tmpl_file_path}",
                 account_tmpl_file_path=account_tmpl_file_path,
                 account_tmpl_file_content=account_tmpl_file_content,

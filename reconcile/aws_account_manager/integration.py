@@ -170,6 +170,7 @@ class AwsAccountMgmtIntegration(
                     self.save_access_key(account_request.name, access_key)
 
             merge_request_manager.create_account_file(
+                title=f"{account_request.name}: AWS account template collection file",
                 account_tmpl_file_path=f"{self.params.template_collection_root_path}/{account_request.name}.yml",
                 account_tmpl_file_content=self.render_account_tmpl_file(
                     template=account_template,
