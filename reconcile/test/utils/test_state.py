@@ -20,10 +20,12 @@ from reconcile.utils.secret_reader import (
     SecretReaderBase,
 )
 from reconcile.utils.state import (
+    AbortStateTransaction,
     S3CredsBasedStateConfiguration,
     S3ProfileBasedStateConfiguration,
     State,
     StateInaccessibleException,
+    TransactionStateObj,
     acquire_state_settings,
 )
 
@@ -362,17 +364,7 @@ def test_state_get_aws_account_by_name() -> None:
     assert account.name == "some-account"
 
 
-def test_state_transaction_not_set(
-    integration_state: State, s3_client: S3Client
-) -> None:
-    with integration_state.transaction("feature.foo.bar", "set") as exists:
-        assert not exists
-        # here should be the code that acts now
-    # and then the state should be updated
-    assert integration_state["feature.foo.bar"] == "set"
-
-
-def test_state_transaction_already_set(
+def test_state_transaction_key_exists(
     integration_state: State, integration: str, s3_client: S3Client
 ) -> None:
     s3_client.put_object(
@@ -382,18 +374,142 @@ def test_state_transaction_already_set(
     )
 
     assert integration_state["feature.foo.bar"] == "set"
-    with integration_state.transaction("feature.foo.bar", "set") as exists:
-        assert exists
+    with integration_state.transaction("feature.foo.bar", "set") as state:
+        assert state.exists
+
+
+def test_state_transaction_value_via_transaction(integration_state: State) -> None:
+    with integration_state.transaction("feature.foo.bar", "set") as state:
+        assert not state.exists
+    assert integration_state["feature.foo.bar"] == "set"
+
+
+def test_state_transaction_value_via_state_obj(integration_state: State) -> None:
+    with integration_state.transaction("feature.foo.bar") as state:
+        state.value = "set"
+        assert not state.exists
         # here should be the code that acts now
+    # and then the state should be updated
+    assert integration_state["feature.foo.bar"] == "set"
+
+
+def test_state_transaction_value_via_both(integration_state: State) -> None:
+    with integration_state.transaction("feature.foo.bar", "foo") as state:
+        state.value = "bar"
+        assert not state.exists
+    assert integration_state["feature.foo.bar"] == "bar"
+
+
+def test_state_transaction_no_value(integration_state: State) -> None:
+    with integration_state.transaction("feature.foo.bar") as state:
+        assert not state.exists
+
+    with pytest.raises(KeyError):
+        integration_state["feature.foo.bar"]
+
+
+def test_state_transaction_key_exists_value_via_transaction(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    s3_client.put_object(
+        Bucket=integration_state.bucket,
+        Key=f"state/{integration}/feature.foo.bar",
+        Body='"set"',
+    )
+
+    assert integration_state["feature.foo.bar"] == "set"
+    with integration_state.transaction("feature.foo.bar", "changed") as state:
+        assert state.value == "set"
+    assert integration_state["feature.foo.bar"] == "changed"
+
+
+def test_state_transaction_key_exists_value_via_state_obj(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    s3_client.put_object(
+        Bucket=integration_state.bucket,
+        Key=f"state/{integration}/feature.foo.bar",
+        Body='"set"',
+    )
+
+    assert integration_state["feature.foo.bar"] == "set"
+    with integration_state.transaction("feature.foo.bar") as state:
+        assert state.value == "set"
+        state.value = "changed"
+    assert integration_state["feature.foo.bar"] == "changed"
+
+
+def test_state_transaction_noop_if_no_value_in_transaction(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    s3_client.put_object(
+        Bucket=integration_state.bucket,
+        Key=f"state/{integration}/feature.foo.bar",
+        Body='"set"',
+    )
+
+    assert integration_state["feature.foo.bar"] == "set"
+    with integration_state.transaction("feature.foo.bar") as state:
+        assert state.value == "set"
+    assert integration_state["feature.foo.bar"] == "set"
 
 
 def test_state_transaction_exception(
     integration_state: State, integration: str, s3_client: S3Client
 ) -> None:
     try:
-        with integration_state.transaction("feature.foo.bar", "set") as exists:
-            assert not exists
+        with integration_state.transaction("feature.foo.bar", "set") as state:
+            assert not state.exists
             raise FileNotFoundError("Some error")
     except FileNotFoundError:
         with pytest.raises(KeyError):
             integration_state["feature.foo.bar"]
+    else:
+        raise AssertionError("The exception was not raised")
+
+
+def test_state_transaction_abort(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    with integration_state.transaction("feature.foo.bar", "set") as state:
+        assert not state.exists
+        raise AbortStateTransaction("We want to abort the transaction")
+
+    with pytest.raises(KeyError):
+        integration_state["feature.foo.bar"]
+
+
+def test_state_transaction_state_obj_nothing_set() -> None:
+    # nothing set yet
+    obj = TransactionStateObj(key="key")
+    assert obj.value is None
+    assert not obj.changed
+    assert not obj.exists
+
+    obj.value = "value"
+    assert obj.value == "value"
+    assert obj.changed
+    assert not obj.exists
+
+
+def test_state_transaction_state_obj_init_value() -> None:
+    # init value but no current one
+    obj = TransactionStateObj(key="key", value="value")
+    assert obj.value == "value"
+    assert not obj.changed
+    assert obj.exists
+
+    obj.value = "another-value"
+    assert obj.value == "another-value"
+    assert obj.changed
+    assert obj.exists
+
+
+def test_state_transaction_state_obj_bool() -> None:
+    # init value but no current one
+    obj = TransactionStateObj(key="key", value=True)
+    assert obj.value is True
+    obj.value = False
+    assert obj.value is False
+    assert obj.changed
+    assert obj.exists
