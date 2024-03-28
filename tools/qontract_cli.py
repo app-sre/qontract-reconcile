@@ -1008,7 +1008,7 @@ def network_reservations(ctx) -> None:
                     "Account UID": "Unclaimed network",
                     "Console Login URL": "Unclaimed network",
                 })
-    print_output(ctx.obj["options"],network_table,columns)
+    print_output(ctx.obj["options"], network_table, columns)
 
 
 @get.command()
