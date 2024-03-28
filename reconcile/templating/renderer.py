@@ -41,7 +41,7 @@ from reconcile.utils.vcs import VCS
 QONTRACT_INTEGRATION = "template-renderer"
 
 # Renders templates again to detect drift after one day
-CACHE_TTL_MINUTES = 24 * 60
+CACHE_TTL_MINUTES = 1
 
 APP_INTERFACE_PATH_SEPERATOR = "/"
 
@@ -182,10 +182,10 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         ruamel_instance: yaml.YAML,
         state: Optional[State] = None,
     ) -> None:
-        outputs: list[TemplateOutput] = []
         gql_no_validation = init_from_config(validate_schemas=False)
 
         for c in get_template_collections():
+            outputs: list[TemplateOutput] = []
             variables = {}
             if c.variables:
                 variables = {
