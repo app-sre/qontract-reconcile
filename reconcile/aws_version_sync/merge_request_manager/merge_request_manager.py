@@ -82,6 +82,8 @@ class MergeRequestManager(MergeRequestManagerBase[AVSInfo]):
         data: MrData,
     ) -> None:
         """Open new MR (if not already present) for an external resource and close any outdated before."""
+        if not self._housekeeping_ran:
+            self.housekeeping()
 
         namespace_file = data.namespace_file
         provider = data.provider
