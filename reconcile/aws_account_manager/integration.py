@@ -83,7 +83,12 @@ class AwsAccountMgmtIntegration(
                 continue
             # render string templates with account name
             settings[k] = v.format(account_name=account_request.name)
-        tmpl = jinja2.Template(template, undefined=jinja2.StrictUndefined).render({
+        tmpl = jinja2.Template(
+            template,
+            undefined=jinja2.StrictUndefined,
+            trim_blocks=True,
+            lstrip_blocks=True,
+        ).render({
             "accountRequest": account_request.dict(by_alias=True),
             "uid": uid,
             "settings": settings,
