@@ -76,6 +76,8 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
             for account in data.accounts or []
             if integration_is_enabled(self.name, account)
             and (not account_name or account.name == account_name)
+            # a new account does not have a terraform state yet, ignore it until terraform-init does its job
+            and account.terraform_state
         ]
 
     def build_saml_idp_config(
