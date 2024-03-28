@@ -63,7 +63,7 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
         for env in environments:
             ocm = init_ocm_base_client(env, self.secret_reader)
 
-            if not (env.labels and env.labels["internal_notifications"]):
+            if not (env.labels and env.labels.get("internal_notifications")):
                 logging.info(
                     f"skipping environment {env.name} due to no internal_notifications label"
                 )
