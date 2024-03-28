@@ -29,6 +29,9 @@ query DeadMansSnitchSettings {
         path
         field
       }
+      tags
+      alertType
+      interval
     }
   }
 }
@@ -51,6 +54,9 @@ class DeadMansSnitchSettingsV1(ConfiguredBaseModel):
     notes_link: str = Field(..., alias="notesLink")
     snitches_path: str = Field(..., alias="snitchesPath")
     token_creds: VaultSecretV1 = Field(..., alias="tokenCreds")
+    tags: list[str] = Field(..., alias="tags")
+    alert_type: str = Field(..., alias="alertType")
+    interval: str = Field(..., alias="interval")
 
 
 class AppInterfaceSettingsV1(ConfiguredBaseModel):

@@ -41,6 +41,9 @@ def test_get_clusters(
                         "notesLink": "test_link",
                         "snitchesPath": "test_path",
                         "tokenCreds": {"path": "xyz", "field": "xyz"},
+                        "tags": ["test-tags"],
+                        "interval": "15_minute",
+                        "alertType": "Heartbeat",
                     }
                 }
             ]
