@@ -583,13 +583,7 @@ def get_aws_accounts(
         ecrs=ecrs,
         cleanup=cleanup,
     )
-    accounts = gqlapi.query(query)["accounts"]
-    if terraform_state:
-        # a new account does not have a terraform state yet, ignore it until terraform-init does its job
-        return [
-            account for account in accounts if account.get("terraformState") is not None
-        ]
-    return accounts
+    return gqlapi.query(query)["accounts"]
 
 
 def get_state_aws_accounts(reset_passwords=False):

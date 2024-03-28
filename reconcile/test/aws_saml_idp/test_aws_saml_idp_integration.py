@@ -32,7 +32,6 @@ def test_aws_saml_idp_get_aws_accounts(
                 "automationToken": {"path": "/path/to/token", "field": "all"},
                 "enableDeletion": True,
                 "premiumSupport": True,
-                "terraformState": {"integrations": []},
             },
         ),
         gql_class_factory(
@@ -48,7 +47,6 @@ def test_aws_saml_idp_get_aws_accounts(
                 "automationToken": {"path": "/path/to/token", "field": "all"},
                 "enableDeletion": True,
                 "premiumSupport": True,
-                "terraformState": {"integrations": []},
             },
         ),
     ]
@@ -66,7 +64,6 @@ def test_aws_saml_idp_get_aws_accounts(
                 "automationToken": {"path": "/path/to/token", "field": "all"},
                 "enableDeletion": True,
                 "premiumSupport": True,
-                "terraformState": {"integrations": []},
             },
         )
     ]
