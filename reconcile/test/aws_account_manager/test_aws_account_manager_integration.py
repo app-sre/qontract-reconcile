@@ -33,7 +33,7 @@ def test_aws_account_manager_utils_integration_render_account_tmpl_files(
     account_request: AWSAccountRequestV1,
 ) -> None:
     datetime_mock = mocker.patch.object(integration, "datetime", autospec=True)
-    datetime_mock.now.return_value = parser.parse("2024-09-30T20:15:00.00000")
+    datetime_mock.now.return_value = parser.parse("2024-09-30T20:15:00+00")
     tmpl = dedent("""
     # test access variables
     {{ accountRequest.name }}
@@ -52,7 +52,7 @@ def test_aws_account_manager_utils_integration_render_account_tmpl_files(
     {account_request.name}
     123456
     whatever
-        1727720100
+        1727727300
     """)
 
 
