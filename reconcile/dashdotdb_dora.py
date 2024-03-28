@@ -397,9 +397,13 @@ class DashdotdbDORA(DashdotdbBase):
     def get_repo_ref_for_sha(
         self, saastarget: SaasTarget, sha: str
     ) -> tuple[Optional[str], Optional[str]]:
-        saas_file_yaml = self.gl_app_interface_get_file(
-            saastarget.path, ref=sha
-        ).decode()
+        try:
+            saas_file_yaml = self.gl_app_interface_get_file(
+                saastarget.path, ref=sha
+            ).decode()
+        except Exception:
+            LOG.error(f"can't get file from {saastarget.path} ref {sha}")
+            return (None, None)
         saas_file = yaml.safe_load(saas_file_yaml)
 
         for rt in saas_file["resourceTemplates"]:

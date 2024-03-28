@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from github import (
     Commit,
     Github,
+    GithubException,
     UnknownObjectException,
 )
 from sretoolbox.utils import retry
@@ -83,6 +84,10 @@ class GithubRepositoryApi:
     def get_commit_sha(self, ref: str) -> str:
         return self._repo.get_commit(sha=ref).sha
 
-    @retry()
     def compare(self, commit_from: str, commit_to: str) -> list[Commit.Commit]:
-        return self._repo.compare(commit_from, commit_to).commits
+        try:
+            return self._repo.compare(commit_from, commit_to).commits
+        except GithubException as e:
+            if "No common ancestor" in str(e):
+                return []
+            raise
