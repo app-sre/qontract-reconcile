@@ -7,6 +7,8 @@ from pydantic import BaseModel
 from tools.cli_commands.cost_report.model import Report
 
 LAYOUT = """\
+[TOC]
+
 {header}
 {summary}
 {month_over_month_change}
