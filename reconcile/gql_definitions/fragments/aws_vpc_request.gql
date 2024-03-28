@@ -9,6 +9,18 @@ fragment VPCRequest on VPCRequest_v1 {
     automationToken {
       ...VaultSecret
     }
+    supportedDeploymentRegions
+    resourcesDefaultRegion
+    providerVersion
+    terraformState {
+      provider
+      bucket
+      region
+      integrations {
+        integration
+        key
+      }
+    }
   }
   region
   cidr_block {
