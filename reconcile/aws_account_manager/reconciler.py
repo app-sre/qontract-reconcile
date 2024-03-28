@@ -167,15 +167,18 @@ class AWSReconciler:
                     service_code=q.service_code, quota_code=q.quota_code
                 )
                 if quota.value > q.value:
-                    raise ValueError(
-                        f"Cannot lower quota {q.service_code=}, {q.quota_code=}: {quota.value} -> {q.value}"
+                    # a quota can be already higher than requested, because it was may set manually or enforced by the payer account
+                    logging.info(
+                        f"Cannot lower quota {q.service_code=}, {q.quota_code=}: {quota.value} -> {q.value}. Skipping."
                     )
                 elif quota.value < q.value:
                     quota.value = q.value
                     new_quotas.append(quota)
 
-            if new_quotas:
-                logging.info(f"Setting quotas for {name}: {new_quotas}")
+            for q in new_quotas:
+                logging.info(
+                    f"Setting quota for {name}: {q.service_name}/{q.quota_name} ({q.service_code}/{q.quota_code}) -> {q.value}"
+                )
 
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")

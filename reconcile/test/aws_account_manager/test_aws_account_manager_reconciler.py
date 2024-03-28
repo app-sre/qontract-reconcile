@@ -459,25 +459,6 @@ def test_aws_account_manager_reconcile_request_quotas_state_dry_run(
     aws_api.service_quotas.request_service_quota_change.assert_not_called()
 
 
-def test_aws_account_manager_reconcile_request_quotas_state_cant_lower_quota(
-    aws_api: MagicMock, reconciler_dry_run: AWSReconciler
-) -> None:
-    q = AWSQuotaV1(serviceCode="serviceA", quotaCode="codeA", value=1.0)
-    aws_api.service_quotas.get_service_quota.side_effect = [
-        AWSQuota(
-            ServiceCode="serviceA",
-            ServiceName="Service A",
-            QuotaCode="codeA",
-            QuotaName="Quota A",
-            Value=10.0,
-        )
-    ]
-
-    with pytest.raises(ValueError):
-        reconciler_dry_run._request_quotas(aws_api, "account", quotas=[q])
-    aws_api.service_quotas.request_service_quota_change.assert_not_called()
-
-
 def test_aws_account_manager_reconcile_check_quota_change_requests_pending(
     aws_api: MagicMock, reconciler: AWSReconciler
 ) -> None:
