@@ -41,7 +41,7 @@ from reconcile.utils.vcs import VCS
 QONTRACT_INTEGRATION = "template-renderer"
 
 # Renders templates again to detect drift after one day
-CACHE_TTL_MINUTES = 1
+CACHE_TTL_MINUTES = 24 * 60
 
 APP_INTERFACE_PATH_SEPERATOR = "/"
 
