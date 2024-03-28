@@ -37,10 +37,6 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
-    @staticmethod
-    def remove_http_header(url: str) -> str:
-        return url.replace("https://", "")
-
     def __init__(self) -> None:
         super().__init__(NoParams())
         self.qontract_integration_version = make_semver(0, 1, 0)
