@@ -5,6 +5,11 @@ from typing import Any
 import jinja2
 
 from reconcile.aws_account_manager.merge_request_manager import MergeRequestManager
+from reconcile.aws_account_manager.metrics import (
+    NonOrgAccountCounter,
+    OrgAccountCounter,
+    PayerAccountCounter,
+)
 from reconcile.aws_account_manager.reconciler import AWSReconciler
 from reconcile.aws_account_manager.utils import validate
 from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
@@ -18,7 +23,7 @@ from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
 from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
 from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
-from reconcile.utils import gql
+from reconcile.utils import gql, metrics
 from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 from reconcile.utils.aws_api_typed.iam import AWSAccessKey
 from reconcile.utils.defer import defer
@@ -297,6 +302,30 @@ class AwsAccountMgmtIntegration(
             ) as account_aws_api:
                 self.reconcile_account(account_aws_api, reconciler, account)
 
+    def expose_metrics(
+        self,
+        payer_accounts: list[AWSAccountV1],
+        non_organization_accounts: list[AWSAccountV1],
+    ) -> None:
+        """Expose metrics."""
+        with metrics.transactional_metrics(self.name) as metrics_container:
+            metrics_container.set_gauge(
+                PayerAccountCounter(flavor=self.params.flavor),
+                value=len(payer_accounts),
+            )
+
+            metrics_container.set_gauge(
+                OrgAccountCounter(flavor=self.params.flavor),
+                value=sum([
+                    len(payer_account.organization_accounts or [])
+                    for payer_account in payer_accounts
+                ]),
+            )
+            metrics_container.set_gauge(
+                NonOrgAccountCounter(flavor=self.params.flavor),
+                value=len(non_organization_accounts),
+            )
+
     @defer
     def run(self, dry_run: bool, defer: Callable | None = None) -> None:
         """Run the integration."""
@@ -328,6 +357,11 @@ class AwsAccountMgmtIntegration(
         account_template = gql_api.get_resource(path=self.params.account_tmpl_resource)[
             "content"
         ]
+
+        self.expose_metrics(
+            payer_accounts=payer_accounts,
+            non_organization_accounts=non_organization_accounts,
+        )
         self.reconcile_payer_accounts(
             reconciler=reconciler,
             merge_request_manager=merge_request_manager,
