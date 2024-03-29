@@ -320,7 +320,7 @@ class AwsAccountMgmtIntegration(
                         flavor=self.params.flavor,
                         payer_account=payer_account.name,
                     ),
-                    value=sum([len(payer_account.organization_accounts or [])]),
+                    value=len(payer_account.organization_accounts or []),
                 )
             metrics_container.set_gauge(
                 NonOrgAccountCounter(flavor=self.params.flavor),
