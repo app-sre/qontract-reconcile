@@ -314,13 +314,14 @@ class AwsAccountMgmtIntegration(
                 value=len(payer_accounts),
             )
 
-            metrics_container.set_gauge(
-                OrgAccountCounter(flavor=self.params.flavor),
-                value=sum([
-                    len(payer_account.organization_accounts or [])
-                    for payer_account in payer_accounts
-                ]),
-            )
+            for payer_account in payer_accounts:
+                metrics_container.set_gauge(
+                    OrgAccountCounter(
+                        flavor=self.params.flavor,
+                        payer_account=payer_account.name,
+                    ),
+                    value=sum([len(payer_account.organization_accounts or [])]),
+                )
             metrics_container.set_gauge(
                 NonOrgAccountCounter(flavor=self.params.flavor),
                 value=len(non_organization_accounts),

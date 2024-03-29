@@ -22,7 +22,9 @@ class PayerAccountCounter(BaseMetric, GaugeMetric):
 
 
 class OrgAccountCounter(BaseMetric, GaugeMetric):
-    """Number of managed organization accounts."""
+    """Number of managed organization accounts per payer account."""
+
+    payer_account: str
 
     @classmethod
     def name(cls) -> str:
