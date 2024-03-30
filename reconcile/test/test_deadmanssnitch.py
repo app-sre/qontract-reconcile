@@ -57,6 +57,7 @@ def test_get_current_state(
     secret_reader: MagicMock,
     deadmanssnitch_api: MockerFixture,
     mocker: MockerFixture,
+    deadmanssnitch_settings: DeadMansSnitchSettingsV1,
 ) -> None:
     deadmanssnitch_api.get_snitches.return_value = [
         Snitch(
@@ -97,6 +98,7 @@ def test_get_current_state(
     ).return_value = None
     dms_integration = DeadMansSnitchIntegration()
     dms_integration._secret_reader = secret_reader
+    dms_integration.settings = deadmanssnitch_settings
     current_state = dms_integration.get_current_state(
         deadmanssnitch_api=deadmanssnitch_api,
         clusters=clusters,
