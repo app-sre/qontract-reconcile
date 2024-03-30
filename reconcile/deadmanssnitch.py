@@ -129,7 +129,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         cluster_to_prometheus_mapping: dict[str, str],
     ) -> dict[str, Snitch]:
         # current state includes for deadmanssnithch response and associated secret in vault
-        snitches = deadmanssnitch_api.get_snitches(tags=["app-sre"])
+        snitches = deadmanssnitch_api.get_snitches(tags=self.settings.tags)
         # create snitch_map only for  the desired clusters
         snitches_with_cluster_mapping = {
             cluster.name: snitch
