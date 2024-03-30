@@ -120,7 +120,6 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
                 errors.append(e)
         if errors:
             raise ExceptionGroup("Errors occurred while reconcile", errors)
-        # logging.debug(diffs)
 
     def get_current_state(
         self,
