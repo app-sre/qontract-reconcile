@@ -137,7 +137,7 @@ def test_integration_for_create(
         "reconcile.deadmanssnitch.DeadMansSnitchApi.get_snitches"
     ).return_value = []
     mock_create_snitch = mocker.patch(
-        "reconcile.deadmanssnitch.DeadMansSnitchIntegration.create_snitchV2"
+        "reconcile.deadmanssnitch.DeadMansSnitchIntegration.create_snitch"
     )
     mock_create_snitch.return_value = None
     dms_integration.run(dry_run=False)
@@ -270,7 +270,7 @@ def test_integration_while_failed(
         "reconcile.deadmanssnitch.DeadMansSnitchApi.get_snitches"
     ).return_value = []
     mocker.patch(
-        "reconcile.deadmanssnitch.DeadMansSnitchIntegration.create_snitchV2",
+        "reconcile.deadmanssnitch.DeadMansSnitchIntegration.create_snitch",
         side_effect=Exception("mock vault"),
     )
     with pytest.raises(ExceptionGroup):
