@@ -37,7 +37,7 @@ def test_get_clusters(
             "settings": [
                 {
                     "deadMansSnitchSettings": {
-                        "alertEmail": "test_mail",
+                        "alertMailAddresses": ["test_mail"],
                         "notesLink": "test_link",
                         "snitchesPath": "test_path",
                         "tokenCreds": {"path": "xyz", "field": "xyz"},
@@ -51,5 +51,5 @@ def test_get_clusters(
     )
     api = gql_api_builder(data.dict(by_alias=True))
     settings = get_deadmanssnitch_settings(gql_api=api)
-    assert settings.alert_email == "test_mail"
+    assert settings.alert_mail_addresses == ["test_mail"]
     api.query.assert_called_once_with(DEFINITION)

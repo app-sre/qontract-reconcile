@@ -13,6 +13,7 @@ from reconcile.utils.deadmanssnitch_api import (
     DeadMansSnitchApi,
     Snitch,
 )
+from reconcile.utils.differ import diff_mappings
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
@@ -22,6 +23,7 @@ from reconcile.utils.secret_reader import (
 )
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vault import (
+    SecretFieldNotFound,
     VaultClient,
     _VaultClient,
 )
@@ -43,14 +45,17 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         self.settings = get_deadmanssnitch_settings()
         self.vault_client = cast(_VaultClient, VaultClient())
 
-    def write_snitch_to_vault(self, cluster_name: str, snitch_url: str) -> None:
-        self.vault_client.write(
-            {
-                "path": self.settings.snitches_path,
-                "data": {f"deadmanssnitch-{cluster_name}-url": snitch_url},
-            },
-            decode_base64=False,
-        )
+    def write_snitch_to_vault(
+        self, cluster_name: str, snitch_url: Optional[str]
+    ) -> None:
+        if snitch_url:
+            self.vault_client.write(
+                {
+                    "path": self.settings.snitches_path,
+                    "data": {f"deadmanssnitch-{cluster_name}-url": snitch_url},
+                },
+                decode_base64=False,
+            )
 
     def add_vault_data(
         self, cluster_name: str, snitch: Snitch, snitch_secret_path: str
@@ -61,9 +66,61 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
                 "field": f"deadmanssnitch-{cluster_name}-url",
             }
             snitch.vault_data = self.secret_reader.read(full_secret_path).strip()
-        except SecretNotFound:
+        except (SecretNotFound, SecretFieldNotFound):
             snitch.vault_data = SECRET_NOT_FOUND
         return snitch
+
+    def create_snitch(
+        self, cluster_name: str, snitch: Snitch, deadmanssnitch_api: DeadMansSnitchApi
+    ) -> None:
+        payload = {
+            "name": snitch.name,
+            "alert_type": snitch.alert_type,
+            "interval": snitch.interval,
+            "tags": snitch.tags,
+            "alert_email": snitch.alert_email,
+            "notes": snitch.notes,
+        }
+        snitch_data = deadmanssnitch_api.create_snitch(payload=payload)
+        self.write_snitch_to_vault(
+            cluster_name=cluster_name, snitch_url=snitch_data.check_in_url
+        )
+
+    def reconcile(
+        self,
+        dry_run: bool,
+        current_state: dict[str, Snitch],
+        desired_state: dict[str, Snitch],
+        deadmanssnitch_api: DeadMansSnitchApi,
+    ) -> None:
+        diffs = diff_mappings(current=current_state, desired=desired_state)
+        errors = []
+        for cluster_name, snitch in diffs.add.items():
+            logging.info("[cluster_name:%s] [Action:create_snitch]", cluster_name)
+            try:
+                if not dry_run:
+                    self.create_snitch(cluster_name, snitch, deadmanssnitch_api)
+            except Exception as e:
+                errors.append(e)
+        for cluster_name, snitch in diffs.delete.items():
+            logging.info("[cluster_name:%s] [Action:delete_snitch]", cluster_name)
+            try:
+                if not dry_run:
+                    deadmanssnitch_api.delete_snitch(snitch.token)
+            except Exception as e:
+                errors.append(e)
+        for cluster_name, diff_pair in diffs.identical.items():
+            try:
+                if diff_pair.desired.needs_vault_update():
+                    self.write_snitch_to_vault(
+                        cluster_name=cluster_name,
+                        snitch_url=diff_pair.desired.check_in_url,
+                    )
+            except Exception as e:
+                errors.append(e)
+        if errors:
+            raise ExceptionGroup("Errors occurred while reconcile", errors)
+        # logging.debug(diffs)
 
     def get_current_state(
         self,
@@ -88,57 +145,43 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         }
         return current_state
 
-    def create_snitch(
+    def get_desired_state(
         self,
-        cluster: ClusterV1,
-        deadmanssnitch_api: DeadMansSnitchApi,
-        cluster_prom_mapping: dict[str, str],
-    ) -> None:
-        alert_email = [self.settings.alert_email]
-        payload = {
-            "name": cluster_prom_mapping.get(cluster.name),
-            "alert_type": self.settings.alert_type,
-            "interval": self.settings.interval,
-            "tags": self.settings.tags,
-            "alert_email": alert_email,
-            "notes": self.settings.notes_link,
-        }
-        snitch = deadmanssnitch_api.create_snitch(payload=payload)
-        self.write_snitch_to_vault(
-            cluster_name=cluster.name, snitch_url=snitch.check_in_url
-        )
-
-    def reconcile(
-        self,
-        dry_run: bool,
-        deadmanssnitch_api: DeadMansSnitchApi,
-        cluster: ClusterV1,
+        clusters: list[ClusterV1],
+        current_state: dict[str, Snitch],
         cluster_to_prometheus_mapping: dict[str, str],
-        snitch: Optional[Snitch] = None,
-    ) -> None:
-        if cluster.enable_dead_mans_snitch and snitch is None:
-            # if cluster's enable_dead_mans_snitch is set to True and it is not present in current state, create snitch
-            logging.info("[cluster_name:%s] [Action:create_snitch]", cluster.name)
-            if not dry_run:
-                self.create_snitch(
-                    cluster, deadmanssnitch_api, cluster_to_prometheus_mapping
-                )
-        if not cluster.enable_dead_mans_snitch and snitch:
-            # if cluster's enable_dead_mans_snitch is set to False and it is present in current state, delete snitch
-            logging.info("[cluster_name:%s] [Action:delete_snitch_url]", cluster.name)
-            if not dry_run:
-                deadmanssnitch_api.delete_snitch(snitch.token)
-        if cluster.enable_dead_mans_snitch and snitch:
-            # if cluster's enable_dead_mans_snitch is set to True and it is present in current state,update vault only if
-            # vault url and check_in_url is different
-            if snitch.needs_vault_update():
-                logging.info(
-                    "[cluster_name:%s] [Action:update_vault_value]", cluster.name
-                )
-                if not dry_run:
-                    self.write_snitch_to_vault(
-                        cluster_name=cluster.name, snitch_url=snitch.check_in_url
-                    )
+    ) -> dict[str, Snitch]:
+        desired_state = {
+            cluster.name: self.map_desired_snitch_value(
+                cluster.name, current_state, cluster_to_prometheus_mapping
+            )
+            for cluster in clusters
+            if cluster.enable_dead_mans_snitch
+        }
+        return desired_state
+
+    # get snitch in case snitch available for desired state cluster
+    # return new snitch object in case  of new cluster
+    def map_desired_snitch_value(
+        self,
+        cluster_name: str,
+        current_state: dict[str, Snitch],
+        cluster_to_prometheus_mapping: dict[str, str],
+    ) -> Snitch:
+        if (snitch := current_state.get(cluster_name)) is not None:
+            return snitch
+        return Snitch(
+            name=cluster_to_prometheus_mapping.get(cluster_name),
+            check_in_url="",
+            status="",
+            href="",
+            token="",
+            alert_email=self.settings.alert_mail_addresses,
+            alert_type=self.settings.alert_type,
+            interval=self.settings.interval,
+            tags=self.settings.tags,
+            notes=self.settings.notes_link,
+        )
 
     def run(self, dry_run: bool) -> None:
         # Initialize deadmanssnitch_api
@@ -160,19 +203,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
                 self.settings.snitches_path,
                 cluster_to_prometheus_mapping,
             )
-
-            errors = []
-            # for each cluster reconcile against the current_state of it.
-            for cluster in clusters:
-                try:
-                    self.reconcile(
-                        dry_run,
-                        deadmanssnitch_api,
-                        cluster,
-                        snitch=current_state.get(cluster.name),
-                        cluster_to_prometheus_mapping=cluster_to_prometheus_mapping,
-                    )
-                except Exception as e:
-                    errors.append(e)
-            if errors:
-                raise ExceptionGroup("Errors occurred while reconcile", errors)
+            desired_state = self.get_desired_state(
+                clusters, current_state, cluster_to_prometheus_mapping
+            )
+            self.reconcile(dry_run, current_state, desired_state, deadmanssnitch_api)

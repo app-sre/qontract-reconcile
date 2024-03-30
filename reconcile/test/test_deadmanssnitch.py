@@ -27,7 +27,7 @@ def deadmanssnitch_api() -> MockerFixture:
 @pytest.fixture
 def deadmanssnitch_settings() -> DeadMansSnitchSettingsV1:
     settings = DeadMansSnitchSettingsV1(
-        alertEmail="test_email",
+        alertMailAddresses=["test_email"],
         notesLink="test_link",
         snitchesPath="test_snitches_path",
         tokenCreds=VaultSecretV1(path="test_path", field="test_field"),
@@ -137,7 +137,7 @@ def test_integration_for_create(
         "reconcile.deadmanssnitch.DeadMansSnitchApi.get_snitches"
     ).return_value = []
     mock_create_snitch = mocker.patch(
-        "reconcile.deadmanssnitch.DeadMansSnitchIntegration.create_snitch"
+        "reconcile.deadmanssnitch.DeadMansSnitchIntegration.create_snitchV2"
     )
     mock_create_snitch.return_value = None
     dms_integration.run(dry_run=False)
@@ -270,7 +270,7 @@ def test_integration_while_failed(
         "reconcile.deadmanssnitch.DeadMansSnitchApi.get_snitches"
     ).return_value = []
     mocker.patch(
-        "reconcile.deadmanssnitch.DeadMansSnitchIntegration.create_snitch",
+        "reconcile.deadmanssnitch.DeadMansSnitchIntegration.create_snitchV2",
         side_effect=Exception("mock vault"),
     )
     with pytest.raises(ExceptionGroup):

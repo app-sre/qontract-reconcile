@@ -22,7 +22,7 @@ DEFINITION = """
 query DeadMansSnitchSettings {
   settings: app_interface_settings_v1 {
     deadMansSnitchSettings {
-      alertEmail
+      alertMailAddresses
       notesLink
       snitchesPath
       tokenCreds {
@@ -50,7 +50,7 @@ class VaultSecretV1(ConfiguredBaseModel):
 
 
 class DeadMansSnitchSettingsV1(ConfiguredBaseModel):
-    alert_email: str = Field(..., alias="alertEmail")
+    alert_mail_addresses: list[str] = Field(..., alias="alertMailAddresses")
     notes_link: str = Field(..., alias="notesLink")
     snitches_path: str = Field(..., alias="snitchesPath")
     token_creds: VaultSecretV1 = Field(..., alias="tokenCreds")
