@@ -1092,17 +1092,16 @@ def cidr_blocks(ctx, managed: bool, for_cluster: int, mask: int) -> None:
         # TODO use networ-1 schema once the most recent VPCs for each type are migrated
         print("NOT IMPLEMENTED.")
     elif for_cluster:
-        print(f"INFO: You are reserving {2 ** (32 - mask)} network addresses")
         latest_declared_addr = ipaddress.ip_address(
             [item for item in cidrs if item["type"] == "cluster"][-1]["to"]
         )
         avail_addr = latest_declared_addr + 1
-        print(f"INFO: Latest available network address: {str(avail_addr)}")
         try:
             result_cidr_block = str(ipaddress.ip_network((avail_addr, mask)))
         except ValueError:
             print(f"Invalid CIDR Mask {mask} Provided.")
             sys.exit(1)
+        print(f"INFO: Latest available network address: {str(avail_addr)}")
         print(f"\nYou can use: {str(result_cidr_block)}")
     if not for_cluster:
         ctx.obj["options"]["sort"] = False
