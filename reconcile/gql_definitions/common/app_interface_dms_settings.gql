@@ -1,0 +1,18 @@
+# qenerate: plugin=pydantic_v1
+
+query DeadMansSnitchSettings {
+  settings: app_interface_settings_v1 {
+    deadMansSnitchSettings {
+      alertMailAddresses
+      notesLink
+      snitchesPath
+      tokenCreds {
+        path
+        field
+      }
+      tags
+      alertType
+      interval
+    }
+  }
+}

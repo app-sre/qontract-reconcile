@@ -49,6 +49,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   dashdotdb-slo                   Collects the ServiceSloMetrics from all the
                                   clusters and posts them to Dashdotdb.
   database-access-manager         Manage Databases and Database Users.
+  deadmanssnitch                  Automate Deadmanssnitch Creation/Deletion
   dynatrace-token-provider        Automatically provide dedicated Dynatrace
                                   tokens to management clusters
   email-sender                    Send email notifications to app-interface
