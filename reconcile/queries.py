@@ -1280,6 +1280,7 @@ OCM_QUERY = """
     environment {
       name
       url
+      labels
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
@@ -2048,6 +2049,7 @@ def get_external_users():
 APP_INTERFACE_SQL_QUERIES_QUERY = """
 {
   sql_queries: app_interface_sql_queries_v1 {
+    path
     name
     namespace
     {

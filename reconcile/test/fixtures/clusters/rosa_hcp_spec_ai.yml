@@ -25,6 +25,7 @@ ocm:
     accessTokenUrl: "https://sso.blah.com/token"
 spec:
   product: rosa
+  hypershift: true
   account:
     uid: '249118421612'
   provider: aws

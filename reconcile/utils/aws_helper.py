@@ -1,6 +1,10 @@
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, Protocol
 
+from reconcile.utils.disabled_integrations import (
+    HasDisableIntegrations,
+    integration_is_enabled,
+)
 from reconcile.utils.secret_reader import SecretReader
 
 
@@ -72,3 +76,27 @@ def get_account(accounts: Iterable[Account], account_name: str) -> Account:
 
 def get_region_from_availability_zone(availability_zone: str) -> str:
     return availability_zone[:-1]
+
+
+class AccountSSO(HasDisableIntegrations, Protocol):
+    name: str
+    uid: str
+    sso: bool | None
+
+
+def unique_sso_aws_accounts(
+    integration: str, accounts: Iterable[AccountSSO], account_name: str | None = None
+) -> list[AccountSSO]:
+    """Return a unique list of AWS accounts with SSO enabled."""
+    filtered_account = {}
+    for account in accounts:
+        if account_name and account.name != account_name:
+            continue
+        if not account.sso:
+            continue
+        if not integration_is_enabled(integration, account):
+            continue
+        if account.uid in filtered_account:
+            continue
+        filtered_account[account.uid] = account
+    return list(filtered_account.values())

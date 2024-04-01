@@ -1,0 +1,10 @@
+# qenerate: plugin=pydantic_v1
+
+fragment AWSAccountSSO on AWSAccount_v1 {
+  name
+  uid
+  sso
+  disable {
+    integrations
+  }
+}

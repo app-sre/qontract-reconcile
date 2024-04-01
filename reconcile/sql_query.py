@@ -281,9 +281,8 @@ def collect_queries(
         tf_resource_info = get_tf_resource_info(terrascript, namespace, identifier)
         if tf_resource_info is None:
             logging.error(
-                ["Could not find rds identifier %s in namespace %s"],
-                identifier,
-                namespace["name"],
+                f'[sql-query:{name} (path: {sql_query["path"]})] Could not find rds identifier {identifier} in namespace {namespace["name"]}. '
+                "If this is a removed read only instance, consider updating the identifier to the source replica or remove this file."
             )
             sys.exit(ExitCodes.ERROR)
 

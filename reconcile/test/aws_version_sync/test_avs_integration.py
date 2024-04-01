@@ -17,6 +17,7 @@ from reconcile.aws_version_sync.integration import (
 )
 from reconcile.aws_version_sync.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
+    MrData,
 )
 from reconcile.aws_version_sync.utils import prom_get
 from reconcile.gql_definitions.aws_version_sync.clusters import (
@@ -462,27 +463,31 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         external_resources_aws=external_resources_aws,
         external_resources_app_interface=external_resources_app_interface,
     )
-    merge_request_manager_mock.create_avs_merge_request.assert_has_calls(
+    merge_request_manager_mock.create_merge_request.assert_has_calls(
         [
             mocker.call(
-                namespace_file=version_update_ai.namespace_file,
-                provider=version_update_ai.provider,
-                provisioner_ref=version_update_ai.provisioner.path,
-                provisioner_uid=version_update_ai.provisioner.uid,
-                resource_provider=version_update_ai.resource_provider,
-                resource_identifier=version_update_ai.resource_identifier,
-                resource_engine=version_update_ai.resource_engine,
-                resource_engine_version="13.1",
+                MrData(
+                    namespace_file=version_update_ai.namespace_file,
+                    provider=version_update_ai.provider,
+                    provisioner_ref=version_update_ai.provisioner.path,
+                    provisioner_uid=version_update_ai.provisioner.uid,
+                    resource_provider=version_update_ai.resource_provider,
+                    resource_identifier=version_update_ai.resource_identifier,
+                    resource_engine=version_update_ai.resource_engine,
+                    resource_engine_version="13.1",
+                )
             ),
             mocker.call(
-                namespace_file=ec_version_update_ai.namespace_file,
-                provider=ec_version_update_ai.provider,
-                provisioner_ref=ec_version_update_ai.provisioner.path,
-                provisioner_uid=ec_version_update_ai.provisioner.uid,
-                resource_provider=ec_version_update_ai.resource_provider,
-                resource_identifier=ec_version_update_ai.resource_identifier,
-                resource_engine=ec_version_update_ai.resource_engine,
-                resource_engine_version="13.1",
+                MrData(
+                    namespace_file=ec_version_update_ai.namespace_file,
+                    provider=ec_version_update_ai.provider,
+                    provisioner_ref=ec_version_update_ai.provisioner.path,
+                    provisioner_uid=ec_version_update_ai.provisioner.uid,
+                    resource_provider=ec_version_update_ai.resource_provider,
+                    resource_identifier=ec_version_update_ai.resource_identifier,
+                    resource_engine=ec_version_update_ai.resource_engine,
+                    resource_engine_version="13.1",
+                )
             ),
         ],
         any_order=True,

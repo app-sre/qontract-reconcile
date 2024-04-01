@@ -14,11 +14,12 @@ from pydantic import (
 )
 
 from reconcile.aws_version_sync.merge_request_manager.merge_request import (
-    Parser,
     Renderer,
+    create_parser,
 )
 from reconcile.aws_version_sync.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
+    MrData,
 )
 from reconcile.aws_version_sync.utils import (
     get_values,
@@ -337,8 +338,6 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
         external_resources_aws: AwsExternalResources,
         external_resources_app_interface: AppInterfaceExternalResources,
     ) -> None:
-        # initialize the merge request manager
-        merge_request_manager.fetch_avs_managed_open_merge_requests()
         # housekeeping: close old/bad MRs
         merge_request_manager.housekeeping()
         diff = diff_iterables(
@@ -361,15 +360,17 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             # make mypy happy
             assert app_interface_resource.namespace_file
             assert app_interface_resource.provisioner.path
-            merge_request_manager.create_avs_merge_request(
-                namespace_file=app_interface_resource.namespace_file,
-                provider=app_interface_resource.provider,
-                provisioner_ref=app_interface_resource.provisioner.path,
-                provisioner_uid=app_interface_resource.provisioner.uid,
-                resource_provider=app_interface_resource.resource_provider,
-                resource_identifier=app_interface_resource.resource_identifier,
-                resource_engine=app_interface_resource.resource_engine,
-                resource_engine_version=aws_resource.resource_engine_version_string,
+            merge_request_manager.create_merge_request(
+                MrData(
+                    namespace_file=app_interface_resource.namespace_file,
+                    provider=app_interface_resource.provider,
+                    provisioner_ref=app_interface_resource.provisioner.path,
+                    provisioner_uid=app_interface_resource.provisioner.uid,
+                    resource_provider=app_interface_resource.resource_provider,
+                    resource_identifier=app_interface_resource.resource_identifier,
+                    resource_engine=app_interface_resource.resource_engine,
+                    resource_engine_version=aws_resource.resource_engine_version_string,
+                )
             )
 
     @defer
@@ -393,7 +394,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
         merge_request_manager = MergeRequestManager(
             vcs=vcs,
             renderer=Renderer(),
-            parser=Parser(),
+            parser=create_parser(),
             auto_merge_enabled=get_feature_toggle_state(
                 integration_name=f"{self.name}-allow-auto-merge-mrs", default=False
             ),

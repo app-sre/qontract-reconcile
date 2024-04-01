@@ -46,6 +46,8 @@ from reconcile.aus.base import (
     AbstractUpgradePolicy,
     AdvancedUpgradeSchedulerBaseIntegration,
     AdvancedUpgradeSchedulerBaseIntegrationParams,
+    addon_upgrade_policy_soonest_next_run,
+    init_addon_service_version,
 )
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.change_owners.bundle import NoOpFileDiffResolver
@@ -108,6 +110,7 @@ from reconcile.utils.keycloak import (
     SSOClient,
 )
 from reconcile.utils.mr.labels import (
+    AVS,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
@@ -128,6 +131,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from tools.cli_commands.cost_report.command import CostReportCommand
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
@@ -833,7 +837,6 @@ def upgrade_cluster_addon(
     ocm_org: str, cluster: str, addon: str, dry_run: bool, force: bool
 ) -> None:
     import reconcile.aus.ocm_addons_upgrade_scheduler_org as oauso
-    from reconcile.utils.ocm.upgrades import create_addon_upgrade_policy
 
     settings = queries.get_app_interface_settings()
     ocms = queries.get_openshift_cluster_managers()
@@ -885,14 +888,21 @@ def upgrade_cluster_addon(
         )
     print(["create", ocm_org, cluster, addon, ocm_addon_version])
     if not dry_run:
-        spec = {
-            "version": ocm_addon_version,
-            "schedule_type": "manual",
-            "addon_id": addon,
-            "cluster_id": ocm.cluster_ids[cluster],
-            "upgrade_type": "ADDON",
-        }
-        create_addon_upgrade_policy(ocm._ocm_client, ocm.cluster_ids[cluster], spec)
+        # detection addon service version
+        ocm_env_labels = json.loads(ocm_info["environment"].get("labels") or "{}")
+        addon_service_version = (
+            ocm_env_labels.get("feature_flag_addon_service_version") or "v2"
+        )
+        addon_service = init_addon_service_version(addon_service_version)
+
+        addon_service.create_addon_upgrade_policy(
+            ocm_api=ocm._ocm_client,
+            cluster_id=ocm.cluster_ids[cluster],
+            addon_id=ocm_addon["id"],
+            schedule_type="manual",
+            version=ocm_addon_version,
+            next_run=addon_upgrade_policy_soonest_next_run(),
+        )
 
 
 def has_cluster_account_access(cluster: dict[str, Any]):
@@ -1975,6 +1985,7 @@ def app_interface_review_queue(ctx) -> None:
             if (
                 SELF_SERVICEABLE in labels
                 and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE not in labels
+                and AVS not in labels
             ):
                 continue
 
@@ -2113,7 +2124,7 @@ def change_types(ctx) -> None:
         data.append({
             "name": ct.name,
             "description": ct.description,
-            "applicable to": f"{ct.context_type.value} {ct.context_schema or '' }",
+            "applicable to": f"{ct.context_type.value} {ct.context_schema or ''}",
             "# usages": usage_statistics[ct.name],
         })
     columns = ["name", "description", "applicable to", "# usages"]
@@ -2503,6 +2514,13 @@ def alerts(ctx, file_path):
     print_output(ctx.obj["options"], data, columns)
 
 
+@get.command()
+@click.pass_context
+def cost_report(ctx):
+    command = CostReportCommand.create()
+    print(command.execute())
+
+
 @root.group(name="set")
 @output
 @click.pass_context
@@ -2574,11 +2592,11 @@ def ls(ctx, integration):
     )
 
 
-@state.command()  # type: ignore
+@state.command(name="get")
 @click.argument("integration")
 @click.argument("key")
 @click.pass_context
-def get(ctx, integration, key):
+def state_get(ctx, integration, key):
     state = init_state(integration=integration)
     value = state.get(key)
     print(value)

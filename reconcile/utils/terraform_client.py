@@ -41,7 +41,7 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpecInventory,
 )
 
-ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
+ALLOWED_TF_SHOW_FORMAT_VERSION = "1.2"
 DATE_FORMAT = "%Y-%m-%d"
 PROVIDER_LOG_REGEX = (
     r""".*\s(?:\[INFO]|\[WARN]|\[ERROR])\s.+\s(?:\[WARN]|\[ERROR])\s.*"""
@@ -142,7 +142,8 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             TerraformSpec(name=name, working_dir=wd)
             for name, wd in self.working_dirs.items()
         ]
-        threaded.run(self.terraform_init, self.specs, self.thread_pool_size)
+        for spec in self.specs:
+            self.terraform_init(spec)
 
     @contextmanager
     def _terraform_log_file(

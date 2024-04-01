@@ -142,6 +142,7 @@ from terrascript.resource import (
 
 import reconcile.utils.aws_helper as awsh
 from reconcile import queries
+from reconcile.cli import TERRAFORM_VERSION
 from reconcile.github_org import get_default_config
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
@@ -384,7 +385,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.secret_reader = SecretReader(settings=settings)
         self.configs: dict[str, dict] = {}
         self.populate_configs(filtered_accounts)
-        self.versions = {a["name"]: a["providerVersion"] for a in filtered_accounts}
+        self.versions: dict[str, str] = {
+            a["name"]: a["providerVersion"] for a in filtered_accounts
+        }
         tss = {}
         locks = {}
         self.supported_regions = {}
@@ -398,7 +401,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     ts += provider.aws(
                         access_key=config["aws_access_key_id"],
                         secret_key=config["aws_secret_access_key"],
-                        version=self.versions.get(name),
                         region=region,
                         alias=region,
                         skip_region_validation=True,
@@ -409,20 +411,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             ts += provider.aws(
                 access_key=config["aws_access_key_id"],
                 secret_key=config["aws_secret_access_key"],
-                version=self.versions.get(name),
                 region=config["resourcesDefaultRegion"],
                 skip_region_validation=True,
                 default_tags=DEFAULT_TAGS,
             )
-
-            # the time provider can be removed if all AWS accounts
-            # upgrade to a provider version with this bug fix
-            # https://github.com/hashicorp/terraform-provider-aws/pull/20926
-            ts += time(version="0.9.1")
-
-            ts += provider.random(version="3.4.3")
-
-            ts += provider.template(version="2.2.0")
 
             ts += Terraform(
                 backend=TerrascriptClient.state_bucket_for_account(
@@ -449,6 +441,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "version": "2.2.0",
                     },
                 },
+                required_version=TERRAFORM_VERSION[0],
             )
             tss[name] = ts
             locks[name] = Lock()
@@ -464,8 +457,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.accounts = {a["name"]: a for a in filtered_accounts}
         self.uids = {a["name"]: a["uid"] for a in filtered_accounts}
+        # default_regions info is needed in populate_tf_resource_rds, even in disabled accounts
         self.default_regions = {
-            a["name"]: a["resourcesDefaultRegion"] for a in filtered_accounts
+            a["name"]: a["resourcesDefaultRegion"] for a in accounts
         }
         self.partitions = {
             a["name"]: a.get("partition") or "aws" for a in filtered_accounts
@@ -696,6 +690,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 group_name = aws_group["name"]
                 group_policies = aws_group["policies"]
                 account = aws_group["account"]
+                if account["sso"] is True:
+                    # AWS accounts with SSO enabled do not need IAM groups
+                    continue
                 account_name = account["name"]
                 if account_name not in groups:
                     groups[account_name] = {}
@@ -766,6 +763,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             for aws_group in aws_groups:
                 group_name = aws_group["name"]
                 account = aws_group["account"]
+                if account["sso"] is True:
+                    # AWS accounts with SSO enabled do not need IAM users
+                    continue
                 account_name = account["name"]
                 account_console_url = account["consoleUrl"]
 
@@ -848,15 +848,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     self.add_resource(account_name, tf_output)
 
             for user_policy in user_policies:
+                if user_policy["account"]["sso"] is True:
+                    # AWS accounts with SSO enabled do not need user policies
+                    continue
                 policy_name = user_policy["name"]
                 account_name = user_policy["account"]["name"]
-                account_uid = user_policy["account"]["uid"]
                 for user in users:
-                    # replace known keys with values
                     user_name = self._get_aws_username(user)
-                    policy = user_policy["policy"]
-                    policy = policy.replace("${aws:username}", user_name)
-                    policy = policy.replace("${aws:accountid}", account_uid)
 
                     # Ref: terraform aws_iam_policy
                     tf_iam_user = self.get_tf_iam_user(user_name)
@@ -864,7 +862,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     tf_aws_iam_policy = aws_iam_policy(
                         identifier,
                         name=identifier,
-                        policy=policy,
+                        policy=user_policy["policy"],
                     )
                     self.add_resource(account_name, tf_aws_iam_policy)
                     # Ref: terraform aws_iam_user_policy_attachment
@@ -934,7 +932,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     ts += provider.aws(
                         access_key=config["aws_access_key_id"],
                         secret_key=config["aws_secret_access_key"],
-                        version=self.versions.get(infra_account_name),
                         region=region,
                         alias=alias,
                         assume_role={"role_arn": assume_role},
@@ -945,7 +942,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     ts += provider.aws(
                         access_key=config["aws_access_key_id"],
                         secret_key=config["aws_secret_access_key"],
-                        version=self.versions.get(infra_account_name),
                         region=region,
                         alias=alias,
                         skip_region_validation=True,
@@ -1505,12 +1501,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # we want to allow an empty name, so we
         # only validate names which are not empty
-        if values.get("name") and not self.validate_db_name(values["name"]):
+        db_name = self._get_db_name_from_values(values)
+        if db_name and not self.validate_db_name(db_name):
             raise FetchResourceError(
                 f"[{account}] RDS name must contain 1 to 63 letters, "
                 + "numbers, or underscores. RDS name must begin with a "
                 + "letter. Subsequent characters can be letters, "
-                + f"underscores, or digits (0-9): {values['name']}"
+                + f"underscores, or digits (0-9): {db_name}"
             )
 
         if not values.get("apply_immediately"):
@@ -1677,6 +1674,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     replica_region = self.default_regions.get(account)
 
                 source_values = self.init_values(source_info)
+                db_name = self._get_db_name_from_values(source_values)
                 if replica_region == region:
                     # replica is in the same region as source
                     values["replicate_source_db"] = replica_source
@@ -1776,7 +1774,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 if sns_topic_name.startswith("arn:"):
                     raise ValueError("destination should not be an arn")
                 e_n["sns_topic"] = "${aws_sns_topic" + "." + sns_topic_name + ".arn}"
-                e_n["source_ids"] = ["${aws_db_instance" + "." + identifier + ".id}"]
+                e_n["source_ids"] = [identifier]
                 source_type = e_n.get("source_type", "all")
                 e_n_identifier = (
                     f"{sns_topic_name}_{source_type}_aws_db_event_subscription"
@@ -1803,7 +1801,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(Output(output_name, value=output_value))
         # db.name
         output_name = output_prefix + "__db_name"
-        output_value = output_resource_db_name or values.get("name", "")
+        output_value = output_resource_db_name or db_name
         tf_resources.append(Output(output_name, value=output_value))
         # only set db user/password if not a replica or creation from snapshot
         if self._db_needs_auth(values):
@@ -1847,6 +1845,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if spec.identifier == source and spec.provider == provider:
                 return spec
         return None
+
+    def _get_db_name_from_values(self, values: dict) -> str:
+        return values.get("name") or values.get("db_name") or ""
 
     @staticmethod
     def _region_from_availability_zone(az):
@@ -2573,18 +2574,29 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.add_resources(account, tf_resources)
 
+    def populate_iam_policy(self, account: str, name: str, policy: dict[str, Any]):
+        tf_aws_iam_policy = aws_iam_policy(
+            f"{account}-{name}", name=name, policy=json.dumps(policy)
+        )
+        self.add_resource(account, tf_aws_iam_policy)
+
     def populate_saml_iam_role(
         self,
         account: str,
         name: str,
         saml_provider_name: str,
-        policies: list[str],
+        aws_managed_policies: list[str],
+        customer_managed_policies: list[str] | None = None,
         max_session_duration_hours: int = 1,
     ) -> None:
         """Manage the an IAM role needed for SAML authentication."""
         managed_policy_arns = [
-            f"arn:{self._get_partition(account)}:" + f"iam::aws:policy/{policy}"
-            for policy in policies
+            f"arn:{self._get_partition(account)}:iam::aws:policy/{policy}"
+            for policy in aws_managed_policies
+        ]
+        managed_policy_arns += [
+            f"arn:{self._get_partition(account)}:iam::{self.uids[account]}:policy/{policy}"
+            for policy in customer_managed_policies or []
         ]
         assume_role_policy = {
             "Version": "2012-10-17",
@@ -2605,7 +2617,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
         role_tf_resource = aws_iam_role(
             f"{account}-{name}",
-            name=f"{self.uids[account]}-{name}",
+            name=name,
             assume_role_policy=json.dumps(assume_role_policy),
             managed_policy_arns=managed_policy_arns,
             max_session_duration=max_session_duration_hours * 3600,
@@ -4045,6 +4057,33 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if val is not None:
                 values[key] = val
 
+        if self.versions and not self.versions.get(
+            spec.provisioner_name, ""
+        ).startswith("3"):
+            if spec.provider == "rds":
+                if db_name := values.pop("name", None):
+                    values["db_name"] = db_name
+                if values.get("replica_source"):
+                    values.pop("db_name", None)
+            elif spec.provider == "elasticache":
+                if description := values.pop("replication_group_description", None):
+                    values["description"] = description
+                if num_cache_clusters := values.pop("number_cache_clusters", None):
+                    values["num_cache_clusters"] = num_cache_clusters
+                if cluster_mode := values.pop("cluster_mode", {}):
+                    for k, v in cluster_mode.items():
+                        values[k] = v
+                values.pop("availability_zones", None)
+            elif spec.provider == "msk":
+                if ebs_volume_size := values.get("broker_node_group_info", {}).pop(
+                    "ebs_volume_size", None
+                ):
+                    values["broker_node_group_info"].setdefault(
+                        "storage_info", {}
+                    ).setdefault("ebs_storage_info", {})[
+                        "volume_size"
+                    ] = ebs_volume_size
+
         return values
 
     @staticmethod
@@ -5433,9 +5472,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 override
             )
 
-        asg_value["tags"] = [
+        tags = [
             {"key": k, "value": v, "propagate_at_launch": True} for k, v in tags.items()
         ]
+        if self.versions.get(account, "").startswith("3"):
+            asg_value["tags"] = tags
+        else:
+            asg_value["tag"] = tags
         asg_resource = aws_autoscaling_group(identifier, **asg_value)
         tf_resources.append(asg_resource)
 

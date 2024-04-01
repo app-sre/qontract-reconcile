@@ -6,6 +6,7 @@ from typing import (
     Any,
     Callable,
 )
+from unittest.mock import ANY
 
 import pytest
 from dateutil import parser
@@ -31,12 +32,15 @@ from reconcile.aus.models import (
 )
 from reconcile.test.ocm.aus.fixtures import (
     build_addon_upgrade_spec,
+    build_cluster_health,
     build_cluster_upgrade_spec,
+    build_healthy_cluster_health,
     build_organization,
     build_organization_upgrade_spec,
     build_upgrade_policy,
 )
 from reconcile.test.ocm.fixtures import build_ocm_cluster
+from reconcile.utils.ocm.addons import AddonService
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -107,6 +111,7 @@ def test_calculate_diff_no_lock(
                 build_upgrade_policy(
                     workloads=["workload1"], soak_days=0, mutexes=["mutex1"]
                 ),
+                build_cluster_health(),
             ),
         ],
     )
@@ -147,8 +152,8 @@ def test_calculate_diff_locked_out(
     )
     org_upgrade_spec = build_organization_upgrade_spec(
         specs=[
-            (cluster_1, upgrade_policy_spec),
-            (cluster_2, upgrade_policy_spec),
+            (cluster_1, upgrade_policy_spec, build_cluster_health()),
+            (cluster_2, upgrade_policy_spec, build_cluster_health()),
         ],
     )
     diffs = base.calculate_diff(current_state, org_upgrade_spec, ocm_api, VersionData())
@@ -177,8 +182,8 @@ def test_calculate_diff_inter_lock(
     )
     org_upgrade_spec = build_organization_upgrade_spec(
         specs=[
-            (cluster_1, upgrade_policy_spec),
-            (cluster_2, upgrade_policy_spec),
+            (cluster_1, upgrade_policy_spec, build_cluster_health()),
+            (cluster_2, upgrade_policy_spec, build_cluster_health()),
         ],
     )
     diffs = base.calculate_diff([], org_upgrade_spec, ocm_api, VersionData())
@@ -206,6 +211,7 @@ def test_upgradeable_org_version_blocked(cluster_1: OCMCluster) -> None:
         org=build_organization(blocked_versions=[".*"]),
         cluster=cluster_1,
         upgradePolicy=build_upgrade_policy(workloads=["workload1"], soak_days=0),
+        health=build_healthy_cluster_health(),
     )
     x = base.upgradeable_version(upgrade_spec, VersionData(), None)
     assert x is None
@@ -218,6 +224,7 @@ def test_upgradeable_cluster_version_blocked(cluster_1: OCMCluster) -> None:
         upgradePolicy=build_upgrade_policy(
             workloads=["workload1"], soak_days=0, blocked_versions=[".*"]
         ),
+        health=build_healthy_cluster_health(),
     )
     x = base.upgradeable_version(upgrade_spec, VersionData(), None)
     assert x is None
@@ -230,6 +237,7 @@ def test_upgradeable_cluster_and_org_version_blocked(cluster_1: OCMCluster) -> N
         upgradePolicy=build_upgrade_policy(
             workloads=["workload1"], soak_days=0, blocked_versions=["4.13.0"]
         ),
+        health=build_healthy_cluster_health(),
     )
     upgrade_spec.cluster.version.available_upgrades = ["4.12.5"]
     assert base.upgradeable_version(upgrade_spec, VersionData(), None) is None
@@ -246,6 +254,7 @@ def test_upgradeable_version_no_block(cluster_1: OCMCluster) -> None:
         org=build_organization(),
         cluster=cluster_1,
         upgradePolicy=build_upgrade_policy(workloads=["workload1"], soak_days=0),
+        health=build_healthy_cluster_health(),
     )
     assert "4.12.19" == base.upgradeable_version(upgrade_spec, VersionData(), None)
 
@@ -562,7 +571,14 @@ def control_plane_upgrade_policy(cluster_2: OCMCluster) -> ControlPlaneUpgradePo
 
 
 @pytest.fixture
-def addon_upgrade_policy(cluster_1: OCMCluster) -> AddonUpgradePolicy:
+def addon_service(mocker: MockerFixture) -> AddonService:
+    return mocker.MagicMock(spec=AddonService, autospec=True)
+
+
+@pytest.fixture
+def addon_upgrade_policy(
+    cluster_1: OCMCluster, addon_service: AddonService
+) -> AddonUpgradePolicy:
     return AddonUpgradePolicy(
         id="test-policy-id",
         cluster=cluster_1,
@@ -570,6 +586,7 @@ def addon_upgrade_policy(cluster_1: OCMCluster) -> AddonUpgradePolicy:
         version="1.2.3",
         next_run="soon",
         addon_id="test-addon",
+        addon_service=addon_service,
     )
 
 
@@ -690,47 +707,40 @@ def test_policy_handler_delete_control_plane_upgrade(
 def test_policy_handler_create_addon_upgrade(
     addon_upgrade_policy: AddonUpgradePolicy,
     ocm_api: OCMBaseClient,
-    mocker: MockerFixture,
+    addon_service: AddonService,
 ) -> None:
-    create_addon_upgrade_policy_mock = mocker.patch.object(
-        base, "create_addon_upgrade_policy", autospec=True
-    )
     handler = base.UpgradePolicyHandler(
         policy=addon_upgrade_policy,
         action="create",
     )
     base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
-    create_addon_upgrade_policy_mock.assert_called_once_with(
-        ocm_api,
-        addon_upgrade_policy.cluster.id,
-        {
-            "version": addon_upgrade_policy.version,
-            "schedule_type": addon_upgrade_policy.schedule_type,
-            "cluster_id": addon_upgrade_policy.cluster.id,
-            "upgrade_type": "ADDON",
-            "addon_id": addon_upgrade_policy.addon_id,
-        },
+    addon_service.create_addon_upgrade_policy.assert_called_once_with(  # type: ignore
+        ocm_api=ocm_api,
+        addon_id=addon_upgrade_policy.addon_id,
+        cluster_id=addon_upgrade_policy.cluster.id,
+        schedule_type="manual",
+        version=addon_upgrade_policy.version,
+        next_run=ANY,
     )
+    addon_service.delete_addon_upgrade_policy.assert_not_called()  # type: ignore
 
 
 def test_policy_handler_delete_addon_upgrade(
     addon_upgrade_policy: AddonUpgradePolicy,
     ocm_api: OCMBaseClient,
-    mocker: MockerFixture,
+    addon_service: AddonService,
 ) -> None:
-    delete_addon_upgrade_policy_mock = mocker.patch.object(
-        base, "delete_addon_upgrade_policy", autospec=True
-    )
     handler = base.UpgradePolicyHandler(
         policy=addon_upgrade_policy,
         action="delete",
     )
     base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
-    delete_addon_upgrade_policy_mock.assert_called_once_with(
-        ocm_api,
-        addon_upgrade_policy.cluster.id,
-        addon_upgrade_policy.id,
+    addon_service.delete_addon_upgrade_policy.assert_called_once_with(  # type: ignore
+        ocm_api=ocm_api,
+        cluster_id=addon_upgrade_policy.cluster.id,
+        policy_id=addon_upgrade_policy.id,
     )
+    addon_service.create_addon_upgrade_policy.assert_not_called()  # type: ignore
 
 
 #

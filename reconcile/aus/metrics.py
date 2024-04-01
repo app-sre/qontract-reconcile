@@ -20,6 +20,9 @@ UPGRADE_STARTED_METRIC_VALUE = -2.0
 UPGRADE_LONG_RUNNING_METRIC_VALUE = -3.0
 UPGRADE_BLOCKED_METRIC_VALUE = -4.0
 
+CLUSTER_HEALTH_HEALTHY_METRIC_VALUE = 1.0
+CLUSTER_HEALTH_UNHEALTHY_METRIC_VALUE = 0.0
+
 
 class AUSOCMEnvironmentError(AUSBaseMetric, CounterMetric):
     "Error metric for failed OCM environment interactions"
@@ -40,6 +43,17 @@ class AUSClusterVersionRemainingSoakDaysGauge(AUSBaseMetric, GaugeMetric):
     @classmethod
     def name(cls) -> str:
         return "aus_cluster_version_remaining_soak_days"
+
+
+class AUSClusterHealthStateGauge(AUSBaseMetric, GaugeMetric):
+    "The health state of a cluster determined by AUS cluster health checks.1 is healthy, 0 is unhealthy."
+
+    cluster_uuid: str
+    health_source: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "aus_cluster_health_state"
 
 
 class AUSAddonVersionRemainingSoakDaysGauge(AUSClusterVersionRemainingSoakDaysGauge):

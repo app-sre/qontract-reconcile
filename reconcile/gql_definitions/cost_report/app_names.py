@@ -19,18 +19,11 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query LdapGroupsAwsGroupQuery {
-  aws_groups: awsgroups_v1 {
+query AppNames {
+  apps: apps_v1 {
     name
-    account {
+    parentApp {
       name
-      uid
-      sso
-    }
-    roles {
-      users {
-        org_username
-      }
     }
   }
 }
@@ -43,31 +36,20 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
-class AWSAccountV1(ConfiguredBaseModel):
+class AppV1_AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    uid: str = Field(..., alias="uid")
-    sso: Optional[bool] = Field(..., alias="sso")
 
 
-class UserV1(ConfiguredBaseModel):
-    org_username: str = Field(..., alias="org_username")
-
-
-class RoleV1(ConfiguredBaseModel):
-    users: list[UserV1] = Field(..., alias="users")
-
-
-class AWSGroupV1(ConfiguredBaseModel):
+class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    account: AWSAccountV1 = Field(..., alias="account")
-    roles: Optional[list[RoleV1]] = Field(..., alias="roles")
+    parent_app: Optional[AppV1_AppV1] = Field(..., alias="parentApp")
 
 
-class LdapGroupsAwsGroupQueryQueryData(ConfiguredBaseModel):
-    aws_groups: Optional[list[AWSGroupV1]] = Field(..., alias="aws_groups")
+class AppNamesQueryData(ConfiguredBaseModel):
+    apps: Optional[list[AppV1]] = Field(..., alias="apps")
 
 
-def query(query_func: Callable, **kwargs: Any) -> LdapGroupsAwsGroupQueryQueryData:
+def query(query_func: Callable, **kwargs: Any) -> AppNamesQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -80,7 +62,7 @@ def query(query_func: Callable, **kwargs: Any) -> LdapGroupsAwsGroupQueryQueryDa
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        LdapGroupsAwsGroupQueryQueryData: queried data parsed into generated classes
+        AppNamesQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return LdapGroupsAwsGroupQueryQueryData(**raw_data)
+    return AppNamesQueryData(**raw_data)

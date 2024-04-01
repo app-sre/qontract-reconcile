@@ -50,6 +50,7 @@ query Integrations {
         sleepDurationSecs
         state
         storage
+        storageClassName
         trigger
         cron
         dashdotdb

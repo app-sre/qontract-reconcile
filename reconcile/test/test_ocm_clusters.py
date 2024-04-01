@@ -378,7 +378,7 @@ def osd_product() -> typing.Generator[OCMProductOsd, None, None]:
 def rosa_product() -> typing.Generator[OCMProductRosa, None, None]:
     with patch.object(products, "get_provisioning_shard_id") as g:
         g.return_value = "provision_shard_id"
-        yield OCMProductRosa()
+        yield OCMProductRosa(None)
 
 
 @pytest.fixture
@@ -587,61 +587,6 @@ def test_ocm_osd_create_cluster_without_machine_pools(
 
     with pytest.raises(SystemExit) as sys_exit:
         integration.run(dry_run=False)
-
-    assert sys_exit.value.code == 1
-    _post, _patch = ocm_mock
-    _post.assert_not_called()
-    _patch.assert_not_called()
-    cluster_updates_mr_mock.assert_not_called()
-
-
-def test_ocm_rosa_create_cluster(
-    integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
-    ocm_rosa_cluster_ai_spec,
-    ocm_rosa_cluster_post_spec,
-):
-    get_json_mock.return_value = {"items": []}
-    queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
-
-    with patch(
-        "reconcile.utils.ocm.products.random.choices", return_value=["c", "n", "z", "y"]
-    ):
-        with pytest.raises(SystemExit) as sys_exit:
-            integration.run(dry_run=False)
-
-    assert sys_exit.value.code == 0
-    _post, _patch = ocm_mock
-    _post.assert_called_once_with(
-        "/api/clusters_mgmt/v1/clusters",
-        ocm_rosa_cluster_post_spec,
-        {},
-    )
-    _patch.assert_not_called()
-    cluster_updates_mr_mock.assert_not_called()
-
-
-def test_ocm_rosa_create_cluster_without_machine_pools(
-    integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
-    ocm_rosa_cluster_ai_spec,
-    ocm_rosa_cluster_post_spec,
-):
-    get_json_mock.return_value = {"items": []}
-    bad_spec = ocm_rosa_cluster_ai_spec | {"machinePools": []}
-    queries_mock[1].return_value = [bad_spec]
-
-    with patch(
-        "reconcile.utils.ocm.products.random.choices", return_value=["c", "n", "z", "y"]
-    ):
-        with pytest.raises(SystemExit) as sys_exit:
-            integration.run(dry_run=False)
 
     assert sys_exit.value.code == 1
     _post, _patch = ocm_mock

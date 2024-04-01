@@ -1,3 +1,4 @@
+import json
 import sys
 from collections.abc import (
     Callable,
@@ -7,7 +8,7 @@ from typing import (
     Any,
 )
 
-from pydantic import validator
+from pydantic import BaseModel, root_validator, validator
 
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import (
     AWSAccountV1,
@@ -15,15 +16,13 @@ from reconcile.gql_definitions.aws_saml_roles.aws_accounts import (
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import (
     query as aws_accounts_query,
 )
-from reconcile.gql_definitions.aws_saml_roles.aws_groups import (
-    AWSGroupV1,
-)
-from reconcile.gql_definitions.aws_saml_roles.aws_groups import (
-    query as aws_groups_query,
+from reconcile.gql_definitions.aws_saml_roles.roles import (
+    query as roles_query,
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.aws_helper import unique_sso_aws_accounts
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.runtime.integration import (
@@ -54,6 +53,82 @@ class AwsSamlRolesIntegrationParams(PydanticRunParams):
         raise ValueError("max_session_duration_hours must be between 1 and 12 hours")
 
 
+class CustomPolicy(BaseModel):
+    name: str
+    policy: dict[str, Any]
+
+    @validator("name")
+    def name_size(cls, v: str) -> str:
+        """Check the policy name size.
+
+        See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html
+        """
+        if len(v) > 128:
+            raise ValueError(
+                f"The policy name '{v}' is too long. The AWS policy name must be 128 characters or less."
+            )
+        return v
+
+    @validator("policy")
+    def policy_size(cls, v: dict[str, Any]) -> dict[str, Any]:
+        """Check the policy size.
+
+        See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html
+        """
+        if len(json.dumps(v, separators=(",", ":"))) > 6144:
+            raise ValueError(
+                f"The policy document '{v}' is too large. AWS policy documents must be 6144 characters or less (w/o white spaces)."
+            )
+        return v
+
+
+class ManagedPolicy(BaseModel):
+    name: str
+
+
+class AwsRole(BaseModel):
+    name: str
+    account: str
+    custom_policies: list[CustomPolicy]
+    managed_policies: list[ManagedPolicy]
+
+    @validator("name")
+    def name_size(cls, v: str) -> str:
+        """Check the role name size.
+
+        See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html
+        """
+        if len(v) > 64:
+            raise ValueError(
+                f"The role name '{v}' is too long. The AWS role name must be 64 characters or less."
+            )
+        return v
+
+    @root_validator
+    def validate_policies(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Check the policies.
+
+        See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html
+        """
+        custom_policies = values.get("custom_policies", [])
+        managed_policies = values.get("managed_policies", [])
+        if len(custom_policies) + len(managed_policies) > 20:
+            raise ValueError(
+                f"The role '{values['name']}' has too many policies. AWS roles can have at most 20 policies (via quota increase). Please consider consolidating the policies."
+            )
+        cp_names = [cp.name for cp in custom_policies]
+        if len(set(cp_names)) != len(cp_names):
+            raise ValueError(
+                f"The role '{values['name']}' has duplicate custom policies."
+            )
+        mp_names = [mp.name for mp in managed_policies]
+        if len(set(mp_names)) != len(mp_names):
+            raise ValueError(
+                f"The role '{values['name']}' has duplicate managed policies."
+            )
+        return values
+
+
 class AwsSamlRolesIntegration(
     QontractReconcileIntegration[AwsSamlRolesIntegrationParams]
 ):
@@ -70,7 +145,7 @@ class AwsSamlRolesIntegration(
         if not query_func:
             query_func = gql.get_api().query
         return {
-            "aws_groups": [c.dict() for c in self.get_aws_groups(query_func)],
+            "roles": [c.dict() for c in self.get_roles(query_func)],
         }
 
     def get_aws_accounts(
@@ -85,40 +160,69 @@ class AwsSamlRolesIntegration(
             and (not account_name or account.name == account_name)
         ]
 
-    def get_aws_groups(
+    def get_roles(
         self, query_func: Callable, account_name: str | None = None
-    ) -> list[AWSGroupV1]:
-        """Get all AWS groups with SSO enabled."""
-        data = aws_groups_query(query_func)
-        return [
-            group
-            for group in data.aws_groups or []
-            if integration_is_enabled(self.name, group.account)
-            and (not account_name or group.account.name == account_name)
-            and group.account.sso
-            and group.roles
-            and group.policies
-            and any(role.users for role in group.roles)
-        ]
+    ) -> list[AwsRole]:
+        """Return all roles with AWS account relations."""
+        aws_roles = []
+        for role in roles_query(query_func).roles or []:
+            if not role.aws_groups and not role.user_policies:
+                continue
 
-    def populate_saml_iam_roles(
-        self, ts: TerrascriptClient, aws_groups: Iterable[AWSGroupV1]
-    ) -> None:
-        """Populate the SAML IAM roles."""
-        for group in aws_groups:
-            # aws groups without policies are filtered out by the query
-            # duplicated policies aren't allowed in the same role
-            policies = group.policies or []
-            if len(policies) != len(set(policies)):
-                raise ValueError(
-                    f"Group {group.name} has duplicated policies: {policies}"
+            user_policies = role.user_policies or []
+            aws_groups = role.aws_groups or []
+            for sso_aws_account in unique_sso_aws_accounts(
+                integration=self.name,
+                accounts=[i.account for i in user_policies + aws_groups],
+                account_name=account_name,
+            ):
+                # AWS limits are checked via pydantic validators
+                custom_policies = [
+                    CustomPolicy(name=user_policy.name, policy=user_policy.policy)
+                    for user_policy in user_policies
+                    if user_policy.account.uid == sso_aws_account.uid
+                ]
+                managed_policies = [
+                    ManagedPolicy(name=p)
+                    for aws_group in aws_groups
+                    if aws_group.account.uid == sso_aws_account.uid
+                    for p in aws_group.policies or []
+                ]
+
+                aws_roles.append(
+                    AwsRole(
+                        name=f"{sso_aws_account.uid}-{role.name}",
+                        account=sso_aws_account.name,
+                        custom_policies=custom_policies,
+                        managed_policies=managed_policies,
+                    )
                 )
 
+        return aws_roles
+
+    def populate_saml_iam_roles(
+        self, ts: TerrascriptClient, aws_roles: Iterable[AwsRole]
+    ) -> None:
+        """Populate the SAML IAM roles."""
+        unique_policies = {
+            (role.account, custom_policy.name): custom_policy.policy
+            for role in aws_roles
+            for custom_policy in role.custom_policies
+        }
+        # User policies are unique per account
+        for (account, policy), policy_doc in unique_policies.items():
+            ts.populate_iam_policy(
+                account=account,
+                name=policy,
+                policy=policy_doc,
+            )
+        for role in aws_roles:
             ts.populate_saml_iam_role(
-                account=group.account.name,
-                name=group.name,
+                account=role.account,
+                name=role.name,
                 saml_provider_name=self.params.saml_idp_name,
-                policies=policies,
+                aws_managed_policies=[p.name for p in role.managed_policies],
+                customer_managed_policies=[p.name for p in role.custom_policies],
                 max_session_duration_hours=self.params.max_session_duration_hours,
             )
 
@@ -130,9 +234,7 @@ class AwsSamlRolesIntegration(
             gql_api.query, account_name=self.params.account_name
         )
         aws_accounts_dict = [account.dict(by_alias=True) for account in aws_accounts]
-        aws_groups = self.get_aws_groups(
-            gql_api.query, account_name=self.params.account_name
-        )
+        aws_roles = self.get_roles(gql_api.query, account_name=self.params.account_name)
 
         ts = TerrascriptClient(
             self.name.replace("-", "_"),
@@ -141,7 +243,7 @@ class AwsSamlRolesIntegration(
             aws_accounts_dict,
             secret_reader=self.secret_reader,
         )
-        self.populate_saml_iam_roles(ts, aws_groups)
+        self.populate_saml_iam_roles(ts, aws_roles)
         working_dirs = ts.dump(print_to_file=self.params.print_to_file)
 
         if self.params.print_to_file:

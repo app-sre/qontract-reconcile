@@ -15,6 +15,7 @@ from typing import (
 
 import click
 import sentry_sdk
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 from reconcile.status import (
     ExitCodes,
@@ -43,7 +44,7 @@ from reconcile.utils.runtime.runner import (
 )
 from reconcile.utils.unleash import get_feature_toggle_state
 
-TERRAFORM_VERSION = ["0.13.7"]
+TERRAFORM_VERSION = ["1.5.7"]
 TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 
 OC_VERSIONS = ["4.12.46", "4.10.15"]
@@ -66,7 +67,23 @@ def before_breadcrumb(crumb, hint):
 
 # Enable Sentry
 if os.getenv("SENTRY_DSN"):
-    sentry_sdk.init(os.environ["SENTRY_DSN"], before_breadcrumb=before_breadcrumb)
+    match os.environ.get("SENTRY_EVENT_LEVEL", "CRITICAL").upper():
+        case "CRITICAL":
+            sentry_event_level = logging.CRITICAL
+        case "ERROR":
+            sentry_event_level = logging.ERROR
+        case _:
+            raise ValueError(
+                "Invalid value for SENTRY_EVENT_LEVEL. Must be CRITICAL or ERROR."
+            )
+
+    sentry_sdk.init(
+        os.environ["SENTRY_DSN"],
+        before_breadcrumb=before_breadcrumb,
+        integrations=[
+            LoggingIntegration(event_level=sentry_event_level),
+        ],
+    )
 
 
 def config_file(function):
@@ -928,6 +945,85 @@ def aws_saml_roles(
                 saml_idp_name=saml_idp_name,
                 max_session_duration_hours=max_session_duration_hours,
                 account_name=account_name,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
+@integration.command(short_help="Create and manage AWS accounts.")
+@account_name
+@click.option(
+    "--flavor",
+    help="Flavor of the AWS account manager.",
+    required=True,
+    default="app-interface-commercial",
+)
+@click.option(
+    "--tag",
+    "-t",
+    type=(str, str),
+    multiple=True,
+    default=[("managed-by", "app-interface")],
+)
+@click.option(
+    "--initial-user-name",
+    help="The name of the initial user to be created in the account.",
+    required=True,
+    default="terraform",
+)
+@click.option(
+    "--initial-user-policy-arn",
+    help="The ARN of the policy that is attached to the initial user.",
+    required=True,
+    default="arn:aws:iam::aws:policy/AdministratorAccess",
+)
+@click.option(
+    "--initial-user-secret-vault-path",
+    help="The path in Vault to store the initial user secret. Python format string with access to 'account_name' attribute.",
+    required=True,
+    default="app-sre/creds/terraform/{account_name}/config",
+)
+@click.option(
+    "--account-tmpl-resource",
+    help="Resource name of the account template-collection template in the app-interface.",
+    required=True,
+    default="/aws-account-manager/account-tmpl.yml",
+)
+@click.option(
+    "--template-collection-root-path",
+    help="File path to the root directory to store new account template-collections.",
+    required=True,
+    default="data/templating/collections/aws-account",
+)
+@click.pass_context
+def aws_account_manager(
+    ctx,
+    account_name,
+    flavor,
+    tag,
+    initial_user_name,
+    initial_user_policy_arn,
+    initial_user_secret_vault_path,
+    account_tmpl_resource,
+    template_collection_root_path,
+):
+    from reconcile.aws_account_manager.integration import (
+        AwsAccountMgmtIntegration,
+        AwsAccountMgmtIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=AwsAccountMgmtIntegration(
+            AwsAccountMgmtIntegrationParams(
+                account_name=account_name,
+                flavor=flavor,
+                default_tags=dict(tag),
+                initial_user_name=initial_user_name,
+                initial_user_policy_arn=initial_user_policy_arn,
+                initial_user_secret_vault_path=initial_user_secret_vault_path,
+                account_tmpl_resource=account_tmpl_resource,
+                template_collection_root_path=template_collection_root_path,
             )
         ),
         ctx=ctx.obj,
@@ -2184,7 +2280,7 @@ def terraform_tgw_attachments(
         print_to_file,
         enable_deletion,
         thread_pool_size,
-        account_name,
+        account_name=account_name,
     )
 
 
@@ -2452,6 +2548,7 @@ def ocm_addons_upgrade_scheduler_org(
     run_class_integration(
         integration=OCMAddonsUpgradeSchedulerOrgIntegration(
             AdvancedUpgradeSchedulerBaseIntegrationParams(
+                ocm_environment="ocm-integration",
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
             )

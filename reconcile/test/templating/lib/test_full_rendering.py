@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from reconcile.templating.rendering import FullRenderer, TemplateData
+from reconcile.templating.lib.rendering import FullRenderer, TemplateData
 from reconcile.utils.secret_reader import SecretReader
 
 

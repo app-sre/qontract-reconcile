@@ -12,6 +12,7 @@ from unittest.mock import (
 import pytest
 from terrascript import Terrascript
 
+from reconcile.cli import TERRAFORM_VERSION
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.terraform.config import TerraformS3BackendConfig
@@ -276,6 +277,7 @@ def test_create_cloudflare_resources_terraform_json(
                     "version": "3.18",
                 }
             },
+            "required_version": TERRAFORM_VERSION[0],
             "backend": {
                 "s3": {
                     "access_key": "access-key",

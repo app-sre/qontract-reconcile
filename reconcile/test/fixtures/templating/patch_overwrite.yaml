@@ -15,4 +15,5 @@ current:
   version: foo
 
 expected: |
+  ---
   version: 123
