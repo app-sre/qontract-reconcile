@@ -1021,8 +1021,26 @@ def network_reservations(ctx) -> None:
 
 
 @get.command()
+@click.option(
+    "--managed",
+    help="Only consider managed network, i.e. network reserved with a network-1 yaml in App Interface",
+    type=bool,
+    default=False
+)
+@click.option(
+    "--for-cluster",
+    help="Get the latest available CIDR block for new cluster. A decimal number between 1~32.",
+    type=bool,
+    default=False
+)
+@click.option(
+    "--mask",
+    help="Mask for the latest available CIDR block for AWS resources. A decimal number between 1~32.",
+    type=int,
+    default=24
+)
 @click.pass_context
-def cidr_blocks(ctx) -> None:
+def cidr_blocks(ctx, managed: bool, for_cluster: int, mask: int) -> None:
     import ipaddress
 
     from reconcile.typed_queries.aws_vpcs import get_aws_vpcs
@@ -1070,8 +1088,24 @@ def cidr_blocks(ctx) -> None:
 
     cidrs.sort(key=lambda item: ipaddress.ip_network(item["cidr"]))
 
-    ctx.obj["options"]["sort"] = False
-    print_output(ctx.obj["options"], cidrs, columns)
+    if managed:
+        # TODO use networ-1 schema once the most recent VPCs for each type are migrated
+        print("NOT IMPLEMENTED.")
+    else:
+        if for_cluster:
+            print(f"INFO: You are reserving {2**(32-mask)} network addresses")
+            latest_declared_addr = ipaddress.ip_address([item for item in cidrs if item["type"]=="cluster"][-1]["to"])
+            avail_addr = latest_declared_addr + 1
+            print(f"INFO: Latest available network address: {str(avail_addr)}")
+            try: 
+                result_cidr_block = str(ipaddress.ip_network((avail_addr, mask)))
+            except  ValueError as e:
+                print(f"Invalid CIDR Mask {mask} Provided.")
+                sys.exit(1)
+            print(f"\nYou can use: {str(result_cidr_block)}")
+    if not for_cluster: 
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], cidrs, columns)
 
 
 def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
