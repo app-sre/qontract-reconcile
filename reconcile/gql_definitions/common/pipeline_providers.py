@@ -39,6 +39,7 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
 fragment PipelineProviderRetention on PipelinesProviderRetention_v1 {
     days
     minimum
+    maximum
 }
 
 fragment ResourceLimitsRequirements on ResourceLimitsRequirements_v1 {
