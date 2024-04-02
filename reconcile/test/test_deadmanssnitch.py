@@ -103,10 +103,6 @@ def test_get_current_state(
         deadmanssnitch_api=deadmanssnitch_api,
         clusters=clusters,
         snitch_secret_path="test_path",
-        cluster_to_prometheus_mapping={
-            "test_cluster_1": "prometheus.test_cluster_1.net",
-            "test_cluster_2": "https://prometheus.test_cluster_2.net",
-        },
     )
     assert current_state["test_cluster_1"].vault_data == "secret"
 
