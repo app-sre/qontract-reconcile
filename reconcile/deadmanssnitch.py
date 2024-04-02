@@ -130,12 +130,12 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
                 except Exception as e:
                     errors.append(e)
         for cluster_name, diff_pair in diffs.identical.items():
-            if not dry_run:
-                if diff_pair.current.needs_vault_update():
-                    try:
-                        logging.info(
+            if diff_pair.current.needs_vault_update():
+                logging.info(
                             "[cluster_name:%s] [Action:update_vault]", cluster_name
                         )
+                if not dry_run:
+                    try:
                         self.write_snitch_to_vault(
                             cluster_name=cluster_name,
                             snitch_url=diff_pair.current.check_in_url,
