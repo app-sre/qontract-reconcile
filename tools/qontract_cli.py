@@ -2571,7 +2571,7 @@ def cost_report(ctx):
 @click.pass_context
 def osd_component_versions(ctx):
     osd_environments = [
-        e["name"] for e in queries.get_environments() if e["product"]["name"] == "osdv4"
+        e["name"] for e in queries.get_environments() if e["product"]["name"] == "OSDv4"
     ]
     data = []
     saas_files = get_saas_files()
