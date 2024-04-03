@@ -2569,12 +2569,17 @@ def cost_report(ctx):
 
 @get.command()
 @click.pass_context
-def component_versions(ctx):
+def osd_component_versions(ctx):
+    osd_environments = [
+        e["name"] for e in queries.get_environments() if e["product"]["name"] == "osdv4"
+    ]
     data = []
     saas_files = get_saas_files()
     for sf in saas_files:
         for rt in sf.resource_templates:
             for t in rt.targets:
+                if t.namespace.environment.name not in osd_environments:
+                    continue
                 item = {
                     "environment": t.namespace.environment.name,
                     "namespace": t.namespace.name,
