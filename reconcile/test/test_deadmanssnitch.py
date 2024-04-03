@@ -102,7 +102,6 @@ def test_get_current_state(
     current_state = dms_integration.get_current_state(
         deadmanssnitch_api=deadmanssnitch_api,
         clusters=clusters,
-        snitch_secret_path="test_path",
     )
     assert current_state["test_cluster_1"].vault_data == "secret"
 

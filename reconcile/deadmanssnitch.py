@@ -151,7 +151,6 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         self,
         deadmanssnitch_api: DeadMansSnitchApi,
         clusters: list[ClusterV1],
-        snitch_secret_path: str,
     ) -> dict[str, Snitch]:
         snitch_name_to_cluster_name_mapping = {
             self.get_snitch_name(cluster): cluster.name for cluster in clusters
@@ -159,15 +158,12 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         # current state includes for deadmanssnithch response and associated secret in vault
         snitches = deadmanssnitch_api.get_snitches(tags=self.settings.tags)
         # create snitch_map only for  the desired clusters
-        snitches_with_cluster_mapping = {
-            cluster_name: snitch
+        current_state = {
+            cluster_name: self.add_vault_data(
+                cluster_name, snitch, self.settings.snitches_path
+            )
             for snitch in snitches
             if (cluster_name := snitch_name_to_cluster_name_mapping.get(snitch.name))
-        }
-        current_state = {
-            cluster.name: self.add_vault_data(cluster.name, snitch, snitch_secret_path)
-            for cluster in clusters
-            if (snitch := snitches_with_cluster_mapping.get(cluster.name))
         }
         return current_state
 
@@ -203,7 +199,6 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             current_state = self.get_current_state(
                 deadmanssnitch_api,
                 clusters,
-                self.settings.snitches_path,
             )
             self.reconcile(
                 dry_run,
