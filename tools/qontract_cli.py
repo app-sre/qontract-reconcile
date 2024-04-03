@@ -994,6 +994,7 @@ def network_reservations(ctx) -> None:
             return f"[{url}]({url})"
         else:
             return url
+
     for network in get_networks():
         parentAddress = "none"
         if network.parent_network:
