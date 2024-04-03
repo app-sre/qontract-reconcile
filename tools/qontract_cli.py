@@ -2567,6 +2567,37 @@ def cost_report(ctx):
     print(command.execute())
 
 
+@get.command()
+@click.pass_context
+def component_versions(ctx):
+    data = []
+    saas_files = get_saas_files()
+    for sf in saas_files:
+        for rt in sf.resource_templates:
+            for t in rt.targets:
+                item = {
+                    "environment": t.namespace.environment.name,
+                    "namespace": t.namespace.name,
+                    "cluster": t.namespace.cluster.name,
+                    "app": sf.app.name,
+                    "saas_file": sf.name,
+                    "resource_template": rt.name,
+                    "ref": f"[{t.ref}]({rt.url}/blob/{t.ref}{rt.path})",
+                }
+                data.append(item)
+
+    columns = [
+        "environment",
+        "namespace",
+        "cluster",
+        "app",
+        "saas_file",
+        "resource_template",
+        "ref",
+    ]
+    print_output(ctx.obj["options"], data, columns)
+
+
 @root.group(name="set")
 @output
 @click.pass_context
