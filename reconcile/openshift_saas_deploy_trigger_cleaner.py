@@ -12,6 +12,9 @@ from typing import (
 
 from dateutil import parser
 
+from reconcile.gql_definitions.fragments.pipeline_provider_retention import (
+    PipelineProviderRetention,
+)
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -30,13 +33,34 @@ QONTRACT_INTEGRATION = "openshift-saas-deploy-trigger-cleaner"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def within_retention_days(resource: dict[str, Any], days: int) -> bool:
+def within_retention_days(
+    resource: dict[str, Any], days: int, now_date: datetime
+) -> bool:
     metadata = resource["metadata"]
     creation_date = parser.parse(metadata["creationTimestamp"])
-    now_date = datetime.now(timezone.utc)
     interval = now_date.timestamp() - creation_date.timestamp()
 
     return interval < timedelta(days=days).total_seconds()
+
+
+def get_pipeline_runs_to_delete(
+    pipeline_runs: list[dict[str, Any]],
+    retention: PipelineProviderRetention,
+    now_date: datetime,
+) -> list[dict[str, Any]]:
+    pipeline_runs_to_delete = []
+    if retention.minimum:
+        pipeline_runs = pipeline_runs[retention.minimum :]
+    elif retention.maximum:
+        pipeline_runs_to_delete = pipeline_runs[retention.maximum :]
+        pipeline_runs = pipeline_runs[: retention.maximum]
+
+    for pr in pipeline_runs:
+        if retention.days and within_retention_days(pr, retention.days, now_date):
+            continue
+        pipeline_runs_to_delete.append(pr)
+
+    return pipeline_runs_to_delete
 
 
 @defer
@@ -47,6 +71,7 @@ def run(
     use_jump_host: bool = True,
     defer: Optional[Callable] = None,
 ) -> None:
+    now_date = datetime.now(timezone.utc)
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     pipeline_providers = get_tekton_pipeline_providers()
@@ -77,14 +102,8 @@ def run(
             reverse=True,
         )
 
-        if pp.retention.minimum:
-            pipeline_runs = pipeline_runs[pp.retention.minimum :]
-
-        for pr in pipeline_runs:
+        for pr in get_pipeline_runs_to_delete(pipeline_runs, pp.retention, now_date):
             name = pr["metadata"]["name"]
-            if pp.retention.days and within_retention_days(pr, pp.retention.days):
-                continue
-
             logging.info([
                 "delete_trigger",
                 pp.namespace.cluster.name,

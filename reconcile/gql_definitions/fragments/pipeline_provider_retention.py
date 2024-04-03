@@ -27,3 +27,4 @@ class ConfiguredBaseModel(BaseModel):
 class PipelineProviderRetention(ConfiguredBaseModel):
     days: Optional[int] = Field(..., alias="days")
     minimum: Optional[int] = Field(..., alias="minimum")
+    maximum: Optional[int] = Field(..., alias="maximum")
