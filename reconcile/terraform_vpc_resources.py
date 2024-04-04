@@ -11,7 +11,6 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.aws_vpc_requests import get_aws_vpc_requests
-from reconcile.typed_queries.aws_vpcs import get_aws_vpcs
 from reconcile.utils import gql
 from reconcile.utils.runtime.integration import (
     DesiredStateShardConfig,
@@ -20,6 +19,7 @@ from reconcile.utils.runtime.integration import (
 )
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript_aws_client import TerrascriptClient
 
 QONTRACT_INTEGRATION = "terraform_vpc_resources"
@@ -65,11 +65,6 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             logging.warning("No VPC requests found, nothing to do.")
             sys.exit(ExitCodes.SUCCESS)
 
-        vpcs = get_aws_vpcs(gql_api=gql.get_api())
-        if not vpcs:
-            logging.warning("No AWS VPCs found, nothing to do.")
-            sys.exit(ExitCodes.SUCCESS)
-
         accounts_untyped: list[dict] = [acc.dict(by_alias=True) for acc in accounts]
         with TerrascriptClient(
             integration=QONTRACT_INTEGRATION,
@@ -78,8 +73,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             accounts=accounts_untyped,
             secret_reader=secret_reader,
         ) as ts_client:
-            for account in accounts:
-                pass
+            ts_client.populate_vpc_requests(data)
 
         working_dirs = ts_client.dump(print_to_file=self.params.print_to_file)
 
