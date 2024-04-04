@@ -19,12 +19,8 @@ from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import (
-    SecretNotFound,
-)
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vault import (
-    SecretFieldNotFound,
     VaultClient,
     _VaultClient,
 )
@@ -61,38 +57,24 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
     def get_snitch_name(cluster: ClusterV1) -> str:
         return cluster.prometheus_url.replace("https://", "")
 
-    def write_snitch_to_vault(self, cluster_name: str, snitch_url: str) -> None:
-        vault_snitch_data = self.vault_client.read_all({
-            "path": self.settings.snitches_path
-        })
-        vault_snitch_data[f"deadmanssnitch-{cluster_name}-url"] = snitch_url
-        self.vault_client.write(
-            {
-                "path": self.settings.snitches_path,
-                "data": vault_snitch_data,
-            },
-            decode_base64=False,
-        )
+    @staticmethod
+    def get_vault_key(cluster_name: str) -> str:
+        return f"deadmanssnitch-{cluster_name}-url"
 
     def add_vault_data(
-        self, cluster_name: str, snitch: Snitch, snitch_secret_path: str
+        self, cluster_name: str, snitch: Snitch, vault_snitch_map: dict[str, str]
     ) -> Snitch:
-        try:
-            full_secret_path = {
-                "path": snitch_secret_path,
-                "field": f"deadmanssnitch-{cluster_name}-url",
-            }
-            snitch.vault_data = self.secret_reader.read(full_secret_path).strip()
-        except (SecretNotFound, SecretFieldNotFound):
+        if snitch_url := vault_snitch_map.get(self.get_vault_key(cluster_name)):
+            snitch.vault_data = snitch_url
+        else:
             snitch.vault_data = SECRET_NOT_FOUND
         return snitch
 
     def create_snitch(
         self,
-        cluster_name: str,
         snitch_spec: SnitchSpec,
         deadmanssnitch_api: DeadMansSnitchApi,
-    ) -> None:
+    ) -> Snitch:
         payload = {
             "name": snitch_spec.name,
             "alert_type": snitch_spec.alert_type,
@@ -102,9 +84,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             "notes": snitch_spec.notes,
         }
         snitch_data = deadmanssnitch_api.create_snitch(payload=payload)
-        self.write_snitch_to_vault(
-            cluster_name=cluster_name, snitch_url=snitch_data.check_in_url
-        )
+        return snitch_data
 
     def reconcile(
         self,
@@ -112,6 +92,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         current_state: dict[str, Snitch],
         desired_state: dict[str, SnitchSpec],
         deadmanssnitch_api: DeadMansSnitchApi,
+        vault_snitch_map: dict[str, str],
     ) -> None:
         diffs = diff_mappings(
             current=current_state,
@@ -119,11 +100,15 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             equal=lambda current, desired: current.name == desired.name,
         )
         errors = []
+        vault_snitch_map_copy = vault_snitch_map.copy()
         for cluster_name, snitch in diffs.add.items():
             logging.info("[cluster_name:%s] [Action:create_snitch]", cluster_name)
             if not dry_run:
                 try:
-                    self.create_snitch(cluster_name, snitch, deadmanssnitch_api)
+                    snitch_data = self.create_snitch(snitch, deadmanssnitch_api)
+                    vault_snitch_map_copy[self.get_vault_key(cluster_name)] = (
+                        snitch_data.check_in_url
+                    )
                 except Exception as e:
                     errors.append(e)
         for cluster_name, snitch_value in diffs.delete.items():
@@ -136,14 +121,23 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         for cluster_name, diff_pair in diffs.identical.items():
             if diff_pair.current.needs_vault_update():
                 logging.info("[cluster_name:%s] [Action:update_vault]", cluster_name)
-                if not dry_run:
-                    try:
-                        self.write_snitch_to_vault(
-                            cluster_name=cluster_name,
-                            snitch_url=diff_pair.current.check_in_url,
-                        )
-                    except Exception as e:
-                        errors.append(e)
+                vault_snitch_map_copy[self.get_vault_key(cluster_name)] = (
+                    diff_pair.current.check_in_url
+                )
+
+        # write to vault in case there is change in secret i.e in case of creation/update
+        if vault_snitch_map != vault_snitch_map_copy and not dry_run:
+            try:
+                self.vault_client.write(
+                    {
+                        "path": self.settings.snitches_path,
+                        "data": vault_snitch_map_copy,
+                    },
+                    decode_base64=False,
+                )
+            except Exception as e:
+                errors.append(e)
+
         if errors:
             raise ExceptionGroup("Errors occurred while reconcile", errors)
 
@@ -151,6 +145,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         self,
         deadmanssnitch_api: DeadMansSnitchApi,
         clusters: list[ClusterV1],
+        vault_snitch_map: dict[str, str],
     ) -> dict[str, Snitch]:
         snitch_name_to_cluster_name_mapping = {
             self.get_snitch_name(cluster): cluster.name for cluster in clusters
@@ -159,9 +154,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         snitches = deadmanssnitch_api.get_snitches(tags=self.settings.tags)
         # create snitch_map only for  the desired clusters
         current_state = {
-            cluster_name: self.add_vault_data(
-                cluster_name, snitch, self.settings.snitches_path
-            )
+            cluster_name: self.add_vault_data(cluster_name, snitch, vault_snitch_map)
             for snitch in snitches
             if (cluster_name := snitch_name_to_cluster_name_mapping.get(snitch.name))
         }
@@ -191,6 +184,10 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             "path": self.settings.token_creds.path,
             "field": self.settings.token_creds.field,
         })
+        # get all snitch secrets from vault
+        vault_snitch_map = self.secret_reader.read_all({
+            "path": self.settings.snitches_path
+        })
         with DeadMansSnitchApi(token=token) as deadmanssnitch_api:
             # desired state - get the  clusters having enableDeadMansSnitch field
             clusters = get_clusters_with_dms()
@@ -199,10 +196,12 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
             current_state = self.get_current_state(
                 deadmanssnitch_api,
                 clusters,
+                vault_snitch_map,
             )
             self.reconcile(
                 dry_run,
                 current_state=current_state,
                 desired_state=desired_state,
                 deadmanssnitch_api=deadmanssnitch_api,
+                vault_snitch_map=vault_snitch_map,
             )
