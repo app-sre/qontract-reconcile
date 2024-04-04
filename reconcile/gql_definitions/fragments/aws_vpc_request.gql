@@ -1,7 +1,7 @@
 # qenerate: plugin=pydantic_v1
 
 fragment VPCRequest on VPCRequest_v1 {
-  name
+  identifier
   account {
     name
     uid

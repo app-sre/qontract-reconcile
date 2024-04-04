@@ -59,7 +59,7 @@ class VPCRequestSubnetsV1(ConfiguredBaseModel):
 
 
 class VPCRequest(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
+    identifier: str = Field(..., alias="identifier")
     account: AWSAccountV1 = Field(..., alias="account")
     region: str = Field(..., alias="region")
     cidr_block: NetworkV1 = Field(..., alias="cidr_block")

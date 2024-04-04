@@ -22,7 +22,7 @@ from reconcile.gql_definitions.fragments.aws_vpc_request import VPCRequest
 
 DEFINITION = """
 fragment VPCRequest on VPCRequest_v1 {
-  name
+  identifier
   account {
     name
     uid
