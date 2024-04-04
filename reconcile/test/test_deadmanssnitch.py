@@ -102,6 +102,7 @@ def test_get_current_state(
     current_state = dms_integration.get_current_state(
         deadmanssnitch_api=deadmanssnitch_api,
         clusters=clusters,
+        vault_snitch_map={"deadmanssnitch-test_cluster_1-url": "secret"},
     )
     assert current_state["test_cluster_1"].vault_data == "secret"
 
@@ -116,6 +117,7 @@ def test_integration_for_create(
         "reconcile.deadmanssnitch.DeadMansSnitchIntegration.__init__"
     ).return_value = None
     dms_integration = DeadMansSnitchIntegration()
+    secret_reader.read_all.return_value = {}
     dms_integration._secret_reader = secret_reader
     dms_integration.settings = deadmanssnitch_settings
     dms_integration.vault_client = vault_mock
@@ -136,7 +138,18 @@ def test_integration_for_create(
     mock_create_snitch = mocker.patch(
         "reconcile.deadmanssnitch.DeadMansSnitchIntegration.create_snitch"
     )
-    mock_create_snitch.return_value = None
+    mock_create_snitch.return_value = Snitch(
+        name="prometheus.create_cluster.devshift.net",
+        token="test",
+        href="testc",
+        status="healthy",
+        alert_type="basic",
+        alert_email=["test_mail"],
+        interval="15_minute",
+        check_in_url="test_url",
+        tags=["app-sre"],
+        notes="test_notes",
+    )
     dms_integration.run(dry_run=False)
     mock_create_snitch.assert_called_once()
 
@@ -151,6 +164,7 @@ def test_integration_for_delete(
         "reconcile.deadmanssnitch.DeadMansSnitchIntegration.__init__"
     ).return_value = None
     dms_integration = DeadMansSnitchIntegration()
+    secret_reader.read_all.return_value = {"deadmanssnitch-create_cluster-url": "test"}
     dms_integration._secret_reader = secret_reader
     dms_integration.settings = deadmanssnitch_settings
     dms_integration.vault_client = vault_mock
@@ -199,6 +213,7 @@ def test_integration_for_update_vault(
         "reconcile.deadmanssnitch.DeadMansSnitchIntegration.__init__"
     ).return_value = None
     dms_integration = DeadMansSnitchIntegration()
+    secret_reader.read_all.return_value = {"deadmanssnitch-test_cluster-url": "test"}
     dms_integration._secret_reader = secret_reader
     dms_integration.settings = deadmanssnitch_settings
     dms_integration.vault_client = vault_mock
@@ -230,10 +245,11 @@ def test_integration_for_update_vault(
         )
     ]
     dms_integration.run(dry_run=False)
+    data = {"deadmanssnitch-test_cluster-url": "test_url"}
     vault_mock.write.assert_called_once_with(
         {
             "path": deadmanssnitch_settings.snitches_path,
-            "data": {"deadmanssnitch-test_cluster-url": "test_url"},
+            "data": data,
         },
         decode_base64=False,
     )
