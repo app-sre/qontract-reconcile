@@ -201,6 +201,7 @@ def test_integration_for_update_vault(
     dms_integration = DeadMansSnitchIntegration()
     dms_integration._secret_reader = secret_reader
     dms_integration.settings = deadmanssnitch_settings
+    vault_mock.read_all.return_value = {"deadmanssnitch-test_cluster-url": "test"}
     dms_integration.vault_client = vault_mock
     mocker.patch("reconcile.deadmanssnitch.get_clusters_with_dms").return_value = [
         ClusterV1(
@@ -230,10 +231,11 @@ def test_integration_for_update_vault(
         )
     ]
     dms_integration.run(dry_run=False)
+    data = {"deadmanssnitch-test_cluster-url": "test_url"}
     vault_mock.write.assert_called_once_with(
         {
             "path": deadmanssnitch_settings.snitches_path,
-            "data": {"deadmanssnitch-test_cluster-url": "test_url"},
+            "data": data,
         },
         decode_base64=False,
     )

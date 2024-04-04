@@ -1,6 +1,5 @@
 import logging
 from typing import (
-    Optional,
     cast,
 )
 
@@ -62,17 +61,18 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
     def get_snitch_name(cluster: ClusterV1) -> str:
         return cluster.prometheus_url.replace("https://", "")
 
-    def write_snitch_to_vault(
-        self, cluster_name: str, snitch_url: Optional[str]
-    ) -> None:
-        if snitch_url:
-            self.vault_client.write(
-                {
-                    "path": self.settings.snitches_path,
-                    "data": {f"deadmanssnitch-{cluster_name}-url": snitch_url},
-                },
-                decode_base64=False,
-            )
+    def write_snitch_to_vault(self, cluster_name: str, snitch_url: str) -> None:
+        vault_snitch_data = self.vault_client.read_all({
+            "path": self.settings.snitches_path
+        })
+        vault_snitch_data[f"deadmanssnitch-{cluster_name}-url"] = snitch_url
+        self.vault_client.write(
+            {
+                "path": self.settings.snitches_path,
+                "data": vault_snitch_data,
+            },
+            decode_base64=False,
+        )
 
     def add_vault_data(
         self, cluster_name: str, snitch: Snitch, snitch_secret_path: str
