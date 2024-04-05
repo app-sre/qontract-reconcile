@@ -175,7 +175,7 @@ class AddonServiceV2(AddonService):
         results: list[dict[str, Any]] = []
 
         for policy in ocm_api.get_paginated(
-            f"{self.addon_base_api_path()}/clusters/{cluster_id}/upgrade_plan"
+            f"{self.addon_base_api_path()}/clusters/{cluster_id}/upgrade_plans"
         ):
             if addon_id and policy["addon_id"] != addon_id:
                 continue
@@ -208,7 +208,7 @@ class AddonServiceV2(AddonService):
             "next_run": next_run,
         }
         ocm_api.post(
-            f"{self.addon_base_api_path()}/clusters/{cluster_id}/upgrade_plan", spec
+            f"{self.addon_base_api_path()}/clusters/{cluster_id}/upgrade_plans", spec
         )
 
     def delete_addon_upgrade_policy(
@@ -218,5 +218,5 @@ class AddonServiceV2(AddonService):
         Deletes an existing upgrade plan.
         """
         ocm_api.delete(
-            f"{self.addon_base_api_path()}/clusters/{cluster_id}/upgrade_plan/{policy_id}"
+            f"{self.addon_base_api_path()}/clusters/{cluster_id}/upgrade_plans/{policy_id}"
         )
