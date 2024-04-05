@@ -269,7 +269,7 @@ def test_reconcile_state_match(
     p.write.assert_not_called()
 
 
-def test_persistence_context_dry_run(mocker: MockerFixture):
+def test_persistence_context_dry_run(mocker: MockerFixture) -> None:
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
 
     with PersistenceContext(persistence_mock, True):
@@ -281,7 +281,7 @@ def test_persistence_context_dry_run(mocker: MockerFixture):
     persistence_mock.write.assert_called_once()
 
 
-def test_persistence_read(mocker: MockerFixture):
+def test_persistence_read(mocker: MockerFixture) -> None:
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
     persistence_mock.read.return_value = "foo"
     p = PersistenceContext(persistence_mock, False)
@@ -292,7 +292,7 @@ def test_persistence_read(mocker: MockerFixture):
     assert p.content_cache == {"foo": "foo"}
 
 
-def test_persistence_write(mocker: MockerFixture):
+def test_persistence_write(mocker: MockerFixture) -> None:
     test_path = "foo"
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
     persistence_mock.read.return_value = "initial_value"

@@ -5,7 +5,7 @@ import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any, Optional, Self
 
 import gitlab
 from ruamel import yaml
@@ -40,8 +40,7 @@ from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "template-renderer"
 
-# Renders templates again to detect drift after one day
-CACHE_TTL_MINUTES = 24 * 60
+CACHE_TTL_MINUTES = 12
 
 APP_INTERFACE_PATH_SEPERATOR = "/"
 
@@ -111,7 +110,7 @@ class PersistenceContext(FilePersistence):
     def __init__(self, persistence: FilePersistence, dry_run: bool) -> None:
         self.persistence = persistence
         self.dry_run = dry_run
-        self.content_cache: dict[str, str] = {}
+        self.content_cache: dict[str, Optional[str]] = {}
         self.output_cache: dict[str, TemplateOutput] = {}
 
     def write(self, outputs: list[TemplateOutput]) -> None:
@@ -124,10 +123,10 @@ class PersistenceContext(FilePersistence):
             self.content_cache[path] = self.persistence.read(path)
         return self.content_cache[path]
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         if not self.dry_run:
             self.persistence.write(list(self.output_cache.values()))
 
