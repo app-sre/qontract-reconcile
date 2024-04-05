@@ -37,7 +37,7 @@ def account_dict(name: str) -> dict[str, Any]:
 
 def vpc_request_dict() -> dict[str, Any]:
     return {
-        "name": "some-name",
+        "identifier": "some-identifier",
         "account": account_dict("some-account"),
         "region": "us-east-1",
         "cidr_block": {
