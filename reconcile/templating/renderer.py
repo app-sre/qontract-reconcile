@@ -248,7 +248,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                         outputs.append(output)
 
                     p.write(outputs)
-                    if state:
+                    if state and not dry_run:
                         state.add(
                             c.name,
                             {
