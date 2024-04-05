@@ -1102,7 +1102,7 @@ def cidr_blocks(ctx, managed: bool, for_cluster: int, mask: int) -> None:
         except ValueError:
             print(f"ERROR: Invalid CIDR Mask {mask} Provided.")
             sys.exit(1)
-        print(f"INFO: You are reserving {str(2**(32-mask))} network addresses.")
+        print(f"INFO: You are reserving {str(2 ** (32 - mask))} network addresses.")
         print(f"\nYou can use: {str(result_cidr_block)}")
     if not for_cluster:
         ctx.obj["options"]["sort"] = False
