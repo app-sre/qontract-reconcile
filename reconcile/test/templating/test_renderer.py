@@ -16,6 +16,7 @@ from reconcile.templating.lib.merge_request_manager import MergeRequestManager
 from reconcile.templating.renderer import (
     GitlabFilePersistence,
     LocalFilePersistence,
+    PersistenceContext,
     TemplateOutput,
     TemplateRendererIntegration,
     TemplateRendererIntegrationParams,
@@ -266,3 +267,44 @@ def test_reconcile_state_match(
 
     pt.assert_not_called()
     p.write.assert_not_called()
+
+
+def test_persistence_context_dry_run(mocker: MockerFixture):
+    persistence_mock = mocker.MagicMock(LocalFilePersistence)
+
+    with PersistenceContext(persistence_mock, True):
+        pass
+    persistence_mock.write.assert_not_called()
+
+    with PersistenceContext(persistence_mock, False):
+        pass
+    persistence_mock.write.assert_called_once()
+
+
+def test_persistence_read(mocker: MockerFixture):
+    persistence_mock = mocker.MagicMock(LocalFilePersistence)
+    persistence_mock.read.return_value = "foo"
+    p = PersistenceContext(persistence_mock, False)
+    p.read("foo")
+    p.read("foo")
+
+    persistence_mock.read.assert_called_once_with("foo")
+    assert p.content_cache == {"foo": "foo"}
+
+
+def test_persistence_write(mocker: MockerFixture):
+    test_path = "foo"
+    persistence_mock = mocker.MagicMock(LocalFilePersistence)
+    persistence_mock.read.return_value = "initial_value"
+    p = PersistenceContext(persistence_mock, False)
+    p.read(test_path)
+    assert p.content_cache == {test_path: "initial_value"}
+
+    output = TemplateOutput(path=test_path, content="updated_value")
+    p.write([])
+    p.write([output])
+
+    assert p.output_cache == {output.path: output}
+    assert p.content_cache == {test_path: "updated_value"}
+
+    persistence_mock.write.assert_not_called()

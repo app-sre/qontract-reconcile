@@ -107,6 +107,31 @@ class GitlabFilePersistence(FilePersistence):
         return current
 
 
+class PersistenceContext(FilePersistence):
+    def __init__(self, persistence: FilePersistence, dry_run: bool) -> None:
+        self.persistence = persistence
+        self.dry_run = dry_run
+        self.content_cache: dict[str, str] = {}
+        self.output_cache: dict[str, TemplateOutput] = {}
+
+    def write(self, outputs: list[TemplateOutput]) -> None:
+        for output in outputs:
+            self.content_cache[output.path] = output.content
+            self.output_cache[output.path] = output
+
+    def read(self, path: str) -> Optional[str]:
+        if path not in self.content_cache:
+            self.content_cache[path] = self.persistence.read(path)
+        return self.content_cache[path]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if not self.dry_run:
+            self.persistence.write(list(self.output_cache.values()))
+
+
 def unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
 ) -> dict:
@@ -207,31 +232,31 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     logging.debug(f"Skipping {c.name} because it hasn't changed")
                     break
 
-            for template in c.templates:
-                output = self.process_template(
-                    template,
-                    variables,
-                    persistence,
-                    ruamel_instance,
-                )
-                if output:
-                    output.input = TemplateInput(
-                        collection=c.name,
-                        collection_hash=template_hash,
+            with PersistenceContext(persistence, dry_run) as p:
+                for template in c.templates:
+                    output = self.process_template(
+                        template,
+                        variables,
+                        p,
+                        ruamel_instance,
                     )
-                    outputs.append(output)
+                    if output:
+                        output.input = TemplateInput(
+                            collection=c.name,
+                            collection_hash=template_hash,
+                        )
+                        outputs.append(output)
 
-            if not dry_run:
-                persistence.write(outputs)
-                if state:
-                    state.add(
-                        c.name,
-                        {
-                            "hash": template_hash,
-                            "timestamp": datetime.utcnow().isoformat(),
-                        },
-                        force=True,
-                    )
+                    p.write(outputs)
+                    if state:
+                        state.add(
+                            c.name,
+                            {
+                                "hash": template_hash,
+                                "timestamp": datetime.utcnow().isoformat(),
+                            },
+                            force=True,
+                        )
 
     @property
     def name(self) -> str:
