@@ -80,14 +80,19 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         if self.params.print_to_file:
             sys.exit(ExitCodes.SUCCESS)
 
-        # tf_client = TerraformClient(
-        #     integration=QONTRACT_INTEGRATION,
-        #     integration_version=QONTRACT_INTEGRATION_VERSION,
-        #     integration_prefix=QONTRACT_TF_PREFIX,
-        #     accounts=accounts_untyped,
-        #     working_dirs=working_dirs,
-        #     thread_pool_size=1,
-        # )
+        tf_client = TerraformClient(
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            integration_prefix=QONTRACT_TF_PREFIX,
+            accounts=accounts_untyped,
+            working_dirs=working_dirs,
+            thread_pool_size=1,
+        )
+
+        tf_client.plan(enable_deletion=False)
+
+        if not dry_run:
+            tf_client.apply()
 
     def get_desired_state_shard_config(self) -> DesiredStateShardConfig:
         return DesiredStateShardConfig(
