@@ -2588,8 +2588,10 @@ def osd_component_versions(ctx):
                 sapm_data = sapm_state.get(sapm_key)
                 if sapm_data:
                     commit_sha = sapm_data["commit_sha"]
+                    deployment_state = sapm_data["deployment_state"]
                 else:
                     commit_sha = t.ref
+                    deployment_state = "unknown"
                 item = {
                     "environment": t.namespace.environment.name,
                     "namespace": t.namespace.name,
@@ -2598,6 +2600,7 @@ def osd_component_versions(ctx):
                     "saas_file": sf.name,
                     "resource_template": rt.name,
                     "ref": f"[{commit_sha}]({rt.url}/blob/{commit_sha}{rt.path})",
+                    "deployment_state": deployment_state,
                 }
                 data.append(item)
 
@@ -2609,6 +2612,7 @@ def osd_component_versions(ctx):
         "saas_file",
         "resource_template",
         "ref",
+        "deployment_state",
     ]
     print_output(ctx.obj["options"], data, columns)
 
