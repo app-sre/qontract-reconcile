@@ -68,6 +68,9 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
 )
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.jenkins_job_builder import init_jjb
+from reconcile.saas_auto_promotions_manager.integration import (
+    QONTRACT_INTEGRATION as SAPM,
+)
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.status_board import StatusBoardExporterIntegration
 from reconcile.typed_queries.alerting_services_settings import get_alerting_services
@@ -2570,6 +2573,7 @@ def cost_report(ctx):
 @get.command()
 @click.pass_context
 def osd_component_versions(ctx):
+    sapm_state = init_state(integration=SAPM).get("publisher-data.json")
     osd_environments = [
         e["name"] for e in queries.get_environments() if e["product"]["name"] == "OSDv4"
     ]
@@ -2580,6 +2584,12 @@ def osd_component_versions(ctx):
             for t in rt.targets:
                 if t.namespace.environment.name not in osd_environments:
                     continue
+                sapm_key = f'{sf.name}/{rt.name}/{t.name or "default"}/{t.namespace.cluster.name}/{t.namespace.name}'
+                sapm_data = sapm_state.get(sapm_key)
+                if sapm_data:
+                    commit_sha = sapm_data["commit_sha"]
+                else:
+                    commit_sha = t.ref
                 item = {
                     "environment": t.namespace.environment.name,
                     "namespace": t.namespace.name,
@@ -2587,7 +2597,7 @@ def osd_component_versions(ctx):
                     "app": sf.app.name,
                     "saas_file": sf.name,
                     "resource_template": rt.name,
-                    "ref": f"[{t.ref}]({rt.url}/blob/{t.ref}{rt.path})",
+                    "ref": f"[{commit_sha}]({rt.url}/blob/{commit_sha}{rt.path})",
                 }
                 data.append(item)
 
