@@ -91,8 +91,10 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
 
         tf_client.plan(enable_deletion=False)
 
-        if not dry_run:
-            tf_client.apply()
+        if dry_run:
+            sys.exit(ExitCodes.SUCCESS)
+
+        tf_client.apply()
 
     def get_desired_state_shard_config(self) -> DesiredStateShardConfig:
         return DesiredStateShardConfig(
