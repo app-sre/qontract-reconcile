@@ -1022,14 +1022,8 @@ def network_reservations(ctx) -> None:
 
 @get.command()
 @click.option(
-    "--managed",
-    help="Only consider managed network, i.e. network reserved with a network-1 yaml in App Interface",
-    type=bool,
-    default=False,
-)
-@click.option(
     "--for-cluster",
-    help="Get the latest available CIDR block for new cluster. A decimal number between 1~32.",
+    help="If it is for getting cidr block for a cluster.",
     type=bool,
     default=False,
 )
@@ -1040,7 +1034,7 @@ def network_reservations(ctx) -> None:
     default=24,
 )
 @click.pass_context
-def cidr_blocks(ctx, managed: bool, for_cluster: int, mask: int) -> None:
+def cidr_blocks(ctx, for_cluster: int, mask: int) -> None:
     import ipaddress
 
     from reconcile.typed_queries.aws_vpcs import get_aws_vpcs
@@ -1088,10 +1082,7 @@ def cidr_blocks(ctx, managed: bool, for_cluster: int, mask: int) -> None:
 
     cidrs.sort(key=lambda item: ipaddress.ip_network(item["cidr"]))
 
-    if managed:
-        # TODO use networ-1 schema once the most recent VPCs for each type are migrated
-        print("NOT IMPLEMENTED.")
-    elif for_cluster:
+    if for_cluster:
         latest_declared_addr = ipaddress.ip_address(
             [item for item in cidrs if item["type"] == "cluster"][-1]["to"]
         )
@@ -1104,7 +1095,7 @@ def cidr_blocks(ctx, managed: bool, for_cluster: int, mask: int) -> None:
             sys.exit(1)
         print(f"INFO: You are reserving {str(2 ** (32 - mask))} network addresses.")
         print(f"\nYou can use: {str(result_cidr_block)}")
-    if not for_cluster:
+    else:
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], cidrs, columns)
 
