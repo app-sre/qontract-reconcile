@@ -17,6 +17,7 @@ from reconcile.terraform_vpc_resources import (
     TerraformVpcResources,
     TerraformVpcResourcesParams,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 def account_dict(name: str) -> dict[str, Any]:
@@ -73,6 +74,20 @@ def mock_create_secret_reader(mocker: MockerFixture) -> MockerFixture:
     )
 
 
+def secret_reader_side_effect(*args: Any) -> dict[str, Any] | None:
+    """Mocking a secret reader call for aws account credentials"""
+    if {
+        "path": "some-path",
+        "field": "some-field",
+        "version": None,
+        "q_format": None,
+    } == args[0]:
+        return {
+            "aws_access_key_id": "key_id",
+            "aws_secret_access_key": "access_key",
+        }
+
+
 def test_log_message_for_no_vpc_requests(
     mocker: MockerFixture,
     caplog: pytest.LogCaptureFixture,
@@ -122,3 +137,27 @@ def test_log_message_for_accounts_having_vpc_requests(
     assert [
         f"The account {account_name} doesn't have any managed vpc. Verify your input"
     ] == [rec.message for rec in caplog.records]
+
+
+def test_dry_run(
+    mocker: MockerFixture,
+    mock_gql: pytest.LogCaptureFixture,
+    gql_class_factory: Callable,
+    mock_app_interface_vault_settings: MockerFixture,
+    mock_create_secret_reader: MockerFixture,
+) -> None:
+    mocked_query = mocker.patch(
+        "reconcile.terraform_vpc_resources.get_aws_vpc_requests", autospec=True
+    )
+    mocked_query.return_value = [gql_class_factory(VPCRequest, vpc_request_dict())]
+
+    secret_reader = mocker.Mock(SecretReaderBase)
+    secret_reader.read_all.side_effect = secret_reader_side_effect
+
+    params = TerraformVpcResourcesParams(
+        account_name=None, print_to_file=None, thread_pool_size=1
+    )
+
+    with pytest.raises(SystemExit) as sample:
+        TerraformVpcResources(params).run(dry_run=True)
+    assert sample.value.code == ExitCodes.SUCCESS
