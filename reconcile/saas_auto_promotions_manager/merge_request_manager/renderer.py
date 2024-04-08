@@ -5,7 +5,6 @@ from typing import Any
 
 from jsonpath_ng.exceptions import JsonPathParserError
 from jsonpath_ng.ext import parser
-from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
 
 from reconcile.gql_definitions.common.saas_files import (
@@ -15,11 +14,12 @@ from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
+from reconcile.utils.ruamel import create_ruamel_instance
 
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 )
-SAPM_VERSION = "2.1.2"
+SAPM_VERSION = "2.1.3"
 CONTENT_HASHES = "content_hashes"
 CHANNELS_REF = "channels"
 IS_BATCHABLE = "is_batchable"
@@ -86,10 +86,7 @@ class Renderer:
         """
         # TODO: make prettier
         # this function is hell - but well tested
-        yml = YAML(typ="rt", pure=True)
-        yml.preserve_quotes = True
-        # Lets prevent line wraps
-        yml.width = 4096
+        yml = create_ruamel_instance(pure=True)
         content = yml.load(current_content)
         targets = self._find_saas_file_targets(subscriber=subscriber, content=content)
         for target in targets:
@@ -143,9 +140,11 @@ class Renderer:
 {VERSION_REF}: {SAPM_VERSION}
         """
 
-    def render_title(self, is_draft: bool, canary: bool, channels: str) -> str:
+    def render_title(
+        self, is_draft: bool, canary: bool, channels: str, batch_size: int
+    ) -> str:
         canary_suffix = "Canary" if canary else ""
-        content = f"[SAPM{canary_suffix}] auto-promotion ID {int(hashlib.sha256(channels.encode('utf-8')).hexdigest(), 16) % 10**8}"
+        content = f"[SAPM{canary_suffix}] auto-promotion ID {int(hashlib.sha256(channels.encode('utf-8')).hexdigest(), 16) % 10**8} - batch size: {batch_size}"
         if is_draft:
             return f"Draft: {content}"
         return content

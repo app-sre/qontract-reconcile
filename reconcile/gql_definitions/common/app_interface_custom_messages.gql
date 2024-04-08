@@ -1,0 +1,10 @@
+# qenerate: plugin=pydantic_v1
+
+query AppInterfaceCustomMessages {
+  settings: app_interface_settings_v1 {
+    customMessages {
+      id
+      content
+    }
+  }
+}

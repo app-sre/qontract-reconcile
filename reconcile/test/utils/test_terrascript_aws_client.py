@@ -65,7 +65,6 @@ def expected_supported_region_aws_provider():
     return {
         "access_key": "some-key-id",
         "secret_key": "some-secret-key",
-        "version": "1.0.0",
         "region": "us-east-1",
         "alias": "us-east-1",
         "skip_region_validation": True,
@@ -82,7 +81,6 @@ def expected_default_region_aws_provider():
     return {
         "access_key": "some-key-id",
         "secret_key": "some-secret-key",
-        "version": "1.0.0",
         "region": "us-east-1",
         "skip_region_validation": True,
         "default_tags": {
@@ -150,7 +148,6 @@ def expected_additional_aws_providers():
             "region": "us-east-1",
             "secret_key": "some-secret-key",
             "skip_region_validation": True,
-            "version": "1.0.0",
         },
         {
             "access_key": "some-key-id",
@@ -159,7 +156,6 @@ def expected_additional_aws_providers():
             "region": "us-west-1",
             "secret_key": "some-secret-key",
             "skip_region_validation": True,
-            "version": "1.0.0",
         },
     ]
 

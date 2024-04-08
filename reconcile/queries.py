@@ -642,6 +642,32 @@ CLUSTER_FILTER_QUERY = """
 {% endif %}
 """
 
+AWS_INFRASTRUCTURE_ACCESS_QUERY = """
+{% if aws_infrastructure_access %}
+awsInfrastructureAccess {
+  awsGroup {
+    account {
+      name
+      uid
+      terraformUsername
+      automationToken {
+        path
+        field
+        version
+        format
+      }
+    }
+    roles {
+      users {
+        org_username
+      }
+    }
+  }
+  accessLevel
+}
+{% endif %}
+"""
+
 CLUSTERS_QUERY = """
 {
   clusters: clusters_v1
@@ -714,27 +740,7 @@ CLUSTERS_QUERY = """
         }
       }
     }
-    awsInfrastructureAccess {
-      awsGroup {
-        account {
-          name
-          uid
-          terraformUsername
-          automationToken {
-            path
-            field
-            version
-            format
-          }
-        }
-        roles {
-          users {
-            org_username
-          }
-        }
-      }
-      accessLevel
-    }
+    %s
     %s
     spec {
       product
@@ -954,6 +960,7 @@ CLUSTERS_QUERY = """
 """ % (
     indent(CLUSTER_FILTER_QUERY, 2 * " "),
     indent(JUMPHOST_FIELDS, 6 * " "),
+    indent(AWS_INFRASTRUCTURE_ACCESS_QUERY, 4 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 4 * " "),
     indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 12 * " "),
 )
@@ -1010,12 +1017,13 @@ CLUSTERS_MINIMAL_QUERY = """
 )
 
 
-def get_clusters(minimal=False):
+def get_clusters(minimal: bool = False, aws_infrastructure_access: bool = False):
     """Returns all Clusters"""
     gqlapi = gql.get_api()
     tmpl = CLUSTERS_MINIMAL_QUERY if minimal else CLUSTERS_QUERY
     query = Template(tmpl).render(
         filter=None,
+        aws_infrastructure_access=aws_infrastructure_access,
     )
     return gqlapi.query(query)["clusters"]
 
@@ -1272,6 +1280,7 @@ OCM_QUERY = """
     environment {
       name
       url
+      labels
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
@@ -2040,6 +2049,7 @@ def get_external_users():
 APP_INTERFACE_SQL_QUERIES_QUERY = """
 {
   sql_queries: app_interface_sql_queries_v1 {
+    path
     name
     namespace
     {

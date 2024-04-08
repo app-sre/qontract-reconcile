@@ -302,6 +302,18 @@ def test_default_data_none_optional_bool(
     )
 
 
+def test_default_fail_not_set() -> None:
+    """
+    Test that the exception is raised if value is not set and use_defaults is False.
+    """
+
+    class DemoModel(BaseModel):
+        required_str: str = Field(...)
+
+    with pytest.raises(ValueError):
+        DemoModel(**data_default_none(DemoModel, {}, use_defaults=False))
+
+
 #
 # default data none - BaseModel field handling
 #

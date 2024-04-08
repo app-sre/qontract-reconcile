@@ -1,4 +1,3 @@
 -r requirements-test.txt
 -r requirements-type.txt
 -r requirements-debugger.txt
--r requirements-format.txt

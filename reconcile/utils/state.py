@@ -1,15 +1,18 @@
+import contextlib
 import json
 import logging
 import os
 from abc import abstractmethod
+from collections.abc import Callable, Generator, Mapping
+from dataclasses import dataclass, field
 from typing import (
     Any,
     Optional,
+    Self,
 )
 
 import boto3
 from botocore.errorfactory import ClientError
-from jinja2 import Template
 from mypy_boto3_s3 import S3Client
 from pydantic import BaseModel
 
@@ -23,7 +26,7 @@ from reconcile.typed_queries.app_interface_state_settings import (
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
-from reconcile.utils import gql
+from reconcile.typed_queries.get_state_aws_account import get_state_aws_account
 from reconcile.utils.aws_api import aws_config_file_path
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
@@ -33,23 +36,6 @@ from reconcile.utils.secret_reader import (
 
 class StateInaccessibleException(Exception):
     pass
-
-
-STATE_ACCOUNT_QUERY = """
-{
-  accounts: awsaccounts_v1 (name: "{{ name }}")
-  {
-    name
-    resourcesDefaultRegion
-    automationToken {
-      path
-      field
-      version
-      format
-    }
-  }
-}
-"""
 
 
 def init_state(
@@ -99,7 +85,9 @@ class S3ProfileBasedStateConfiguration(S3StateConfiguration):
         return session.client("s3")
 
 
-def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfiguration:
+def acquire_state_settings(
+    secret_reader: SecretReaderBase, query_func: Callable | None = None
+) -> S3StateConfiguration:
     """
     Finds the settings for the app-interface state provider in the following order:
 
@@ -183,17 +171,17 @@ def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurat
         logging.debug(
             f"access state via {state_bucket_account_name} automation token from app-interface"
         )
-        account = _get_aws_account_by_name(state_bucket_account_name)
+        account = get_state_aws_account(
+            state_bucket_account_name, query_func=query_func
+        )
         if not account:
             raise StateInaccessibleException(
                 f"The AWS account {state_bucket_account_name} that holds the state bucket can't be found in app-interface."
             )
-        secret = secret_reader.read_all_secret(
-            VaultSecret(**account["automationToken"])
-        )
+        secret = secret_reader.read_all_secret(account.automation_token)
         return S3CredsBasedStateConfiguration(
             bucket=state_bucket_name,
-            region=state_bucket_region or account["resourcesDefaultRegion"],
+            region=state_bucket_region or account.resources_default_region,
             access_key_id=secret["aws_access_key_id"],
             secret_access_key=secret["aws_secret_access_key"],
         )
@@ -225,12 +213,8 @@ def acquire_state_settings(secret_reader: SecretReaderBase) -> S3StateConfigurat
     )
 
 
-def _get_aws_account_by_name(name: str) -> Optional[dict[str, Any]]:
-    query = Template(STATE_ACCOUNT_QUERY).render(name=name)
-    aws_accounts = gql.get_api().query(query)["accounts"]
-    if aws_accounts:
-        return aws_accounts[0]
-    return None
+class AbortStateTransaction(Exception):
+    """Raise to abort a state transaction."""
 
 
 class State:
@@ -264,19 +248,19 @@ class State:
                 f"Bucket {self.bucket} is not accessible - {str(details)}"
             )
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self.cleanup()
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """
         Closes the S3 client
         """
         self.client.close()
 
-    def exists(self, key):
+    def exists(self, key: str) -> bool:
         """
         Checks if a key exists in the state.
 
@@ -290,7 +274,7 @@ class State:
         exists, _ = self.head(key)
         return exists
 
-    def head(self, key) -> tuple[bool, dict[str, str]]:
+    def head(self, key: str) -> tuple[bool, dict[str, str]]:
         """
         Checks if a key exists in the state. Returns the metadata of a key in the state.
 
@@ -315,7 +299,7 @@ class State:
                 f"in bucket {self.bucket} - {str(details)}"
             )
 
-    def ls(self):
+    def ls(self) -> list[str]:
         """
         Returns a list of keys in the state
         """
@@ -339,7 +323,13 @@ class State:
 
         return [c["Key"].replace(self.state_path, "") for c in contents]
 
-    def add(self, key, value=None, metadata=None, force=False):
+    def add(
+        self,
+        key: str,
+        value: Any = None,
+        metadata: Mapping[str, str] | None = None,
+        force: bool = False,
+    ) -> None:
         """
         Adds a key/value to the state and fails if the key already exists
 
@@ -354,7 +344,9 @@ class State:
             raise KeyError(f"[state] key {key} already " f"exists in {self.state_path}")
         self._set(key, value, metadata=metadata)
 
-    def _set(self, key, value, metadata=None):
+    def _set(
+        self, key: str, value: Any, metadata: Mapping[str, str] | None = None
+    ) -> None:
         self.client.put_object(
             Bucket=self.bucket,
             Key=f"{self.state_path}/{key}",
@@ -362,7 +354,7 @@ class State:
             Metadata=metadata or {},
         )
 
-    def rm(self, key):
+    def rm(self, key: str) -> None:
         """
         Removes a key from the state and fails if the key does not exists
 
@@ -374,7 +366,7 @@ class State:
             raise KeyError(f"[state] key {key} does not exists in {self.state_path}")
         self.client.delete_object(Bucket=self.bucket, Key=f"{self.state_path}/{key}")
 
-    def get(self, key, *args):
+    def get(self, key: str, *args: Any) -> Any:
         """
         Gets a key value from the state and return the default
         value or raises and exception if the key does not exist.
@@ -392,7 +384,7 @@ class State:
                 return args[0]
             raise
 
-    def get_all(self, path):
+    def get_all(self, path: str) -> dict[str, Any]:
         """
         Gets all keys and values from the state in the specified path.
         """
@@ -402,7 +394,7 @@ class State:
             if k.startswith(f"/{path}")
         }
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> Any:
         try:
             response = self.client.get_object(
                 Bucket=self.bucket, Key=f"{self.state_path}/{item}"
@@ -415,5 +407,54 @@ class State:
         except json.decoder.JSONDecodeError:
             raise KeyError(item)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any) -> None:
         self._set(key, value)
+
+    @contextlib.contextmanager
+    def transaction(
+        self, key: str, value: Any = None
+    ) -> Generator["TransactionStateObj", None, None]:
+        """Get a context manager to set the key in the state if no exception occurs.
+
+        You can set the value either via the value parameter or by setting the value attribute of the returned object.
+        If both are provided, the value attribute of the state object will take precedence.
+
+        Attention!
+
+        This is not a locking mechanism. It is a way to ensure that a key is set in the state if no exception occurs.
+        This method is not thread-safe nor multi-process-safe! There is no locking mechanism in place.
+        """
+        try:
+            _current_value = self[key]
+        except KeyError:
+            _current_value = None
+        state_obj = TransactionStateObj(key, value=_current_value)
+        try:
+            yield state_obj
+        except AbortStateTransaction:
+            return
+        else:
+            if state_obj.changed and state_obj.value != _current_value:
+                self[state_obj.key] = state_obj.value
+            elif value is not None and state_obj.value != value:
+                self[state_obj.key] = value
+
+
+@dataclass
+class TransactionStateObj:
+    """Represents a transistion state object with a key and a value."""
+
+    key: str
+    value: Any = None
+    _init_value: Any = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._init_value = self.value
+
+    @property
+    def changed(self) -> bool:
+        return self.value != self._init_value
+
+    @property
+    def exists(self) -> bool:
+        return self._init_value is not None

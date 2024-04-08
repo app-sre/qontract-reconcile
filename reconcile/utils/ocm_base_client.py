@@ -3,10 +3,12 @@ from collections.abc import (
     Generator,
     Mapping,
 )
+from types import TracebackType
 from typing import (
     Any,
     Optional,
     Protocol,
+    Type,
 )
 
 from pydantic import BaseModel
@@ -147,6 +149,20 @@ class OCMBaseClient:
         ocm_request.labels(verb="DELETE", client_id=self._access_token_client_id).inc()
         r = self._session.delete(f"{self._url}{api_path}", timeout=REQUEST_TIMEOUT_SEC)
         r.raise_for_status()
+
+    def close(self) -> None:
+        self._session.close()
+
+    def __enter__(self) -> "OCMBaseClient":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
+        self.close()
 
 
 class OCMAPIClientConfigurationProtocol(Protocol):

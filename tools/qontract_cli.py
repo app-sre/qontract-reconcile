@@ -46,6 +46,8 @@ from reconcile.aus.base import (
     AbstractUpgradePolicy,
     AdvancedUpgradeSchedulerBaseIntegration,
     AdvancedUpgradeSchedulerBaseIntegrationParams,
+    addon_upgrade_policy_soonest_next_run,
+    init_addon_service_version,
 )
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.change_owners.bundle import NoOpFileDiffResolver
@@ -83,8 +85,14 @@ from reconcile.utils import (
     gql,
 )
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.early_exit_cache import CacheKey, CacheValue, EarlyExitCache
+from reconcile.utils.early_exit_cache import (
+    CacheKey,
+    CacheKeyWithDigest,
+    CacheValue,
+    EarlyExitCache,
+)
 from reconcile.utils.environ import environ
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
@@ -102,6 +110,7 @@ from reconcile.utils.keycloak import (
     SSOClient,
 )
 from reconcile.utils.mr.labels import (
+    AVS,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE,
@@ -122,6 +131,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+from tools.cli_commands.cost_report.command import CostReportCommand
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
@@ -827,7 +837,6 @@ def upgrade_cluster_addon(
     ocm_org: str, cluster: str, addon: str, dry_run: bool, force: bool
 ) -> None:
     import reconcile.aus.ocm_addons_upgrade_scheduler_org as oauso
-    from reconcile.utils.ocm.upgrades import create_addon_upgrade_policy
 
     settings = queries.get_app_interface_settings()
     ocms = queries.get_openshift_cluster_managers()
@@ -879,14 +888,21 @@ def upgrade_cluster_addon(
         )
     print(["create", ocm_org, cluster, addon, ocm_addon_version])
     if not dry_run:
-        spec = {
-            "version": ocm_addon_version,
-            "schedule_type": "manual",
-            "addon_id": addon,
-            "cluster_id": ocm.cluster_ids[cluster],
-            "upgrade_type": "ADDON",
-        }
-        create_addon_upgrade_policy(ocm._ocm_client, ocm.cluster_ids[cluster], spec)
+        # detection addon service version
+        ocm_env_labels = json.loads(ocm_info["environment"].get("labels") or "{}")
+        addon_service_version = (
+            ocm_env_labels.get("feature_flag_addon_service_version") or "v2"
+        )
+        addon_service = init_addon_service_version(addon_service_version)
+
+        addon_service.create_addon_upgrade_policy(
+            ocm_api=ocm._ocm_client,
+            cluster_id=ocm.cluster_ids[cluster],
+            addon_id=ocm_addon["id"],
+            schedule_type="manual",
+            version=ocm_addon_version,
+            next_run=addon_upgrade_policy_soonest_next_run(),
+        )
 
 
 def has_cluster_account_access(cluster: dict[str, Any]):
@@ -956,6 +972,52 @@ def clusters_network(ctx, name):
     # do not sort
     ctx.obj["options"]["sort"] = False
     print_output(ctx.obj["options"], clusters, columns)
+
+
+@get.command()
+@click.pass_context
+def network_reservations(ctx) -> None:
+    from reconcile.typed_queries.reserved_networks import get_networks
+
+    columns = [
+        "name",
+        "network Address",
+        "parent Network",
+        "Account Name",
+        "Account UID",
+        "Console Login URL",
+    ]
+    network_table = []
+
+    def md_link(url) -> str:
+        if ctx.obj["options"]["output"] == "md":
+            return f"[{url}]({url})"
+        else:
+            return url
+
+    for network in get_networks():
+        parentAddress = "none"
+        if network.parent_network:
+            parentAddress = network.parent_network.network_address
+        if network.in_use_by and network.in_use_by.vpc:
+            network_table.append({
+                "name": network.name,
+                "network Address": network.network_address,
+                "parent Network": parentAddress,
+                "Account Name": network.in_use_by.vpc.account.name,
+                "Account UID": network.in_use_by.vpc.account.uid,
+                "Console Login URL": md_link(network.in_use_by.vpc.account.console_url),
+            })
+        else:
+            network_table.append({
+                "name": network.name,
+                "network Address": network.network_address,
+                "parent Network": parentAddress,
+                "Account Name": "Unclaimed network",
+                "Account UID": "Unclaimed network",
+                "Console Login URL": "Unclaimed network",
+            })
+    print_output(ctx.obj["options"], network_table, columns)
 
 
 @get.command()
@@ -1304,9 +1366,17 @@ def rosa_create_cluster_command(ctx, cluster_name):
         print("must be a rosa cluster.")
         sys.exit(1)
 
+    settings = queries.get_app_interface_settings()
+    account = cluster.spec.account
+    with AWSApi(
+        1, [account.dict(by_alias=True)], settings=settings, init_users=False
+    ) as aws_api:
+        billing_account = aws_api.get_organization_billing_account(account.name)
+
     print(
         " ".join([
             "rosa create cluster",
+            f"--billing-account {billing_account}",
             f"--cluster-name {cluster.name}",
             "--sts",
             ("--private" if cluster.spec.private else ""),
@@ -1477,6 +1547,103 @@ def aws_terraform_resources(ctx):
     # do not sort
     ctx.obj["options"]["sort"] = False
     print_output(ctx.obj["options"], results.values(), columns)
+
+
+def rds_attr(
+    attr: str, overrides: dict[str, str], defaults: dict[str, str]
+) -> str | None:
+    return overrides.get(attr) or defaults.get(attr)
+
+
+def region_from_az(az: str | None) -> str | None:
+    if not az:
+        return None
+    return az[:-1]
+
+
+def rds_region(
+    spec: ExternalResourceSpec,
+    overrides: dict[str, str],
+    defaults: dict[str, str],
+    accounts: dict[str, Any],
+) -> str | None:
+    return (
+        spec.resource.get("region")
+        or rds_attr("region", overrides, defaults)
+        or region_from_az(spec.resource.get("availability_zone"))
+        or region_from_az(rds_attr("availability_zone", overrides, defaults))
+        or accounts[spec.provisioner_name].get("resourcesDefaultRegion")
+    )
+
+
+@get.command
+@click.pass_context
+def rds(ctx):
+    namespaces = tfr.get_namespaces()
+    accounts = {a["name"]: a for a in queries.get_aws_accounts()}
+    results = []
+    for namespace in namespaces:
+        specs = [
+            s
+            for s in get_external_resource_specs(
+                namespace.dict(by_alias=True), provision_provider=PROVIDER_AWS
+            )
+            if s.provider == "rds"
+        ]
+        for spec in specs:
+            defaults = yaml.safe_load(
+                gql.get_resource(spec.resource["defaults"])["content"]
+            )
+            overrides = json.loads(spec.resource.get("overrides") or "{}")
+            item = {
+                "identifier": spec.identifier,
+                "account": spec.provisioner_name,
+                "account_uid": accounts[spec.provisioner_name]["uid"],
+                "region": rds_region(spec, overrides, defaults, accounts),
+                "engine": rds_attr("engine", overrides, defaults),
+                "engine_version": rds_attr("engine_version", overrides, defaults),
+                "instance_class": rds_attr("instance_class", overrides, defaults),
+            }
+            results.append(item)
+
+    if ctx.obj["options"]["output"] == "md":
+        json_table = {
+            "filter": True,
+            "fields": [
+                {"key": "identifier", "sortable": True},
+                {"key": "account", "sortable": True},
+                {"key": "account_uid", "sortable": True},
+                {"key": "region", "sortable": True},
+                {"key": "engine", "sortable": True},
+                {"key": "engine_version", "sortable": True},
+                {"key": "instance_class", "sortable": True},
+            ],
+            "items": results,
+        }
+
+        print(
+            f"""
+You can view the source of this Markdown to extract the JSON data.
+
+{len(results)} RDS instances found.
+
+```json:table
+{json.dumps(json_table)}
+```
+            """
+        )
+    else:
+        columns = [
+            "identifier",
+            "account",
+            "account_uid",
+            "region",
+            "engine",
+            "engine_version",
+            "instance_class",
+        ]
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], results, columns)
 
 
 @get.command()
@@ -1864,6 +2031,7 @@ def app_interface_review_queue(ctx) -> None:
             if (
                 SELF_SERVICEABLE in labels
                 and SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE not in labels
+                and AVS not in labels
             ):
                 continue
 
@@ -2002,7 +2170,7 @@ def change_types(ctx) -> None:
         data.append({
             "name": ct.name,
             "description": ct.description,
-            "applicable to": f"{ct.context_type.value} {ct.context_schema or '' }",
+            "applicable to": f"{ct.context_type.value} {ct.context_schema or ''}",
             "# usages": usage_statistics[ct.name],
         })
     columns = ["name", "description", "applicable to", "# usages"]
@@ -2263,7 +2431,11 @@ def slo_document_services(ctx, status_board_instance):
         "product",
         "app",
         "slo",
+        "sli_type",
+        "sli_specification",
+        "slo_details",
         "target",
+        "target_unit",
         "window",
         "statusBoardEnabled",
     ]
@@ -2300,7 +2472,11 @@ def slo_document_services(ctx, status_board_instance):
                     "product": product,
                     "app": app,
                     "slo": slo.name,
+                    "sli_type": slo.sli_type,
+                    "sli_specification": slo.sli_specification,
+                    "slo_details": slo.slo_details,
                     "target": slo.slo_target,
+                    "target_unit": slo.slo_target_unit,
                     "window": slo.slo_parameters.window,
                     "statusBoardService": f"{product}/{slodoc.app.name}/{slo.name}",
                     "statusBoardEnabled": "statusBoard" in slodoc.labels,
@@ -2308,6 +2484,123 @@ def slo_document_services(ctx, status_board_instance):
                 slodocs.append(item)
 
     print_output(ctx.obj["options"], slodocs, columns)
+
+
+@get.command()
+@click.argument("file_path")
+@click.pass_context
+def alerts(ctx, file_path):
+    BIG_NUMBER = 10
+
+    def sort_by_threshold(item: dict[str, str]) -> int:
+        threshold = item["threshold"]
+        if not threshold:
+            return BIG_NUMBER * 60 * 24
+        value = int(threshold[:-1])
+        unit = threshold[-1]
+        match unit:
+            case "m":
+                return value
+            case "h":
+                return value * 60
+            case "d":
+                return value * 60 * 24
+            case _:
+                return BIG_NUMBER * 60 * 24
+
+    def sort_by_severity(item: dict[str, str]) -> int:
+        match item["severity"].lower():
+            case "critical":
+                return 0
+            case "warning":
+                return 1
+            case "info":
+                return 2
+            case _:
+                return BIG_NUMBER
+
+    with open(file_path, "r", encoding="locale") as f:
+        content = json.loads(f.read())
+
+    columns = [
+        "name",
+        "summary",
+        "severity",
+        "threshold",
+        "description",
+    ]
+    data = []
+    prometheus_rules = content["items"]
+    for prom_rule in prometheus_rules:
+        groups = prom_rule["spec"]["groups"]
+        for group in groups:
+            rules = group["rules"]
+            for rule in rules:
+                name = rule.get("alert")
+                summary = rule.get("annotations", {}).get("summary")
+                message = rule.get("annotations", {}).get("message")
+                severity = rule.get("labels", {}).get("severity")
+                description = rule.get("annotations", {}).get("description")
+                threshold = rule.get("for")
+                if name:
+                    data.append({
+                        "name": name,
+                        "summary": "`" + (summary or message).replace("\n", " ") + "`"
+                        if summary or message
+                        else "",
+                        "severity": severity,
+                        "threshold": threshold,
+                        "description": "`" + description.replace("\n", " ") + "`"
+                        if description
+                        else "",
+                    })
+    ctx.obj["options"]["sort"] = False
+    data = sorted(data, key=sort_by_threshold)
+    data = sorted(data, key=sort_by_severity)
+    print_output(ctx.obj["options"], data, columns)
+
+
+@get.command()
+@click.pass_context
+def cost_report(ctx):
+    command = CostReportCommand.create()
+    print(command.execute())
+
+
+@get.command()
+@click.pass_context
+def osd_component_versions(ctx):
+    osd_environments = [
+        e["name"] for e in queries.get_environments() if e["product"]["name"] == "OSDv4"
+    ]
+    data = []
+    saas_files = get_saas_files()
+    for sf in saas_files:
+        for rt in sf.resource_templates:
+            for t in rt.targets:
+                if t.namespace.environment.name not in osd_environments:
+                    continue
+                item = {
+                    "environment": t.namespace.environment.name,
+                    "namespace": t.namespace.name,
+                    "cluster": t.namespace.cluster.name,
+                    "app": sf.app.name,
+                    "saas_file": sf.name,
+                    "resource_template": rt.name,
+                    "ref": f"[{t.ref}]({rt.url}/blob/{t.ref}{rt.path})",
+                }
+                data.append(item)
+
+    columns = [
+        "environment",
+        "namespace",
+        "cluster",
+        "app",
+        "saas_file",
+        "resource_template",
+        "ref",
+    ]
+    print_output(ctx.obj["options"], data, columns)
 
 
 @root.group(name="set")
@@ -2381,11 +2674,11 @@ def ls(ctx, integration):
     )
 
 
-@state.command()  # type: ignore
+@state.command(name="get")
 @click.argument("integration")
 @click.argument("key")
 @click.pass_context
-def get(ctx, integration, key):
+def state_get(ctx, integration, key):
     state = init_state(integration=integration)
     value = state.get(key)
     print(value)
@@ -2473,6 +2766,7 @@ def early_exit_cache_head(
             cache_source=json.loads(cache_source),
             shard=shard,
         )
+        print(f"cache_source_digest: {cache_key.cache_source_digest}")
         result = cache.head(cache_key)
         print(result)
 
@@ -2618,6 +2912,57 @@ def early_exit_cache_set(
             applied_count=applied_count,
         )
         cache.set(cache_key, cache_value, ttl, latest_cache_source_digest)
+
+
+@early_exit_cache.command(name="delete")
+@click.option(
+    "-i",
+    "--integration",
+    help="Integration name.",
+    required=True,
+)
+@click.option(
+    "-v",
+    "--integration-version",
+    help="Integration version.",
+    required=True,
+)
+@click.option(
+    "--dry-run/--no-dry-run",
+    help="",
+    default=False,
+)
+@click.option(
+    "-d",
+    "--cache-source-digest",
+    help="Cache source digest.",
+    required=True,
+)
+@click.option(
+    "-s",
+    "--shard",
+    help="Shard",
+    default="",
+)
+@click.pass_context
+def early_exit_cache_delete(
+    ctx,
+    integration,
+    integration_version,
+    dry_run,
+    cache_source_digest,
+    shard,
+):
+    with EarlyExitCache.build() as cache:
+        cache_key_with_digest = CacheKeyWithDigest(
+            integration=integration,
+            integration_version=integration_version,
+            dry_run=dry_run,
+            cache_source_digest=cache_source_digest,
+            shard=shard,
+        )
+        cache.delete(cache_key_with_digest)
+        print("deleted")
 
 
 @root.command()

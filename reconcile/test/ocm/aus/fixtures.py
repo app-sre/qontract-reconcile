@@ -2,12 +2,15 @@ from datetime import datetime
 from typing import Optional
 
 from reconcile.aus.base import ClusterUpgradePolicy
+from reconcile.aus.healthchecks import AUSClusterHealth, AUSHealthError
 from reconcile.aus.models import (
     ClusterAddonUpgradeSpec,
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
 )
+from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.gql_definitions.fragments.aus_organization import (
+    AusClusterHealthCheckV1,
     AUSOCMOrganization,
     OpenShiftClusterManagerSectorDependenciesV1,
     OpenShiftClusterManagerSectorV1,
@@ -29,8 +32,10 @@ from reconcile.utils.ocm.base import (
     OCMAddonInstallation,
     OCMAddonVersion,
     OCMModelLink,
+    OCMVersionGate,
 )
 from reconcile.utils.ocm.clusters import OCMCluster
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 def build_upgrade_policy(
@@ -44,6 +49,7 @@ def build_upgrade_policy(
     return ClusterUpgradePolicyV1(
         schedule=schedule or "* * * * *",
         workloads=workloads or ["workload1"],
+        versionGateApprovals=None,
         conditions=ClusterUpgradePolicyConditionsV1(
             soakDays=soak_days,
             sector=sector,
@@ -77,6 +83,7 @@ def build_organization(
     sector_dependencies: Optional[dict[str, Optional[list[str]]]] = None,
     addonManagedUpgrades: bool = False,
     disabled_integrations: Optional[list[str]] = None,
+    health_checks: Optional[list[tuple[str, bool]]] = None,
 ) -> AUSOCMOrganization:
     org_id = org_id or "org-1-id"
     disable = (
@@ -134,11 +141,18 @@ def build_organization(
         ]
         if sector_dependencies
         else None,
+        ausClusterHealthChecks=[
+            AusClusterHealthCheckV1(
+                provider=provider,
+                enforced=encorced,
+            )
+            for provider, encorced in health_checks or []
+        ],
     )
 
 
 def build_organization_upgrade_spec(
-    specs: list[tuple[OCMCluster, ClusterUpgradePolicyV1]],
+    specs: list[tuple[OCMCluster, ClusterUpgradePolicyV1, AUSClusterHealth]],
     org: Optional[AUSOCMOrganization] = None,
 ) -> OrganizationUpgradeSpec:
     org = org or build_organization()
@@ -149,8 +163,9 @@ def build_organization_upgrade_spec(
                 org=org,
                 cluster=cluster,
                 upgradePolicy=upgrade_policy,
+                health=cluster_health,
             )
-            for cluster, upgrade_policy in specs
+            for cluster, upgrade_policy, cluster_health in specs
         ],
     )
 
@@ -164,6 +179,7 @@ def build_cluster_upgrade_spec(
     available_upgrades: Optional[list[str]] = None,
     mutexes: Optional[list[str]] = None,
     blocked_versions: Optional[list[str]] = None,
+    cluster_health: bool = True,
 ) -> ClusterUpgradeSpec:
     return ClusterUpgradeSpec(
         org=org or build_organization(),
@@ -176,6 +192,9 @@ def build_cluster_upgrade_spec(
             mutexes=mutexes,
             blocked_versions=blocked_versions,
         ),
+        health=build_healthy_cluster_health()
+        if cluster_health
+        else build_unhealthy_cluster_health(),
     )
 
 
@@ -190,6 +209,7 @@ def build_addon_upgrade_spec(
     org: Optional[AUSOCMOrganization] = None,
     available_cluster_upgrades: Optional[list[str]] = None,
     available_addon_upgrades: Optional[list[str]] = None,
+    cluster_health: bool = True,
 ) -> ClusterAddonUpgradeSpec:
     return ClusterAddonUpgradeSpec(
         org=org or build_organization(),
@@ -212,6 +232,9 @@ def build_addon_upgrade_spec(
             ),
             state=addon_state,
         ),
+        health=build_healthy_cluster_health()
+        if cluster_health
+        else build_unhealthy_cluster_health(),
     )
 
 
@@ -228,3 +251,54 @@ def build_cluster_upgrade_policy(
         schedule_type="manual",
         schedule=None,
     )
+
+
+class NoopGateHandler(GateHandler):
+    """
+    A generic handler for version gates. It feels responsible for all clusters
+    and does not do anything when handling a version gate.
+
+    This is useful when a version gate does not require any action to be taken
+    and the gate is just a wave-through.
+    """
+
+    @staticmethod
+    def gate_applicable_to_cluster(_: OCMCluster) -> bool:
+        return True
+
+    def handle(
+        self,
+        ocm_api: OCMBaseClient,
+        ocm_org_id: str,
+        cluster: OCMCluster,
+        gate: OCMVersionGate,
+        dry_run: bool,
+    ) -> bool:
+        return True
+
+
+def build_cluster_health(
+    errors: Optional[list[tuple[str, bool]]] = None,
+) -> AUSClusterHealth:
+    return AUSClusterHealth(
+        state={
+            "source": [
+                AUSHealthError(
+                    source="source",
+                    error=err_msg,
+                    enforce=enforce,
+                )
+                for err_msg, enforce in errors or []
+            ]
+        }
+    )
+
+
+def build_healthy_cluster_health() -> AUSClusterHealth:
+    return build_cluster_health([])
+
+
+def build_unhealthy_cluster_health(enforced: bool = True) -> AUSClusterHealth:
+    return build_cluster_health([
+        ("err", enforced),
+    ])

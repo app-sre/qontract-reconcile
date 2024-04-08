@@ -233,3 +233,10 @@ def get_version(ocm_api: OCMBaseClient, version: str) -> dict[str, Any]:
 
     item = ocm_api.get(api)
     return {k: v for k, v in item.items() if k in VERSION_DESIRED_KEYS}
+
+
+def get_provisioning_shard_id(ocm_api: OCMBaseClient, cluster_id: str) -> str:
+    api = f"/api/clusters_mgmt/v1/clusters/{cluster_id}/provision_shard"
+
+    item = ocm_api.get(api)
+    return item["id"]

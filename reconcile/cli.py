@@ -15,6 +15,7 @@ from typing import (
 
 import click
 import sentry_sdk
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 from reconcile.status import (
     ExitCodes,
@@ -43,10 +44,10 @@ from reconcile.utils.runtime.runner import (
 )
 from reconcile.utils.unleash import get_feature_toggle_state
 
-TERRAFORM_VERSION = "0.13.7"
+TERRAFORM_VERSION = ["1.5.7"]
 TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 
-OC_VERSION = "4.14.12"
+OC_VERSIONS = ["4.12.46", "4.10.15"]
 OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$"
 
 
@@ -66,7 +67,23 @@ def before_breadcrumb(crumb, hint):
 
 # Enable Sentry
 if os.getenv("SENTRY_DSN"):
-    sentry_sdk.init(os.environ["SENTRY_DSN"], before_breadcrumb=before_breadcrumb)
+    match os.environ.get("SENTRY_EVENT_LEVEL", "CRITICAL").upper():
+        case "CRITICAL":
+            sentry_event_level = logging.CRITICAL
+        case "ERROR":
+            sentry_event_level = logging.ERROR
+        case _:
+            raise ValueError(
+                "Invalid value for SENTRY_EVENT_LEVEL. Must be CRITICAL or ERROR."
+            )
+
+    sentry_sdk.init(
+        os.environ["SENTRY_DSN"],
+        before_breadcrumb=before_breadcrumb,
+        integrations=[
+            LoggingIntegration(event_level=sentry_event_level),
+        ],
+    )
 
 
 def config_file(function):
@@ -793,7 +810,7 @@ def github_validator(ctx):
 @integration.command(short_help="Configures ClusterRolebindings in OpenShift clusters.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -812,7 +829,7 @@ def openshift_clusterrolebindings(ctx, thread_pool_size, internal, use_jump_host
 @integration.command(short_help="Configures Rolebindings in OpenShift clusters.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -831,7 +848,7 @@ def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command(short_help="Manages OpenShift Groups.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -846,7 +863,7 @@ def openshift_groups(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command(short_help="Deletion of users from OpenShift clusters.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -863,7 +880,7 @@ def openshift_users(ctx, thread_pool_size, internal, use_jump_host):
 )
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @vault_output_path
@@ -928,6 +945,85 @@ def aws_saml_roles(
                 saml_idp_name=saml_idp_name,
                 max_session_duration_hours=max_session_duration_hours,
                 account_name=account_name,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
+@integration.command(short_help="Create and manage AWS accounts.")
+@account_name
+@click.option(
+    "--flavor",
+    help="Flavor of the AWS account manager.",
+    required=True,
+    default="app-interface-commercial",
+)
+@click.option(
+    "--tag",
+    "-t",
+    type=(str, str),
+    multiple=True,
+    default=[("managed-by", "app-interface")],
+)
+@click.option(
+    "--initial-user-name",
+    help="The name of the initial user to be created in the account.",
+    required=True,
+    default="terraform",
+)
+@click.option(
+    "--initial-user-policy-arn",
+    help="The ARN of the policy that is attached to the initial user.",
+    required=True,
+    default="arn:aws:iam::aws:policy/AdministratorAccess",
+)
+@click.option(
+    "--initial-user-secret-vault-path",
+    help="The path in Vault to store the initial user secret. Python format string with access to 'account_name' attribute.",
+    required=True,
+    default="app-sre/creds/terraform/{account_name}/config",
+)
+@click.option(
+    "--account-tmpl-resource",
+    help="Resource name of the account template-collection template in the app-interface.",
+    required=True,
+    default="/aws-account-manager/account-tmpl.yml",
+)
+@click.option(
+    "--template-collection-root-path",
+    help="File path to the root directory to store new account template-collections.",
+    required=True,
+    default="data/templating/collections/aws-account",
+)
+@click.pass_context
+def aws_account_manager(
+    ctx,
+    account_name,
+    flavor,
+    tag,
+    initial_user_name,
+    initial_user_policy_arn,
+    initial_user_secret_vault_path,
+    account_tmpl_resource,
+    template_collection_root_path,
+):
+    from reconcile.aws_account_manager.integration import (
+        AwsAccountMgmtIntegration,
+        AwsAccountMgmtIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=AwsAccountMgmtIntegration(
+            AwsAccountMgmtIntegrationParams(
+                account_name=account_name,
+                flavor=flavor,
+                default_tags=dict(tag),
+                initial_user_name=initial_user_name,
+                initial_user_policy_arn=initial_user_policy_arn,
+                initial_user_secret_vault_path=initial_user_secret_vault_path,
+                account_tmpl_resource=account_tmpl_resource,
+                template_collection_root_path=template_collection_root_path,
             )
         ),
         ctx=ctx.obj,
@@ -1032,7 +1128,7 @@ def jira_watcher(ctx):
     short_help="Watches for OpenShift upgrades and sends notifications."
 )
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @threaded()
 @internal()
 @use_jump_host()
@@ -1181,7 +1277,7 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @integration.command(short_help="Manages OpenShift Resources.")
 @threaded()
 @binary(["oc", "ssh", "amtool"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -1216,7 +1312,7 @@ def openshift_resources(
 @throughput
 @use_jump_host()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
 @click.option("--env-name", default=None, help="environment to deploy to.")
 @trigger_integration
@@ -1258,7 +1354,7 @@ def openshift_saas_deploy(
     help="bundle sha to compare to to find changes",
 )
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @use_jump_host()
 @click.pass_context
 def openshift_saas_deploy_change_tester(
@@ -1293,7 +1389,7 @@ def saas_file_validator(ctx):
 @integration.command(short_help="Trigger deployments when a commit changed for a ref.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @include_trigger_trace
@@ -1316,7 +1412,7 @@ def openshift_saas_deploy_trigger_moving_commits(
 @integration.command(short_help="Trigger deployments when upstream job runs.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @include_trigger_trace
@@ -1339,7 +1435,7 @@ def openshift_saas_deploy_trigger_upstream_jobs(
 @integration.command(short_help="Trigger deployments when images are pushed.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @include_trigger_trace
@@ -1362,7 +1458,7 @@ def openshift_saas_deploy_trigger_images(
 @integration.command(short_help="Trigger deployments when configuration changes.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @include_trigger_trace
@@ -1385,7 +1481,7 @@ def openshift_saas_deploy_trigger_configs(
 @integration.command(short_help="Clean up deployment related resources.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -1444,7 +1540,7 @@ def gitlab_labeler(ctx, gitlab_project_id, gitlab_merge_request_id):
 @integration.command(short_help="Manages labels on OpenShift namespaces.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -1463,7 +1559,7 @@ def openshift_namespace_labels(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command(short_help="Manages OpenShift Namespaces.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -1488,7 +1584,7 @@ def openshift_namespaces(
 @integration.command(short_help="Manages OpenShift NetworkPolicies.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -1508,7 +1604,7 @@ def openshift_network_policies(ctx, thread_pool_size, internal, use_jump_host):
 @threaded()
 @take_over()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -1529,7 +1625,7 @@ def openshift_limitranges(ctx, thread_pool_size, internal, use_jump_host, take_o
 @threaded()
 @take_over()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -1549,7 +1645,7 @@ def openshift_resourcequotas(ctx, thread_pool_size, internal, use_jump_host, tak
 @integration.command(short_help="Manages OpenShift Secrets from Vault.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -1574,7 +1670,7 @@ def openshift_vault_secrets(
 @integration.command(short_help="Manages OpenShift Routes.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -1869,13 +1965,37 @@ def template_validator(ctx):
     )
 
 
+@integration.command(short_help="Render datafile templates in app-interface.")
+@click.option(
+    "--app-interface-data-path",
+    help="Path to app-interface dictory, used to write output and calculate diff in dry-run.",
+    required=False,
+    envvar="APP_INTERFACE_DATA_PATH",
+)
+@click.pass_context
+def template_renderer(ctx, app_interface_data_path):
+    from reconcile.templating.renderer import (
+        TemplateRendererIntegration,
+        TemplateRendererIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=TemplateRendererIntegration(
+            TemplateRendererIntegrationParams(
+                app_interface_data_path=app_interface_data_path
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage AWS Resources using Terraform.")
 @print_to_file
 @vault_output_path
 @threaded()
 @binary(["terraform", "oc", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @enable_deletion(default=False)
@@ -2043,10 +2163,14 @@ def cna_resources(
 
 @integration.command(short_help="Manage auto-promotions defined in SaaS files")
 @threaded()
+@click.option("--env-name", default=None, help="environment to filter saas files by")
+@click.option("--app-name", default=None, help="app to filter saas files by.")
 @click.pass_context
 def saas_auto_promotions_manager(
     ctx,
     thread_pool_size,
+    env_name,
+    app_name,
 ):
     import reconcile.saas_auto_promotions_manager.integration
 
@@ -2054,6 +2178,8 @@ def saas_auto_promotions_manager(
         reconcile.saas_auto_promotions_manager.integration,
         ctx.obj,
         thread_pool_size,
+        env_name=env_name,
+        app_name=app_name,
     )
 
 
@@ -2154,7 +2280,7 @@ def terraform_tgw_attachments(
         print_to_file,
         enable_deletion,
         thread_pool_size,
-        account_name,
+        account_name=account_name,
     )
 
 
@@ -2205,12 +2331,65 @@ def ocm_groups(ctx, thread_pool_size):
 @integration.command(short_help="Manages clusters via OCM.")
 @gitlab_project_id
 @threaded()
+@click.option(
+    "--job-controller-cluster",
+    help="The cluster holding the job-controller namepsace",
+    required=False,
+    envvar="JOB_CONTROLLER_CLUSTER",
+)
+@click.option(
+    "--job-controller-namespace",
+    help="The namespace used for ROSA jobs",
+    required=False,
+    envvar="JOB_CONTROLLER_NAMESPACE",
+)
+@click.option(
+    "--rosa-job-service-account",
+    help="The service-account used for ROSA jobs",
+    required=False,
+    envvar="ROSA_JOB_SERVICE_ACCOUNT",
+)
+@click.option(
+    "--rosa-job-image",
+    help="The container image to use to run ROSA cli command jobs",
+    required=False,
+    envvar="ROSA_JOB_IMAGE",
+)
+@click.option(
+    "--rosa-role",
+    help="The role to assume in the ROSA cluster account",
+    required=False,
+    envvar="ROSA_ROLE",
+)
 @click.pass_context
-def ocm_clusters(ctx, gitlab_project_id, thread_pool_size):
-    import reconcile.ocm_clusters
+def ocm_clusters(
+    ctx,
+    gitlab_project_id: Optional[str],
+    thread_pool_size: int,
+    job_controller_cluster: Optional[str],
+    job_controller_namespace: Optional[str],
+    rosa_job_service_account: Optional[str],
+    rosa_role: Optional[str],
+    rosa_job_image: Optional[str],
+):
+    from reconcile.ocm_clusters import (
+        OcmClusters,
+        OcmClustersParams,
+    )
 
-    run_integration(
-        reconcile.ocm_clusters, ctx.obj, gitlab_project_id, thread_pool_size
+    run_class_integration(
+        integration=OcmClusters(
+            OcmClustersParams(
+                gitlab_project_id=gitlab_project_id,
+                thread_pool_size=thread_pool_size,
+                job_controller_cluster=job_controller_cluster,
+                job_controller_namespace=job_controller_namespace,
+                rosa_job_service_account=rosa_job_service_account,
+                rosa_job_image=rosa_job_image,
+                rosa_role=rosa_role,
+            )
+        ),
+        ctx=ctx.obj,
     )
 
 
@@ -2369,6 +2548,7 @@ def ocm_addons_upgrade_scheduler_org(
     run_class_integration(
         integration=OCMAddonsUpgradeSchedulerOrgIntegration(
             AdvancedUpgradeSchedulerBaseIntegrationParams(
+                ocm_environment="ocm-integration",
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
             )
@@ -2412,6 +2592,65 @@ def advanced_upgrade_scheduler(
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
                 ignore_sts_clusters=ignore_sts_clusters,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
+@integration.command(short_help="Approves OCM cluster upgrade version gates.")
+@click.option(
+    "--job-controller-cluster",
+    help="The cluster holding the job-controller namepsace",
+    required=True,
+    envvar="JOB_CONTROLLER_CLUSTER",
+)
+@click.option(
+    "--job-controller-namespace",
+    help="The namespace used for ROSA jobs",
+    required=True,
+    envvar="JOB_CONTROLLER_NAMESPACE",
+)
+@click.option(
+    "--rosa-job-service-account",
+    help="The service-account used for ROSA jobs",
+    required=True,
+    envvar="ROSA_JOB_SERVICE_ACCOUNT",
+)
+@click.option(
+    "--rosa-job-image",
+    help="The container image to use to run ROSA cli command jobs",
+    required=False,
+    envvar="ROSA_JOB_IMAGE",
+)
+@click.option(
+    "--rosa-role",
+    help="The role to assume in the ROSA cluster account",
+    required=True,
+    envvar="ROSA_ROLE",
+)
+@click.pass_context
+def version_gate_approver(
+    ctx,
+    job_controller_cluster: str,
+    job_controller_namespace: str,
+    rosa_job_service_account: str,
+    rosa_role: str,
+    rosa_job_image: Optional[str],
+) -> None:
+    from reconcile.aus.version_gate_approver import (
+        VersionGateApprover,
+        VersionGateApproverParams,
+    )
+
+    run_class_integration(
+        integration=VersionGateApprover(
+            VersionGateApproverParams(
+                job_controller_cluster=job_controller_cluster,
+                job_controller_namespace=job_controller_namespace,
+                rosa_job_service_account=rosa_job_service_account,
+                rosa_job_image=rosa_job_image,
+                rosa_role=rosa_role,
             )
         ),
         ctx=ctx.obj,
@@ -2833,7 +3072,7 @@ def resource_scraper(ctx, namespace_name, resource_kind, vault_output_path):
 @integration.command(short_help="Manages user access for GABI instances.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -2967,7 +3206,7 @@ def vault_replication(ctx):
 @environment_name
 @threaded()
 @binary(["oc", "ssh", "helm"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.option(
@@ -3093,7 +3332,7 @@ def glitchtip_project_alerts(ctx, instance):
 @integration.command(short_help="Glitchtip project dsn as openshift secret.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.option("--instance", help="Reconcile just this instance.", default=None)
@@ -3114,7 +3353,7 @@ def glitchtip_project_dsn(ctx, thread_pool_size, internal, use_jump_host, instan
 @integration.command(short_help="Manages Skupper Networks.")
 @threaded()
 @binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSION)
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -3188,6 +3427,17 @@ def acs_policies(ctx):
 
     run_class_integration(
         integration=acs_policies.AcsPoliciesIntegration(),
+        ctx=ctx.obj,
+    )
+
+
+@integration.command(short_help="Automate Deadmanssnitch Creation/Deletion")
+@click.pass_context
+def deadmanssnitch(ctx):
+    from reconcile import deadmanssnitch
+
+    run_class_integration(
+        integration=deadmanssnitch.DeadMansSnitchIntegration(),
         ctx=ctx.obj,
     )
 

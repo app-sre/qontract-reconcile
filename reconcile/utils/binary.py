@@ -25,7 +25,7 @@ def binary(binaries=None):
     return deco_binary
 
 
-def binary_version(binary, version_args, search_regex, expected_version):
+def binary_version(binary, version_args, search_regex, expected_versions):
     """Check that a binary exists and is a desired version"""
 
     def deco_binary_version(f):
@@ -62,10 +62,10 @@ def binary_version(binary, version_args, search_regex, expected_version):
                 )
 
             version = match.group(1)
-            if version != expected_version:
+            if version not in expected_versions:
                 raise Exception(
                     f"Binary version check for binary {binary} failed! "
-                    f"Expected: {expected_version}, found: {version}"
+                    f"Expected: {expected_versions}, found: {version}"
                 )
 
             f(*args, **kwargs)

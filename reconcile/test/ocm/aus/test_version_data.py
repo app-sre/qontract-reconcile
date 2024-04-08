@@ -1,14 +1,19 @@
 from unittest.mock import Mock
 
+import pytest
 from dateutil import parser
 from pytest_mock import MockerFixture
 
 from reconcile.aus import base
 from reconcile.aus.base import get_version_data_map
 from reconcile.aus.cluster_version_data import VersionData
+from reconcile.aus.healthchecks import AUSClusterHealth
 from reconcile.test.ocm.aus.fixtures import (
+    build_cluster_health,
+    build_healthy_cluster_health,
     build_organization,
     build_organization_upgrade_spec,
+    build_unhealthy_cluster_health,
     build_upgrade_policy,
 )
 from reconcile.test.ocm.fixtures import build_ocm_cluster
@@ -48,6 +53,7 @@ def test_get_version_data_map(
                         workloads=["workload-1"],
                         soak_days=1,
                     ),
+                    build_cluster_health(),
                 )
             ],
         ),
@@ -59,7 +65,29 @@ def test_get_version_data_map(
     assert org_data.stats and org_data.stats.inherited is None
 
 
+@pytest.mark.parametrize(
+    "inherit_version_data, expected_soak_days",
+    [
+        (
+            True,
+            {
+                "4.12.1": {"workload1": 24.0, "workload2": 6.0},
+                "4.12.2": {"workload1": 13.0},
+                "4.13.0": {"workload-1": 0.0},
+            },
+        ),
+        (
+            False,
+            {
+                "4.12.1": {"workload1": 21.0, "workload2": 6.0},
+                "4.13.0": {"workload-1": 0.0},
+            },
+        ),
+    ],
+)
 def test_get_version_data_map_with_inheritance(
+    inherit_version_data: bool,
+    expected_soak_days: dict,
     mocker: MockerFixture,
     state: Mock,
 ) -> None:
@@ -74,6 +102,7 @@ def test_get_version_data_map_with_inheritance(
     org_id = "org-1-id"
     version_data = get_version_data_map(
         dry_run=True,
+        inherit_version_data=inherit_version_data,
         org_upgrade_spec=build_organization_upgrade_spec(
             org=build_organization(
                 env_name=ocm_env,
@@ -91,13 +120,20 @@ def test_get_version_data_map_with_inheritance(
                         workloads=["workload-1"],
                         soak_days=1,
                     ),
+                    build_cluster_health(),
                 )
             ],
         ),
         integration="test",
     )
 
-    assert version_data.get("prod", org_id).stats.inherited
+    prod_version_data = version_data.get("prod", org_id)
+    soak_day_state = {
+        v: {w: wd.soak_days for w, wd in vh.workloads.items()}
+        for v, vh in prod_version_data.versions.items()
+    }
+    assert soak_day_state == expected_soak_days
+    assert (prod_version_data.stats.inherited is not None) == inherit_version_data
 
 
 #
@@ -105,7 +141,58 @@ def test_get_version_data_map_with_inheritance(
 #
 
 
-def test_update_history(ocm1_version_data: VersionData, mocker: MockerFixture) -> None:
+@pytest.mark.parametrize(
+    "cluster_health,expected_wl1_soak_days,expected_wl2_soak_days",
+    [
+        # all clusters health, soaking as expected
+        (
+            [
+                build_healthy_cluster_health(),
+                build_healthy_cluster_health(),
+                build_healthy_cluster_health(),
+            ],
+            23.0,
+            7.0,
+        ),
+        # all clusters unhealthy, but the health is not enforced, so soaking as if all clusters are healthy
+        (
+            [
+                build_unhealthy_cluster_health(enforced=False),
+                build_unhealthy_cluster_health(enforced=False),
+                build_unhealthy_cluster_health(enforced=False),
+            ],
+            23.0,
+            7.0,
+        ),
+        # some clusters unhealthy, affects soaking
+        (
+            [
+                build_unhealthy_cluster_health(),
+                build_healthy_cluster_health(),
+                build_unhealthy_cluster_health(),
+            ],
+            22.0,
+            6.0,
+        ),
+        # some clusters unhealthy, affects soaking
+        (
+            [
+                build_unhealthy_cluster_health(),
+                build_unhealthy_cluster_health(),
+                build_unhealthy_cluster_health(),
+            ],
+            21.0,
+            6.0,
+        ),
+    ],
+)
+def test_update_history(
+    ocm1_version_data: VersionData,
+    mocker: MockerFixture,
+    cluster_health: list[AUSClusterHealth],
+    expected_wl1_soak_days: float,
+    expected_wl2_soak_days: float,
+) -> None:
     """
     Test scenario: test that the two clusters with workload 1 increase the soakdays after one day by 2
     and that the cluster with workload 2 increases the soakdays after one day by 1
@@ -128,6 +215,7 @@ def test_update_history(ocm1_version_data: VersionData, mocker: MockerFixture) -
                     available_upgrades=["4.13.2"],
                 ),
                 build_upgrade_policy(workloads=["workload1"], soak_days=0),
+                cluster_health[0],
             ),
             (
                 build_ocm_cluster(
@@ -136,6 +224,7 @@ def test_update_history(ocm1_version_data: VersionData, mocker: MockerFixture) -
                     available_upgrades=["4.13.2"],
                 ),
                 build_upgrade_policy(workloads=["workload1"], soak_days=0),
+                cluster_health[1],
             ),
             (
                 build_ocm_cluster(
@@ -144,6 +233,7 @@ def test_update_history(ocm1_version_data: VersionData, mocker: MockerFixture) -
                     available_upgrades=["4.13.2"],
                 ),
                 build_upgrade_policy(workloads=["workload2"], soak_days=0),
+                cluster_health[2],
             ),
         ],
     )
@@ -155,10 +245,13 @@ def test_update_history(ocm1_version_data: VersionData, mocker: MockerFixture) -
             "4.12.1": {
                 "workloads": {
                     "workload1": {
-                        "soak_days": 23.0,
+                        "soak_days": expected_wl1_soak_days,
                         "reporting": ["cluster1", "cluster2"],
                     },
-                    "workload2": {"soak_days": 7.0, "reporting": ["cluster3"]},
+                    "workload2": {
+                        "soak_days": expected_wl2_soak_days,
+                        "reporting": ["cluster3"],
+                    },
                 }
             }
         },

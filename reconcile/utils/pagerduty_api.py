@@ -76,7 +76,7 @@ class PagerDutyApi:
             self.users: list[pypd.User] = []
 
     def init_users(self) -> None:
-        self.users = pypd.User.find()
+        self.users = pypd.User.find(limit=100)
 
     def get_pagerduty_users(
         self, resource_type: str, resource_id: str

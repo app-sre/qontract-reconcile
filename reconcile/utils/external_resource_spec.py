@@ -15,7 +15,7 @@ import yaml
 from pydantic import BaseModel
 from pydantic.dataclasses import dataclass
 
-from reconcile import openshift_resources_base
+from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.metrics import GaugeMetric
 from reconcile.utils.openshift_resource import (
     SECRET_MAX_KEY_LENGTH,
@@ -58,9 +58,7 @@ class GenericSecretOutputFormatConfig(OutputFormatProcessor):
         if self.data:
             # the jinja2 rendering has the capabilitiy to change the passed
             # vars dict - make a copy to protect against it
-            rendered_data = openshift_resources_base.process_jinja2_template(
-                self.data, dict(vars)
-            )
+            rendered_data = process_jinja2_template(self.data, dict(vars))
             parsed_data = yaml.safe_load(rendered_data)
             self.validate_k8s_secret_data(parsed_data)
             return cast(dict[str, str], parsed_data)

@@ -74,7 +74,7 @@ def run(dry_run, thread_pool_size=10):
         sys.exit(ExitCodes.SUCCESS)
 
     ocm_map, current_state = fetch_current_state(clusters, thread_pool_size)
-    desired_state = openshift_groups.fetch_desired_state(oc_map=ocm_map)
+    desired_state = openshift_groups.fetch_desired_state(clusters=ocm_map.clusters())
 
     # we only manage dedicated-admins via OCM
     current_state = [s for s in current_state if s["group"] == "dedicated-admins"]
@@ -91,3 +91,18 @@ def run(dry_run, thread_pool_size=10):
 
         if not dry_run:
             act(diff, ocm_map)
+
+
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+    clusters = [
+        c["name"]
+        for c in queries.get_clusters()
+        if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
+    ]
+    desired_state = openshift_groups.fetch_desired_state(clusters=clusters)
+    # we only manage dedicated-admins via OCM
+    desired_state = [s for s in desired_state if s["group"] == "dedicated-admins"]
+
+    return {
+        "state": desired_state,
+    }

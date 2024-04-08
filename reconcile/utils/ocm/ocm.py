@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 import functools
-import logging
-import random
 import re
-import string
-from abc import abstractmethod
 from collections.abc import Mapping
 from typing import (
     Any,
@@ -17,18 +13,14 @@ from sretoolbox.utils import retry
 import reconcile.utils.aws_helper as awsh
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.ocm.types import (
-    ClusterMachinePool,
-    OCMClusterNetwork,
-    OCMClusterSpec,
     OCMSpec,
-    OSDClusterSpec,
-    ROSAClusterAWSAccount,
-    ROSAClusterSpec,
-    ROSAOcmAwsAttrs,
-    ROSAOcmAwsStsAttrs,
 )
-from reconcile.utils.exceptions import ParameterError
 from reconcile.utils.ocm.clusters import get_node_pools
+from reconcile.utils.ocm.products import (
+    OCMProduct,
+    OCMProductPortfolio,
+    build_product_portfolio,
+)
 from reconcile.utils.ocm_base_client import (
     OCMAPIClientConfiguration,
     OCMBaseClient,
@@ -74,622 +66,7 @@ CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 
 DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
 CLUSTER_ADMIN_LABEL_KEY = "capability.cluster.manage_cluster_admin"
-BYTES_IN_GIGABYTE = 1024**3
 REQUEST_TIMEOUT_SEC = 60
-
-SPEC_ATTR_ACCOUNT = "account"
-SPEC_ATTR_DISABLE_UWM = "disable_user_workload_monitoring"
-SPEC_ATTR_PRIVATE = "private"
-SPEC_ATTR_CHANNEL = "channel"
-SPEC_ATTR_LOAD_BALANCERS = "load_balancers"
-SPEC_ATTR_STORAGE = "storage"
-SPEC_ATTR_ID = "id"
-SPEC_ATTR_EXTERNAL_ID = "external_id"
-SPEC_ATTR_OIDC_ENDPONT_URL = "oidc_endpoint_url"
-SPEC_ATTR_PROVISION_SHARD_ID = "provision_shard_id"
-SPEC_ATTR_VERSION = "version"
-SPEC_ATTR_INITIAL_VERSION = "initial_version"
-SPEC_ATTR_MULTI_AZ = "multi_az"
-SPEC_ATTR_HYPERSHIFT = "hypershift"
-SPEC_ATTR_SUBNET_IDS = "subnet_ids"
-SPEC_ATTR_AVAILABILITY_ZONES = "availability_zones"
-
-SPEC_ATTR_NETWORK = "network"
-
-SPEC_ATTR_CONSOLE_URL = "consoleUrl"
-SPEC_ATTR_SERVER_URL = "serverUrl"
-SPEC_ATTR_ELBFQDN = "elbFQDN"
-SPEC_ATTR_PATH = "path"
-
-OCM_PRODUCT_OSD = "osd"
-OCM_PRODUCT_ROSA = "rosa"
-OCM_PRODUCT_HYPERSHIFT = "hypershift"
-
-DEFAULT_OCM_MACHINE_POOL_ID = "worker"
-
-
-class OCMValidationException(Exception):
-    pass
-
-
-class OCMProduct:
-    ALLOWED_SPEC_UPDATE_FIELDS: set[str]
-    EXCLUDED_SPEC_FIELDS: set[str]
-
-    @staticmethod
-    @abstractmethod
-    def create_cluster(ocm: OCM, name: str, cluster: OCMSpec, dry_run: bool):
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def update_cluster(
-        ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any], dry_run: bool
-    ):
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def get_ocm_spec(
-        ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
-    ) -> OCMSpec:
-        pass
-
-
-class OCMProductOsd(OCMProduct):
-    ALLOWED_SPEC_UPDATE_FIELDS = {
-        SPEC_ATTR_STORAGE,
-        SPEC_ATTR_LOAD_BALANCERS,
-        SPEC_ATTR_PRIVATE,
-        SPEC_ATTR_CHANNEL,
-        SPEC_ATTR_DISABLE_UWM,
-    }
-
-    EXCLUDED_SPEC_FIELDS = {
-        SPEC_ATTR_ID,
-        SPEC_ATTR_EXTERNAL_ID,
-        SPEC_ATTR_PROVISION_SHARD_ID,
-        SPEC_ATTR_VERSION,
-        SPEC_ATTR_INITIAL_VERSION,
-        SPEC_ATTR_HYPERSHIFT,
-    }
-
-    @staticmethod
-    def create_cluster(ocm: OCM, name: str, cluster: OCMSpec, dry_run: bool):
-        ocm_spec = OCMProductOsd._get_create_cluster_spec(name, cluster)
-        api = f"{CS_API_BASE}/v1/clusters"
-        params = {}
-        if dry_run:
-            params["dryRun"] = "true"
-
-        ocm._post(api, ocm_spec, params)
-
-    @staticmethod
-    def update_cluster(
-        ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any], dry_run: bool
-    ):
-        ocm_spec = OCMProductOsd._get_update_cluster_spec(update_spec)
-        cluster_id = ocm.cluster_ids.get(cluster_name)
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
-        params: dict[str, Any] = {}
-        if dry_run:
-            params["dryRun"] = "true"
-        ocm._patch(api, ocm_spec, params)
-
-    @staticmethod
-    def get_ocm_spec(
-        ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
-    ) -> OCMSpec:
-        if init_provision_shards:
-            provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
-        else:
-            provision_shard_id = None
-
-        spec = OCMClusterSpec(
-            product=cluster["product"]["id"],
-            id=cluster["id"],
-            external_id=cluster["external_id"],
-            provider=cluster["cloud_provider"]["id"],
-            region=cluster["region"]["id"],
-            channel=cluster["version"]["channel_group"],
-            version=cluster["version"]["raw_id"],
-            multi_az=cluster["multi_az"],
-            private=cluster["api"]["listening"] == "internal",
-            disable_user_workload_monitoring=cluster[
-                "disable_user_workload_monitoring"
-            ],
-            provision_shard_id=provision_shard_id,
-            hypershift=cluster["hypershift"]["enabled"],
-        )
-
-        if not cluster["ccs"]["enabled"]:
-            cluster_spec_data = spec.dict()
-            cluster_spec_data["storage"] = (
-                cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE
-            )
-            cluster_spec_data["load_balancers"] = cluster["load_balancer_quota"]
-            spec = OSDClusterSpec(**cluster_spec_data)
-
-        machine_pools = [
-            ClusterMachinePool(**p) for p in cluster.get("machinePools") or []
-        ]
-
-        network = OCMClusterNetwork(
-            type=cluster["network"].get("type") or "OVNKubernetes",
-            vpc=cluster["network"]["machine_cidr"],
-            service=cluster["network"]["service_cidr"],
-            pod=cluster["network"]["pod_cidr"],
-        )
-
-        ocm_spec = OCMSpec(
-            console_url=cluster["console"]["url"],
-            server_url=cluster["api"]["url"],
-            domain=cluster["dns"]["base_domain"],
-            spec=spec,
-            machine_pools=machine_pools,
-            network=network,
-        )
-
-        return ocm_spec
-
-    @staticmethod
-    def _get_nodes_spec(cluster: OCMSpec) -> dict[str, Any]:
-        default_machine_pool = next(
-            (
-                mp
-                for mp in cluster.machine_pools
-                if mp.id == DEFAULT_OCM_MACHINE_POOL_ID
-            ),
-            None,
-        )
-        if default_machine_pool is None:
-            raise OCMValidationException(
-                f"No default machine pool found, id: {DEFAULT_OCM_MACHINE_POOL_ID}"
-            )
-
-        spec: dict[str, Any] = {
-            "compute_machine_type": {"id": default_machine_pool.instance_type},
-        }
-        if default_machine_pool.autoscale is not None:
-            spec["autoscale_compute"] = default_machine_pool.autoscale.dict()
-        else:
-            spec["compute"] = default_machine_pool.replicas
-        return spec
-
-    @staticmethod
-    def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
-        ocm_spec: dict[str, Any] = {
-            "name": cluster_name,
-            "cloud_provider": {"id": cluster.spec.provider},
-            "region": {"id": cluster.spec.region},
-            "version": {
-                "id": f"openshift-v{cluster.spec.initial_version}",
-                "channel_group": cluster.spec.channel,
-            },
-            "multi_az": cluster.spec.multi_az,
-            "nodes": OCMProductOsd._get_nodes_spec(cluster),
-            "network": {
-                "type": cluster.network.type or "OVNKubernetes",
-                "machine_cidr": cluster.network.vpc,
-                "service_cidr": cluster.network.service,
-                "pod_cidr": cluster.network.pod,
-            },
-            "api": {"listening": "internal" if cluster.spec.private else "external"},
-            "disable_user_workload_monitoring": (
-                duwm
-                if (duwm := cluster.spec.disable_user_workload_monitoring) is not None
-                else True
-            ),
-        }
-
-        # Workaround to enable type checks.
-        # cluster.spec is a Union of pydantic models Union[OSDClusterSpec, RosaClusterSpec].
-        # In this case, cluster.spec will always be an OSDClusterSpec because the type
-        # assignment is managed by pydantic, however, mypy complains if OSD attributes are set
-        # outside the isinstance check because it checks all the types set in the Union.
-        if isinstance(cluster.spec, OSDClusterSpec):
-            ocm_spec["storage_quota"] = {
-                "value": float(cluster.spec.storage * BYTES_IN_GIGABYTE),
-            }
-            ocm_spec["load_balancer_quota"] = cluster.spec.load_balancers
-
-        provision_shard_id = cluster.spec.provision_shard_id
-        if provision_shard_id:
-            ocm_spec.setdefault("properties", {})
-            ocm_spec["properties"]["provision_shard_id"] = provision_shard_id
-        return ocm_spec
-
-    @staticmethod
-    def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
-        ocm_spec: dict[str, Any] = {}
-
-        storage = update_spec.get("storage")
-        if storage is not None:
-            ocm_spec["storage_quota"] = {"value": float(storage * 1073741824)}  # 1024^3
-
-        load_balancers = update_spec.get("load_balancers")
-        if load_balancers is not None:
-            ocm_spec["load_balancer_quota"] = load_balancers
-
-        private = update_spec.get("private")
-        if private is not None:
-            ocm_spec["api"] = {"listening": "internal" if private else "external"}
-
-        channel = update_spec.get("channel")
-        if channel is not None:
-            ocm_spec["version"] = {"channel_group": channel}
-
-        disable_uwm = update_spec.get("disable_user_workload_monitoring")
-        if disable_uwm is not None:
-            ocm_spec["disable_user_workload_monitoring"] = disable_uwm
-
-        return ocm_spec
-
-
-class OCMProductRosa(OCMProduct):
-    ALLOWED_SPEC_UPDATE_FIELDS = {
-        SPEC_ATTR_CHANNEL,
-        SPEC_ATTR_DISABLE_UWM,
-    }
-
-    EXCLUDED_SPEC_FIELDS = {
-        SPEC_ATTR_ID,
-        SPEC_ATTR_EXTERNAL_ID,
-        SPEC_ATTR_PROVISION_SHARD_ID,
-        SPEC_ATTR_VERSION,
-        SPEC_ATTR_INITIAL_VERSION,
-        SPEC_ATTR_ACCOUNT,
-        SPEC_ATTR_HYPERSHIFT,
-        SPEC_ATTR_SUBNET_IDS,
-        SPEC_ATTR_AVAILABILITY_ZONES,
-        SPEC_ATTR_OIDC_ENDPONT_URL,
-    }
-
-    @staticmethod
-    def create_cluster(ocm: OCM, name: str, cluster: OCMSpec, dry_run: bool):
-        ocm_spec = OCMProductRosa._get_create_cluster_spec(name, cluster)
-        api = f"{CS_API_BASE}/v1/clusters"
-        params = {}
-        if dry_run:
-            params["dryRun"] = "true"
-            if cluster.spec.hypershift:
-                logging.info(
-                    "Dry-Run is not yet implemented for Hosted clusters. Here is the payload:"
-                )
-                logging.info(ocm_spec)
-                return
-        ocm._post(api, ocm_spec, params)
-
-    @staticmethod
-    def update_cluster(
-        ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any], dry_run: bool
-    ):
-        ocm_spec = OCMProductRosa._get_update_cluster_spec(update_spec)
-        cluster_id = ocm.cluster_ids.get(cluster_name)
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
-        params: dict[str, Any] = {}
-        if dry_run:
-            params["dryRun"] = "true"
-        ocm._patch(api, ocm_spec, params)
-
-    @staticmethod
-    def get_ocm_spec(
-        ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
-    ) -> OCMSpec:
-        if init_provision_shards:
-            provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
-        else:
-            provision_shard_id = None
-
-        sts = None
-        oidc_endpoint_url = None
-        if cluster["aws"].get("sts", None):
-            sts = ROSAOcmAwsStsAttrs(
-                installer_role_arn=cluster["aws"]["sts"]["role_arn"],
-                support_role_arn=cluster["aws"]["sts"]["support_role_arn"],
-                controlplane_role_arn=cluster["aws"]["sts"]["instance_iam_roles"].get(
-                    "master_role_arn"
-                ),
-                worker_role_arn=cluster["aws"]["sts"]["instance_iam_roles"][
-                    "worker_role_arn"
-                ],
-            )
-            oidc_endpoint_url = cluster["aws"]["sts"]["oidc_endpoint_url"]
-        account = ROSAClusterAWSAccount(
-            uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
-            rosa=ROSAOcmAwsAttrs(
-                creator_role_arn=cluster["properties"]["rosa_creator_arn"],
-                sts=sts,
-            ),
-        )
-
-        spec = ROSAClusterSpec(
-            product=cluster["product"]["id"],
-            account=account,
-            id=cluster["id"],
-            external_id=cluster.get("external_id"),
-            provider=cluster["cloud_provider"]["id"],
-            region=cluster["region"]["id"],
-            channel=cluster["version"]["channel_group"],
-            version=cluster["version"]["raw_id"],
-            multi_az=cluster["multi_az"],
-            private=cluster["api"]["listening"] == "internal",
-            disable_user_workload_monitoring=cluster[
-                "disable_user_workload_monitoring"
-            ],
-            provision_shard_id=provision_shard_id,
-            hypershift=cluster["hypershift"]["enabled"],
-            subnet_ids=cluster["aws"].get("subnet_ids"),
-            availability_zones=cluster["nodes"].get("availability_zones"),
-            oidc_endpoint_url=oidc_endpoint_url,
-        )
-
-        machine_pools = [
-            ClusterMachinePool(**p) for p in cluster.get("machinePools") or []
-        ]
-
-        network = OCMClusterNetwork(
-            type=cluster["network"].get("type") or "OVNKubernetes",
-            vpc=cluster["network"]["machine_cidr"],
-            service=cluster["network"]["service_cidr"],
-            pod=cluster["network"]["pod_cidr"],
-        )
-
-        ocm_spec = OCMSpec(
-            # Hosted control plane clusters can reach a Ready State without having the console
-            # Endpoint
-            console_url=cluster.get("console", {}).get("url", ""),
-            server_url=cluster["api"]["url"],
-            domain=cluster["dns"]["base_domain"],
-            spec=spec,
-            machine_pools=machine_pools,
-            network=network,
-        )
-
-        return ocm_spec
-
-    @staticmethod
-    def _get_nodes_spec(cluster: OCMSpec) -> dict[str, Any]:
-        default_machine_pool = next(
-            (
-                mp
-                for mp in cluster.machine_pools
-                if mp.id == DEFAULT_OCM_MACHINE_POOL_ID
-            ),
-            None,
-        )
-        if default_machine_pool is None:
-            raise OCMValidationException(
-                f"No default machine pool found, id: {DEFAULT_OCM_MACHINE_POOL_ID}"
-            )
-
-        spec: dict[str, Any] = {
-            "compute_machine_type": {"id": default_machine_pool.instance_type},
-        }
-        if default_machine_pool.autoscale is not None:
-            spec["autoscale_compute"] = default_machine_pool.autoscale.dict()
-        else:
-            spec["compute"] = default_machine_pool.replicas
-        return spec
-
-    @staticmethod
-    def _get_create_cluster_spec(cluster_name: str, cluster: OCMSpec) -> dict[str, Any]:
-        operator_roles_prefix = "".join(
-            random.choices(string.ascii_lowercase + string.digits, k=4)
-        )
-
-        ocm_spec: dict[str, Any] = {
-            "api": {"listening": "internal" if cluster.spec.private else "external"},
-            "name": cluster_name,
-            "cloud_provider": {"id": cluster.spec.provider},
-            "region": {"id": cluster.spec.region},
-            "version": {
-                "id": f"openshift-v{cluster.spec.initial_version}",
-                "channel_group": cluster.spec.channel,
-            },
-            "hypershift": {"enabled": cluster.spec.hypershift},
-            "multi_az": cluster.spec.multi_az,
-            "nodes": OCMProductRosa._get_nodes_spec(cluster),
-            "network": {
-                "type": cluster.network.type or "OVNKubernetes",
-                "machine_cidr": cluster.network.vpc,
-                "service_cidr": cluster.network.service,
-                "pod_cidr": cluster.network.pod,
-            },
-            "disable_user_workload_monitoring": (
-                duwm
-                if (duwm := cluster.spec.disable_user_workload_monitoring) is not None
-                else True
-            ),
-        }
-
-        provision_shard_id = cluster.spec.provision_shard_id
-        if provision_shard_id:
-            ocm_spec.setdefault("properties", {})
-            ocm_spec["properties"]["provision_shard_id"] = provision_shard_id
-
-        if isinstance(cluster.spec, ROSAClusterSpec):
-            ocm_spec.setdefault("properties", {})
-            ocm_spec["properties"]["rosa_creator_arn"] = (
-                cluster.spec.account.rosa.creator_role_arn
-            )
-
-            if not cluster.spec.account.rosa.sts:
-                raise ParameterError("STS is required for ROSA clusters")
-
-            rosa_spec: dict[str, Any] = {
-                "product": {"id": "rosa"},
-                "ccs": {"enabled": True},
-                "aws": {
-                    "account_id": cluster.spec.account.uid,
-                    "sts": {
-                        "enabled": True,
-                        "auto_mode": True,
-                        "role_arn": cluster.spec.account.rosa.sts.installer_role_arn,
-                        "support_role_arn": cluster.spec.account.rosa.sts.support_role_arn,
-                        "instance_iam_roles": {
-                            "worker_role_arn": cluster.spec.account.rosa.sts.worker_role_arn,
-                        },
-                        "operator_role_prefix": f"{cluster_name}-{operator_roles_prefix}",
-                    },
-                },
-            }
-
-            if cluster.spec.account.rosa.sts.controlplane_role_arn:
-                rosa_spec["aws"]["sts"]["instance_iam_roles"]["master_role_arn"] = (
-                    cluster.spec.account.rosa.sts.controlplane_role_arn
-                )
-
-            if cluster.spec.hypershift:
-                ocm_spec["nodes"]["availability_zones"] = (
-                    cluster.spec.availability_zones
-                )
-                rosa_spec["aws"]["subnet_ids"] = cluster.spec.subnet_ids
-
-        ocm_spec.update(rosa_spec)
-        return ocm_spec
-
-    @staticmethod
-    def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
-        ocm_spec: dict[str, Any] = {}
-
-        channel = update_spec.get(SPEC_ATTR_CHANNEL)
-        if channel is not None:
-            ocm_spec["version"] = {"channel_group": channel}
-
-        disable_uwm = update_spec.get(SPEC_ATTR_DISABLE_UWM)
-        if disable_uwm is not None:
-            ocm_spec["disable_user_workload_monitoring"] = disable_uwm
-
-        return ocm_spec
-
-
-class OCMProductHypershift(OCMProduct):
-    # Not a real product, but a way to represent the Hypershift specialties
-    ALLOWED_SPEC_UPDATE_FIELDS = {
-        # needs implementation, see: https://issues.redhat.com/browse/OCM-2144
-        # SPEC_ATTR_CHANNEL,
-        # needs implementation, see: https://issues.redhat.com/browse/OCM-915
-        # SPEC_ATTR_PRIVATE,
-        SPEC_ATTR_DISABLE_UWM,
-    }
-
-    EXCLUDED_SPEC_FIELDS = {
-        SPEC_ATTR_ID,
-        SPEC_ATTR_EXTERNAL_ID,
-        SPEC_ATTR_PROVISION_SHARD_ID,
-        SPEC_ATTR_VERSION,
-        SPEC_ATTR_INITIAL_VERSION,
-        SPEC_ATTR_ACCOUNT,
-        SPEC_ATTR_HYPERSHIFT,
-        SPEC_ATTR_SUBNET_IDS,
-        SPEC_ATTR_AVAILABILITY_ZONES,
-        SPEC_ATTR_OIDC_ENDPONT_URL,
-    }
-
-    @staticmethod
-    def create_cluster(ocm: OCM, name: str, cluster: OCMSpec, dry_run: bool):
-        logging.error("Please use rosa cli to create new clusters")
-
-    @staticmethod
-    def update_cluster(
-        ocm: OCM, cluster_name: str, update_spec: Mapping[str, Any], dry_run: bool
-    ):
-        ocm_spec = OCMProductRosa._get_update_cluster_spec(update_spec)
-        cluster_id = ocm.cluster_ids.get(cluster_name)
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
-        params: dict[str, Any] = {}
-        if dry_run:
-            params["dryRun"] = "true"
-        ocm._patch(api, ocm_spec, params)
-
-    @staticmethod
-    def get_ocm_spec(
-        ocm: OCM, cluster: Mapping[str, Any], init_provision_shards: bool
-    ) -> OCMSpec:
-        if init_provision_shards:
-            provision_shard_id = ocm.get_provision_shard(cluster["id"])["id"]
-        else:
-            provision_shard_id = None
-
-        sts = None
-        oidc_endpoint_url = None
-        if cluster["aws"].get("sts", None):
-            sts = ROSAOcmAwsStsAttrs(
-                installer_role_arn=cluster["aws"]["sts"]["role_arn"],
-                support_role_arn=cluster["aws"]["sts"]["support_role_arn"],
-                controlplane_role_arn=cluster["aws"]["sts"]["instance_iam_roles"].get(
-                    "master_role_arn"
-                ),
-                worker_role_arn=cluster["aws"]["sts"]["instance_iam_roles"][
-                    "worker_role_arn"
-                ],
-            )
-            oidc_endpoint_url = cluster["aws"]["sts"]["oidc_endpoint_url"]
-        account = ROSAClusterAWSAccount(
-            uid=cluster["properties"]["rosa_creator_arn"].split(":")[4],
-            rosa=ROSAOcmAwsAttrs(
-                creator_role_arn=cluster["properties"]["rosa_creator_arn"],
-                sts=sts,
-            ),
-        )
-
-        spec = ROSAClusterSpec(
-            product=cluster["product"]["id"],
-            account=account,
-            id=cluster["id"],
-            external_id=cluster.get("external_id"),
-            provider=cluster["cloud_provider"]["id"],
-            region=cluster["region"]["id"],
-            channel=cluster["version"]["channel_group"],
-            version=cluster["version"]["raw_id"],
-            multi_az=cluster["multi_az"],
-            private=cluster["api"]["listening"] == "internal",
-            disable_user_workload_monitoring=cluster[
-                "disable_user_workload_monitoring"
-            ],
-            provision_shard_id=provision_shard_id,
-            subnet_ids=cluster["aws"].get("subnet_ids"),
-            availability_zones=cluster["nodes"].get("availability_zones"),
-            hypershift=cluster["hypershift"]["enabled"],
-            oidc_endpoint_url=oidc_endpoint_url,
-        )
-
-        network = OCMClusterNetwork(
-            type=cluster["network"].get("type") or "OVNKubernetes",
-            vpc=cluster["network"]["machine_cidr"],
-            service=cluster["network"]["service_cidr"],
-            pod=cluster["network"]["pod_cidr"],
-        )
-
-        ocm_spec = OCMSpec(
-            # Hosted control plane clusters can reach a Ready State without having the console
-            # Endpoint
-            console_url=cluster.get("console", {}).get("url", ""),
-            server_url=cluster["api"]["url"],
-            domain=cluster["dns"]["base_domain"],
-            spec=spec,
-            network=network,
-        )
-
-        return ocm_spec
-
-    @staticmethod
-    def _get_update_cluster_spec(update_spec: Mapping[str, Any]) -> dict[str, Any]:
-        ocm_spec: dict[str, Any] = {}
-
-        disable_uwm = update_spec.get(SPEC_ATTR_DISABLE_UWM)
-        if disable_uwm is not None:
-            ocm_spec["disable_user_workload_monitoring"] = disable_uwm
-
-        return ocm_spec
-
-
-OCM_PRODUCTS_IMPL = {
-    OCM_PRODUCT_OSD: OCMProductOsd,
-    OCM_PRODUCT_ROSA: OCMProductRosa,
-    OCM_PRODUCT_HYPERSHIFT: OCMProductHypershift,
-}
 
 
 class OCM:  # pylint: disable=too-many-public-methods
@@ -720,12 +97,17 @@ class OCM:  # pylint: disable=too-many-public-methods
         init_version_gates=False,
         blocked_versions=None,
         inheritVersionData: Optional[list[dict[str, Any]]] = None,
+        product_portfolio: Optional[OCMProductPortfolio] = None,
     ):
         """Initiates access token and gets clusters information."""
         self.name = name
         self._ocm_client = ocm_client
         self.org_id = org_id
         self.ocm_env = ocm_env
+        if product_portfolio is None:
+            self.product_portfolio = build_product_portfolio()
+        else:
+            self.product_portfolio = product_portfolio
         self._init_clusters(init_provision_shards=init_provision_shards)
 
         if init_addons:
@@ -746,22 +128,25 @@ class OCM:  # pylint: disable=too-many-public-methods
             self.get_aws_infrastructure_access_role_grants
         )
 
-    @staticmethod
-    def _ready_for_app_interface(cluster: dict[str, Any]) -> bool:
+    @property
+    def ocm_api(self) -> OCMBaseClient:
+        return self._ocm_client
+
+    def _ready_for_app_interface(self, cluster: dict[str, Any]) -> bool:
         return (
             cluster["managed"]
             and cluster["state"] == STATUS_READY
-            and cluster["product"]["id"] in OCM_PRODUCTS_IMPL
+            and cluster["product"]["id"] in self.product_portfolio.product_names
         )
 
     def _init_clusters(self, init_provision_shards: bool):
         api = f"{CS_API_BASE}/v1/clusters"
-        product_csv = ",".join([f"'{p}'" for p in OCM_PRODUCTS_IMPL])
+        product_csv = ",".join([f"'{p}'" for p in self.product_portfolio.product_names])
         params = {
             "search": f"organization.id='{self.org_id}' and managed='true' and product.id in ({product_csv})"
         }
         clusters = self._get_json(api, params=params).get("items", [])
-        self.cluster_ids = {c["name"]: c["id"] for c in clusters}
+        self.cluster_ids: dict[str, str] = {c["name"]: c["id"] for c in clusters}
 
         self.clusters: dict[str, OCMSpec] = {}
         self.available_cluster_upgrades: dict[str, list[str]] = {}
@@ -788,32 +173,31 @@ class OCM:  # pylint: disable=too-many-public-methods
     def is_ready(self, cluster):
         return cluster in self.clusters
 
-    def _get_ocm_impl(
+    def get_product_impl(
         self, product: str, hypershift: Optional[bool] = False
-    ) -> type[OCMProduct]:
-        if hypershift:
-            return OCM_PRODUCTS_IMPL[OCM_PRODUCT_HYPERSHIFT]
-        return OCM_PRODUCTS_IMPL[product]
+    ) -> OCMProduct:
+        return self.product_portfolio.get_product_impl(product, hypershift)
 
     def _get_cluster_ocm_spec(
         self, cluster: Mapping[str, Any], init_provision_shards: bool
     ) -> OCMSpec:
-        impl = self._get_ocm_impl(
+        impl = self.get_product_impl(
             cluster["product"]["id"], cluster["hypershift"]["enabled"]
         )
-        spec = impl.get_ocm_spec(self, cluster, init_provision_shards)
+        spec = impl.get_ocm_spec(self.ocm_api, cluster, init_provision_shards)
         return spec
 
     def create_cluster(self, name: str, cluster: OCMSpec, dry_run: bool):
-        impl = self._get_ocm_impl(cluster.spec.product, cluster.spec.hypershift)
-        impl.create_cluster(self, name, cluster, dry_run)
+        impl = self.get_product_impl(cluster.spec.product, cluster.spec.hypershift)
+        impl.create_cluster(self.ocm_api, self.org_id, name, cluster, dry_run)
 
     def update_cluster(
         self, cluster_name: str, update_spec: Mapping[str, Any], dry_run=False
     ):
         cluster = self.clusters[cluster_name]
-        impl = self._get_ocm_impl(cluster.spec.product, cluster.spec.hypershift)
-        impl.update_cluster(self, cluster_name, update_spec, dry_run)
+        cluster_id = self.cluster_ids[cluster_name]
+        impl = self.get_product_impl(cluster.spec.product, cluster.spec.hypershift)
+        impl.update_cluster(self.ocm_api, cluster_id, update_spec, dry_run)
 
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
@@ -1325,16 +709,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/" + f"ingresses/{router_id}"
         self._delete(api)
 
-    def get_provision_shard(self, cluster_id):
-        """Returns details of the provision shard
-
-        :param cluster: cluster id
-
-        :type cluster: string
-        """
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/provision_shard"
-        return self._get_json(api)
-
     @staticmethod
     def _get_autoscale(cluster):
         autoscale = cluster["nodes"].get("autoscale_compute", None)
@@ -1559,10 +933,11 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         init_provision_shards=False,
         init_addons=False,
         init_version_gates=False,
-    ):
+        product_portfolio: Optional[OCMProductPortfolio] = None,
+    ) -> None:
         """Initiates OCM instances for each OCM referenced in a cluster."""
-        self.clusters_map = {}
-        self.ocm_map = {}
+        self.clusters_map: dict[str, str] = {}
+        self.ocm_map: dict[str, OCM] = {}
         self.calling_integration = integration
         self.settings = settings
 
@@ -1576,6 +951,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                     init_provision_shards,
                     init_addons,
                     init_version_gates=init_version_gates,
+                    product_portfolio=product_portfolio,
                 )
         elif namespaces:
             for namespace_info in namespaces:
@@ -1585,6 +961,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                     init_provision_shards,
                     init_addons,
                     init_version_gates=init_version_gates,
+                    product_portfolio=product_portfolio,
                 )
         elif ocms:
             for ocm in ocms:
@@ -1593,15 +970,21 @@ class OCMMap:  # pylint: disable=too-many-public-methods
                     init_provision_shards,
                     init_addons,
                     init_version_gates=init_version_gates,
+                    product_portfolio=product_portfolio,
                 )
         else:
             raise KeyError("expected one of clusters, namespaces or ocm.")
 
-    def __getitem__(self, ocm_name) -> OCM:
+    def __getitem__(self, ocm_name: str) -> OCM:
         return self.ocm_map[ocm_name]
 
     def init_ocm_client_from_cluster(
-        self, cluster_info, init_provision_shards, init_addons, init_version_gates
+        self,
+        cluster_info,
+        init_provision_shards,
+        init_addons,
+        init_version_gates,
+        product_portfolio: Optional[OCMProductPortfolio] = None,
     ):
         if self.cluster_disabled(cluster_info):
             return
@@ -1613,11 +996,20 @@ class OCMMap:  # pylint: disable=too-many-public-methods
 
         if ocm_name not in self.ocm_map:
             self.init_ocm_client(
-                ocm_info, init_provision_shards, init_addons, init_version_gates
+                ocm_info,
+                init_provision_shards,
+                init_addons,
+                init_version_gates,
+                product_portfolio,
             )
 
     def init_ocm_client(
-        self, ocm_info, init_provision_shards, init_addons, init_version_gates
+        self,
+        ocm_info,
+        init_provision_shards,
+        init_addons,
+        init_version_gates,
+        product_portfolio: Optional[OCMProductPortfolio] = None,
     ):
         """
         Initiate OCM client.
@@ -1667,11 +1059,12 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             blocked_versions=ocm_info.get("blockedVersions"),
             init_version_gates=init_version_gates,
             inheritVersionData=ocm_info.get("inheritVersionData"),
+            product_portfolio=product_portfolio,
         )
 
     def instances(self) -> list[str]:
         """Get list of OCM instance names initiated in the OCM map."""
-        return self.ocm_map.keys()
+        return list(self.ocm_map.keys())
 
     def cluster_disabled(self, cluster_info):
         """
@@ -1699,19 +1092,19 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         :type cluster: string
         """
         ocm = self.clusters_map[cluster]
-        return self.ocm_map.get(ocm, None)
+        return self.ocm_map[ocm]
 
     def clusters(self) -> list[str]:
         """Get list of cluster names initiated in the OCM map."""
         return [k for k, v in self.clusters_map.items() if v]
 
-    def cluster_specs(self) -> tuple[dict[str, OCMSpec], list]:
+    def cluster_specs(self) -> tuple[dict[str, OCMSpec], list[str]]:
         """Get dictionary of cluster names and specs in the OCM map."""
         cluster_specs = {}
         for v in self.ocm_map.values():
             cluster_specs.update(v.clusters)
 
-        not_ready_cluster_names = []
+        not_ready_cluster_names: list[str] = []
         for v in self.ocm_map.values():
             not_ready_cluster_names.extend(v.not_ready_clusters)
         return cluster_specs, not_ready_cluster_names

@@ -151,6 +151,7 @@ class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):
             "name": name,
             "content": f"${{var.{identifier}_content}}",
             "plain_text_binding": values.pop("vars"),
+            "account_id": "${var.account_id}",
         }
         return [
             cloudflare_worker_script(identifier, **worker_script_values),

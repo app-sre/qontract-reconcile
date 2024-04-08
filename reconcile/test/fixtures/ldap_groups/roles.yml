@@ -1,11 +1,86 @@
 roles:
+# this role must be irgnored because it has no ldapGroup
 - name: no-ldap-group-set
   ldapGroup: null
   users:
   - org_username: jeanluc
   - org_username: riker
+
 - name: test-group
   ldapGroup: ai-dev-test-group
   users:
   - org_username: pike
   - org_username: uhura
+
+# role for roles and aws roles
+- name: ldap-and-aws-role
+  ldapGroup: ai-dev-test-group-2
+  users:
+  - org_username: pike
+  - org_username: uhura
+  aws_groups:
+  - account:
+      name: account-1
+      uid: "123456789"
+      sso: true
+
+- name: aws-role-aws-groups
+  users:
+  - org_username: pike
+  - org_username: uhura
+  aws_groups:
+  - account:
+      name: account-1
+      uid: "123456789"
+      sso: true
+
+- name: aws-role-user-policies
+  users:
+  - org_username: pike
+  - org_username: uhura
+  user_policies:
+  - account:
+      name: account-1
+      uid: "123456789"
+      sso: true
+
+- name: aws-role-multiple-accounts
+  users:
+  - org_username: pike
+  - org_username: uhura
+  user_policies:
+  - account:
+      name: user-policy-account-1
+      uid: "USER-POLICY-ACCOUNT-1-UID"
+      sso: true
+  # sso disabled
+  - account:
+      name: user-policy-account-2
+      uid: "USER-POLICY-ACCOUNT-2-UID"
+      sso: false
+  # integration disabled
+  - account:
+      name: user-policy-account-1
+      uid: "USER-POLICY-ACCOUNT-3-UID"
+      sso: true
+      disable:
+        integrations:
+        - ldap-groups
+  aws_groups:
+  - account:
+      name: aws-groups-account-1
+      uid: "AWS-GROUPS-ACCOUNT-1-UID"
+      sso: true
+  # sso disabled
+  - account:
+      name: aws-groups-account-2
+      uid: "AWS-GROUPS-ACCOUNT-2-UID"
+      sso: false
+  # integration disabled
+  - account:
+      name: aws-groups-account-1
+      uid: "AWS-GROUPS-ACCOUNT-3-UID"
+      sso: true
+      disable:
+        integrations:
+        - ldap-groups

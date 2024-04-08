@@ -23,12 +23,12 @@ def test_cannot_use_exclude_accounts_if_not_dry_run():
     assert "--exclude-accounts is only supported in dry-run mode" in str(excinfo.value)
 
 
-def test_cannot_use_exclude_account_with_account_name():
+def test_cannot_use_exclude_account_with_same_account_name():
     with pytest.raises(integ.ExcludeAccountsAndAccountNameException) as excinfo:
-        integ.run(True, exclude_accounts=("a", "b"), account_name=("c", "d"))
+        integ.run(True, exclude_accounts=("a", "b"), account_name=("b", "c", "d"))
 
     assert (
-        "Using --exclude-accounts and --account-name at the same time is not allowed"
+        "Using --exclude-accounts and --account-name with the same account is not allowed"
         in str(excinfo.value)
     )
 
@@ -370,12 +370,16 @@ def test_run_with_extended_early_exit_run_enabled(
         log_cached_log_output=True,
         defer=defer,
     )
+    expected_cache_source = {
+        "terraform_configurations": mocks["ts"].terraform_configurations.return_value,
+        "resource_spec_inventory": mocks["ts"].resource_spec_inventory,
+    }
 
     mocks["extended_early_exit_run"].assert_called_once_with(
         integration=integ.QONTRACT_INTEGRATION,
         integration_version=integ.QONTRACT_INTEGRATION_VERSION,
         dry_run=True,
-        cache_source=mocks["ts"].terraform_configurations.return_value,
+        cache_source=expected_cache_source,
         shard="a",
         ttl_seconds=60,
         logger=mocks["logging"].getLogger.return_value,

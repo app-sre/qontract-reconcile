@@ -1,0 +1,56 @@
+---
+$schema: /openshift/cluster-1.yml
+labels:
+  service: something
+name: tst-rosa-hcp
+description: A test cluster
+consoleUrl: ""
+prometheusUrl: ""
+alertmanagerUrl: ""
+serverUrl: "https://api.tst-jpr-rosa.0000.p1.openshiftapps.com:6443"
+elbFQDN: ""
+ocm:
+  name: ocm-stage
+  orgId: org-id
+  environment:
+    name: name
+    labels: "{}"
+    url: non-existent-ocm-url
+    accessTokenClientId: cloud-services
+    accessTokenClientSecret:
+      path: "client-secret-path"
+      field: "client_secret"
+      version: null
+      format: null
+    accessTokenUrl: "https://sso.blah.com/token"
+spec:
+  product: rosa
+  hypershift: true
+  account:
+    uid: '249118421612'
+  provider: aws
+  region: us-east-1
+  channel: stable
+  version: 4.10.16
+  initial_version: 4.8.10
+  multi_az: false
+  private: false
+  provision_shard_id: provision_shard_id
+  disable_user_workload_monitoring: true
+  subnet_ids:
+  - subnet-a
+  - subnet-b
+  - subnet-c
+  availability_zones:
+  - us-east-1a
+  - us-east-1b
+  - us-east-1c
+machinePools:
+- id: worker
+  instance_type: m5.xlarge
+network:
+  type: OpenShiftSDN
+  vpc: 10.0.0.0/16
+  service: 172.30.0.0/16
+  pod: 10.128.0.0/14
+internal: false

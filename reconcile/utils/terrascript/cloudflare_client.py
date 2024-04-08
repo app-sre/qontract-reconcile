@@ -21,6 +21,7 @@ from terrascript import (
     provider,
 )
 
+from reconcile.cli import TERRAFORM_VERSION
 from reconcile.utils.exceptions import SecretIncompleteError
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
@@ -103,13 +104,22 @@ def create_cloudflare_terrascript(
         }
     }
 
-    terrascript += Terraform(backend=backend, required_providers=required_providers)
-
-    terrascript += provider.cloudflare(
-        api_token=account_config.api_token,
-        account_id=account_config.account_id,  # needed for some resources, see note below
-        rps=provider_rps,
+    terrascript += Terraform(
+        backend=backend,
+        required_providers=required_providers,
+        required_version=TERRAFORM_VERSION[0],
     )
+
+    cloudflare_provider_values = {
+        "api_token": account_config.api_token,
+        "rps": provider_rps,
+    }
+    if provider_version.startswith("3"):
+        cloudflare_provider_values["account_id"] = (
+            account_config.account_id
+        )  # needed for some resources, see note below
+
+    terrascript += provider.cloudflare(**cloudflare_provider_values)
 
     cloudflare_account_values = {
         "name": account_config.name,

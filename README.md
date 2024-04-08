@@ -15,6 +15,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   acs-rbac                        Manages RHACS rbac configuration
   advanced-upgrade-scheduler      Manage Cluster Upgrade Policy schedules in
                                   OCM organizations based on OCM labels.
+  aws-account-manager             Create and manage AWS accounts.
   aws-ami-cleanup                 Cleanup old and unused AMIs.
   aws-ami-share                   Share AMI and AMI tags between accounts.
   aws-cloudwatch-log-retention    Set up retention period for Cloudwatch logs.
@@ -26,7 +27,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   aws-saml-idp                    Manage the SAML IDP config for all AWS
                                   accounts.
   aws-saml-roles                  Manage the SAML IAM roles for all AWS
-                                  accounts with SSO enabled
+                                  accounts with SSO enabled.
   aws-support-cases-sos           Scan AWS support cases for reports of leaked
                                   keys and remove them (only submits PR)
   aws-version-sync                Sync AWS asset version numbers to App-
@@ -48,6 +49,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   dashdotdb-slo                   Collects the ServiceSloMetrics from all the
                                   clusters and posts them to Dashdotdb.
   database-access-manager         Manage Databases and Database Users.
+  deadmanssnitch                  Automate Deadmanssnitch Creation/Deletion
   dynatrace-token-provider        Automatically provide dedicated Dynatrace
                                   tokens to management clusters
   email-sender                    Send email notifications to app-interface
@@ -205,6 +207,8 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   to Status Board.
   status-page-components          Manages components on statuspage.io hosted
                                   status pages.
+  template-renderer               Render datafile templates in app-interface.
+  template-validator              Test app-interface templates.
   terraform-aws-route53           Manage AWS Route53 resources using
                                   Terraform.
   terraform-cloudflare-dns        Manage Cloudflare DNS using Terraform.
@@ -219,6 +223,7 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   AWS accounts or other OSD clusters.
   vault-replication               Allow vault to replicate secrets to other
                                   instances.
+  version-gate-approver           Approves OCM cluster upgrade version gates.
   vpc-peerings-validator          Validates that VPC peerings do not exist
                                   between public and internal clusters.
 ```
@@ -314,7 +319,6 @@ It consists of:
 
 - [requirements-test.txt](requirements/requirements-test.txt) for unit test and linting dependencies
 - [requirements-type.txt](requirements/requirements-type.txt) for type checking dependencies
-- [requirements-format.txt](requirements/requirements-format.txt) for formatting dependencies
 - [requirements-dev.txt](requirements/requirements-dev.txt) installs all above mentioned dependencies
 
 ### Image build
@@ -322,8 +326,11 @@ It consists of:
 In order to speed up frequent builds and avoid issues with dependencies, docker image makes use
 [`qontract-reconcile-build`](https://quay.io/repository/app-sre/qontract-reconcile-base?tag=latest&tab=tags)
 image. See [`app-sre/coontainer-images`](https://github.com/app-sre/container-images) repository
-if you want to make changes to the base image. This repo [`Dockerfile`](dockerfiles/Dockerfile)
-must only contain instructions related to the python code build.
+if you want to make changes to the base image.
+
+This repo [`Dockerfile`](dockerfiles/Dockerfile) must only contain instructions related to the python code build.
+
+The [README](dockerfiles/README.md) contains more information about the Dockerfile and the build stages.
 
 ## CI Tooling
 

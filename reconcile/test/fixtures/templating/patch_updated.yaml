@@ -29,6 +29,7 @@ current:
         foo: bar
 
 expected: |
+  ---
   resourceTemplates:
   - name: saas
     targets:

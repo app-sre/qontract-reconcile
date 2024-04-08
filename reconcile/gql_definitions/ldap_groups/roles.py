@@ -17,14 +17,35 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.aws_account_sso import AWSAccountSSO
+
 
 DEFINITION = """
+fragment AWSAccountSSO on AWSAccount_v1 {
+  name
+  uid
+  sso
+  disable {
+    integrations
+  }
+}
+
 query LdapGroupsRolesQuery {
   roles: roles_v1 {
     name
     ldapGroup
     users {
       org_username
+    }
+    user_policies {
+      account {
+        ...AWSAccountSSO
+      }
+    }
+    aws_groups {
+      account {
+        ...AWSAccountSSO
+      }
     }
   }
 }
@@ -41,10 +62,20 @@ class UserV1(ConfiguredBaseModel):
     org_username: str = Field(..., alias="org_username")
 
 
+class AWSUserPolicyV1(ConfiguredBaseModel):
+    account: AWSAccountSSO = Field(..., alias="account")
+
+
+class AWSGroupV1(ConfiguredBaseModel):
+    account: AWSAccountSSO = Field(..., alias="account")
+
+
 class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     ldap_group: Optional[str] = Field(..., alias="ldapGroup")
     users: list[UserV1] = Field(..., alias="users")
+    user_policies: Optional[list[AWSUserPolicyV1]] = Field(..., alias="user_policies")
+    aws_groups: Optional[list[AWSGroupV1]] = Field(..., alias="aws_groups")
 
 
 class LdapGroupsRolesQueryQueryData(ConfiguredBaseModel):

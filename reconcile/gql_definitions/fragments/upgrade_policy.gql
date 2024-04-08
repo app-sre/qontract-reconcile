@@ -3,6 +3,7 @@
 fragment ClusterUpgradePolicyV1 on ClusterUpgradePolicy_v1 {
   workloads
   schedule
+  versionGateApprovals
   conditions {
     mutexes
     soakDays

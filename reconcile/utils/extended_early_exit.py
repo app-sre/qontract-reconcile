@@ -100,13 +100,30 @@ def log_stream_handler(
     :param logger: A logger
     :return: A stream generator
     """
-    log_stream = StringIO()
-    log_handler = logging.StreamHandler(log_stream)
-    logger.addHandler(log_handler)
-    try:
-        yield log_stream
-    finally:
-        logger.removeHandler(log_handler)
+    with StringIO() as log_stream:
+        log_handler = logging.StreamHandler(log_stream)
+        logger.addHandler(log_handler)
+        try:
+            yield log_stream
+        finally:
+            logger.removeHandler(log_handler)
+
+
+def _log_cached_log_output(
+    cache: EarlyExitCache,
+    key: CacheKey,
+    logger: Logger,
+) -> None:
+    log_output = cache.get(key).log_output
+    logger.info(
+        "logging cached log output, to delete cache, use cli command "
+        "`qontract-cli --config config.toml early-exit-cache delete $ARGS` or "
+        "comment on merge request `/cache delete $ARGS`, "
+        "replace `$ARGS` with `%s`",
+        key.build_cli_delete_args(),
+    )
+    for line in log_output.splitlines():
+        logger.info(line)
 
 
 def extended_early_exit_run(
@@ -161,7 +178,7 @@ def extended_early_exit_run(
 
         if cache_result.status == CacheStatus.HIT:
             if log_cached_log_output:
-                logger.info(cache.get(key).log_output)
+                _log_cached_log_output(cache, key, logger)
             _publish_metrics(
                 cache_key=key,
                 cache_status=cache_result.status,

@@ -5,13 +5,18 @@ from typing import Callable, Optional
 from pydantic import BaseModel
 from ruamel import yaml
 
-from reconcile.gql_definitions.templating.templates import TemplateV1, query
-from reconcile.templating.rendering import TemplateData, create_renderer
+from reconcile.gql_definitions.templating.templates import (
+    TemplateTestV1,
+    TemplateV1,
+    query,
+)
+from reconcile.templating.lib.rendering import Renderer, TemplateData, create_renderer
 from reconcile.utils import gql
+from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
-    RunParamsTypeVar,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "template-validator"
 
@@ -31,70 +36,99 @@ class TemplateDiff(BaseModel):
 
 
 class TemplateValidatorIntegration(QontractReconcileIntegration):
-    def __init__(self, params: RunParamsTypeVar) -> None:
-        super().__init__(params)
-        self.diffs: list[TemplateDiff] = []
-
-    def diff_result(
-        self, template_name: str, test_name: str, output: str, expected: str
-    ) -> None:
-        diff = list(
-            context_diff(
-                output.splitlines(keepends=True), expected.splitlines(keepends=True)
-            )
+    @staticmethod
+    def _create_renderer(
+        template: TemplateV1,
+        template_test: TemplateTestV1,
+        ruaml_instance: yaml.YAML,
+        secret_reader: Optional[SecretReaderBase] = None,
+    ) -> Renderer:
+        return create_renderer(
+            template,
+            TemplateData(
+                variables=template_test.variables or {},
+                current=ruaml_instance.load(template_test.current or ""),
+            ),
+            secret_reader=secret_reader,
         )
-        if diff:
-            self.diffs.append(
-                TemplateDiff(template=template_name, test=test_name, diff="".join(diff))
+
+    @staticmethod
+    def validate_template(
+        template: TemplateV1,
+        template_test: TemplateTestV1,
+        ruaml_instance: yaml.YAML,
+        secret_reader: Optional[SecretReaderBase] = None,
+    ) -> list[TemplateDiff]:
+        diffs: list[TemplateDiff] = []
+
+        r = TemplateValidatorIntegration._create_renderer(
+            template, template_test, ruaml_instance, secret_reader=secret_reader
+        )
+
+        # Check target path
+        if template_test.expected_target_path:
+            rendered_target_path = r.render_target_path().strip()
+            if rendered_target_path != template_test.expected_target_path.strip():
+                diffs.append(
+                    TemplateDiff(
+                        template=template.name,
+                        test=template_test.name,
+                        diff=f"Target path mismatch, got: {rendered_target_path}, expected: {template_test.expected_target_path}",
+                    )
+                )
+
+        # Check condition
+        should_render = r.render_condition()
+        if (
+            template_test.expected_to_render is not None
+            and template_test.expected_to_render != should_render
+        ):
+            diffs.append(
+                TemplateDiff(
+                    template=template.name,
+                    test=template_test.name,
+                    diff=f"Condition mismatch, got: {should_render}, expected: {template_test.expected_to_render}",
+                )
             )
+
+        # Check template output
+        if should_render:
+            output = r.render_output()
+            diff = list(
+                context_diff(
+                    output.splitlines(keepends=True),
+                    template_test.expected_output.splitlines(keepends=True),
+                )
+            )
+            if diff:
+                diffs.append(
+                    TemplateDiff(
+                        template=template.name,
+                        test=template_test.name,
+                        diff="".join(diff),
+                    )
+                )
+
+        return diffs
 
     def run(self, dry_run: bool) -> None:
+        diffs: list[TemplateDiff] = []
+        ruaml_instance = create_ruamel_instance(explicit_start=True)
+
         for template in get_templates():
             for test in template.template_test:
                 logging.info(f"Running test {test.name} for template {template.name}")
-
-                r = create_renderer(
-                    template,
-                    TemplateData(
-                        variables=test.variables or {},
-                        current=yaml.load(
-                            test.current or "", Loader=yaml.RoundTripLoader
-                        ),
-                    ),
+                diffs.extend(
+                    self.validate_template(
+                        template, test, ruaml_instance, self.secret_reader
+                    )
                 )
-                if test.expected_target_path:
-                    self.diff_result(
-                        template.name,
-                        test.name,
-                        r.render_target_path().strip(),
-                        test.expected_target_path.strip(),
-                    )
-                should_render = r.render_condition()
-                if (
-                    test.expected_to_render is not None
-                    and test.expected_to_render != should_render
-                ):
-                    self.diffs.append(
-                        TemplateDiff(
-                            template=template.name,
-                            test=test.name,
-                            diff=f"Condition mismatch, got: {should_render}, expected: {test.expected_to_render}",
-                        )
-                    )
-                if should_render:
-                    self.diff_result(
-                        template.name,
-                        test.name,
-                        r.render_output().strip(),
-                        test.expected_output.strip(),
-                    )
 
-        if self.diffs:
-            for diff in self.diffs:
-                logging.error(
-                    f"template: {diff.template}, test: {diff.test}: {diff.diff}"
-                )
-            raise ValueError("Template validation")
+        if diffs:
+            for diff in diffs:
+                logging.error(f"template: {diff.template}, test: {diff.test}")
+                logging.debug(diff.diff)
+            raise ValueError("Template validation failed")
 
     @property
     def name(self) -> str:

@@ -220,3 +220,7 @@ class JiraClient:
         # use anonymous access to get public projects
         jira_api_anon = JIRA(server=self.server)
         return [project.key for project in jira_api_anon.projects()]
+
+    def components(self) -> list[str]:
+        """Return a list of all components for the project."""
+        return [c.name for c in self.jira.project_components(self.project)]

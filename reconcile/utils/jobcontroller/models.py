@@ -5,7 +5,18 @@ from enum import Enum, IntFlag
 from typing import Any
 
 from deepdiff import DeepHash
-from kubernetes.client import V1Job, V1JobSpec, V1ObjectMeta
+from kubernetes.client import (
+    V1EnvVar,
+    V1EnvVarSource,
+    V1Job,
+    V1JobSpec,
+    V1KeyToPath,
+    V1ObjectMeta,
+    V1SecretKeySelector,
+    V1SecretVolumeSource,
+    V1Volume,
+    V1VolumeMount,
+)
 
 
 class JobStatus(str, Enum):
@@ -118,3 +129,67 @@ class K8sJob(ABC):
         hash_object = hashlib.sha256(job_spec_source_code.encode())
         hash = hash_object.hexdigest()
         return hash[:length]
+
+    def secret_data(self) -> dict[str, str]:
+        """
+        If a job relies on some secret data, it should return it here. The
+        job controller will manage the lifecycle of a kubernetes Secret.
+        """
+        return {}
+
+    def scripts(self) -> dict[str, str]:
+        """
+        If a job relies on some scripts, it should return them here. The
+        job controller will manage the lifecycle of a kubernetes Secret containing them.
+        """
+        return {}
+
+    def secret_data_to_env_vars_secret_refs(self) -> list[V1EnvVar]:
+        """
+        Helper function to generate env var references from the `secret_data`,
+        to be used in container specs
+        """
+        secret_name = self.name()
+        return [
+            V1EnvVar(
+                name=secret_key_name,
+                value_from=V1EnvVarSource(
+                    secret_key_ref=V1SecretKeySelector(
+                        name=secret_name,
+                        key=secret_key_name,
+                    )
+                ),
+            )
+            for secret_key_name in self.secret_data().keys()
+        ]
+
+    def scripts_volume_mount(self, directory: str) -> V1VolumeMount:
+        """
+        Helper function to generate a volume mount for the `scripts` to be used
+        in container specs
+        """
+        secret_name = self.name()
+        return V1VolumeMount(
+            name=secret_name,
+            mount_path=directory,
+        )
+
+    def scripts_volume(self) -> V1Volume:
+        """
+        Helper function to generate a volume for the `scripts` to be used in
+        pod specs
+        """
+        secret_name = self.name()
+        return V1Volume(
+            name=secret_name,
+            secret=V1SecretVolumeSource(
+                secret_name=secret_name,
+                items=[
+                    V1KeyToPath(
+                        key=script_name,
+                        path=script_name,
+                    )
+                    for script_name in self.scripts().keys()
+                ],
+            ),
+        )

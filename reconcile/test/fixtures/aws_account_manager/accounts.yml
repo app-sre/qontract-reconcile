@@ -1,0 +1,97 @@
+
+accounts:
+# existing org account
+- name: jeanluc
+  alias: captain-picard
+  uid: '111111111111'
+  alias: null
+  premiumSupport: false
+  organization:
+    ou: /Root/alpha quadrant/uss enterprise/ncc-1701-d
+    tags: '{"ship": "USS Enterprise"}'
+  quotaLimits:
+  - name: rosa-quota-limits
+    quotas:
+    - serviceCode: ec2
+      quotaCode: L-1216C47A
+      value: 64
+    - serviceCode: eks
+      quotaCode: L-1194D53C
+      value: 102
+  resourcesDefaultRegion: us-east-1
+  automationToken:
+    path: vault-path
+    field: all
+
+# ordinary non-org account
+- name: q
+  uid: '222222222222'
+  alias: null
+  premiumSupport: false
+  quotaLimits:
+  - name: rosa-quota-limits
+    quotas:
+    - serviceCode: ec2
+      quotaCode: L-1216C47A
+      value: 64
+    - serviceCode: eks
+      quotaCode: L-1194D53C
+      value: 102
+  resourcesDefaultRegion: us-east-1
+  automationToken:
+    path: vault-path
+    field: all
+
+# payer account
+- name: starfleet
+  uid: '471112852898'
+  premiumSupport: true
+  resourcesDefaultRegion: us-east-1
+  automationToken:
+    path: vault-path
+    field: all
+  automationRole:
+    awsAccountManager: AwsAccountManager
+  account_requests:
+  - path: /aws/data/request.yml
+    name: data
+    description: 'Request for a new AWS account for the United Federation of Planets'
+    accountOwner:
+      name: AppSRE
+      email: email@example.com
+    organization:
+      ou: '/Root/alpha quadrant/uss enterprise/ncc-1701-d'
+      tags: '{"ship": "USS Enterprise"}'
+      payerAccount:
+        path: /aws/starfleet.yml
+    quotaLimits:
+    - path: /aws/whatever/quota-limits.yml
+  organization_accounts:
+  - name: jeanluc
+    uid: '111111111111'
+    alias: null
+    premiumSupport: false
+    organization:
+      ou: /Root/alpha quadrant/uss enterprise/ncc-1701-d
+      tags: '{"ship": "USS Enterprise"}'
+    quotaLimits:
+    - name: rosa-quota-limits
+      quotas:
+      - serviceCode: ec2
+        quotaCode: L-1216C47A
+        value: 64
+      - serviceCode: eks
+        quotaCode: L-1194D53C
+        value: 102
+
+# disabled account
+- name: borg-queen
+  uid: '999999999999'
+  premiumSupport: true
+  resourcesDefaultRegion: us-east-1
+  automationToken:
+    path: vault-path
+    field: all
+  disable:
+    integrations:
+    - aws-account-manager

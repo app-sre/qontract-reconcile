@@ -99,6 +99,8 @@ query ClustersWithPeering {
 
     spec {
       region
+      hypershift
+      private
       ... on ClusterSpecROSA_v1 {
         account {
           name
@@ -146,6 +148,7 @@ query ClustersWithPeering {
           cidrBlock
           manageSecurityGroups
           manageRoute53Associations
+          allowPrivateHcpApiAccess
           assumeRole
         }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
@@ -211,6 +214,8 @@ class OpenShiftClusterManagerV1(ConfiguredBaseModel):
 
 class ClusterSpecV1(ConfiguredBaseModel):
     region: str = Field(..., alias="region")
+    hypershift: Optional[bool] = Field(..., alias="hypershift")
+    private: bool = Field(..., alias="private")
 
 
 class AWSAccountV1(ConfiguredBaseModel):
@@ -264,6 +269,7 @@ class ClusterPeeringConnectionAccountTGWV1(ClusterPeeringConnectionV1):
     cidr_block: Optional[str] = Field(..., alias="cidrBlock")
     manage_security_groups: Optional[bool] = Field(..., alias="manageSecurityGroups")
     manage_route53_associations: Optional[bool] = Field(..., alias="manageRoute53Associations")
+    allow_private_hcp_api_access: Optional[bool] = Field(..., alias="allowPrivateHcpApiAccess")
     assume_role: Optional[str] = Field(..., alias="assumeRole")
 
 

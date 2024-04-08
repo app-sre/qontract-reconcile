@@ -108,6 +108,7 @@ query Integrations {
         sleepDurationSecs
         state
         storage
+        storageClassName
         trigger
         cron
         dashdotdb
@@ -248,6 +249,7 @@ class IntegrationSpecV1(ConfiguredBaseModel):
     sleep_duration_secs: Optional[str] = Field(..., alias="sleepDurationSecs")
     state: Optional[bool] = Field(..., alias="state")
     storage: Optional[str] = Field(..., alias="storage")
+    storage_class_name: Optional[str] = Field(..., alias="storageClassName")
     trigger: Optional[bool] = Field(..., alias="trigger")
     cron: Optional[str] = Field(..., alias="cron")
     dashdotdb: Optional[bool] = Field(..., alias="dashdotdb")

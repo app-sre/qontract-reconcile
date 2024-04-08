@@ -11,6 +11,10 @@ from pydantic import (
 )
 from pydantic.dataclasses import dataclass
 
+from reconcile.aus.healthchecks import (
+    AUSClusterHealthCheckProvider,
+    build_cluster_health_providers_for_organization,
+)
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
@@ -33,6 +37,7 @@ from reconcile.gql_definitions.fragments.upgrade_policy import (
     ClusterUpgradePolicyConditionsV1,
     ClusterUpgradePolicyV1,
 )
+from reconcile.utils.clusterhealth.providerbase import ClusterHealthProvider
 from reconcile.utils.models import (
     CSV,
     cron_validator,
@@ -94,13 +99,13 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         org_to_env: dict[str, OCMEnvironment] = {}
         labels_by_org: dict[str, list[OCMOrganizationLabel]] = defaultdict(list)
         for env in self.get_ocm_environments(filter=False):
-            ocm_api = init_ocm_base_client(env, self.secret_reader)
-            for label in get_organization_labels(
-                ocm_api=ocm_api,
-                filter=Filter().like("key", aus_label_key("version-data.%")),
-            ):
-                labels_by_org[label.organization_id].append(label)
-                org_to_env[label.organization_id] = env
+            with init_ocm_base_client(env, self.secret_reader) as ocm_api:
+                for label in get_organization_labels(
+                    ocm_api=ocm_api,
+                    filter=Filter().like("key", aus_label_key("version-data.%")),
+                ):
+                    labels_by_org[label.organization_id].append(label)
+                    org_to_env[label.organization_id] = env
 
         # ... and build the inheritance network
         return build_version_data_inheritance_network({
@@ -118,15 +123,17 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
         organizations = {
             org.org_id: org for org in self.get_orgs_for_environment(ocm_env)
         }
-        ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
-        clusters_by_org = discover_clusters(
-            ocm_api=ocm_api,
-            org_ids=set(organizations.keys()),
-            ignore_sts_clusters=self.params.ignore_sts_clusters,
-        )
-        labels_by_org = _get_org_labels(
-            ocm_api=ocm_api, org_ids=set(organizations.keys())
-        )
+        with init_ocm_base_client(ocm_env, self.secret_reader) as ocm_api:
+            clusters_by_org = discover_clusters(
+                ocm_api=ocm_api,
+                org_ids=set(organizations.keys()),
+                ignore_sts_clusters=self.params.ignore_sts_clusters,
+            )
+            labels_by_org = _get_org_labels(
+                ocm_api=ocm_api, org_ids=set(organizations.keys())
+            )
+
+        cluster_health_providers = self._health_check_providers_for_env(ocm_env.name)
 
         return _build_org_upgrade_specs_for_ocm_env(
             orgs=organizations,
@@ -135,18 +142,19 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             inheritance_network={
                 org_ref.org_id: vdi for org_ref, vdi in inheritance_network.items()
             },
+            cluster_health_providers=cluster_health_providers,
         )
 
     def signal_validation_issues(
         self, dry_run: bool, org_upgrade_spec: OrganizationUpgradeSpec
     ) -> None:
         if not dry_run:
-            ocm_api = init_ocm_base_client(
+            with init_ocm_base_client(
                 org_upgrade_spec.org.environment, self.secret_reader
-            )
-            _signal_validation_issues_for_org(
-                ocm_api=ocm_api, org_upgrade_spec=org_upgrade_spec
-            )
+            ) as ocm_api:
+                _signal_validation_issues_for_org(
+                    ocm_api=ocm_api, org_upgrade_spec=org_upgrade_spec
+                )
 
     def signal_reconcile_issues(
         self,
@@ -218,6 +226,7 @@ def _build_org_upgrade_specs_for_ocm_env(
     clusters_by_org: dict[str, list[ClusterDetails]],
     labels_by_org: dict[str, LabelContainer],
     inheritance_network: dict[str, "VersionDataInheritance"],
+    cluster_health_providers: dict[str, ClusterHealthProvider],
 ) -> dict[str, OrganizationUpgradeSpec]:
     """
     Builds the cluster upgrade specs for the given OCM environment.
@@ -225,10 +234,14 @@ def _build_org_upgrade_specs_for_ocm_env(
     """
     return {
         org_id: _build_org_upgrade_spec(
-            orgs[org_id],
-            clusters,
-            labels_by_org.get(org_id) or build_label_container(),
-            inheritance_network.get(org_id),
+            org=orgs[org_id],
+            clusters=clusters,
+            org_labels=labels_by_org.get(org_id) or build_label_container(),
+            version_data_inheritance=inheritance_network.get(org_id),
+            cluster_health_provider=build_cluster_health_providers_for_organization(
+                org=orgs[org_id],
+                providers=cluster_health_providers,
+            ),
         )
         for org_id, clusters in clusters_by_org.items()
     }
@@ -285,6 +298,7 @@ def _build_org_upgrade_spec(
     clusters: list[ClusterDetails],
     org_labels: LabelContainer,
     version_data_inheritance: Optional["VersionDataInheritance"],
+    cluster_health_provider: AUSClusterHealthCheckProvider,
 ) -> OrganizationUpgradeSpec:
     """
     Build a upgrade policy spec for each cluster in the organization that
@@ -320,11 +334,15 @@ def _build_org_upgrade_spec(
     for c in clusters:
         try:
             upgrade_policy = _build_policy_from_labels(c.labels)
+            cluster_health = cluster_health_provider.cluster_health(
+                cluster_external_id=c.ocm_cluster.external_id, org_id=org.org_id
+            )
             org_upgrade_spec.add_spec(
                 ClusterUpgradeSpec(
                     org=org_upgrade_spec.org,
                     upgradePolicy=upgrade_policy,
                     cluster=c.ocm_cluster,
+                    health=cluster_health,
                 )
             )
         except ValidationError as validation_error:
@@ -364,6 +382,9 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     mutexes: Optional[CSV] = Field(alias=aus_label_key("mutexes"))
     sector: Optional[str] = Field(alias=aus_label_key("sector"))
     blocked_versions: Optional[CSV] = Field(alias=aus_label_key("blocked-versions"))
+    version_gate_approvals: Optional[CSV] = Field(
+        alias=aus_label_key("version-gate-approvals")
+    )
     _schedule_validator = validator("schedule", allow_reuse=True)(cron_validator)
 
     def build_labels_dict(self) -> dict[str, str]:
@@ -388,6 +409,7 @@ def build_cluster_upgrade_policy_label_set(
     mutexes: Optional[list[str]] = None,
     sector: Optional[str] = None,
     blocked_versions: Optional[list[str]] = None,
+    version_gate_approvals: Optional[list[str]] = None,
 ) -> ClusterUpgradePolicyLabelSet:
     return ClusterUpgradePolicyLabelSet(**{
         aus_label_key("workloads"): ",".join(workloads),
@@ -397,6 +419,9 @@ def build_cluster_upgrade_policy_label_set(
         aus_label_key("sector"): sector,
         aus_label_key("blocked-versions"): ",".join(blocked_versions)
         if blocked_versions
+        else None,
+        aus_label_key("version-gate-approvals"): ",".join(version_gate_approvals)
+        if version_gate_approvals
         else None,
     })
 
@@ -410,6 +435,7 @@ def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicyV1:
     policy_labelset = build_labelset(labels, ClusterUpgradePolicyLabelSet)
     return ClusterUpgradePolicyV1(
         workloads=policy_labelset.workloads,
+        versionGateApprovals=policy_labelset.version_gate_approvals,
         schedule=policy_labelset.schedule,
         conditions=ClusterUpgradePolicyConditionsV1(
             soakDays=policy_labelset.soak_days,

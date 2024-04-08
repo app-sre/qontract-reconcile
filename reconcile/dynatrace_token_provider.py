@@ -1,3 +1,4 @@
+import base64
 import logging
 import sys
 from datetime import timedelta
@@ -57,8 +58,9 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "dynatrace-token-provider"
-SYNCSET_ID = "ext-dynatrace-tokens"
+SYNCSET_ID = "ext-dynatrace-tokens-dtp"
 SECRET_NAME = "dynatrace-token-dtp"
+SECRET_NAMESPACE = "dynatrace"
 DYNATRACE_INGESTION_TOKEN_NAME = "dynatrace-ingestion-token"
 DYNATRACE_OPERATOR_TOKEN_NAME = "dynatrace-operator-token"
 
@@ -73,7 +75,7 @@ class ReconcileErrorSummary(Exception):
 
     def __str__(self) -> str:
         formatted_exceptions = "\n".join([f"- {e}" for e in self.exceptions])
-        return f"Reconcile exceptions:\n{ formatted_exceptions }"
+        return f"Reconcile exceptions:\n{formatted_exceptions}"
 
 
 class DTPBaseMetric(BaseModel):
@@ -232,7 +234,7 @@ class DynatraceTokenProviderIntegration(
         tenant_id: str,
     ) -> None:
         existing_syncset = self.get_syncset(ocm_client, cluster)
-        dt_env_url = f"https://{tenant_id}.live.dynatrace.com"
+        dt_api_url = f"https://{tenant_id}.live.dynatrace.com/api"
         if not existing_syncset:
             if not dry_run:
                 try:
@@ -243,7 +245,7 @@ class DynatraceTokenProviderIntegration(
                         ocm_client,
                         cluster.ocm_cluster.id,
                         self.construct_syncset(
-                            ingestion_token, operator_token, dt_env_url
+                            ingestion_token, operator_token, dt_api_url
                         ),
                     )
                 except Exception as e:
@@ -294,7 +296,7 @@ class DynatraceTokenProviderIntegration(
                     patch_syncset_payload = self.construct_base_syncset(
                         ingestion_token=ingestion_token,
                         operator_token=operator_token,
-                        dt_api_url=dt_env_url,
+                        dt_api_url=dt_api_url,
                     )
                     try:
                         logging.info(f"Patching syncset {SYNCSET_ID}.")
@@ -328,10 +330,12 @@ class DynatraceTokenProviderIntegration(
         tokens = {}
         for resource in syncset["resources"]:
             if resource["kind"] == "Secret":
-                operator_token_id = resource["data"]["apiTokenId"]
-                operator_token = resource["data"]["apiToken"]
-                ingest_token_id = resource["data"]["dataIngestTokenId"]
-                ingest_token = resource["data"]["dataIngestToken"]
+                operator_token_id = self.base64_decode(resource["data"]["apiTokenId"])
+                operator_token = self.base64_decode(resource["data"]["apiToken"])
+                ingest_token_id = self.base64_decode(
+                    resource["data"]["dataIngestTokenId"]
+                )
+                ingest_token = self.base64_decode(resource["data"]["dataIngestToken"])
         tokens[DYNATRACE_INGESTION_TOKEN_NAME] = {
             "id": ingest_token_id,
             "token": ingest_token,
@@ -354,17 +358,26 @@ class DynatraceTokenProviderIntegration(
                 {
                     "apiVersion": "v1",
                     "kind": "Secret",
-                    "metadata": {"name": SECRET_NAME},
+                    "metadata": {"name": SECRET_NAME, "namespace": SECRET_NAMESPACE},
                     "data": {
-                        "apiUrl": f"{dt_api_url}",
-                        "dataIngestTokenId": f"{ingestion_token.id}",
-                        "dataIngestToken": f"{ingestion_token.token}",
-                        "apiTokenId": f"{operator_token.id}",
-                        "apiToken": f"{operator_token.token}",
+                        "apiUrl": f"{self.base64_encode_str(dt_api_url)}",
+                        "dataIngestTokenId": f"{self.base64_encode_str(ingestion_token.id)}",
+                        "dataIngestToken": f"{self.base64_encode_str(ingestion_token.token)}",
+                        "apiTokenId": f"{self.base64_encode_str(operator_token.id)}",
+                        "apiToken": f"{self.base64_encode_str(operator_token.token)}",
                     },
                 },
             ],
         }
+
+    def base64_decode(self, encoded: str) -> str:
+        data_bytes = base64.b64decode(encoded)
+        return data_bytes.decode("utf-8")
+
+    def base64_encode_str(self, string: str) -> str:
+        data_bytes = string.encode("utf-8")
+        encoded = base64.b64encode(data_bytes)
+        return encoded.decode("utf-8")
 
     def construct_syncset(
         self,

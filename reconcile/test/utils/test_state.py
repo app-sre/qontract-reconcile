@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from typing import Optional
 
 import boto3
@@ -10,17 +11,21 @@ from pytest_mock import MockerFixture
 from reconcile.gql_definitions.common.app_interface_state_settings import (
     AppInterfaceStateConfigurationS3V1,
 )
+from reconcile.gql_definitions.common.state_aws_account import AWSAccountV1
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.typed_queries.get_state_aws_account import get_state_aws_account
 from reconcile.utils import state
 from reconcile.utils.secret_reader import (
     ConfigSecretReader,
     SecretReaderBase,
 )
 from reconcile.utils.state import (
+    AbortStateTransaction,
     S3CredsBasedStateConfiguration,
     S3ProfileBasedStateConfiguration,
     State,
     StateInaccessibleException,
+    TransactionStateObj,
     acquire_state_settings,
 )
 
@@ -40,7 +45,7 @@ def accounts() -> list[dict[str, str]]:
 
 
 @pytest.fixture
-def s3_client(monkeypatch):
+def s3_client(monkeypatch: MonkeyPatch) -> Generator[S3Client, None, None]:
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
     monkeypatch.setenv("AWS_SECURITY_TOKEN", "testing")
@@ -221,27 +226,27 @@ def test_acquire_state_settings_env_vault(monkeypatch: MonkeyPatch) -> None:
     assert state_settings.secret_access_key == AWS_SECRET_ACCESS_KEY
 
 
-def test_acquire_state_settings_env_account(
-    mocker: MockerFixture, monkeypatch: MonkeyPatch
-) -> None:
-    get_aws_account_by_name_mock = mocker.patch.object(
-        state, "_get_aws_account_by_name", autospec=True
-    )
-    get_aws_account_by_name_mock.return_value = {
-        "name": ACCOUNT,
-        "resourcesDefaultRegion": REGION,
-        "automationToken": {
-            "path": VAULT_SECRET_PATH,
-            "field": "all",
-            "version": None,
-            "format": None,
-        },
-    }
-
+def test_acquire_state_settings_env_account(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", BUCKET)
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", ACCOUNT)
 
-    state_settings = acquire_state_settings(secret_reader=MockAWSCredsSecretReader())
+    state_settings = acquire_state_settings(
+        secret_reader=MockAWSCredsSecretReader(),
+        query_func=lambda gql_query, **kwargs: {
+            "accounts": [
+                {
+                    "name": ACCOUNT,
+                    "resourcesDefaultRegion": REGION,
+                    "automationToken": {
+                        "path": VAULT_SECRET_PATH,
+                        "field": "all",
+                        "version": None,
+                        "format": None,
+                    },
+                }
+            ]
+        },
+    )
     assert state_settings.bucket == BUCKET
     assert state_settings.region == REGION
     assert isinstance(state_settings, S3CredsBasedStateConfiguration)
@@ -249,19 +254,15 @@ def test_acquire_state_settings_env_account(
     assert state_settings.secret_access_key == AWS_SECRET_ACCESS_KEY
 
 
-def test_acquire_state_settings_env_missing_account(
-    mocker: MockerFixture, monkeypatch: MonkeyPatch
-) -> None:
-    get_aws_account_by_name_mock = mocker.patch.object(
-        state, "_get_aws_account_by_name", autospec=True
-    )
-    get_aws_account_by_name_mock.return_value = None
-
+def test_acquire_state_settings_env_missing_account(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", BUCKET)
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", ACCOUNT)
 
     with pytest.raises(StateInaccessibleException):
-        acquire_state_settings(secret_reader=ConfigSecretReader())
+        acquire_state_settings(
+            secret_reader=ConfigSecretReader(),
+            query_func=lambda gql_query, **kwargs: {"accounts": None},
+        )
 
 
 def test_acquire_state_settings_env_creds(monkeypatch: MonkeyPatch) -> None:
@@ -332,3 +333,183 @@ def test_acquire_state_settings_no_settings(mocker: MockerFixture) -> None:
 
     with pytest.raises(StateInaccessibleException):
         acquire_state_settings(secret_reader=MockAWSCredsSecretReader())
+
+
+def test_state_get_aws_account_by_name() -> None:
+    # account not found
+    assert (
+        get_state_aws_account(
+            "some-account", query_func=lambda gql_query, **kwargs: {"accounts": None}
+        )
+        is None
+    )
+    account = get_state_aws_account(
+        "some-account",
+        query_func=lambda gql_query, **kwargs: {
+            "accounts": [
+                {
+                    "name": kwargs["variables"]["name"],
+                    "resourcesDefaultRegion": "REGION",
+                    "automationToken": {
+                        "path": "VAULT_SECRET_PATH",
+                        "field": "all",
+                        "version": None,
+                        "format": None,
+                    },
+                }
+            ]
+        },
+    )
+    assert isinstance(account, AWSAccountV1)
+    assert account.name == "some-account"
+
+
+def test_state_transaction_key_exists(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    s3_client.put_object(
+        Bucket=integration_state.bucket,
+        Key=f"state/{integration}/feature.foo.bar",
+        Body='"set"',
+    )
+
+    assert integration_state["feature.foo.bar"] == "set"
+    with integration_state.transaction("feature.foo.bar", "set") as state:
+        assert state.exists
+
+
+def test_state_transaction_value_via_transaction(integration_state: State) -> None:
+    with integration_state.transaction("feature.foo.bar", "set") as state:
+        assert not state.exists
+    assert integration_state["feature.foo.bar"] == "set"
+
+
+def test_state_transaction_value_via_state_obj(integration_state: State) -> None:
+    with integration_state.transaction("feature.foo.bar") as state:
+        state.value = "set"
+        assert not state.exists
+        # here should be the code that acts now
+    # and then the state should be updated
+    assert integration_state["feature.foo.bar"] == "set"
+
+
+def test_state_transaction_value_via_both(integration_state: State) -> None:
+    with integration_state.transaction("feature.foo.bar", "foo") as state:
+        state.value = "bar"
+        assert not state.exists
+    assert integration_state["feature.foo.bar"] == "bar"
+
+
+def test_state_transaction_no_value(integration_state: State) -> None:
+    with integration_state.transaction("feature.foo.bar") as state:
+        assert not state.exists
+
+    with pytest.raises(KeyError):
+        integration_state["feature.foo.bar"]
+
+
+def test_state_transaction_key_exists_value_via_transaction(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    s3_client.put_object(
+        Bucket=integration_state.bucket,
+        Key=f"state/{integration}/feature.foo.bar",
+        Body='"set"',
+    )
+
+    assert integration_state["feature.foo.bar"] == "set"
+    with integration_state.transaction("feature.foo.bar", "changed") as state:
+        assert state.value == "set"
+    assert integration_state["feature.foo.bar"] == "changed"
+
+
+def test_state_transaction_key_exists_value_via_state_obj(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    s3_client.put_object(
+        Bucket=integration_state.bucket,
+        Key=f"state/{integration}/feature.foo.bar",
+        Body='"set"',
+    )
+
+    assert integration_state["feature.foo.bar"] == "set"
+    with integration_state.transaction("feature.foo.bar") as state:
+        assert state.value == "set"
+        state.value = "changed"
+    assert integration_state["feature.foo.bar"] == "changed"
+
+
+def test_state_transaction_noop_if_no_value_in_transaction(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    s3_client.put_object(
+        Bucket=integration_state.bucket,
+        Key=f"state/{integration}/feature.foo.bar",
+        Body='"set"',
+    )
+
+    assert integration_state["feature.foo.bar"] == "set"
+    with integration_state.transaction("feature.foo.bar") as state:
+        assert state.value == "set"
+    assert integration_state["feature.foo.bar"] == "set"
+
+
+def test_state_transaction_exception(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    try:
+        with integration_state.transaction("feature.foo.bar", "set") as state:
+            assert not state.exists
+            raise FileNotFoundError("Some error")
+    except FileNotFoundError:
+        with pytest.raises(KeyError):
+            integration_state["feature.foo.bar"]
+    else:
+        raise AssertionError("The exception was not raised")
+
+
+def test_state_transaction_abort(
+    integration_state: State, integration: str, s3_client: S3Client
+) -> None:
+    with integration_state.transaction("feature.foo.bar", "set") as state:
+        assert not state.exists
+        raise AbortStateTransaction("We want to abort the transaction")
+
+    with pytest.raises(KeyError):
+        integration_state["feature.foo.bar"]
+
+
+def test_state_transaction_state_obj_nothing_set() -> None:
+    # nothing set yet
+    obj = TransactionStateObj(key="key")
+    assert obj.value is None
+    assert not obj.changed
+    assert not obj.exists
+
+    obj.value = "value"
+    assert obj.value == "value"
+    assert obj.changed
+    assert not obj.exists
+
+
+def test_state_transaction_state_obj_init_value() -> None:
+    # init value but no current one
+    obj = TransactionStateObj(key="key", value="value")
+    assert obj.value == "value"
+    assert not obj.changed
+    assert obj.exists
+
+    obj.value = "another-value"
+    assert obj.value == "another-value"
+    assert obj.changed
+    assert obj.exists
+
+
+def test_state_transaction_state_obj_bool() -> None:
+    # init value but no current one
+    obj = TransactionStateObj(key="key", value=True)
+    assert obj.value is True
+    obj.value = False
+    assert obj.value is False
+    assert obj.changed
+    assert obj.exists

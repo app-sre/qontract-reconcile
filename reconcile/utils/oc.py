@@ -14,13 +14,10 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
+from io import TextIOWrapper
 from subprocess import Popen
 from threading import Lock
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any, Optional, Union
 
 import urllib3
 from kubernetes.client import (  # type: ignore[attr-defined]
@@ -725,15 +722,59 @@ class OCCli:  # pylint: disable=too-many-public-methods
         if not ready_pods:
             raise JobNotRunningError(name)
 
-    def job_logs(self, namespace, name, follow, output):
-        self.wait_for_job_running(namespace, name)
+    def job_logs(
+        self,
+        namespace,
+        name,
+        follow,
+        output,
+        wait_for_job_running=True,
+        wait_for_logs_process=False,
+    ):
+        if wait_for_job_running:
+            self.wait_for_job_running(namespace, name)
+
         cmd = ["logs", "--all-containers=true", "-n", namespace, f"job/{name}"]
         if follow:
             cmd.append("-f")
         # pylint: disable=consider-using-with
-        output_file = open(os.path.join(output, name), "w", encoding="locale")
-        # collect logs to file async
-        Popen(self.oc_base_cmd + cmd, stdout=output_file)
+        if isinstance(output, TextIOWrapper):
+            output_file = output
+        else:
+            output_file = open(os.path.join(output, name), "w", encoding="locale")
+
+        if wait_for_logs_process:
+            subprocess.run(self.oc_base_cmd + cmd, stdout=output_file, check=False)
+        else:
+            # collect logs to file async
+            Popen(self.oc_base_cmd + cmd, stdout=output_file)
+
+    def job_logs_latest_pod(self, namespace: str, name: str, output: str) -> str:
+        pods = self.get_items("Pod", namespace=namespace, labels={"job-name": name})
+
+        finished_pods = [
+            pod for pod in pods if pod["status"].get("phase") in {"Failed", "Succeeded"}
+        ]
+        if not finished_pods:
+            raise JobNotRunningError(name)
+
+        latest_pod = sorted(
+            finished_pods, key=lambda pod: pod["metadata"]["creationTimestamp"]
+        )[-1]
+        cmd = [
+            "logs",
+            "--all-containers=true",
+            "-n",
+            namespace,
+            f"pod/{latest_pod['metadata']['name']}",
+        ]
+        output_file_name = os.path.join(output, name)
+        with open(output_file_name, "w", encoding="locale") as f:
+            # collect logs to file async
+            p = Popen(self.oc_base_cmd + cmd, stdout=f)
+            # wait here for the log collection to finish
+            p.wait()
+        return output_file_name
 
     @staticmethod
     def get_service_account_username(user):

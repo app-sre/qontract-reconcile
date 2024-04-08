@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -e
+set -o pipefail
+
+CURRENT_CLUSTER_COUNT=$(rosa list clusters -o json | jq 'length')
+if (( CURRENT_CLUSTER_COUNT > 0 )); then
+  echo "Error: This account already has a cluster. Only one cluster per account is supported."
+  exit 1
+fi
+
+rosa init
+rosa create ocm-role --admin -y -m auto
+rosa create account-roles --hosted-cp -y -m auto
+rosa create user-role -y -m auto
+
+# OIDC config
+{% if cluster.spec.oidc_endpoint_url %}
+OIDC_CONFIG_ID="{{ (cluster.spec.oidc_endpoint_url | split("/")) | last }}"
+{% else %}
+OIDC_CONFIG_ID=$(rosa list oidc-provider -o json | jq '.[0].arn // "/" | split("/") | .[-1]' -r)
+if [[ -z "${OIDC_CONFIG_ID}" ]]; then
+    rosa create oidc-config -m auto -y
+    OIDC_CONFIG_ID=$(rosa list oidc-provider -o json | jq '.[0].arn // "/" | split("/") | .[-1]' -r)
+else
+    echo "reuse existing OIDC config ${OIDC_CONFIG_ID}"
+fi
+{% endif %}
+
+# operator roles
+INSTALLER_ROLE_ARN=$(rosa list account-roles --region us-east-1 -o json | jq '.[] | select(.RoleType == "Installer") | .RoleARN' -r)
+rosa create operator-roles --prefix {{ cluster_name }} --oidc-config-id ${OIDC_CONFIG_ID} --hosted-cp --installer-role-arn ${INSTALLER_ROLE_ARN} -m auto -y
+
+# cluster creation
+BILLING_ACCOUNT_ID=$(aws organizations describe-organization | jq .Organization.MasterAccountId -r)
+rosa create cluster --cluster-name={{ cluster_name }} \
+    --billing-account ${BILLING_ACCOUNT_ID} \
+    {% if dry_run -%}
+    --dry-run \
+    {% endif -%}
+    --sts \
+    --hosted-cp \
+    --oidc-config-id ${OIDC_CONFIG_ID} \
+    --operator-roles-prefix {{ cluster_name }} \
+    --subnet-ids {{ cluster.spec.subnet_ids | join(",") }} \
+    --region {{ cluster.spec.region }} \
+    --version {{ cluster.spec.version }} \
+    --machine-cidr {{ cluster.network.vpc }} \
+    --service-cidr {{ cluster.network.service }} \
+    --pod-cidr {{ cluster.network.pod }} \
+    --host-prefix 23 \
+    --replicas {{ cluster.machine_pools | length }} \
+    --compute-machine-type {{ cluster.machine_pools[0].instance_type }} \
+    {% if cluster.spec.private -%}
+    --private \
+    {% endif -%}
+    {% if cluster.spec.disable_user_workload_monitoring -%}
+    --disable-workload-monitoring \
+    {% endif -%}
+    {% if cluster.spec.provision_shard_id -%}
+    --properties provision_shard_id:{{ cluster.spec.provision_shard_id }} \
+    {% endif -%}
+    --channel-group {{ cluster.spec.channel }}
