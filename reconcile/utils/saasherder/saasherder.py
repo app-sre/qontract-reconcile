@@ -329,6 +329,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     )
                     self._validate_target_in_app(saas_file, target)
 
+                    self._warn_deployment_and_clowder_overlap(saas_file)
+
                     if target.promotion:
                         rt_ref = (
                             saas_file.path,
@@ -625,6 +627,20 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     "to remove its corresponding promotion_data block? "
                     f"Please remove promotion_data for channel {prom_data.channel}."
                 )
+
+    @staticmethod
+    def _warn_deployment_and_clowder_overlap(
+        saas_file: SaasFile,
+    ) -> None:
+        if (
+            "Deployment" in saas_file.managed_resource_types
+            and "ClowdApp" in saas_file.managed_resource_types
+        ):
+            logging.warning(
+                f"[{saas_file.name}] "
+                "Deployment and Clowdapp resources are used together. "
+                "This is not recommended as it may cause unexpected behavior."
+            )
 
     @staticmethod
     def _get_upstream_jobs(
