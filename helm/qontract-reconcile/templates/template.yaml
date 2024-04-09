@@ -485,6 +485,8 @@ objects:
               memory: 120Mi
           {{- end }}
           volumeMounts:
+          - name: tmp-dir
+            mountPath: /tmp
           - name: logs
             mountPath: /fluentd/log/
           - name: fluentd-config
@@ -521,6 +523,8 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
+        - name: tmp-dir
+          emptyDir: { }
         {{- if $logs.googleChat }}
         - name: buffer
           emptyDir: {}
