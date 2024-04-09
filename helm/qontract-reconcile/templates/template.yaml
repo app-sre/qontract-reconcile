@@ -416,6 +416,8 @@ objects:
             {{- end }}
           {{- end }}
           volumeMounts:
+          - name: tmp-dir
+            mountPath: /tmp
           - name: qontract-reconcile-toml
             mountPath: /config
           {{- if $integration.cache }}
@@ -485,8 +487,6 @@ objects:
               memory: 120Mi
           {{- end }}
           volumeMounts:
-          - name: tmp-dir
-            mountPath: /tmp
           - name: logs
             mountPath: /fluentd/log/
           - name: fluentd-config
