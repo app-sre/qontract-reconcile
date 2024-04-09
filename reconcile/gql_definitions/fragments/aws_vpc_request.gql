@@ -13,13 +13,7 @@ fragment VPCRequest on VPCRequest_v1 {
     resourcesDefaultRegion
     providerVersion
     terraformState {
-      provider
-      bucket
-      region
-      integrations {
-        integration
-        key
-      }
+      ...TerraformState
     }
   }
   region

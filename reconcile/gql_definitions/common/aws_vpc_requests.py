@@ -21,6 +21,16 @@ from reconcile.gql_definitions.fragments.aws_vpc_request import VPCRequest
 
 
 DEFINITION = """
+fragment TerraformState on TerraformStateAWS_v1 {
+  provider
+  bucket
+  region
+  integrations {
+    key
+    integration
+  }
+}
+
 fragment VPCRequest on VPCRequest_v1 {
   identifier
   account {
@@ -34,13 +44,7 @@ fragment VPCRequest on VPCRequest_v1 {
     resourcesDefaultRegion
     providerVersion
     terraformState {
-      provider
-      bucket
-      region
-      integrations {
-        integration
-        key
-      }
+      ...TerraformState
     }
   }
   region

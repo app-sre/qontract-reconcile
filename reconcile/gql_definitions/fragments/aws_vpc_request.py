@@ -17,6 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.terraform_state import TerraformState
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -24,18 +25,6 @@ class ConfiguredBaseModel(BaseModel):
     class Config:
         smart_union=True
         extra=Extra.forbid
-
-
-class AWSTerraformStateIntegrationsV1(ConfiguredBaseModel):
-    integration: str = Field(..., alias="integration")
-    key: str = Field(..., alias="key")
-
-
-class TerraformStateAWSV1(ConfiguredBaseModel):
-    provider: str = Field(..., alias="provider")
-    bucket: str = Field(..., alias="bucket")
-    region: str = Field(..., alias="region")
-    integrations: list[AWSTerraformStateIntegrationsV1] = Field(..., alias="integrations")
 
 
 class AWSAccountV1(ConfiguredBaseModel):
@@ -46,7 +35,7 @@ class AWSAccountV1(ConfiguredBaseModel):
     supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
     provider_version: str = Field(..., alias="providerVersion")
-    terraform_state: Optional[TerraformStateAWSV1] = Field(..., alias="terraformState")
+    terraform_state: Optional[TerraformState] = Field(..., alias="terraformState")
 
 
 class NetworkV1(ConfiguredBaseModel):
