@@ -14,6 +14,7 @@ from reconcile.gql_definitions.fragments.aws_vpc_request import (
 )
 from reconcile.status import ExitCodes
 from reconcile.terraform_vpc_resources import (
+    NoManagedVPCForAccount,
     TerraformVpcResources,
     TerraformVpcResourcesParams,
 )
@@ -131,11 +132,12 @@ def test_log_message_for_accounts_having_vpc_requests(
     params = TerraformVpcResourcesParams(
         account_name=account_name, print_to_file=None, thread_pool_size=1
     )
-    with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
+    with caplog.at_level(logging.INFO), pytest.raises(NoManagedVPCForAccount) as execption:
         TerraformVpcResources(params).run(dry_run=True)
-    assert sample.value.code == ExitCodes.ERROR
-    assert [
-        f"The account {account_name} doesn't have any managed vpc. Verify your input"
+
+    error_msg = f"The account {account_name} doesn't have any managed vpc. Verify your input"
+    assert execption.match(error_msg)
+    assert [error_msg
     ] == [rec.message for rec in caplog.records]
 
 

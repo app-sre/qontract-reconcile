@@ -33,6 +33,10 @@ class TerraformVpcResourcesParams(PydanticRunParams):
     thread_pool_size: int
 
 
+class NoManagedVPCForAccount(Exception):
+    pass
+
+
 class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesParams]):
     @property
     def name(self) -> str:
@@ -58,10 +62,9 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
                     account for account in accounts if account.name == account_name
                 ]
                 if not accounts:
-                    logging.warning(
-                        f"The account {account_name} doesn't have any managed vpc. Verify your input"
-                    )
-                    sys.exit(ExitCodes.ERROR)
+                    error_msg = f"The account {account_name} doesn't have any managed vpc. Verify your input"
+                    logging.error(error_msg)
+                    raise NoManagedVPCForAccount(error_msg)
         else:
             logging.warning("No VPC requests found, nothing to do.")
             sys.exit(ExitCodes.SUCCESS)
