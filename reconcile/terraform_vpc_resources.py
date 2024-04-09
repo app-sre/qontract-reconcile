@@ -44,6 +44,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
 
     def run(self, dry_run: bool) -> None:
         account_name = self.params.account_name
+        thread_pool_size = self.params.thread_pool_size
 
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -69,7 +70,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         with TerrascriptClient(
             integration=QONTRACT_INTEGRATION,
             integration_prefix=QONTRACT_TF_PREFIX,
-            thread_pool_size=1,
+            thread_pool_size=thread_pool_size,
             accounts=accounts_untyped,
             secret_reader=secret_reader,
         ) as ts_client:
@@ -86,7 +87,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             integration_prefix=QONTRACT_TF_PREFIX,
             accounts=accounts_untyped,
             working_dirs=working_dirs,
-            thread_pool_size=1,
+            thread_pool_size=thread_pool_size,
         )
 
         tf_client.plan(enable_deletion=False)
