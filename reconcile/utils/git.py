@@ -6,9 +6,13 @@ class GitError(Exception):
     pass
 
 
-def clone(repo_url, wd):
+def clone(repo_url, wd, depth=None):
+    base_cmd = ["git", "clone"]
+    if depth:
+        base_cmd.extend(["--depth", str(depth)])
+    base_cmd.append(repo_url)
+    cmd = base_cmd + [wd]
     # pylint: disable=subprocess-run-check
-    cmd = ["git", "clone", repo_url, wd]
     result = subprocess.run(
         cmd, cwd=wd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
     )

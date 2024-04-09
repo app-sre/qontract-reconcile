@@ -1968,12 +1968,18 @@ def template_validator(ctx):
 @integration.command(short_help="Render datafile templates in app-interface.")
 @click.option(
     "--app-interface-data-path",
-    help="Path to app-interface dictory, used to write output and calculate diff in dry-run.",
+    help="Path to data dir in app-interface repo. Use this for local rendering or in MR checks.",
     required=False,
     envvar="APP_INTERFACE_DATA_PATH",
 )
+@click.option(
+    "--git-clone-path",
+    help="Path to a folder app-interface repo should be cloned to. Use this for regular integration run.",
+    required=False,
+    envvar="GIT_CLONE_PATH",
+)
 @click.pass_context
-def template_renderer(ctx, app_interface_data_path):
+def template_renderer(ctx, app_interface_data_path, git_clone_path):
     from reconcile.templating.renderer import (
         TemplateRendererIntegration,
         TemplateRendererIntegrationParams,
@@ -1982,7 +1988,8 @@ def template_renderer(ctx, app_interface_data_path):
     run_class_integration(
         integration=TemplateRendererIntegration(
             TemplateRendererIntegrationParams(
-                app_interface_data_path=app_interface_data_path
+                app_interface_data_path=app_interface_data_path,
+                git_clone_path=git_clone_path,
             )
         ),
         ctx=ctx.obj,
