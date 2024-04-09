@@ -146,6 +146,6 @@ class TestPrometheusRulesTester:
         error_msg = (
             "Error checking rule bad-test.prometheusrules.yaml "
             "from namespace openshift-customer-monitoring in "
-            f"cluster {cluster_name}: Error running promtool command"
+            f"cluster {cluster_name[0]}: Error running promtool command"
         )
         assert error_msg in caplog.text
