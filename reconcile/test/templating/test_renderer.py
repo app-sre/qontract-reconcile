@@ -230,7 +230,7 @@ def test_reconcile(
     gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
     gtc.return_value = [template_collection]
     p = mocker.MagicMock(LocalFilePersistence)
-    r = (create_ruamel_instance(),)
+    r = create_ruamel_instance()
     t.reconcile(
         False,
         p,
