@@ -1083,10 +1083,17 @@ def cidr_blocks(ctx, for_cluster: int, mask: int) -> None:
     cidrs.sort(key=lambda item: ipaddress.ip_network(item["cidr"]))
 
     if for_cluster:
-        latest_declared_addr = ipaddress.ip_address(
-            [item for item in cidrs if item["type"] == "cluster"][-1]["to"]
+        latest_cluster_cidr = next(
+            (item for item in reversed(cidrs) if item["type"] == "cluster"),
+            None,
         )
-        avail_addr = latest_declared_addr + 1
+
+        if not latest_cluster_cidr:
+            print("ERROR: Unable to find any existing cluster CIDR block.")
+            sys.exit(1)
+
+        avail_addr = ipaddress.ip_address(latest_cluster_cidr["to"]) + 1
+
         print(f"INFO: Latest available network address: {str(avail_addr)}")
         try:
             result_cidr_block = str(ipaddress.ip_network((avail_addr, mask)))
