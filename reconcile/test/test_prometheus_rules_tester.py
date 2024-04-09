@@ -136,7 +136,7 @@ class TestPrometheusRulesTester:
         self.ns_data = self.fxt.get_anymarkup("ns-bad-test.yaml")
         mocker_alerting_services.return_value = {"yak-shaver"}
         mocker_vault_settings.return_value = AppInterfaceSettingsV1(vault=False)
-        cluster_name = "appint-ex-01"
+        cluster_name = ("appint-ex-01",)
 
         with pytest.raises(SystemExit) as exc:
             run(False, THREAD_POOL_SIZE, cluster_name=cluster_name)
