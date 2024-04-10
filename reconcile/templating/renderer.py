@@ -290,8 +290,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             )
             url = get_app_interface_repo_url()
 
-            ssl_verify = [g.ssl_verify for g in gitlab_instances if g.url in url]
-            assert len(ssl_verify) == 1, "Expected gitlab instance to be configured"
+            ssl_verify = next(g.ssl_verify for g in gitlab_instances if g.url in url)
 
             with tempfile.TemporaryDirectory(
                 prefix=f"{QONTRACT_INTEGRATION}-",
