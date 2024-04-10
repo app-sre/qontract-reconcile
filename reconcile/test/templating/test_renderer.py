@@ -1,6 +1,7 @@
-from datetime import datetime
+import os
 from pathlib import Path
 from typing import Callable
+from unittest.mock import ANY
 
 import pytest
 from gitlab import GitlabGetError
@@ -14,7 +15,7 @@ from reconcile.gql_definitions.templating.template_collection import (
 )
 from reconcile.templating.lib.merge_request_manager import MergeRequestManager
 from reconcile.templating.renderer import (
-    GitlabFilePersistence,
+    ClonedRepoGitlabPersistence,
     LocalFilePersistence,
     TemplateOutput,
     TemplateRendererIntegration,
@@ -25,7 +26,6 @@ from reconcile.templating.renderer import (
 )
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.state import State
 from reconcile.utils.vcs import VCS
 
 
@@ -66,7 +66,8 @@ def template_collection(
 
 @pytest.fixture
 def local_file_persistence(tmp_path: Path) -> LocalFilePersistence:
-    return LocalFilePersistence(str(tmp_path))
+    os.mkdir(tmp_path / "data")
+    return LocalFilePersistence(str(tmp_path / "data"))
 
 
 @pytest.fixture
@@ -124,47 +125,50 @@ def test_join_path() -> None:
 
 
 def test_local_file_persistence_write(tmp_path: Path) -> None:
-    lfp = LocalFilePersistence(str(tmp_path))
+    os.makedirs(tmp_path / "data")
+    lfp = LocalFilePersistence(str(tmp_path / "data"))
     lfp.write([TemplateOutput(path="/foo", content="bar")])
-    assert (tmp_path / "foo").read_text() == "bar"
+    assert (tmp_path / "data" / "foo").read_text() == "bar"
 
 
 def test_local_file_persistence_read(tmp_path: Path) -> None:
-    test_file = tmp_path / "foo"
+    data_dir = tmp_path / "data"
+    os.makedirs(data_dir)
+    test_file = data_dir / "foo"
     test_file.write_text("hello")
-    lfp = LocalFilePersistence(str(tmp_path))
+    lfp = LocalFilePersistence(str(data_dir))
     assert lfp.read("foo") == "hello"
 
 
-def test_gitlab_file_persistence_write(mocker: MockerFixture) -> None:
+def test_crg_file_persistence_write(mocker: MockerFixture, tmp_path: Path) -> None:
     vcs = mocker.MagicMock(VCS)
     mr_manager = mocker.MagicMock(MergeRequestManager)
     output = [TemplateOutput(path="/foo", content="bar")]
-    gfp = GitlabFilePersistence(vcs, mr_manager)
-    gfp.write(output)
+    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
+    crg.write(output)
 
     mr_manager.housekeeping.assert_called_once()
     mr_manager.create_merge_request.assert_called_once_with(output)
 
 
-def test_gitlable_file_persistence_read_found(mocker: MockerFixture) -> None:
+def test_crg_file_persistence_read_found(mocker: MockerFixture, tmp_path: Path) -> None:
     vcs = mocker.MagicMock(VCS)
-    vcs.get_file_content_from_app_interface_master.return_value = "hello"
+    os.makedirs(tmp_path / "data")
+    test_file = tmp_path / "data" / "foo"
+    test_file.write_text("hello")
     mr_manager = mocker.MagicMock(MergeRequestManager)
-    gfp = GitlabFilePersistence(vcs, mr_manager)
+    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
 
-    assert gfp.read("foo") == "hello"
-    vcs.get_file_content_from_app_interface_master.assert_called_once_with("foo")
+    assert crg.read("foo") == "hello"
 
 
-def test_gitlable_file_persistence_read_miss(mocker: MockerFixture) -> None:
+def test_crg_file_persistence_read_miss(mocker: MockerFixture, tmp_path: Path) -> None:
     vcs = mocker.MagicMock(VCS)
     vcs.get_file_content_from_app_interface_master.side_effect = GitlabGetError()
     mr_manager = mocker.MagicMock(MergeRequestManager)
-    gfp = GitlabFilePersistence(vcs, mr_manager)
+    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
 
-    assert gfp.read("foo") is None
-    vcs.get_file_content_from_app_interface_master.assert_called_once_with("foo")
+    assert crg.read("foo") is None
 
 
 def test_process_template_simple(
@@ -217,52 +221,33 @@ def test_process_template_match(
     assert output is None
 
 
-def test_reconcile_state_mismatch(
+def test_reconcile(
     mocker: MockerFixture, template_collection: TemplateCollectionV1
 ) -> None:
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
-    state = mocker.MagicMock(State)
-    state.exists.return_value = True
     pt = mocker.patch.object(t, "process_template")
     mocker.patch("reconcile.templating.renderer.init_from_config")
     gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
     gtc.return_value = [template_collection]
     p = mocker.MagicMock(LocalFilePersistence)
+    r = create_ruamel_instance()
     t.reconcile(
         False,
         p,
-        create_ruamel_instance(),
-        state,
+        r,
     )
 
     pt.assert_called_once()
-    state.add.assert_called_once()
-    p.write.assert_called_once()
-
-
-def test_reconcile_state_match(
-    mocker: MockerFixture, template_collection: TemplateCollectionV1
-) -> None:
-    t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
-    state = mocker.MagicMock(State)
-    state.exists.return_value = True
-    # Hash optained using debugger
-    state.get.return_value = {
-        "hash": "f8e46492df18572b06967588c8074ef5a4a7ba2810d5f901ea94098f80856568",
-        "timestamp": datetime.now().isoformat(),
-    }
-    pt = mocker.patch.object(t, "process_template")
-    mocker.patch("reconcile.templating.renderer.init_from_config")
-    gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
-    gtc.return_value = [template_collection]
-    p = mocker.MagicMock(LocalFilePersistence)
-
-    t.reconcile(
-        False,
-        p,
-        create_ruamel_instance(),
-        state,
+    assert pt.call_args[0] == (
+        TemplateV1(
+            name="test",
+            condition="{{1 == 1}}",
+            targetPath="/target_path",
+            patch=None,
+            template="template",
+        ),
+        {},
+        ANY,
+        r,
     )
-
-    pt.assert_not_called()
-    p.write.assert_not_called()
+    p.write.assert_called_once()
