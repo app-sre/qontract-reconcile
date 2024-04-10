@@ -274,10 +274,11 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             self.reconcile(dry_run, persistence, ruaml_instance)
 
         elif self.params.clone_repo:
+            gitlab_instances = get_gitlab_instances()
             vcs = VCS(
                 secret_reader=self.secret_reader,
                 github_orgs=get_github_orgs(),
-                gitlab_instances=get_gitlab_instances(),
+                gitlab_instances=gitlab_instances,
                 app_interface_repo_url=get_app_interface_repo_url(),
                 dry_run=dry_run,
                 allow_deleting_mrs=True,
@@ -289,12 +290,15 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             )
             url = get_app_interface_repo_url()
 
+            ssl_verify = [g.ssl_verify for g in gitlab_instances if g.url in url]
+            assert len(ssl_verify) == 1, "Expected gitlab instance to be configured"
+
             with tempfile.TemporaryDirectory(
                 prefix=f"{QONTRACT_INTEGRATION}-",
             ) as temp_dir:
                 logging.debug(f"Cloning {url} to {temp_dir}")
 
-                clone(url, temp_dir, depth=1)
+                clone(url, temp_dir, depth=1, verify=ssl_verify[0])
 
                 persistence = ClonedRepoGitlabPersistence(
                     temp_dir, vcs, merge_request_manager

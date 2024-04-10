@@ -6,8 +6,11 @@ class GitError(Exception):
     pass
 
 
-def clone(repo_url, wd, depth=None):
-    cmd = ["git", "clone"]
+def clone(repo_url, wd, depth=None, verify=True):
+    cmd = ["git"]
+    if not verify:
+        cmd += ["-c", "http.sslVerify=false"]
+    cmd += ["clone"]
     if depth:
         cmd += ["--depth", str(depth)]
     cmd += [repo_url, wd]
