@@ -194,6 +194,8 @@ objects:
               cpu: ${INTEGRATIONS_MANAGER_CPU_REQUEST}
               memory: ${INTEGRATIONS_MANAGER_MEMORY_REQUEST}
           volumeMounts:
+          - name: tmp-dir
+            mountPath: /tmp
           - name: qontract-reconcile-toml
             mountPath: /config
           - name: logs
@@ -244,6 +246,8 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
+        - name: tmp-dir
+          emptyDir: { }
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile
