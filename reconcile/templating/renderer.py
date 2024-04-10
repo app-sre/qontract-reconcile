@@ -61,6 +61,10 @@ class FilePersistence(ABC):
 
 
 class LocalFilePersistence(FilePersistence):
+    """
+    This class provides a simple file persistence implementation for local files.
+    """
+
     def __init__(self, app_interface_data_path: str) -> None:
         if not app_interface_data_path.endswith("/data"):
             raise ValueError("app_interface_data_path should end with /data")
@@ -88,7 +92,13 @@ class LocalFilePersistence(FilePersistence):
         return None
 
 
-class PersistenceContext(FilePersistence):
+class PersistenceTransaction(FilePersistence):
+    """
+    This class provides a context manager to make read/write operations
+    consistent. Reads/writes are beeing cached and writes are beeing delayed
+    until the context is left.
+    """
+
     def __init__(self, persistence: FilePersistence, dry_run: bool) -> None:
         self.persistence = persistence
         self.dry_run = dry_run
@@ -114,6 +124,11 @@ class PersistenceContext(FilePersistence):
 
 
 class ClonedRepoGitlabPersistence(FilePersistence):
+    """
+    This class is used to persist the rendered templates in a cloned gitlab repo
+    Reads are from the local filesystem, writes are done via utils.VCS abstraction
+    """
+
     def __init__(self, local_path: str, vcs: VCS, mr_manager: MergeRequestManager):
         self.local_path = join_path(local_path, "data")
         self.vcs = vcs
@@ -228,7 +243,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 ).encode("utf-8")
             ).hexdigest()
 
-            with PersistenceContext(persistence, dry_run) as p:
+            with PersistenceTransaction(persistence, dry_run) as p:
                 for template in c.templates:
                     output = self.process_template(
                         template,

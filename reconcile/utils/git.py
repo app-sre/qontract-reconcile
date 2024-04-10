@@ -7,12 +7,10 @@ class GitError(Exception):
 
 
 def clone(repo_url, wd, depth=None):
-    base_cmd = ["git", "clone"]
+    cmd = ["git", "clone"]
     if depth:
-        base_cmd.extend(["--depth", str(depth)])
-    base_cmd.append(repo_url)
-    cmd = base_cmd + [wd]
-    # pylint: disable=subprocess-run-check
+        cmd += ["--depth", str(depth)]
+    cmd += [repo_url, wd]
     result = subprocess.run(
         cmd, cwd=wd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
     )
@@ -21,7 +19,6 @@ def clone(repo_url, wd, depth=None):
 
 
 def checkout(commit, wd):
-    # pylint: disable=subprocess-run-check
     cmd = ["git", "checkout", commit]
     result = subprocess.run(
         cmd, cwd=wd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
@@ -33,7 +30,6 @@ def checkout(commit, wd):
 def is_file_in_git_repo(file_path):
     real_path = os.path.realpath(file_path)
     dir_path = os.path.dirname(real_path)
-    # pylint: disable=subprocess-run-check
     cmd = ["git", "rev-parse", "--is-inside-work-tree"]
     result = subprocess.run(
         cmd, cwd=dir_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
