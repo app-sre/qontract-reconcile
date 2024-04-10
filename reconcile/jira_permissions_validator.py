@@ -168,7 +168,7 @@ def board_is_valid(
     except JIRAError as e:
         if e.status_code == 401:
             # sporadic 401 errors, retrying
-            pass
+            logging.debug(f"[{board.name}] sporadic 401 error! Retry later.")
         elif e.status_code == 403:
             logging.error(
                 f"[{board.name}] AppSRE Jira Bot user does not have all necessary permissions. Try granting the user the administrator permissions. API URL: {e.url}"
