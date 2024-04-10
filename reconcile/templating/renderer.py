@@ -297,7 +297,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             ) as temp_dir:
                 logging.debug(f"Cloning {url} to {temp_dir}")
 
-                clone(url, temp_dir, depth=1, verify=ssl_verify[0])
+                clone(url, temp_dir, depth=1, verify=ssl_verify)
 
                 persistence = ClonedRepoGitlabPersistence(
                     temp_dir, vcs, merge_request_manager
