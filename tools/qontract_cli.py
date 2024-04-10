@@ -1021,8 +1021,20 @@ def network_reservations(ctx) -> None:
 
 
 @get.command()
+@click.option(
+    "--for-cluster",
+    help="If it is for getting cidr block for a cluster.",
+    type=bool,
+    default=False,
+)
+@click.option(
+    "--mask",
+    help="Mask for the latest available CIDR block for AWS resources. A decimal number between 1~32.",
+    type=int,
+    default=24,
+)
 @click.pass_context
-def cidr_blocks(ctx) -> None:
+def cidr_blocks(ctx, for_cluster: int, mask: int) -> None:
     import ipaddress
 
     from reconcile.typed_queries.aws_vpcs import get_aws_vpcs
@@ -1070,8 +1082,29 @@ def cidr_blocks(ctx) -> None:
 
     cidrs.sort(key=lambda item: ipaddress.ip_network(item["cidr"]))
 
-    ctx.obj["options"]["sort"] = False
-    print_output(ctx.obj["options"], cidrs, columns)
+    if for_cluster:
+        latest_cluster_cidr = next(
+            (item for item in reversed(cidrs) if item["type"] == "cluster"),
+            None,
+        )
+
+        if not latest_cluster_cidr:
+            print("ERROR: Unable to find any existing cluster CIDR block.")
+            sys.exit(1)
+
+        avail_addr = ipaddress.ip_address(latest_cluster_cidr["to"]) + 1
+
+        print(f"INFO: Latest available network address: {str(avail_addr)}")
+        try:
+            result_cidr_block = str(ipaddress.ip_network((avail_addr, mask)))
+        except ValueError:
+            print(f"ERROR: Invalid CIDR Mask {mask} Provided.")
+            sys.exit(1)
+        print(f"INFO: You are reserving {str(2 ** (32 - mask))} network addresses.")
+        print(f"\nYou can use: {str(result_cidr_block)}")
+    else:
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], cidrs, columns)
 
 
 def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
