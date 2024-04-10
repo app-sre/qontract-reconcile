@@ -416,6 +416,8 @@ objects:
             {{- end }}
           {{- end }}
           volumeMounts:
+          - name: tmp-dir
+            mountPath: /tmp
           - name: qontract-reconcile-toml
             mountPath: /config
           {{- if $integration.cache }}
@@ -521,6 +523,8 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
+        - name: tmp-dir
+          emptyDir: { }
         {{- if $logs.googleChat }}
         - name: buffer
           emptyDir: {}
