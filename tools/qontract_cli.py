@@ -83,8 +83,13 @@ from reconcile.utils import (
     config,
     dnsutils,
     gql,
+    promtool,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.binary import (
+    binary,
+    binary_version,
+)
 from reconcile.utils.early_exit_cache import (
     CacheKey,
     CacheKeyWithDigest,
@@ -3018,6 +3023,13 @@ def template(ctx, cluster, namespace, kind, name, path, secret_reader):
 
 
 @root.command()
+@binary(["promtool"])
+@binary_version(
+    "promtool",
+    ["--version"],
+    promtool.PROMTOOL_VERSION_REGEX,
+    promtool.PROMTOOL_VERSION,
+)
 @click.argument("path")
 @click.argument("cluster")
 @click.option(
@@ -3073,6 +3085,10 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
 
 
 @root.command()
+@binary(["amtool"])
+@binary_version(
+    "amtool", ["--version"], amtool.AMTOOL_VERSION_REGEX, amtool.AMTOOL_VERSION
+)
 @click.argument("cluster")
 @click.argument("namespace")
 @click.argument("rules_path")
