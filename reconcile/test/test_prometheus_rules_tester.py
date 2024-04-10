@@ -139,7 +139,7 @@ class TestPrometheusRulesTester:
         cluster_name = ("appint-ex-01",)
 
         with pytest.raises(SystemExit) as exc:
-            run(False, THREAD_POOL_SIZE, cluster_name=cluster_name)
+            run(False, THREAD_POOL_SIZE, cluster_names=cluster_name)
 
         assert exc.value.code == ExitCodes.ERROR
 

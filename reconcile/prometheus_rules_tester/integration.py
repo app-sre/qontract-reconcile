@@ -247,14 +247,14 @@ def check_rules_and_tests(
 
 
 def run(
-    dry_run: bool, thread_pool_size: int, cluster_name: Optional[tuple[str]] = None
+    dry_run: bool, thread_pool_size: int, cluster_names: Optional[tuple[str]] = None
 ) -> None:
     """Check prometheus rules syntax and run the tests associated to them"""
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
 
     failed_tests = check_rules_and_tests(
-        cluster_name=cluster_name,
+        cluster_name=cluster_names,
         vault_settings=get_app_interface_vault_settings(),
         alerting_services=get_alerting_services(),
         thread_pool_size=thread_pool_size,

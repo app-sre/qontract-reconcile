@@ -3013,7 +3013,7 @@ def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
         reconcile.prometheus_rules_tester.integration,
         ctx.obj,
         thread_pool_size,
-        cluster_name=cluster_name,
+        cluster_names=cluster_name,
     )
 
 
