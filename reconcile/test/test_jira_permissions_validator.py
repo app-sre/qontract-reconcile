@@ -430,7 +430,7 @@ def test_jira_permissions_validator_board_is_valid_exception(
         },
     )
     jira_client = mocker.create_autospec(spec=JiraClient)
-    jira_client.can_create_issues.side_effect = JIRAError(status_code=401)
+    jira_client.can_create_issues.side_effect = JIRAError(status_code=500)
     with pytest.raises(JIRAError):
         board_is_valid(
             jira=jira_client,
@@ -440,3 +440,41 @@ def test_jira_permissions_validator_board_is_valid_exception(
             jira_server_priorities={"Minor": "1", "Major": "2", "Critical": "3"},
             public_projects=[],
         )
+
+
+def test_jira_permissions_validator_board_is_valid_exception_401(
+    mocker: MockerFixture, gql_class_factory: Callable
+) -> None:
+    board = gql_class_factory(
+        JiraBoardV1,
+        {
+            "name": "jira-board-default",
+            "server": {
+                "serverUrl": "https://jira-server.com",
+                "token": {"path": "vault/path/token", "field": "token"},
+            },
+            "issueType": "bug",
+            "issueResolveState": "Closed",
+            "issueReopenState": "Open",
+            "issueSecurityId": "32168",
+            "severityPriorityMappings": {
+                "name": "major-major",
+                "mappings": [
+                    {"priority": "Minor"},
+                    {"priority": "Major"},
+                    {"priority": "Critical"},
+                ],
+            },
+        },
+    )
+    jira_client = mocker.create_autospec(spec=JiraClient)
+    jira_client.can_create_issues.side_effect = JIRAError(status_code=401)
+    # no error for 401
+    board_is_valid(
+        jira=jira_client,
+        board=board,
+        default_issue_type="task",
+        default_reopen_state="new",
+        jira_server_priorities={"Minor": "1", "Major": "2", "Critical": "3"},
+        public_projects=[],
+    )
