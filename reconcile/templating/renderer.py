@@ -169,7 +169,7 @@ def unpack_dynamic_variables(
 
 
 class TemplateRendererIntegrationParams(PydanticRunParams):
-    git_clone_path: Optional[str]
+    clone_repo: bool = False
     app_interface_data_path: Optional[str]
 
 
@@ -269,11 +269,11 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         persistence: FilePersistence
         ruaml_instance = create_ruamel_instance(explicit_start=True)
 
-        if self.params.app_interface_data_path:
+        if not self.params.clone_repo and self.params.app_interface_data_path:
             persistence = LocalFilePersistence(self.params.app_interface_data_path)
             self.reconcile(dry_run, persistence, ruaml_instance)
 
-        else:
+        elif self.params.clone_repo:
             vcs = VCS(
                 secret_reader=self.secret_reader,
                 github_orgs=get_github_orgs(),
@@ -290,7 +290,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             url = get_app_interface_repo_url()
 
             with tempfile.TemporaryDirectory(
-                prefix=join_path(self.params.git_clone_path, "clone"),
+                prefix=f"{QONTRACT_INTEGRATION}-",
             ) as temp_dir:
                 logging.debug(f"Cloning {url} to {temp_dir}")
 
@@ -301,3 +301,6 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 )
 
                 self.reconcile(dry_run, persistence, ruaml_instance)
+
+        else:
+            raise ValueError("App-interface-data-path must be set")

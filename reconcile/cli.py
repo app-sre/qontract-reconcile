@@ -1973,13 +1973,12 @@ def template_validator(ctx):
     envvar="APP_INTERFACE_DATA_PATH",
 )
 @click.option(
-    "--git-clone-path",
+    "--clone-repo",
     help="Path to a folder app-interface repo should be cloned to. Use this for regular integration run.",
-    required=False,
-    envvar="GIT_CLONE_PATH",
+    default=False,
 )
 @click.pass_context
-def template_renderer(ctx, app_interface_data_path, git_clone_path):
+def template_renderer(ctx, app_interface_data_path, clone_repo):
     from reconcile.templating.renderer import (
         TemplateRendererIntegration,
         TemplateRendererIntegrationParams,
@@ -1989,7 +1988,7 @@ def template_renderer(ctx, app_interface_data_path, git_clone_path):
         integration=TemplateRendererIntegration(
             TemplateRendererIntegrationParams(
                 app_interface_data_path=app_interface_data_path,
-                git_clone_path=git_clone_path,
+                clone_repo=clone_repo,
             )
         ),
         ctx=ctx.obj,
