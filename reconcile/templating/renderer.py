@@ -119,7 +119,7 @@ class PersistenceTransaction(FilePersistence):
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
-        if not self.dry_run:
+        if not self.dry_run and self.output_cache:
             self.persistence.write(list(self.output_cache.values()))
 
 
