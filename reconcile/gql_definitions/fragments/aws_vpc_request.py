@@ -43,8 +43,18 @@ class NetworkV1(ConfiguredBaseModel):
 
 
 class VPCRequestSubnetsV1(ConfiguredBaseModel):
-    private: Optional[list[str]] = Field(..., alias="private")
-    public: Optional[list[str]] = Field(..., alias="public")
+    availability_zone: str = Field(..., alias="availability_zone")
+    cidr_block: str = Field(..., alias="cidr_block")
+
+
+class VPCRequestSubnetsListsV1_VPCRequestSubnetsV1(ConfiguredBaseModel):
+    availability_zone: str = Field(..., alias="availability_zone")
+    cidr_block: str = Field(..., alias="cidr_block")
+
+
+class VPCRequestSubnetsListsV1(ConfiguredBaseModel):
+    private: Optional[list[VPCRequestSubnetsV1]] = Field(..., alias="private")
+    public: Optional[list[VPCRequestSubnetsListsV1_VPCRequestSubnetsV1]] = Field(..., alias="public")
 
 
 class VPCRequest(ConfiguredBaseModel):
@@ -52,4 +62,4 @@ class VPCRequest(ConfiguredBaseModel):
     account: AWSAccountV1 = Field(..., alias="account")
     region: str = Field(..., alias="region")
     cidr_block: NetworkV1 = Field(..., alias="cidr_block")
-    subnets: Optional[VPCRequestSubnetsV1] = Field(..., alias="subnets")
+    subnets: Optional[VPCRequestSubnetsListsV1] = Field(..., alias="subnets")
