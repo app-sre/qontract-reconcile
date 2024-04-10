@@ -52,8 +52,11 @@ def subscriber_builder(
                     namespace_name="",
                     saas_name="",
                     saas_file_path="",
+                    app_name="",
                     resource_template_name="",
                     target_name=None,
+                    publish_job_logs=True,
+                    has_subscriber=True,
                     auth_code=None,
                 )
                 publisher.commit_sha = publisher_data[REAL_WORLD_SHA]

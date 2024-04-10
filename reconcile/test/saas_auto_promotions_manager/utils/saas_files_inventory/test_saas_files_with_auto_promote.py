@@ -67,6 +67,7 @@ def test_single_channel(
         },
     ])
     inventory = SaasFilesInventory(saas_files=saas_files)
-    assert len(inventory.publishers) == 1
+    assert len(inventory.publishers) == 2
+    assert len(inventory.publishers_with_subscribers) == 1
     assert len(inventory.subscribers) == 1
     assert not inventory.subscribers[0]._use_target_config_hash

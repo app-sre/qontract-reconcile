@@ -34,6 +34,10 @@ class SaasFilesInventory:
         self._assemble_publishers()
         self._remove_unsupported()
 
+    @property
+    def publishers_with_subscribers(self) -> list[Publisher]:
+        return [p for p in self.publishers if p.has_subscriber]
+
     def _assemble_publishers(self) -> None:
         for saas_file in self._saas_files:
             for resource_template in saas_file.resource_templates:
@@ -54,12 +58,15 @@ class SaasFilesInventory:
                         repo_url=resource_template.url,
                         saas_file_path=saas_file.path,
                         saas_name=saas_file.name,
+                        app_name=saas_file.app.name,
                         namespace_name=target.namespace.name,
                         cluster_name=target.namespace.cluster.name,
                         resource_template_name=resource_template.name,
                         target_name=target.name,
+                        publish_job_logs=saas_file.publish_job_logs,
                         auth_code=auth_code,
                     )
+
                     has_subscriber = False
                     for publish_channel in target.promotion.publish or []:
                         if publish_channel not in self._channels_by_name:
@@ -71,8 +78,9 @@ class SaasFilesInventory:
                         self._channels_by_name[publish_channel].publishers.append(
                             publisher
                         )
-                    if has_subscriber:
-                        self.publishers.append(publisher)
+
+                    publisher.has_subscriber = has_subscriber
+                    self.publishers.append(publisher)
 
     def _assemble_subscribers_with_auto_promotions(self) -> None:
         for saas_file in self._saas_files:

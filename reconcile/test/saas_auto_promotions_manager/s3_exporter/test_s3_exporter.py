@@ -23,7 +23,7 @@ def test_s3_exporter(publisher_builder: Callable[[Mapping], Publisher]) -> None:
     ]
 
     expected = {
-        "saas-1/template-1/target-1/cluster-1/namespace-1": {
+        "/saas-1/template-1/target-1/cluster-1/namespace-1/True": {
             "commit_sha": "123",
             "deployment_state": "success",
         }
@@ -53,7 +53,7 @@ def test_s3_exporter_failed_deployment(
     ]
 
     expected = {
-        "saas-1/template-1/default/cluster-1/namespace-1": {
+        "/saas-1/template-1/None/cluster-1/namespace-1/True": {
             "commit_sha": "123",
             "deployment_state": "failed",
         }
@@ -83,7 +83,7 @@ def test_s3_exporter_missing_deployment(
     ]
 
     expected = {
-        "saas-1/template-1/default/cluster-1/namespace-1": {
+        "/saas-1/template-1/None/cluster-1/namespace-1/True": {
             "commit_sha": "123",
             "deployment_state": "missing",
         }
@@ -121,11 +121,11 @@ def test_s3_export_multiple(
     ]
 
     expected = {
-        "saas-1/template-1/default/cluster-1/namespace-1": {
+        "/saas-1/template-1/None/cluster-1/namespace-1/True": {
             "commit_sha": "123",
             "deployment_state": "success",
         },
-        "saas-2/template-2/default/cluster-2/namespace-2": {
+        "/saas-2/template-2/None/cluster-2/namespace-2/True": {
             "commit_sha": "456",
             "deployment_state": "failed",
         },
