@@ -34,7 +34,6 @@ class SaasFilesInventory:
         self._assemble_publishers()
         self._remove_unsupported()
 
-
     @property
     def publishers_with_subscribers(self) -> list[Publisher]:
         return [p for p in self.publishers if p.has_subscriber]
