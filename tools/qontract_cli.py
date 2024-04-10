@@ -2,6 +2,7 @@
 # ruff: noqa: PLC0415 - `import` should be at the top-level of a file
 
 import base64
+import itertools
 import json
 import logging
 import os
@@ -3050,7 +3051,11 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
 
     rtf = None
     for ns in namespace_with_prom_rules:
-        for resource in ns["openshiftResources"]:
+        for resource in ns["openshiftResources"] + list(
+            itertools.chain.from_iterable([
+                x["openshiftResources"] for x in ns["sharedResources"]
+            ])
+        ):
             tests = resource.get("tests") or []
             if path not in tests:
                 continue
