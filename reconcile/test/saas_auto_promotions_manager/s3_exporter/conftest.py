@@ -14,10 +14,13 @@ def publisher_builder() -> Callable[[Mapping], Publisher]:
             uid="",
             saas_name=data["saas_name"],
             saas_file_path="",
+            app_name="",
             namespace_name=data["namespace_name"],
             cluster_name=data["cluster_name"],
             target_name=data.get("target_name"),
             resource_template_name=data["resource_template_name"],
+            publish_job_logs=True,
+            has_subscriber=True,
             auth_code=None,
         )
         publisher.commit_sha = data["commit_sha"]

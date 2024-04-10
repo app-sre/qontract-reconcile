@@ -32,11 +32,14 @@ class Publisher:
         uid: str,
         saas_name: str,
         saas_file_path: str,
+        app_name: str,
         namespace_name: str,
         resource_template_name: str,
         target_name: Optional[str],
         cluster_name: str,
         auth_code: Optional[HasSecret],
+        publish_job_logs: Optional[bool],
+        has_subscriber: bool = True,
     ):
         self._ref = ref
         self._repo_url = repo_url
@@ -47,10 +50,13 @@ class Publisher:
         self.uid = uid
         self.saas_name = saas_name
         self.saas_file_path = saas_file_path
+        self.app_name = app_name
         self.namespace_name = namespace_name
         self.resource_template_name = resource_template_name
-        self.target_name = target_name if target_name else "default"
+        self.target_name = target_name if target_name else "None"
         self.cluster_name = cluster_name
+        self.publish_job_logs = bool(publish_job_logs)
+        self.has_subscriber = has_subscriber
 
     def fetch_commit_shas_and_deployment_info(
         self, vcs: VCS, deployment_state: PromotionState

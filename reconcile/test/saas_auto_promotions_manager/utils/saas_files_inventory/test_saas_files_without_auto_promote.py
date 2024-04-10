@@ -59,5 +59,6 @@ def test_saas_files_without_auto_promote(
         },
     ])
     inventory = SaasFilesInventory(saas_files=saas_files)
-    assert len(inventory.publishers) == 0
+    assert len(inventory.publishers) == 2
+    assert len(inventory.publishers_with_subscribers) == 0
     assert len(inventory.subscribers) == 0
