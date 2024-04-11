@@ -18,10 +18,7 @@ class AcsBaseApi(BaseModel):
     url: str
     token: str
     timeout: int = 30
-    session: requests.Session
-
-    def __init__(self) -> None:
-        self.session = requests.Session()
+    session: requests.Session = requests.Session()
 
     def __enter__(self) -> Self:
         return self
@@ -57,7 +54,7 @@ class AcsBaseApi(BaseModel):
     def generic_request(
         self, path: str, verb: str, json: Optional[Any] = None
     ) -> requests.Response:
-        url = f"{self.base_url}{path}"
+        url = f"{self.url}{path}"
         headers = {
             "Authorization": f"Bearer {self.token}",
         }
