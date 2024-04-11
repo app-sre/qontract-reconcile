@@ -417,8 +417,8 @@ data:
           {
             "current": {
               "selected": false,
-              "text": "appsrep05ue1-prometheus",
-              "value": "appsrep05ue1-prometheus"
+              "text": "appsrep09ue1-prometheus",
+              "value": "appsrep09ue1-prometheus"
             },
             "hide": 0,
             "includeAll": false,
@@ -428,7 +428,7 @@ data:
             "query": "prometheus",
             "queryValue": "",
             "refresh": 1,
-            "regex": "appsrep05ue1-prometheus",
+            "regex": "appsrep09ue1-prometheus",
             "skipUrlSync": false,
             "type": "datasource"
           }

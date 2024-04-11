@@ -148,6 +148,8 @@ objects:
               cpu: ${INTEG_CPU_REQUEST}
               memory: ${INTEG_MEMORY_REQUEST}
           volumeMounts:
+          - name: tmp-dir
+            mountPath: /tmp
           - name: qontract-reconcile-toml
             mountPath: /config
           - name: logs
@@ -197,6 +199,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: tmp-dir
           emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
@@ -341,6 +345,8 @@ objects:
               cpu: ${INTEG_CPU_REQUEST}
               memory: ${INTEG_MEMORY_REQUEST}
           volumeMounts:
+          - name: tmp-dir
+            mountPath: /tmp
           - name: qontract-reconcile-toml
             mountPath: /config
           - name: logs
@@ -390,6 +396,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: tmp-dir
           emptyDir: {}
 - apiVersion: v1
   kind: Service

@@ -311,7 +311,7 @@ def test_get_current_state(
             specific_custom_policy_2,
         ],
     )
-    with AcsPolicyApi(instance={"url": "foo", "token": "bar"}) as acs:
+    with AcsPolicyApi(url="foo", token="bar") as acs:
         assert sorted(acs.get_custom_policies(), key=lambda p: p.name) == sorted(
             modeled_acs_policies, key=lambda p: p.name
         )
