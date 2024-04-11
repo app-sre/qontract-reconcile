@@ -23,6 +23,7 @@ from reconcile.status import (
 )
 from reconcile.utils import gql
 from reconcile.utils.aggregated_list import RunnerException
+from reconcile.utils.amtool import AMTOOL_VERSION, AMTOOL_VERSION_REGEX
 from reconcile.utils.binary import (
     binary,
     binary_version,
@@ -30,6 +31,7 @@ from reconcile.utils.binary import (
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gql import GqlApiSingleton
+from reconcile.utils.promtool import PROMTOOL_VERSION, PROMTOOL_VERSION_REGEX
 from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
@@ -1278,6 +1280,7 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @threaded()
 @binary(["oc", "ssh", "amtool"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@binary_version("amtool", ["--version"], AMTOOL_VERSION_REGEX, AMTOOL_VERSION)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -3010,6 +3013,7 @@ def dashdotdb_dora(ctx, gitlab_project_id, thread_pool_size):
 @integration.command(short_help="Tests prometheus rules using promtool.")
 @threaded(default=5)
 @binary(["promtool"])
+@binary_version("promtool", ["--version"], PROMTOOL_VERSION_REGEX, PROMTOOL_VERSION)
 @cluster_name
 @click.pass_context
 def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):

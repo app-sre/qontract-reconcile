@@ -13,6 +13,9 @@ import yaml
 from reconcile.utils.defer import defer
 from reconcile.utils.structs import CommandExecutionResult
 
+PROMTOOL_VERSION = ["2.33.3"]
+PROMTOOL_VERSION_REGEX = r"^promtool,\sversion\s([\d]+\.[\d]+\.[\d]+).+$"
+
 
 def check_rule(yaml_spec: Mapping) -> CommandExecutionResult:
     """Run promtool check rules on the given yaml spec given as dict"""
