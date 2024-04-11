@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from typing import (
     Any,
@@ -68,5 +69,10 @@ class AcsBaseApi:
             json=json,
             timeout=self.timeout,
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"{str(e)}: {response.text}")
+            raise e
+
         return response
