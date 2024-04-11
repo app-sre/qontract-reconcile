@@ -83,7 +83,7 @@ class MergeRequestManager(MergeRequestManagerBase[Info]):
             return None
         except GitlabGetError as e:
             if e.response_code != 404:
-                raise e
+                raise
 
         description = self._renderer.render_description(account=data.account)
         title = self._renderer.render_title(account=data.account)
