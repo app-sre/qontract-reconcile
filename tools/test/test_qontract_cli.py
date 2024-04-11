@@ -132,12 +132,12 @@ def mock_cost_report_command(mocker):
     return mocker.patch("tools.qontract_cli.CostReportCommand", autospec=True)
 
 
-def test_get_cost_report(env_vars, mock_queries, mock_cost_report_command):
+def test_get_aws_cost_report(env_vars, mock_queries, mock_cost_report_command):
     mock_cost_report_command.create.return_value.execute.return_value = "some report"
     runner = CliRunner()
     result = runner.invoke(
         qontract_cli.get,
-        "cost-report",
+        "aws-cost-report",
         obj={},
     )
 
