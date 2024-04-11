@@ -62,5 +62,7 @@ def test_multiple_publishers_for_single_channel(
         },
     ])
     inventory = SaasFilesInventory(saas_files=saas_files)
-    assert len(inventory.publishers) == 2
+
+    assert len(inventory.publishers) == 3
+    assert len(inventory.publishers_with_subscribers) == 2
     assert len(inventory.subscribers) == 1

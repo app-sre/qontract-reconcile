@@ -69,7 +69,7 @@ class TestPrometheusRulesTester:
             vault_settings=self.vault_settings,
             alerting_services=self.alerting_services,
             thread_pool_size=THREAD_POOL_SIZE,
-            cluster_name=cluster_name,
+            cluster_names=cluster_name,
         )
 
     def test_ok_non_templated(self) -> None:
@@ -136,16 +136,16 @@ class TestPrometheusRulesTester:
         self.ns_data = self.fxt.get_anymarkup("ns-bad-test.yaml")
         mocker_alerting_services.return_value = {"yak-shaver"}
         mocker_vault_settings.return_value = AppInterfaceSettingsV1(vault=False)
-        cluster_name = "appint-ex-01"
+        cluster_name = ("appint-ex-01",)
 
         with pytest.raises(SystemExit) as exc:
-            run(False, THREAD_POOL_SIZE, cluster_name=cluster_name)
+            run(False, THREAD_POOL_SIZE, cluster_names=cluster_name)
 
         assert exc.value.code == ExitCodes.ERROR
 
         error_msg = (
             "Error checking rule bad-test.prometheusrules.yaml "
             "from namespace openshift-customer-monitoring in "
-            f"cluster {cluster_name}: Error running promtool command"
+            f"cluster {cluster_name[0]}: Error running promtool command"
         )
         assert error_msg in caplog.text

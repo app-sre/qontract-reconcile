@@ -416,7 +416,7 @@ def apply(
         except FieldIsImmutableError:
             # Add more resources types to the list when you're
             # sure they're safe.
-            if resource_type not in {"Route", "Service", "Secret"}:
+            if resource_type not in {"Route", "Service", "Secret", "Job"}:
                 raise
             oc.delete(namespace=namespace, kind=resource_type, name=resource.name)
             oc.apply(namespace=namespace, resource=annotated)

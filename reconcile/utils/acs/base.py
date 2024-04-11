@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from typing import (
     Any,
@@ -6,22 +7,21 @@ from typing import (
 )
 
 import requests
+from pydantic import BaseModel
 
 from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
 from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 
 
-class AcsBaseApi:
-    def __init__(
-        self,
-        instance: Any,
-        timeout: int = 30,
-    ) -> None:
-        self.base_url = instance["url"]
-        self.token = instance["token"]
-        self.timeout = timeout
-        self.session = requests.Session()
+class AcsBaseApi(BaseModel):
+    url: str
+    token: str
+    timeout: int = 30
+    session: requests.Session = requests.Session()
+
+    class Config:
+        arbitrary_types_allowed = True
 
     def __enter__(self) -> Self:
         return self
@@ -57,7 +57,7 @@ class AcsBaseApi:
     def generic_request(
         self, path: str, verb: str, json: Optional[Any] = None
     ) -> requests.Response:
-        url = f"{self.base_url}{path}"
+        url = f"{self.url}{path}"
         headers = {
             "Authorization": f"Bearer {self.token}",
         }
@@ -68,5 +68,10 @@ class AcsBaseApi:
             json=json,
             timeout=self.timeout,
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"{str(e)}: {response.text}")
+            raise
+
         return response
