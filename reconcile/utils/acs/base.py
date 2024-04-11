@@ -73,6 +73,6 @@ class AcsBaseApi:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             logging.error(f"{str(e)}: {response.text}")
-            raise e
+            raise
 
         return response
