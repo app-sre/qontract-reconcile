@@ -127,7 +127,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         if diffs:
             for diff in diffs:
                 logging.error(f"template: {diff.template}, test: {diff.test}")
-                logging.debug(diff.diff)
+                logging.error(diff.diff)
             raise ValueError("Template validation failed")
 
     @property
