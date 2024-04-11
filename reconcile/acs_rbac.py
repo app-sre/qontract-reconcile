@@ -10,9 +10,6 @@ from pydantic import BaseModel
 
 from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1
 from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
 from reconcile.utils import gql
 from reconcile.utils.acs.rbac import AcsRbacApi, Group, RbacResources
 from reconcile.utils.differ import (
@@ -23,7 +20,6 @@ from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
 DEFAULT_ADMIN_SCOPE_NAME = "Unrestricted"
@@ -582,15 +578,10 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
     ) -> None:
         gqlapi = gql.get_api()
         instance = AcsRbacApi.get_acs_instance(gqlapi.query)
-
-        vault_settings = get_app_interface_vault_settings()
-        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-        token = secret_reader.read_all_secret(instance.credentials)
-
         desired = self.get_desired_state(gqlapi.query)
 
         with AcsRbacApi(
-            instance={"url": instance.url, "token": token[instance.credentials.field]}
+            url=instance.url, token=self.secret_reader.read_secret(instance.credentials)
         ) as acs_api:
             rbac_api_resources = acs_api.get_rbac_resources()
             current = self.get_current_state(
