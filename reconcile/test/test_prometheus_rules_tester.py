@@ -69,7 +69,7 @@ class TestPrometheusRulesTester:
             vault_settings=self.vault_settings,
             alerting_services=self.alerting_services,
             thread_pool_size=THREAD_POOL_SIZE,
-            cluster_name=cluster_name,
+            cluster_names=cluster_name,
         )
 
     def test_ok_non_templated(self) -> None:
