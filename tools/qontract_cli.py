@@ -248,6 +248,45 @@ def clusters(ctx, name):
 
 
 @get.command()
+@click.argument("app")
+@click.pass_context
+def promotions_mermaid(ctx, app):
+    saas_files = get_saas_files(app_name=app)
+    subscribers = defaultdict(list)
+    publishers = defaultdict(list)
+
+    print("""graph LR
+    classDef gate fill:#fff3d1,stroke:#ffe59e;
+    classDef soak fill:#daf7e2,stroke:#73bf7c;""")
+
+    for s in saas_files:
+        for rt in s.resource_templates:
+            for t in rt.targets:
+                if t.promotion is None:
+                    continue
+                cluster = t.namespace.cluster.name
+                namespace = t.namespace.name
+
+                node = f"{s.name}/{rt.name}/{t.name}/{cluster}/{namespace}"
+                node += f'["{s.name}/{rt.name}/{t.name}<br/>on {cluster}/{namespace}"]'
+                if s.publish_job_logs:
+                    node += ":::gate"
+
+                if t.promotion.publish:
+                    for chan in t.promotion.publish:
+                        publishers[chan].append(node)
+
+                if t.promotion.subscribe:
+                    for chan in t.promotion.subscribe:
+                        subscribers[chan].append(node)
+
+    for chan, nodes in publishers.items():
+        for subscriber in subscribers[chan]:
+            for publisher in nodes:
+                print(f"    {publisher} --> {subscriber};")
+
+
+@get.command()
 @click.argument("name", default="")
 @click.pass_context
 def cluster_upgrades(ctx, name):
