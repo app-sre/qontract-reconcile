@@ -7,7 +7,7 @@ from subprocess import (
     run,
 )
 
-AMTOOL_VERSION = ["0.25.0"]
+AMTOOL_VERSION = ["0.24.0"]
 AMTOOL_VERSION_REGEX = r"^amtool,\sversion\s([\d]+\.[\d]+\.[\d]+).+$"
 
 
