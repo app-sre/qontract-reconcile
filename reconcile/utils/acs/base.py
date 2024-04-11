@@ -20,6 +20,9 @@ class AcsBaseApi(BaseModel):
     timeout: int = 30
     session: requests.Session = requests.Session()
 
+    class Config:
+        arbitrary_types_allowed = True
+
     def __enter__(self) -> Self:
         return self
 
