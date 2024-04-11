@@ -130,6 +130,7 @@ from terrascript.resource import (
     aws_sns_topic,
     aws_sns_topic_subscription,
     aws_sqs_queue,
+    aws_subnet,
     aws_vpc,
     aws_vpc_endpoint,
     aws_vpc_endpoint_subnet_association,
@@ -145,7 +146,10 @@ import reconcile.utils.aws_helper as awsh
 from reconcile import queries
 from reconcile.cli import TERRAFORM_VERSION
 from reconcile.github_org import get_default_config
-from reconcile.gql_definitions.fragments.aws_vpc_request import VPCRequest
+from reconcile.gql_definitions.fragments.aws_vpc_request import (
+    VPCRequest,
+    VPCRequestSubnetsV1,
+)
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
 )
@@ -1183,6 +1187,35 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     tf_resource = aws_route(route_identifier, **values)
                     self.add_resource(infra_account_name, tf_resource)
 
+    def _make_subnet_identifier(self, vpc_identifier: str, cidr: str) -> str:
+        """Returns a subnet identifier that complies with Terraforms standards"""
+        sulfix = cidr.replace(".", "-").replace("/", "-")
+        return f"{vpc_identifier}-subnet-{sulfix}"
+
+    def _add_subnets_by_privacy(
+        self,
+        subnets: Iterable[VPCRequestSubnetsV1],
+        vpc_identifier: str,
+        vpc_resource: aws_vpc,
+        vpc: VPCRequest,
+        privacy: str,
+    ) -> None:
+        """Add subnets on resources based on privacy that can be public and private"""
+        for s in subnets:
+            subnet_identifier = (
+                self._make_subnet_identifier(vpc_identifier, s.cidr_block)
+                + "-"
+                + privacy
+            )
+            values = {
+                "cidr_block": s.cidr_block,
+                "availability_zone": s.availability_zone,
+                "vpc_id": f"${{{vpc_resource.id}}}",
+                "tags": {"Name": subnet_identifier},
+            }
+            vpc_subnet = aws_subnet(subnet_identifier, **values)
+            self.add_resource(vpc.account.name, vpc_subnet)
+
     def populate_vpc_requests(self, vpc_requests: list[VPCRequest]) -> None:
         for vpc in vpc_requests:
             identifier = vpc.identifier
@@ -1195,6 +1228,23 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 values["provider"] = f"aws.{vpc.region}"
             vpc_resource = aws_vpc(identifier, **values)
             self.add_resource(vpc.account.name, vpc_resource)
+
+            if vpc.subnets and vpc.subnets.private:
+                self._add_subnets_by_privacy(
+                    subnets=vpc.subnets.private,
+                    vpc_identifier=identifier,
+                    vpc_resource=vpc_resource,
+                    vpc=vpc,
+                    privacy="private",
+                )
+            if vpc.subnets and vpc.subnets.public:
+                self._add_subnets_by_privacy(
+                    subnets=vpc.subnets.public,
+                    vpc_identifier=identifier,
+                    vpc_resource=vpc_resource,
+                    vpc=vpc,
+                    privacy="public",
+                )
 
     def populate_tgw_attachments(self, desired_state):
         for item in desired_state:
