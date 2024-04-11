@@ -32,6 +32,7 @@ from reconcile.utils.glitchtip.models import (
     ProjectAlertRecipient,
     RecipientType,
 )
+from reconcile.utils.rest_api_base import BearerTokenAuth
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -272,25 +273,27 @@ class GlitchtipProjectAlertsIntegration(
                 else None
             )
 
-            glitchtip_client = GlitchtipClient(
+            with GlitchtipClient(
                 host=glitchtip_instance.console_url,
-                token=self.secret_reader.read_secret(
-                    glitchtip_instance.automation_token
+                auth=BearerTokenAuth(
+                    self.secret_reader.read_secret(glitchtip_instance.automation_token)
                 ),
                 read_timeout=glitchtip_instance.read_timeout,
                 max_retries=glitchtip_instance.max_retries,
-            )
-            current_state = self.fetch_current_state(glitchtip_client=glitchtip_client)
-            desired_state = self.fetch_desired_state(
-                glitchtip_projects=glitchtip_projects_by_instance[
-                    glitchtip_instance.name
-                ],
-                gjb_alert_url=glitchtip_instance.glitchtip_jira_bridge_alert_url,
-                gjb_token=glitchtip_jira_bridge_token,
-            )
-            self.reconcile(
-                glitchtip_client=glitchtip_client,
-                dry_run=dry_run,
-                current_state=current_state,
-                desired_state=desired_state,
-            )
+            ) as glitchtip_client:
+                current_state = self.fetch_current_state(
+                    glitchtip_client=glitchtip_client
+                )
+                desired_state = self.fetch_desired_state(
+                    glitchtip_projects=glitchtip_projects_by_instance[
+                        glitchtip_instance.name
+                    ],
+                    gjb_alert_url=glitchtip_instance.glitchtip_jira_bridge_alert_url,
+                    gjb_token=glitchtip_jira_bridge_token,
+                )
+                self.reconcile(
+                    glitchtip_client=glitchtip_client,
+                    dry_run=dry_run,
+                    current_state=current_state,
+                    desired_state=desired_state,
+                )

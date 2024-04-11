@@ -39,6 +39,7 @@ from reconcile.utils.glitchtip import (
     User,
 )
 from reconcile.utils.internal_groups.client import InternalGroupsClient
+from reconcile.utils.rest_api_base import BearerTokenAuth
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -187,31 +188,33 @@ def run(
         if instance and glitchtip_instance.name != instance:
             continue
 
-        glitchtip_client = GlitchtipClient(
+        with GlitchtipClient(
             host=glitchtip_instance.console_url,
-            token=secret_reader.read_secret(glitchtip_instance.automation_token),
+            auth=BearerTokenAuth(
+                secret_reader.read_secret(glitchtip_instance.automation_token)
+            ),
             read_timeout=glitchtip_instance.read_timeout,
             max_retries=glitchtip_instance.max_retries,
-        )
-        current_state = fetch_current_state(
-            glitchtip_client=glitchtip_client,
-            # the automation user isn't managed by app-interface (chicken - egg problem), so just ignore it
-            ignore_users=[
-                secret_reader.read_secret(glitchtip_instance.automation_user_email)
-            ],
-        )
-        desired_state = fetch_desired_state(
-            glitchtip_projects=[
-                p
-                for p in glitchtip_projects
-                if p.organization.instance.name == glitchtip_instance.name
-            ],
-            mail_domain=glitchtip_instance.mail_domain or "redhat.com",
-            internal_groups_client=internal_groups_client,
-        )
+        ) as glitchtip_client:
+            current_state = fetch_current_state(
+                glitchtip_client=glitchtip_client,
+                # the automation user isn't managed by app-interface (chicken - egg problem), so just ignore it
+                ignore_users=[
+                    secret_reader.read_secret(glitchtip_instance.automation_user_email)
+                ],
+            )
+            desired_state = fetch_desired_state(
+                glitchtip_projects=[
+                    p
+                    for p in glitchtip_projects
+                    if p.organization.instance.name == glitchtip_instance.name
+                ],
+                mail_domain=glitchtip_instance.mail_domain or "redhat.com",
+                internal_groups_client=internal_groups_client,
+            )
 
-        reconciler = GlitchtipReconciler(glitchtip_client, dry_run)
-        reconciler.reconcile(current_state, desired_state)
+            reconciler = GlitchtipReconciler(glitchtip_client, dry_run)
+            reconciler.reconcile(current_state, desired_state)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:

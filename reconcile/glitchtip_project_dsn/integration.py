@@ -42,6 +42,7 @@ from reconcile.utils.oc_map import (
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.rest_api_base import BearerTokenAuth
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
@@ -204,32 +205,34 @@ def run(
         if instance and glitchtip_instance.name != instance:
             continue
 
-        glitchtip_client = GlitchtipClient(
+        with GlitchtipClient(
             host=glitchtip_instance.console_url,
-            token=secret_reader.read_secret(glitchtip_instance.automation_token),
+            auth=BearerTokenAuth(
+                secret_reader.read_secret(glitchtip_instance.automation_token)
+            ),
             read_timeout=glitchtip_instance.read_timeout,
             max_retries=glitchtip_instance.max_retries,
-        )
-        threaded.run(
-            fetch_current_state,
-            [
-                p
-                for p in glitchtip_projects
-                if p.organization.instance.name == glitchtip_instance.name
-            ],
-            thread_pool_size,
-            oc_map=oc_map,
-            ri=ri,
-        )
-        fetch_desired_state(
-            glitchtip_projects=[
-                p
-                for p in glitchtip_projects
-                if p.organization.instance.name == glitchtip_instance.name
-            ],
-            ri=ri,
-            glitchtip_client=glitchtip_client,
-        )
+        ) as glitchtip_client:
+            threaded.run(
+                fetch_current_state,
+                [
+                    p
+                    for p in glitchtip_projects
+                    if p.organization.instance.name == glitchtip_instance.name
+                ],
+                thread_pool_size,
+                oc_map=oc_map,
+                ri=ri,
+            )
+            fetch_desired_state(
+                glitchtip_projects=[
+                    p
+                    for p in glitchtip_projects
+                    if p.organization.instance.name == glitchtip_instance.name
+                ],
+                ri=ri,
+                glitchtip_client=glitchtip_client,
+            )
 
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     # create/update/delete all secrets

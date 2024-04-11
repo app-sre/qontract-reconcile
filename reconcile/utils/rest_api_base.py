@@ -1,5 +1,4 @@
-import threading
-from typing import Any
+from typing import Any, Self
 from urllib.parse import urljoin
 
 import requests
@@ -17,47 +16,66 @@ def get_next_url(links: dict[str, dict[str, str]]) -> str | None:
     return None
 
 
+class BearerTokenAuth(requests.auth.AuthBase):
+    """Use this class to add a Bearer token to the request headers."""
+
+    def __init__(self, token: str):
+        self.token = token
+
+    def __eq__(self, other: Any) -> bool:
+        return self.token == getattr(other, "token", None)
+
+    def __ne__(self, other: Any) -> bool:
+        return not self == other
+
+    def __call__(self, r: requests.PreparedRequest) -> requests.PreparedRequest:
+        r.headers["Authorization"] = f"Bearer {self.token}"
+        return r
+
+
 class ApiBase:
     """This class provides a common standard for REST API clients."""
 
     def __init__(
         self,
         host: str,
-        token: str,
+        auth: requests.auth.AuthBase | None = None,
         max_retries: int | None = None,
         read_timeout: float | None = None,
+        session: requests.Session | None = None,
     ) -> None:
         self.host = host
-        self.token = token
         self.max_retries = max_retries if max_retries is not None else 3
         self.read_timeout = read_timeout if read_timeout is not None else 30
-        self._thread_local = threading.local()
-
-    @property
-    def _session(self) -> requests.Session:
-        try:
-            return self._thread_local.session
-        except AttributeError:
-            # todo timeout
-            self._thread_local.session = requests.Session()
-            self._thread_local.session.mount(
+        self.session = session or requests.Session()
+        if not session:
+            if auth:
+                self.session.auth = auth
+            self.session.mount(
                 "https://", requests.adapters.HTTPAdapter(max_retries=self.max_retries)
             )
-            self._thread_local.session.mount(
+            self.session.mount(
                 "http://", requests.adapters.HTTPAdapter(max_retries=self.max_retries)
             )
-            self._thread_local.session.headers.update({
-                "Authorization": f"Bearer {self.token}",
+            self.session.headers.update({
                 "Content-Type": "application/json",
             })
-            return self._thread_local.session
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.cleanup()
+
+    def cleanup(self) -> None:
+        self.session.close()
 
     def _get(self, url: str) -> dict[str, Any]:
-        response = self._session.get(urljoin(self.host, url), timeout=self.read_timeout)
+        response = self.session.get(urljoin(self.host, url), timeout=self.read_timeout)
         return response.json()
 
     def _list(self, url: str, limit: int = 100) -> list[dict[str, Any]]:
-        response = self._session.get(
+        response = self.session.get(
             urljoin(self.host, url), params={"limit": limit}, timeout=self.read_timeout
         )
         response.raise_for_status()
@@ -65,12 +83,12 @@ class ApiBase:
         if response.links:
             # handle pagination
             while next_url := get_next_url(response.links):
-                response = self._session.get(next_url)
+                response = self.session.get(next_url)
                 results += response.json()
         return results
 
     def _post(self, url: str, data: dict | None = None) -> dict[str, Any]:
-        response = self._session.post(
+        response = self.session.post(
             urljoin(self.host, url), json=data, timeout=self.read_timeout
         )
         response.raise_for_status()
@@ -79,7 +97,7 @@ class ApiBase:
         return response.json()
 
     def _put(self, url: str, data: dict | None = None) -> dict[str, Any]:
-        response = self._session.put(
+        response = self.session.put(
             urljoin(self.host, url), json=data, timeout=self.read_timeout
         )
         response.raise_for_status()
@@ -88,5 +106,5 @@ class ApiBase:
         return response.json()
 
     def _delete(self, url: str) -> None:
-        response = self._session.delete(urljoin(self.host, url), timeout=None)
+        response = self.session.delete(urljoin(self.host, url), timeout=None)
         response.raise_for_status()
