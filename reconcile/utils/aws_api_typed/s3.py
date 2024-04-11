@@ -16,6 +16,7 @@ class AWSApiS3:
         bucket_kwargs = {}
         if region != "us-east-1":
             # you can't specify the location if it's us-east-1 :(
+            # see valid values "LocationConstraint" here: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucketConfiguration.html
             bucket_kwargs = {
                 "CreateBucketConfiguration": {
                     "LocationConstraint": region,
