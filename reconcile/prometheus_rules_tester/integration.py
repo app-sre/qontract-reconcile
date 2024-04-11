@@ -292,7 +292,7 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
 
 def desired_state_shard_config() -> DesiredStateShardConfig:
     return DesiredStateShardConfig(
-        shard_arg_name="cluster_name",
+        shard_arg_name="cluster_names",
         shard_path_selectors={"state.*.shard"},
         sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 4,
     )
