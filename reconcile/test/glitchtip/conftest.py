@@ -10,6 +10,7 @@ from reconcile.utils.glitchtip import GlitchtipClient
 from reconcile.utils.internal_groups.client import InternalGroupsClient
 from reconcile.utils.oc import OCNative
 from reconcile.utils.oc_map import OCMap
+from reconcile.utils.rest_api_base import BearerTokenAuth
 
 
 @pytest.fixture
@@ -26,7 +27,7 @@ def glitchtip_token() -> str:
 def glitchtip_client_minimal(
     glitchtip_url: str, glitchtip_token: str
 ) -> GlitchtipClient:
-    return GlitchtipClient(host=glitchtip_url, token=glitchtip_token)
+    return GlitchtipClient(host=glitchtip_url, auth=BearerTokenAuth(glitchtip_token))
 
 
 @pytest.fixture

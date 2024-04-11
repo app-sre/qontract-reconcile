@@ -1,5 +1,5 @@
 import json
-from collections.abc import Mapping
+from collections.abc import Generator, Mapping
 from typing import Any
 
 import httpretty as httpretty_module
@@ -14,8 +14,10 @@ def server_url() -> str:
 
 
 @pytest.fixture
-def client(server_url: str) -> ApiBase:
-    return ApiBase(host=server_url, token="token")
+def client(server_url: str) -> Generator[ApiBase, None, None]:
+    client = ApiBase(host=server_url)
+    yield client
+    client.cleanup()
 
 
 @pytest.mark.parametrize(
@@ -176,3 +178,15 @@ def test_glitchtip_client_delete(
     url = f"{server_url}/data"
     httpretty.register_uri(httpretty.DELETE, url)
     client._delete(url)
+
+
+def test_glitchtip_client_context_manager(
+    httpretty: httpretty_module, server_url: str
+) -> None:
+    url = f"{server_url}/data"
+    test_obj = {"test": "object"}
+    httpretty.register_uri(
+        httpretty.GET, url, body=json.dumps(test_obj), content_type="text/json"
+    )
+    with ApiBase(host=server_url) as client:
+        assert client._get(url) == test_obj
