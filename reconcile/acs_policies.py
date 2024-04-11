@@ -7,9 +7,6 @@ from reconcile.gql_definitions.acs.acs_policies import (
     AcsPolicyConditionsV1,
     AcsPolicyV1,
 )
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
 from reconcile.utils import gql
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
 from reconcile.utils.differ import diff_iterables
@@ -17,7 +14,6 @@ from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 
 # proceeding constants map schema enum values to corresponding acs api defaults
@@ -225,13 +221,8 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
     ) -> None:
         gqlapi = gql.get_api()
         instance = AcsPolicyApi.get_acs_instance(gqlapi.query)
-
-        vault_settings = get_app_interface_vault_settings()
-        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-        token = secret_reader.read_all_secret(instance.credentials)
-
         with AcsPolicyApi(
-            instance={"url": instance.url, "token": token[instance.credentials.field]}
+            url=instance.url, token=self.secret_reader.read_secret(instance.credentials)
         ) as acs_api:
             notifiers = acs_api.list_notifiers()
             clusters = acs_api.list_clusters()

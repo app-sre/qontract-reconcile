@@ -7,21 +7,20 @@ from typing import (
 )
 
 import requests
+from pydantic import BaseModel
 
 from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
 from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 
 
-class AcsBaseApi:
-    def __init__(
-        self,
-        instance: Any,
-        timeout: int = 30,
-    ) -> None:
-        self.base_url = instance["url"]
-        self.token = instance["token"]
-        self.timeout = timeout
+class AcsBaseApi(BaseModel):
+    url: str
+    token: str
+    timeout: int = 30
+    session: requests.Session
+
+    def __init__(self) -> None:
         self.session = requests.Session()
 
     def __enter__(self) -> Self:
