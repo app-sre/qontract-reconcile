@@ -3,7 +3,9 @@
 query TemplateCollection_v1 {
   template_collection_v1 {
     name
+    labels
     description
+    enableAutoApproval
     variables {
       static
       dynamic {
@@ -13,6 +15,7 @@ query TemplateCollection_v1 {
     }
     templates {
       name
+      autoApproved
       condition
       targetPath
       patch {

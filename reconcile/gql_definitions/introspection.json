@@ -25720,7 +25720,7 @@
                             "args": [],
                             "type": {
                                 "kind": "OBJECT",
-                                "name": "VPCRequestSubnets_v1",
+                                "name": "VPCRequestSubnetsLists_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -25892,7 +25892,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "VPCRequestSubnets_v1",
+                    "name": "VPCRequestSubnetsLists_v1",
                     "description": null,
                     "fields": [
                         {
@@ -25906,8 +25906,8 @@
                                     "kind": "NON_NULL",
                                     "name": null,
                                     "ofType": {
-                                        "kind": "SCALAR",
-                                        "name": "String",
+                                        "kind": "OBJECT",
+                                        "name": "VPCRequestSubnets_v1",
                                         "ofType": null
                                     }
                                 }
@@ -25926,10 +25926,53 @@
                                     "kind": "NON_NULL",
                                     "name": null,
                                     "ofType": {
-                                        "kind": "SCALAR",
-                                        "name": "String",
+                                        "kind": "OBJECT",
+                                        "name": "VPCRequestSubnets_v1",
                                         "ofType": null
                                     }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "VPCRequestSubnets_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "availability_zone",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "cidr_block",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
                                 }
                             },
                             "isDeprecated": false,
@@ -31014,6 +31057,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "labels",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "JSON",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "schema",
                             "description": null,
                             "args": [],
@@ -31041,6 +31096,18 @@
                                     "name": "String",
                                     "ofType": null
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "enableAutoApproval",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -31244,6 +31311,18 @@
                                     "name": "String",
                                     "ofType": null
                                 }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "autoApproved",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
                             },
                             "isDeprecated": false,
                             "deprecationReason": null

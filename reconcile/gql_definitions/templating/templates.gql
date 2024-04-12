@@ -3,6 +3,7 @@
 query Templatev1 {
   template_v1 {
     name
+    autoApproved
     condition
     patch {
       path
