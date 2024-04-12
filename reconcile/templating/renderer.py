@@ -265,6 +265,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                             collection=c.name,
                             collection_hash=template_hash,
                             enable_auto_approval=c.enable_auto_approval or False,
+                            labels=c.additional_mr_labels or [],
                         )
                         outputs.append(output)
 

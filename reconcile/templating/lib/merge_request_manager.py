@@ -132,6 +132,7 @@ class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
         collections = {o.input.collection for o in output if o.input}
         collection_hashes = {o.input.collection_hash for o in output if o.input}
         auto_approve = all(o.auto_approved for o in output)
+        additional_labels = {label for o in output for label in o.input.labels}
         # From the way the code is written, we can assert that there is only one collection and one template hash
         assert len(collections) == 1
         assert len(collection_hashes) == 1
@@ -159,8 +160,12 @@ class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
 
         logging.info("Opening MR for %s with hash (%s)", collection, collection_hash)
         mr_labels = [TR_LABEL]
+
         if auto_approve:
             mr_labels.append(AUTO_MERGE)
+
+        if additional_labels:
+            mr_labels.extend(additional_labels)
 
         self._vcs.open_app_interface_merge_request(
             mr=TemplateRenderingMR(

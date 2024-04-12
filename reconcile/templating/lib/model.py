@@ -7,7 +7,7 @@ class TemplateInput(BaseModel):
     collection: str
     collection_hash: str
     enable_auto_approval: bool = False
-    labels: Optional[dict]
+    labels: list[str] = []
 
 
 class TemplateOutput(BaseModel):
