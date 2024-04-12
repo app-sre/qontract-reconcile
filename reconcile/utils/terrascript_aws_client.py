@@ -148,8 +148,8 @@ from reconcile.cli import TERRAFORM_VERSION
 from reconcile.github_org import get_default_config
 from reconcile.gql_definitions.fragments.aws_vpc_request import (
     VPCRequest,
-    VPCRequestSubnetsV1,
 )
+from reconcile.gql_definitions.fragments.aws_vpc_request_subnet import VPCRequestSubnet
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
 )
@@ -1194,7 +1194,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def _add_subnets_by_privacy(
         self,
-        subnets: Iterable[VPCRequestSubnetsV1],
+        subnets: Iterable[VPCRequestSubnet],
         vpc_identifier: str,
         vpc_resource: aws_vpc,
         vpc: VPCRequest,
@@ -1216,7 +1216,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             vpc_subnet = aws_subnet(subnet_identifier, **values)
             self.add_resource(vpc.account.name, vpc_subnet)
 
-    def populate_vpc_requests(self, vpc_requests: list[VPCRequest]) -> None:
+    def populate_vpc_requests(self, vpc_requests: Iterable[VPCRequest]) -> None:
         for vpc in vpc_requests:
             identifier = vpc.identifier
 
