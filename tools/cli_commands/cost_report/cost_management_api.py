@@ -1,5 +1,8 @@
 from typing import Any, List, Self
 
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
+
 from reconcile.utils.oauth2_backend_application_session import (
     OAuth2BackendApplicationSession,
 )
@@ -26,6 +29,13 @@ class CostManagementApi:
             token_url=token_url,
             scope=scope,
         )
+        for prefix in ["http://", "https://"]:
+            retries = Retry(
+                total=3,
+                backoff_factor=15,  # large backoff required for server-side processing
+                status_forcelist=[500, 502, 503, 504],
+            )
+            self.session.mount(prefix, HTTPAdapter(max_retries=retries))
 
     def __enter__(self) -> Self:
         return self

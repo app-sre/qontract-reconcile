@@ -4,6 +4,7 @@ from typing import Any, Self
 
 from oauthlib.oauth2 import BackendApplicationClient, TokenExpiredError
 from requests import Response
+from requests.adapters import BaseAdapter
 from requests_oauthlib import OAuth2Session
 
 FETCH_TOKEN_HEADERS = {
@@ -59,6 +60,9 @@ class OAuth2BackendApplicationSession:
                 scope=self.scope,
                 headers=FETCH_TOKEN_HEADERS,
             )
+
+    def mount(self, prefix: str, adapter: BaseAdapter):
+        self.session.mount(prefix, adapter)
 
     def request(
         self,

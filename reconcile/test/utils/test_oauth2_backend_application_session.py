@@ -5,6 +5,7 @@ import pytest
 from oauthlib.oauth2 import TokenExpiredError
 from pytest_mock import MockerFixture
 from requests import Response
+from requests.adapters import HTTPAdapter
 
 from reconcile.utils.oauth2_backend_application_session import (
     OAuth2BackendApplicationSession,
@@ -58,7 +59,7 @@ def test_oauth2_auto_session_init(
     mock_oauth2_session.return_value.close.assert_called_once_with()
 
 
-def build_oauth2_auto_session() -> OAuth2BackendApplicationSession:
+def build_oauth2_backend_application_session() -> OAuth2BackendApplicationSession:
     return OAuth2BackendApplicationSession(
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
@@ -72,7 +73,7 @@ def test_first_request_auto_fetch_token(
 ) -> None:
     mocked_oauth2_session = mock_oauth2_session.return_value
     mocked_oauth2_session.authorized = False
-    session = build_oauth2_auto_session()
+    session = build_oauth2_backend_application_session()
 
     response = session.request(method="GET", url="http://some-url")
 
@@ -100,7 +101,7 @@ def test_request_when_token_is_fetched(
 ) -> None:
     mocked_oauth2_session = mock_oauth2_session.return_value
     mocked_oauth2_session.authorized = True
-    session = build_oauth2_auto_session()
+    session = build_oauth2_backend_application_session()
 
     response = session.request(method="GET", url="http://some-url")
 
@@ -127,7 +128,7 @@ def test_request_when_token_is_expired(
         TokenExpiredError(),
         expected_response,
     ]
-    session = build_oauth2_auto_session()
+    session = build_oauth2_backend_application_session()
 
     response = session.request(method="GET", url="http://some-url")
 
@@ -166,7 +167,7 @@ def test_fetch_token(
 ) -> None:
     expected_token = {"access_token": "abc"}
     mock_oauth2_session.return_value.fetch_token.return_value = expected_token
-    session = build_oauth2_auto_session()
+    session = build_oauth2_backend_application_session()
 
     token = session.fetch_token()
 
@@ -178,3 +179,15 @@ def test_fetch_token(
         scope=SCOPE,
         headers=EXPECTED_FETCH_TOKEN_HEADERS,
     )
+
+
+def test_mount(
+    mock_oauth2_session: Any,
+) -> None:
+    session = build_oauth2_backend_application_session()
+
+    adapter = HTTPAdapter()
+
+    session.mount("http://", adapter)
+
+    mock_oauth2_session.return_value.mount.assert_called_once_with("http://", adapter)
