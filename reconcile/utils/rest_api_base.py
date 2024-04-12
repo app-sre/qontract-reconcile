@@ -2,6 +2,7 @@ from typing import Any, Self
 from urllib.parse import urljoin
 
 import requests
+from urllib3 import Retry
 
 from reconcile.utils.oauth2_backend_application_session import (
     OAuth2BackendApplicationSession,
@@ -44,7 +45,7 @@ class ApiBase:
         self,
         host: str,
         auth: requests.auth.AuthBase | None = None,
-        max_retries: int | None = None,
+        max_retries: int | Retry | None = None,
         read_timeout: float | None = None,
         session: requests.Session | OAuth2BackendApplicationSession | None = None,
     ) -> None:
@@ -52,18 +53,16 @@ class ApiBase:
         self.max_retries = max_retries if max_retries is not None else 3
         self.read_timeout = read_timeout if read_timeout is not None else 30
         self.session = session or requests.Session()
-        if not session:
-            if auth:
-                self.session.auth = auth
+        if auth:
+            self.session.auth = auth
+        for prefix in ["http://", "https://"]:
             self.session.mount(
-                "https://", requests.adapters.HTTPAdapter(max_retries=self.max_retries)
+                prefix,
+                requests.adapters.HTTPAdapter(max_retries=self.max_retries),
             )
-            self.session.mount(
-                "http://", requests.adapters.HTTPAdapter(max_retries=self.max_retries)
-            )
-            self.session.headers.update({
-                "Content-Type": "application/json",
-            })
+        self.session.headers.update({
+            "Content-Type": "application/json",
+        })
 
     def __enter__(self) -> Self:
         return self

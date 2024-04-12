@@ -1,6 +1,5 @@
 from typing import List
 
-from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
 from reconcile.utils.oauth2_backend_application_session import (
@@ -27,17 +26,16 @@ class CostManagementApi(ApiBase):
             token_url=token_url,
             scope=scope,
         )
-        for prefix in ["http://", "https://"]:
-            retries = Retry(
-                total=3,
-                backoff_factor=15,  # large backoff required for server-side processing
-                status_forcelist=[500, 502, 503, 504],
-            )
-            session.mount(prefix, HTTPAdapter(max_retries=retries))
+        max_retries = Retry(
+            total=3,
+            backoff_factor=15,  # large backoff required for server-side processing
+            status_forcelist=[500, 502, 503, 504],
+        )
         super().__init__(
             host=base_url,
             session=session,
             read_timeout=REQUEST_TIMEOUT,
+            max_retries=max_retries,
         )
 
     def get_aws_costs_report(self, app: str) -> ReportCostResponse:
@@ -53,7 +51,6 @@ class CostManagementApi(ApiBase):
         response = self.session.request(
             method="GET",
             url=f"{self.host}/reports/aws/costs/",
-            headers={"Content-Type": "application/json"},
             params=params,
             timeout=self.read_timeout,
         )
