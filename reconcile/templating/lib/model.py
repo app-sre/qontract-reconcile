@@ -6,6 +6,8 @@ from pydantic import BaseModel
 class TemplateInput(BaseModel):
     collection: str
     collection_hash: str
+    enable_auto_approval: bool = False
+    labels: Optional[dict]
 
 
 class TemplateOutput(BaseModel):
@@ -13,3 +15,4 @@ class TemplateOutput(BaseModel):
     is_new: bool = False
     path: str
     content: str
+    auto_approved: bool = False

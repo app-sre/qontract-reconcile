@@ -127,6 +127,8 @@ class ClonedRepoGitlabPersistence(FilePersistence):
     """
     This class is used to persist the rendered templates in a cloned gitlab repo
     Reads are from the local filesystem, writes are done via utils.VCS abstraction
+
+    Only one MR is created per run. Auto-approval MRs are prefered.
     """
 
     def __init__(self, local_path: str, vcs: VCS, mr_manager: MergeRequestManager):
@@ -136,6 +138,12 @@ class ClonedRepoGitlabPersistence(FilePersistence):
 
     def write(self, outputs: list[TemplateOutput]) -> None:
         self.mr_manager.housekeeping()
+
+        auto_approved = [o for o in outputs if o.auto_approved]
+        if auto_approved:
+            self.mr_manager.create_merge_request(auto_approved)
+            return
+
         self.mr_manager.create_merge_request(outputs)
 
     def read(self, path: str) -> Optional[str]:
@@ -217,6 +225,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     path=target_path,
                     content=output,
                     is_new=current_str is None,
+                    auto_approved=template.auto_approved or False,
                 )
         return None
 
@@ -255,6 +264,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                         output.input = TemplateInput(
                             collection=c.name,
                             collection_hash=template_hash,
+                            enable_auto_approval=c.enable_auto_approval or False,
                         )
                         outputs.append(output)
 
