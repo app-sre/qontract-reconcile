@@ -185,9 +185,87 @@ def test_mount(
     mock_oauth2_session: Any,
 ) -> None:
     session = build_oauth2_backend_application_session()
-
     adapter = HTTPAdapter()
 
     session.mount("http://", adapter)
 
     mock_oauth2_session.return_value.mount.assert_called_once_with("http://", adapter)
+
+
+def test_headers(
+    mock_oauth2_session: Any,
+) -> None:
+    mock_oauth2_session.return_value.headers = {}
+    session = build_oauth2_backend_application_session()
+
+    session.headers.update({"Content-Type": "application/json"})
+
+    assert mock_oauth2_session.return_value.headers == {
+        "Content-Type": "application/json"
+    }
+
+
+def test_get_auth(
+    mock_oauth2_session: Any,
+) -> None:
+    mock_oauth2_session.return_value.auth = "auth"
+    session = build_oauth2_backend_application_session()
+
+    auth = session.auth
+
+    assert auth == mock_oauth2_session.return_value.auth
+
+
+def test_set_auth(
+    mock_oauth2_session: Any,
+) -> None:
+    mock_oauth2_session.return_value.auth = "auth"
+    session = build_oauth2_backend_application_session()
+
+    session.auth = None
+
+    assert mock_oauth2_session.return_value.auth is None
+
+
+def test_get(
+    mock_oauth2_session: Any,
+) -> None:
+    session = build_oauth2_backend_application_session()
+
+    response = session.get("http://some-url")
+
+    assert response == mock_oauth2_session.return_value.get.return_value
+    mock_oauth2_session.return_value.get.assert_called_once_with("http://some-url")
+
+
+def test_post(
+    mock_oauth2_session: Any,
+) -> None:
+    session = build_oauth2_backend_application_session()
+
+    response = session.post("http://some-url")
+
+    assert response == mock_oauth2_session.return_value.post.return_value
+    mock_oauth2_session.return_value.post.assert_called_once_with("http://some-url")
+
+
+def test_put(
+    mock_oauth2_session: Any,
+) -> None:
+    session = build_oauth2_backend_application_session()
+
+    response = session.put("http://some-url")
+
+    assert response == mock_oauth2_session.return_value.put.return_value
+    mock_oauth2_session.return_value.put.assert_called_once_with("http://some-url")
+
+
+def test_delete(
+    mock_oauth2_session: Any,
+) -> None:
+    session = build_oauth2_backend_application_session()
+
+    response = session.delete("http://some-url")
+
+    assert response == mock_oauth2_session.return_value.delete.return_value
+    mock_oauth2_session.return_value.delete.assert_called_once_with("http://some-url")

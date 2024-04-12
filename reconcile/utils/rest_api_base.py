@@ -3,6 +3,10 @@ from urllib.parse import urljoin
 
 import requests
 
+from reconcile.utils.oauth2_backend_application_session import (
+    OAuth2BackendApplicationSession,
+)
+
 
 def get_next_url(links: dict[str, dict[str, str]]) -> str | None:
     """Parse response header 'Link' attribute and return the next page url if exists.
@@ -42,7 +46,7 @@ class ApiBase:
         auth: requests.auth.AuthBase | None = None,
         max_retries: int | None = None,
         read_timeout: float | None = None,
-        session: requests.Session | None = None,
+        session: requests.Session | OAuth2BackendApplicationSession | None = None,
     ) -> None:
         self.host = host
         self.max_retries = max_retries if max_retries is not None else 3
