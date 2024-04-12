@@ -166,12 +166,16 @@ def board_is_valid(
                 )
                 error |= ValidationError.INVALID_PRIORITY
     except JIRAError as e:
-        if e.status_code != 403:
+        if e.status_code == 401:
+            # sporadic 401 errors, retrying
+            logging.debug(f"[{board.name}] sporadic 401 error! Retry later.")
+        elif e.status_code == 403:
+            logging.error(
+                f"[{board.name}] AppSRE Jira Bot user does not have all necessary permissions. Try granting the user the administrator permissions. API URL: {e.url}"
+            )
+            error |= ValidationError.PERMISSION_ERROR
+        else:
             raise
-        logging.error(
-            f"[{board.name}] AppSRE Jira Bot user does not have all necessary permissions. Try granting the user the administrator permissions. API URL: {e.url}"
-        )
-        error |= ValidationError.PERMISSION_ERROR
 
     return error
 
