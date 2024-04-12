@@ -53,14 +53,17 @@ fragment VPCRequest on VPCRequest_v1 {
   }
   subnets {
     private {
-      availability_zone
-      cidr_block
+      ...VPCRequestSubnet
     }
     public {
-      availability_zone
-      cidr_block
+      ...VPCRequestSubnet
     }
   }
+}
+
+fragment VPCRequestSubnet on VPCRequestSubnets_v1 {
+  availability_zone
+  cidr_block
 }
 
 fragment VaultSecret on VaultSecret_v1 {

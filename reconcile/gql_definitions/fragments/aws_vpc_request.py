@@ -18,6 +18,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.terraform_state import TerraformState
+from reconcile.gql_definitions.fragments.aws_vpc_request_subnet import VPCRequestSubnet
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -42,19 +43,9 @@ class NetworkV1(ConfiguredBaseModel):
     network_address: str = Field(..., alias="networkAddress")
 
 
-class VPCRequestSubnetsV1(ConfiguredBaseModel):
-    availability_zone: str = Field(..., alias="availability_zone")
-    cidr_block: str = Field(..., alias="cidr_block")
-
-
-class VPCRequestSubnetsListsV1_VPCRequestSubnetsV1(ConfiguredBaseModel):
-    availability_zone: str = Field(..., alias="availability_zone")
-    cidr_block: str = Field(..., alias="cidr_block")
-
-
 class VPCRequestSubnetsListsV1(ConfiguredBaseModel):
-    private: Optional[list[VPCRequestSubnetsV1]] = Field(..., alias="private")
-    public: Optional[list[VPCRequestSubnetsListsV1_VPCRequestSubnetsV1]] = Field(..., alias="public")
+    private: Optional[list[VPCRequestSubnet]] = Field(..., alias="private")
+    public: Optional[list[VPCRequestSubnet]] = Field(..., alias="public")
 
 
 class VPCRequest(ConfiguredBaseModel):

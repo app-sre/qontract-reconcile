@@ -22,12 +22,10 @@ fragment VPCRequest on VPCRequest_v1 {
   }
   subnets {
     private {
-      availability_zone
-      cidr_block
+      ...VPCRequestSubnet
     }
     public {
-      availability_zone
-      cidr_block
+      ...VPCRequestSubnet
     }
   }
 }

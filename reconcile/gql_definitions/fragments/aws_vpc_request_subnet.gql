@@ -1,0 +1,6 @@
+# qenerate: plugin=pydantic_v1
+
+fragment VPCRequestSubnet on VPCRequestSubnets_v1 {
+  availability_zone
+  cidr_block
+}
