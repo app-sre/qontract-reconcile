@@ -74,9 +74,11 @@ class ApiBase:
         response = self.session.get(urljoin(self.host, url), timeout=self.read_timeout)
         return response.json()
 
-    def _list(self, url: str, limit: int = 100) -> list[dict[str, Any]]:
+    def _list(
+        self, url: str, params: dict | None = None, attribute: str | None = None
+    ) -> list[dict[str, Any]]:
         response = self.session.get(
-            urljoin(self.host, url), params={"limit": limit}, timeout=self.read_timeout
+            urljoin(self.host, url), params=params, timeout=self.read_timeout
         )
         response.raise_for_status()
         results = response.json()
@@ -85,6 +87,8 @@ class ApiBase:
             while next_url := get_next_url(response.links):
                 response = self.session.get(next_url)
                 results += response.json()
+        if attribute:
+            return results[attribute]
         return results
 
     def _post(self, url: str, data: dict | None = None) -> dict[str, Any]:

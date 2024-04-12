@@ -14,7 +14,10 @@ from reconcile.utils.rest_api_base import ApiBase
 class GlitchtipClient(ApiBase):
     def organizations(self) -> list[Organization]:
         """List organizations."""
-        return [Organization(**r) for r in self._list("/api/0/organizations/")]
+        return [
+            Organization(**r)
+            for r in self._list("/api/0/organizations/", params={"limit": 100})
+        ]
 
     def create_organization(self, name: str) -> Organization:
         """Create an organization."""
@@ -28,7 +31,10 @@ class GlitchtipClient(ApiBase):
         """List teams."""
         return [
             Team(**r)
-            for r in self._list(f"/api/0/organizations/{organization_slug}/teams/")
+            for r in self._list(
+                f"/api/0/organizations/{organization_slug}/teams/",
+                params={"limit": 100},
+            )
         ]
 
     def create_team(self, organization_slug: str, slug: str) -> Team:
@@ -47,7 +53,10 @@ class GlitchtipClient(ApiBase):
         """List projects."""
         return [
             Project(**r)
-            for r in self._list(f"/api/0/organizations/{organization_slug}/projects/")
+            for r in self._list(
+                f"/api/0/organizations/{organization_slug}/projects/",
+                params={"limit": 100},
+            )
         ]
 
     def create_project(
@@ -89,7 +98,10 @@ class GlitchtipClient(ApiBase):
 
     def project_key(self, organization_slug: str, project_slug: str) -> ProjectKey:
         """Retrieve project key (DSN)."""
-        keys = self._list(f"/api/0/projects/{organization_slug}/{project_slug}/keys/")
+        keys = self._list(
+            f"/api/0/projects/{organization_slug}/{project_slug}/keys/",
+            params={"limit": 100},
+        )
         if not keys:
             # only happens if org_slug/project_slug does not exist
             raise ValueError(f"No keys found for project {project_slug}")
@@ -105,7 +117,8 @@ class GlitchtipClient(ApiBase):
         return [
             ProjectAlert(**r)
             for r in self._list(
-                f"/api/0/projects/{organization_slug}/{project_slug}/alerts/"
+                f"/api/0/projects/{organization_slug}/{project_slug}/alerts/",
+                params={"limit": 100},
             )
         ]
 
@@ -159,7 +172,10 @@ class GlitchtipClient(ApiBase):
         """List organization users (aka members)."""
         return [
             User(**r)
-            for r in self._list(f"/api/0/organizations/{organization_slug}/members/")
+            for r in self._list(
+                f"/api/0/organizations/{organization_slug}/members/",
+                params={"limit": 100},
+            )
         ]
 
     def invite_user(self, organization_slug: str, email: str, role: str) -> User:
@@ -189,7 +205,8 @@ class GlitchtipClient(ApiBase):
         return [
             User(**r)
             for r in self._list(
-                f"/api/0/teams/{organization_slug}/{team_slug}/members/"
+                f"/api/0/teams/{organization_slug}/{team_slug}/members/",
+                params={"limit": 100},
             )
         ]
 
