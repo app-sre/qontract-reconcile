@@ -143,7 +143,7 @@ class ClonedRepoGitlabPersistence(FilePersistence):
     def write(self, outputs: list[TemplateOutput]) -> None:
         self.mr_manager.housekeeping()
 
-        if any([o.input.enable_auto_approval for o in outputs if o.input]):
+        if any([o.input.enable_auto_approval for o in outputs]):
             auto_approved = [o for o in outputs if o.auto_approved]
             if auto_approved:
                 self.mr_manager.create_merge_request(auto_approved)
