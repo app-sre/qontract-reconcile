@@ -152,5 +152,9 @@ class AcsNotifiersIntegration(QontractReconcileIntegration[NoParams]):
         ) as acs_api:
             current_state = acs_api.get_jira_notifiers()
             self.reconcile(
-                current_state, desired_state, acs_api, jira_credentials, dry_run
+                current_state=current_state,
+                desired_state=desired_state,
+                acs_api=acs_api,
+                jira_credentials=jira_credentials,
+                dry_run=dry_run,
             )
