@@ -214,6 +214,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   terraform-cloudflare-dns        Manage Cloudflare DNS using Terraform.
   terraform-cloudflare-resources  Manage Cloudflare Resources using Terraform.
   terraform-cloudflare-users      Manage Cloudflare Users using Terraform.
+  terraform-init                  Initialize AWS accounts for Terraform usage.
   terraform-repo                  Manages raw HCL Terraform from a separate
                                   repository.
   terraform-resources             Manage AWS Resources using Terraform.

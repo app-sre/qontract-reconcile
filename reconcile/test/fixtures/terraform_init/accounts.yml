@@ -1,0 +1,41 @@
+
+accounts:
+- name: account-1
+  terraformUsername: terraform
+  terraformState: null
+  resourcesDefaultRegion: us-east-1
+  automationToken:
+    path: path/to/creds
+
+- name: account-2
+  terraformUsername: terraform
+  terraformState: null
+  resourcesDefaultRegion: us-east-1
+  automationToken:
+    path: path/to/creds
+
+# all accounts below must be irgnored
+- name: no-terraform-username
+  terraformUsername: null
+  terraformState: null
+  resourcesDefaultRegion: us-east-1
+  automationToken:
+    path: path/to/creds
+
+- name: terraform-state-already-set
+  terraformUsername: terraform
+  terraformState:
+    region: us-east-1
+  resourcesDefaultRegion: us-east-1
+  automationToken:
+    path: path/to/creds
+
+- name: integration-disabled
+  terraformUsername: terraform
+  terraformState: null
+  resourcesDefaultRegion: us-east-1
+  automationToken:
+    path: path/to/creds
+  disable:
+    integrations:
+    - terraform-init
