@@ -22,7 +22,9 @@ DEFINITION = """
 query TemplateCollection_v1 {
   template_collection_v1 {
     name
+    additionalMrLabels
     description
+    enableAutoApproval
     variables {
       static
       dynamic {
@@ -32,6 +34,7 @@ query TemplateCollection_v1 {
     }
     templates {
       name
+      autoApproved
       condition
       targetPath
       patch {
@@ -68,6 +71,7 @@ class TemplatePatchV1(ConfiguredBaseModel):
 
 class TemplateV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    auto_approved: Optional[bool] = Field(..., alias="autoApproved")
     condition: Optional[str] = Field(..., alias="condition")
     target_path: str = Field(..., alias="targetPath")
     patch: Optional[TemplatePatchV1] = Field(..., alias="patch")
@@ -76,7 +80,9 @@ class TemplateV1(ConfiguredBaseModel):
 
 class TemplateCollectionV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    additional_mr_labels: Optional[list[str]] = Field(..., alias="additionalMrLabels")
     description: str = Field(..., alias="description")
+    enable_auto_approval: Optional[bool] = Field(..., alias="enableAutoApproval")
     variables: Optional[TemplateCollectionVariablesV1] = Field(..., alias="variables")
     templates: list[TemplateV1] = Field(..., alias="templates")
 

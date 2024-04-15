@@ -13,6 +13,7 @@ from reconcile.utils.merge_request_manager.parser import (
     Parser,
 )
 from reconcile.utils.mr import MergeRequestBase
+from reconcile.utils.mr.labels import AUTO_MERGE
 from reconcile.utils.vcs import VCS
 
 DATA_SEPARATOR = (
@@ -120,16 +121,23 @@ class TemplateRenderingMR(MergeRequestBase):
                 )
 
 
+class MrData(BaseModel):
+    data: list[TemplateOutput]
+    auto_approved: bool
+
+
 class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
     def __init__(self, vcs: VCS, parser: Parser):
         super().__init__(vcs, parser, TR_LABEL)
 
-    def create_merge_request(self, output: list[TemplateOutput]) -> None:
+    def create_merge_request(self, data: MrData) -> None:
         if not self._housekeeping_ran:
             self.housekeeping()
 
-        collections = {o.input.collection for o in output if o.input}
-        collection_hashes = {o.input.collection_hash for o in output if o.input}
+        output = data.data
+        collections = {o.input.collection for o in output}
+        collection_hashes = {o.input.collection_hash for o in output}
+        additional_labels = {label for o in output for label in o.input.labels}
         # From the way the code is written, we can assert that there is only one collection and one template hash
         assert len(collections) == 1
         assert len(collection_hashes) == 1
@@ -157,6 +165,12 @@ class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
 
         logging.info("Opening MR for %s with hash (%s)", collection, collection_hash)
         mr_labels = [TR_LABEL]
+
+        if data.auto_approved:
+            mr_labels.append(AUTO_MERGE)
+
+        if additional_labels:
+            mr_labels.extend(additional_labels)
 
         self._vcs.open_app_interface_merge_request(
             mr=TemplateRenderingMR(

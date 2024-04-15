@@ -127,7 +127,11 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         if diffs:
             for diff in diffs:
                 logging.error(f"template: {diff.template}, test: {diff.test}")
-                logging.debug(diff.diff)
+                # This log should never be added except for local debugging.
+                # Credentials could be leaked, i.e. creating an MR with a diff,
+                # using a template, that uses the vault function.
+                # Use template-validator CLI instead.
+                # logging.debug(diff.diff)
             raise ValueError("Template validation failed")
 
     @property

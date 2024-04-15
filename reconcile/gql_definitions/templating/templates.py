@@ -22,6 +22,7 @@ DEFINITION = """
 query Templatev1 {
   template_v1 {
     name
+    autoApproved
     condition
     patch {
       path
@@ -64,6 +65,7 @@ class TemplateTestV1(ConfiguredBaseModel):
 
 class TemplateV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    auto_approved: Optional[bool] = Field(..., alias="autoApproved")
     condition: Optional[str] = Field(..., alias="condition")
     patch: Optional[TemplatePatchV1] = Field(..., alias="patch")
     target_path: str = Field(..., alias="targetPath")
