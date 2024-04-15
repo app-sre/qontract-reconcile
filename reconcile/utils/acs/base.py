@@ -75,3 +75,8 @@ class AcsBaseApi(BaseModel):
             raise
 
         return response
+
+    def generic_request_json(
+        self, path: str, verb: str, json: Optional[Any] = None
+    ) -> Any:
+        return self.generic_request(path, verb, json=json).json()

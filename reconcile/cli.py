@@ -3441,6 +3441,17 @@ def acs_policies(ctx):
     )
 
 
+@integration.command(short_help="Manages RHACS notifier configurations")
+@click.pass_context
+def acs_notifiers(ctx):
+    from reconcile import acs_notifiers
+
+    run_class_integration(
+        integration=acs_notifiers.AcsNotifiersIntegration(),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Automate Deadmanssnitch Creation/Deletion")
 @click.pass_context
 def deadmanssnitch(ctx):

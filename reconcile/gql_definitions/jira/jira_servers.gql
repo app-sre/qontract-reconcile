@@ -1,0 +1,14 @@
+# qenerate: plugin=pydantic_v1
+
+query JiraServers {
+  jira_servers: jira_servers_v1 {
+    serverUrl
+    username
+    token {
+      path
+      version
+      field
+      format
+    }
+  }
+}
