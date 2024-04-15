@@ -17,6 +17,7 @@ from reconcile.templating.lib.merge_request_manager import MergeRequestManager
 from reconcile.templating.renderer import (
     ClonedRepoGitlabPersistence,
     LocalFilePersistence,
+    PersistenceTransaction,
     TemplateOutput,
     TemplateRendererIntegration,
     TemplateRendererIntegrationParams,
@@ -171,6 +172,52 @@ def test_crg_file_persistence_read_miss(mocker: MockerFixture, tmp_path: Path) -
     assert crg.read("foo") is None
 
 
+def test_persistence_context_dry_run(mocker: MockerFixture) -> None:
+    test_path = "foo"
+    persistence_mock = mocker.MagicMock(LocalFilePersistence)
+
+    output = TemplateOutput(path=test_path, content="updated_value")
+
+    with PersistenceTransaction(persistence_mock, True) as p:
+        p.write([])
+        p.write([output])
+    persistence_mock.write.assert_not_called()
+
+    with PersistenceTransaction(persistence_mock, False) as p:
+        p.write([])
+        p.write([output])
+    persistence_mock.write.assert_called_once()
+
+
+def test_persistence_read(mocker: MockerFixture) -> None:
+    persistence_mock = mocker.MagicMock(LocalFilePersistence)
+    persistence_mock.read.return_value = "foo"
+    p = PersistenceTransaction(persistence_mock, False)
+    p.read("foo")
+    p.read("foo")
+
+    persistence_mock.read.assert_called_once_with("foo")
+    assert p.content_cache == {"foo": "foo"}
+
+
+def test_persistence_write(mocker: MockerFixture) -> None:
+    test_path = "foo"
+    persistence_mock = mocker.MagicMock(LocalFilePersistence)
+    persistence_mock.read.return_value = "initial_value"
+    p = PersistenceTransaction(persistence_mock, False)
+    p.read(test_path)
+    assert p.content_cache == {test_path: "initial_value"}
+
+    output = TemplateOutput(path=test_path, content="updated_value")
+    p.write([])
+    p.write([output])
+
+    assert p.output_cache == {output.path: output}
+    assert p.content_cache == {test_path: "updated_value"}
+
+    persistence_mock.write.assert_not_called()
+
+
 def test_process_template_simple(
     template_simple: TemplateV1,
     local_file_persistence: LocalFilePersistence,
@@ -245,6 +292,7 @@ def test_reconcile(
             targetPath="/target_path",
             patch=None,
             template="template",
+            autoApproved=None,
         ),
         {},
         ANY,
