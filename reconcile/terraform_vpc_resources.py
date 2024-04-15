@@ -42,9 +42,17 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
     def name(self) -> str:
         return QONTRACT_INTEGRATION.replace("_", "-")
 
-    def _filter_accounts(self, data: Iterable[VPCRequest]) -> list[AWSAccountV1]:
-        """Return a list of accounts extracted from the provided VPCRequests."""
-        return [vpc.account for vpc in data]
+    def _filter_accounts(
+        self, data: Iterable[VPCRequest], account_name: Optional[str]
+    ) -> list[AWSAccountV1]:
+        """Return a list of accounts extracted from the provided VPCRequests.
+        If account_name is given returns the account object with that name."""
+        accounts = [vpc.account for vpc in data]
+
+        if account_name:
+            accounts = [account for account in accounts if account.name == account_name]
+
+        return accounts
 
     def run(self, dry_run: bool) -> None:
         account_name = self.params.account_name
@@ -56,15 +64,11 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         data = get_aws_vpc_requests(gql_api=gql.get_api())
 
         if data:
-            accounts = self._filter_accounts(data)
-            if account_name:
-                accounts = [
-                    account for account in accounts if account.name == account_name
-                ]
-                if not accounts:
-                    error_msg = f"The account {account_name} doesn't have any managed vpc. Verify your input"
-                    logging.error(error_msg)
-                    raise NoManagedVPCForAccount(error_msg)
+            accounts = self._filter_accounts(data, account_name)
+            if account_name and not accounts:
+                error_msg = f"The account {account_name} doesn't have any managed vpc. Verify your input"
+                logging.error(error_msg)
+                raise NoManagedVPCForAccount(error_msg)
         else:
             logging.warning("No VPC requests found, nothing to do.")
             sys.exit(ExitCodes.SUCCESS)
