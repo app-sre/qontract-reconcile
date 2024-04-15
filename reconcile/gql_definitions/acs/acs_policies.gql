@@ -6,6 +6,37 @@ query AcsPolicy {
     description
     severity
     notifiers
+    integrations {
+      notifiers {
+        jira {
+          escalationPolicy {
+            name
+            channels {
+              jiraBoard {
+                name
+                server {
+                  serverUrl
+                }
+                severityPriorityMappings {
+                  name
+                  mappings {
+                    severity
+                    priority
+                  }
+                }
+                issueType
+                issueSecurityId
+                disable {
+                  integrations
+                }
+              }
+              jiraComponent
+              jiraLabels
+            }
+          }
+        }
+      }
+    }
     categories
     scope {
       level
