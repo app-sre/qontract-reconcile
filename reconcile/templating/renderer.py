@@ -59,6 +59,19 @@ class FilePersistence(ABC):
     def read(self, path: str) -> Optional[str]:
         pass
 
+    @staticmethod
+    def _read_local_file(path: str) -> Optional[str]:
+        try:
+            with open(
+                path,
+                "r",
+                encoding="utf-8",
+            ) as f:
+                return f.read()
+        except FileNotFoundError:
+            logging.debug(f"File not found: {path}, need to create it")
+        return None
+
 
 class LocalFilePersistence(FilePersistence):
     """
@@ -80,16 +93,7 @@ class LocalFilePersistence(FilePersistence):
                 f.write(output.content)
 
     def read(self, path: str) -> Optional[str]:
-        try:
-            with open(
-                f"{join_path(self.app_interface_data_path, path)}",
-                "r",
-                encoding="utf-8",
-            ) as f:
-                return f.read()
-        except FileNotFoundError:
-            logging.debug(f"File not found: {path}, need to create it")
-        return None
+        return self._read_local_file(join_path(self.app_interface_data_path, path))
 
 
 class PersistenceTransaction(FilePersistence):
@@ -139,24 +143,16 @@ class ClonedRepoGitlabPersistence(FilePersistence):
     def write(self, outputs: list[TemplateOutput]) -> None:
         self.mr_manager.housekeeping()
 
-        auto_approved = [o for o in outputs if o.auto_approved]
-        if auto_approved:
-            self.mr_manager.create_merge_request(auto_approved)
-            return
+        if any([o.input.enable_auto_approval for o in outputs if o.input]):
+            auto_approved = [o for o in outputs if o.auto_approved]
+            if auto_approved:
+                self.mr_manager.create_merge_request(auto_approved)
+                return
 
         self.mr_manager.create_merge_request(outputs)
 
     def read(self, path: str) -> Optional[str]:
-        try:
-            with open(
-                f"{join_path(self.local_path, path)}",
-                "r",
-                encoding="utf-8",
-            ) as f:
-                return f.read()
-        except FileNotFoundError:
-            logging.debug(f"File not found: {path}, need to create it")
-        return None
+        return self._read_local_file(join_path(self.local_path, path))
 
 
 def unpack_static_variables(
@@ -195,6 +191,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         variables: dict,
         persistence: FilePersistence,
         ruaml_instance: yaml.YAML,
+        template_input: TemplateInput,
     ) -> Optional[TemplateOutput]:
         r = create_renderer(
             template,
@@ -226,6 +223,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     content=output,
                     is_new=current_str is None,
                     auto_approved=template.auto_approved or False,
+                    input=template_input,
                 )
         return None
 
@@ -253,20 +251,17 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             ).hexdigest()
 
             with PersistenceTransaction(persistence, dry_run) as p:
+                input = TemplateInput(
+                    collection=c.name,
+                    collection_hash=template_hash,
+                    enable_auto_approval=c.enable_auto_approval or False,
+                    labels=c.additional_mr_labels or [],
+                )
                 for template in c.templates:
                     output = self.process_template(
-                        template,
-                        variables,
-                        p,
-                        ruamel_instance,
+                        template, variables, p, ruamel_instance, input
                     )
                     if output:
-                        output.input = TemplateInput(
-                            collection=c.name,
-                            collection_hash=template_hash,
-                            enable_auto_approval=c.enable_auto_approval or False,
-                            labels=c.additional_mr_labels or [],
-                        )
                         outputs.append(output)
 
                 if not dry_run:

@@ -14,6 +14,7 @@ from reconcile.gql_definitions.templating.template_collection import (
     TemplateV1,
 )
 from reconcile.templating.lib.merge_request_manager import MergeRequestManager
+from reconcile.templating.lib.model import TemplateInput
 from reconcile.templating.renderer import (
     ClonedRepoGitlabPersistence,
     LocalFilePersistence,
@@ -52,6 +53,19 @@ def template_simple(gql_class_factory: Callable) -> TemplateV1:
 
 
 @pytest.fixture
+def template_patch(gql_class_factory: Callable) -> TemplateV1:
+    return gql_class_factory(
+        TemplateV1,
+        {
+            "name": "test",
+            "targetPath": "/target_path",
+            "template": "template",
+            "patch": {"path": "$.patch_path", "identifier": "identifier"},
+        },
+    )
+
+
+@pytest.fixture
 def template_collection(
     gql_class_factory: Callable, template_simple: TemplateV1
 ) -> TemplateCollectionV1:
@@ -80,6 +94,15 @@ def ruaml_instance() -> yaml.YAML:
 def template_renderer_integration(mocker: MockerFixture) -> TemplateRendererIntegration:
     return mocker.patch(
         "reconcile.templating.renderer.TemplateRendererIntegration", autospec=True
+    )
+
+
+@pytest.fixture
+def template_input() -> TemplateInput:
+    return TemplateInput(
+        collection="test",
+        collection_hash="test",
+        enable_auto_approval=False,
     )
 
 
@@ -125,10 +148,12 @@ def test_join_path() -> None:
     assert join_path("foo", "/bar") == "foo/bar"
 
 
-def test_local_file_persistence_write(tmp_path: Path) -> None:
+def test_local_file_persistence_write(
+    tmp_path: Path, template_input: TemplateInput
+) -> None:
     os.makedirs(tmp_path / "data")
     lfp = LocalFilePersistence(str(tmp_path / "data"))
-    lfp.write([TemplateOutput(path="/foo", content="bar")])
+    lfp.write([TemplateOutput(path="/foo", content="bar", input=template_input)])
     assert (tmp_path / "data" / "foo").read_text() == "bar"
 
 
@@ -141,15 +166,43 @@ def test_local_file_persistence_read(tmp_path: Path) -> None:
     assert lfp.read("foo") == "hello"
 
 
-def test_crg_file_persistence_write(mocker: MockerFixture, tmp_path: Path) -> None:
+def test_crg_file_persistence_write(
+    mocker: MockerFixture, tmp_path: Path, template_input: TemplateInput
+) -> None:
     vcs = mocker.MagicMock(VCS)
     mr_manager = mocker.MagicMock(MergeRequestManager)
-    output = [TemplateOutput(path="/foo", content="bar")]
+    output = [TemplateOutput(path="/foo", content="bar", input=template_input)]
     crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
     crg.write(output)
 
     mr_manager.housekeeping.assert_called_once()
     mr_manager.create_merge_request.assert_called_once_with(output)
+
+
+def test_crg_file_persistence_write_auto_approval(
+    mocker: MockerFixture, tmp_path: Path, template_input: TemplateInput
+) -> None:
+    vcs = mocker.MagicMock(VCS)
+    mr_manager = mocker.MagicMock(MergeRequestManager)
+    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
+
+    tauto = TemplateOutput(
+        path="/foo", content="bar", auto_approved=True, input=template_input
+    )
+    tnoauto = TemplateOutput(
+        path="/foo2", content="bar2", auto_approved=False, input=template_input
+    )
+    output = [tauto, tnoauto]
+    crg.write(output)
+
+    mr_manager.create_merge_request.assert_called_with(output)
+
+    template_input.enable_auto_approval = True
+    output = [tauto, tnoauto]
+
+    crg.write(output)
+
+    mr_manager.create_merge_request.assert_called_with([tauto])
 
 
 def test_crg_file_persistence_read_found(mocker: MockerFixture, tmp_path: Path) -> None:
@@ -172,11 +225,15 @@ def test_crg_file_persistence_read_miss(mocker: MockerFixture, tmp_path: Path) -
     assert crg.read("foo") is None
 
 
-def test_persistence_context_dry_run(mocker: MockerFixture) -> None:
+def test_persistence_transaction_dry_run(
+    mocker: MockerFixture, template_input: TemplateInput
+) -> None:
     test_path = "foo"
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
 
-    output = TemplateOutput(path=test_path, content="updated_value")
+    output = TemplateOutput(
+        path=test_path, content="updated_value", input=template_input
+    )
 
     with PersistenceTransaction(persistence_mock, True) as p:
         p.write([])
@@ -189,7 +246,7 @@ def test_persistence_context_dry_run(mocker: MockerFixture) -> None:
     persistence_mock.write.assert_called_once()
 
 
-def test_persistence_read(mocker: MockerFixture) -> None:
+def test_persistence_transaction_read(mocker: MockerFixture) -> None:
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
     persistence_mock.read.return_value = "foo"
     p = PersistenceTransaction(persistence_mock, False)
@@ -200,7 +257,9 @@ def test_persistence_read(mocker: MockerFixture) -> None:
     assert p.content_cache == {"foo": "foo"}
 
 
-def test_persistence_write(mocker: MockerFixture) -> None:
+def test_persistence_transaction_write(
+    mocker: MockerFixture, template_input: TemplateInput
+) -> None:
     test_path = "foo"
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
     persistence_mock.read.return_value = "initial_value"
@@ -208,7 +267,9 @@ def test_persistence_write(mocker: MockerFixture) -> None:
     p.read(test_path)
     assert p.content_cache == {test_path: "initial_value"}
 
-    output = TemplateOutput(path=test_path, content="updated_value")
+    output = TemplateOutput(
+        path=test_path, content="updated_value", input=template_input
+    )
     p.write([])
     p.write([output])
 
@@ -223,11 +284,12 @@ def test_process_template_simple(
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
     secret_reader: SecretReader,
+    template_input: TemplateInput,
 ) -> None:
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     t._secret_reader = secret_reader
     output = t.process_template(
-        template_simple, {}, local_file_persistence, ruaml_instance
+        template_simple, {}, local_file_persistence, ruaml_instance, template_input
     )
     assert output
     assert output.path == "/target_path"
@@ -239,33 +301,58 @@ def test_process_template_overwrite(
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
     secret_reader: SecretReader,
+    template_input: TemplateInput,
 ) -> None:
-    local_file_persistence.write([TemplateOutput(path="/target_path", content="bar")])
+    local_file_persistence.write([
+        TemplateOutput(path="/target_path", content="bar", input=template_input)
+    ])
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     t._secret_reader = secret_reader
     output = t.process_template(
-        template_simple, {}, local_file_persistence, ruaml_instance
+        template_simple, {}, local_file_persistence, ruaml_instance, template_input
     )
     assert output
     assert output.path == "/target_path"
     assert output.content == "template"
 
 
-def test_process_template_match(
+def test_process_template_patch_fail(
+    template_patch: TemplateV1,
+    local_file_persistence: LocalFilePersistence,
+    ruaml_instance: yaml.YAML,
+    secret_reader: SecretReader,
+    template_input: TemplateInput,
+) -> None:
+    t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
+    t._secret_reader = secret_reader
+    with pytest.raises(ValueError, match="Can not patch non-existing file"):
+        t.process_template(
+            template_patch, {}, local_file_persistence, ruaml_instance, template_input
+        )
+
+
+def test_process_template_wrong_condition(
     template_simple: TemplateV1,
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
     secret_reader: SecretReader,
+    template_input: TemplateInput,
 ) -> None:
-    local_file_persistence.write([
-        TemplateOutput(path="/target_path", content="template")
-    ])
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     t._secret_reader = secret_reader
+
+    template_simple.condition = "{{ false }}"
     output = t.process_template(
-        template_simple, {}, local_file_persistence, ruaml_instance
+        template_simple, {}, local_file_persistence, ruaml_instance, template_input
     )
     assert output is None
+
+    template_simple.condition = "{{ true }}"
+    output = t.process_template(
+        template_simple, {}, local_file_persistence, ruaml_instance, template_input
+    )
+    # just assert some output is comming back, content does not matter for this case
+    assert output is not None
 
 
 def test_reconcile(
