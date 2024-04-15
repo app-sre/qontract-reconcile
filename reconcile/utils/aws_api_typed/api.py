@@ -11,11 +11,13 @@ from pydantic import BaseModel
 
 import reconcile.utils.aws_api_typed.iam
 import reconcile.utils.aws_api_typed.organization
+import reconcile.utils.aws_api_typed.s3
 import reconcile.utils.aws_api_typed.service_quotas
 import reconcile.utils.aws_api_typed.sts
 import reconcile.utils.aws_api_typed.support
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
 from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
+from reconcile.utils.aws_api_typed.s3 import AWSApiS3
 from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
 from reconcile.utils.aws_api_typed.sts import AWSApiSts
 from reconcile.utils.aws_api_typed.support import AWSApiSupport
@@ -161,6 +163,9 @@ class AWSApi:
             case reconcile.utils.aws_api_typed.organization.AWSApiOrganizations:
                 client = self.session.client("organizations")
                 api = api_cls(client)
+            case reconcile.utils.aws_api_typed.s3.AWSApiS3:
+                client = self.session.client("s3")
+                api = api_cls(client)
             case reconcile.utils.aws_api_typed.service_quotas.AWSApiServiceQuotas:
                 client = self.session.client("service-quotas")
                 api = api_cls(client)
@@ -185,6 +190,11 @@ class AWSApi:
     def organizations(self) -> AWSApiOrganizations:
         """Return an AWS Organizations Api client."""
         return self._init_sub_api(AWSApiOrganizations)
+
+    @cached_property
+    def s3(self) -> AWSApiS3:
+        """Return an AWS S3 Api client."""
+        return self._init_sub_api(AWSApiS3)
 
     @cached_property
     def service_quotas(self) -> AWSApiServiceQuotas:

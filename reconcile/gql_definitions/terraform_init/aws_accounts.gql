@@ -1,0 +1,18 @@
+# qenerate: plugin=pydantic_v1
+
+query TerraformInitAWSAccounts {
+  accounts: awsaccounts_v1 {
+    name
+    terraformUsername
+    terraformState {
+      region
+    }
+    resourcesDefaultRegion
+    automationToken {
+      ...VaultSecret
+    }
+    disable {
+      integrations
+    }
+  }
+}

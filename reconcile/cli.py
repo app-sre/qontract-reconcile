@@ -1032,6 +1032,41 @@ def aws_account_manager(
     )
 
 
+@integration.command(short_help="Initialize AWS accounts for Terraform usage.")
+@account_name
+@click.option(
+    "--state-tmpl-resource",
+    help="Resource name of the state template-collection template in the app-interface.",
+    required=True,
+    default="/terraform-init/terraform-state.yml",
+)
+@click.option(
+    "--template-collection-root-path",
+    help="File path to the root directory to store new state template-collections.",
+    required=True,
+    default="data/templating/collections/terraform-init",
+)
+@click.pass_context
+def terraform_init(
+    ctx, account_name, state_tmpl_resource, template_collection_root_path
+):
+    from reconcile.terraform_init.integration import (
+        TerraformInitIntegration,
+        TerraformInitIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=TerraformInitIntegration(
+            TerraformInitIntegrationParams(
+                account_name=account_name,
+                state_tmpl_resource=state_tmpl_resource,
+                template_collection_root_path=template_collection_root_path,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage Jenkins roles association via REST API.")
 @click.pass_context
 def jenkins_roles(ctx):
