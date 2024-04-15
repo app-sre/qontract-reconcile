@@ -146,10 +146,10 @@ class ClonedRepoGitlabPersistence(FilePersistence):
         if any([o.input.enable_auto_approval for o in outputs]):
             auto_approved = [o for o in outputs if o.auto_approved]
             if auto_approved:
-                self.mr_manager.create_merge_request(auto_approved)
+                self.mr_manager.create_merge_request(auto_approved, True)
                 return
 
-        self.mr_manager.create_merge_request(outputs)
+        self.mr_manager.create_merge_request(outputs, False)
 
     def read(self, path: str) -> Optional[str]:
         return self._read_local_file(join_path(self.local_path, path))

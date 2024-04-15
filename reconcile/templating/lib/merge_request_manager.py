@@ -125,13 +125,14 @@ class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
     def __init__(self, vcs: VCS, parser: Parser):
         super().__init__(vcs, parser, TR_LABEL)
 
-    def create_merge_request(self, output: list[TemplateOutput]) -> None:
+    def create_merge_request(
+        self, output: list[TemplateOutput], auto_approve: bool
+    ) -> None:
         if not self._housekeeping_ran:
             self.housekeeping()
 
         collections = {o.input.collection for o in output}
         collection_hashes = {o.input.collection_hash for o in output}
-        auto_approve = all(o.auto_approved for o in output)
         additional_labels = {label for o in output for label in o.input.labels}
         # From the way the code is written, we can assert that there is only one collection and one template hash
         assert len(collections) == 1

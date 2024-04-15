@@ -176,7 +176,7 @@ def test_crg_file_persistence_write(
     crg.write(output)
 
     mr_manager.housekeeping.assert_called_once()
-    mr_manager.create_merge_request.assert_called_once_with(output)
+    mr_manager.create_merge_request.assert_called_once_with(output, False)
 
 
 def test_crg_file_persistence_write_auto_approval(
@@ -195,14 +195,14 @@ def test_crg_file_persistence_write_auto_approval(
     output = [tauto, tnoauto]
     crg.write(output)
 
-    mr_manager.create_merge_request.assert_called_with(output)
+    mr_manager.create_merge_request.assert_called_with(output, False)
 
     template_input.enable_auto_approval = True
     output = [tauto, tnoauto]
 
     crg.write(output)
 
-    mr_manager.create_merge_request.assert_called_with([tauto])
+    mr_manager.create_merge_request.assert_called_with([tauto], True)
 
 
 def test_crg_file_persistence_read_found(mocker: MockerFixture, tmp_path: Path) -> None:

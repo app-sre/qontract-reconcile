@@ -77,6 +77,7 @@ def test_create_tr_merge_request_fail(
                 TemplateOutput(is_new=True, content="", path="", input=template_input),
                 TemplateOutput(is_new=True, content="", path="", input=input2),
             ],
+            False,
         )
 
 
@@ -93,6 +94,7 @@ def test_create_tr_merge_request_create(
                 path="",
             )
         ],
+        False,
     )
 
     vcs.open_app_interface_merge_request.assert_called_once()
@@ -121,6 +123,7 @@ def test_create_tr_merge_request_found(
                 path="",
             )
         ],
+        False,
     )
     if closed:
         vcs.close_app_interface_mr.assert_called_once()
