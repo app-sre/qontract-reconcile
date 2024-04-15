@@ -50,7 +50,7 @@ def test_cost_management_api_init(
     ) as api:
         pass
 
-    assert api.base_url == BASE_URL
+    assert api.host == BASE_URL
     assert api.session == mock_session.return_value
 
     mock_session.assert_called_once_with(
@@ -59,6 +59,7 @@ def test_cost_management_api_init(
         token_url=TOKEN_URL,
         scope=SCOPE,
     )
+    assert mock_session.return_value.mount.call_count == 2
     mock_session.return_value.close.assert_called_once_with()
 
 

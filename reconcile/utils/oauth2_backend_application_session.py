@@ -1,9 +1,10 @@
 import threading
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableMapping
 from typing import Any, Self
 
 from oauthlib.oauth2 import BackendApplicationClient, TokenExpiredError
 from requests import Response
+from requests.adapters import BaseAdapter
 from requests_oauthlib import OAuth2Session
 
 FETCH_TOKEN_HEADERS = {
@@ -38,9 +39,6 @@ class OAuth2BackendApplicationSession:
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.close()
-
-    def close(self) -> None:
-        self.session.close()
 
     def fetch_token(self) -> dict:
         """
@@ -100,3 +98,35 @@ class OAuth2BackendApplicationSession:
                 client_secret=client_secret,
                 **kwargs,
             )
+
+    # Delegates for ApiBase
+
+    def close(self) -> None:
+        self.session.close()
+
+    def mount(self, prefix: str, adapter: BaseAdapter) -> None:
+        self.session.mount(prefix, adapter)
+
+    @property
+    def headers(self) -> MutableMapping:
+        return self.session.headers
+
+    @property
+    def auth(self) -> Any:
+        return self.session.auth
+
+    @auth.setter
+    def auth(self, value: Any) -> None:
+        self.session.auth = value
+
+    def get(self, url: str, **kwargs: Any) -> Response:
+        return self.session.get(url, **kwargs)
+
+    def post(self, url: str, **kwargs: Any) -> Response:
+        return self.session.post(url, **kwargs)
+
+    def put(self, url: str, **kwargs: Any) -> Response:
+        return self.session.put(url, **kwargs)
+
+    def delete(self, url: str, **kwargs: Any) -> Response:
+        return self.session.delete(url, **kwargs)

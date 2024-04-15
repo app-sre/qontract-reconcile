@@ -1,6 +1,6 @@
 [TOC]
 
-# Cost Report
+# AWS Cost Report
 
 ## Summary
 

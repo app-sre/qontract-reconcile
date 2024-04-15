@@ -137,7 +137,7 @@ def test_cost_report_execute(
     mock_get_app_names: Any,
     fx: Callable,
 ) -> None:
-    expected_output = fx("empty_cost_report.md")
+    expected_output = fx("empty_aws_cost_report.md")
     mock_get_app_names.return_value = []
 
     output = cost_report_command.execute()
@@ -290,7 +290,7 @@ def test_cost_report_render(
     cost_report_command: CostReportCommand,
     fx: Callable,
 ) -> None:
-    expected_output = fx("cost_report.md")
+    expected_output = fx("aws_cost_report.md")
     reports = {
         "parent": PARENT_APP_REPORT,
         "child": CHILD_APP_REPORT,

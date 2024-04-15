@@ -1,14 +1,17 @@
-from typing import Any, List, Self
+from typing import List
+
+from urllib3.util import Retry
 
 from reconcile.utils.oauth2_backend_application_session import (
     OAuth2BackendApplicationSession,
 )
+from reconcile.utils.rest_api_base import ApiBase
 from tools.cli_commands.cost_report.response import ReportCostResponse
 
 REQUEST_TIMEOUT = 60
 
 
-class CostManagementApi:
+class CostManagementApi(ApiBase):
     def __init__(
         self,
         base_url: str,
@@ -16,25 +19,24 @@ class CostManagementApi:
         client_id: str,
         client_secret: str,
         scope: List[str] | None = None,
-        request_timeout: int | None = REQUEST_TIMEOUT,
     ) -> None:
-        self.base_url = base_url
-        self.request_timeout = request_timeout
-        self.session = OAuth2BackendApplicationSession(
+        session = OAuth2BackendApplicationSession(
             client_id=client_id,
             client_secret=client_secret,
             token_url=token_url,
             scope=scope,
         )
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        self.cleanup()
-
-    def cleanup(self) -> None:
-        self.session.close()
+        max_retries = Retry(
+            total=3,
+            backoff_factor=15,  # large backoff required for server-side processing
+            status_forcelist=[500, 502, 503, 504],
+        )
+        super().__init__(
+            host=base_url,
+            session=session,
+            read_timeout=REQUEST_TIMEOUT,
+            max_retries=max_retries,
+        )
 
     def get_aws_costs_report(self, app: str) -> ReportCostResponse:
         params = {
@@ -48,10 +50,9 @@ class CostManagementApi:
         }
         response = self.session.request(
             method="GET",
-            url=f"{self.base_url}/reports/aws/costs/",
-            headers={"Content-Type": "application/json"},
+            url=f"{self.host}/reports/aws/costs/",
             params=params,
-            timeout=self.request_timeout,
+            timeout=self.read_timeout,
         )
         response.raise_for_status()
         return ReportCostResponse.parse_obj(response.json())

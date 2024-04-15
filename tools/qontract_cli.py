@@ -2600,7 +2600,7 @@ def alerts(ctx, file_path):
 
 @get.command()
 @click.pass_context
-def cost_report(ctx):
+def aws_cost_report(ctx):
     command = CostReportCommand.create()
     print(command.execute())
 

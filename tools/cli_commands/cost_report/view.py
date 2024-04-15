@@ -16,7 +16,7 @@ LAYOUT = """\
 """
 
 HEADER = """\
-# Cost Report
+# AWS Cost Report
 """
 
 SUMMARY = """\
