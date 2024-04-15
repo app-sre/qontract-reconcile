@@ -96,11 +96,12 @@ class JiraClient:
         if settings and settings["jiraWatcher"]:
             read_timeout = settings["jiraWatcher"]["readTimeout"]
             connect_timeout = settings["jiraWatcher"]["connectTimeout"]
-        self.timeout = (read_timeout, connect_timeout)
         if not self.server:
             raise RuntimeError("JiraClient.server is not set.")
 
-        self.jira = JIRA(self.server, token_auth=token_auth, timeout=self.timeout)
+        self.jira = JIRA(
+            self.server, token_auth=token_auth, timeout=(read_timeout, connect_timeout)
+        )
 
     @staticmethod
     def create(
@@ -215,7 +216,13 @@ class JiraClient:
             raise RuntimeError("JiraClient.server is not set.")
 
         # use anonymous access to get public projects
-        jira_api_anon = JIRA(server=self.server, timeout=self.timeout)
+        jira_api_anon = JIRA(
+            server=self.server,
+            timeout=(
+                JiraClient.DEFAULT_READ_TIMEOUT,
+                JiraClient.DEFAULT_CONNECT_TIMEOUT,
+            ),
+        )
         return [project.key for project in jira_api_anon.projects()]
 
     def components(self) -> list[str]:
