@@ -17,6 +17,7 @@ from reconcile.gql_definitions.templating.template_collection import (
 )
 from reconcile.templating.lib.merge_request_manager import (
     MergeRequestManager,
+    MrData,
     create_parser,
 )
 from reconcile.templating.lib.model import TemplateInput, TemplateOutput
@@ -146,10 +147,12 @@ class ClonedRepoGitlabPersistence(FilePersistence):
         if any([o.input.enable_auto_approval for o in outputs]):
             auto_approved = [o for o in outputs if o.auto_approved]
             if auto_approved:
-                self.mr_manager.create_merge_request(auto_approved, True)
+                self.mr_manager.create_merge_request(
+                    MrData(data=auto_approved, auto_approved=True)
+                )
                 return
 
-        self.mr_manager.create_merge_request(outputs, False)
+        self.mr_manager.create_merge_request(MrData(data=outputs, auto_approved=False))
 
     def read(self, path: str) -> Optional[str]:
         return self._read_local_file(join_path(self.local_path, path))

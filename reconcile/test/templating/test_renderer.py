@@ -13,7 +13,7 @@ from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionVariablesV1,
     TemplateV1,
 )
-from reconcile.templating.lib.merge_request_manager import MergeRequestManager
+from reconcile.templating.lib.merge_request_manager import MergeRequestManager, MrData
 from reconcile.templating.lib.model import TemplateInput
 from reconcile.templating.renderer import (
     ClonedRepoGitlabPersistence,
@@ -176,7 +176,9 @@ def test_crg_file_persistence_write(
     crg.write(output)
 
     mr_manager.housekeeping.assert_called_once()
-    mr_manager.create_merge_request.assert_called_once_with(output, False)
+    mr_manager.create_merge_request.assert_called_once_with(
+        MrData(data=output, auto_approved=False)
+    )
 
 
 def test_crg_file_persistence_write_auto_approval(
@@ -195,14 +197,18 @@ def test_crg_file_persistence_write_auto_approval(
     output = [tauto, tnoauto]
     crg.write(output)
 
-    mr_manager.create_merge_request.assert_called_with(output, False)
+    mr_manager.create_merge_request.assert_called_with(
+        MrData(data=output, auto_approved=False)
+    )
 
     template_input.enable_auto_approval = True
     output = [tauto, tnoauto]
 
     crg.write(output)
 
-    mr_manager.create_merge_request.assert_called_with([tauto], True)
+    mr_manager.create_merge_request.assert_called_with(
+        MrData(data=[tauto], auto_approved=True)
+    )
 
 
 def test_crg_file_persistence_read_found(mocker: MockerFixture, tmp_path: Path) -> None:

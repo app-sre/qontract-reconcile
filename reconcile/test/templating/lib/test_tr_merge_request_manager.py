@@ -5,6 +5,7 @@ from pytest_mock import MockerFixture
 
 from reconcile.templating.lib.merge_request_manager import (
     MergeRequestManager,
+    MrData,
     TemplateInfo,
     TemplateRenderingMR,
     create_parser,
@@ -73,11 +74,15 @@ def test_create_tr_merge_request_fail(
         input2 = template_input.copy()
         input2.collection = "foo"
         mergereqeustmanager[0].create_merge_request(
-            [
-                TemplateOutput(is_new=True, content="", path="", input=template_input),
-                TemplateOutput(is_new=True, content="", path="", input=input2),
-            ],
-            False,
+            MrData(
+                data=[
+                    TemplateOutput(
+                        is_new=True, content="", path="", input=template_input
+                    ),
+                    TemplateOutput(is_new=True, content="", path="", input=input2),
+                ],
+                auto_approved=False,
+            ),
         )
 
 
@@ -86,15 +91,17 @@ def test_create_tr_merge_request_create(
 ) -> None:
     mrm, vcs = mergereqeustmanager
     mrm.create_merge_request(
-        [
-            TemplateOutput(
-                input=TemplateInput(collection="foo", collection_hash="abc"),
-                is_new=True,
-                content="",
-                path="",
-            )
-        ],
-        False,
+        MrData(
+            data=[
+                TemplateOutput(
+                    input=TemplateInput(collection="foo", collection_hash="abc"),
+                    is_new=True,
+                    content="",
+                    path="",
+                )
+            ],
+            auto_approved=False,
+        ),
     )
 
     vcs.open_app_interface_merge_request.assert_called_once()
@@ -115,15 +122,17 @@ def test_create_tr_merge_request_found(
         )
     )
     mrm.create_merge_request(
-        [
-            TemplateOutput(
-                input=TemplateInput(collection="foo", collection_hash="abc"),
-                is_new=True,
-                content="",
-                path="",
-            )
-        ],
-        False,
+        MrData(
+            data=[
+                TemplateOutput(
+                    input=TemplateInput(collection="foo", collection_hash="abc"),
+                    is_new=True,
+                    content="",
+                    path="",
+                )
+            ],
+            auto_approved=False,
+        ),
     )
     if closed:
         vcs.close_app_interface_mr.assert_called_once()

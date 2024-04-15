@@ -121,16 +121,20 @@ class TemplateRenderingMR(MergeRequestBase):
                 )
 
 
+class MrData(BaseModel):
+    data: list[TemplateOutput]
+    auto_approved: bool
+
+
 class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
     def __init__(self, vcs: VCS, parser: Parser):
         super().__init__(vcs, parser, TR_LABEL)
 
-    def create_merge_request(
-        self, output: list[TemplateOutput], auto_approve: bool
-    ) -> None:
+    def create_merge_request(self, data: MrData) -> None:
         if not self._housekeeping_ran:
             self.housekeeping()
 
+        output = data.data
         collections = {o.input.collection for o in output}
         collection_hashes = {o.input.collection_hash for o in output}
         additional_labels = {label for o in output for label in o.input.labels}
@@ -162,7 +166,7 @@ class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
         logging.info("Opening MR for %s with hash (%s)", collection, collection_hash)
         mr_labels = [TR_LABEL]
 
-        if auto_approve:
+        if data.auto_approved:
             mr_labels.append(AUTO_MERGE)
 
         if additional_labels:
