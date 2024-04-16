@@ -267,8 +267,8 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     if output:
                         outputs.append(output)
 
-                if not dry_run:
-                    p.write(outputs)
+                    if not dry_run:
+                        p.write(outputs)
 
     @property
     def name(self) -> str:
