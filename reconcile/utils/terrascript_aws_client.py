@@ -36,6 +36,7 @@ from sretoolbox.utils import threaded
 from terrascript import (
     Backend,
     Data,
+    Module,
     Output,
     Provider,
     Resource,
@@ -130,8 +131,6 @@ from terrascript.resource import (
     aws_sns_topic,
     aws_sns_topic_subscription,
     aws_sqs_queue,
-    aws_subnet,
-    aws_vpc,
     aws_vpc_endpoint,
     aws_vpc_endpoint_subnet_association,
     aws_vpc_peering_connection,
@@ -149,7 +148,6 @@ from reconcile.github_org import get_default_config
 from reconcile.gql_definitions.fragments.aws_vpc_request import (
     VPCRequest,
 )
-from reconcile.gql_definitions.fragments.aws_vpc_request_subnet import VPCRequestSubnet
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
 )
@@ -1187,64 +1185,32 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     tf_resource = aws_route(route_identifier, **values)
                     self.add_resource(infra_account_name, tf_resource)
 
-    def _make_subnet_identifier(self, vpc_identifier: str, cidr: str) -> str:
-        """Returns a subnet identifier that complies with Terraforms standards"""
-        sulfix = cidr.replace(".", "-").replace("/", "-")
-        return f"{vpc_identifier}-subnet-{sulfix}"
-
-    def _add_subnets_by_privacy(
-        self,
-        subnets: Iterable[VPCRequestSubnet],
-        vpc_identifier: str,
-        vpc_resource: aws_vpc,
-        vpc: VPCRequest,
-        privacy: str,
-    ) -> None:
-        """Add subnets on resources based on privacy that can be public and private"""
-        for s in subnets:
-            subnet_identifier = (
-                self._make_subnet_identifier(vpc_identifier, s.cidr_block)
-                + "-"
-                + privacy
-            )
-            values = {
-                "cidr_block": s.cidr_block,
-                "availability_zone": s.availability_zone,
-                "vpc_id": f"${{{vpc_resource.id}}}",
-                "tags": {"Name": subnet_identifier},
-            }
-            vpc_subnet = aws_subnet(subnet_identifier, **values)
-            self.add_resource(vpc.account.name, vpc_subnet)
-
     def populate_vpc_requests(self, vpc_requests: Iterable[VPCRequest]) -> None:
-        for vpc in vpc_requests:
-            identifier = vpc.identifier
-
+        for request in vpc_requests:
             values = {
-                "cidr_block": vpc.cidr_block.network_address,
-                "tags": {"Name": vpc.identifier},
+                "source": "terraform-aws-modules/vpc/aws",
+                "version": "5.7.1",
+                "name": request.identifier,
+                "cidr": request.cidr_block.network_address,
+                "private_subnet_tags": {"kubernetes.io/role/internal-elb": "1"},
+                "public_subnet_tags": {"kubernetes.io/role/elb": "1"},
+                "create_database_subnet_group": False,
+                "enable_nat_gateway": True,
+                "enable_dns_hostnames": True,
+                "tags": {
+                    "Terraform": True,
+                },
             }
-            if self._multiregion_account(vpc.account.name):
-                values["provider"] = f"aws.{vpc.region}"
-            vpc_resource = aws_vpc(identifier, **values)
-            self.add_resource(vpc.account.name, vpc_resource)
 
-            if vpc.subnets and vpc.subnets.private:
-                self._add_subnets_by_privacy(
-                    subnets=vpc.subnets.private,
-                    vpc_identifier=identifier,
-                    vpc_resource=vpc_resource,
-                    vpc=vpc,
-                    privacy="private",
-                )
-            if vpc.subnets and vpc.subnets.public:
-                self._add_subnets_by_privacy(
-                    subnets=vpc.subnets.public,
-                    vpc_identifier=identifier,
-                    vpc_resource=vpc_resource,
-                    vpc=vpc,
-                    privacy="public",
-                )
+            if request.subnets and request.subnets.public:
+                values["public_subnets"] = request.subnets.public
+            if request.subnets and request.subnets.private:
+                values["private_subnets"] = request.subnets.private
+            if request.subnets and request.subnets.availability_zones:
+                values["azs"] = request.subnets.availability_zones
+
+            module = Module("vpc", **values)
+            self.add_resource(request.account.name, module)
 
     def populate_tgw_attachments(self, desired_state):
         for item in desired_state:
