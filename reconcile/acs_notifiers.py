@@ -1,5 +1,4 @@
 import logging
-from typing import Any
 
 import reconcile.gql_definitions.acs.acs_policies as gql_acs_policies
 from reconcile.gql_definitions.jira.jira_servers import (
@@ -13,7 +12,6 @@ from reconcile.utils.acs.notifiers import (
     AcsNotifiersApi,
     JiraCredentials,
     JiraNotifier,
-    SeverityPriorityMapping,
 )
 from reconcile.utils.differ import diff_iterables
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -53,44 +51,11 @@ class AcsNotifiersIntegration(QontractReconcileIntegration[NoParams]):
             }.values()
         )
 
-    @staticmethod
-    def _build_jira_notifier(
-        escalation_policy: gql_acs_policies.AppEscalationPolicyV1,
-    ) -> JiraNotifier:
-        jira_board = escalation_policy.channels.jira_board[0]
-
-        custom_fields: dict[str, Any] = {}
-        if jira_board.issue_security_id:
-            custom_fields["security"] = {"id": jira_board.issue_security_id}
-        if escalation_policy.channels.jira_component:
-            custom_fields["components"] = [
-                {"name": escalation_policy.channels.jira_component}
-            ]
-        if escalation_policy.channels.jira_labels:
-            custom_fields["labels"] = escalation_policy.channels.jira_labels
-
-        item = JiraNotifier(
-            name=f"jira-{escalation_policy.name}",
-            board=jira_board.name,
-            url=jira_board.server.server_url,
-            issue_type=jira_board.issue_type or "Task",
-            severity_priority_mappings=sorted(
-                [
-                    SeverityPriorityMapping(**vars(sp))
-                    for sp in jira_board.severity_priority_mappings.mappings
-                ],
-                key=lambda m: m.severity,
-            ),
-            custom_fields=custom_fields,
-        )
-
-        return item
-
     def get_desired_state(
         self, acs_policies: list[gql_acs_policies.AcsPolicyV1]
     ) -> list[JiraNotifier]:
         return [
-            self._build_jira_notifier(ep)
+            JiraNotifier.from_escalation_policy(ep)
             for ep in self._get_escalation_policies(acs_policies)
         ]
 

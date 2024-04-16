@@ -3,12 +3,12 @@ from collections.abc import Callable
 from typing import cast
 
 import reconcile.gql_definitions.acs.acs_policies as gql_acs_policies
-from reconcile.acs_notifiers import AcsNotifiersIntegration
 from reconcile.gql_definitions.acs.acs_policies import (
     AcsPolicyConditionsV1,
     AcsPolicyV1,
 )
 from reconcile.utils import gql
+from reconcile.utils.acs.notifiers import JiraNotifier
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
 from reconcile.utils.differ import diff_iterables
 from reconcile.utils.runtime.integration import (
@@ -65,7 +65,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         ]
         jira_notifier = (
             notifier_name_to_id.get(
-                AcsNotifiersIntegration._build_jira_notifier(
+                JiraNotifier.from_escalation_policy(
                     gql_policy.integrations.notifiers.jira.escalation_policy
                 ).name
             )
