@@ -64,11 +64,11 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
             pc for c in gql_policy.conditions if (pc := self._build_policy_condition(c))
         ]
         jira_notifier = (
-            notifier_name_to_id[
+            notifier_name_to_id.get(
                 AcsNotifiersIntegration._build_jira_notifier(
                     gql_policy.integrations.notifiers.jira.escalation_policy
                 ).name
-            ]
+            )
             if gql_policy.integrations
             and gql_policy.integrations.notifiers
             and gql_policy.integrations.notifiers.jira
