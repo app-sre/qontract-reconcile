@@ -71,16 +71,21 @@ def fetch_desired_state():
             access_level = aws_infra_access["accessLevel"]
             aws_account = aws_group["account"]
             aws_account_uid = aws_account["uid"]
-            users = [
-                user["org_username"]
+            sso = aws_account["sso"]
+            users_and_roles = [
+                (user["org_username"], role["name"])
                 for role in aws_group["roles"]
                 for user in role["users"]
             ]
 
-            for user in users:
+            for user, role in users_and_roles:
+                if sso:
+                    user_arn = f"arn:aws:sts::{aws_account_uid}:assumed-role/{aws_account_uid}-{role}/{user}"
+                else:
+                    user_arn = f"arn:aws:iam::{aws_account_uid}:user/{user}"
                 item = {
                     "cluster": cluster,
-                    "user_arn": f"arn:aws:iam::{aws_account_uid}:user/{user}",
+                    "user_arn": user_arn,
                     "access_level": access_level,
                 }
                 desired_state.append(item)

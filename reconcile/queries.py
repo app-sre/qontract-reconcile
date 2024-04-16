@@ -649,6 +649,7 @@ awsInfrastructureAccess {
     account {
       name
       uid
+      sso
       terraformUsername
       automationToken {
         path
@@ -658,6 +659,7 @@ awsInfrastructureAccess {
       }
     }
     roles {
+      name
       users {
         org_username
       }
