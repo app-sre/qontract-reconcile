@@ -3,6 +3,7 @@ from collections.abc import Callable
 from typing import cast
 
 import reconcile.gql_definitions.acs.acs_policies as gql_acs_policies
+from reconcile.acs_notifiers import AcsNotifiersIntegration
 from reconcile.gql_definitions.acs.acs_policies import (
     AcsPolicyConditionsV1,
     AcsPolicyV1,
@@ -62,12 +63,21 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         conditions = [
             pc for c in gql_policy.conditions if (pc := self._build_policy_condition(c))
         ]
+        jira_notifier = (
+            notifier_name_to_id[
+                AcsNotifiersIntegration._build_jira_notifier(
+                    gql_policy.integrations.notifiers.jira.escalation_policy
+                ).name
+            ]
+            if gql_policy.integrations
+            and gql_policy.integrations.notifiers
+            and gql_policy.integrations.notifiers.jira
+            else None
+        )
         return Policy(
             name=gql_policy.name,
             description=gql_policy.description,
-            notifiers=sorted([notifier_name_to_id[n] for n in gql_policy.notifiers])
-            if gql_policy.notifiers
-            else [],
+            notifiers=[jira_notifier] if jira_notifier else [],
             severity=f"{gql_policy.severity.upper()}_SEVERITY",  # align with acs api severity value format
             scope=sorted(
                 [
