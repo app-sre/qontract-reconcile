@@ -53,8 +53,9 @@ class AcsNotifiersIntegration(QontractReconcileIntegration[NoParams]):
             }.values()
         )
 
+    @staticmethod
     def _build_jira_notifier(
-        self, escalation_policy: gql_acs_policies.AppEscalationPolicyV1
+        escalation_policy: gql_acs_policies.AppEscalationPolicyV1,
     ) -> JiraNotifier:
         jira_board = escalation_policy.channels.jira_board[0]
 
