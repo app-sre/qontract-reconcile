@@ -24,7 +24,6 @@ query AcsPolicy {
    	name
     description
     severity
-    notifiers
     integrations {
       notifiers {
         jira {
@@ -211,7 +210,6 @@ class AcsPolicyV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     description: Optional[str] = Field(..., alias="description")
     severity: str = Field(..., alias="severity")
-    notifiers: Optional[list[str]] = Field(..., alias="notifiers")
     integrations: Optional[AcsPolicyIntegrationsV1] = Field(..., alias="integrations")
     categories: list[str] = Field(..., alias="categories")
     scope: Union[AcsPolicyScopeClusterV1, AcsPolicyScopeNamespaceV1, AcsPolicyScopeV1] = Field(..., alias="scope")

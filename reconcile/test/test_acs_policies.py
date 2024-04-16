@@ -37,7 +37,7 @@ CUSTOM_POLICY_ONE_NAME = "app-sre-clusters-fixable-cve-7-fixable"
 CUSTOM_POLICY_ONE_ID = "365d4e71-3241-4448-9f3d-eb0eed1c1820"
 CUSTOM_POLICY_TWO_NAME = "app-sre-namespaces-severity-critical"
 CUSTOM_POLICY_TWO_ID = "2200245e-b700-46c2-8793-3e437fca6aa0"
-JIRA_NOTIFIER_NAME = "app-sre-jira"
+JIRA_NOTIFIER_NAME = "jira-test-ep"
 JIRA_NOTIFIER_ID = "54170627-da34-40cb-839a-af9fbeac10fb"
 
 
@@ -49,12 +49,11 @@ def query_data_desired_state() -> AcsPolicyQueryData:
                 name=CUSTOM_POLICY_ONE_NAME,
                 description="CVEs within app-sre clusters with CVSS score gte to 7 and fixable",
                 severity="high",
-                notifiers=[JIRA_NOTIFIER_NAME],
                 integrations=AcsPolicyIntegrationsV1(
                     notifiers=AcsPolicyIntegrationNotifiersV1(
                         jira=AcsPolicyIntegrationNotifierJiraV1(
                             escalationPolicy=AppEscalationPolicyV1(
-                                name="test-ep",
+                                name=JIRA_NOTIFIER_NAME.replace("jira-", ""),
                                 channels=AppEscalationPolicyChannelsV1(
                                     jiraBoard=[
                                         JiraBoardV1(
@@ -99,37 +98,7 @@ def query_data_desired_state() -> AcsPolicyQueryData:
                 name=CUSTOM_POLICY_TWO_NAME,
                 description="image security policy violations of critical severity within app-sre namespaces",
                 severity="critical",
-                notifiers=[],
-                integrations=AcsPolicyIntegrationsV1(
-                    notifiers=AcsPolicyIntegrationNotifiersV1(
-                        jira=AcsPolicyIntegrationNotifierJiraV1(
-                            escalationPolicy=AppEscalationPolicyV1(
-                                name="test-ep",
-                                channels=AppEscalationPolicyChannelsV1(
-                                    jiraBoard=[
-                                        JiraBoardV1(
-                                            name="board",
-                                            server=JiraServerV1(
-                                                serverUrl="server",
-                                            ),
-                                            severityPriorityMappings=JiraSeverityPriorityMappingsV1(
-                                                name="sp",
-                                                mappings=[],
-                                            ),
-                                            issueType="Task",
-                                            issueSecurityId="0",
-                                            disable=DisableJiraBoardAutomationsV1(
-                                                integrations=[]
-                                            ),
-                                        )
-                                    ],
-                                    jiraComponent="",
-                                    jiraLabels=[],
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
+                integrations=None,
                 categories=["vulnerability-management", "devops-best-practices"],
                 scope=AcsPolicyScopeNamespaceV1(
                     level="namespace",

@@ -283,7 +283,6 @@ def acs_policies(
             name="acs-policy-1",
             description="CVEs within app-sre clusters with CVSS score gte to 7 and fixable",
             severity="high",
-            notifiers=[],
             integrations=AcsPolicyIntegrationsV1(
                 notifiers=AcsPolicyIntegrationNotifiersV1(
                     jira=AcsPolicyIntegrationNotifierJiraV1(
@@ -302,7 +301,6 @@ def acs_policies(
             name="acs-policy-2",
             description="image security policy violations of critical severity within app-sre namespaces",
             severity="critical",
-            notifiers=[],
             integrations=AcsPolicyIntegrationsV1(
                 notifiers=AcsPolicyIntegrationNotifiersV1(
                     jira=AcsPolicyIntegrationNotifierJiraV1(
@@ -332,15 +330,11 @@ def test_integration_get_escalation_policies(
     assert result[0] == escalation_policy
 
 
-def test_build_jira_notifier(
-    acs_notifier_integration: AcsNotifiersIntegration,
+def test_build_jira_notifier_from_ecalation_policy(
     escalation_policy: AppEscalationPolicyV1,
     jira_notifier: JiraNotifier,
 ) -> None:
-    assert (
-        acs_notifier_integration._build_jira_notifier(escalation_policy)
-        == jira_notifier
-    )
+    assert JiraNotifier.from_escalation_policy(escalation_policy) == jira_notifier
 
 
 def test_get_desired_state(
