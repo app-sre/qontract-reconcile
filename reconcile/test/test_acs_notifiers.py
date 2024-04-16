@@ -283,7 +283,6 @@ def acs_policies(
             name="acs-policy-1",
             description="CVEs within app-sre clusters with CVSS score gte to 7 and fixable",
             severity="high",
-            notifiers=[],
             integrations=AcsPolicyIntegrationsV1(
                 notifiers=AcsPolicyIntegrationNotifiersV1(
                     jira=AcsPolicyIntegrationNotifierJiraV1(
@@ -302,7 +301,6 @@ def acs_policies(
             name="acs-policy-2",
             description="image security policy violations of critical severity within app-sre namespaces",
             severity="critical",
-            notifiers=[],
             integrations=AcsPolicyIntegrationsV1(
                 notifiers=AcsPolicyIntegrationNotifiersV1(
                     jira=AcsPolicyIntegrationNotifierJiraV1(
