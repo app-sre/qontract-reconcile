@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 
@@ -29,6 +31,13 @@ class MRCheckStatus(Enum):
     RUNNING = 3
 
 
+@dataclass
+class Commit:
+    repo: str
+    sha: str
+    date: datetime
+
+
 class VCS:
     """
     Abstraction layer for aggregating different Version Control Systems.
@@ -46,17 +55,20 @@ class VCS:
         gitlab_instances: Iterable[GitlabInstanceV1],
         app_interface_repo_url: str,
         dry_run: bool,
-        allow_deleting_mrs: bool,
-        allow_opening_mrs: bool,
+        allow_deleting_mrs: bool = False,
+        allow_opening_mrs: bool = False,
         gitlab_instance: Optional[GitLabApi] = None,
         default_gh_token: Optional[str] = None,
         app_interface_api: Optional[GitLabApi] = None,
+        github_api_per_repo_url: Optional[dict[str, GithubRepositoryApi]] = None,
     ):
         self._dry_run = dry_run
         self._allow_deleting_mrs = allow_deleting_mrs
         self._allow_opening_mrs = allow_opening_mrs
         self._secret_reader = secret_reader
-        self._gh_per_repo_url: dict[str, GithubRepositoryApi] = {}
+        self._gh_per_repo_url: dict[str, GithubRepositoryApi] = (
+            {} if not github_api_per_repo_url else github_api_per_repo_url
+        )
         self._default_gh_token = (
             default_gh_token
             if default_gh_token
@@ -156,6 +168,44 @@ class VCS:
             return github.get_commit_sha(ref=ref)
         # assume gitlab by default
         return self._gitlab_instance.get_commit_sha(ref=ref, repo_url=repo_url)
+
+    def get_commits_between(
+        self,
+        repo_url: str,
+        commit_from: str,
+        commit_to: str,
+        auth_code: Optional[HasSecret],
+    ) -> list[Commit]:
+        """
+        Return a list of commits between two commits.
+        Note, that the commit_to is included in the result list, whereas commit_from is not included.
+        """
+        commits: list[Commit] = []
+        if "github.com" in repo_url:
+            github = self._init_github(repo_url=repo_url, auth_code=auth_code)
+            data = github.compare(commit_from=commit_from, commit_to=commit_to)
+            for gh_commit in data:
+                commits.append(
+                    Commit(
+                        repo=repo_url,
+                        sha=gh_commit.sha,
+                        date=gh_commit.commit.committer.date,
+                    )
+                )
+        # assume gitlab by default
+        else:
+            data = self._gitlab_instance.repository_compare(
+                repo_url=repo_url, ref_from=commit_from, ref_to=commit_to
+            )
+            for gl_commit in data:
+                commits.append(
+                    Commit(
+                        repo=repo_url,
+                        sha=gl_commit["id"],
+                        date=datetime.fromisoformat(gl_commit["committed_date"]),
+                    )
+                )
+        return commits
 
     def close_app_interface_mr(self, mr: ProjectMergeRequest, comment: str) -> None:
         if not self._allow_deleting_mrs:
