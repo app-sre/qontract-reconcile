@@ -339,7 +339,7 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
         "accounts": [
             add_account_identity(a)
             for a in queries.get_aws_accounts(terraform_state=True)
-            if integration_is_enabled(QONTRACT_INTEGRATION, a)
+            if integration_is_enabled(QONTRACT_INTEGRATION.replace("_", "-"), a)
         ],
         "roles": [add_role_identity(r) for r in get_tf_roles()],
     }
