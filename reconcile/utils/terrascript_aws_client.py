@@ -1187,6 +1187,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def populate_vpc_requests(self, vpc_requests: Iterable[VPCRequest]) -> None:
         for request in vpc_requests:
+            # The default values here come from infra repo's module configuration
             values = {
                 "source": "terraform-aws-modules/vpc/aws",
                 "version": "5.7.1",
@@ -1209,8 +1210,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if request.subnets and request.subnets.availability_zones:
                 values["azs"] = request.subnets.availability_zones
 
+            aws_account = request.account.name
             module = Module("vpc", **values)
-            self.add_resource(request.account.name, module)
+            self.add_resource(aws_account, module)
+
+            # The outputs for module are only working with this sintaxe
+            vpc_id_output = Output("vpc_id", value="${module.vpc.vpc_id}")
+            self.add_resource(aws_account, vpc_id_output)
+
+            vpc_cidr_block_output = Output("vpc_cidr_block", value="${module.vpc.vpc_cidr_block}")
+            self.add_resource(aws_account, vpc_cidr_block_output)
+
+            private_subnets_output = Output("private_subnets", value="${module.vpc.private_subnets}")
+            self.add_resource(aws_account, private_subnets_output)
+
+            public_subnets_output = Output("public_subnets", value="${module.vpc.public_subnets}")
+            self.add_resource(aws_account, public_subnets_output)
 
     def populate_tgw_attachments(self, desired_state):
         for item in desired_state:
