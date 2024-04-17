@@ -1,4 +1,3 @@
-import logging
 import sys
 from textwrap import indent
 from typing import (
@@ -113,11 +112,12 @@ def setup(
     appsre_pgp_key: Optional[str] = None,
     account_name: Optional[str] = None,
 ) -> tuple[list[dict[str, Any]], dict[str, str], bool, AWSApi]:
-    accounts = queries.get_aws_accounts(terraform_state=True)
-    if account_name:
-        accounts = [n for n in accounts if n["name"] == account_name]
-        if not accounts:
-            raise ValueError(f"aws account {account_name} is not found")
+    accounts = [
+        a
+        for a in queries.get_aws_accounts(terraform_state=True)
+        if integration_is_enabled(QONTRACT_INTEGRATION.replace("_", "-"), a)
+        and (not account_name or a["name"] == account_name)
+    ]
     roles = get_tf_roles()
     participating_aws_accounts = _filter_participating_aws_accounts(accounts, roles)
 
@@ -253,9 +253,7 @@ def run(
     )
 
     if not accounts:
-        logging.warning(
-            f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
-        )
+        # no enabled accounts found
         return
 
     if print_to_file:
