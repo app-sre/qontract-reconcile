@@ -18,6 +18,7 @@ from reconcile.utils import (
     gql,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
@@ -338,6 +339,7 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
         "accounts": [
             add_account_identity(a)
             for a in queries.get_aws_accounts(terraform_state=True)
+            if integration_is_enabled(QONTRACT_INTEGRATION, a)
         ],
         "roles": [add_role_identity(r) for r in get_tf_roles()],
     }
