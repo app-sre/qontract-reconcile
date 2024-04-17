@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import logging
 from collections.abc import (
     Iterable,
@@ -81,6 +82,10 @@ class JiraClient:
         self.server = server
         self.project = project
         self.jira = jira_api
+
+        # some caches
+        self.priorities = functools.lru_cache(maxsize=None)(self._priorities)
+        self.public_projects = functools.lru_cache(maxsize=None)(self._public_projects)
 
     def _deprecated_init(
         self, jira_board: Mapping[str, Any], settings: Optional[Mapping]
@@ -187,10 +192,10 @@ class JiraClient:
     def can_transition_issues(self) -> bool:
         return self.can_i("TRANSITION_ISSUES")
 
-    def project_issue_types(self, project: str) -> list[IssueType]:
+    def project_issue_types(self) -> list[IssueType]:
         return [
             IssueType(id=t.id, name=t.name, statuses=[s.name for s in t.statuses])
-            for t in self.jira.issue_types_for_project(project)
+            for t in self.jira.issue_types_for_project(self.project)
         ]
 
     def security_levels(self) -> list[SecurityLevel]:
@@ -201,7 +206,7 @@ class JiraClient:
         scheme = self.jira.project_issue_security_level_scheme(self.project)
         return [SecurityLevel(id=level.id, name=level.name) for level in scheme.levels]
 
-    def priorities(self) -> list[Priority]:
+    def _priorities(self) -> list[Priority]:
         """Return a list of all available Jira priorities."""
         return [Priority(id=p.id, name=p.name) for p in self.jira.priorities()]
 
@@ -210,7 +215,7 @@ class JiraClient:
         scheme = self.jira.project_priority_scheme(self.project)
         return scheme.optionIds
 
-    def public_projects(self) -> list[str]:
+    def _public_projects(self) -> list[str]:
         """Return a list of all public available projects."""
         if not self.server:
             raise RuntimeError("JiraClient.server is not set.")

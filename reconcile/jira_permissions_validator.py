@@ -90,7 +90,7 @@ def board_is_valid(
                 error |= ValidationError.INVALID_COMPONENT
 
         issue_type = board.issue_type if board.issue_type else default_issue_type
-        project_issue_types = jira.project_issue_types(board.name)
+        project_issue_types = jira.project_issue_types()
         project_issue_types_str = [i.name for i in project_issue_types]
         if issue_type not in project_issue_types_str:
             logging.error(
@@ -192,7 +192,6 @@ def validate_boards(
 ) -> bool:
     error = False
     jira_clients: dict[str, JiraClient] = {}
-    public_projects_cache: dict[str, list[str]] = {}
     for board in jira_boards:
         logging.debug(f"[{board.name}] checking ...")
         if board.server.server_url not in jira_clients:
@@ -204,10 +203,6 @@ def validate_boards(
             )
         jira = jira_clients[board.server.server_url]
         jira.project = board.name
-        if board.server.server_url not in public_projects_cache:
-            public_projects_cache[board.server.server_url] = jira.public_projects()
-        public_projects = public_projects_cache[board.server.server_url]
-
         try:
             error_flags = board_is_valid(
                 jira=jira,
@@ -215,7 +210,7 @@ def validate_boards(
                 default_issue_type=default_issue_type,
                 default_reopen_state=default_reopen_state,
                 jira_server_priorities={p.name: p.id for p in jira.priorities()},
-                public_projects=public_projects,
+                public_projects=jira.public_projects(),
             )
             match error_flags:
                 case 0:
