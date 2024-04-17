@@ -216,8 +216,13 @@ class VCS:
             self._app_interface_api.close(mr)
 
     def get_file_content_from_app_interface_master(self, file_path: str) -> str:
+        file_path = (
+            f"data/{file_path.lstrip('/')}"
+            if not file_path.startswith("data")
+            else file_path
+        )
         return self._app_interface_api.project.files.get(
-            file_path=f"data{file_path}", ref="master"
+            file_path=file_path, ref="master"
         ).decode()
 
     def get_open_app_interface_merge_requests(self) -> list[ProjectMergeRequest]:
