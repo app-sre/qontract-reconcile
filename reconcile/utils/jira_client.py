@@ -86,6 +86,7 @@ class JiraClient:
         # some caches
         self.priorities = functools.lru_cache(maxsize=None)(self._priorities)
         self.public_projects = functools.lru_cache(maxsize=None)(self._public_projects)
+        self.my_permissions = functools.lru_cache(maxsize=None)(self._my_permissions)
 
     def _deprecated_init(
         self, jira_board: Mapping[str, Any], settings: Optional[Mapping]
@@ -179,11 +180,12 @@ class JiraClient:
             )
         return issue
 
+    def _my_permissions(self, project: str) -> dict[str, Any]:
+        return self.jira.my_permissions(projectKey=project)["permissions"]
+
     def can_i(self, permission: str) -> bool:
         return bool(
-            self.jira.my_permissions(projectKey=self.project)["permissions"][
-                permission
-            ]["havePermission"]
+            self.my_permissions(project=self.project)[permission]["havePermission"]
         )
 
     def can_create_issues(self) -> bool:
