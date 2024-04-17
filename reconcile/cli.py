@@ -3610,3 +3610,26 @@ def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
             short_help=integration_cmd.short_help,  # type: ignore
         )
     return integration_meta
+
+
+@integration.command(short_help="Export metrics and data around saas deployments")
+@click.option("--env-name", default=None, help="environment to filter saas files by")
+@click.option("--app-name", default=None, help="app to filter saas files by.")
+@threaded()
+@click.pass_context
+def saas_metrics_exporter(ctx, env_name, app_name, thread_pool_size):
+    from reconcile.saas_metrics_exporter.integration import (
+        SaasMetricsExporter,
+        SaasMetricsExporterParams,
+    )
+
+    run_class_integration(
+        SaasMetricsExporter(
+            SaasMetricsExporterParams(
+                thread_pool_size=thread_pool_size,
+                env_name=env_name,
+                app_name=app_name,
+            )
+        ),
+        ctx.obj,
+    )
