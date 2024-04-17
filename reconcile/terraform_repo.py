@@ -12,8 +12,10 @@ from pydantic import (
 )
 
 from reconcile import queries
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     TerraformRepoV1,
+    TerraformRepoVariablesV1,
     query,
 )
 from reconcile.utils import gql
@@ -35,22 +37,19 @@ from reconcile.utils.state import (
 )
 
 
-class RepoSecret(BaseModel):
-    path: str
-    version: Optional[int]
-
-
 class RepoOutput(BaseModel):
     repository: str
     name: str
     ref: str
     project_path: str
     delete: bool
-    secret: RepoSecret
+    aws_creds: VaultSecret
+    variables: Optional[TerraformRepoVariablesV1]
     bucket: Optional[str]
     region: Optional[str]
     bucket_path: Optional[str]
     require_fips: bool
+    tf_version: str
 
 
 class OutputFile(BaseModel):
@@ -126,13 +125,16 @@ class TerraformRepoIntegration(
                 recreate_state=True,
             )
 
-    def print_output(self, diff: list[TerraformRepoV1], dry_run: bool) -> None:
+    def print_output(self, diff: list[TerraformRepoV1], dry_run: bool) -> OutputFile:
         """Parses and prints the output of a Terraform Repo diff for the executor
 
         :param diff: list of terraform repos to be acted on
         :type diff: list[TerraformRepoV1]
         :param dry_run: whether the executor should perform a tf apply
         :type dry_run: bool
+
+        :return: output of diff (used for testing)
+        :rtype: OutputFile
         """
         actions_list: list[RepoOutput] = []
 
@@ -144,10 +146,9 @@ class TerraformRepoIntegration(
                 project_path=repo.project_path,
                 delete=repo.delete or False,
                 require_fips=repo.require_fips or False,
-                secret=RepoSecret(
-                    path=repo.account.automation_token.path,
-                    version=repo.account.automation_token.version,
-                ),
+                tf_version=repo.tf_version,
+                aws_creds=repo.account.automation_token,
+                variables=repo.variables,
             )
             # terraform-repo will store its statefiles in a specified directory if there is a
             # terraform-state yaml file associated with the AWS account and a configuration is
@@ -178,6 +179,8 @@ class TerraformRepoIntegration(
                 raise ParameterError(f"Unable to write to '{self.params.output_file}'")
         else:
             print(yaml.safe_dump(data=output.dict(), explicit_start=True))
+
+        return output
 
     def get_repos(self, query_func: Callable) -> list[TerraformRepoV1]:
         """Gets a list of terraform repos defined in App Interface

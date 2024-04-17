@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-import yaml
 
 from reconcile.gql_definitions.fragments.terraform_state import (
     AWSTerraformStateIntegrationsV1,
@@ -10,9 +9,12 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     AWSAccountV1,
     TerraformRepoV1,
+    TerraformRepoVariablesV1,
     TerraformStateAWSV1,
 )
 from reconcile.terraform_repo import (
+    OutputFile,
+    RepoOutput,
     TerraformRepoIntegration,
     TerraformRepoIntegrationParams,
 )
@@ -21,8 +23,10 @@ from reconcile.utils.state import State
 
 A_REPO = "https://git-example/tf-repo-example"
 A_REPO_SHA = "a390f5cb20322c90861d6d80e9b70c6a579be1d0"
+A_REPO_VERSION = "1.4.5"
 B_REPO = "https://git-example/tf-repo-example2"
 B_REPO_SHA = "94edb90815e502b387c25358f5ec602e52d0bfbb"
+B_REPO_VERSION = "1.5.7"
 AWS_UID = "000000000000"
 AUTOMATION_TOKEN_PATH = "aws-secrets/terraform/foo"
 STATE_REGION = "us-east-1"
@@ -31,7 +35,7 @@ STATE_PROVIDER = "s3"
 
 
 @pytest.fixture
-def existing_repo(aws_account) -> TerraformRepoV1:
+def existing_repo(aws_account, tf_variables) -> TerraformRepoV1:
     return TerraformRepoV1(
         name="a_repo",
         repository=A_REPO,
@@ -40,27 +44,34 @@ def existing_repo(aws_account) -> TerraformRepoV1:
         projectPath="tf",
         delete=False,
         requireFips=True,
+        tfVersion=A_REPO_VERSION,
+        variables=tf_variables,
     )
 
 
 @pytest.fixture
-def existing_repo_output() -> str:
-    return f"""
-        dry_run: true
-        repos:
-        - repository: {A_REPO}
-          name: a_repo
-          ref: {A_REPO_SHA}
-          project_path: tf
-          delete: false
-          secret:
-            path: {AUTOMATION_TOKEN_PATH}
-            version: 1
-          bucket: {STATE_BUCKET}
-          region: {STATE_REGION}
-          bucket_path: tf-repo
-          require_fips: true
-    """
+def existing_repo_output(tf_variables) -> OutputFile:
+    return OutputFile(
+        dry_run=True,
+        repos=[
+            RepoOutput(
+                repository=A_REPO,
+                name="a_repo",
+                ref=A_REPO_SHA,
+                project_path="tf",
+                delete=False,
+                aws_creds=VaultSecret(
+                    path=AUTOMATION_TOKEN_PATH, version=1, field="all", format=None
+                ),
+                bucket=STATE_BUCKET,
+                region=STATE_REGION,
+                bucket_path="tf-repo",
+                require_fips=True,
+                tf_version=A_REPO_VERSION,
+                variables=tf_variables,
+            )
+        ],
+    )
 
 
 @pytest.fixture
@@ -73,32 +84,51 @@ def new_repo(aws_account_no_state) -> TerraformRepoV1:
         projectPath="tf",
         delete=False,
         requireFips=False,
+        tfVersion=B_REPO_VERSION,
+        variables=None,
     )
 
 
 @pytest.fixture
-def new_repo_output() -> str:
-    return f"""
-        dry_run: true
-        repos:
-        - repository: {B_REPO}
-          name: b_repo
-          ref: {B_REPO_SHA}
-          project_path: tf
-          delete: false
-          secret:
-            path: {AUTOMATION_TOKEN_PATH}
-            version: 1
-          bucket: null
-          region: null
-          bucket_path: null
-          require_fips: false
-    """
+def new_repo_output() -> OutputFile:
+    return OutputFile(
+        dry_run=True,
+        repos=[
+            RepoOutput(
+                repository=B_REPO,
+                name="b_repo",
+                ref=B_REPO_SHA,
+                project_path="tf",
+                delete=False,
+                aws_creds=VaultSecret(
+                    path=AUTOMATION_TOKEN_PATH, version=1, field="all", format=None
+                ),
+                bucket=None,
+                region=None,
+                bucket_path=None,
+                require_fips=False,
+                tf_version=B_REPO_VERSION,
+                variables=None,
+            )
+        ],
+    )
 
 
 @pytest.fixture()
 def automation_token() -> VaultSecret:
     return VaultSecret(path=AUTOMATION_TOKEN_PATH, version=1, field="all", format=None)
+
+
+@pytest.fixture()
+def tf_variables() -> TerraformRepoVariablesV1:
+    return TerraformRepoVariablesV1(
+        inputs=VaultSecret(
+            path="terraform-repo/inputs/abc", field="all", version=2, format=None
+        ),
+        outputs=VaultSecret(
+            path="terraform-repo/outputs/abc", field="all", version=2, format=None
+        ),
+    )
 
 
 @pytest.fixture()
@@ -141,13 +171,6 @@ def aws_account_no_state(automation_token) -> AWSAccountV1:
 @pytest.fixture
 def int_params() -> TerraformRepoIntegrationParams:
     return TerraformRepoIntegrationParams(output_file=None, validate_git=False)
-
-
-@pytest.fixture
-def int_params_print_to_tmp(tmp_path) -> TerraformRepoIntegrationParams:
-    return TerraformRepoIntegrationParams(
-        output_file=f"{tmp_path}/tf-repo.yaml", validate_git=False
-    )
 
 
 @pytest.fixture()
@@ -253,7 +276,7 @@ def test_delete_repo_without_flag(existing_repo, int_params):
         )
 
 
-def test_get_repo_state(s3_state_builder, int_params, existing_repo):
+def test_get_repo_state(s3_state_builder, int_params, existing_repo, tf_variables):
     state = s3_state_builder({
         "ls": [
             "/a_repo",
@@ -266,6 +289,8 @@ def test_get_repo_state(s3_state_builder, int_params, existing_repo):
                 "projectPath": "tf",
                 "delete": False,
                 "requireFips": True,
+                "tfVersion": A_REPO_VERSION,
+                "variables": tf_variables,
                 "account": {
                     "name": "foo",
                     "uid": AWS_UID,
@@ -319,15 +344,13 @@ def test_update_repo_state(int_params, existing_repo, state_mock):
 # these two output tests are to ensure that there isn't a sudden change to outputs that throws
 # off tf-executor
 def test_output_correct_statefile(
-    int_params_print_to_tmp, existing_repo, existing_repo_output, tmp_path, state_mock
+    int_params, existing_repo, existing_repo_output, state_mock
 ):
-    integration = TerraformRepoIntegration(params=int_params_print_to_tmp)
+    integration = TerraformRepoIntegration(params=int_params)
 
     existing_state: list = []
     desired_state = [existing_repo]
 
-    expected_output = yaml.safe_load(existing_repo_output)
-
     diff = integration.calculate_diff(
         existing_state=existing_state,
         desired_state=desired_state,
@@ -337,24 +360,19 @@ def test_output_correct_statefile(
     )
 
     assert diff
-    integration.print_output(diff, True)
+    current_output = integration.print_output(diff, True)
 
-    with open(f"{tmp_path}/tf-repo.yaml", "r", encoding="locale") as output:
-        yaml_rep = yaml.safe_load(output)
-
-        assert expected_output == yaml_rep
+    assert existing_repo_output == current_output
 
 
 def test_output_correct_no_statefile(
-    int_params_print_to_tmp, new_repo, new_repo_output, tmp_path, state_mock
+    int_params, new_repo, new_repo_output, tmp_path, state_mock
 ):
-    integration = TerraformRepoIntegration(params=int_params_print_to_tmp)
+    integration = TerraformRepoIntegration(params=int_params)
 
     existing_state: list = []
     desired_state = [new_repo]
 
-    expected_output = yaml.safe_load(new_repo_output)
-
     diff = integration.calculate_diff(
         existing_state=existing_state,
         desired_state=desired_state,
@@ -364,12 +382,9 @@ def test_output_correct_no_statefile(
     )
 
     assert diff
-    integration.print_output(diff, True)
+    current_output = integration.print_output(diff, True)
 
-    with open(f"{tmp_path}/tf-repo.yaml", "r", encoding="locale") as output:
-        yaml_rep = yaml.safe_load(output)
-
-        assert expected_output == yaml_rep
+    assert new_repo_output == current_output
 
 
 def test_fail_on_multiple_repos_dry_run(int_params, existing_repo, new_repo):
