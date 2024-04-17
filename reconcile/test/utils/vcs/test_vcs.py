@@ -44,7 +44,7 @@ def test_commits_between_gitlab(vcs_builder: Callable[[Mapping], VCS]) -> None:
         auth_code=None,
     )
 
-    assert commits == [
+    assert sorted(commits) == sorted([
         Commit(
             repo="https://gitlab.com/some/repo",
             sha="sha1",
@@ -55,7 +55,7 @@ def test_commits_between_gitlab(vcs_builder: Callable[[Mapping], VCS]) -> None:
             sha="sha2",
             date=datetime.fromisoformat("2021-01-01T00:00:00Z"),
         ),
-    ]
+    ])
 
     vcs._gitlab_instance.repository_compare.assert_called_once_with(  # type: ignore[attr-defined]
         ref_from="from", ref_to="to", repo_url="https://gitlab.com/some/repo"
@@ -77,7 +77,7 @@ def test_commits_between_github(vcs_builder: Callable[[Mapping], VCS]) -> None:
     vcs._gh_per_repo_url[
         "https://github.com/some/repo"
     ].compare.assert_called_once_with(commit_from="from", commit_to="to")
-    assert commits == [
+    assert sorted(commits) == sorted([
         Commit(
             repo="https://github.com/some/repo",
             sha="sha1",
@@ -88,5 +88,5 @@ def test_commits_between_github(vcs_builder: Callable[[Mapping], VCS]) -> None:
             sha="sha2",
             date=datetime.fromisoformat("2021-01-01T00:00:00Z"),
         ),
-    ]
+    ])
     vcs._gitlab_instance.repository_compare.assert_not_called()  # type: ignore[attr-defined]

@@ -31,7 +31,7 @@ class MRCheckStatus(Enum):
     RUNNING = 3
 
 
-@dataclass
+@dataclass(order=True)
 class Commit:
     repo: str
     sha: str
@@ -163,7 +163,7 @@ class VCS:
     ) -> str:
         if bool(self._is_commit_sha_regex.search(ref)):
             return ref
-        if "github.com" in repo_url:
+        if repo_url.startswith("https://github.com/"):
             github = self._init_github(repo_url=repo_url, auth_code=auth_code)
             return github.get_commit_sha(ref=ref)
         # assume gitlab by default
@@ -180,32 +180,30 @@ class VCS:
         Return a list of commits between two commits.
         Note, that the commit_to is included in the result list, whereas commit_from is not included.
         """
-        commits: list[Commit] = []
-        if "github.com" in repo_url:
+        if repo_url.startswith("https://github.com/"):
             github = self._init_github(repo_url=repo_url, auth_code=auth_code)
             data = github.compare(commit_from=commit_from, commit_to=commit_to)
-            for gh_commit in data:
-                commits.append(
-                    Commit(
-                        repo=repo_url,
-                        sha=gh_commit.sha,
-                        date=gh_commit.commit.committer.date,
-                    )
+            return [
+                Commit(
+                    repo=repo_url,
+                    sha=gh_commit.sha,
+                    date=gh_commit.commit.committer.date,
                 )
+                for gh_commit in data
+            ]
         # assume gitlab by default
         else:
             data = self._gitlab_instance.repository_compare(
                 repo_url=repo_url, ref_from=commit_from, ref_to=commit_to
             )
-            for gl_commit in data:
-                commits.append(
-                    Commit(
-                        repo=repo_url,
-                        sha=gl_commit["id"],
-                        date=datetime.fromisoformat(gl_commit["committed_date"]),
-                    )
+            return [
+                Commit(
+                    repo=repo_url,
+                    sha=gl_commit["id"],
+                    date=datetime.fromisoformat(gl_commit["committed_date"]),
                 )
-        return commits
+                for gl_commit in data
+            ]
 
     def close_app_interface_mr(self, mr: ProjectMergeRequest, comment: str) -> None:
         if not self._allow_deleting_mrs:
