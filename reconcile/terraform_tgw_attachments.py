@@ -39,6 +39,7 @@ from reconcile.typed_queries.terraform_tgw_attachments.aws_accounts import (
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
     OCM,
     OCMMap,
@@ -381,7 +382,12 @@ def _filter_tgw_accounts(
                     ClusterPeeringConnectionAccountTGWV1, peer_connection
                 )
                 tgw_account_names.add(tgw_peer_connection.account.name)
-    return [a for a in accounts if a.name in tgw_account_names]
+    return [
+        a
+        for a in accounts
+        if a.name in tgw_account_names
+        and integration_is_enabled(QONTRACT_INTEGRATION.replace("_", "-"), a)
+    ]
 
 
 def _fetch_desired_state_data_source(
