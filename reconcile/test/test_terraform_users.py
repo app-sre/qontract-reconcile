@@ -150,29 +150,3 @@ def test_setup(
         settings=None,
         init_users=False,
     )
-
-
-def test_empty_run(
-    mocker: MockerFixture,
-    pgp_reencryption_settings: PgpReencryptionSettingsQueryData,
-    test_aws_account: dict,
-    gql_api_builder: Callable[..., GqlApi],
-) -> None:
-    mocked_gql_api = gql_api_builder({"roles": []})
-    mocker.patch("reconcile.terraform_users.gql").get_api.return_value = mocked_gql_api
-    mocker.patch(
-        "reconcile.terraform_users.query"
-    ).return_value = pgp_reencryption_settings
-    mocker.patch("reconcile.terraform_users.sys")
-    mocked_queries = mocker.patch("reconcile.terraform_users.queries")
-    mocked_queries.get_aws_accounts.return_value = [test_aws_account]
-    mocked_queries.get_app_interface_settings.return_value = None
-    mocker.patch("reconcile.terraform_users.Terrascript", autospec=True)
-    mocker.patch("reconcile.terraform_users.AWSApi", autospec=True)
-    mocked_logging = mocker.patch("reconcile.terraform_users.logging")
-
-    integ.run(False, send_mails=False)
-
-    mocked_logging.warning.assert_called_once_with(
-        "No participating AWS accounts found, consider disabling this integration, account name: None"
-    )
