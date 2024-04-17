@@ -239,7 +239,6 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         gql_no_validation = init_from_config(validate_schemas=False)
 
         for c in get_template_collections():
-            outputs: list[TemplateOutput] = []
             variables = {}
             if c.variables:
                 variables = {
@@ -264,11 +263,8 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     output = self.process_template(
                         template, variables, p, ruamel_instance, input
                     )
-                    if output:
-                        outputs.append(output)
-
-                    if not dry_run:
-                        p.write(outputs)
+                    if not dry_run and output:
+                        p.write([output])
 
     @property
     def name(self) -> str:
