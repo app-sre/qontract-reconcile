@@ -2,14 +2,11 @@ import logging
 import sys
 from collections.abc import Callable, Iterable
 from enum import IntFlag, auto
-from typing import Any
+from typing import Any, TypedDict
 
 from jira import JIRAError
 from pydantic import BaseModel
 
-from reconcile.gql_definitions.jira_permissions_validator.jira_boards_for_permissions_validator import (
-    DEFINITION as JIRA_BOARDS_DEFINITION,
-)
 from reconcile.gql_definitions.jira_permissions_validator.jira_boards_for_permissions_validator import (
     JiraBoardV1,
 )
@@ -24,10 +21,17 @@ from reconcile.typed_queries.jira_settings import get_jira_settings
 from reconcile.typed_queries.jiralert_settings import get_jiralert_settings
 from reconcile.utils import gql, metrics
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.extended_early_exit import (
+    ExtendedEarlyExitRunnerResult,
+    extended_early_exit_run,
+)
 from reconcile.utils.jira_client import JiraClient, JiraWatcherSettings
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
+from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.unleash import get_feature_toggle_state
 
 QONTRACT_INTEGRATION = "jira-permissions-validator"
+QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
 
 NameToIdMap = dict[str, str]
 
@@ -57,6 +61,15 @@ class ValidationError(IntFlag):
     PERMISSION_ERROR = auto()
     PUBLIC_PROJECT_NO_SECURITY_LEVEL = auto()
     INVALID_COMPONENT = auto()
+
+
+class RunnerParams(TypedDict):
+    exit_on_permission_errors: bool
+    boards: list[JiraBoardV1]
+
+
+class CacheSource(TypedDict):
+    boards: list
 
 
 def board_is_valid(
@@ -251,13 +264,59 @@ def get_jira_boards(query_func: Callable) -> list[JiraBoardV1]:
     ]
 
 
-def run(dry_run: bool, exit_on_permission_errors: bool) -> None:
+def export_boards(boards: list[JiraBoardV1]) -> list[dict]:
+    return [board.dict() for board in boards]
+
+
+def run(
+    dry_run: bool,
+    exit_on_permission_errors: bool,
+    enable_extended_early_exit: bool = False,
+    extended_early_exit_cache_ttl_seconds: int = 3600,
+    log_cached_log_output: bool = False,
+) -> None:
+    gql_api = gql.get_api()
+    boards = get_jira_boards(query_func=gql_api.query)
+    runner_params: RunnerParams = dict(
+        exit_on_permission_errors=exit_on_permission_errors,
+        boards=boards,
+    )
+    if enable_extended_early_exit and get_feature_toggle_state(
+        "jira-permissions-validator-extended-early-exit",
+        default=True,
+    ):
+        vault_settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+
+        cache_source = CacheSource(
+            boards=export_boards(boards),
+        )
+        extended_early_exit_run(
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            # don't use `dry_run` in the cache key because this is a read-only integration
+            dry_run=False,
+            cache_source=cache_source,
+            shard="",
+            ttl_seconds=extended_early_exit_cache_ttl_seconds,
+            logger=logging.getLogger(),
+            runner=runner,
+            runner_params=runner_params,
+            secret_reader=secret_reader,
+            log_cached_log_output=log_cached_log_output,
+        )
+    else:
+        runner(**runner_params)
+
+
+def runner(
+    exit_on_permission_errors: bool, boards: list[JiraBoardV1]
+) -> ExtendedEarlyExitRunnerResult:
     gql_api = gql.get_api()
     settings = get_jira_settings(gql_api=gql_api)
     jiralert_settings = get_jiralert_settings(query_func=gql_api.query)
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    boards = get_jira_boards(query_func=gql_api.query)
 
     with metrics.transactional_metrics("jira-boards") as metrics_container:
         error = validate_boards(
@@ -273,8 +332,8 @@ def run(dry_run: bool, exit_on_permission_errors: bool) -> None:
     if error:
         sys.exit(ExitCodes.ERROR)
 
+    return ExtendedEarlyExitRunnerResult(payload=export_boards(boards), applied_count=0)
+
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    return {
-        "boards": gql.get_api().query(JIRA_BOARDS_DEFINITION)["jira_boards"],
-    }
+    return {"boards": export_boards(get_jira_boards(query_func=gql.get_api().query))}
