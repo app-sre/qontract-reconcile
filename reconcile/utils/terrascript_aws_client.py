@@ -1196,7 +1196,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "private_subnet_tags": {"kubernetes.io/role/internal-elb": "1"},
                 "public_subnet_tags": {"kubernetes.io/role/elb": "1"},
                 "create_database_subnet_group": False,
-                "enable_nat_gateway": True,
                 "enable_dns_hostnames": True,
                 "tags": {
                     "Terraform": True,
@@ -1209,6 +1208,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 values["private_subnets"] = request.subnets.private
             if request.subnets and request.subnets.availability_zones:
                 values["azs"] = request.subnets.availability_zones
+
+            # We only want to enable nat_gateway if we have public and private subnets
+            if request.subnets and request.subnets.public and request.subnets.private:
+                values["enable_nat_gateway"] = True
 
             aws_account = request.account.name
             module = Module(request.identifier, **values)
@@ -1226,17 +1229,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             self.add_resource(aws_account, vpc_cidr_block_output)
 
-            private_subnets_output = Output(
-                f"{request.identifier}-private_subnets",
-                value=f"${{module.{request.identifier}.private_subnets}}",
-            )
-            self.add_resource(aws_account, private_subnets_output)
+            if request.subnets and request.subnets.private:
+                private_subnets_output = Output(
+                    f"{request.identifier}-private_subnets",
+                    value=f"${{module.{request.identifier}.private_subnets}}",
+                )
+                self.add_resource(aws_account, private_subnets_output)
 
-            public_subnets_output = Output(
-                f"{request.identifier}-public_subnets",
-                value=f"${{module.{request.identifier}.public_subnets}}",
-            )
-            self.add_resource(aws_account, public_subnets_output)
+            if request.subnets and request.subnets.public:
+                public_subnets_output = Output(
+                    f"{request.identifier}-public_subnets",
+                    value=f"${{module.{request.identifier}.public_subnets}}",
+                )
+                self.add_resource(aws_account, public_subnets_output)
 
     def populate_tgw_attachments(self, desired_state):
         for item in desired_state:
