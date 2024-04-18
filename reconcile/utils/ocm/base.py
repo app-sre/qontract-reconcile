@@ -575,6 +575,17 @@ class OCMOIdentityProviderOidc(OCMOIdentityProvider):
         return self.name == other.name and self.open_id == other.open_id
 
 
+class OCMAddonUpgradePolicy(BaseModel):
+    id: str
+    addon_id: str
+    cluster_id: str
+    next_run: Optional[str]
+    schedule: Optional[str]
+    schedule_type: str
+    version: str
+    state: Optional[str]
+
+
 def build_label_container(
     *label_iterables: Optional[Iterable[OCMLabel]],
 ) -> LabelContainer:

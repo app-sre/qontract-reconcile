@@ -3,17 +3,11 @@ from typing import (
     Optional,
 )
 
-from reconcile.utils.ocm.base import OCMAddonInstallation
+from reconcile.utils.ocm.base import (
+    OCMAddonInstallation,
+    OCMAddonUpgradePolicy,
+)
 from reconcile.utils.ocm_base_client import OCMBaseClient
-
-ADDON_UPGRADE_POLICY_DESIRED_KEYS = {
-    "id",
-    "addon_id",
-    "schedule_type",
-    "schedule",
-    "next_run",
-    "version",
-}
 
 
 class AddonService:
@@ -65,7 +59,7 @@ class AddonService:
 
     def get_addon_upgrade_policies(
         self, ocm_api: OCMBaseClient, cluster_id: str, addon_id: Optional[str] = None
-    ) -> list[dict[str, Any]]:
+    ) -> list[OCMAddonUpgradePolicy]:
         raise NotImplementedError()
 
     def create_addon_upgrade_policy(
@@ -95,23 +89,30 @@ class AddonServiceV1(AddonService):
 
     def get_addon_upgrade_policies(
         self, ocm_api: OCMBaseClient, cluster_id: str, addon_id: Optional[str] = None
-    ) -> list[dict[str, Any]]:
-        results: list[dict[str, Any]] = []
+    ) -> list[OCMAddonUpgradePolicy]:
+        results: list[OCMAddonUpgradePolicy] = []
 
         for policy in ocm_api.get_paginated(
             f"{self.addon_base_api_path()}/clusters/{cluster_id}/addon_upgrade_policies"
         ):
             if addon_id and policy["addon_id"] != addon_id:
                 continue
-            policy_data = {
-                k: v
-                for k, v in policy.items()
-                if k in ADDON_UPGRADE_POLICY_DESIRED_KEYS
-            }
-            policy_data["state"] = self._get_addon_upgrade_policy_state(
+
+            state = self._get_addon_upgrade_policy_state(
                 ocm_api, cluster_id, policy["id"]
             )
-            results.append(policy_data)
+            results.append(
+                OCMAddonUpgradePolicy(
+                    id=policy["id"],
+                    addon_id=addon_id,
+                    cluster_id=cluster_id,
+                    schedule_type=policy["schedule_type"],
+                    schedule=policy.get("schedule"),
+                    next_run=policy.get("next_run"),
+                    version=policy["version"],
+                    state=state,
+                )
+            )
 
         return results
 
@@ -171,20 +172,28 @@ class AddonServiceV2(AddonService):
 
     def get_addon_upgrade_policies(
         self, ocm_api: OCMBaseClient, cluster_id: str, addon_id: Optional[str] = None
-    ) -> list[dict[str, Any]]:
-        results: list[dict[str, Any]] = []
+    ) -> list[OCMAddonUpgradePolicy]:
+        results: list[OCMAddonUpgradePolicy] = []
 
         for policy in ocm_api.get_paginated(
             f"{self.addon_base_api_path()}/clusters/{cluster_id}/upgrade_plans"
         ):
             if addon_id and policy["addon_id"] != addon_id:
                 continue
-            policy_data = {
-                k: v
-                for k, v in policy.items()
-                if k in ADDON_UPGRADE_POLICY_DESIRED_KEYS
-            }
-            results.append(policy_data)
+
+            results.append(
+                OCMAddonUpgradePolicy(
+                    id=policy["id"],
+                    addon_id=addon_id,
+                    cluster_id=cluster_id,
+                    schedule_type=policy["type"],
+                    schedule=policy.get("schedule"),
+                    next_run=policy.get("next_run"),
+                    version=policy["version"],
+                    state=policy.get("state"),
+                    addon_service=self,
+                )
+            )
 
         return results
 
