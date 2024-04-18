@@ -2293,8 +2293,11 @@ def terraform_users(
 @account_name
 @print_to_file
 @threaded()
+@enable_deletion(default=False)
 @click.pass_context
-def terraform_vpc_resources(ctx, account_name, print_to_file, thread_pool_size):
+def terraform_vpc_resources(
+    ctx, account_name, print_to_file, thread_pool_size, enable_deletion
+):
     from reconcile.terraform_vpc_resources import (
         TerraformVpcResources,
         TerraformVpcResourcesParams,
@@ -2306,6 +2309,7 @@ def terraform_vpc_resources(ctx, account_name, print_to_file, thread_pool_size):
                 account_name=account_name,
                 print_to_file=print_to_file,
                 thread_pool_size=thread_pool_size,
+                enable_deletion=enable_deletion,
             )
         ),
         ctx.obj,
