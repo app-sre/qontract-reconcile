@@ -1,6 +1,7 @@
 import logging
 import sys
-from typing import Iterable, Optional
+from collections.abc import Mapping
+from typing import Any, Iterable, Optional
 
 from reconcile.gql_definitions.fragments.aws_vpc_request import (
     AWSAccountV1,
@@ -55,6 +56,32 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
 
         return accounts
 
+    def _handle_outputs(
+        self, requests: Iterable[VPCRequest], outputs: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        """Receives a terraform outputs dict and returns a map of outputs per VPC requests"""
+        outputs_per_request = {}
+        for request in requests:
+            outputs_per_request[request.identifier] = []
+            outputs_per_account = outputs[request.account.name]
+
+            # If the output exists for that request get its value
+            # Else get None
+            values = {
+                "vpc_id": outputs_per_account.get(
+                    f"{request.identifier}-vpc_id", {}
+                ).get("value"),
+                "private_subnet_ids": outputs_per_account.get(
+                    f"{request.identifier}-private_subnets", {}
+                ).get("value"),
+                "public_subnet_ids": outputs_per_account.get(
+                    f"{request.identifier}-public_subnets", {}
+                ).get("value"),
+            }
+            outputs_per_request[request.identifier].append(values)
+
+        return outputs_per_request
+
     def run(self, dry_run: bool) -> None:
         account_name = self.params.account_name
         thread_pool_size = self.params.thread_pool_size
@@ -105,6 +132,8 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             sys.exit(ExitCodes.SUCCESS)
 
         tf_client.apply()
+
+        handled_output = self._handle_outputs(data, tf_client.outputs)
 
     def get_desired_state_shard_config(self) -> DesiredStateShardConfig:
         return DesiredStateShardConfig(
