@@ -31,6 +31,7 @@ class TerraformVpcResourcesParams(PydanticRunParams):
     account_name: Optional[str]
     print_to_file: Optional[str]
     thread_pool_size: int
+    enable_deletion: bool = False
 
 
 class NoManagedVPCForAccount(Exception):
@@ -57,6 +58,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
     def run(self, dry_run: bool) -> None:
         account_name = self.params.account_name
         thread_pool_size = self.params.thread_pool_size
+        enable_deletion = self.params.enable_deletion
 
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -97,7 +99,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             thread_pool_size=thread_pool_size,
         )
 
-        tf_client.plan(enable_deletion=False)
+        tf_client.plan(enable_deletion=enable_deletion)
 
         if dry_run:
             sys.exit(ExitCodes.SUCCESS)
