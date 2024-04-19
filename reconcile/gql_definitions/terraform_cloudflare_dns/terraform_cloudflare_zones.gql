@@ -52,6 +52,8 @@ query CloudflareDnsZone {
         digest
         key_tag
         flags
+        tag
+        value
       }
     }
     type
