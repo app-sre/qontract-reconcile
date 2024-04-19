@@ -91,6 +91,11 @@ class SaasFilesInventory:
                         continue
                     if not target.promotion.auto:
                         continue
+                    soak_days = (
+                        0
+                        if not target.promotion.soak_days
+                        else target.promotion.soak_days
+                    )
                     subscriber = Subscriber(
                         saas_name=saas_file.name,
                         template_name=resource_template.name,
@@ -100,6 +105,11 @@ class SaasFilesInventory:
                         # Note: this will be refactored at a later point.
                         # https://issues.redhat.com/browse/APPSRE-7516
                         use_target_config_hash=bool(saas_file.publish_job_logs),
+                        soak_days=soak_days,
+                        uid=target.uid(
+                            parent_saas_file_name=saas_file.name,
+                            parent_resource_template_name=resource_template.name,
+                        ),
                     )
                     self.subscribers.append(subscriber)
                     for prom_data in target.promotion.promotion_data or []:

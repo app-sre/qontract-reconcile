@@ -134,6 +134,7 @@ query SaasFiles {
           auto
           publish
           subscribe
+          soakDays
           promotion_data {
             channel
             data {

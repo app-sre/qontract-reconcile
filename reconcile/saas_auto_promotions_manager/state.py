@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 
 from reconcile.saas_auto_promotions_manager.publisher import Publisher
+from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.utils.state import State
 
 
@@ -49,16 +51,36 @@ class PublisherData:
         )
 
 
-class S3Exporter:
+class IntegrationState:
     """
-    Export publisher deployment data to S3.
+    Keep last known state in S3
     """
 
     def __init__(self, state: State, dry_run: bool = True):
         self._state = state
         self._dry_run = dry_run
+        self._pull_state_from_s3()
+
+    def _pull_state_from_s3(self) -> None:
+        data = self._state.get("state.json")
+        self._soak_days_map: dict[str, float] = data["soak_days_map"]
+
+    def persist(self) -> None:
+        state = {
+            "soak_days_map": self._soak_days_map,
+        }
+        self._state.add(key="state.json", value=state, force=True)
 
     def export_publisher_data(self, publishers: Iterable[Publisher]) -> None:
+        """
+        Information used by external service to visualize progressive rollouts.
+        See https://issues.redhat.com/browse/APPSRE-9898
+
+        We will potentially move this functionality to a different place
+        (https://gitlab.cee.redhat.com/service/app-interface/-/merge_requests/103261)
+
+        However, for now lets not change this without consulting @jmelis first.
+        """
         data: dict[str, dict] = {}
         for publisher in publishers:
             publisher_data = PublisherData.from_publisher(publisher)
@@ -74,3 +96,13 @@ class S3Exporter:
                 value=data,
                 force=True,
             )
+
+    def first_seen(self, subscriber: Subscriber) -> float:
+        """
+        Return the timestamp when this subscriber was first seen.
+        If the timestamp does not exist yet, create it in state
+        """
+        key = f"{subscriber.uid}/{subscriber.desired_ref}"
+        if key not in self._soak_days_map:
+            self._soak_days_map[key] = time.time()
+        return self._soak_days_map[key]

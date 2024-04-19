@@ -79,6 +79,8 @@ def subscriber_builder(
             target_file_path=data.get(TARGET_FILE_PATH, ""),
             template_name="",
             use_target_config_hash=data.get(USE_TARGET_CONFIG_HASH, True),
+            uid="",
+            soak_days=0,
         )
         subscriber.channels = channels
         subscriber.config_hashes_by_channel_name = cur_config_hashes_by_channel

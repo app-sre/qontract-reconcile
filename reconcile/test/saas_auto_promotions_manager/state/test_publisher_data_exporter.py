@@ -2,13 +2,13 @@ from collections.abc import Callable, Mapping
 from unittest.mock import create_autospec
 
 from reconcile.saas_auto_promotions_manager.publisher import Publisher
-from reconcile.saas_auto_promotions_manager.s3_exporter import S3Exporter
+from reconcile.saas_auto_promotions_manager.state import IntegrationState
 from reconcile.utils.state import State
 
 
 def test_s3_exporter(publisher_builder: Callable[[Mapping], Publisher]) -> None:
     state = create_autospec(spec=State)
-    s3_exporter = S3Exporter(state=state, dry_run=False)
+    integration_state = IntegrationState(state=state, dry_run=False)
 
     publishers = [
         publisher_builder({
@@ -29,17 +29,17 @@ def test_s3_exporter(publisher_builder: Callable[[Mapping], Publisher]) -> None:
         }
     }
 
-    s3_exporter.export_publisher_data(publishers=publishers)
+    integration_state.export_publisher_data(publishers=publishers)
     state.add.assert_called_once_with(
         key="publisher-data.json", value=expected, force=True
     )
 
 
-def test_s3_exporter_failed_deployment(
+def test_publisher_data_exporter_failed_deployment(
     publisher_builder: Callable[[Mapping], Publisher],
 ) -> None:
     state = create_autospec(spec=State)
-    s3_exporter = S3Exporter(state=state, dry_run=False)
+    integration_state = IntegrationState(state=state, dry_run=False)
 
     publishers = [
         publisher_builder({
@@ -59,17 +59,17 @@ def test_s3_exporter_failed_deployment(
         }
     }
 
-    s3_exporter.export_publisher_data(publishers=publishers)
+    integration_state.export_publisher_data(publishers=publishers)
     state.add.assert_called_once_with(
         key="publisher-data.json", value=expected, force=True
     )
 
 
-def test_s3_exporter_missing_deployment(
+def test_publisher_data_exporter_missing_deployment(
     publisher_builder: Callable[[Mapping], Publisher],
 ) -> None:
     state = create_autospec(spec=State)
-    s3_exporter = S3Exporter(state=state, dry_run=False)
+    integration_state = IntegrationState(state=state, dry_run=False)
 
     publishers = [
         publisher_builder({
@@ -89,17 +89,17 @@ def test_s3_exporter_missing_deployment(
         }
     }
 
-    s3_exporter.export_publisher_data(publishers=publishers)
+    integration_state.export_publisher_data(publishers=publishers)
     state.add.assert_called_once_with(
         key="publisher-data.json", value=expected, force=True
     )
 
 
-def test_s3_export_multiple(
+def test_publisher_data_export_multiple(
     publisher_builder: Callable[[Mapping], Publisher],
 ) -> None:
     state = create_autospec(spec=State)
-    s3_exporter = S3Exporter(state=state, dry_run=False)
+    integration_state = IntegrationState(state=state, dry_run=False)
 
     publishers = [
         publisher_builder({
@@ -131,14 +131,14 @@ def test_s3_export_multiple(
         },
     }
 
-    s3_exporter.export_publisher_data(publishers=publishers)
+    integration_state.export_publisher_data(publishers=publishers)
     state.add.assert_called_once_with(
         key="publisher-data.json", value=expected, force=True
     )
 
 
-def test_exporter_dry_run() -> None:
+def test_publisher_data_exporter_dry_run() -> None:
     state = create_autospec(spec=State)
-    s3_exporter = S3Exporter(state=state, dry_run=True)
-    s3_exporter.export_publisher_data(publishers=[])
+    integration_state = IntegrationState(state=state, dry_run=True)
+    integration_state.export_publisher_data(publishers=[])
     state.add.assert_not_called()

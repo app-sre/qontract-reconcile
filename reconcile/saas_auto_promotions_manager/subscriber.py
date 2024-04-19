@@ -42,6 +42,8 @@ class Subscriber:
         target_file_path: str,
         target_namespace: SaasTargetNamespace,
         use_target_config_hash: bool,
+        uid: str,
+        soak_days: int,
     ):
         self.saas_name = saas_name
         self.template_name = template_name
@@ -54,6 +56,8 @@ class Subscriber:
         self.target_namespace = target_namespace
         self._content_hash = ""
         self._use_target_config_hash = use_target_config_hash
+        self.soak_days = soak_days
+        self.uid = uid
 
     def has_diff(self) -> bool:
         current_hashes = {

@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Optional
 
 from sretoolbox.utils import threaded
@@ -18,8 +18,10 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler imp
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
 )
+from reconcile.saas_auto_promotions_manager.meta import QONTRACT_INTEGRATION
+from reconcile.saas_auto_promotions_manager.optional_gates.soak_days import SoakDaysGate
 from reconcile.saas_auto_promotions_manager.publisher import Publisher
-from reconcile.saas_auto_promotions_manager.s3_exporter import S3Exporter
+from reconcile.saas_auto_promotions_manager.state import IntegrationState
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
@@ -34,13 +36,9 @@ from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.utils.defer import defer
 from reconcile.utils.promotion_state import PromotionState
 from reconcile.utils.secret_reader import create_secret_reader
-from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import State, init_state
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
-
-QONTRACT_INTEGRATION = "saas-auto-promotions-manager"
-QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 class SaasAutoPromotionsManager:
@@ -50,7 +48,7 @@ class SaasAutoPromotionsManager:
         vcs: VCS,
         saas_file_inventory: SaasFilesInventory,
         merge_request_manager_v2: MergeRequestManagerV2,
-        s3_exporter: S3Exporter,
+        state: IntegrationState,
         thread_pool_size: int,
         dry_run: bool,
     ):
@@ -58,7 +56,7 @@ class SaasAutoPromotionsManager:
         self._vcs = vcs
         self._saas_file_inventory = saas_file_inventory
         self._merge_request_manager_v2 = merge_request_manager_v2
-        self._s3_exporter = s3_exporter
+        self._state = state
         self._thread_pool_size = thread_pool_size
         self._dry_run = dry_run
 
@@ -85,13 +83,25 @@ class SaasAutoPromotionsManager:
     def _get_subscribers_with_diff(self) -> list[Subscriber]:
         return [s for s in self._saas_file_inventory.subscribers if s.has_diff()]
 
+    def _apply_optional_gates(
+        self, subscribers: Iterable[Subscriber]
+    ) -> list[Subscriber]:
+        soak_days_gate = SoakDaysGate(state=self._state)
+        return soak_days_gate.filter(subscribers=subscribers)
+
     def reconcile(self) -> None:
         self._deployment_state.cache_commit_shas_from_s3()
         self._fetch_publisher_real_world_states()
         self._compute_desired_subscriber_states()
         subscribers_with_diff = self._get_subscribers_with_diff()
-        self._merge_request_manager_v2.reconcile(subscribers=subscribers_with_diff)
-        self._s3_exporter.export_publisher_data(
+        subscribers_passing_optional_gates = self._apply_optional_gates(
+            subscribers=subscribers_with_diff
+        )
+        self._merge_request_manager_v2.reconcile(
+            subscribers=subscribers_passing_optional_gates
+        )
+        self._state.persist()
+        self._state.export_publisher_data(
             publishers=self._saas_file_inventory.publishers
         )
 
@@ -105,7 +115,7 @@ def init_external_dependencies(
     VCS,
     SaasFilesInventory,
     MergeRequestManagerV2,
-    S3Exporter,
+    IntegrationState,
     State,
     State,
 ]:
@@ -153,7 +163,7 @@ def init_external_dependencies(
     sapm_state = init_state(
         integration=QONTRACT_INTEGRATION, secret_reader=secret_reader
     )
-    s3_exporter = S3Exporter(
+    integration_state = IntegrationState(
         state=sapm_state,
         dry_run=dry_run,
     )
@@ -162,7 +172,7 @@ def init_external_dependencies(
         vcs,
         saas_inventory,
         merge_request_manager_v2,
-        s3_exporter,
+        integration_state,
         saas_deploy_state,
         sapm_state,
     )
@@ -181,7 +191,7 @@ def run(
         vcs,
         saas_inventory,
         merge_request_manager_v2,
-        s3_exporter,
+        integration_state,
         saas_deploy_state,
         sapm_state,
     ) = init_external_dependencies(
@@ -197,7 +207,7 @@ def run(
         vcs=vcs,
         saas_file_inventory=saas_inventory,
         merge_request_manager_v2=merge_request_manager_v2,
-        s3_exporter=s3_exporter,
+        state=integration_state,
         thread_pool_size=thread_pool_size,
         dry_run=dry_run,
     )
