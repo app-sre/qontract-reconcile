@@ -10,6 +10,8 @@ from typing import (
     Sequence,
 )
 
+from deepdiff import DeepHash
+
 from reconcile.gql_definitions.terraform_cloudflare_dns import (
     app_interface_cloudflare_dns_settings,
     terraform_cloudflare_zones,
@@ -204,13 +206,17 @@ class TerraformCloudflareDNSIntegration(
     ) -> dict[str, Any]:
         desired_state = self._get_cloudflare_desired_state()
 
-        # return {"zones":desired_state.zones}
-        return desired_state.dict()
+        return {
+            "state": {
+                z.identifier: {"shard": z.identifier, "hash": DeepHash(z).get(z)}
+                for z in desired_state.zones
+            }
+        }
 
     def get_desired_state_shard_config(self) -> DesiredStateShardConfig:
         return DesiredStateShardConfig(
             shard_arg_name="selected_zone",
-            shard_path_selectors={"zones[*].identifier"},
+            shard_path_selectors={"state.*.shard"},
             sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 2,
         )
 
