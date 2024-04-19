@@ -128,12 +128,14 @@ class JumpHostSSH(JumpHostBase):
             if self._local_port not in JumpHostSSH.bastion_tunnel:
                 # Hide connect messages from sshtunnel
                 with toggle_logger():
+                    # equivalent to: ssh -i identity_file -L localhost:local_port:localhost:remote_port user@bastion
+                    # localhost:local_port -> bastion:22 -> bastion_localhost:remote_port(tinyproxy) -> cluster_host:6443
                     tunnel = SSHTunnelForwarder(
                         ssh_address_or_host=self._hostname,
                         ssh_port=self._port,
                         ssh_username=self._user,
                         ssh_pkey=self._identity_file,
-                        remote_bind_address=(self._hostname, self._remote_port),
+                        remote_bind_address=("localhost", self._remote_port),
                         local_bind_address=("localhost", self._local_port),
                     )
                     tunnel.start()
