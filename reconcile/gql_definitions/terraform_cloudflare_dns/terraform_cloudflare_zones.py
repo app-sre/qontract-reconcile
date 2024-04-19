@@ -80,6 +80,8 @@ query CloudflareDnsZone {
         digest
         key_tag
         flags
+        tag
+        value
       }
     }
     type
@@ -142,6 +144,8 @@ class CloudflareDnsRecordDataSettingsV1(ConfiguredBaseModel):
     digest: Optional[str] = Field(..., alias="digest")
     key_tag: Optional[int] = Field(..., alias="key_tag")
     flags: Optional[int] = Field(..., alias="flags")
+    tag: Optional[str] = Field(..., alias="tag")
+    value: Optional[str] = Field(..., alias="value")
 
 
 class CloudflareDnsRecordV1(ConfiguredBaseModel):
