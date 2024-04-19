@@ -209,7 +209,7 @@ class TerraformCloudflareDNSIntegration(
         return {
             "state": {
                 z.identifier: {"shard": z.identifier, "hash": DeepHash(z).get(z)}
-                for z in desired_state.zones
+                for z in desired_state.zones or []
             }
         }
 
