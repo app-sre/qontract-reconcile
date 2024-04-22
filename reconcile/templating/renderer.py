@@ -175,6 +175,14 @@ def unpack_dynamic_variables(
     }
 
 
+def calc_template_hash(c: TemplateCollectionV1, variables: dict[str, Any]) -> str:
+    return hashlib.sha256(
+        "".join(sorted([str(t) for t in c.templates] + [json.dumps(variables)])).encode(
+            "utf-8"
+        )
+    ).hexdigest()
+
+
 class TemplateRendererIntegrationParams(PydanticRunParams):
     clone_repo: bool = False
     app_interface_data_path: Optional[str]
@@ -246,16 +254,10 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     "static": unpack_static_variables(c.variables),
                 }
 
-            template_hash = hashlib.sha256(
-                "".join(
-                    sorted([str(t) for t in c.templates] + [json.dumps(variables)])
-                ).encode("utf-8")
-            ).hexdigest()
-
             with PersistenceTransaction(persistence, dry_run) as p:
                 input = TemplateInput(
                     collection=c.name,
-                    collection_hash=template_hash,
+                    collection_hash=calc_template_hash(c, variables),
                     enable_auto_approval=c.enable_auto_approval or False,
                     labels=c.additional_mr_labels or [],
                 )

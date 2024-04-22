@@ -22,6 +22,7 @@ from reconcile.templating.renderer import (
     TemplateOutput,
     TemplateRendererIntegration,
     TemplateRendererIntegrationParams,
+    calc_template_hash,
     join_path,
     unpack_dynamic_variables,
     unpack_static_variables,
@@ -104,6 +105,29 @@ def template_input() -> TemplateInput:
         collection_hash="test",
         enable_auto_approval=False,
     )
+
+
+@pytest.fixture
+def template_collection_variable(
+    gql_class_factory: Callable,
+) -> TemplateCollectionVariablesV1:
+    return gql_class_factory(
+        TemplateCollectionVariablesV1,
+        {
+            "static": '{"foo": "bar"}',
+        },
+    )
+
+
+@pytest.fixture
+def reconcile_mocks(mocker: MockerFixture) -> tuple:
+    t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
+    pt = mocker.patch.object(t, "process_template")
+    mocker.patch("reconcile.templating.renderer.init_from_config")
+    p = mocker.MagicMock(LocalFilePersistence)
+    r = create_ruamel_instance()
+
+    return t, p, r, pt
 
 
 def test_unpack_static_variables(
@@ -361,16 +385,15 @@ def test_process_template_wrong_condition(
     assert output is not None
 
 
-def test_reconcile(
-    mocker: MockerFixture, template_collection: TemplateCollectionV1
+def test_reconcile_simple(
+    mocker: MockerFixture,
+    reconcile_mocks: tuple,
+    template_collection: TemplateCollectionV1,
 ) -> None:
-    t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
-    pt = mocker.patch.object(t, "process_template")
-    mocker.patch("reconcile.templating.renderer.init_from_config")
     gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
     gtc.return_value = [template_collection]
-    p = mocker.MagicMock(LocalFilePersistence)
-    r = create_ruamel_instance()
+
+    t, p, r, pt = reconcile_mocks
     t.reconcile(
         False,
         p,
@@ -393,3 +416,85 @@ def test_reconcile(
         ANY,
     )
     p.write.assert_called_once()
+
+
+def test_reconcile_twice(
+    mocker: MockerFixture,
+    reconcile_mocks: tuple,
+    template_collection: TemplateCollectionV1,
+) -> None:
+    t, p, r, pt = reconcile_mocks
+
+    gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
+    gtc.return_value = [template_collection, template_collection]
+    t.reconcile(
+        False,
+        p,
+        r,
+    )
+
+    assert pt.call_count == 2
+    assert p.write.call_count == 2
+
+
+def test_reconcile_dry_run(
+    mocker: MockerFixture,
+    reconcile_mocks: tuple,
+    template_collection: TemplateCollectionV1,
+) -> None:
+    t, p, r, pt = reconcile_mocks
+    gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
+    gtc.return_value = [template_collection, template_collection]
+    t.reconcile(
+        True,
+        p,
+        r,
+    )
+
+    assert pt.call_count == 2
+    assert p.write.call_count == 0
+
+
+def test_reconcile_variables(
+    mocker: MockerFixture,
+    reconcile_mocks: tuple,
+    template_collection: TemplateCollectionV1,
+    template_collection_variable: TemplateCollectionVariablesV1,
+) -> None:
+    t, p, r, pt = reconcile_mocks
+
+    gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
+    template_collection.variables = template_collection_variable
+
+    gtc.return_value = [template_collection]
+    # not really using template_collection_variable fixture content, since we mock the return value
+    udv = mocker.patch("reconcile.templating.renderer.unpack_dynamic_variables")
+    udv.return_value = {"foo": "bar"}
+    usv = mocker.patch("reconcile.templating.renderer.unpack_static_variables")
+    usv.return_value = {"baz": "qux"}
+
+    t.reconcile(
+        True,
+        p,
+        r,
+    )
+
+    pt.assert_called_once()
+    assert pt.call_args[0] == (
+        ANY,
+        {"dynamic": {"foo": "bar"}, "static": {"baz": "qux"}},
+        ANY,
+        r,
+        ANY,
+    )
+
+
+def test__calc_template_hash(template_collection: TemplateCollectionV1) -> None:
+    assert (
+        calc_template_hash(template_collection, {"foo": "bar"})
+        == "b93eab443d91f4272a7554bf314bb8cc5c930801efef03e81a5f2eb5ff741d7a"
+    )
+    assert (
+        calc_template_hash(template_collection, {"foo": "baz"})
+        == "5bf9b7868185241f690d209ffe4fd4b79f4bfefe4b711248b05053837dd3875d"
+    )
