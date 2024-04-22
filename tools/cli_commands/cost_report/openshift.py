@@ -3,6 +3,11 @@ from typing import Self
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.typed_queries.cost_report.app_names import App, get_app_names
+from reconcile.typed_queries.cost_report.cost_namespaces import (
+    CostNamespace,
+    get_cost_namespaces,
+)
 from reconcile.typed_queries.cost_report.settings import get_cost_report_settings
 from reconcile.utils import gql
 from reconcile.utils.secret_reader import create_secret_reader
@@ -19,7 +24,15 @@ class OpenShiftCostReportCommand:
         self.cost_management_api = cost_management_api
 
     def execute(self) -> str:
+        apps = self.get_apps()
+        cost_namespaces = self.get_cost_namespaces()
         return ""
+
+    def get_apps(self) -> list[App]:
+        return get_app_names(self.gql_api)
+
+    def get_cost_namespaces(self) -> list[CostNamespace]:
+        return get_cost_namespaces(self.gql_api)
 
     @classmethod
     def create(

@@ -8,6 +8,8 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
 )
 from reconcile.gql_definitions.cost_report.settings import CostReportSettingsV1
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.typed_queries.cost_report.app_names import App
+from reconcile.typed_queries.cost_report.cost_namespaces import CostNamespace
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
 
 
@@ -110,9 +112,60 @@ def openshift_cost_report_command(
     return OpenShiftCostReportCommand.create()
 
 
+@pytest.fixture
+def mock_get_app_names(mocker: MockerFixture) -> Any:
+    return mocker.patch("tools.cli_commands.cost_report.openshift.get_app_names")
+
+
+PARENT_APP = App(name="parent", parent_app_name=None)
+CHILD_APP = App(name="child", parent_app_name="parent")
+
+PARENT_APP_NAMESPACE = CostNamespace(
+    name="parent_namespace",
+    app_name=PARENT_APP.name,
+    cluster_name="parent_cluster",
+    cluster_external_id="parent_cluster_external_id",
+)
+CHILD_APP_NAMESPACE = CostNamespace(
+    name="child_namespace",
+    app_name=CHILD_APP.name,
+    cluster_name="child_cluster",
+    cluster_external_id="child_cluster_external_id",
+)
+
+
 def test_cost_report_execute(
     openshift_cost_report_command: OpenShiftCostReportCommand,
 ) -> None:
     output = openshift_cost_report_command.execute()
 
     assert output == ""
+
+
+def test_cost_report_get_apps(
+    openshift_cost_report_command: OpenShiftCostReportCommand,
+    mock_get_app_names: Any,
+) -> None:
+    expected_apps = [PARENT_APP, CHILD_APP]
+    mock_get_app_names.return_value = expected_apps
+
+    apps = openshift_cost_report_command.get_apps()
+
+    assert apps == expected_apps
+
+
+@pytest.fixture
+def mock_get_cost_namespaces(mocker: MockerFixture) -> Any:
+    return mocker.patch("tools.cli_commands.cost_report.openshift.get_cost_namespaces")
+
+
+def test_cost_report_get_cost_namespaces(
+    openshift_cost_report_command: OpenShiftCostReportCommand,
+    mock_get_cost_namespaces: Any,
+) -> None:
+    expected_namespaces = [PARENT_APP_NAMESPACE, CHILD_APP_NAMESPACE]
+    mock_get_cost_namespaces.return_value = expected_namespaces
+
+    apps = openshift_cost_report_command.get_cost_namespaces()
+
+    assert apps == expected_namespaces
