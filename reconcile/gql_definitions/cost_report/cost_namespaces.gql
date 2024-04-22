@@ -1,0 +1,16 @@
+# qenerate: plugin=pydantic_v1
+
+query CostNamespaces {
+  namespaces: namespaces_v1 {
+    name
+    app {
+      name
+    }
+    cluster {
+      name
+      spec {
+        external_id
+      }
+    }
+  }
+}
