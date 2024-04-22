@@ -20,6 +20,7 @@ from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.defer import defer
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.external_resources import get_external_resource_specs
 from reconcile.utils.openshift_resource import (
     OpenshiftResource,
@@ -76,6 +77,14 @@ def fetch_desired_state(
             namespace = i["namespace"]
             account = i["account"]
             identifier = i["identifier"]
+            cluster = namespace["cluster"]
+            if not integration_is_enabled(QONTRACT_INTEGRATION, cluster):
+                logging.debug(
+                    f"For cluster {cluster['name']} the integration "
+                    f"{QONTRACT_INTEGRATION} is not enabled. Skipping."
+                )
+                continue
+
             specs = get_external_resource_specs(namespace)
             found = False
             for spec in specs:
@@ -90,10 +99,10 @@ def fetch_desired_state(
                     f'for account {account} in namespace {namespace["name"]}. '
                     "If this is a removed read only instance, consider updating the identifier to the source replica."
                 )
-            users = get_usernames(g["users"], namespace["cluster"])
+            users = get_usernames(g["users"], cluster)
             resource = construct_gabi_oc_resource(g["name"], expiration_date, users)
             ri.add_desired(
-                namespace["cluster"]["name"],
+                cluster["name"],
                 namespace["name"],
                 resource.kind,
                 resource.name,
