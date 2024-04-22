@@ -2298,7 +2298,7 @@ def terraform_users(
 def terraform_vpc_resources(
     ctx, account_name, print_to_file, thread_pool_size, enable_deletion
 ):
-    from reconcile.terraform_vpc_resources import (
+    from reconcile.terraform_vpc_resources.integration import (
         TerraformVpcResources,
         TerraformVpcResourcesParams,
     )

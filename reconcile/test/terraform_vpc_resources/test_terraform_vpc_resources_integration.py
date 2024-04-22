@@ -14,7 +14,7 @@ from reconcile.gql_definitions.fragments.aws_vpc_request import (
     VPCRequest,
 )
 from reconcile.status import ExitCodes
-from reconcile.terraform_vpc_resources import (
+from reconcile.terraform_vpc_resources.integration import (
     NoManagedVPCForAccount,
     TerraformVpcResources,
     TerraformVpcResourcesParams,
@@ -62,7 +62,7 @@ def vpc_request_dict() -> dict[str, Any]:
 @pytest.fixture
 def mock_gql(mocker: MockerFixture) -> MockerFixture:
     return mocker.patch(
-        "reconcile.terraform_vpc_resources.gql",
+        "reconcile.terraform_vpc_resources.integration.gql",
         autospec=True,
     )
 
@@ -70,7 +70,7 @@ def mock_gql(mocker: MockerFixture) -> MockerFixture:
 @pytest.fixture
 def mock_app_interface_vault_settings(mocker: MockerFixture) -> MockerFixture:
     mocked_app_interfafe_vault_settings = mocker.patch(
-        "reconcile.terraform_vpc_resources.get_app_interface_vault_settings",
+        "reconcile.terraform_vpc_resources.integration.get_app_interface_vault_settings",
         autospec=True,
     )
     mocked_app_interfafe_vault_settings.return_value = AppInterfaceSettingsV1(
@@ -82,14 +82,15 @@ def mock_app_interface_vault_settings(mocker: MockerFixture) -> MockerFixture:
 @pytest.fixture
 def mock_create_secret_reader(mocker: MockerFixture) -> MockerFixture:
     return mocker.patch(
-        "reconcile.terraform_vpc_resources.create_secret_reader", autospec=True
+        "reconcile.terraform_vpc_resources.integration.create_secret_reader",
+        autospec=True,
     )
 
 
 @pytest.fixture
 def mock_terraform_client(mocker: MockerFixture) -> MockerFixture:
     mocked_tf_client = mocker.patch(
-        "reconcile.terraform_vpc_resources.TerraformClient", autospec=True
+        "reconcile.terraform_vpc_resources.integration.TerraformClient", autospec=True
     )
     mocked_tf_client.return_value.plan.return_value = False, None
     return mocked_tf_client
@@ -125,7 +126,8 @@ def test_log_message_for_no_vpc_requests(
 ) -> None:
     # Mock a query response without any accounts
     mocked_query = mocker.patch(
-        "reconcile.terraform_vpc_resources.get_aws_vpc_requests", autospec=True
+        "reconcile.terraform_vpc_resources.integration.get_aws_vpc_requests",
+        autospec=True,
     )
     mocked_query.return_value = []
 
@@ -150,7 +152,8 @@ def test_log_message_for_accounts_having_vpc_requests(
 ) -> None:
     # Mock a query with an account that doesn't have the related state
     mocked_query = mocker.patch(
-        "reconcile.terraform_vpc_resources.get_aws_vpc_requests", autospec=True
+        "reconcile.terraform_vpc_resources.integration.get_aws_vpc_requests",
+        autospec=True,
     )
     mocked_query.return_value = [gql_class_factory(VPCRequest, vpc_request_dict())]
 
@@ -180,7 +183,8 @@ def test_dry_run(
     mock_terraform_client: MockerFixture,
 ) -> None:
     mocked_query = mocker.patch(
-        "reconcile.terraform_vpc_resources.get_aws_vpc_requests", autospec=True
+        "reconcile.terraform_vpc_resources.integration.get_aws_vpc_requests",
+        autospec=True,
     )
     mocked_query.return_value = [gql_class_factory(VPCRequest, vpc_request_dict())]
 
