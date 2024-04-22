@@ -8,6 +8,7 @@ from collections.abc import (
 from typing import (
     Any,
     Optional,
+    TypedDict,
     Union,
     cast,
 )
@@ -40,15 +41,20 @@ from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.extended_early_exit import (
+    ExtendedEarlyExitRunnerResult,
+    extended_early_exit_run,
+)
 from reconcile.utils.ocm import (
     OCM,
     OCMMap,
 )
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
-from reconcile.utils.secret_reader import create_secret_reader
+from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
+from reconcile.utils.unleash import get_feature_toggle_state
 
 QONTRACT_INTEGRATION = "terraform_tgw_attachments"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -101,6 +107,13 @@ class DesiredStateItem(BaseModel):
 class DesiredStateDataSource(BaseModel):
     clusters: list[ClusterV1]
     accounts: list[AWSAccountV1]
+
+
+class RunnerParams(TypedDict):
+    terraform_client: Terraform
+    terrascript_client: Terrascript
+    dry_run: bool
+    enable_deletion: bool
 
 
 def _build_desired_state_tgw_attachments(
@@ -402,37 +415,19 @@ def _fetch_desired_state_data_source(
     )
 
 
-@defer
-def run(
-    dry_run: bool,
-    print_to_file: Optional[str] = None,
-    enable_deletion: bool = False,
+def setup(
+    account_name: Optional[str],
+    desired_state_data_source: DesiredStateDataSource,
+    tgw_accounts: list[dict[str, Any]],
     thread_pool_size: int = 10,
-    account_name: Optional[str] = None,
-    defer: Optional[Callable] = None,
-) -> None:
-    desired_state_data_source = _fetch_desired_state_data_source(account_name)
+    print_to_file: Optional[str] = None,
+) -> tuple[SecretReaderBase, AWSApi, Terraform, Terrascript]:
     tgw_clusters = desired_state_data_source.clusters
     all_accounts = [a.dict(by_alias=True) for a in desired_state_data_source.accounts]
     account_by_name = {a["name"]: a for a in all_accounts}
-    tgw_accounts = [
-        a.dict(by_alias=True)
-        for a in _filter_tgw_accounts(desired_state_data_source.accounts, tgw_clusters)
-        if not account_name or account_name == a.name
-    ]
-
-    if not tgw_accounts:
-        logging.warning(
-            f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
-        )
-        return
-
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(vault_settings.vault)
     aws_api = AWSApi(1, all_accounts, secret_reader=secret_reader, init_users=False)
-    if defer:
-        defer(aws_api.cleanup)
-
     ocm_map = _build_ocm_map(desired_state_data_source.clusters, vault_settings)
     desired_state, err = _build_desired_state_tgw_attachments(
         desired_state_data_source.clusters,
@@ -463,10 +458,6 @@ def run(
         desired_state,
         print_to_file,
     )
-
-    if print_to_file:
-        return
-
     tf = Terraform(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
@@ -476,22 +467,95 @@ def run(
         thread_pool_size,
         aws_api,
     )
+    return secret_reader, aws_api, tf, ts
 
-    if defer:
-        defer(tf.cleanup)
 
-    disabled_deletions_detected, err = tf.plan(enable_deletion)
+def runner(
+    dry_run: bool,
+    terraform_client: Terraform,
+    terrascript_client: Terrascript,
+    enable_deletion: bool = False,
+) -> ExtendedEarlyExitRunnerResult:
+    disabled_deletions_detected, err = terraform_client.plan(enable_deletion)
+    applied_count = 0
     if err:
         raise RuntimeError("Error running terraform plan")
     if disabled_deletions_detected:
         raise RuntimeError("Disabled deletions detected running terraform plan")
+    if not dry_run:
+        err = terraform_client.apply()
+        if err:
+            raise RuntimeError("Error running terraform apply")
+        applied_count = terraform_client.apply_count
+    return ExtendedEarlyExitRunnerResult(
+        payload=terrascript_client.terraform_configurations(),
+        applied_count=applied_count,
+    )
 
-    if dry_run:
+
+@defer
+def run(
+    dry_run: bool,
+    print_to_file: Optional[str] = None,
+    enable_deletion: bool = False,
+    thread_pool_size: int = 10,
+    account_name: Optional[str] = None,
+    defer: Optional[Callable] = None,
+    enable_extended_early_exit: bool = False,
+    extended_early_exit_cache_ttl_seconds: int = 3600,
+    log_cached_log_output: bool = False,
+) -> None:
+    desired_state_data_source = _fetch_desired_state_data_source(account_name)
+    tgw_accounts = [
+        a.dict(by_alias=True)
+        for a in _filter_tgw_accounts(
+            desired_state_data_source.accounts, desired_state_data_source.clusters
+        )
+        if not account_name or account_name == a.name
+    ]
+    if not tgw_accounts:
+        logging.warning(
+            f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
+        )
         return
-
-    err = tf.apply()
-    if err:
-        raise RuntimeError("Error running terraform apply")
+    secret_reader, aws_api, tf, ts = setup(
+        desired_state_data_source=desired_state_data_source,
+        account_name=account_name,
+        tgw_accounts=tgw_accounts,
+        thread_pool_size=thread_pool_size,
+        print_to_file=print_to_file,
+    )
+    if defer:
+        defer(aws_api.cleanup)
+        defer(tf.cleanup)
+    # publish metrics??
+    if print_to_file:
+        return
+    runner_params: RunnerParams = dict(
+        terraform_client=tf,
+        terrascript_client=ts,
+        enable_deletion=enable_deletion,
+        dry_run=dry_run,
+    )
+    if enable_extended_early_exit and get_feature_toggle_state(
+        "terraform-tgw-attachments-extended-early-exit",
+        default=False,
+    ):
+        extended_early_exit_run(
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            dry_run=dry_run,
+            cache_source=ts.terraform_configurations(),
+            shard="_".join(account_name) if account_name else "",
+            ttl_seconds=extended_early_exit_cache_ttl_seconds,
+            logger=logging.getLogger(),
+            runner=runner,
+            runner_params=runner_params,
+            secret_reader=secret_reader,
+            log_cached_log_output=log_cached_log_output,
+        )
+    else:
+        runner(**runner_params)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:

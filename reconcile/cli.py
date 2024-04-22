@@ -2304,6 +2304,9 @@ def vpc_peerings_validator(ctx):
 @threaded()
 @binary(["terraform", "git"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @enable_deletion(default=False)
 @account_name
 @click.pass_context
@@ -2313,6 +2316,9 @@ def terraform_tgw_attachments(
     enable_deletion,
     thread_pool_size,
     account_name,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
 ):
     import reconcile.terraform_tgw_attachments
 
@@ -2325,6 +2331,9 @@ def terraform_tgw_attachments(
         enable_deletion,
         thread_pool_size,
         account_name=account_name,
+        enable_extended_early_exit=enable_extended_early_exit,
+        extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+        log_cached_log_output=log_cached_log_output,
     )
 
 
