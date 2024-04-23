@@ -1,4 +1,3 @@
-
 import pytest
 
 from reconcile.saas_auto_promotions_manager.state import IntegrationState
