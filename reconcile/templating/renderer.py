@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import tempfile
@@ -176,9 +175,10 @@ def unpack_dynamic_variables(
 
 
 def calc_template_hash(c: TemplateCollectionV1, variables: dict[str, Any]) -> str:
-    hashable = "".join(
-        sorted([str(t) for t in c.templates] + [json.dumps(variables, sort_keys=True)])
-    )
+    hashable = {
+        "templates": sorted(c.templates, key=lambda x: x.name),
+        "variables": variables,
+    }
     return DeepHash(hashable)[hashable]
 
 
