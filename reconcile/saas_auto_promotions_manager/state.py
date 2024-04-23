@@ -63,7 +63,7 @@ class IntegrationState:
 
     def _pull_state_from_s3(self) -> None:
         data = self._state.get("state.json")
-        self._soak_days_map: dict[str, float] = data["soak_days_map"]
+        self._soak_days_map: dict[str, float] = data.get("soak_days_map", {})
 
     def persist(self) -> None:
         state = {

@@ -1,8 +1,17 @@
 from collections.abc import Callable, Mapping
+from unittest.mock import create_autospec
 
 import pytest
 
 from reconcile.saas_auto_promotions_manager.publisher import DeploymentInfo, Publisher
+from reconcile.utils.state import State
+
+
+@pytest.fixture
+def state() -> State:
+    state = create_autospec(spec=State)
+    state.get.side_effect = [{}]
+    return state
 
 
 @pytest.fixture
