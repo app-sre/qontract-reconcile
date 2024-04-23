@@ -49,10 +49,12 @@ class DeadMansSnitchApi:
         self.session.close()
 
     def get_snitches(self, tags: list[str]) -> list[Snitch]:
-        full_url = f"{self.url}?tags={','.join(tags)}"
         logging.debug("Getting snitches for tags:%s", tags)
         response = self.session.get(
-            url=full_url, auth=(self.token, ""), timeout=self.timeout
+            url=self.url,
+            params={"tags": ",".join(tags)},
+            auth=(self.token, ""),
+            timeout=self.timeout,
         )
         response.raise_for_status()
         snitches = [Snitch(**item) for item in response.json()]
