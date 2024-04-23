@@ -254,7 +254,7 @@ class ExternalResourcesManager:
                 error = True
         if error:
             state.resource_status = ResourceStatus.ERROR
-            state.reconciliation_errors = state.reconciliation_errors + 1
+            state.reconciliation_errors += 1
             self.state_mgr.set_external_resource_state(state)
 
         return need_secret_sync

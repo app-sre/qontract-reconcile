@@ -140,7 +140,7 @@ def act(
     dry_run, ocm_map, current_state, current_failed, desired_state, current_deleting
 ):
     to_delete = [c for c in current_state if c not in desired_state]
-    to_delete = to_delete + current_failed
+    to_delete += current_failed
     for item in to_delete:
         cluster = item["cluster"]
         user_arn = item["user_arn"]
