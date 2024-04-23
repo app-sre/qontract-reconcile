@@ -180,7 +180,7 @@ class ExternalResourcesManager:
 
     def _get_deleted_objects_reconciliations(self) -> set[Reconciliation]:
         desired_keys = set(self.er_inventory.keys())
-        state_resource_keys = set(self.state_mgr.get_all_resource_keys())
+        state_resource_keys = self.state_mgr.get_all_resource_keys()
         deleted_keys = state_resource_keys - desired_keys
         r: set[Reconciliation] = set()
         for key in deleted_keys:

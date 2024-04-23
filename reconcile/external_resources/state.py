@@ -228,12 +228,12 @@ class ExternalResourcesStateDynamoDB:
         for item in self.client.scan(
             TableName=self._table, ProjectionExpression=self.PARTIALS_PROJECTED_VALUES
         ).get("Items", []):
-            s = self.adapter.deserialize(item)
+            s = self.adapter.deserialize(item, partial_data=True)
             partials[s.key] = s
         return partials
 
-    def get_all_resource_keys(self) -> list[ExternalResourceKey]:
-        return [k for k in self.partial_resources.keys()]
+    def get_all_resource_keys(self) -> set[ExternalResourceKey]:
+        return {k for k in self.partial_resources.keys()}
 
     def update_resource_status(
         self, key: ExternalResourceKey, status: ResourceStatus
