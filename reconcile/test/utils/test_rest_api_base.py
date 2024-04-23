@@ -1,21 +1,15 @@
-import json
-from collections.abc import Generator, Mapping
-from typing import Any
+from collections.abc import Generator
 
-import httpretty as httpretty_module
 import pytest
+from pytest_httpserver import HTTPServer
+from requests import HTTPError
 
-from reconcile.utils.rest_api_base import ApiBase, get_next_url
-
-
-@pytest.fixture
-def server_url() -> str:
-    return "http://fake-server.com"
+from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth, get_next_url
 
 
 @pytest.fixture
-def client(server_url: str) -> Generator[ApiBase, None, None]:
-    client = ApiBase(host=server_url)
+def client(httpserver: HTTPServer) -> Generator[ApiBase, None, None]:
+    client = ApiBase(host=httpserver.url_for("/"))
     yield client
     client.cleanup()
 
@@ -93,100 +87,132 @@ def test_get_next_url(
     assert get_next_url(test_input) == expected
 
 
-def test_glitchtip_client_list(
-    httpretty: httpretty_module, client: ApiBase, server_url: str
-) -> None:
-    first_url = f"{server_url}/data"
-    second_url = f"{server_url}/data2"
+def test_rest_api_base_client_list(httpserver: HTTPServer, client: ApiBase) -> None:
+    first_url = "/data"
+    second_url = "/data2"
 
-    httpretty.register_uri(
-        httpretty.GET,
-        first_url,
-        body=json.dumps([1]),
-        content_type="text/json",
-        link=f"<{second_url}>; rel='next'; results='true'",
+    httpserver.expect_request(first_url).respond_with_json(
+        [1],
+        headers={
+            "Link": f"<{httpserver.url_for(second_url)}>; rel='next'; results='true'"
+        },
     )
-    httpretty.register_uri(
-        httpretty.GET,
-        second_url,
-        body=json.dumps([2]),
-        content_type="text/json",
-        link=f"<{second_url}>; rel='next'; results='false'",
+
+    httpserver.expect_request(second_url).respond_with_json(
+        [2],
+        headers={
+            "Link": f"<{httpserver.url_for(second_url)}>; rel='next'; results='false'"
+        },
     )
+
     assert client._list(first_url) == [1, 2]
-    assert httpretty.last_request().headers
 
 
-def test_glitchtip_client_get(
-    httpretty: httpretty_module, client: ApiBase, server_url: str
-) -> None:
-    url = f"{server_url}/data"
+def test_rest_api_base_client_list_500(client: ApiBase) -> None:
+    with pytest.raises(HTTPError):
+        assert client._list("/data")
+
+
+def test_rest_api_base_client_get(httpserver: HTTPServer, client: ApiBase) -> None:
+    url = "/data"
     test_obj = {"test": "object"}
-    httpretty.register_uri(
-        httpretty.GET, url, body=json.dumps(test_obj), content_type="text/json"
-    )
+    httpserver.expect_request(url).respond_with_json(test_obj)
     assert client._get(url) == test_obj
 
 
-def test_glitchtip_client_post(
-    httpretty: httpretty_module, client: ApiBase, server_url: str
-) -> None:
-    url = f"{server_url}/data"
+def test_rest_api_base_client_get_500(client: ApiBase) -> None:
+    with pytest.raises(HTTPError):
+        assert client._get("/data")
+
+
+def test_rest_api_base_client_post(httpserver: HTTPServer, client: ApiBase) -> None:
+    url = "/data"
     request_data = {"test": "object"}
     response_data = {"foo": "bar"}
 
-    def request_callback(
-        request: httpretty_module.core.HTTPrettyRequest,
-        uri: str,
-        response_headers: Mapping[str, Any],
-    ) -> tuple[int, Mapping[str, Any], str]:
-        assert request.headers.get("Content-Type") == "application/json"
-        assert json.loads(request.body) == request_data
-        return (201, response_headers, json.dumps(response_data))
-
-    httpretty.register_uri(
-        httpretty.POST, url, content_type="text/json", body=request_callback
-    )
+    httpserver.expect_request(
+        url,
+        method="post",
+        headers={"Content-Type": "application/json"},
+        json=request_data,
+    ).respond_with_json(response_data)
     assert client._post(url, data=request_data) == response_data
 
 
-def test_glitchtip_client_put(
-    httpretty: httpretty_module, client: ApiBase, server_url: str
-) -> None:
-    url = f"{server_url}/data"
+def test_rest_api_base_client_post_204(httpserver: HTTPServer, client: ApiBase) -> None:
+    url = "/data"
+    request_data = {"test": "object"}
+
+    httpserver.expect_request(
+        url,
+        method="post",
+        headers={"Content-Type": "application/json"},
+        json=request_data,
+    ).respond_with_data(status=204)
+    assert client._post(url, data=request_data) == {}
+
+
+def test_rest_api_base_client_post_500(client: ApiBase) -> None:
+    with pytest.raises(HTTPError):
+        assert client._post("/data", data={})
+
+
+def test_rest_api_base_client_put(httpserver: HTTPServer, client: ApiBase) -> None:
+    url = "/data"
     request_data = {"test": "object"}
     response_data = {"foo": "bar"}
 
-    def request_callback(
-        request: httpretty_module.core.HTTPrettyRequest,
-        uri: str,
-        response_headers: Mapping[str, Any],
-    ) -> tuple[int, Mapping[str, Any], str]:
-        assert request.headers.get("Content-Type") == "application/json"
-        assert json.loads(request.body) == request_data
-        return (201, response_headers, json.dumps(response_data))
-
-    httpretty.register_uri(
-        httpretty.PUT, url, content_type="text/json", body=request_callback
-    )
+    httpserver.expect_request(
+        url,
+        method="put",
+        headers={"Content-Type": "application/json"},
+        json=request_data,
+    ).respond_with_json(response_data)
     assert client._put(url, data=request_data) == response_data
 
 
-def test_glitchtip_client_delete(
-    httpretty: httpretty_module, client: ApiBase, server_url: str
-) -> None:
-    url = f"{server_url}/data"
-    httpretty.register_uri(httpretty.DELETE, url)
+def test_rest_api_base_client_put_204(httpserver: HTTPServer, client: ApiBase) -> None:
+    url = "/data"
+    request_data = {"test": "object"}
+
+    httpserver.expect_request(
+        url,
+        method="put",
+        headers={"Content-Type": "application/json"},
+        json=request_data,
+    ).respond_with_data(status=204)
+    assert client._put(url, data=request_data) == {}
+
+
+def test_rest_api_base_client_put_500(client: ApiBase) -> None:
+    with pytest.raises(HTTPError):
+        assert client._put("/data", data={})
+
+
+def test_rest_api_base_client_delete(httpserver: HTTPServer, client: ApiBase) -> None:
+    url = "/data"
+    httpserver.expect_request(url, method="delete").respond_with_data()
     client._delete(url)
 
 
-def test_glitchtip_client_context_manager(
-    httpretty: httpretty_module, server_url: str
-) -> None:
-    url = f"{server_url}/data"
+def test_rest_api_base_client_delete_500(client: ApiBase) -> None:
+    with pytest.raises(HTTPError):
+        client._delete("/data")
+
+
+def test_rest_api_base_client_context_manager(httpserver: HTTPServer) -> None:
+    url = "/data"
     test_obj = {"test": "object"}
-    httpretty.register_uri(
-        httpretty.GET, url, body=json.dumps(test_obj), content_type="text/json"
-    )
-    with ApiBase(host=server_url) as client:
+    httpserver.expect_request(url).respond_with_json(test_obj)
+    with ApiBase(host=httpserver.url_for("/")) as client:
+        assert client._get(url) == test_obj
+
+
+def test_rest_api_base_client_bearer_auth(httpserver: HTTPServer) -> None:
+    url = "/data"
+    test_obj = {"test": "object"}
+    httpserver.expect_request(
+        url, headers={"Authorization": "Bearer token"}
+    ).respond_with_json(test_obj)
+    with ApiBase(host=httpserver.url_for("/"), auth=BearerTokenAuth("token")) as client:
         assert client._get(url) == test_obj

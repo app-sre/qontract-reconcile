@@ -75,6 +75,7 @@ class ApiBase:
 
     def _get(self, url: str) -> dict[str, Any]:
         response = self.session.get(urljoin(self.host, url), timeout=self.read_timeout)
+        response.raise_for_status()
         return response.json()
 
     def _list(
