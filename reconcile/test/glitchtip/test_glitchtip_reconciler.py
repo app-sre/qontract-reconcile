@@ -1,11 +1,9 @@
-import json
 from collections.abc import Callable
 from typing import Any
-from urllib.parse import urljoin
 
-import httpretty as httpretty_module
 import pytest
 from pydantic import BaseModel
+from pytest_httpserver import HTTPServer
 from pytest_mock import MockerFixture
 
 from reconcile.glitchtip.reconciler import GlitchtipReconciler
@@ -22,28 +20,27 @@ from reconcile.utils.glitchtip.models import Organization
 class GlitchtipUrl(BaseModel):
     name: str
     uri: str
+    query: str | None = None
     method: str = "POST"
     responses: list[Any] = []
 
 
 @pytest.fixture
-def configure_httpretty(
-    httpretty: httpretty_module, glitchtip_url: str
-) -> Callable[[list[GlitchtipUrl]], int]:
-    httpretty.Response
-
+def configure_httpserver(httpserver: HTTPServer) -> Callable[[list[GlitchtipUrl]], int]:
     def f(glitchtip_urls: list[GlitchtipUrl]) -> int:
         i = 0
         for url in glitchtip_urls:
             i += len(url.responses) or 1
-            httpretty.register_uri(
-                url.method.upper(),
-                urljoin(glitchtip_url, url.uri),
-                responses=[
-                    httpretty.Response(body=json.dumps(r)) for r in url.responses
-                ],
-                content_type="text/json",
-            )
+            for r in url.responses or [None]:
+                req = httpserver.expect_oneshot_request(
+                    url.uri,
+                    method=url.method,
+                    query_string=url.query,
+                )
+                if r:
+                    req.respond_with_json(r)
+                else:
+                    req.respond_with_data()
         return i
 
     return f
@@ -64,17 +61,17 @@ def test_glitchtip_reconciler_init(
 )
 def test_glitchtip_reconciler_reconcile_users(
     fixture_name: str,
-    httpretty: httpretty_module,
+    httpserver: HTTPServer,
     glitchtip_client_minimal: GlitchtipClient,
     fx: Fixtures,
-    configure_httpretty: Callable[[list[GlitchtipUrl]], int],
+    configure_httpserver: Callable[[list[GlitchtipUrl]], int],
 ) -> None:
     fixture = fx.get_anymarkup(f"reconciler/users/{fixture_name}.yml")
     current_users = [User(**i) for i in fixture["current_users"]]
     desired_users = [User(**i) for i in fixture["desired_users"]]
     expected_return_value = [User(**i) for i in fixture["expected_return_value"]]
     gtr = GlitchtipReconciler(client=glitchtip_client_minimal, dry_run=False)
-    request_count = configure_httpretty([
+    request_count = configure_httpserver([
         GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]
     ])
 
@@ -86,23 +83,23 @@ def test_glitchtip_reconciler_reconcile_users(
         )
         == expected_return_value
     )
-    assert len(httpretty.latest_requests()) == request_count
+    assert len(httpserver.log) == request_count
 
 
 @pytest.mark.parametrize(
     "fixture_name",
     [
-        "mixed",
         "no_current_teams",
+        "mixed",
         "no_desired_teams",
     ],
 )
 def test_glitchtip_reconciler_reconcile_teams(
     fixture_name: str,
-    httpretty: httpretty_module,
+    httpserver: HTTPServer,
     glitchtip_client_minimal: GlitchtipClient,
     fx: Fixtures,
-    configure_httpretty: Callable[[list[GlitchtipUrl]], int],
+    configure_httpserver: Callable[[list[GlitchtipUrl]], int],
 ) -> None:
     fixture = fx.get_anymarkup(f"reconciler/teams/{fixture_name}.yml")
     organization_users = [User(**i) for i in fixture["organization_users"]]
@@ -110,7 +107,7 @@ def test_glitchtip_reconciler_reconcile_teams(
     desired_teams = [Team(**i) for i in fixture["desired_teams"]]
     expected_return_value = [Team(**i) for i in fixture["expected_return_value"]]
     gtr = GlitchtipReconciler(client=glitchtip_client_minimal, dry_run=False)
-    request_count = configure_httpretty([
+    request_count = configure_httpserver([
         GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]
     ])
 
@@ -123,7 +120,7 @@ def test_glitchtip_reconciler_reconcile_teams(
         )
         == expected_return_value
     )
-    assert len(httpretty.latest_requests()) == request_count
+    assert len(httpserver.log) == request_count
 
 
 @pytest.mark.parametrize(
@@ -136,10 +133,10 @@ def test_glitchtip_reconciler_reconcile_teams(
 )
 def test_glitchtip_reconciler_reconcile_projects(
     fixture_name: str,
-    httpretty: httpretty_module,
+    httpserver: HTTPServer,
     glitchtip_client_minimal: GlitchtipClient,
     fx: Fixtures,
-    configure_httpretty: Callable[[list[GlitchtipUrl]], int],
+    configure_httpserver: Callable[[list[GlitchtipUrl]], int],
 ) -> None:
     fixture = fx.get_anymarkup(f"reconciler/projects/{fixture_name}.yml")
     organization_teams = [Team(**i) for i in fixture["organization_teams"]]
@@ -147,7 +144,7 @@ def test_glitchtip_reconciler_reconcile_projects(
     desired_projects = [Project(**i) for i in fixture["desired_projects"]]
     expected_return_value = [Project(**i) for i in fixture["expected_return_value"]]
     gtr = GlitchtipReconciler(client=glitchtip_client_minimal, dry_run=False)
-    request_count = configure_httpretty([
+    request_count = configure_httpserver([
         GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]
     ])
 
@@ -160,7 +157,7 @@ def test_glitchtip_reconciler_reconcile_projects(
         )
         == expected_return_value
     )
-    assert len(httpretty.latest_requests()) == request_count
+    assert len(httpserver.log) == request_count
 
 
 @pytest.mark.parametrize(
@@ -173,10 +170,10 @@ def test_glitchtip_reconciler_reconcile_projects(
 )
 def test_glitchtip_reconciler_reconcile_organization(
     fixture_name: str,
-    httpretty: httpretty_module,
+    httpserver: HTTPServer,
     glitchtip_client_minimal: GlitchtipClient,
     fx: Fixtures,
-    configure_httpretty: Callable[[list[GlitchtipUrl]], int],
+    configure_httpserver: Callable[[list[GlitchtipUrl]], int],
     mocker: MockerFixture,
 ) -> None:
     fixture = fx.get_anymarkup(f"reconciler/organizations/{fixture_name}.yml")
@@ -190,7 +187,7 @@ def test_glitchtip_reconciler_reconcile_organization(
     reconcile_users_mock = mocker.patch.object(gtr, "_reconcile_users")
     reconcile_teams_mock = mocker.patch.object(gtr, "_reconcile_teams")
     reconcile_projects_mock = mocker.patch.object(gtr, "_reconcile_projects")
-    request_count = configure_httpretty([
+    request_count = configure_httpserver([
         GlitchtipUrl(**i) for i in fixture["glitchtip_urls"]
     ])
 
@@ -198,7 +195,7 @@ def test_glitchtip_reconciler_reconcile_organization(
         current=current_organizations,
         desired=desired_organizations,
     )
-    assert len(httpretty.latest_requests()) == request_count
+    assert len(httpserver.log) == request_count
     if desired_organizations:
         assert reconcile_users_mock.called
         assert reconcile_teams_mock.called

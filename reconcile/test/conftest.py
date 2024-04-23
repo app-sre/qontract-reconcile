@@ -16,6 +16,7 @@ import httpretty as _httpretty
 import pytest
 from pydantic import BaseModel
 from pydantic.error_wrappers import ValidationError
+from pytest_httpserver import HTTPServer
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.test.fixtures import Fixtures
@@ -166,6 +167,24 @@ def set_httpretty_responses_based_on_fixture(httpretty: _httpretty) -> Callable:
                         f"{url}/{path}",
                         body=method_file.read_text(),
                         content_type="text/json",
+                    )
+
+    return _
+
+
+@pytest.fixture
+def set_httpserver_responses_based_on_fixture(httpserver: HTTPServer) -> Callable:
+    """Create httpserver responses based fixture files."""
+
+    def _(fx: Fixtures, paths: Iterable[str]) -> None:
+        for path in paths:
+            for method in ["get", "post", "put", "patch", "delete"]:
+                method_file = Path(fx.path(path.lstrip("/"))) / f"{method}.json"
+                if method_file.exists():
+                    httpserver.expect_oneshot_request(
+                        path, method=method
+                    ).respond_with_data(
+                        method_file.read_text(), content_type="text/json"
                     )
 
     return _
