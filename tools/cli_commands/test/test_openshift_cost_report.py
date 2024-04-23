@@ -11,6 +11,7 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.typed_queries.cost_report.app_names import App
 from reconcile.typed_queries.cost_report.cost_namespaces import CostNamespace
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
+from tools.cli_commands.cost_report.response import OpenShiftReportCostResponse
 
 
 @pytest.fixture
@@ -69,7 +70,7 @@ def mock_get_cost_report_settings(mocker: MockerFixture) -> Any:
     )
 
 
-def test_cost_report_create(
+def test_openshift_cost_report_create(
     mock_gql: Any,
     mock_cost_management_api: Any,
     mock_get_app_interface_vault_settings: Any,
@@ -134,7 +135,7 @@ CHILD_APP_NAMESPACE = CostNamespace(
 )
 
 
-def test_cost_report_execute(
+def test_openshift_cost_report_execute(
     openshift_cost_report_command: OpenShiftCostReportCommand,
 ) -> None:
     output = openshift_cost_report_command.execute()
@@ -142,7 +143,7 @@ def test_cost_report_execute(
     assert output == ""
 
 
-def test_cost_report_get_apps(
+def test_openshift_cost_report_get_apps(
     openshift_cost_report_command: OpenShiftCostReportCommand,
     mock_get_app_names: Any,
 ) -> None:
@@ -159,7 +160,7 @@ def mock_get_cost_namespaces(mocker: MockerFixture) -> Any:
     return mocker.patch("tools.cli_commands.cost_report.openshift.get_cost_namespaces")
 
 
-def test_cost_report_get_cost_namespaces(
+def test_openshift_cost_report_get_cost_namespaces(
     openshift_cost_report_command: OpenShiftCostReportCommand,
     mock_get_cost_namespaces: Any,
 ) -> None:
@@ -169,3 +170,85 @@ def test_cost_report_get_cost_namespaces(
     apps = openshift_cost_report_command.get_cost_namespaces()
 
     assert apps == expected_namespaces
+
+
+def openshift_report_cost_response_builder(
+    delta_value: int,
+    delta_percent: int,
+    total: int,
+    project: str,
+    cluster: str,
+) -> OpenShiftReportCostResponse:
+    return OpenShiftReportCostResponse.parse_obj({
+        "meta": {
+            "delta": {
+                "value": delta_value,
+                "percent": delta_percent,
+            },
+            "total": {
+                "cost": {
+                    "total": {
+                        "value": total,
+                        "units": "USD",
+                    }
+                }
+            },
+        },
+        "data": [
+            {
+                "date": "2024-02",
+                "projects": [
+                    {
+                        "project": project,
+                        "values": [
+                            {
+                                "delta_value": delta_value,
+                                "delta_percent": delta_percent,
+                                "clusters": [cluster],
+                                "cost": {
+                                    "total": {
+                                        "value": total,
+                                        "units": "USD",
+                                    }
+                                },
+                            }
+                        ],
+                    },
+                ],
+            }
+        ],
+    })
+
+
+PARENT_APP_COST_RESPONSE = openshift_report_cost_response_builder(
+    delta_value=100,
+    delta_percent=10,
+    total=1000,
+    project=PARENT_APP_NAMESPACE.name,
+    cluster=PARENT_APP_NAMESPACE.cluster_name,
+)
+
+CHILD_APP_COST_RESPONSE = openshift_report_cost_response_builder(
+    delta_value=200,
+    delta_percent=20,
+    total=2000,
+    project=CHILD_APP_NAMESPACE.name,
+    cluster=CHILD_APP_NAMESPACE.cluster_name,
+)
+
+
+def test_openshift_cost_report_get_reports(
+    openshift_cost_report_command: OpenShiftCostReportCommand,
+    mock_cost_management_api: Any,
+) -> None:
+    mock_cost_management_api.return_value.get_openshift_costs_report.return_value = (
+        PARENT_APP_COST_RESPONSE
+    )
+
+    reports = openshift_cost_report_command.get_reports([PARENT_APP_NAMESPACE])
+
+    assert reports == {PARENT_APP_NAMESPACE: PARENT_APP_COST_RESPONSE}
+    mock_cost_management_api.return_value.get_openshift_costs_report.assert_called_once_with(
+        project=PARENT_APP_NAMESPACE.name,
+        cluster=PARENT_APP_NAMESPACE.cluster_external_id,
+    )

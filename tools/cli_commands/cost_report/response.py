@@ -46,3 +46,25 @@ class CostResponse(BaseModel):
 class ReportCostResponse(BaseModel):
     meta: ReportMetaResponse
     data: List[CostResponse]
+
+
+class ProjectCostValueResponse(BaseModel):
+    delta_value: Decimal
+    delta_percent: float | None
+    cost: CostTotalResponse
+    clusters: List[str]
+
+
+class ProjectCostResponse(BaseModel):
+    project: str
+    values: List[ProjectCostValueResponse]
+
+
+class OpenShiftCostResponse(BaseModel):
+    date: str
+    projects: List[ProjectCostResponse]
+
+
+class OpenShiftReportCostResponse(BaseModel):
+    meta: ReportMetaResponse
+    data: List[OpenShiftCostResponse]

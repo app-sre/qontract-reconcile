@@ -6,7 +6,10 @@ from reconcile.utils.oauth2_backend_application_session import (
     OAuth2BackendApplicationSession,
 )
 from reconcile.utils.rest_api_base import ApiBase
-from tools.cli_commands.cost_report.response import ReportCostResponse
+from tools.cli_commands.cost_report.response import (
+    OpenShiftReportCostResponse,
+    ReportCostResponse,
+)
 
 REQUEST_TIMEOUT = 60
 
@@ -56,3 +59,10 @@ class CostManagementApi(ApiBase):
         )
         response.raise_for_status()
         return ReportCostResponse.parse_obj(response.json())
+
+    def get_openshift_costs_report(
+        self,
+        project: str,
+        cluster: str,
+    ) -> OpenShiftReportCostResponse:
+        return OpenShiftReportCostResponse.parse_obj({})

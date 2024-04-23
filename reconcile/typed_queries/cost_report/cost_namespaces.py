@@ -10,6 +10,9 @@ class CostNamespace(BaseModel):
     cluster_name: str
     cluster_external_id: str | None
 
+    class Config:
+        frozen = True
+
 
 def get_cost_namespaces(
     gql_api: GqlApi,
