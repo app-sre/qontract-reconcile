@@ -4,6 +4,7 @@ git+https://github.com/gabrielfalcao/HTTPretty.git@c255165a86bef7f894c3a446b41d0
 kubernetes~=24.0
 pytest~=7.2
 pytest-cov~=4.0.0
+pytest-httpserver~=1.0
 pytest-mock~=3.6
 responses==0.23.1
 testslide~=2.7

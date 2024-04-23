@@ -377,6 +377,7 @@ module = [
     "prometheus_client.*",
     "pygments.*",
     "pypd.*",
+    "pytest_httpserver.*",
     "pytest_mock.*",
     "pytest.*",
     "python_terraform.*",
@@ -391,5 +392,6 @@ module = [
     "testslide.*",
     "UnleashClient.*",
     "urllib3.*",
+    "werkzeug.*",
 ]
 ignore_missing_imports = true
