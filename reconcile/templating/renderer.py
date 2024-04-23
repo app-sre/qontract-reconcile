@@ -1,4 +1,3 @@
-import hashlib
 import json
 import logging
 import os
@@ -7,6 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any, Optional, Self
 
+from deepdiff import DeepHash
 from ruamel import yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
@@ -176,11 +176,10 @@ def unpack_dynamic_variables(
 
 
 def calc_template_hash(c: TemplateCollectionV1, variables: dict[str, Any]) -> str:
-    return hashlib.sha256(
-        "".join(sorted([str(t) for t in c.templates] + [json.dumps(variables)])).encode(
-            "utf-8"
-        )
-    ).hexdigest()
+    hashable = "".join(
+        sorted([str(t) for t in c.templates] + [json.dumps(variables, sort_keys=True)])
+    )
+    return DeepHash(hashable)[hashable]
 
 
 class TemplateRendererIntegrationParams(PydanticRunParams):
