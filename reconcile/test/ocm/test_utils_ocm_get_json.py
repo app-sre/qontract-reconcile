@@ -2,7 +2,7 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from httpretty.core import HTTPrettyRequest
+from werkzeug import Request
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import OCM
@@ -39,18 +39,21 @@ def test_get_json_pagination(
     nr_of_items: int,
     page_size: int,
     ocm: OCM,
-    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str, str], list[HTTPrettyRequest]],
+    register_ocm_url_responses: Callable[[list[OcmUrl], int], int],
+    find_all_ocm_http_requests: Callable[[str, str], list[Request]],
 ) -> None:
-    register_ocm_url_responses([
-        OcmUrl(
-            method="GET",
-            uri="/api",
-            responses=build_paged_ocm_response(
-                nr_of_items=nr_of_items, page_size=page_size
-            ),
-        )
-    ])
+    register_ocm_url_responses(
+        [
+            OcmUrl(
+                method="GET",
+                uri="/api",
+                responses=build_paged_ocm_response(
+                    nr_of_items=nr_of_items, page_size=page_size
+                ),
+            )
+        ],
+        page_size,
+    )
 
     resp = ocm._get_json("/api", page_size=page_size)
 
@@ -66,15 +69,18 @@ def test_get_json_pagination(
 
 def test_get_json_empty_list(
     ocm: OCM,
-    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+    register_ocm_url_responses: Callable[[list[OcmUrl], int], int],
 ) -> None:
-    register_ocm_url_responses([
-        OcmUrl(
-            method="GET",
-            uri="/api",
-            responses=build_paged_ocm_response(nr_of_items=0, page_size=10),
-        )
-    ])
+    register_ocm_url_responses(
+        [
+            OcmUrl(
+                method="GET",
+                uri="/api",
+                responses=build_paged_ocm_response(nr_of_items=0, page_size=10),
+            )
+        ],
+        10,
+    )
 
     resp = ocm._get_json("/api", page_size=10)
 

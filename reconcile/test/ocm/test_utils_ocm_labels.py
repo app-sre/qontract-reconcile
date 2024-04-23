@@ -2,8 +2,8 @@ from collections.abc import Callable
 from typing import Optional
 
 import pytest
-from httpretty.core import HTTPrettyRequest
 from pytest_mock import MockerFixture
+from werkzeug import Request
 
 from reconcile.test.ocm.fixtures import (
     OcmUrl,
@@ -324,7 +324,7 @@ def build_cluster_details(
 def test_add_subscription_labels(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str], list[HTTPrettyRequest]],
+    find_all_ocm_http_requests: Callable[[str], list[Request]],
 ) -> None:
     cluster = build_cluster_details()
     cluster.ocm_cluster.subscription.href = "/api/foobar/sub"
@@ -342,7 +342,7 @@ def test_add_subscription_labels(
 def test_update_ocm_labels(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str], list[HTTPrettyRequest]],
+    find_all_ocm_http_requests: Callable[[str], list[Request]],
 ) -> None:
     cluster = build_cluster_details(subs_labels=[("label", "value")])
 
@@ -359,7 +359,7 @@ def test_update_ocm_labels(
 def test_delete_ocm_labels(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str], list[HTTPrettyRequest]],
+    find_all_ocm_http_requests: Callable[[str], list[Request]],
 ) -> None:
     cluster = build_cluster_details(subs_labels=[("label", "value")])
 
