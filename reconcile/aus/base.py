@@ -850,8 +850,8 @@ def is_gate_applicable_to_cluster(gate: OCMVersionGate, cluster: OCMCluster) -> 
     # consider only gates after the clusters current minor version
     # OCM onls supports creating gate agreements for later minor versions than the
     # current cluster version
-    if not semver.match(
-        f"{cluster.minor_version()}.0", f"<{gate.version_raw_id_prefix}.0"
+    if not parse_semver(f"{cluster.minor_version()}.0").match(
+        f"<{gate.version_raw_id_prefix}.0"
     ):
         return False
 
