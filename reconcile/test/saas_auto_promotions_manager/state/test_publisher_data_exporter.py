@@ -30,7 +30,7 @@ def test_s3_exporter(
     }
 
     integration_state.export_publisher_data(publishers=publishers)
-    state.add.assert_called_once_with(
+    state.add.assert_called_once_with(  # type: ignore[attr-defined]
         key="publisher-data.json", value=expected, force=True
     )
 
@@ -60,7 +60,7 @@ def test_publisher_data_exporter_failed_deployment(
     }
 
     integration_state.export_publisher_data(publishers=publishers)
-    state.add.assert_called_once_with(
+    state.add.assert_called_once_with(  # type: ignore[attr-defined]
         key="publisher-data.json", value=expected, force=True
     )
 
@@ -90,7 +90,7 @@ def test_publisher_data_exporter_missing_deployment(
     }
 
     integration_state.export_publisher_data(publishers=publishers)
-    state.add.assert_called_once_with(
+    state.add.assert_called_once_with(  # type: ignore[attr-defined]
         key="publisher-data.json", value=expected, force=True
     )
 
@@ -132,7 +132,7 @@ def test_publisher_data_export_multiple(
     }
 
     integration_state.export_publisher_data(publishers=publishers)
-    state.add.assert_called_once_with(
+    state.add.assert_called_once_with(  # type: ignore[attr-defined]
         key="publisher-data.json", value=expected, force=True
     )
 
@@ -140,4 +140,4 @@ def test_publisher_data_export_multiple(
 def test_publisher_data_exporter_dry_run(state: State) -> None:
     integration_state = IntegrationState(state=state, dry_run=True)
     integration_state.export_publisher_data(publishers=[])
-    state.add.assert_not_called()
+    state.add.assert_not_called()  # type: ignore[attr-defined]
