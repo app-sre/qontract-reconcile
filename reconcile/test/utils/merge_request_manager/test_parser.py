@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from reconcile.test.utils.merge_request_manager.conftest import TestModel
+from reconcile.test.utils.merge_request_manager.conftest import TstModel
 from reconcile.utils.merge_request_manager.parser import (
     Parser,
     ParserError,
@@ -13,7 +13,7 @@ from reconcile.utils.merge_request_manager.parser import (
 def test_paser_pass(parser: Parser, description: str) -> None:
     result = parser.parse(description)
 
-    assert result == TestModel(data_ref1="data1")
+    assert result == TstModel(data_ref1="data1")
 
 
 def test_parser_fail_missing_version(parser: Parser) -> None:
