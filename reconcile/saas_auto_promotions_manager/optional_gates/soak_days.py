@@ -17,7 +17,7 @@ class SoakDaysGate:
                 self._state.first_seen(subscriber=subscriber)
             )
             now = datetime.now()
-            if subscriber.soak_days and (now - first_seen).days <= subscriber.soak_days:
+            if subscriber.soak_days and (now - first_seen).days < subscriber.soak_days:
                 continue
             passing_subscribers.append(subscriber)
         return passing_subscribers

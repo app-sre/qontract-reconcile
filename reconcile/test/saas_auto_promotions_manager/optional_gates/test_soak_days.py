@@ -59,3 +59,41 @@ def test_soak_days_one_pass_one_fail(
         ]
     )
     assert passed_subscribers == [subscriber_b]
+
+
+def test_soak_days_close_to_deadline(
+    subscriber_builder: Callable[[], Subscriber],
+) -> None:
+    state = create_autospec(spec=IntegrationState)
+    # now - 23:59:59
+    state.first_seen.return_value = time() - (23 * 60 * 60) - (59 * 60) - 59
+    soak_days = SoakDaysGate(state=state)
+    subscriber_a = subscriber_builder()
+    subscriber_a.desired_ref = "a-ref"
+    subscriber_a.soak_days = 1
+
+    passed_subscribers = soak_days.filter(
+        subscribers=[
+            subscriber_a,
+        ]
+    )
+    assert passed_subscribers == []
+
+
+def test_soak_days_just_passed_deadline(
+    subscriber_builder: Callable[[], Subscriber],
+) -> None:
+    state = create_autospec(spec=IntegrationState)
+    # now - 48h
+    state.first_seen.return_value = time() - (48 * 60 * 60)
+    soak_days = SoakDaysGate(state=state)
+    subscriber_a = subscriber_builder()
+    subscriber_a.desired_ref = "a-ref"
+    subscriber_a.soak_days = 2
+
+    passed_subscribers = soak_days.filter(
+        subscribers=[
+            subscriber_a,
+        ]
+    )
+    assert passed_subscribers == [subscriber_a]
