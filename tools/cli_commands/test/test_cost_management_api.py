@@ -14,6 +14,10 @@ from tools.cli_commands.cost_report.response import (
     CostTotalResponse,
     DeltaResponse,
     MoneyResponse,
+    OpenShiftCostResponse,
+    OpenShiftReportCostResponse,
+    ProjectCostResponse,
+    ProjectCostValueResponse,
     ReportCostResponse,
     ReportMetaResponse,
     ServiceCostResponse,
@@ -161,5 +165,103 @@ def test_get_aws_costs_report_error(
 
     with pytest.raises(HTTPError) as error:
         cost_management_api.get_aws_costs_report(app="test")
+
+    assert error.value.response.status_code == 500
+
+
+EXPECTED_OPENSHIFT_REPORT_COST_RESPONSE = OpenShiftReportCostResponse(
+    meta=ReportMetaResponse(
+        delta=DeltaResponse(
+            value=Decimal(100),
+            percent=10,
+        ),
+        total=TotalMetaResponse(
+            cost=CostTotalResponse(
+                total=MoneyResponse(
+                    value=Decimal(1000),
+                    units="USD",
+                )
+            )
+        ),
+    ),
+    data=[
+        OpenShiftCostResponse(
+            date="2024-02",
+            projects=[
+                ProjectCostResponse(
+                    project="some-project",
+                    values=[
+                        ProjectCostValueResponse(
+                            delta_percent=10,
+                            delta_value=Decimal(100),
+                            clusters=["some-cluster"],
+                            cost=CostTotalResponse(
+                                total=MoneyResponse(
+                                    value=Decimal(1000),
+                                    units="USD",
+                                )
+                            ),
+                        )
+                    ],
+                ),
+            ],
+        ),
+    ],
+)
+
+
+@httpretty.activate(allow_net_connect=False, verbose=True)
+def test_get_openshift_costs_report(
+    cost_management_api: CostManagementApi,
+    fx: Callable,
+) -> None:
+    response_body = fx("openshift_cost_report.json")
+    project = "some-project"
+    cluster = "some-cluster-uuid"
+    httpretty.register_uri(
+        httpretty.GET,
+        f"{BASE_URL}/reports/openshift/costs/?"
+        "delta=cost&"
+        "filter[resolution]=monthly&"
+        f"filter[cluster]={cluster}&"
+        f"filter[project]={project}&"
+        "filter[time_scope_units]=month&"
+        "filter[time_scope_value]=-2&"
+        "group_by[project]=*",
+        body=response_body,
+        match_querystring=True,
+    )
+
+    report_cost_response = cost_management_api.get_openshift_costs_report(
+        cluster=cluster,
+        project=project,
+    )
+
+    assert report_cost_response == EXPECTED_OPENSHIFT_REPORT_COST_RESPONSE
+
+
+@httpretty.activate(allow_net_connect=False, verbose=True)
+def test_get_openshift_costs_report_error(
+    cost_management_api: CostManagementApi,
+    fx: Callable,
+) -> None:
+    def callback(
+        _request: HTTPrettyRequest,
+        _url: str,
+        headers: dict,
+    ) -> Tuple[int, dict, str]:
+        return 500, headers, ""
+
+    httpretty.register_uri(
+        httpretty.GET,
+        f"{BASE_URL}/reports/openshift/costs/",
+        body=callback,
+    )
+
+    with pytest.raises(HTTPError) as error:
+        cost_management_api.get_openshift_costs_report(
+            cluster="some-cluster",
+            project="some-project",
+        )
 
     assert error.value.response.status_code == 500

@@ -62,7 +62,23 @@ class CostManagementApi(ApiBase):
 
     def get_openshift_costs_report(
         self,
-        project: str,
         cluster: str,
+        project: str,
     ) -> OpenShiftReportCostResponse:
-        return OpenShiftReportCostResponse.parse_obj({})
+        params = {
+            "delta": "cost",
+            "filter[resolution]": "monthly",
+            "filter[cluster]": cluster,
+            "filter[project]": project,
+            "filter[time_scope_units]": "month",
+            "filter[time_scope_value]": "-2",
+            "group_by[project]": "*",
+        }
+        response = self.session.request(
+            method="GET",
+            url=f"{self.host}/reports/openshift/costs/",
+            params=params,
+            timeout=self.read_timeout,
+        )
+        response.raise_for_status()
+        return OpenShiftReportCostResponse.parse_obj(response.json())
