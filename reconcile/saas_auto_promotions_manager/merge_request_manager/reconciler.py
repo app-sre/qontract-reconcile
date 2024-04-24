@@ -14,7 +14,7 @@ class Reason(Enum):
     NEW_BATCH = "Closing this MR in favor of a new batch MR."
 
 
-@dataclass
+@dataclass(order=True)
 class Promotion:
     content_hashes: set[str]
     channels: set[str]
