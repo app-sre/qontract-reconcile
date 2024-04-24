@@ -32,7 +32,7 @@ from reconcile.ocm_machine_pools import (
 from reconcile.utils.ocm import OCM
 
 
-class TstPool(AbstractPool):
+class PoolStub(AbstractPool):
     created = False
     deleted = False
     updated = False
@@ -57,8 +57,8 @@ class TstPool(AbstractPool):
 
 
 @pytest.fixture
-def test_pool() -> TstPool:
-    return TstPool(
+def test_pool() -> PoolStub:
+    return PoolStub(
         id="pool1",
         replicas=2,
         labels=None,
@@ -133,7 +133,7 @@ def ocm_mock():
 
 
 def test_diff__has_diff_autoscale(cluster_machine_pool: ClusterMachinePoolV1):
-    pool = TstPool(id="pool1", cluster="cluster1", cluster_type=ClusterType.OSD)
+    pool = PoolStub(id="pool1", cluster="cluster1", cluster_type=ClusterType.OSD)
 
     assert cluster_machine_pool.autoscale is None
     assert not pool._has_diff_autoscale(cluster_machine_pool)

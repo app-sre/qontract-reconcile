@@ -19,11 +19,11 @@ def gitlab_cli(mocker: MockerFixture) -> GitLabApi:
     return mocker.MagicMock(GitLabApi)
 
 
-class TstData(BaseModel):
+class DataStub(BaseModel):
     data_ref1: str
 
 
-class TstMRManager(MergeRequestManagerBase[TstData]):
+class MRManagerStub(MergeRequestManagerBase[DataStub]):
     def __init__(self, vcs: VCS, parser: Parser, label: str):
         super().__init__(vcs, parser, label)
 
@@ -34,10 +34,10 @@ class TstMRManager(MergeRequestManagerBase[TstData]):
 @pytest.fixture
 def mergereqeustmanager(
     parser: Parser, mocker: MockerFixture
-) -> tuple[TstMRManager, Mock]:
+) -> tuple[MRManagerStub, Mock]:
     vcs = mocker.MagicMock(VCS)
 
-    return TstMRManager(vcs, parser, "foo"), vcs
+    return MRManagerStub(vcs, parser, "foo"), vcs
 
 
 @pytest.mark.parametrize(
@@ -80,7 +80,7 @@ def mergereqeustmanager(
 def test_housekeeping(
     attributes: dict,
     closed_reason: str,
-    mergereqeustmanager: tuple[TstMRManager, Mock],
+    mergereqeustmanager: tuple[MRManagerStub, Mock],
     mocker: MockerFixture,
 ) -> None:
     mrm, vcs = mergereqeustmanager
@@ -100,7 +100,7 @@ def test_housekeeping(
 
 
 def test_merge_request_manager_fetch_avs_managed_open_merge_requests(
-    mergereqeustmanager: tuple[TstMRManager, Mock],
+    mergereqeustmanager: tuple[MRManagerStub, Mock],
     mocker: MockerFixture,
 ) -> None:
     mrm, vcs = mergereqeustmanager

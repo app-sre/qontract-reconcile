@@ -18,7 +18,7 @@ from reconcile.status_board import (
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
-class TstStatusBoard(AbstractStatusBoard):
+class StatusBoardStub(AbstractStatusBoard):
     created: Optional[bool] = False
     deleted: Optional[bool] = False
     summarized: Optional[bool] = False
@@ -99,21 +99,21 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient")
     h = StatusBoardHandler(
         action="create",
-        status_board_object=TstStatusBoard(name="foo", fullname="foo"),
+        status_board_object=StatusBoardStub(name="foo", fullname="foo"),
     )
 
     h.act(dry_run=False, ocm=ocm)
-    assert isinstance(h.status_board_object, TstStatusBoard)
+    assert isinstance(h.status_board_object, StatusBoardStub)
     assert h.status_board_object.created
     assert h.status_board_object.summarized
 
     h = StatusBoardHandler(
         action="delete",
-        status_board_object=TstStatusBoard(name="foo", fullname="foo"),
+        status_board_object=StatusBoardStub(name="foo", fullname="foo"),
     )
 
     h.act(dry_run=False, ocm=ocm)
-    assert isinstance(h.status_board_object, TstStatusBoard)
+    assert isinstance(h.status_board_object, StatusBoardStub)
     assert h.status_board_object.deleted
     assert h.status_board_object.summarized
 
