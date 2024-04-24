@@ -10,7 +10,12 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     IS_BATCHABLE,
     PROMOTION_DATA_SEPARATOR,
     SAPM_VERSION,
+    SCHEDULE,
     VERSION_REF,
+)
+from reconcile.saas_auto_promotions_manager.merge_request_manager.schedule import (
+    Schedule,
+    ScheduleFormatError,
 )
 from reconcile.utils.vcs import VCS, MRCheckStatus
 
@@ -22,6 +27,7 @@ class OpenMergeRequest:
     channels: set[str]
     failed_mr_check: bool
     is_batchable: bool
+    schedule: Schedule
 
 
 ITEM_SEPARATOR = ","
@@ -41,6 +47,7 @@ class MRParser:
         self._content_hash_regex = re.compile(rf"{CONTENT_HASHES}: (.*)$", re.MULTILINE)
         self._channels_regex = re.compile(rf"{CHANNELS_REF}: (.*)$", re.MULTILINE)
         self._is_batchable_regex = re.compile(rf"{IS_BATCHABLE}: (.*)$", re.MULTILINE)
+        self._schedule_regex = re.compile(rf"{SCHEDULE}: (.*)$", re.MULTILINE)
 
     def _apply_regex(self, pattern: re.Pattern, promotion_data: str) -> str:
         matches = pattern.search(promotion_data)
@@ -176,6 +183,26 @@ class MRParser:
                 )
                 continue
 
+            try:
+                schedule = Schedule(
+                    data=self._apply_regex(
+                        pattern=self._is_batchable_regex, promotion_data=promotion_data
+                    )
+                )
+                schedule_has_format_exception = False
+            except ScheduleFormatError:
+                logging.info(
+                    "Bad %s format. Closing %s",
+                    IS_BATCHABLE,
+                    mr.attributes.get("web_url", "NO_WEBURL"),
+                )
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {SCHEDULE} format."
+                )
+                schedule_has_format_exception = True
+            if schedule_has_format_exception:
+                continue
+
             mr_check_status = self._vcs.get_gitlab_mr_check_status(mr)
 
             open_mrs.append(
@@ -185,6 +212,7 @@ class MRParser:
                     channels=set(channels_refs.split(ITEM_SEPARATOR)),
                     failed_mr_check=mr_check_status == MRCheckStatus.FAILED,
                     is_batchable=is_batchable_str == "True",
+                    schedule=schedule,
                 )
             )
         return open_mrs

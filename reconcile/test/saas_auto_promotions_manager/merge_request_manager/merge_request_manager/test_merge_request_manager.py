@@ -20,6 +20,9 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler imp
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
 )
+from reconcile.saas_auto_promotions_manager.merge_request_manager.schedule import (
+    Schedule,
+)
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.test.saas_auto_promotions_manager.merge_request_manager.merge_request_manager.data_keys import (
     CHANNEL,
@@ -48,6 +51,7 @@ def test_reconcile(
             content_hashes=set(),
             failed_mr_check=False,
             is_batchable=True,
+            schedule=Schedule(data="data"),
         ),
         reason=Reason.NEW_BATCH,
     )
