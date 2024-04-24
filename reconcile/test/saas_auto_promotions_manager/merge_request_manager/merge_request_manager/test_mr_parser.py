@@ -18,6 +18,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     IS_BATCHABLE,
     PROMOTION_DATA_SEPARATOR,
     SAPM_VERSION,
+    SCHEDULE,
     VERSION_REF,
 )
 from reconcile.utils.vcs import VCS
@@ -44,6 +45,7 @@ def test_valid_parsing(
                     {CHANNELS_REF}: channel0
                     {CONTENT_HASHES}: hash0
                     {IS_BATCHABLE}: True
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
             {
@@ -55,6 +57,7 @@ def test_valid_parsing(
                     {CHANNELS_REF}: channel1
                     {CONTENT_HASHES}: hash1
                     {IS_BATCHABLE}: False
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
         ]
@@ -90,6 +93,7 @@ def test_labels_filter(
                     {CHANNELS_REF}: other-channel
                     {CONTENT_HASHES}: other_hash
                     {IS_BATCHABLE}: True
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
             # This MR should get ignored
@@ -102,6 +106,7 @@ def test_labels_filter(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: some_hash
                     {IS_BATCHABLE}: True
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
         ]
@@ -128,6 +133,7 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_1
                     {IS_BATCHABLE}: True
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
             {
@@ -138,6 +144,7 @@ def test_bad_mrs(
                     {VERSION_REF}: {SAPM_VERSION}
                     {CHANNELS_REF}: some-channel
                     {IS_BATCHABLE}: True
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                     missing-content-hash-key: some_hash
                 """,
             },
@@ -149,6 +156,7 @@ def test_bad_mrs(
                     {VERSION_REF}: {SAPM_VERSION}
                     {CONTENT_HASHES}: hash_3
                     {IS_BATCHABLE}: True
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
             {
@@ -160,6 +168,7 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_4
                     {IS_BATCHABLE}: True
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
             {
@@ -173,6 +182,7 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_5
                     {IS_BATCHABLE}: True
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
             {
@@ -184,6 +194,7 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_6
                     {IS_BATCHABLE}: True
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
             {
@@ -195,6 +206,7 @@ def test_bad_mrs(
                     bad_channel_ref: some-channel
                     {CONTENT_HASHES}: hash_7
                     {IS_BATCHABLE}: True
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
             {
@@ -206,6 +218,7 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_8
                     missing-batchable-key
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
             {
@@ -217,6 +230,19 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_9
                     {IS_BATCHABLE}: Something-non-bool
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
+                """,
+            },
+            {
+                LABELS: [SAPM_LABEL],
+                DESCRIPTION: f"""
+                    Blabla
+                    {PROMOTION_DATA_SEPARATOR}
+                    {VERSION_REF}: {SAPM_VERSION}
+                    {CHANNELS_REF}: some-channel
+                    {CONTENT_HASHES}: hash_10
+                    {IS_BATCHABLE}: True
+                    {SCHEDULE}: bad-fprmat
                 """,
             },
         ]
@@ -261,6 +287,10 @@ def test_bad_mrs(
             expected_mrs[8],
             "Closing this MR because of bad is_batchable format.",
         ),
+        call(
+            expected_mrs[9],
+            "Closing this MR because of bad schedule format.",
+        ),
     ]
 
     open_mrs = mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
@@ -283,6 +313,7 @@ def test_remove_duplicates(
                     {CHANNELS_REF}: some_channel
                     {CONTENT_HASHES}: same_hash
                     {IS_BATCHABLE}: True
+                    {SCHEDULE}: 2007-08-31T16:47+00:00
                 """,
             },
             {
@@ -293,7 +324,7 @@ def test_remove_duplicates(
                     {VERSION_REF}: {SAPM_VERSION}
                     {CHANNELS_REF}: some_channel
                     {CONTENT_HASHES}: same_hash
-                    {IS_BATCHABLE}: True
+                    {IS_BATCHABLE}: 2007-08-31T16:47+00:00
                 """,
             },
         ]

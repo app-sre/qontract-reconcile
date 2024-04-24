@@ -28,6 +28,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     IS_BATCHABLE,
     PROMOTION_DATA_SEPARATOR,
     SAPM_VERSION,
+    SCHEDULE,
     VERSION_REF,
     Renderer,
 )
@@ -66,6 +67,7 @@ def mr_builder() -> Callable[[Mapping], ProjectMergeRequest]:
                 {CHANNELS_REF}: {data.get(SUBSCRIBER_CHANNELS, "some_channel")}
                 {CONTENT_HASHES}: {data.get(SUBSCRIBER_CONTENT_HASH, "content_hash")}
                 {IS_BATCHABLE}: {data.get(SUBSCRIBER_BATCHABLE, "True")}
+                {SCHEDULE}: {data.get(SCHEDULE, "2007-08-31T16:47+00:00")}
                 """,
                 "web_url": "http://localhost",
                 "has_conflicts": False,

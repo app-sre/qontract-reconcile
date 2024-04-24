@@ -51,7 +51,7 @@ def test_reconcile(
             content_hashes=set(),
             failed_mr_check=False,
             is_batchable=True,
-            schedule=Schedule(data="data"),
+            schedule=Schedule.default(),
         ),
         reason=Reason.NEW_BATCH,
     )

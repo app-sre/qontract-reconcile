@@ -186,7 +186,7 @@ class MRParser:
             try:
                 schedule = Schedule(
                     data=self._apply_regex(
-                        pattern=self._is_batchable_regex, promotion_data=promotion_data
+                        pattern=self._schedule_regex, promotion_data=promotion_data
                     )
                 )
                 schedule_has_format_exception = False
