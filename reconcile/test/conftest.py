@@ -12,7 +12,6 @@ from typing import (
 )
 from unittest.mock import create_autospec
 
-import httpretty as _httpretty
 import pytest
 from pydantic import BaseModel
 from pydantic.error_wrappers import ValidationError
@@ -28,13 +27,6 @@ from reconcile.utils.state import State
 @pytest.fixture
 def patch_sleep(mocker):
     yield mocker.patch.object(time, "sleep")
-
-
-@pytest.fixture()
-def httpretty():
-    with _httpretty.enabled(allow_net_connect=False):
-        _httpretty.reset()
-        yield _httpretty
 
 
 @pytest.fixture
