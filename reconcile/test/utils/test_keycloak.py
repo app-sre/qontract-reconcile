@@ -1,7 +1,7 @@
-import json
+from urllib.parse import urlparse
 
-import httpretty as httpretty_module
 import pytest
+from pytest_httpserver import HTTPServer
 
 from reconcile.utils.keycloak import (
     KeycloakAPI,
@@ -11,65 +11,51 @@ from reconcile.utils.keycloak import (
 
 
 @pytest.fixture
-def keycloak_url() -> str:
-    return "http://fake-keycloak-server.com"
-
-
-@pytest.fixture
 def keycloak_initial_access_token() -> str:
     return "1234567890"
 
 
 @pytest.fixture
-def keycloak_openid_configuration_fake(
-    httpretty: httpretty_module, keycloak_url: str
-) -> None:
-    httpretty.register_uri(
-        httpretty.GET,
-        f"{keycloak_url}/.well-known/openid-configuration",
-        body=json.dumps({
-            # no other fields are in use currently
-            "registration_endpoint": f"{keycloak_url}/clients-registrations/openid-connect",
-        }),
-        content_type="text/json",
-    )
+def keycloak_openid_configuration_setup(httpserver: HTTPServer) -> None:
+    httpserver.expect_request("/.well-known/openid-configuration").respond_with_json({
+        # no other fields are in use currently
+        "registration_endpoint": httpserver.url_for(
+            "/clients-registrations/openid-connect"
+        ),
+    })
 
 
 @pytest.fixture
 def keycloak_api(
-    keycloak_url: str,
+    httpserver: HTTPServer,
     keycloak_initial_access_token: str,
-    keycloak_openid_configuration_fake: None,
+    keycloak_openid_configuration_setup: None,
 ) -> KeycloakAPI:
     return KeycloakAPI(
-        url=keycloak_url, initial_access_token=keycloak_initial_access_token
+        url=httpserver.url_for("/"), initial_access_token=keycloak_initial_access_token
     )
 
 
 def test_keycloak_register_client(
-    keycloak_api: KeycloakAPI, httpretty: httpretty_module
+    keycloak_api: KeycloakAPI, httpserver: HTTPServer
 ) -> None:
-    httpretty.register_uri(
-        httpretty.POST,
-        f"{keycloak_api._openid_configuration['registration_endpoint']}",  # type: ignore[index]
-        body=json.dumps({
-            "client_id": "test-client",
-            "client_id_issued_at": 0,
-            "client_name": "str",
-            "client_secret": "str",
-            "client_secret_expires_at": 0,
-            "grant_types": ["just-a-string"],
-            "redirect_uris": ["just-a-string"],
-            "registration_access_token": "str",
-            "registration_client_uri": "str",
-            "request_uris": ["just-a-string"],
-            "response_types": ["just-a-string"],
-            "subject_type": "str",
-            "tls_client_certificate_bound_access_tokens": False,
-            "token_endpoint_auth_method": "str",
-        }),
-        content_type="text/json",
-    )
+    url = urlparse(keycloak_api._openid_configuration["registration_endpoint"])  # type: ignore[index]
+    httpserver.expect_request(url.path, method="post").respond_with_json({
+        "client_id": "test-client",
+        "client_id_issued_at": 0,
+        "client_name": "str",
+        "client_secret": "str",
+        "client_secret_expires_at": 0,
+        "grant_types": ["just-a-string"],
+        "redirect_uris": ["just-a-string"],
+        "registration_access_token": "str",
+        "registration_client_uri": "str",
+        "request_uris": ["just-a-string"],
+        "response_types": ["just-a-string"],
+        "subject_type": "str",
+        "tls_client_certificate_bound_access_tokens": False,
+        "token_endpoint_auth_method": "str",
+    })
     sso_client = keycloak_api.register_client(
         client_name="test-client",
         redirect_uris=["redirect_uris"],
@@ -77,26 +63,27 @@ def test_keycloak_register_client(
         request_uris=["request_uris"],
         contacts=["contact"],
     )
-    assert httpretty.last_request().headers
     assert sso_client.issuer == keycloak_api.url
 
 
 def test_keycloak_delete_client(
-    keycloak_api: KeycloakAPI, httpretty: httpretty_module, keycloak_url: str
+    keycloak_api: KeycloakAPI, httpserver: HTTPServer
 ) -> None:
-    httpretty.register_uri(httpretty.DELETE, f"{keycloak_url}/client-registration-uri")
+    httpserver.expect_request(
+        "/client-registration-uri", method="delete"
+    ).respond_with_data()
     keycloak_api.delete_client(
-        registration_client_uri=f"{keycloak_url}/client-registration-uri",
+        registration_client_uri=httpserver.url_for("/client-registration-uri"),
         registration_access_token="registration_access_token",
     )
-    assert httpretty.last_request().headers
 
 
 def test_keycloak_map_get_client(
-    keycloak_openid_configuration_fake: None,
-    keycloak_url: str,
+    httpserver: HTTPServer,
+    keycloak_openid_configuration_setup: None,
     keycloak_initial_access_token: str,
 ) -> None:
+    keycloak_url = httpserver.url_for("/")
     keycloak_map = KeycloakMap(
         keycloak_instances=[
             KeycloakInstance(

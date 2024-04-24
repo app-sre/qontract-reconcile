@@ -35,19 +35,19 @@ desired_teams:
         role: member
 
 expected_return_value:
-  - id: 7
-    slug: esa-flight-control
-    users:
-      - email: TimPeake@nasa.com
-        pending: false
-        id: 26
-        role: member
   - id: 6
     slug: esa-pilots
     users:
       - email: SamanthaCristoforetti@nasa.com
         pending: false
         id: 24
+        role: member
+  - id: 7
+    slug: esa-flight-control
+    users:
+      - email: TimPeake@nasa.com
+        pending: false
+        id: 26
         role: member
 
 glitchtip_urls:
@@ -71,7 +71,8 @@ glitchtip_urls:
       - id: 6
         slug: esa-pilots
   - name: "team users"
-    uri: /api/0/teams/esa/esa-pilots/members/?limit=100"
+    uri: /api/0/teams/esa/esa-pilots/members/
+    query: limit=100
     method: get
     responses:
       - - email: SamanthaCristoforetti@nasa.com
@@ -86,7 +87,8 @@ glitchtip_urls:
       - id: 7
         slug: esa-flight-control
   - name: "team users"
-    uri: /api/0/teams/esa/esa-flight-control/members/?limit=100"
+    uri: /api/0/teams/esa/esa-flight-control/members/
+    query: limit=100
     method: get
     responses:
       - - email: TimPeake@nasa.com

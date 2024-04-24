@@ -335,7 +335,6 @@ module = [
     "reconcile.test.utils.test_quay_api",
     "reconcile.test.utils.test_semver_helper",
     "reconcile.test.utils.test_sharding",
-    "reconcile.test.utils.test_slack_api",
     "reconcile.test.utils.test_smtp_client",
     "reconcile.test.utils.test_terraform_client",
     "reconcile.test.utils.test_terraform_config_client",
@@ -377,6 +376,7 @@ module = [
     "prometheus_client.*",
     "pygments.*",
     "pypd.*",
+    "pytest_httpserver.*",
     "pytest_mock.*",
     "pytest.*",
     "python_terraform.*",
@@ -391,5 +391,6 @@ module = [
     "testslide.*",
     "UnleashClient.*",
     "urllib3.*",
+    "werkzeug.*",
 ]
 ignore_missing_imports = true

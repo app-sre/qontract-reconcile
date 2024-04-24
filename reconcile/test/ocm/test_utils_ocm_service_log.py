@@ -7,8 +7,8 @@ from datetime import (
 from typing import Optional
 
 import pytest
-from httpretty.core import HTTPrettyRequest
 from pytest_mock import MockerFixture
+from werkzeug import Request
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import service_log
@@ -75,7 +75,7 @@ def example_service_log(
 def test_get_service_logs_for_cluster_uuid(
     ocm_api: OCMBaseClient,
     example_service_log: OCMClusterServiceLog,
-    find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
+    find_ocm_http_request: Callable[[str, str], Optional[Request]],
 ) -> None:
     cluster_uuid = "cluster_uuid"
     fetched_logs = list(
@@ -87,13 +87,13 @@ def test_get_service_logs_for_cluster_uuid(
     assert [example_service_log] == fetched_logs
     get_request = find_ocm_http_request("GET", CLUSTER_SERVICE_LOGS_LIST_ENDPOINT)
     assert get_request
-    assert get_request.querystring["cluster_uuid"] == [cluster_uuid]
+    assert get_request.args["cluster_uuid"] == cluster_uuid
 
 
 def test_get_service_logs_for_cluster_uuid_with_filter(
     ocm_api: OCMBaseClient,
     example_service_log: OCMClusterServiceLog,
-    find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
+    find_ocm_http_request: Callable[[str, str], Optional[Request]],
 ) -> None:
     cluster_uuid = "cluster_uuid"
     service_filter = Filter().eq("service_name", "some-service")
@@ -107,14 +107,14 @@ def test_get_service_logs_for_cluster_uuid_with_filter(
     assert [example_service_log] == fetched_logs
     get_request = find_ocm_http_request("GET", CLUSTER_SERVICE_LOGS_LIST_ENDPOINT)
     assert get_request
-    assert get_request.querystring["cluster_uuid"] == [cluster_uuid]
-    assert get_request.querystring["search"] == [service_filter.render()]
+    assert get_request.args["cluster_uuid"] == cluster_uuid
+    assert get_request.args["search"] == service_filter.render()
 
 
 def test_create_service_log(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
+    find_ocm_http_request: Callable[[str, str], Optional[Request]],
 ) -> None:
     timestamp = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc)
     register_ocm_url_responses([
@@ -192,7 +192,7 @@ def test_create_service_log_dedup_timedelta_filter(
 def test_create_service_log_dedup(
     ocm_api: OCMBaseClient,
     example_service_log: OCMClusterServiceLog,
-    find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
+    find_ocm_http_request: Callable[[str, str], Optional[Request]],
 ) -> None:
     create_service_log(
         ocm_api=ocm_api,
@@ -212,7 +212,7 @@ def test_create_service_log_dedup(
 def test_create_service_log_dedup_no_dup(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
+    find_ocm_http_request: Callable[[str, str], Optional[Request]],
 ) -> None:
     register_ocm_url_responses([
         OcmUrl(
