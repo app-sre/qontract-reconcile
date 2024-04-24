@@ -1369,6 +1369,11 @@ def openshift_resources(
 @click.option("--env-name", default=None, help="environment to deploy to.")
 @trigger_integration
 @trigger_reason
+@click.option(
+    "--publish-metrics-only/--no-publish-metrics-only",
+    default=False,
+    help="if set, publishes metrics and exits (no deployment).",
+)
 @click.pass_context
 def openshift_saas_deploy(
     ctx,
@@ -1379,6 +1384,7 @@ def openshift_saas_deploy(
     env_name,
     trigger_integration,
     trigger_reason,
+    publish_metrics_only,
 ):
     import reconcile.openshift_saas_deploy
 
@@ -1392,6 +1398,7 @@ def openshift_saas_deploy(
         env_name=env_name,
         trigger_integration=trigger_integration,
         trigger_reason=trigger_reason,
+        publish_metrics_only=publish_metrics_only,
     )
 
 
