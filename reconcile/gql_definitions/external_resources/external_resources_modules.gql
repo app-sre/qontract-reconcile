@@ -1,0 +1,13 @@
+# qenerate: plugin=pydantic_v1
+
+query ExternalResourcesModules {
+    modules: external_resources_modules_v1 {
+        provision_provider
+        provider
+        module_type
+        image
+        default_version
+        reconcile_drift_interval_minutes
+        reconcile_timeout_minutes
+    }
+}

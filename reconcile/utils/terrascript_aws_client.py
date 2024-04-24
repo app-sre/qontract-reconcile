@@ -298,6 +298,10 @@ class aws_cloudfront_log_delivery_canonical_user_id(Data):
     pass
 
 
+class cloudinit_config(Data):
+    pass
+
+
 # temporary until we upgrade to a terrascript release
 # that supports this provider
 # https://github.com/mjuenema/python-terrascript/pull/166
@@ -436,9 +440,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         "source": "hashicorp/random",
                         "version": "3.4.3",
                     },
-                    "template": {
-                        "source": "hashicorp/template",
-                        "version": "2.2.0",
+                    "cloudinit": {
+                        "source": "hashicorp/cloudinit",
+                        "version": "2.3.3",
                     },
                 },
                 required_version=TERRAFORM_VERSION[0],
@@ -5428,9 +5432,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "content": content,
                 })
             cloudinit_value = {"gzip": True, "base64_encode": True, "part": part}
-            cloudinit_data = data.template_cloudinit_config(
-                identifier, **cloudinit_value
-            )
+            cloudinit_data = cloudinit_config(identifier, **cloudinit_value)
             tf_resources.append(cloudinit_data)
             template_values["user_data"] = "${" + cloudinit_data.rendered + "}"
         template_resource = aws_launch_template(identifier, **template_values)
