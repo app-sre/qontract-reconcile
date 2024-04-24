@@ -1,9 +1,11 @@
 import logging
-from collections import defaultdict
 from collections.abc import Iterable
 
 from gitlab.exceptions import GitlabGetError
 
+from reconcile.saas_auto_promotions_manager.merge_request_manager.desired_state import (
+    DesiredState,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request import (
     SAPMMR,
 )
@@ -21,7 +23,6 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser impo
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
     Addition,
-    Promotion,
     Reconciler,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
@@ -66,33 +67,12 @@ class MergeRequestManagerV2:
         self._mr_parser = mr_parser
         self._renderer = renderer
         self._reconciler = reconciler
-        self._content_hash_to_subscriber: dict[str, list[Subscriber]] = {}
         self._sapm_mrs: list[SAPMMR] = []
-
-    def _aggregate_desired_state(
-        self, subscribers: Iterable[Subscriber]
-    ) -> list[Promotion]:
-        subscribers_per_channel_combo: dict[str, list[Subscriber]] = defaultdict(list)
-        for subscriber in subscribers:
-            channel_combo = ",".join([c.name for c in subscriber.channels])
-            subscribers_per_channel_combo[channel_combo].append(subscriber)
-
-        desired_promotions: list[Promotion] = []
-        for channel_combo, subs in subscribers_per_channel_combo.items():
-            combined_content_hash = Subscriber.combined_content_hash(subscribers=subs)
-            self._content_hash_to_subscriber[combined_content_hash] = subs
-            desired_promotions.append(
-                Promotion(
-                    content_hashes={combined_content_hash},
-                    channels={channel_combo},
-                )
-            )
-        return desired_promotions
 
     def _render_mr(self, addition: Addition) -> None:
         subs: list[Subscriber] = []
         for content_hash in addition.content_hashes:
-            subs.extend(self._content_hash_to_subscriber[content_hash])
+            subs.extend(self._desired_state.content_hash_to_subscriber[content_hash])
         content_by_path: dict[str, str] = {}
         has_error = False
         for sub in subs:
@@ -151,11 +131,12 @@ class MergeRequestManagerV2:
 
     def reconcile(self, subscribers: Iterable[Subscriber]) -> None:
         current_state = self._mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
-        desired_state = self._aggregate_desired_state(subscribers=subscribers)
+        desired_state = DesiredState(subscribers=subscribers)
+        self._desired_state = desired_state
 
         diff = self._reconciler.reconcile(
             batch_limit=BATCH_SIZE_LIMIT,
-            desired_promotions=desired_state,
+            desired_promotions=desired_state.promotions,
             open_mrs=current_state,
         )
         parallel_open_mrs = (
