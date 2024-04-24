@@ -154,25 +154,6 @@ def gql_api_builder() -> Callable[[Optional[Mapping]], GqlApi]:
 
 
 @pytest.fixture
-def set_httpretty_responses_based_on_fixture(httpretty: _httpretty) -> Callable:
-    """Create httpretty responses based fixture files."""
-
-    def _(url: str, fx: Fixtures, paths: Iterable[str]) -> None:
-        for path in paths:
-            for method in ["get", "post", "put", "patch", "delete"]:
-                method_file = Path(fx.path(path)) / f"{method}.json"
-                if method_file.exists():
-                    httpretty.register_uri(
-                        getattr(httpretty, method.upper()),
-                        f"{url}/{path}",
-                        body=method_file.read_text(),
-                        content_type="text/json",
-                    )
-
-    return _
-
-
-@pytest.fixture
 def set_httpserver_responses_based_on_fixture(httpserver: HTTPServer) -> Callable:
     """Create httpserver responses based fixture files."""
 
