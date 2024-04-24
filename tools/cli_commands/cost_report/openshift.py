@@ -1,4 +1,6 @@
-from collections.abc import Iterable
+from collections import defaultdict
+from collections.abc import Iterable, Mapping, MutableMapping
+from decimal import Decimal
 from typing import Self, Tuple
 
 from sretoolbox.utils import threaded
@@ -15,6 +17,7 @@ from reconcile.typed_queries.cost_report.settings import get_cost_report_setting
 from reconcile.utils import gql
 from reconcile.utils.secret_reader import create_secret_reader
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
+from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
 from tools.cli_commands.cost_report.response import OpenShiftReportCostResponse
 
 THREAD_POOL_SIZE = 10
@@ -32,7 +35,8 @@ class OpenShiftCostReportCommand:
     def execute(self) -> str:
         apps = self.get_apps()
         cost_namespaces = self.get_cost_namespaces()
-        report_responses = self.get_reports(cost_namespaces)
+        responses = self.get_reports(cost_namespaces)
+        reports = self.process_reports(apps, responses)
         return ""
 
     def get_apps(self) -> list[App]:
@@ -62,6 +66,122 @@ class OpenShiftCostReportCommand:
     ) -> dict[CostNamespace, OpenShiftReportCostResponse]:
         results = threaded.run(self._get_report, cost_namespaces, THREAD_POOL_SIZE)
         return dict(results)
+
+    def process_reports(
+        self,
+        apps: Iterable[App],
+        responses: Mapping[CostNamespace, OpenShiftReportCostResponse],
+    ) -> dict[str, Report]:
+        app_responses = defaultdict(list)
+        for cost_namespace, response in responses.items():
+            app_responses[cost_namespace.app_name].append(response)
+
+        child_apps_by_parent = defaultdict(list)
+        for app in apps:
+            child_apps_by_parent[app.parent_app_name].append(app.name)
+
+        reports: dict[str, Report] = {}
+        root_apps = child_apps_by_parent.get(None, [])
+        for app_name in root_apps:
+            self._dfs_reports(
+                app_name,
+                None,
+                child_apps_by_parent=child_apps_by_parent,
+                responses=app_responses,
+                reports=reports,
+            )
+        return reports
+
+    def _dfs_reports(
+        self,
+        app_name: str,
+        parent_app_name: str | None,
+        child_apps_by_parent: Mapping[str | None, list[str]],
+        responses: Mapping[str, list[OpenShiftReportCostResponse]],
+        reports: MutableMapping[str, Report],
+    ):
+        """
+        Depth-first search to build the reports. Build leaf nodes first to ensure total is calculated correctly.
+        """
+        child_apps = child_apps_by_parent.get(app_name, [])
+        for child_app in child_apps:
+            self._dfs_reports(
+                app_name=child_app,
+                parent_app_name=app_name,
+                child_apps_by_parent=child_apps_by_parent,
+                responses=responses,
+                reports=reports,
+            )
+        reports[app_name] = self._build_report(
+            app_name=app_name,
+            parent_app_name=parent_app_name,
+            child_apps=child_apps,
+            reports=reports,
+            responses=responses[app_name],
+        )
+
+    @staticmethod
+    def _build_report(
+        app_name: str,
+        parent_app_name: str,
+        child_apps: list[str],
+        reports: Mapping[str, Report],
+        responses: list[OpenShiftReportCostResponse],
+    ) -> Report:
+        child_app_reports = [
+            ChildAppReport(
+                name=child_app,
+                total=reports[child_app].total,
+            )
+            for child_app in child_apps
+        ]
+        child_apps_total = Decimal(
+            sum(child_app.total for child_app in child_app_reports)
+        )
+
+        items = [
+            ServiceReport(
+                service=f"{cluster}/{project.project}",
+                delta_value=value.delta_value,
+                delta_percent=value.delta_percent,
+                total=value.cost.total.value,
+            )
+            for response in responses
+            for data in response.data
+            for project in data.projects
+            if len(project.values) == 1
+            and (value := project.values[0]) is not None
+            and len(value.clusters) == 1
+            and (cluster := value.clusters[0]) is not None
+        ]
+
+        items_total = Decimal(sum(item.total for item in items))
+        items_delta_value = Decimal(sum(item.delta_value for item in items))
+        previous_items_total = items_total - items_delta_value
+        items_delta_percent = (
+            items_delta_value / previous_items_total * 100
+            if previous_items_total != 0
+            else None
+        )
+        total = items_total + child_apps_total
+
+        date = next(
+            (d for response in responses for data in response.data if (d := data.date)),
+            "",
+        )
+
+        return Report(
+            app_name=app_name,
+            child_apps=child_app_reports,
+            child_apps_total=child_apps_total,
+            date=date,
+            parent_app_name=parent_app_name,
+            services_delta_value=items_delta_value,
+            services_delta_percent=items_delta_percent,
+            services_total=items_total,
+            total=total,
+            services=items,
+        )
 
     @classmethod
     def create(

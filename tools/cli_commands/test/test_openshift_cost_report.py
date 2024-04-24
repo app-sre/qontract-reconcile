@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -10,6 +11,7 @@ from reconcile.gql_definitions.cost_report.settings import CostReportSettingsV1
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.typed_queries.cost_report.app_names import App
 from reconcile.typed_queries.cost_report.cost_namespaces import CostNamespace
+from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
 from tools.cli_commands.cost_report.response import OpenShiftReportCostResponse
 
@@ -223,15 +225,15 @@ def openshift_report_cost_response_builder(
 PARENT_APP_COST_RESPONSE = openshift_report_cost_response_builder(
     delta_value=100,
     delta_percent=10,
-    total=1000,
+    total=1100,
     project=PARENT_APP_NAMESPACE.name,
     cluster=PARENT_APP_NAMESPACE.cluster_name,
 )
 
 CHILD_APP_COST_RESPONSE = openshift_report_cost_response_builder(
     delta_value=200,
-    delta_percent=20,
-    total=2000,
+    delta_percent=10,
+    total=2200,
     project=CHILD_APP_NAMESPACE.name,
     cluster=CHILD_APP_NAMESPACE.cluster_name,
 )
@@ -252,3 +254,65 @@ def test_openshift_cost_report_get_reports(
         project=PARENT_APP_NAMESPACE.name,
         cluster=PARENT_APP_NAMESPACE.cluster_external_id,
     )
+
+
+PARENT_APP_REPORT = Report(
+    app_name="parent",
+    parent_app_name=None,
+    child_apps=[
+        ChildAppReport(name="child", total=Decimal(2200)),
+    ],
+    child_apps_total=Decimal(2200),
+    date="2024-02",
+    services=[
+        ServiceReport(
+            service=f"{PARENT_APP_NAMESPACE.cluster_name}/{PARENT_APP_NAMESPACE.name}",
+            delta_value=Decimal(100),
+            delta_percent=10,
+            total=Decimal(1100),
+        )
+    ],
+    services_total=Decimal(1100),
+    services_delta_value=Decimal(100),
+    services_delta_percent=10,
+    total=Decimal(3300),
+)
+
+CHILD_APP_REPORT = Report(
+    app_name="child",
+    parent_app_name="parent",
+    child_apps=[],
+    child_apps_total=Decimal(0),
+    date="2024-02",
+    services=[
+        ServiceReport(
+            service=f"{CHILD_APP_NAMESPACE.cluster_name}/{CHILD_APP_NAMESPACE.name}",
+            delta_value=Decimal(200),
+            delta_percent=10,
+            total=Decimal(2200),
+        )
+    ],
+    services_total=Decimal(2200),
+    services_delta_value=Decimal(200),
+    services_delta_percent=10,
+    total=Decimal(2200),
+)
+
+
+def test_openshift_cost_report_process_reports(
+    openshift_cost_report_command: OpenShiftCostReportCommand,
+) -> None:
+    expected_reports = {
+        "parent": PARENT_APP_REPORT,
+        "child": CHILD_APP_REPORT,
+    }
+
+    reports = openshift_cost_report_command.process_reports(
+        apps=[PARENT_APP, CHILD_APP],
+        responses={
+            PARENT_APP_NAMESPACE: PARENT_APP_COST_RESPONSE,
+            CHILD_APP_NAMESPACE: CHILD_APP_COST_RESPONSE,
+        },
+    )
+
+    assert reports == expected_reports

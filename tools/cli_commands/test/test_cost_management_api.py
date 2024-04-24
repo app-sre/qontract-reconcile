@@ -159,7 +159,7 @@ def test_get_aws_costs_report(
 
 
 def test_get_aws_costs_report_error(
-    cost_management_api: CostManagementApi, fx: Callable, httpserver: HTTPServer
+    cost_management_api: CostManagementApi, fx: Callable, httpserver: HTTPServer,
 ) -> None:
     httpserver.expect_request("/reports/aws/costs/").respond_with_data(status=500)
 
@@ -210,27 +210,26 @@ EXPECTED_OPENSHIFT_REPORT_COST_RESPONSE = OpenShiftReportCostResponse(
 )
 
 
-@httpretty.activate(allow_net_connect=False, verbose=True)
 def test_get_openshift_costs_report(
     cost_management_api: CostManagementApi,
     fx: Callable,
+    httpserver: HTTPServer,
 ) -> None:
     response_body = fx("openshift_cost_report.json")
     project = "some-project"
     cluster = "some-cluster-uuid"
-    httpretty.register_uri(
-        httpretty.GET,
-        f"{BASE_URL}/reports/openshift/costs/?"
-        "delta=cost&"
-        "filter[resolution]=monthly&"
-        f"filter[cluster]={cluster}&"
-        f"filter[project]={project}&"
-        "filter[time_scope_units]=month&"
-        "filter[time_scope_value]=-2&"
-        "group_by[project]=*",
-        body=response_body,
-        match_querystring=True,
-    )
+    httpserver.expect_request(
+        "/reports/openshift/costs/",
+        query_string={
+            "delta": "cost",
+            "filter[resolution]": "monthly",
+            "filter[cluster]": cluster,
+            "filter[project]": project,
+            "filter[time_scope_units]": "month",
+            "filter[time_scope_value]": "-2",
+            "group_by[project]": "*",
+        },
+    ).respond_with_data(response_body)
 
     report_cost_response = cost_management_api.get_openshift_costs_report(
         cluster=cluster,
@@ -240,23 +239,12 @@ def test_get_openshift_costs_report(
     assert report_cost_response == EXPECTED_OPENSHIFT_REPORT_COST_RESPONSE
 
 
-@httpretty.activate(allow_net_connect=False, verbose=True)
 def test_get_openshift_costs_report_error(
     cost_management_api: CostManagementApi,
     fx: Callable,
+    httpserver: HTTPServer,
 ) -> None:
-    def callback(
-        _request: HTTPrettyRequest,
-        _url: str,
-        headers: dict,
-    ) -> Tuple[int, dict, str]:
-        return 500, headers, ""
-
-    httpretty.register_uri(
-        httpretty.GET,
-        f"{BASE_URL}/reports/openshift/costs/",
-        body=callback,
-    )
+    httpserver.expect_request("/reports/openshift/costs/").respond_with_data(status=500)
 
     with pytest.raises(HTTPError) as error:
         cost_management_api.get_openshift_costs_report(
