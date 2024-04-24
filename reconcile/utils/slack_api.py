@@ -166,6 +166,7 @@ class SlackApi:
         api_config: Optional[SlackApiConfig] = None,
         init_usergroups: bool = True,
         channel: Optional[str] = None,
+        slack_url: Optional[str] = None,
         **chat_kwargs: Any,
     ) -> None:
         """
@@ -187,7 +188,11 @@ class SlackApi:
         else:
             self.config = SlackApiConfig()
 
-        self._sc = WebClient(token=token, timeout=self.config.timeout)
+        self._sc = WebClient(
+            token=token,
+            timeout=self.config.timeout,
+            base_url=slack_url or WebClient.BASE_URL,
+        )
         self._configure_client_retry()
 
         self._results: dict[str, Any] = {}
