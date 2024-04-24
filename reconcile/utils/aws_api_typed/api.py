@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from boto3 import Session
 from botocore.client import BaseClient
@@ -21,6 +21,18 @@ from reconcile.utils.aws_api_typed.s3 import AWSApiS3
 from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
 from reconcile.utils.aws_api_typed.sts import AWSApiSts
 from reconcile.utils.aws_api_typed.support import AWSApiSupport
+
+if TYPE_CHECKING:
+    from mypy_boto3_iam import IAMClient
+    from mypy_boto3_organizations import OrganizationsClient
+    from mypy_boto3_s3 import S3Client
+    from mypy_boto3_service_quotas import ServiceQuotasClient
+    from mypy_boto3_sts import STSClient
+    from mypy_boto3_support import SupportClient
+else:
+    IAMClient = OrganizationsClient = S3Client = ServiceQuotasClient = STSClient = (
+        SupportClient
+    ) = object
 
 SubApi = TypeVar("SubApi")
 
@@ -156,25 +168,33 @@ class AWSApi:
 
     def _init_sub_api(self, api_cls: type[SubApi]) -> SubApi:
         """Return a new or cached sub api client."""
+        client: (
+            IAMClient
+            | OrganizationsClient
+            | S3Client
+            | ServiceQuotasClient
+            | STSClient
+            | SupportClient
+        )
         match api_cls:
             case reconcile.utils.aws_api_typed.iam.AWSApiIam:
                 client = self.session.client("iam")
                 api = api_cls(client)  # type: ignore # mypy bug, it doesn't recognize that api_cls is callable
             case reconcile.utils.aws_api_typed.organization.AWSApiOrganizations:
                 client = self.session.client("organizations")
-                api = api_cls(client)
+                api = api_cls(client)  # type: ignore
             case reconcile.utils.aws_api_typed.s3.AWSApiS3:
                 client = self.session.client("s3")
-                api = api_cls(client)
+                api = api_cls(client)  # type: ignore
             case reconcile.utils.aws_api_typed.service_quotas.AWSApiServiceQuotas:
                 client = self.session.client("service-quotas")
-                api = api_cls(client)
+                api = api_cls(client)  # type: ignore
             case reconcile.utils.aws_api_typed.sts.AWSApiSts:
                 client = self.session.client("sts")
-                api = api_cls(client)
+                api = api_cls(client)  # type: ignore
             case reconcile.utils.aws_api_typed.support.AWSApiSupport:
                 client = self.session.client("support")
-                api = api_cls(client)
+                api = api_cls(client)  # type: ignore
             case _:
                 raise ValueError(f"Unknown API class: {api_cls}")
 
