@@ -160,7 +160,11 @@ class TestSaasFileValid(TestCase):
         self.saas_file.resource_templates[0].targets[
             1
         ].promotion = SaasResourceTemplateTargetPromotionV1(
-            auto=True, publish=None, subscribe=None, promotion_data=None, soakDays=0,
+            auto=True,
+            publish=None,
+            subscribe=None,
+            promotion_data=None,
+            soakDays=0,
         )
         saasherder = SaasHerder(
             [self.saas_file],
@@ -180,7 +184,11 @@ class TestSaasFileValid(TestCase):
         self.saas_file.resource_templates[0].targets[
             1
         ].promotion = SaasResourceTemplateTargetPromotionV1(
-            auto=True, publish=None, subscribe=None, promotion_data=None, soakDays=0,
+            auto=True,
+            publish=None,
+            subscribe=None,
+            promotion_data=None,
+            soakDays=0,
         )
         saasherder = SaasHerder(
             [self.saas_file],

@@ -91,12 +91,16 @@ class SaasFilesInventory:
                         continue
                     if not target.promotion.auto:
                         continue
+                    soak_days = (
+                        target.promotion.soak_days if target.promotion.soak_days else 0
+                    )
                     subscriber = Subscriber(
                         saas_name=saas_file.name,
                         template_name=resource_template.name,
                         target_file_path=file_path,
                         ref=target.ref,
                         target_namespace=target.namespace,
+                        soak_days=soak_days,
                         # Note: this will be refactored at a later point.
                         # https://issues.redhat.com/browse/APPSRE-7516
                         use_target_config_hash=bool(saas_file.publish_job_logs),

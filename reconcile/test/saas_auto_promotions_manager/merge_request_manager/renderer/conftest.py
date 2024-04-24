@@ -53,6 +53,7 @@ def subscriber_builder(
             target_file_path="",
             template_name="",
             use_target_config_hash=True,
+            soak_days=0,
         )
         subscriber.desired_ref = data[REF]
         subscriber.desired_hashes = data[CONFIG_HASHES]
