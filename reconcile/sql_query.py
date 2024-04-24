@@ -15,7 +15,6 @@ from typing import (
 )
 
 import jinja2
-from ruamel import yaml
 
 from reconcile import (
     openshift_base,
@@ -34,6 +33,7 @@ from reconcile.utils.openshift_resource import (
     OpenshiftResource,
     ResourceInventory,
 )
+from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.smtp_client import (
@@ -591,6 +591,7 @@ def _build_openshift_resources(
     query_name = query["name"]
     common_resource_labels = _build_common_resource_labels(query)
     openshift_resources: list[OpenshiftResource] = []
+    yml = create_ruamel_instance()
     if pull_secret:
         labels = pull_secret["labels"] or {}
         labels.update(common_resource_labels)
@@ -651,7 +652,7 @@ def _build_openshift_resources(
     )
     openshift_resources.append(
         OpenshiftResource(
-            body=yaml.safe_load(job_yaml),
+            body=yml.load(job_yaml),
             integration=QONTRACT_INTEGRATION,
             integration_version=QONTRACT_INTEGRATION_VERSION,
         )
