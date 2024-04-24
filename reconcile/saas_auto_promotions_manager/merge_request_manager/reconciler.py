@@ -6,6 +6,9 @@ from typing import Optional
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     OpenMergeRequest,
 )
+from reconcile.saas_auto_promotions_manager.merge_request_manager.schedule import (
+    Schedule,
+)
 
 
 class Reason(Enum):
@@ -18,6 +21,7 @@ class Reason(Enum):
 class Promotion:
     content_hashes: set[str]
     channels: set[str]
+    schedule: Schedule
 
 
 @dataclass
@@ -159,6 +163,7 @@ class Reconciler:
                 Promotion(
                     content_hashes=batch_with_capacity.content_hashes,
                     channels=batch_with_capacity.channels,
+                    schedule=batch_with_capacity.schedule,
                 )
             )
             # Lets close the current batch so remaining promotions can

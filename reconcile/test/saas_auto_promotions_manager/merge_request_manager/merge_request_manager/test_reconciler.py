@@ -53,10 +53,12 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan2", "chan3"},
                     content_hashes={"hash2", "hash3"},
+                    schedule=default_schedule(),
                 ),
             ],
             [],
@@ -169,10 +171,12 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan2"},
                     content_hashes={"hash2"},
+                    schedule=default_schedule(),
                 ),
             ],
             [
@@ -220,10 +224,12 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan2"},
                     content_hashes={"hash2"},
+                    schedule=default_schedule(),
                 ),
             ],
             [
@@ -250,14 +256,17 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan2"},
                     content_hashes={"hash2"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan3", "chan4"},
                     content_hashes={"hash3", "hash4"},
+                    schedule=default_schedule(),
                 ),
             ],
             [
@@ -302,22 +311,27 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1", "chan2", "chan3"},
                     content_hashes={"hash1", "hash2", "hash3"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan4", "chan5", "chan6"},
                     content_hashes={"hash4", "hash5", "hash6"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan7", "chan8", "chan9"},
                     content_hashes={"hash7", "hash8", "hash9"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan10", "chan11", "chan12"},
                     content_hashes={"hash10", "hash11", "hash12"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan13", "chan14"},
                     content_hashes={"hash13", "hash14"},
+                    schedule=default_schedule(),
                 ),
             ],
             [
@@ -395,10 +409,12 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan2"},
                     content_hashes={"hash2"},
+                    schedule=default_schedule(),
                 ),
             ],
             [
@@ -432,18 +448,22 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan2"},
                     content_hashes={"hash2"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan3"},
                     content_hashes={"hash3"},
+                    schedule=default_schedule(),
                 ),
                 Promotion(
                     channels={"chan4"},
                     content_hashes={"hash4"},
+                    schedule=default_schedule(),
                 ),
             ],
             [
