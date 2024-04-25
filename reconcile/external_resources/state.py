@@ -178,11 +178,10 @@ class ExternalResourcesStateDynamoDB:
         f"{DynamoDBStateAdapter.RECONC}.{DynamoDBStateAdapter.RECONC_RESOURCE_HASH}",
     ])
 
-    def __init__(self, table_name: str, index_name: str, region_name: str) -> None:
+    def __init__(self, table_name: str, region_name: str) -> None:
         self.adapter = DynamoDBStateAdapter()
         self.client = boto3.client("dynamodb", region_name=region_name)
         self._table = table_name
-        self._index_name = index_name
         self.partial_resources = self._get_partial_resources()
 
     def get_external_resource_state(

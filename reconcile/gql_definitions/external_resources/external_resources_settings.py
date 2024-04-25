@@ -22,7 +22,6 @@ DEFINITION = """
 query ExternalResourcesSettings {
     settings: external_resources_settings_v1 {
         state_dynamodb_table
-        state_dynamodb_index
         state_dynamodb_region
         tf_state_bucket
         tf_state_region
@@ -40,7 +39,6 @@ class ConfiguredBaseModel(BaseModel):
 
 class ExternalResourcesSettingsV1(ConfiguredBaseModel):
     state_dynamodb_table: str = Field(..., alias="state_dynamodb_table")
-    state_dynamodb_index: str = Field(..., alias="state_dynamodb_index")
     state_dynamodb_region: str = Field(..., alias="state_dynamodb_region")
     tf_state_bucket: Optional[str] = Field(..., alias="tf_state_bucket")
     tf_state_region: Optional[str] = Field(..., alias="tf_state_region")

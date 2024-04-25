@@ -66,7 +66,6 @@ def run(
         module_inventory=m_inventory,
         state_manager=ExternalResourcesStateDynamoDB(
             table_name=er_settings.state_dynamodb_table,
-            index_name=er_settings.state_dynamodb_index,
             region_name=er_settings.state_dynamodb_region,
         ),
         reconciler=K8sExternalResourcesReconciler(
