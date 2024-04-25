@@ -204,13 +204,14 @@ def test_get_usernames_from_pagerduty(user: UserV1) -> None:
         "nobody",
         "nobody+foobar",
     ]
-    result = integ.get_usernames_from_pagerduty(
+    result, error = integ.get_usernames_from_pagerduty(
         pagerduties=pagerduties,
         users=[user],
         usergroup="usergroup",
         pagerduty_map=mock_pagerduty_map,
     )
     assert result == [user.slack_username]
+    assert not error
 
 
 def test_get_slack_usernames_from_owners(mocker: MockerFixture, user: UserV1) -> None:
@@ -408,13 +409,13 @@ def test_get_desired_state(
 ) -> None:
     mocker.patch(
         "reconcile.slack_usergroups.get_usernames_from_pagerduty"
-    ).return_value = ["user1"]
+    ).return_value = (["user1"], False)
     mocker.patch(
         "reconcile.slack_usergroups.get_slack_usernames_from_owners"
     ).return_value = ["repo-user"]
     mock_pagerduty_map = create_autospec(PagerDutyMap)
     slack_client_mock.get_usergroup_id.return_value = "ugid"
-    result = integ.get_desired_state(
+    result, error = integ.get_desired_state(
         slack_map,
         mock_pagerduty_map,
         permissions[1:],
@@ -441,6 +442,7 @@ def test_get_desired_state(
             )
         }
     }
+    assert not error
 
 
 def test_get_desired_state_cluster_usergroups(
