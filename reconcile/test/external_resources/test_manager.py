@@ -38,7 +38,6 @@ def settings() -> ExternalResourcesSettingsV1:
         tf_state_bucket="bucket",
         tf_state_region="us-east-1",
         tf_state_dynamodb_table="dynamodb_table",
-        state_dynamodb_index="state_dynamo_index",
         state_dynamodb_table="state_dynamo_table",
         state_dynamodb_region="us-east-1",
     )
