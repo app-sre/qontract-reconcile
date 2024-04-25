@@ -3,7 +3,6 @@
 query ExternalResourcesSettings {
     settings: external_resources_settings_v1 {
         state_dynamodb_table
-        state_dynamodb_index
         state_dynamodb_region
         tf_state_bucket
         tf_state_region
