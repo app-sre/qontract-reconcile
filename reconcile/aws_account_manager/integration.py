@@ -4,7 +4,10 @@ from typing import Any
 
 import jinja2
 
-from reconcile.aws_account_manager.merge_request_manager import MergeRequestManager
+from reconcile.aws_account_manager.merge_request_manager import (
+    MergeRequestManager,
+    MrData,
+)
 from reconcile.aws_account_manager.metrics import (
     NonOrgAccountCounter,
     OrgAccountCounter,
@@ -181,16 +184,18 @@ class AwsAccountMgmtIntegration(
                 ):
                     self.save_access_key(account_request.name, access_key)
 
-            merge_request_manager.create_account_file(
-                title=f"{account_request.name}: AWS account template collection file",
-                account_tmpl_file_path=f"{self.params.template_collection_root_path}/{account_request.name}.yml",
-                account_tmpl_file_content=self.render_account_tmpl_file(
-                    template=account_template,
-                    account_request=account_request,
-                    uid=uid,
-                    settings=self.params.dict(),
-                ),
-                account_request_file_path=f"data/{account_request.path.strip('/')}",
+            merge_request_manager.create_merge_request(
+                MrData(
+                    title=f"{account_request.name}: AWS account template collection file",
+                    account_tmpl_file_path=f"{self.params.template_collection_root_path}/{account_request.name}.yml",
+                    account_tmpl_file_content=self.render_account_tmpl_file(
+                        template=account_template,
+                        account_request=account_request,
+                        uid=uid,
+                        settings=self.params.dict(),
+                    ),
+                    account_request_file_path=f"data/{account_request.path.strip('/')}",
+                )
             )
 
     def reconcile_organization_accounts(
