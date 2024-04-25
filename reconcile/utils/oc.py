@@ -163,7 +163,14 @@ class OCDecorators:
 
             try:
                 resource_kind = msg.resource["kind"]
-                resource_name = msg.resource["metadata"]["name"]
+                # PipelineRun name can be empty when creating
+                if (
+                    resource_kind == "PipelineRun"
+                    and "name" not in msg.resource["metadata"]
+                ):
+                    resource_name = msg.resource["metadata"]["generateName"][:-1]
+                else:
+                    resource_name = msg.resource["metadata"]["name"]
                 annotations = msg.resource["metadata"].get("annotations", {})
             except KeyError as e:
                 logging.warning(f"Error processing metric: {e}")
