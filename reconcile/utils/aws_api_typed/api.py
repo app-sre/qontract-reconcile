@@ -22,7 +22,15 @@ from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
 from reconcile.utils.aws_api_typed.sts import AWSApiSts
 from reconcile.utils.aws_api_typed.support import AWSApiSupport
 
-SubApi = TypeVar("SubApi")
+SubApi = TypeVar(
+    "SubApi",
+    AWSApiIam,
+    AWSApiOrganizations,
+    AWSApiS3,
+    AWSApiServiceQuotas,
+    AWSApiSts,
+    AWSApiSupport,
+)
 
 
 class AWSCredentials(ABC):
@@ -159,7 +167,7 @@ class AWSApi:
         match api_cls:
             case reconcile.utils.aws_api_typed.iam.AWSApiIam:
                 client = self.session.client("iam")
-                api = api_cls(client)  # type: ignore # mypy bug, it doesn't recognize that api_cls is callable
+                api = api_cls(client)
             case reconcile.utils.aws_api_typed.organization.AWSApiOrganizations:
                 client = self.session.client("organizations")
                 api = api_cls(client)
