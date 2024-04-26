@@ -109,6 +109,9 @@ class DesiredStateDataSource(BaseModel):
     accounts: list[AWSAccountV1]
 
 
+class CacheSource(TypedDict):
+    terraform_configurations: dict[str, str]
+
 class RunnerParams(TypedDict):
     terraform_client: Terraform
     terrascript_client: Terrascript
@@ -541,11 +544,14 @@ def run(
         "terraform-tgw-attachments-extended-early-exit",
         default=False,
     ):
+        cache_source = CacheSource(
+            terraform_configurations=ts.terraform_configurations(),
+        )
         extended_early_exit_run(
             integration=QONTRACT_INTEGRATION,
             integration_version=QONTRACT_INTEGRATION_VERSION,
             dry_run=dry_run,
-            cache_source=ts.terraform_configurations(),
+            cache_source=cache_source,
             shard="_".join(account_name) if account_name else "",
             ttl_seconds=extended_early_exit_cache_ttl_seconds,
             logger=logging.getLogger(),

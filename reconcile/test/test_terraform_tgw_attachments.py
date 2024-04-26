@@ -564,6 +564,7 @@ def _setup_mocks(
     ).return_value
     mocked_tf.plan.return_value = (False, False)
     mocked_tf.apply.return_value = False
+    mocked_tf.apply_count = 0
 
     mocked_logging = mocker.patch("reconcile.terraform_tgw_attachments.logging")
 

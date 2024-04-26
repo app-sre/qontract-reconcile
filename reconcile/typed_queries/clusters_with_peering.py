@@ -6,7 +6,6 @@ from reconcile.utils.gql import GqlApi
 
 
 def get_clusters_with_peering(gql_api: GqlApi) -> list[ClusterV1]:
-    filter = {"filter": {"peering": {"ne": None}}}
-    data = query(gql_api.query, variables=filter)
-    clusters = data.clusters or []
-    return clusters
+    data = query(query_func=gql_api.query)
+    clusters= data.clusters or []
+    return [c for c in clusters if c.peering is not None]
