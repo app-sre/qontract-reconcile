@@ -14569,6 +14569,42 @@
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
+                        },
+                        {
+                            "name": "resourcesDefaultRegion",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "supportedDeploymentRegions",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
                         }
                     ],
                     "inputFields": null,
@@ -25886,8 +25922,8 @@
                                     "kind": "NON_NULL",
                                     "name": null,
                                     "ofType": {
-                                        "kind": "OBJECT",
-                                        "name": "VPCRequestSubnets_v1",
+                                        "kind": "SCALAR",
+                                        "name": "String",
                                         "ofType": null
                                     }
                                 }
@@ -25906,53 +25942,30 @@
                                     "kind": "NON_NULL",
                                     "name": null,
                                     "ofType": {
-                                        "kind": "OBJECT",
-                                        "name": "VPCRequestSubnets_v1",
+                                        "kind": "SCALAR",
+                                        "name": "String",
                                         "ofType": null
                                     }
                                 }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "VPCRequestSubnets_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "availability_zone",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
                         },
                         {
-                            "name": "cidr_block",
+                            "name": "availability_zones",
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "NON_NULL",
+                                "kind": "LIST",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
                                 }
                             },
                             "isDeprecated": false,
