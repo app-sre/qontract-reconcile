@@ -6462,11 +6462,20 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     )
 
         # resource - msk config
+        # unique msk config resource name enables "create_before_destroy" lifecycle
+        # which is required when changing version which requires a resource replacement
+        msk_version_str = values["kafka_version"].replace(".", "-")
+        msk_config_name = f"{resource_id}-{msk_version_str}"
         msk_config = aws_msk_configuration(
             resource_id,
-            name=resource_id,
+            name=msk_config_name,
             kafka_versions=[values["kafka_version"]],
             server_properties=values["server_properties"],
+            # lifecycle create_before_destroy is required to ensure that the config is created
+            # before it is assigned to the cluster
+            lifecycle={
+                "create_before_destroy": True,
+            },
         )
         tf_resources.append(msk_config)
         values.pop("server_properties", None)
