@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
 
@@ -120,6 +121,11 @@ def mock_get_app_names(mocker: MockerFixture) -> Any:
     return mocker.patch("tools.cli_commands.cost_report.openshift.get_app_names")
 
 
+@pytest.fixture
+def mock_get_cost_namespaces(mocker: MockerFixture) -> Any:
+    return mocker.patch("tools.cli_commands.cost_report.openshift.get_cost_namespaces")
+
+
 PARENT_APP = App(name="parent", parent_app_name=None)
 CHILD_APP = App(name="child", parent_app_name="parent")
 
@@ -139,10 +145,18 @@ CHILD_APP_NAMESPACE = CostNamespace(
 
 def test_openshift_cost_report_execute(
     openshift_cost_report_command: OpenShiftCostReportCommand,
+    mock_get_app_names: Any,
+    mock_get_cost_namespaces: Any,
+    fx: Callable,
 ) -> None:
+    expected_output = fx("empty_openshift_cost_report.md")
+
+    mock_get_app_names.return_value = []
+    mock_get_cost_namespaces.return_value = []
+
     output = openshift_cost_report_command.execute()
 
-    assert output == ""
+    assert output.rstrip() == expected_output.rstrip()
 
 
 def test_openshift_cost_report_get_apps(
@@ -155,11 +169,6 @@ def test_openshift_cost_report_get_apps(
     apps = openshift_cost_report_command.get_apps()
 
     assert apps == expected_apps
-
-
-@pytest.fixture
-def mock_get_cost_namespaces(mocker: MockerFixture) -> Any:
-    return mocker.patch("tools.cli_commands.cost_report.openshift.get_cost_namespaces")
 
 
 def test_openshift_cost_report_get_cost_namespaces(
@@ -316,3 +325,18 @@ def test_openshift_cost_report_process_reports(
     )
 
     assert reports == expected_reports
+
+
+def test_openshift_cost_report_render(
+    openshift_cost_report_command: OpenShiftCostReportCommand,
+    fx: Callable,
+) -> None:
+    expected_output = fx("openshift_cost_report.md")
+    reports = {
+        "parent": PARENT_APP_REPORT,
+        "child": CHILD_APP_REPORT,
+    }
+
+    output = openshift_cost_report_command.render(reports)
+
+    assert output == expected_output

@@ -15,7 +15,7 @@ from reconcile.utils.secret_reader import create_secret_reader
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
 from tools.cli_commands.cost_report.response import ReportCostResponse
-from tools.cli_commands.cost_report.view import render_report
+from tools.cli_commands.cost_report.view import render_aws_cost_report
 
 THREAD_POOL_SIZE = 10
 
@@ -72,7 +72,7 @@ class CostReportCommand:
         return reports
 
     def render(self, reports: Mapping[str, Report]) -> str:
-        return render_report(
+        return render_aws_cost_report(
             reports=reports,
             cost_management_console_base_url=self.cost_management_console_base_url,
         )

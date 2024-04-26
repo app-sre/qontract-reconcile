@@ -19,6 +19,7 @@ from reconcile.utils.secret_reader import create_secret_reader
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
 from tools.cli_commands.cost_report.response import OpenShiftReportCostResponse
+from tools.cli_commands.cost_report.view import render_openshift_cost_report
 
 THREAD_POOL_SIZE = 10
 
@@ -37,7 +38,7 @@ class OpenShiftCostReportCommand:
         cost_namespaces = self.get_cost_namespaces()
         responses = self.get_reports(cost_namespaces)
         reports = self.process_reports(apps, responses)
-        return ""
+        return self.render(reports)
 
     def get_apps(self) -> list[App]:
         return get_app_names(self.gql_api)
@@ -91,6 +92,10 @@ class OpenShiftCostReportCommand:
                 reports=reports,
             )
         return reports
+
+    @staticmethod
+    def render(reports):
+        return render_openshift_cost_report(reports=reports)
 
     def _dfs_reports(
         self,
