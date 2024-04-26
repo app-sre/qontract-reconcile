@@ -159,7 +159,9 @@ def test_get_aws_costs_report(
 
 
 def test_get_aws_costs_report_error(
-    cost_management_api: CostManagementApi, fx: Callable, httpserver: HTTPServer,
+    cost_management_api: CostManagementApi,
+    fx: Callable,
+    httpserver: HTTPServer,
 ) -> None:
     httpserver.expect_request("/reports/aws/costs/").respond_with_data(status=500)
 

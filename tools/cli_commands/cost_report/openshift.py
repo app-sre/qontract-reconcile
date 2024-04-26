@@ -90,7 +90,9 @@ class OpenShiftCostReportCommand:
         )
 
     @staticmethod
-    def render(reports):
+    def render(
+        reports: Mapping[str, Report],
+    ) -> str:
         return render_openshift_cost_report(reports=reports)
 
     @staticmethod
@@ -114,7 +116,7 @@ class OpenShiftCostReportCommand:
 
         items = [
             ReportItem(
-                name=f"{cluster}/{project.project}",
+                name=f"{value.clusters[0]}/{project.project}",
                 delta_value=value.delta_value,
                 delta_percent=value.delta_percent,
                 total=value.cost.total.value,
@@ -122,10 +124,7 @@ class OpenShiftCostReportCommand:
             for r in response
             for data in r.data
             for project in data.projects
-            if len(project.values) == 1
-            and (value := project.values[0]) is not None
-            and len(value.clusters) == 1
-            and (cluster := value.clusters[0]) is not None
+            if len(project.values) == 1 and (value := project.values[0]) is not None
         ]
 
         items_total = Decimal(sum(item.total for item in items))

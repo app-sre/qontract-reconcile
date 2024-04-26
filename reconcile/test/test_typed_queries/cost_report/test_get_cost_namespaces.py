@@ -58,7 +58,7 @@ def test_get_cost_namespaces(
     namespace_response: CostNamespacesQueryData,
     expected_cost_namespace: CostNamespace,
 ) -> None:
-    gql_api = gql_api_builder(namespace_response)
+    gql_api = gql_api_builder(namespace_response.dict(by_alias=True))
 
     namespaces = get_cost_namespaces(gql_api)
 
