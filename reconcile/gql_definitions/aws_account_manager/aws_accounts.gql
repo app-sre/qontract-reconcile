@@ -32,6 +32,8 @@ query AWSAccountManagerAccounts {
       quotaLimits {
         path
       }
+      resourcesDefaultRegion
+      supportedDeploymentRegions
     }
     organization_accounts {
       ... AWSAccountManaged
