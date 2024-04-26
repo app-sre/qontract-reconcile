@@ -188,7 +188,7 @@ class Reconciler:
             auto_merge=True,
         )
 
-        submitted_content_hashes: set[str] = set()
+        submitted_content_hashes = set()
         for promotion in unsubmitted_promotions:
             if promotion.content_hashes.issubset(submitted_content_hashes):
                 continue

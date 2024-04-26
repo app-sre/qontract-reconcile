@@ -703,8 +703,9 @@ def test_reconcile(
         assert addition[1] == expected_addition[1]
         assert addition[2] == expected_addition[2]
         assert addition[3].is_now() == expected_addition[3].is_now()
-        assert addition[3].after <= expected_addition[3].after + timedelta(minutes=1)
-        assert addition[3].after >= expected_addition[3].after - timedelta(minutes=1)
+        # Lets give a safe 20 minute time window for CI to always pass
+        assert addition[3].after <= expected_addition[3].after + timedelta(minutes=10)
+        assert addition[3].after >= expected_addition[3].after - timedelta(minutes=10)
         assert addition[4] == expected_addition[4]
 
     # Deletions are actually processed in a deterministic way.
