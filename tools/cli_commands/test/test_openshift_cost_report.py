@@ -12,7 +12,7 @@ from reconcile.gql_definitions.cost_report.settings import CostReportSettingsV1
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.typed_queries.cost_report.app_names import App
 from reconcile.typed_queries.cost_report.cost_namespaces import CostNamespace
-from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
+from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
 from tools.cli_commands.cost_report.response import OpenShiftReportCostResponse
 
@@ -273,17 +273,17 @@ PARENT_APP_REPORT = Report(
     ],
     child_apps_total=Decimal(2200),
     date="2024-02",
-    services=[
-        ServiceReport(
-            service=f"{PARENT_APP_NAMESPACE.cluster_name}/{PARENT_APP_NAMESPACE.name}",
+    items=[
+        ReportItem(
+            name=f"{PARENT_APP_NAMESPACE.cluster_name}/{PARENT_APP_NAMESPACE.name}",
             delta_value=Decimal(100),
             delta_percent=10,
             total=Decimal(1100),
         )
     ],
-    services_total=Decimal(1100),
-    services_delta_value=Decimal(100),
-    services_delta_percent=10,
+    items_total=Decimal(1100),
+    items_delta_value=Decimal(100),
+    items_delta_percent=10,
     total=Decimal(3300),
 )
 
@@ -293,17 +293,17 @@ CHILD_APP_REPORT = Report(
     child_apps=[],
     child_apps_total=Decimal(0),
     date="2024-02",
-    services=[
-        ServiceReport(
-            service=f"{CHILD_APP_NAMESPACE.cluster_name}/{CHILD_APP_NAMESPACE.name}",
+    items=[
+        ReportItem(
+            name=f"{CHILD_APP_NAMESPACE.cluster_name}/{CHILD_APP_NAMESPACE.name}",
             delta_value=Decimal(200),
             delta_percent=10,
             total=Decimal(2200),
         )
     ],
-    services_total=Decimal(2200),
-    services_delta_value=Decimal(200),
-    services_delta_percent=10,
+    items_total=Decimal(2200),
+    items_delta_value=Decimal(200),
+    items_delta_percent=10,
     total=Decimal(2200),
 )
 

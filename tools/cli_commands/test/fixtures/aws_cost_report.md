@@ -13,7 +13,7 @@ Total AWS Cost for 2024-02: $3,000.00
     {
       "name": "parent",
       "child_apps_total": 2000.0,
-      "services_total": 1000.0,
+      "items_total": 1000.0,
       "total": 3000.0
     }
   ],
@@ -24,7 +24,7 @@ Total AWS Cost for 2024-02: $3,000.00
       "sortable": true
     },
     {
-      "key": "services_total",
+      "key": "items_total",
       "label": "Self App ($)",
       "sortable": true
     },
@@ -100,7 +100,7 @@ View in [Cost Management Console](https://console.redhat.com/openshift/cost-mana
   "filter": true,
   "items": [
     {
-      "service": "service2",
+      "name": "service2",
       "delta_value": 200.0,
       "delta_percent": 20.0,
       "total": 2000.0
@@ -108,7 +108,7 @@ View in [Cost Management Console](https://console.redhat.com/openshift/cost-mana
   ],
   "fields": [
     {
-      "key": "service",
+      "key": "name",
       "label": "Service",
       "sortable": true
     },
@@ -141,7 +141,7 @@ View in [Cost Management Console](https://console.redhat.com/openshift/cost-mana
   "filter": true,
   "items": [
     {
-      "service": "service1",
+      "name": "service1",
       "delta_value": 100.0,
       "delta_percent": 10.0,
       "total": 1000.0
@@ -149,7 +149,7 @@ View in [Cost Management Console](https://console.redhat.com/openshift/cost-mana
   ],
   "fields": [
     {
-      "key": "service",
+      "key": "name",
       "label": "Service",
       "sortable": true
     },

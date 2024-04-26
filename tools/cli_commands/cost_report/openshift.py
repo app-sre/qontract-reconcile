@@ -17,7 +17,7 @@ from reconcile.typed_queries.cost_report.settings import get_cost_report_setting
 from reconcile.utils import gql
 from reconcile.utils.secret_reader import create_secret_reader
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
-from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
+from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
 from tools.cli_commands.cost_report.response import OpenShiftReportCostResponse
 from tools.cli_commands.cost_report.view import render_openshift_cost_report
 
@@ -145,8 +145,8 @@ class OpenShiftCostReportCommand:
         )
 
         items = [
-            ServiceReport(
-                service=f"{cluster}/{project.project}",
+            ReportItem(
+                name=f"{cluster}/{project.project}",
                 delta_value=value.delta_value,
                 delta_percent=value.delta_percent,
                 total=value.cost.total.value,
@@ -181,11 +181,11 @@ class OpenShiftCostReportCommand:
             child_apps_total=child_apps_total,
             date=date,
             parent_app_name=parent_app_name,
-            services_delta_value=items_delta_value,
-            services_delta_percent=items_delta_percent,
-            services_total=items_total,
+            items_delta_value=items_delta_value,
+            items_delta_percent=items_delta_percent,
+            items_total=items_total,
             total=total,
-            services=items,
+            items=items,
         )
 
     @classmethod

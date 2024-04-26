@@ -13,7 +13,7 @@ Total OpenShift Cost for 2024-02: $3,300.00
     {
       "name": "parent",
       "child_apps_total": 2200.0,
-      "services_total": 1100.0,
+      "items_total": 1100.0,
       "total": 3300.0
     }
   ],
@@ -24,7 +24,7 @@ Total OpenShift Cost for 2024-02: $3,300.00
       "sortable": true
     },
     {
-      "key": "services_total",
+      "key": "items_total",
       "label": "Self App ($)",
       "sortable": true
     },
@@ -99,7 +99,7 @@ OpenShift Workloads Cost: $2,200.00, +$200.00 (+10.00%) compared to previous mon
   "filter": true,
   "items": [
     {
-      "service": "child_cluster/child_namespace",
+      "name": "child_cluster/child_namespace",
       "delta_value": 200.0,
       "delta_percent": 10.0,
       "total": 2200.0
@@ -107,7 +107,7 @@ OpenShift Workloads Cost: $2,200.00, +$200.00 (+10.00%) compared to previous mon
   ],
   "fields": [
     {
-      "key": "service",
+      "key": "name",
       "label": "Cluster/Namespace",
       "sortable": true
     },
@@ -139,7 +139,7 @@ OpenShift Workloads Cost: $1,100.00, +$100.00 (+10.00%) compared to previous mon
   "filter": true,
   "items": [
     {
-      "service": "parent_cluster/parent_namespace",
+      "name": "parent_cluster/parent_namespace",
       "delta_value": 100.0,
       "delta_percent": 10.0,
       "total": 1100.0
@@ -147,7 +147,7 @@ OpenShift Workloads Cost: $1,100.00, +$100.00 (+10.00%) compared to previous mon
   ],
   "fields": [
     {
-      "key": "service",
+      "key": "name",
       "label": "Cluster/Namespace",
       "sortable": true
     },

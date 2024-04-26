@@ -12,7 +12,7 @@ from reconcile.gql_definitions.cost_report.settings import CostReportSettingsV1
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.typed_queries.cost_report.app_names import App
 from tools.cli_commands.cost_report.command import CostReportCommand
-from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
+from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
 from tools.cli_commands.cost_report.response import ReportCostResponse
 
 COST_MANAGEMENT_CONSOLE_BASE_URL = (
@@ -225,17 +225,17 @@ PARENT_APP_REPORT = Report(
     ],
     child_apps_total=Decimal(2000),
     date="2024-02",
-    services=[
-        ServiceReport(
-            service="service1",
+    items=[
+        ReportItem(
+            name="service1",
             delta_value=Decimal(100),
             delta_percent=10,
             total=Decimal(1000),
         )
     ],
-    services_total=Decimal(1000),
-    services_delta_value=Decimal(100),
-    services_delta_percent=10,
+    items_total=Decimal(1000),
+    items_delta_value=Decimal(100),
+    items_delta_percent=10,
     total=Decimal(3000),
 )
 
@@ -245,17 +245,17 @@ CHILD_APP_REPORT = Report(
     child_apps=[],
     child_apps_total=Decimal(0),
     date="2024-02",
-    services=[
-        ServiceReport(
-            service="service2",
+    items=[
+        ReportItem(
+            name="service2",
             delta_value=Decimal(200),
             delta_percent=20,
             total=Decimal(2000),
         )
     ],
-    services_total=Decimal(2000),
-    services_delta_value=Decimal(200),
-    services_delta_percent=20,
+    items_total=Decimal(2000),
+    items_delta_value=Decimal(200),
+    items_delta_percent=20,
     total=Decimal(2000),
 )
 

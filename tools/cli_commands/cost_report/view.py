@@ -66,7 +66,7 @@ APP = """\
 """
 
 AWS_SERVICES_COST = """\
-AWS Services Cost: {services_total}, {services_delta_value}{services_delta_percent} \
+AWS Services Cost: {items_total}, {items_delta_value}{items_delta_percent} \
 compared to previous month.
 View in [Cost Management Console]({cost_management_console_url}).
 
@@ -76,7 +76,7 @@ View in [Cost Management Console]({cost_management_console_url}).
 """
 
 OPENSHIFT_WORKLOADS_COST = """\
-OpenShift Workloads Cost: {services_total}, {services_delta_value}{services_delta_percent} \
+OpenShift Workloads Cost: {items_total}, {items_delta_value}{items_delta_percent} \
 compared to previous month.
 
 ```json:table
@@ -123,7 +123,7 @@ class JsonTable(BaseModel):
 class SummaryItem(BaseModel):
     name: str
     child_apps_total: Decimal
-    services_total: Decimal
+    items_total: Decimal
     total: Decimal
 
 
@@ -131,6 +131,18 @@ class MonthOverMonthChangeItem(BaseModel):
     name: str
     delta_value: Decimal
     delta_percent: float | None
+    total: Decimal
+
+
+class ViewReportItem(BaseModel):
+    name: str
+    delta_value: Decimal
+    delta_percent: float | None
+    total: Decimal
+
+
+class ViewChildAppReport(BaseModel):
+    name: str
     total: Decimal
 
 
@@ -169,7 +181,7 @@ def render_summary(
         SummaryItem(
             name=name,
             child_apps_total=round(report.child_apps_total, 2),
-            services_total=round(report.services_total, 2),
+            items_total=round(report.items_total, 2),
             total=round(report.total, 2),
         )
         for name, report in root_apps.items()
@@ -179,7 +191,7 @@ def render_summary(
         items=sorted(summary_items, key=lambda item: item.total, reverse=True),
         fields=[
             TableField(key="name", label="Name", sortable=True),
-            TableField(key="services_total", label="Self App ($)", sortable=True),
+            TableField(key="items_total", label="Self App ($)", sortable=True),
             TableField(key="child_apps_total", label="Child Apps ($)", sortable=True),
             TableField(key="total", label="Total ($)", sortable=True),
         ],
@@ -195,13 +207,13 @@ def render_month_over_month_change(reports: Mapping[str, Report]) -> str:
     items = [
         MonthOverMonthChangeItem(
             name=name,
-            delta_value=round(report.services_delta_value, 2),
+            delta_value=round(report.items_delta_value, 2),
             delta_percent=(
-                round(report.services_delta_percent, 2)
-                if report.services_delta_percent is not None
+                round(report.items_delta_percent, 2)
+                if report.items_delta_percent is not None
                 else None
             ),
-            total=round(report.services_total, 2),
+            total=round(report.items_total, 2),
         )
         for name, report in reports.items()
     ]
@@ -238,49 +250,48 @@ def render_aws_services_cost(
     report: Report,
     cost_management_console_base_url: str,
 ) -> str:
-    json_table = _build_services_cost_json_table(report, label="Service")
+    json_table = _build_items_cost_json_table(report, name_label="Service")
     return AWS_SERVICES_COST.format(
         cost_management_console_url=build_cost_management_console_url(
             cost_management_console_base_url,
             report.app_name,
         ),
-        services_total=format_cost_value(report.services_total),
-        services_delta_value=format_delta_value(report.services_delta_value),
-        services_delta_percent=format_delta_percent(report.services_delta_percent),
+        items_total=format_cost_value(report.items_total),
+        items_delta_value=format_delta_value(report.items_delta_value),
+        items_delta_percent=format_delta_percent(report.items_delta_percent),
         json_table=json_table.json(indent=2),
     )
 
 
-def render_openshift_services_cost(
+def render_openshift_workloads_cost(
     report: Report,
 ) -> str:
-    json_table = _build_services_cost_json_table(report, label="Cluster/Namespace")
+    json_table = _build_items_cost_json_table(report, name_label="Cluster/Namespace")
     return OPENSHIFT_WORKLOADS_COST.format(
-        services_total=format_cost_value(report.services_total),
-        services_delta_value=format_delta_value(report.services_delta_value),
-        services_delta_percent=format_delta_percent(report.services_delta_percent),
+        items_total=format_cost_value(report.items_total),
+        items_delta_value=format_delta_value(report.items_delta_value),
+        items_delta_percent=format_delta_percent(report.items_delta_percent),
         json_table=json_table.json(indent=2),
     )
 
 
-def _build_services_cost_json_table(report: Report, label: str) -> JsonTable:
-    services = [
-        s.copy(
-            update={
-                "delta_value": round(s.delta_value, 2),
-                "delta_percent": round(s.delta_percent, 2)
-                if s.delta_percent is not None
-                else None,
-                "total": round(s.total, 2),
-            }
+def _build_items_cost_json_table(report: Report, name_label: str) -> JsonTable:
+    items = [
+        ViewReportItem(
+            name=s.name,
+            delta_value=round(s.delta_value, 2),
+            delta_percent=round(s.delta_percent, 2)
+            if s.delta_percent is not None
+            else None,
+            total=round(s.total, 2),
         )
-        for s in report.services
+        for s in report.items
     ]
     return JsonTable(
         filter=True,
-        items=sorted(services, key=lambda service: service.total, reverse=True),
+        items=sorted(items, key=lambda item: item.total, reverse=True),
         fields=[
-            TableField(key="service", label=label, sortable=True),
+            TableField(key="name", label=name_label, sortable=True),
             TableField(key="delta_value", label="Change ($)", sortable=True),
             TableField(key="delta_percent", label="Change (%)", sortable=True),
             TableField(key="total", label="Total ($)", sortable=True),
@@ -290,10 +301,9 @@ def _build_services_cost_json_table(report: Report, label: str) -> JsonTable:
 
 def render_child_apps_cost(report: Report) -> str:
     child_apps = [
-        app.copy(
-            update={
-                "total": round(app.total, 2),
-            }
+        ViewChildAppReport(
+            name=app.name,
+            total=round(app.total, 2),
         )
         for app in report.child_apps
     ]
@@ -320,12 +330,12 @@ def render_total_cost(report: Report) -> str:
 def render_app_cost(
     name: str,
     report: Report,
-    service_cost_renderer: Callable[..., str],
+    item_cost_renderer: Callable[..., str],
     **kwargs: Any,
 ) -> str:
     cost_details_sections = []
-    if report.services:
-        cost_details_sections.append(service_cost_renderer(report=report, **kwargs))
+    if report.items:
+        cost_details_sections.append(item_cost_renderer(report=report, **kwargs))
     if report.child_apps:
         cost_details_sections.append(render_child_apps_cost(report))
         cost_details_sections.append(render_total_cost(report))
@@ -340,14 +350,14 @@ def render_app_cost(
 
 def render_cost_breakdown(
     reports: Mapping[str, Report],
-    service_cost_renderer: Callable[..., str],
+    item_cost_renderer: Callable[..., str],
     **kwargs: Any,
 ) -> str:
     apps = "\n".join(
         render_app_cost(
             name=name,
             report=report,
-            service_cost_renderer=service_cost_renderer,
+            item_cost_renderer=item_cost_renderer,
             **kwargs,
         )
         for name, report in sorted(
@@ -368,7 +378,7 @@ def render_aws_cost_report(
         month_over_month_change=render_month_over_month_change(reports),
         cost_breakdown=render_cost_breakdown(
             reports,
-            service_cost_renderer=render_aws_services_cost,
+            item_cost_renderer=render_aws_services_cost,
             cost_management_console_base_url=cost_management_console_base_url,
         ),
     )
@@ -383,6 +393,6 @@ def render_openshift_cost_report(
         month_over_month_change=render_month_over_month_change(reports),
         cost_breakdown=render_cost_breakdown(
             reports,
-            service_cost_renderer=render_openshift_services_cost,
+            item_cost_renderer=render_openshift_workloads_cost,
         ),
     )

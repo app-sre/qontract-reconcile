@@ -13,7 +13,7 @@ from reconcile.typed_queries.cost_report.settings import get_cost_report_setting
 from reconcile.utils import gql
 from reconcile.utils.secret_reader import create_secret_reader
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
-from tools.cli_commands.cost_report.model import ChildAppReport, Report, ServiceReport
+from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
 from tools.cli_commands.cost_report.response import ReportCostResponse
 from tools.cli_commands.cost_report.view import render_aws_cost_report
 
@@ -123,8 +123,8 @@ class CostReportCommand:
         child_apps_total = Decimal(
             sum(child_app.total for child_app in child_app_reports)
         )
-        services_total = response.meta.total.cost.total.value
-        total = services_total + child_apps_total
+        items_total = response.meta.total.cost.total.value
+        total = items_total + child_apps_total
         date = next((d for data in response.data if (d := data.date)), "")
         return Report(
             app_name=app_name,
@@ -132,13 +132,13 @@ class CostReportCommand:
             child_apps_total=child_apps_total,
             date=date,
             parent_app_name=parent_app_name,
-            services_delta_value=response.meta.delta.value,
-            services_delta_percent=response.meta.delta.percent,
-            services_total=services_total,
+            items_delta_value=response.meta.delta.value,
+            items_delta_percent=response.meta.delta.percent,
+            items_total=items_total,
             total=total,
-            services=[
-                ServiceReport(
-                    service=service.service,
+            items=[
+                ReportItem(
+                    name=service.service,
                     delta_value=value.delta_value,
                     delta_percent=value.delta_percent,
                     total=value.cost.total.value,

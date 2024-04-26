@@ -17,7 +17,7 @@ Total OpenShift Cost for : $0.00
       "sortable": true
     },
     {
-      "key": "services_total",
+      "key": "items_total",
       "label": "Self App ($)",
       "sortable": true
     },
