@@ -16,10 +16,30 @@ class Schedule:
         except ValueError:
             raise ScheduleFormatError
 
+    def __lt__(self, other: Schedule) -> bool:
+        return self.after < other.after
+
+    def is_now(self) -> bool:
+        return datetime.datetime.now(tz=datetime.timezone.utc) >= self.after
+
+    @staticmethod
+    def now() -> Schedule:
+        return Schedule(
+            data=(
+                datetime.datetime.now(tz=datetime.timezone.utc)
+                - datetime.timedelta(minutes=5)
+            ).isoformat()
+        )
+
     @staticmethod
     def default() -> Schedule:
         """
         Handy for tests
         """
         # TODO: this should be in conftest.py
-        return Schedule(data="2023-08-31T16:47+00:00")
+        return Schedule(
+            data=(
+                datetime.datetime.now(tz=datetime.timezone.utc)
+                - datetime.timedelta(minutes=5)
+            ).isoformat()
+        )

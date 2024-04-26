@@ -17,6 +17,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.schedule impor
     Schedule,
     ScheduleFormatError,
 )
+from reconcile.utils.mr.labels import AUTO_MERGE
 from reconcile.utils.vcs import VCS, MRCheckStatus
 
 
@@ -28,6 +29,7 @@ class OpenMergeRequest:
     failed_mr_check: bool
     is_batchable: bool
     schedule: Schedule
+    auto_merge: bool
 
 
 ITEM_SEPARATOR = ","
@@ -213,6 +215,7 @@ class MRParser:
                     failed_mr_check=mr_check_status == MRCheckStatus.FAILED,
                     is_batchable=is_batchable_str == "True",
                     schedule=schedule,
+                    auto_merge=AUTO_MERGE in attrs.get("labels"),
                 )
             )
         return open_mrs

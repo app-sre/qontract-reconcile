@@ -13,6 +13,9 @@ from reconcile.gql_definitions.common.saas_files import (
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
+from reconcile.saas_auto_promotions_manager.merge_request_manager.schedule import (
+    Schedule,
+)
 from reconcile.saas_auto_promotions_manager.meta import QONTRACT_INTEGRATION_VERSION
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.utils.ruamel import create_ruamel_instance
@@ -126,7 +129,12 @@ class Renderer:
         return new_content
 
     def render_description(
-        self, message: str, content_hashes: str, channels: str, is_batchable: bool
+        self,
+        message: str,
+        content_hashes: str,
+        channels: str,
+        is_batchable: bool,
+        schedule: Schedule,
     ) -> str:
         return f"""
 {message}
@@ -139,14 +147,23 @@ class Renderer:
 
 {IS_BATCHABLE}: {is_batchable}
 
+{SCHEDULE}: {schedule.after.isoformat()}
+
 {VERSION_REF}: {SAPM_VERSION}
         """
 
     def render_title(
-        self, is_draft: bool, canary: bool, channels: str, batch_size: int
+        self,
+        is_draft: bool,
+        canary: bool,
+        channels: str,
+        batch_size: int,
+        auto_merge: bool,
     ) -> str:
         canary_suffix = "Canary" if canary else ""
         content = f"[SAPM{canary_suffix}] auto-promotion ID {int(hashlib.sha256(channels.encode('utf-8')).hexdigest(), 16) % 10**8} - batch size: {batch_size}"
+        if auto_merge:
+            content = f"[SAPM{canary_suffix}] scheduled auto-promotion for {channels}"
         if is_draft:
             return f"Draft: {content}"
         return content

@@ -36,11 +36,22 @@ from reconcile.utils.vcs import VCS
 BATCH_SIZE_LIMIT = 5
 
 SAPM_LABEL = "SAPM"
-SAPM_MR_LABELS = [SAPM_LABEL, AUTO_MERGE]
 
 MR_DESC = """
 This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
 This MR promotes all subscribers with auto-promotions for the channel(s) listed below.
+
+Please **do not manually modify** this MR in any way, as it might result in blocking the auto-promotion.
+
+This description is used by SAPM to manage auto-promotions.
+"""
+
+MR_DESC_SCHEDULED = """
+This is a scheduled auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
+This MR promotes all subscribers with auto-promotions for the channel(s) listed below.
+
+Note, that this MR is not set to auto-merge. This MR is scheduled to be merged in the future (see schedule below). You can also skip the schedule and lgtm this MR upfront.
+Once the scheduled time is reached, this MR will be closed in favor of a new MR with auto-merge enabled.
 
 Please **do not manually modify** this MR in any way, as it might result in blocking the auto-promotion.
 
@@ -104,25 +115,32 @@ class MergeRequestManagerV2:
         description_hashes = ",".join(addition.content_hashes)
         description_channels = ",".join(addition.channels)
 
+        desc = MR_DESC if addition.auto_merge else MR_DESC_SCHEDULED
+
         description = self._renderer.render_description(
-            message=MR_DESC,
+            message=desc,
             content_hashes=description_hashes,
             channels=description_channels,
             is_batchable=addition.batchable,
+            schedule=addition.schedule,
         )
         title = self._renderer.render_title(
             is_draft=False,
             canary=False,
             channels=description_channels,
             batch_size=len(addition.content_hashes),
+            auto_merge=addition.auto_merge,
         )
         logging.info(
             "Open MR for update in channel(s) %s",
             description_channels,
         )
+        labels = [SAPM_LABEL]
+        if addition.auto_merge:
+            labels.append(AUTO_MERGE)
         self._sapm_mrs.append(
             SAPMMR(
-                labels=SAPM_MR_LABELS,
+                labels=labels,
                 content_by_path=content_by_path,
                 title=title,
                 description=description,

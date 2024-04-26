@@ -40,7 +40,7 @@ def test_reconcile(
     renderer = create_autospec(spec=Renderer)
     subscribers = [
         subscriber_builder({
-            CHANNEL: ["chan1,chan2"],
+            CHANNEL: {"chan1": {}, "chan2": {}},
             REF: "hash1",
         })
     ]
@@ -52,6 +52,7 @@ def test_reconcile(
             failed_mr_check=False,
             is_batchable=True,
             schedule=Schedule.default(),
+            auto_merge=True,
         ),
         reason=Reason.NEW_BATCH,
     )
@@ -61,6 +62,8 @@ def test_reconcile(
             content_hashes={Subscriber.combined_content_hash(subscribers=subscribers)},
             channels={"chan1,chan2"},
             batchable=True,
+            schedule=Schedule.now(),
+            auto_merge=True,
         )
     ]
 

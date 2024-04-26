@@ -18,13 +18,6 @@ class DesiredState:
     def __init__(
         self, subscribers: Iterable[Subscriber], open_mrs: Iterable[OpenMergeRequest]
     ) -> None:
-        """
-        TODO:
-        - if: subscriber.soak_days -> dedicated MR without auto-merge
-            - if schedule exists in open_mrs -> copy schedule
-            - else: create new schedule
-        - else: auto-merge MR
-        """
         self.promotions: list[Promotion] = []
         self._processed_hashes: set[str] = set()
         self._handle_schedules(subscribers=subscribers, open_mrs=open_mrs)
@@ -46,20 +39,30 @@ class DesiredState:
                 Promotion(
                     content_hashes={combined_content_hash},
                     channels={channel_combo},
-                    # TODO
-                    schedule=Schedule(data="2007-08-31T16:47+00:00"),
+                    schedule=Schedule.now(),
                 )
             )
 
     def _handle_schedules(
         self, subscribers: Iterable[Subscriber], open_mrs: Iterable[OpenMergeRequest]
     ) -> None:
+        self.content_hash_to_schedule: dict[str, Schedule] = {
+            list(mr.content_hashes)[0]: mr.schedule
+            for mr in open_mrs
+            if len(mr.content_hashes) == 1
+        }
+
         for subscriber in subscribers:
             if not subscriber.soak_days:
                 continue
+            subscriber_hash = Subscriber.combined_content_hash(subscribers=[subscriber])
             expected_after = datetime.now(tz=timezone.utc) + timedelta(
                 days=subscriber.soak_days
             )
+            if subscriber_hash in self.content_hash_to_schedule:
+                expected_after = self.content_hash_to_schedule[subscriber_hash].after
+            if expected_after <= datetime.now(tz=timezone.utc):
+                continue
             schedule = Schedule(data=expected_after.isoformat())
             channel_combo = ",".join([c.name for c in subscriber.channels])
             content_hash = Subscriber.combined_content_hash(subscribers=[subscriber])

@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime, timedelta, timezone
 from unittest.mock import create_autospec
 
 import pytest
@@ -20,24 +21,20 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.schedule impor
 )
 
 
-def _aggregate_hashes(items: Sequence[Addition | Deletion]) -> set[str]:
-    hashes: set[str] = set()
-    for item in items:
-        if isinstance(item, Addition):
-            hashes.update(item.content_hashes)
-        else:
-            hashes.update(item.mr.content_hashes)
-    return hashes
-
-
-def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
-    channels: set[str] = set()
-    for item in items:
-        if isinstance(item, Addition):
-            channels.update(item.channels)
-        else:
-            channels.update(item.mr.channels)
-    return channels
+def _aggregate_additions(
+    items: Sequence[Addition],
+) -> list[tuple[str, str, bool, Schedule, bool]]:
+    result = [
+        (
+            "".join(sorted(list(item.content_hashes))),
+            "".join(sorted(list(item.channels))),
+            item.batchable,
+            item.schedule,
+            item.auto_merge,
+        )
+        for item in items
+    ]
+    return sorted(result)
 
 
 @pytest.mark.parametrize(
@@ -49,12 +46,12 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan2", "chan3"},
                     content_hashes={"hash2", "hash3"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
             ],
             [],
@@ -65,6 +62,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                         channels={"chan1", "chan2", "chan3"},
                         content_hashes={"hash1", "hash2", "hash3"},
                         batchable=True,
+                        schedule=Schedule.now(),
+                        auto_merge=True,
                     ),
                 ],
             ),
@@ -80,7 +79,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     content_hashes={"hash1", "hash2"},
                     failed_mr_check=True,
                     is_batchable=True,
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 ),
                 OpenMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
@@ -88,7 +88,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     content_hashes={"hash3"},
                     failed_mr_check=False,
                     is_batchable=True,
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 ),
                 OpenMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
@@ -96,7 +97,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     content_hashes={"hash4"},
                     failed_mr_check=False,
                     is_batchable=False,
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 ),
                 OpenMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
@@ -104,7 +106,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     content_hashes={"hash5"},
                     failed_mr_check=True,
                     is_batchable=False,
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 ),
             ],
             Diff(
@@ -116,7 +119,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             content_hashes={"hash1", "hash2"},
                             failed_mr_check=True,
                             is_batchable=True,
-                            schedule=Schedule.default(),
+                            schedule=Schedule.now(),
+                            auto_merge=True,
                         ),
                         reason=Reason.MISSING_UNBATCHING,
                     ),
@@ -127,7 +131,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             content_hashes={"hash3"},
                             failed_mr_check=False,
                             is_batchable=True,
-                            schedule=Schedule.default(),
+                            schedule=Schedule.now(),
+                            auto_merge=True,
                         ),
                         reason=Reason.OUTDATED_CONTENT,
                     ),
@@ -138,7 +143,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             content_hashes={"hash4"},
                             failed_mr_check=False,
                             is_batchable=False,
-                            schedule=Schedule.default(),
+                            schedule=Schedule.now(),
+                            auto_merge=True,
                         ),
                         reason=Reason.OUTDATED_CONTENT,
                     ),
@@ -149,7 +155,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             content_hashes={"hash5"},
                             failed_mr_check=True,
                             is_batchable=False,
-                            schedule=Schedule.default(),
+                            schedule=Schedule.now(),
+                            auto_merge=True,
                         ),
                         reason=Reason.OUTDATED_CONTENT,
                     ),
@@ -167,12 +174,12 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan2"},
                     content_hashes={"hash2"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
             ],
             [
@@ -182,7 +189,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     content_hashes={"hash1", "hash2"},
                     failed_mr_check=True,
                     is_batchable=True,
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 ),
             ],
             Diff(
@@ -194,7 +202,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             content_hashes={"hash1", "hash2"},
                             failed_mr_check=True,
                             is_batchable=True,
-                            schedule=Schedule.default(),
+                            schedule=Schedule.now(),
+                            auto_merge=True,
                         ),
                         reason=Reason.MISSING_UNBATCHING,
                     )
@@ -204,11 +213,15 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                         channels={"chan1"},
                         content_hashes={"hash1"},
                         batchable=False,
+                        schedule=Schedule.now(),
+                        auto_merge=True,
                     ),
                     Addition(
                         channels={"chan2"},
                         content_hashes={"hash2"},
                         batchable=False,
+                        schedule=Schedule.now(),
+                        auto_merge=True,
                     ),
                 ],
             ),
@@ -220,12 +233,12 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan2"},
                     content_hashes={"hash2"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
             ],
             [
@@ -235,7 +248,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     content_hashes={"hash1", "hash2"},
                     failed_mr_check=False,
                     is_batchable=True,
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 ),
             ],
             Diff(
@@ -252,17 +266,17 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan2"},
                     content_hashes={"hash2"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan3", "chan4"},
                     content_hashes={"hash3", "hash4"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
             ],
             [
@@ -272,7 +286,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     content_hashes={"hash1", "hash2"},
                     failed_mr_check=False,
                     is_batchable=True,
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 ),
             ],
             Diff(
@@ -284,7 +299,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             content_hashes={"hash1", "hash2"},
                             failed_mr_check=False,
                             is_batchable=True,
-                            schedule=Schedule.default(),
+                            schedule=Schedule.now(),
+                            auto_merge=True,
                         ),
                         reason=Reason.NEW_BATCH,
                     )
@@ -294,6 +310,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                         content_hashes={"hash1", "hash2", "hash3", "hash4"},
                         channels={"chan1", "chan2", "chan3", "chan4"},
                         batchable=True,
+                        schedule=Schedule.now(),
+                        auto_merge=True,
                     )
                 ],
             ),
@@ -307,27 +325,27 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1", "chan2", "chan3"},
                     content_hashes={"hash1", "hash2", "hash3"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan4", "chan5", "chan6"},
                     content_hashes={"hash4", "hash5", "hash6"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan7", "chan8", "chan9"},
                     content_hashes={"hash7", "hash8", "hash9"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan10", "chan11", "chan12"},
                     content_hashes={"hash10", "hash11", "hash12"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan13", "chan14"},
                     content_hashes={"hash13", "hash14"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
             ],
             [
@@ -337,7 +355,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     content_hashes={"hash1", "hash2"},
                     failed_mr_check=False,
                     is_batchable=True,
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 ),
             ],
             Diff(
@@ -349,7 +368,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             content_hashes={"hash1", "hash2"},
                             failed_mr_check=False,
                             is_batchable=True,
-                            schedule=Schedule.default(),
+                            schedule=Schedule.now(),
+                            auto_merge=True,
                         ),
                         reason=Reason.NEW_BATCH,
                     )
@@ -369,6 +389,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                         },
                         channels={"chan1", "chan2", "chan3", "chan4", "chan5", "chan6"},
                         batchable=True,
+                        schedule=Schedule.now(),
+                        auto_merge=True,
                     ),
                     Addition(
                         content_hashes={
@@ -388,11 +410,15 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                             "chan12",
                         },
                         batchable=True,
+                        schedule=Schedule.now(),
+                        auto_merge=True,
                     ),
                     Addition(
                         content_hashes={"hash13", "hash14"},
                         channels={"chan13", "chan14"},
                         batchable=True,
+                        schedule=Schedule.now(),
+                        auto_merge=True,
                     ),
                 ],
             ),
@@ -405,12 +431,12 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan2"},
                     content_hashes={"hash2"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
             ],
             [
@@ -420,7 +446,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     content_hashes={"hash1"},
                     failed_mr_check=False,
                     is_batchable=False,
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 ),
             ],
             Diff(
@@ -432,6 +459,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                         },
                         channels={"chan2"},
                         batchable=True,
+                        schedule=Schedule.now(),
+                        auto_merge=True,
                     ),
                 ],
             ),
@@ -444,22 +473,22 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 Promotion(
                     channels={"chan1"},
                     content_hashes={"hash1"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan2"},
                     content_hashes={"hash2"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan3"},
                     content_hashes={"hash3"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
                 Promotion(
                     channels={"chan4"},
                     content_hashes={"hash4"},
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
                 ),
             ],
             [
@@ -469,7 +498,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     content_hashes={"hash1"},
                     failed_mr_check=False,
                     is_batchable=False,
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 ),
                 OpenMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
@@ -477,7 +507,8 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                     content_hashes={"hash2"},
                     failed_mr_check=False,
                     is_batchable=False,
-                    schedule=Schedule.default(),
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 ),
             ],
             Diff(
@@ -490,6 +521,164 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                         },
                         channels={"chan3", "chan4"},
                         batchable=True,
+                        schedule=Schedule.now(),
+                        auto_merge=True,
+                    ),
+                ],
+            ),
+        ),
+        # We have a promotion that is scheduled in the future.
+        (
+            [
+                Promotion(
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                    schedule=Schedule(
+                        data=(
+                            datetime.now(tz=timezone.utc) + timedelta(hours=1)
+                        ).isoformat()
+                    ),
+                ),
+            ],
+            [],
+            Diff(
+                deletions=[],
+                additions=[
+                    Addition(
+                        content_hashes={
+                            "hash1",
+                        },
+                        channels={"chan1"},
+                        batchable=False,
+                        schedule=Schedule(
+                            data=(
+                                datetime.now(tz=timezone.utc) + timedelta(hours=1)
+                            ).isoformat()
+                        ),
+                        auto_merge=False,
+                    ),
+                ],
+            ),
+        ),
+        # We have promotions that are scheduled in the future and now
+        (
+            [
+                Promotion(
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                    schedule=Schedule(
+                        data=(
+                            datetime.now(tz=timezone.utc) + timedelta(hours=1)
+                        ).isoformat()
+                    ),
+                ),
+                Promotion(
+                    channels={"chan2"},
+                    content_hashes={"hash2"},
+                    schedule=Schedule(
+                        data=(
+                            datetime.now(tz=timezone.utc) + timedelta(hours=1)
+                        ).isoformat()
+                    ),
+                ),
+                Promotion(
+                    channels={"chan1", "chan2"},
+                    content_hashes={"hash3", "hash4"},
+                    schedule=Schedule.now(),
+                ),
+                Promotion(
+                    channels={"chan3", "chan4"},
+                    content_hashes={"hash5", "hash6"},
+                    schedule=Schedule.now(),
+                ),
+            ],
+            [],
+            Diff(
+                deletions=[],
+                additions=[
+                    Addition(
+                        content_hashes={
+                            "hash1",
+                        },
+                        channels={"chan1"},
+                        batchable=False,
+                        schedule=Schedule(
+                            data=(
+                                datetime.now(tz=timezone.utc) + timedelta(hours=1)
+                            ).isoformat()
+                        ),
+                        auto_merge=False,
+                    ),
+                    Addition(
+                        content_hashes={
+                            "hash2",
+                        },
+                        channels={"chan2"},
+                        batchable=False,
+                        schedule=Schedule(
+                            data=(
+                                datetime.now(tz=timezone.utc) + timedelta(hours=1)
+                            ).isoformat()
+                        ),
+                        auto_merge=False,
+                    ),
+                    Addition(
+                        content_hashes={"hash3", "hash4", "hash5", "hash6"},
+                        channels={"chan1", "chan2", "chan3", "chan4"},
+                        batchable=True,
+                        schedule=Schedule.now(),
+                        auto_merge=True,
+                    ),
+                ],
+            ),
+        ),
+        # We have an open MR that was scheduled for the future, but now reached its due date.
+        (
+            [
+                Promotion(
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                    schedule=Schedule.now(),
+                ),
+                Promotion(
+                    channels={"chan2"},
+                    content_hashes={"hash2"},
+                    schedule=Schedule.now(),
+                ),
+            ],
+            [
+                OpenMergeRequest(
+                    raw=create_autospec(spec=ProjectMergeRequest),
+                    channels={"chan1"},
+                    content_hashes={"hash1"},
+                    failed_mr_check=False,
+                    is_batchable=False,
+                    schedule=Schedule.now(),
+                    auto_merge=False,
+                ),
+            ],
+            Diff(
+                deletions=[
+                    Deletion(
+                        mr=OpenMergeRequest(
+                            raw=create_autospec(spec=ProjectMergeRequest),
+                            channels={"chan1"},
+                            content_hashes={"hash1"},
+                            failed_mr_check=False,
+                            is_batchable=False,
+                            schedule=Schedule.now(),
+                            auto_merge=False,
+                        ),
+                        reason=Reason.REACHED_SCHEDULE,
+                    )
+                ],
+                additions=[
+                    Addition(
+                        content_hashes={"hash1", "hash2"},
+                        channels={"chan1", "chan2"},
+                        batchable=True,
+                        schedule=Schedule.now(),
+                        auto_merge=True,
                     ),
                 ],
             ),
@@ -506,15 +695,17 @@ def test_reconcile(
         desired_promotions=desired_promotions, open_mrs=open_mrs, batch_limit=5
     )
 
-    # We do not care about the order. As the batcher is working on sets, this
-    # is not deterministic
-    assert len(diff.additions) == len(expected_diff.additions)
-    assert _aggregate_hashes(diff.additions) == _aggregate_hashes(
-        expected_diff.additions
-    )
-    assert _aggregate_channels(diff.additions) == _aggregate_channels(
-        expected_diff.additions
-    )
+    # Additions are non-deterministic - we need a helper function to compare them
+    additions = _aggregate_additions(diff.additions)
+    expected_additions = _aggregate_additions(expected_diff.additions)
+    for addition, expected_addition in zip(additions, expected_additions):
+        assert addition[0] == expected_addition[0]
+        assert addition[1] == expected_addition[1]
+        assert addition[2] == expected_addition[2]
+        assert addition[3].is_now() == expected_addition[3].is_now()
+        assert addition[3].after <= expected_addition[3].after + timedelta(minutes=1)
+        assert addition[3].after >= expected_addition[3].after - timedelta(minutes=1)
+        assert addition[4] == expected_addition[4]
 
     # Deletions are actually processed in a deterministic way.
     assert len(diff.deletions) == len(expected_diff.deletions)

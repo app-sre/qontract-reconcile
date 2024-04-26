@@ -15,6 +15,7 @@ class Reason(Enum):
     MISSING_UNBATCHING = "Closing this MR because it failed MR check and isn't marked as un-batchable yet. cc @kfischer"
     OUTDATED_CONTENT = "Closing this MR because it has out-dated content."
     NEW_BATCH = "Closing this MR in favor of a new batch MR."
+    REACHED_SCHEDULE = "Closing this MR because it reached its scheduled date. SAPM will open another MR with auto-merge for this promotion."
 
 
 @dataclass(order=True)
@@ -35,6 +36,8 @@ class Addition:
     content_hashes: set[str]
     channels: set[str]
     batchable: bool
+    schedule: Schedule
+    auto_merge: bool
 
 
 @dataclass
@@ -95,6 +98,8 @@ class Reconciler:
                         content_hashes=promotion.content_hashes,
                         channels=promotion.channels,
                         batchable=False,
+                        schedule=promotion.schedule,
+                        auto_merge=True,
                     )
                 )
                 continue
@@ -179,9 +184,15 @@ class Reconciler:
             content_hashes=set(),
             channels=set(),
             batchable=True,
+            schedule=Schedule.now(),
+            auto_merge=True,
         )
 
+        submitted_content_hashes: set[str] = set()
         for promotion in unsubmitted_promotions:
+            if promotion.content_hashes.issubset(submitted_content_hashes):
+                continue
+            submitted_content_hashes.update(promotion.content_hashes)
             batched_mr.content_hashes.update(promotion.content_hashes)
             batched_mr.channels.update(promotion.channels)
             if len(batched_mr.content_hashes) >= batch_limit:
@@ -192,9 +203,48 @@ class Reconciler:
                     content_hashes=set(),
                     channels=set(),
                     batchable=True,
+                    schedule=Schedule.now(),
+                    auto_merge=True,
                 )
         if batched_mr.content_hashes:
             diff.additions.append(batched_mr)
+
+    def _handle_future_promotions(self, diff: Diff) -> None:
+        """
+        A promotion that is set in the future should be opened outside of a batch
+        """
+        remaining_promotions: list[Promotion] = []
+        for prom in self._desired_promotions:
+            if prom.schedule.is_now():
+                remaining_promotions.append(prom)
+                continue
+            diff.additions.append(
+                Addition(
+                    content_hashes=prom.content_hashes,
+                    channels=prom.channels,
+                    batchable=False,
+                    schedule=prom.schedule,
+                    auto_merge=False,
+                )
+            )
+        self._desired_promotions = remaining_promotions
+
+    def _remove_old_schedules(self, diff: Diff) -> None:
+        """
+        If a scheduled promotion MR reached its due date, close it for a new batchable MR.
+        """
+        open_mrs_after_deletion: list[OpenMergeRequest] = []
+        for mr in self._open_mrs:
+            if not (mr.schedule.is_now() and not mr.auto_merge):
+                open_mrs_after_deletion.append(mr)
+                continue
+            diff.deletions.append(
+                Deletion(
+                    mr=mr,
+                    reason=Reason.REACHED_SCHEDULE,
+                )
+            )
+        self._open_mrs = open_mrs_after_deletion
 
     def reconcile(
         self,
@@ -210,5 +260,7 @@ class Reconciler:
         )
         self._unbatch(diff=diff)
         self._remove_outdated(diff=diff)
+        self._handle_future_promotions(diff=diff)
+        self._remove_old_schedules(diff=diff)
         self._batch_remaining_mrs(diff=diff, batch_limit=batch_limit)
         return diff
