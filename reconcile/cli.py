@@ -1199,8 +1199,18 @@ def openshift_upgrade_watcher(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command(short_help="Manage Slack User Groups (channels and users).")
 @workspace_name
 @usergroup_name
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
-def slack_usergroups(ctx, workspace_name, usergroup_name):
+def slack_usergroups(
+    ctx,
+    workspace_name,
+    usergroup_name,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
+):
     import reconcile.slack_usergroups
 
     run_integration(
@@ -1208,6 +1218,9 @@ def slack_usergroups(ctx, workspace_name, usergroup_name):
         ctx.obj,
         workspace_name,
         usergroup_name,
+        enable_extended_early_exit,
+        extended_early_exit_cache_ttl_seconds,
+        log_cached_log_output,
     )
 
 

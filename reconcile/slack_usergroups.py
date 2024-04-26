@@ -9,6 +9,7 @@ from typing import (
     Any,
     Optional,
     Sequence,
+    TypedDict,
     Union,
 )
 from urllib.parse import urlparse
@@ -47,6 +48,10 @@ from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,
     UnknownError,
 )
+from reconcile.utils.extended_early_exit import (
+    ExtendedEarlyExitRunnerResult,
+    extended_early_exit_run,
+)
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import (
@@ -67,6 +72,7 @@ from reconcile.utils.slack_api import (
 
 DATE_FORMAT = "%Y-%m-%d %H:%M"
 QONTRACT_INTEGRATION = "slack-usergroups"
+INTEGRATION_VERSION = "0.1.0"
 
 
 def get_git_api(url: str) -> Union[GithubRepositoryApi, GitLabApi]:
@@ -741,12 +747,24 @@ def get_clusters(query_func: Callable) -> list[ClusterV1]:
     return clusters_query(query_func=query_func).clusters or []
 
 
+class RunnerParams(TypedDict):
+    dry_run: bool
+    slack_map: SlackMap
+    desired_state: SlackState
+    clusters: list[ClusterV1]
+    workspace_name: Optional[str]
+    usergroup_name: Optional[str]
+
+
 def run(
     dry_run: bool,
     workspace_name: Optional[str] = None,
     usergroup_name: Optional[str] = None,
+    enable_extended_early_exit: bool = False,
+    extended_early_exit_cache_ttl_seconds: int = 3600,
+    log_cached_log_output: bool = False,
 ) -> None:
-    errors = []
+    logging.info("STARTING")
 
     gqlapi = gql.get_api()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
@@ -759,17 +777,21 @@ def run(
     clusters = get_clusters(query_func=gqlapi.query)
 
     # APIs
+    # fast
     slack_map = get_slack_map(
         secret_reader=secret_reader,
         permissions=permissions,
         desired_workspace_name=workspace_name,
     )
+    # slow
     pagerduty_map = get_pagerduty_map(
         secret_reader, pagerduty_instances=pagerduty_instances, init_users=init_users
     )
 
+    logging.info(" get_desired_state")
+
     # run
-    desired_state, error_new = get_desired_state(
+    desired_state, errors = get_desired_state(
         slack_map=slack_map,
         pagerduty_map=pagerduty_map,
         permissions=permissions,
@@ -777,7 +799,7 @@ def run(
         desired_workspace_name=workspace_name,
         desired_usergroup_name=usergroup_name,
     )
-    errors.append(error_new)
+    logging.info(" get_desired_state_cluster_usergroups")
 
     desired_state_cluster_usergroups = get_desired_state_cluster_usergroups(
         slack_map=slack_map,
@@ -788,6 +810,47 @@ def run(
     )
     # merge the two desired states recursively
     desired_state = deep_update(desired_state, desired_state_cluster_usergroups)
+
+    runner_params: RunnerParams = dict(
+        dry_run=dry_run,
+        slack_map=slack_map,
+        desired_state=desired_state,
+        clusters=clusters,
+        workspace_name=workspace_name,
+        usergroup_name=usergroup_name,
+    )
+
+    logging.info("NOW RUNNING")
+    if enable_extended_early_exit:
+        extended_early_exit_run(
+            QONTRACT_INTEGRATION,
+            INTEGRATION_VERSION,
+            dry_run,
+            desired_state,
+            "",
+            300,
+            logging.getLogger(),
+            runner,
+            runner_params=runner_params,
+            log_cached_log_output=log_cached_log_output,
+            secret_reader=secret_reader,
+        )
+    else:
+        runner(dry_run=dry_run, **runner_params)
+
+    if any(errors):
+        logging.error("Error(s) occurred.")
+        sys.exit(1)
+
+
+def runner(
+    dry_run: bool,
+    slack_map: SlackMap,
+    desired_state: SlackState,
+    clusters: list[ClusterV1],
+    workspace_name: Optional[str] = None,
+    usergroup_name: Optional[str] = None,
+) -> ExtendedEarlyExitRunnerResult:
     current_state = get_current_state(
         slack_map=slack_map,
         desired_workspace_name=workspace_name,
@@ -798,17 +861,18 @@ def run(
             if integration_is_enabled(QONTRACT_INTEGRATION, cluster)
         ],
     )
-    errors.append(
-        act(
-            current_state=current_state,
-            desired_state=desired_state,
-            slack_map=slack_map,
-            dry_run=dry_run,
-        )
+    error = act(
+        current_state=current_state,
+        desired_state=desired_state,
+        slack_map=slack_map,
+        dry_run=dry_run,
     )
-    if any(errors):
+
+    if error:
         logging.error("Error(s) occurred.")
         sys.exit(1)
+
+    return ExtendedEarlyExitRunnerResult(payload=current_state, applied_count=0)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
