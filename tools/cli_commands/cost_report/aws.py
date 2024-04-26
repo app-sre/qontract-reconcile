@@ -1,5 +1,4 @@
-from collections import defaultdict
-from collections.abc import Iterable, Mapping, MutableMapping
+from collections.abc import Iterable, Mapping
 from decimal import Decimal
 from typing import List, Self, Tuple
 
@@ -15,6 +14,7 @@ from reconcile.utils.secret_reader import create_secret_reader
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
 from tools.cli_commands.cost_report.response import ReportCostResponse
+from tools.cli_commands.cost_report.util import process_reports
 from tools.cli_commands.cost_report.view import render_aws_cost_report
 
 THREAD_POOL_SIZE = 10
@@ -64,54 +64,16 @@ class AwsCostReportCommand:
         """
         Build reports with parent-child app tree.
         """
-        child_apps_by_parent = defaultdict(list)
-        for app in apps:
-            child_apps_by_parent[app.parent_app_name].append(app.name)
-
-        reports: dict[str, Report] = {}
-        root_apps = child_apps_by_parent.get(None, [])
-        for app_name in root_apps:
-            self._dfs_reports(
-                app_name,
-                None,
-                child_apps_by_parent=child_apps_by_parent,
-                responses=responses,
-                reports=reports,
-            )
-        return reports
+        return process_reports(
+            apps,
+            responses,
+            report_builder=self._build_report,
+        )
 
     def render(self, reports: Mapping[str, Report]) -> str:
         return render_aws_cost_report(
             reports=reports,
             cost_management_console_base_url=self.cost_management_console_base_url,
-        )
-
-    def _dfs_reports(
-        self,
-        app_name: str,
-        parent_app_name: str | None,
-        child_apps_by_parent: Mapping[str | None, list[str]],
-        responses: Mapping[str, ReportCostResponse],
-        reports: MutableMapping[str, Report],
-    ) -> None:
-        """
-        Depth-first search to build the reports. Build leaf nodes first to ensure total is calculated correctly.
-        """
-        child_apps = child_apps_by_parent.get(app_name, [])
-        for child_app in child_apps:
-            self._dfs_reports(
-                app_name=child_app,
-                parent_app_name=app_name,
-                child_apps_by_parent=child_apps_by_parent,
-                responses=responses,
-                reports=reports,
-            )
-        reports[app_name] = self._build_report(
-            app_name=app_name,
-            parent_app_name=parent_app_name,
-            child_apps=child_apps,
-            reports=reports,
-            response=responses[app_name],
         )
 
     @staticmethod
@@ -132,9 +94,23 @@ class AwsCostReportCommand:
         child_apps_total = Decimal(
             sum(child_app.total for child_app in child_app_reports)
         )
+
+        items = [
+            ReportItem(
+                name=service.service,
+                delta_value=value.delta_value,
+                delta_percent=value.delta_percent,
+                total=value.cost.total.value,
+            )
+            for data in response.data
+            for service in data.services
+            if len(service.values) == 1 and (value := service.values[0]) is not None
+        ]
+
         items_total = response.meta.total.cost.total.value
         total = items_total + child_apps_total
         date = next((d for data in response.data if (d := data.date)), "")
+
         return Report(
             app_name=app_name,
             child_apps=child_app_reports,
@@ -145,17 +121,7 @@ class AwsCostReportCommand:
             items_delta_percent=response.meta.delta.percent,
             items_total=items_total,
             total=total,
-            items=[
-                ReportItem(
-                    name=service.service,
-                    delta_value=value.delta_value,
-                    delta_percent=value.delta_percent,
-                    total=value.cost.total.value,
-                )
-                for data in response.data
-                for service in data.services
-                if len(service.values) == 1 and (value := service.values[0]) is not None
-            ],
+            items=items,
         )
 
     @classmethod

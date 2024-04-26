@@ -1,5 +1,5 @@
 from collections import defaultdict
-from collections.abc import Iterable, Mapping, MutableMapping
+from collections.abc import Iterable, Mapping
 from decimal import Decimal
 from typing import Self, Tuple
 
@@ -19,6 +19,7 @@ from reconcile.utils.secret_reader import create_secret_reader
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
 from tools.cli_commands.cost_report.response import OpenShiftReportCostResponse
+from tools.cli_commands.cost_report.util import process_reports
 from tools.cli_commands.cost_report.view import render_openshift_cost_report
 
 THREAD_POOL_SIZE = 10
@@ -82,54 +83,15 @@ class OpenShiftCostReportCommand:
         app_responses = defaultdict(list)
         for cost_namespace, response in responses.items():
             app_responses[cost_namespace.app_name].append(response)
-
-        child_apps_by_parent = defaultdict(list)
-        for app in apps:
-            child_apps_by_parent[app.parent_app_name].append(app.name)
-
-        reports: dict[str, Report] = {}
-        root_apps = child_apps_by_parent.get(None, [])
-        for app_name in root_apps:
-            self._dfs_reports(
-                app_name,
-                None,
-                child_apps_by_parent=child_apps_by_parent,
-                responses=app_responses,
-                reports=reports,
-            )
-        return reports
+        return process_reports(
+            apps,
+            app_responses,
+            report_builder=self._build_report,
+        )
 
     @staticmethod
     def render(reports):
         return render_openshift_cost_report(reports=reports)
-
-    def _dfs_reports(
-        self,
-        app_name: str,
-        parent_app_name: str | None,
-        child_apps_by_parent: Mapping[str | None, list[str]],
-        responses: Mapping[str, list[OpenShiftReportCostResponse]],
-        reports: MutableMapping[str, Report],
-    ):
-        """
-        Depth-first search to build the reports. Build leaf nodes first to ensure total is calculated correctly.
-        """
-        child_apps = child_apps_by_parent.get(app_name, [])
-        for child_app in child_apps:
-            self._dfs_reports(
-                app_name=child_app,
-                parent_app_name=app_name,
-                child_apps_by_parent=child_apps_by_parent,
-                responses=responses,
-                reports=reports,
-            )
-        reports[app_name] = self._build_report(
-            app_name=app_name,
-            parent_app_name=parent_app_name,
-            child_apps=child_apps,
-            reports=reports,
-            responses=responses[app_name],
-        )
 
     @staticmethod
     def _build_report(
@@ -137,7 +99,7 @@ class OpenShiftCostReportCommand:
         parent_app_name: str,
         child_apps: list[str],
         reports: Mapping[str, Report],
-        responses: list[OpenShiftReportCostResponse],
+        response: list[OpenShiftReportCostResponse],
     ) -> Report:
         child_app_reports = [
             ChildAppReport(
@@ -157,8 +119,8 @@ class OpenShiftCostReportCommand:
                 delta_percent=value.delta_percent,
                 total=value.cost.total.value,
             )
-            for response in responses
-            for data in response.data
+            for r in response
+            for data in r.data
             for project in data.projects
             if len(project.values) == 1
             and (value := project.values[0]) is not None
@@ -175,9 +137,8 @@ class OpenShiftCostReportCommand:
             else None
         )
         total = items_total + child_apps_total
-
         date = next(
-            (d for response in responses for data in response.data if (d := data.date)),
+            (d for r in response for data in r.data if (d := data.date)),
             "",
         )
 
