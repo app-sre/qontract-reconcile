@@ -20,7 +20,7 @@ from tools.cli_commands.cost_report.view import render_aws_cost_report
 THREAD_POOL_SIZE = 10
 
 
-class CostReportCommand:
+class AwsCostReportCommand:
     def __init__(
         self,
         gql_api: gql.GqlApi,
@@ -33,7 +33,8 @@ class CostReportCommand:
 
     def execute(self) -> str:
         apps = self.get_apps()
-        reports = self.get_reports(apps)
+        responses = self.get_reports(apps)
+        reports = self.process_reports(apps, responses)
         return self.render(reports)
 
     def get_apps(self) -> list[App]:
@@ -42,19 +43,27 @@ class CostReportCommand:
         """
         return get_app_names(self.gql_api)
 
-    def _fetch_report(self, app: App) -> Tuple[str, ReportCostResponse]:
+    def _get_report(self, app: App) -> Tuple[str, ReportCostResponse]:
         return app.name, self.cost_management_api.get_aws_costs_report(app.name)
 
-    def _fetch_reports(self, apps: Iterable[App]) -> dict[str, ReportCostResponse]:
-        results = threaded.run(self._fetch_report, apps, THREAD_POOL_SIZE)
+    def get_reports(
+        self,
+        apps: Iterable[App],
+    ) -> Mapping[str, ReportCostResponse]:
+        """
+        Fetch reports from cost management API
+        """
+        results = threaded.run(self._get_report, apps, THREAD_POOL_SIZE)
         return dict(results)
 
-    def get_reports(self, apps: Iterable[App]) -> dict[str, Report]:
+    def process_reports(
+        self,
+        apps: Iterable[App],
+        responses: Mapping[str, ReportCostResponse],
+    ) -> dict[str, Report]:
         """
-        Fetch reports from cost management API and build reports with parent-child app tree.
+        Build reports with parent-child app tree.
         """
-        responses = self._fetch_reports(apps)
-
         child_apps_by_parent = defaultdict(list)
         for app in apps:
             child_apps_by_parent[app.parent_app_name].append(app.name)

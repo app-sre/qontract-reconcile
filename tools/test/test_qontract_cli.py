@@ -128,12 +128,14 @@ def test_early_exit_cache_delete(env_vars, mock_queries, mock_early_exit_cache):
 
 
 @pytest.fixture
-def mock_cost_report_command(mocker):
-    return mocker.patch("tools.qontract_cli.CostReportCommand", autospec=True)
+def mock_aws_cost_report_command(mocker):
+    return mocker.patch("tools.qontract_cli.AwsCostReportCommand", autospec=True)
 
 
-def test_get_aws_cost_report(env_vars, mock_queries, mock_cost_report_command):
-    mock_cost_report_command.create.return_value.execute.return_value = "some report"
+def test_get_aws_cost_report(env_vars, mock_queries, mock_aws_cost_report_command):
+    mock_aws_cost_report_command.create.return_value.execute.return_value = (
+        "some report"
+    )
     runner = CliRunner()
     result = runner.invoke(
         qontract_cli.get,
@@ -143,8 +145,8 @@ def test_get_aws_cost_report(env_vars, mock_queries, mock_cost_report_command):
 
     assert result.exit_code == 0
     assert result.output == "some report\n"
-    mock_cost_report_command.create.assert_called_once_with()
-    mock_cost_report_command.create.return_value.execute.assert_called_once_with()
+    mock_aws_cost_report_command.create.assert_called_once_with()
+    mock_aws_cost_report_command.create.return_value.execute.assert_called_once_with()
 
 
 @pytest.fixture

@@ -65,6 +65,9 @@ class OpenShiftCostReportCommand:
         self,
         cost_namespaces: Iterable[CostNamespace],
     ) -> dict[CostNamespace, OpenShiftReportCostResponse]:
+        """
+        Fetch reports from cost management API
+        """
         results = threaded.run(self._get_report, cost_namespaces, THREAD_POOL_SIZE)
         return dict(results)
 
@@ -73,6 +76,9 @@ class OpenShiftCostReportCommand:
         apps: Iterable[App],
         responses: Mapping[CostNamespace, OpenShiftReportCostResponse],
     ) -> dict[str, Report]:
+        """
+        Build reports with parent-child app tree.
+        """
         app_responses = defaultdict(list)
         for cost_namespace, response in responses.items():
             app_responses[cost_namespace.app_name].append(response)

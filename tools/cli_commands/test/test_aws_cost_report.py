@@ -11,7 +11,7 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
 from reconcile.gql_definitions.cost_report.settings import CostReportSettingsV1
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.typed_queries.cost_report.app_names import App
-from tools.cli_commands.cost_report.command import CostReportCommand
+from tools.cli_commands.cost_report.aws import AwsCostReportCommand
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
 from tools.cli_commands.cost_report.response import ReportCostResponse
 
@@ -22,13 +22,13 @@ COST_MANAGEMENT_CONSOLE_BASE_URL = (
 
 @pytest.fixture
 def mock_gql(mocker: MockerFixture) -> Any:
-    return mocker.patch("tools.cli_commands.cost_report.command.gql")
+    return mocker.patch("tools.cli_commands.cost_report.aws.gql")
 
 
 @pytest.fixture
 def mock_cost_management_api(mocker: MockerFixture) -> Any:
     return mocker.patch(
-        "tools.cli_commands.cost_report.command.CostManagementApi",
+        "tools.cli_commands.cost_report.aws.CostManagementApi",
         autospec=True,
     )
 
@@ -47,7 +47,7 @@ COST_REPORT_SETTINGS = CostReportSettingsV1(
 @pytest.fixture
 def mock_get_app_interface_vault_settings(mocker: MockerFixture) -> Any:
     return mocker.patch(
-        "tools.cli_commands.cost_report.command.get_app_interface_vault_settings",
+        "tools.cli_commands.cost_report.aws.get_app_interface_vault_settings",
         return_value=VAULT_SETTINGS,
     )
 
@@ -55,7 +55,7 @@ def mock_get_app_interface_vault_settings(mocker: MockerFixture) -> Any:
 @pytest.fixture
 def mock_create_secret_reader(mocker: MockerFixture) -> Any:
     mock = mocker.patch(
-        "tools.cli_commands.cost_report.command.create_secret_reader",
+        "tools.cli_commands.cost_report.aws.create_secret_reader",
         autospec=True,
     )
     mock.return_value.read_all_secret.return_value = {
@@ -72,21 +72,21 @@ def mock_create_secret_reader(mocker: MockerFixture) -> Any:
 @pytest.fixture
 def mock_get_cost_report_settings(mocker: MockerFixture) -> Any:
     return mocker.patch(
-        "tools.cli_commands.cost_report.command.get_cost_report_settings",
+        "tools.cli_commands.cost_report.aws.get_cost_report_settings",
         return_value=COST_REPORT_SETTINGS,
     )
 
 
-def test_cost_report_create(
+def test_aws_cost_report_create(
     mock_gql: Any,
     mock_cost_management_api: Any,
     mock_get_app_interface_vault_settings: Any,
     mock_create_secret_reader: Any,
     mock_get_cost_report_settings: Any,
 ) -> None:
-    cost_report_command = CostReportCommand.create()
+    cost_report_command = AwsCostReportCommand.create()
 
-    assert isinstance(cost_report_command, CostReportCommand)
+    assert isinstance(cost_report_command, AwsCostReportCommand)
     assert cost_report_command.gql_api == mock_gql.get_api.return_value
     assert (
         cost_report_command.cost_management_console_base_url
@@ -113,51 +113,51 @@ def test_cost_report_create(
 
 
 @pytest.fixture
-def cost_report_command(
+def aws_cost_report_command(
     mock_gql: Any,
     mock_cost_management_api: Any,
     mock_get_app_interface_vault_settings: Any,
     mock_create_secret_reader: Any,
     mock_get_cost_report_settings: Any,
-) -> CostReportCommand:
-    return CostReportCommand.create()
+) -> AwsCostReportCommand:
+    return AwsCostReportCommand.create()
 
 
 @pytest.fixture
 def mock_get_app_names(mocker: MockerFixture) -> Any:
-    return mocker.patch("tools.cli_commands.cost_report.command.get_app_names")
+    return mocker.patch("tools.cli_commands.cost_report.aws.get_app_names")
 
 
 PARENT_APP = App(name="parent", parent_app_name=None)
 CHILD_APP = App(name="child", parent_app_name="parent")
 
 
-def test_cost_report_execute(
-    cost_report_command: CostReportCommand,
+def test_aws_cost_report_execute(
+    aws_cost_report_command: AwsCostReportCommand,
     mock_get_app_names: Any,
     fx: Callable,
 ) -> None:
     expected_output = fx("empty_aws_cost_report.md")
     mock_get_app_names.return_value = []
 
-    output = cost_report_command.execute()
+    output = aws_cost_report_command.execute()
 
     assert output.rstrip() == expected_output.rstrip()
 
 
-def test_cost_report_get_apps(
-    cost_report_command: CostReportCommand,
+def test_aws_cost_report_get_apps(
+    aws_cost_report_command: AwsCostReportCommand,
     mock_get_app_names: Any,
 ) -> None:
     expected_apps = [PARENT_APP, CHILD_APP]
     mock_get_app_names.return_value = expected_apps
 
-    apps = cost_report_command.get_apps()
+    apps = aws_cost_report_command.get_apps()
 
     assert apps == expected_apps
 
 
-def report_cost_response_builder(
+def aws_report_cost_response_builder(
     delta_value: int,
     delta_percent: int,
     total: int,
@@ -203,14 +203,14 @@ def report_cost_response_builder(
     })
 
 
-PARENT_APP_COST_RESPONSE = report_cost_response_builder(
+PARENT_APP_COST_RESPONSE = aws_report_cost_response_builder(
     delta_value=100,
     delta_percent=10,
     total=1000,
     service="service1",
 )
 
-CHILD_APP_COST_RESPONSE = report_cost_response_builder(
+CHILD_APP_COST_RESPONSE = aws_report_cost_response_builder(
     delta_value=200,
     delta_percent=20,
     total=2000,
@@ -260,34 +260,45 @@ CHILD_APP_REPORT = Report(
 )
 
 
-def test_cost_report_get_reports(
-    cost_report_command: CostReportCommand,
+def test_aws_cost_report_get_reports(
+    aws_cost_report_command: AwsCostReportCommand,
+    mock_cost_management_api: Any,
+) -> None:
+    mock_cost_management_api.return_value.get_aws_costs_report.return_value = (
+        PARENT_APP_COST_RESPONSE
+    )
+
+    reports = aws_cost_report_command.get_reports([PARENT_APP])
+
+    assert reports == {
+        "parent": PARENT_APP_COST_RESPONSE,
+    }
+    mock_cost_management_api.return_value.get_aws_costs_report.assert_called_once_with(
+        app="parent"
+    )
+
+
+def test_aws_cost_report_process_reports(
+    aws_cost_report_command: AwsCostReportCommand,
 ) -> None:
     expected_reports = {
         "parent": PARENT_APP_REPORT,
         "child": CHILD_APP_REPORT,
     }
 
-    def side_effect(app_name: str) -> ReportCostResponse:
-        match app_name:
-            case "parent":
-                return PARENT_APP_COST_RESPONSE
-            case "child":
-                return CHILD_APP_COST_RESPONSE
-            case _:
-                raise Exception("Unexpected app name")
-
-    cost_report_command.cost_management_api.get_aws_costs_report.side_effect = (  # type: ignore[attr-defined]
-        side_effect
+    reports = aws_cost_report_command.process_reports(
+        [PARENT_APP, CHILD_APP],
+        {
+            "parent": PARENT_APP_COST_RESPONSE,
+            "child": CHILD_APP_COST_RESPONSE,
+        },
     )
-
-    reports = cost_report_command.get_reports([PARENT_APP, CHILD_APP])
 
     assert reports == expected_reports
 
 
-def test_cost_report_render(
-    cost_report_command: CostReportCommand,
+def test_aws_cost_report_render(
+    aws_cost_report_command: AwsCostReportCommand,
     fx: Callable,
 ) -> None:
     expected_output = fx("aws_cost_report.md")
@@ -296,6 +307,6 @@ def test_cost_report_render(
         "child": CHILD_APP_REPORT,
     }
 
-    output = cost_report_command.render(reports)
+    output = aws_cost_report_command.render(reports)
 
     assert output == expected_output

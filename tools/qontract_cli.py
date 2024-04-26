@@ -136,7 +136,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
-from tools.cli_commands.cost_report.command import CostReportCommand
+from tools.cli_commands.cost_report.aws import AwsCostReportCommand
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
@@ -2539,7 +2539,7 @@ def alerts(ctx, file_path):
 @get.command()
 @click.pass_context
 def aws_cost_report(ctx):
-    command = CostReportCommand.create()
+    command = AwsCostReportCommand.create()
     print(command.execute())
 
 
