@@ -92,6 +92,10 @@ class SaasFilesInventory:
                     if not target.promotion.auto:
                         continue
                     subscriber = Subscriber(
+                        uid=target.uid(
+                            parent_saas_file_name=saas_file.name,
+                            parent_resource_template_name=resource_template.name,
+                        ),
                         saas_name=saas_file.name,
                         template_name=resource_template.name,
                         target_file_path=file_path,

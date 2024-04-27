@@ -11,29 +11,22 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     Subscriber,
 )
 
-from .data_keys import (
-    CHANNELS,
-    CONFIG_HASHES,
-    NAMESPACE,
-    REF,
-)
-
 
 def test_content_multiple_namespaces(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
     subscriber = subscriber_builder({
-        NAMESPACE: {"path": "/some/namespace.yml"},
-        REF: "new_sha",
-        CONFIG_HASHES: [
+        "NAMESPACE": {"path": "/some/namespace.yml"},
+        "DESIRED_REF": "new_sha",
+        "DESIRED_TARGET_HASHES": [
             ConfigHash(
                 channel="channel-a",
                 target_config_hash="new_hash",
                 parent_saas="parent_saas",
             )
         ],
-        CHANNELS: ["channel-a"],
+        "CHANNELS": {"channel-a": {}},
     })
     saas_content, expected = file_contents("multiple_namespaces")
     renderer = Renderer()

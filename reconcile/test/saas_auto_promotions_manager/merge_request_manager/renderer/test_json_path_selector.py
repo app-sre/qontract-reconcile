@@ -11,35 +11,28 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     Subscriber,
 )
 
-from .data_keys import (
-    CHANNELS,
-    CONFIG_HASHES,
-    NAMESPACE,
-    REF,
-)
-
 
 def test_json_path_selector_include(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
     subscriber = subscriber_builder({
-        NAMESPACE: {
+        "NAMESPACE": {
             "path": "/some/namespace.yml",
             "name": "test-namespace",
             "cluster": {
                 "name": "test-cluster",
             },
         },
-        REF: "new_sha",
-        CONFIG_HASHES: [
+        "DESIRED_REF": "new_sha",
+        "DESIRED_TARGET_HASHES": [
             ConfigHash(
                 channel="channel-a",
                 target_config_hash="new_hash",
                 parent_saas="parent_saas",
             )
         ],
-        CHANNELS: ["channel-a"],
+        "CHANNELS": {"channel-a": {}},
     })
     saas_content, expected = file_contents("json_path_selector_includes")
     renderer = Renderer()
@@ -55,22 +48,22 @@ def test_json_path_selector_exclude(
     subscriber_builder: Callable[[Mapping], Subscriber],
 ):
     subscriber = subscriber_builder({
-        NAMESPACE: {
+        "NAMESPACE": {
             "path": "/some/namespace.yml",
             "name": "test-namespace",
             "cluster": {
                 "name": "test-cluster",
             },
         },
-        REF: "hyper_sha",
-        CONFIG_HASHES: [
+        "DESIRED_REF": "hyper_sha",
+        "DESIRED_TARGET_HASHES": [
             ConfigHash(
                 channel="channel-a",
                 target_config_hash="hyper_hash",
                 parent_saas="parent_saas",
             )
         ],
-        CHANNELS: ["channel-a"],
+        "CHANNELS": {"channel-a": {}},
     })
     saas_content, expected = file_contents("json_path_selector_excludes")
     renderer = Renderer()
