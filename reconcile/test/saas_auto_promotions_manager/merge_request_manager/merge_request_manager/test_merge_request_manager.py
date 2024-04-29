@@ -8,7 +8,9 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
-    OpenMergeRequest,
+)
+from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
+    OpenBatcherMergeRequest,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
     Addition,
@@ -42,7 +44,7 @@ def test_reconcile(
         })
     ]
     deletion = Deletion(
-        mr=OpenMergeRequest(
+        mr=OpenBatcherMergeRequest(
             raw=create_autospec(spec=ProjectMergeRequest),
             channels=set(),
             content_hashes=set(),

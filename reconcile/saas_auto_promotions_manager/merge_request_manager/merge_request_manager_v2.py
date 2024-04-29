@@ -130,7 +130,8 @@ class MergeRequestManagerV2:
         )
 
     def reconcile(self, subscribers: Iterable[Subscriber]) -> None:
-        current_state = self._mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
+        self._mr_parser.fetch_mrs(label=SAPM_LABEL)
+        current_state = self._mr_parser.get_open_batcher_mrs()
         desired_state = DesiredState(subscribers=subscribers)
         self._desired_state = desired_state
 

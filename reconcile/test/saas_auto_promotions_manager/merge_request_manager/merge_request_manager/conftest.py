@@ -13,7 +13,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
-    OpenMergeRequest,
+    OpenBatcherMergeRequest,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
     Diff,
@@ -91,8 +91,8 @@ def vcs_builder(
 
 
 @pytest.fixture
-def mr_parser_builder() -> Callable[[Iterable[OpenMergeRequest]], MRParser]:
-    def builder(data: Iterable[OpenMergeRequest]) -> MRParser:
+def mr_parser_builder() -> Callable[[Iterable[OpenBatcherMergeRequest]], MRParser]:
+    def builder(data: Iterable[OpenBatcherMergeRequest]) -> MRParser:
         mr_parser = create_autospec(spec=MRParser)
         mr_parser.retrieve_open_mrs.side_effect = [data]
         return mr_parser
