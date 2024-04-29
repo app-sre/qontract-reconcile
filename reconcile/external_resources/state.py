@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-import boto3
 from pydantic import BaseModel
 
 from reconcile.external_resources.model import (
@@ -178,9 +177,9 @@ class ExternalResourcesStateDynamoDB:
         f"{DynamoDBStateAdapter.RECONC}.{DynamoDBStateAdapter.RECONC_RESOURCE_HASH}",
     ])
 
-    def __init__(self, table_name: str, region_name: str) -> None:
+    def __init__(self, dynamodb_client: Any, table_name: str) -> None:
         self.adapter = DynamoDBStateAdapter()
-        self.client = boto3.client("dynamodb", region_name=region_name)
+        self.client = dynamodb_client
         self._table = table_name
         self.partial_resources = self._get_partial_resources()
 

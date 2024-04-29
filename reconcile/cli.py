@@ -3515,9 +3515,9 @@ def deadmanssnitch(ctx):
 @integration.command(short_help="Manages External Resources")
 @click.pass_context
 @threaded(default=5)
-@click.option("--cluster", help="Cluster where the Jobs will be created", default=None)
+@click.option("--workers_cluster", help="Cluster name where the Jobs will be created", default=None)
 @click.option(
-    "--namespace", help="Namespace where the Jobs will be created", default=None
+    "--workers_namespace", help="Namespace name where the Jobs will be created", default=None
 )
 @click.option(
     "--dry-run-job-suffix",
@@ -3525,17 +3525,17 @@ def deadmanssnitch(ctx):
     default="",
 )
 def external_resources(
-    ctx, cluster: str, namespace: str, dry_run_job_suffix: str, thread_pool_size: int
+    ctx, workers_cluster: str, workers_namespace: str, dry_run_job_suffix: str, thread_pool_size: int
 ):
     import reconcile.external_resources.integration
 
     run_integration(
         reconcile.external_resources.integration,
         ctx.obj,
-        cluster,
-        namespace,
         dry_run_job_suffix,
         thread_pool_size,
+        workers_cluster,
+        workers_namespace,
     )
 
 

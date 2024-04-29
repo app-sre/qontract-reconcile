@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from reconcile.external_resources.manager import (
     ExternalResourcesInventory,
@@ -15,6 +16,7 @@ from reconcile.external_resources.secrets_sync import (
     build_incluster_secrets_reconciler,
 )
 from reconcile.external_resources.state import ExternalResourcesStateDynamoDB
+from reconcile.queries import get_aws_accounts
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -23,6 +25,7 @@ from reconcile.typed_queries.external_resources import (
     get_namespaces,
     get_settings,
 )
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.jobcontroller.controller import (
     build_job_controller,
 )
@@ -30,7 +33,7 @@ from reconcile.utils.oc import (
     OCCli,
 )
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
-from reconcile.utils.secret_reader import create_secret_reader
+from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 
 
 def fetch_current_state(
@@ -40,13 +43,20 @@ def fetch_current_state(
         r = OpenshiftResource(item, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
         ri.add_current(cluster, namespace, "Job", r.name, r)
 
+def get_dynamodb_client(account: str, region: str, secret_reader: SecretReaderBase) -> Any:
+    accounts = get_aws_accounts(name=account, ecrs=False)
+    aws_api = AWSApi(thread_pool_size=1, accounts=accounts, secret_reader=secret_reader, init_users=False)
+    session = aws_api.get_session(account=account)
+    return aws_api.get_session_client(session=session, service_name="dynamodb", region_name=region)
+
+
 
 def run(
     dry_run: bool,
-    cluster: str,
-    namespace: str,
     dry_run_job_suffix: str,
     thread_pool_size: int,
+    workers_cluster: str | None = None,
+    workers_namespace: str | None = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -54,6 +64,11 @@ def run(
     m_inventory = load_module_inventory(get_modules())
     namespaces = [ns for ns in get_namespaces() if ns.external_resources]
     er_inventory = ExternalResourcesInventory(namespaces)
+
+    if not workers_cluster:
+        workers_cluster = er_settings.workers_cluster.name
+    if not workers_namespace:
+        workers_namespace = er_settings.workers_namespace.name
 
     er_mgr = ExternalResourcesManager(
         thread_pool_size=thread_pool_size,
@@ -65,15 +80,19 @@ def run(
         er_inventory=er_inventory,
         module_inventory=m_inventory,
         state_manager=ExternalResourcesStateDynamoDB(
+            dynamodb_client=get_dynamodb_client(
+                account=er_settings.state_dynamodb_account.name,
+                region=er_settings.state_dynamodb_region,
+                secret_reader=secret_reader
+            ),
             table_name=er_settings.state_dynamodb_table,
-            region_name=er_settings.state_dynamodb_region,
         ),
         reconciler=K8sExternalResourcesReconciler(
             controller=build_job_controller(
                 integration=QONTRACT_INTEGRATION,
                 integration_version=QONTRACT_INTEGRATION_VERSION,
-                cluster=cluster,
-                namespace=namespace,
+                cluster=workers_cluster,
+                namespace=workers_namespace,
                 secret_reader=secret_reader,
                 dry_run=dry_run,
             ),
@@ -81,7 +100,7 @@ def run(
             dry_run_job_suffix=dry_run_job_suffix,
         ),
         secrets_reconciler=build_incluster_secrets_reconciler(
-            cluster, namespace, secret_reader, vault_path="app-sre"
+            workers_cluster, workers_namespace, secret_reader, vault_path="app-sre"
         ),
     )
 
