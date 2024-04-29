@@ -61,8 +61,13 @@ QONTRACT_INTEGRATION = "dynatrace-token-provider"
 SYNCSET_ID = "ext-dynatrace-tokens-dtp"
 SECRET_NAME = "dynatrace-token-dtp"
 SECRET_NAMESPACE = "dynatrace"
+RMO_SECRET_NAME = "dynatrace-token"  # Name of the Secret that contains the API token for Route Monitor Operator
+RMO_SECRET_NAMESPACE = "openshift-route-monitor-operator"  # Namespace of the Secret that contains the API token for Route Monitor Operator
 DYNATRACE_INGESTION_TOKEN_NAME = "dynatrace-ingestion-token"
 DYNATRACE_OPERATOR_TOKEN_NAME = "dynatrace-operator-token"
+DYNATRACE_RMO_TOKEN_NAME = (
+    "dynatrace-rmo-token"  # Name of the API token for Route Monitor Operator
+)
 
 
 class DynatraceTokenProviderIntegrationParams(PydanticRunParams):
@@ -146,6 +151,8 @@ class DynatraceTokenProviderIntegration(
                 existing_dtp_tokens = {}
 
                 for cluster in clusters:
+                    if cluster.ocm_cluster.display_name != "appint-ex-01":
+                        continue
                     try:
                         with DTPOrganizationErrorRate(
                             integration=self.name,
@@ -238,14 +245,16 @@ class DynatraceTokenProviderIntegration(
         if not existing_syncset:
             if not dry_run:
                 try:
-                    (ingestion_token, operator_token) = self.create_dynatrace_tokens(
-                        dt_client, cluster.ocm_cluster.external_id
+                    (ingestion_token, operator_token, rmo_token) = (
+                        self.create_dynatrace_tokens(
+                            dt_client, cluster.ocm_cluster.external_id
+                        )
                     )
                     create_syncset(
                         ocm_client,
                         cluster.ocm_cluster.id,
                         self.construct_syncset(
-                            ingestion_token, operator_token, dt_api_url
+                            ingestion_token, operator_token, rmo_token, dt_api_url
                         ),
                     )
                 except Exception as e:
@@ -287,15 +296,28 @@ class DynatraceTokenProviderIntegration(
                         logging.info(
                             f"Operator token created in Dynatrace for cluster {cluster.ocm_cluster.external_id}."
                         )
+                    elif token_name == DYNATRACE_RMO_TOKEN_NAME:
+                        if not dry_run:
+                            rmo_token = self.create_dynatrace_rmo_token(
+                                dt_client, cluster.ocm_cluster.external_id
+                            )
+                            token["id"] = rmo_token.id
+                            token["token"] = rmo_token.token
+                        logging.info(
+                            f"RMO token created in Dynatrace for cluster {cluster.ocm_cluster.external_id}."
+                        )
                 elif token_name == DYNATRACE_INGESTION_TOKEN_NAME:
                     ingestion_token = ApiTokenCreated(raw_element=token)
                 elif token_name == DYNATRACE_OPERATOR_TOKEN_NAME:
                     operator_token = ApiTokenCreated(raw_element=token)
+                elif token_name == DYNATRACE_RMO_TOKEN_NAME:
+                    rmo_token = ApiTokenCreated(raw_element=token)
             if need_patching:
                 if not dry_run:
                     patch_syncset_payload = self.construct_base_syncset(
                         ingestion_token=ingestion_token,
                         operator_token=operator_token,
+                        rmo_token=rmo_token,
                         dt_api_url=dt_api_url,
                     )
                     try:
@@ -328,14 +350,22 @@ class DynatraceTokenProviderIntegration(
 
     def get_tokens_from_syncset(self, syncset: Mapping) -> Mapping:
         tokens = {}
+        operator_token_id = operator_token = ingest_token_id = ingest_token = (
+            rmo_token_id
+        ) = rmo_token = "DoNotExist"
         for resource in syncset["resources"]:
-            if resource["kind"] == "Secret":
+            if resource["kind"] != "Secret":
+                continue
+            if resource["metadata"]["namespace"] == SECRET_NAMESPACE:
                 operator_token_id = self.base64_decode(resource["data"]["apiTokenId"])
                 operator_token = self.base64_decode(resource["data"]["apiToken"])
                 ingest_token_id = self.base64_decode(
                     resource["data"]["dataIngestTokenId"]
                 )
                 ingest_token = self.base64_decode(resource["data"]["dataIngestToken"])
+            elif resource["metadata"]["namespace"] == RMO_SECRET_NAMESPACE:
+                rmo_token_id = self.base64_decode(resource["data"]["apiTokenId"])
+                rmo_token = self.base64_decode(resource["data"]["apiToken"])
         tokens[DYNATRACE_INGESTION_TOKEN_NAME] = {
             "id": ingest_token_id,
             "token": ingest_token,
@@ -344,12 +374,17 @@ class DynatraceTokenProviderIntegration(
             "id": operator_token_id,
             "token": operator_token,
         }
+        tokens[DYNATRACE_RMO_TOKEN_NAME] = {
+            "id": rmo_token_id,
+            "token": rmo_token,
+        }
         return tokens
 
     def construct_base_syncset(
         self,
         ingestion_token: ApiTokenCreated,
         operator_token: ApiTokenCreated,
+        rmo_token: ApiTokenCreated,
         dt_api_url: str,
     ) -> dict[str, Any]:
         return {
@@ -365,6 +400,19 @@ class DynatraceTokenProviderIntegration(
                         "dataIngestToken": f"{self.base64_encode_str(ingestion_token.token)}",
                         "apiTokenId": f"{self.base64_encode_str(operator_token.id)}",
                         "apiToken": f"{self.base64_encode_str(operator_token.token)}",
+                    },
+                },
+                {
+                    "apiVersion": "v1",
+                    "kind": "Secret",
+                    "metadata": {
+                        "name": RMO_SECRET_NAME,
+                        "namespace": RMO_SECRET_NAMESPACE,
+                    },
+                    "data": {
+                        "apiUrl": f"{self.base64_encode_str(dt_api_url)}",
+                        "apiTokenId": f"{self.base64_encode_str(rmo_token.id)}",
+                        "apiToken": f"{self.base64_encode_str(rmo_token.token)}",
                     },
                 },
             ],
@@ -383,11 +431,13 @@ class DynatraceTokenProviderIntegration(
         self,
         ingestion_token: ApiTokenCreated,
         operator_token: ApiTokenCreated,
+        rmo_token: ApiTokenCreated,
         dt_api_url: str,
     ) -> dict[str, Any]:
         syncset = self.construct_base_syncset(
             ingestion_token=ingestion_token,
             operator_token=operator_token,
+            rmo_token=rmo_token,
             dt_api_url=dt_api_url,
         )
         syncset["id"] = SYNCSET_ID
@@ -416,12 +466,21 @@ class DynatraceTokenProviderIntegration(
             ],
         )
 
+    def create_dynatrace_rmo_token(
+        self, dt_client: Dynatrace, cluster_uuid: str
+    ) -> ApiTokenCreated:
+        return dt_client.tokens.create(
+            name=f"dtp-rmo-token-{cluster_uuid}",
+            scopes=["ExternalSyntheticIntegration"],
+        )
+
     def create_dynatrace_tokens(
         self, dt_client: Dynatrace, cluster_uuid: str
-    ) -> tuple[ApiTokenCreated, ApiTokenCreated]:
+    ) -> tuple[ApiTokenCreated, ApiTokenCreated, ApiTokenCreated]:
         ingestion_token = self.create_dynatrace_ingestion_token(dt_client, cluster_uuid)
         operation_token = self.create_dynatrace_operator_token(dt_client, cluster_uuid)
-        return (ingestion_token, operation_token)
+        rmo_token = self.create_dynatrace_rmo_token(dt_client, cluster_uuid)
+        return (ingestion_token, operation_token, rmo_token)
 
 
 def dtp_label_key(config_atom: Union[str, None]) -> str:
