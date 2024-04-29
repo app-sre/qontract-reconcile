@@ -43,12 +43,21 @@ def fetch_current_state(
         r = OpenshiftResource(item, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
         ri.add_current(cluster, namespace, "Job", r.name, r)
 
-def get_dynamodb_client(account: str, region: str, secret_reader: SecretReaderBase) -> Any:
-    accounts = get_aws_accounts(name=account, ecrs=False)
-    aws_api = AWSApi(thread_pool_size=1, accounts=accounts, secret_reader=secret_reader, init_users=False)
-    session = aws_api.get_session(account=account)
-    return aws_api.get_session_client(session=session, service_name="dynamodb", region_name=region)
 
+def get_dynamodb_client(
+    account: str, region: str, secret_reader: SecretReaderBase
+) -> Any:
+    accounts = get_aws_accounts(name=account, ecrs=False)
+    aws_api = AWSApi(
+        thread_pool_size=1,
+        accounts=accounts,
+        secret_reader=secret_reader,
+        init_users=False,
+    )
+    session = aws_api.get_session(account=account)
+    return aws_api.get_session_client(
+        session=session, service_name="dynamodb", region_name=region
+    )
 
 
 def run(
@@ -83,7 +92,7 @@ def run(
             dynamodb_client=get_dynamodb_client(
                 account=er_settings.state_dynamodb_account.name,
                 region=er_settings.state_dynamodb_region,
-                secret_reader=secret_reader
+                secret_reader=secret_reader,
             ),
             table_name=er_settings.state_dynamodb_table,
         ),
