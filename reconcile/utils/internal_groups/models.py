@@ -54,7 +54,7 @@ class Group(BaseModel):
             self.description == other.description
             and self.member_approval_type == other.member_approval_type
             and self.contact_list == other.contact_list
-            and self.owners == other.owners
+            and set(self.owners) == set(other.owners)
             and self.display_name == other.display_name
             and self.notes == other.notes
             and set(self.members) == set(other.members)

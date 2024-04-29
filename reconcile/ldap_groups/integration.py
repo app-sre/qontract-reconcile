@@ -93,12 +93,12 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         desired_groups_for_roles = self.get_desired_groups_for_roles(
             roles,
             contact_list=self.settings.contact_list,
-            owners=[owner],
+            default_owners=[owner],
         )
         desired_groups_for_aws_roles = self.get_desired_groups_for_aws_roles(
             roles,
             contact_list=self.settings.contact_list,
-            owners=[owner],
+            default_owners=[owner],
         )
         desired_groups = desired_groups_for_roles + desired_groups_for_aws_roles
 
@@ -147,7 +147,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         data = roles_query(query_func, variables={})
         roles = [role for role in data.roles or []]
         if duplicates := find_duplicates(
-            role.ldap_group for role in roles if role.ldap_group
+            role.ldap_group.name for role in roles if role.ldap_group
         ):
             for dup in duplicates:
                 logging.error(f"{dup} is already in use by another role.")
@@ -155,30 +155,39 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         return roles
 
     def get_desired_groups_for_roles(
-        self, roles: Iterable[RoleV1], owners: Iterable[Entity], contact_list: str
+        self,
+        roles: Iterable[RoleV1],
+        default_owners: list[Entity],
+        contact_list: str,
     ) -> list[Group]:
         """Return the desired rover groups for the given roles."""
-        return [
-            Group(
-                name=role.ldap_group,
-                description="Persisted App-Interface role. Managed by qontract-reconcile",
-                display_name=f"{role.ldap_group} (App-Interface))",
-                members=[
-                    Entity(type=EntityType.USER, id=user.org_username)
-                    for user in role.users
-                ],
-                # only owners can modify the group (e.g. add/remove members)
-                owners=owners,
-                contact_list=contact_list,
+        groups = []
+        for role in roles:
+            if not role.ldap_group:
+                continue
+            members = [
+                Entity(type=EntityType.USER, id=user.org_username)
+                for user in role.users
+            ]
+            groups.append(
+                Group(
+                    name=role.ldap_group.name,
+                    description="Persisted App-Interface role. Managed by qontract-reconcile",
+                    notes=role.ldap_group.notes,
+                    display_name=f"{role.ldap_group.name} (App-Interface))",
+                    members=members,
+                    owners=default_owners
+                    if not role.ldap_group.members_are_owners
+                    else default_owners + members,
+                    contact_list=contact_list,
+                )
             )
-            for role in roles
-            if role.ldap_group
-        ]
+        return groups
 
     def get_desired_groups_for_aws_roles(
         self,
         roles: Iterable[RoleV1],
-        owners: list[Entity],
+        default_owners: Iterable[Entity],
         contact_list: str,
     ) -> list[Group]:
         """Return the desired rover groups for all AWS roles."""
@@ -205,7 +214,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
                             for user in role.users
                         ],
                         # only owners can modify the group (e.g. add/remove members)
-                        owners=owners,
+                        owners=default_owners,
                         contact_list=contact_list,
                     )
                 )
@@ -246,7 +255,9 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
             logging.info([
                 "create_ldap_group",
                 group_to_add.name,
-                f"users={', '.join(u.id for u in group_to_add.members)}",
+                f"members={', '.join(u.id for u in group_to_add.members)}",
+                f"owners={', '.join(u.id for u in group_to_add.owners)}",
+                f"notes={group_to_add.notes}",
             ])
             if not dry_run:
                 internal_groups_client.create_group(group_to_add)
@@ -266,7 +277,9 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
             logging.info([
                 "update_ldap_group",
                 group_to_update.name,
-                f"users={', '.join(u.id for u in group_to_update.members)}",
+                f"members={', '.join(u.id for u in group_to_update.members)}",
+                f"owners={', '.join(u.id for u in group_to_update.owners)}",
+                f"notes={group_to_update.notes}",
             ])
             if not dry_run:
                 internal_groups_client.update_group(group_to_update)
