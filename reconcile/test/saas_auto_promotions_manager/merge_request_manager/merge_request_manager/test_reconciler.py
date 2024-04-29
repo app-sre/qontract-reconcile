@@ -4,16 +4,16 @@ from unittest.mock import create_autospec
 import pytest
 from gitlab.v4.objects import ProjectMergeRequest
 
-from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
-    OpenBatcherMergeRequest,
-)
-from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
+from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
     Addition,
+    Batcher,
     Deletion,
     Diff,
     Promotion,
     Reason,
-    Reconciler,
+)
+from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
+    OpenBatcherMergeRequest,
 )
 
 
@@ -460,7 +460,7 @@ def test_reconcile(
     open_mrs: list[OpenBatcherMergeRequest],
     expected_diff: Diff,
 ) -> None:
-    reconciler = Reconciler()
+    reconciler = Batcher()
     diff = reconciler.reconcile(
         desired_promotions=desired_promotions, open_mrs=open_mrs, batch_limit=5
     )

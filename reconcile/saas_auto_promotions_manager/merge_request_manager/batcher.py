@@ -39,11 +39,11 @@ class Diff:
     additions: list[Addition]
 
 
-class Reconciler:
+class Batcher:
     """
-    The reconciler calculates a Diff. I.e., which MRs need to be opened (Addition)
-    and which MRs need to be closed (Deletion). The reconciler has no external
-    dependencies and does not interact with VCS. The reconciler expects to be
+    The batcher calculates a Diff. I.e., which MRs need to be opened (Addition)
+    and which MRs need to be closed (Deletion). The batcher has no external
+    dependencies and does not interact with VCS. The batcher expects to be
     given the desired state (which promotions do we want) and the current state
     (the currently open MRs) in order to calculate the Diff.
     """

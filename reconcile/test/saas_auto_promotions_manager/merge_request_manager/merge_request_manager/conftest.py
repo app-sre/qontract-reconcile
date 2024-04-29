@@ -8,16 +8,16 @@ from unittest.mock import create_autospec
 import pytest
 from gitlab.v4.objects import ProjectMergeRequest
 
+from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
+    Batcher,
+    Diff,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager_v2 import (
     SAPM_LABEL,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
     OpenBatcherMergeRequest,
-)
-from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
-    Diff,
-    Reconciler,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     CHANNELS_REF,
@@ -101,9 +101,9 @@ def mr_parser_builder() -> Callable[[Iterable[OpenBatcherMergeRequest]], MRParse
 
 
 @pytest.fixture
-def reconciler_builder() -> Callable[[Diff], Reconciler]:
-    def builder(data: Diff) -> Reconciler:
-        reconciler = create_autospec(spec=Reconciler)
+def reconciler_builder() -> Callable[[Diff], Batcher]:
+    def builder(data: Diff) -> Batcher:
+        reconciler = create_autospec(spec=Batcher)
         reconciler.reconcile.side_effect = [data]
         return reconciler
 
