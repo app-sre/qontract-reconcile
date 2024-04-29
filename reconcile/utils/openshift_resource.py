@@ -225,6 +225,10 @@ class OpenshiftResource:
         return self.body["kind"]
 
     @property
+    def annotations(self):
+        return self.body["metadata"].get("annotations", {})
+
+    @property
     def kind_and_group(self):
         return fully_qualified_kind(self.kind, self.body["apiVersion"])
 
