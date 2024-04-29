@@ -151,8 +151,6 @@ class DynatraceTokenProviderIntegration(
                 existing_dtp_tokens = {}
 
                 for cluster in clusters:
-                    if cluster.ocm_cluster.display_name != "appint-ex-01":
-                        continue
                     try:
                         with DTPOrganizationErrorRate(
                             integration=self.name,
