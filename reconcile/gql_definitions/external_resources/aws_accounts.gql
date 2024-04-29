@@ -1,0 +1,10 @@
+# qenerate: plugin=pydantic_v1
+
+query AWSExternalResourcesAccounts {
+  accounts: awsaccounts_v1 {
+    name
+    automationToken {
+      ...VaultSecret
+    }
+  }
+}

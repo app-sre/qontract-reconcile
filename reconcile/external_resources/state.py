@@ -11,6 +11,7 @@ from reconcile.external_resources.model import (
     ExternalResourceModuleConfiguration,
     Reconciliation,
 )
+from reconcile.utils.aws_api_typed.api import AWSApi
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -177,16 +178,16 @@ class ExternalResourcesStateDynamoDB:
         f"{DynamoDBStateAdapter.RECONC}.{DynamoDBStateAdapter.RECONC_RESOURCE_HASH}",
     ])
 
-    def __init__(self, dynamodb_client: Any, table_name: str) -> None:
+    def __init__(self, aws_api: AWSApi, table_name: str) -> None:
         self.adapter = DynamoDBStateAdapter()
-        self.client = dynamodb_client
+        self.aws_api = aws_api
         self._table = table_name
         self.partial_resources = self._get_partial_resources()
 
     def get_external_resource_state(
         self, key: ExternalResourceKey
     ) -> ExternalResourceState:
-        data = self.client.get_item(
+        data = self.aws_api.dynamodb.boto3_client.get_item(
             TableName=self._table,
             ConsistentRead=True,
             Key={self.adapter.ER_KEY_HASH: {"S": key.hash()}},
@@ -206,10 +207,12 @@ class ExternalResourcesStateDynamoDB:
         self,
         state: ExternalResourceState,
     ) -> None:
-        self.client.put_item(TableName=self._table, Item=self.adapter.serialize(state))
+        self.aws_api.dynamodb.boto3_client.put_item(
+            TableName=self._table, Item=self.adapter.serialize(state)
+        )
 
     def del_external_resource_state(self, key: ExternalResourceKey) -> None:
-        self.client.delete_item(
+        self.aws_api.dynamodb.boto3_client.delete_item(
             TableName=self._table,
             Key={self.adapter.ER_KEY_HASH: {"S": key.hash()}},
         )
@@ -223,7 +226,7 @@ class ExternalResourcesStateDynamoDB:
         """
         logging.info("Getting Managed resources from DynamoDb")
         partials = {}
-        for item in self.client.scan(
+        for item in self.aws_api.dynamodb.boto3_client.scan(
             TableName=self._table, ProjectionExpression=self.PARTIALS_PROJECTED_VALUES
         ).get("Items", []):
             s = self.adapter.deserialize(item, partial_data=True)
@@ -236,7 +239,7 @@ class ExternalResourcesStateDynamoDB:
     def update_resource_status(
         self, key: ExternalResourceKey, status: ResourceStatus
     ) -> None:
-        self.client.update_item(
+        self.aws_api.dynamodb.boto3_client.update_item(
             TableName=self._table,
             Key={self.adapter.ER_KEY_HASH: {"S": key.hash()}},
             UpdateExpression="set resource_status=:new_value",

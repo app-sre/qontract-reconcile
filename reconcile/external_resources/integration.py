@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Callable
 
 from reconcile.external_resources.manager import (
     ExternalResourcesInventory,
@@ -16,7 +16,9 @@ from reconcile.external_resources.secrets_sync import (
     build_incluster_secrets_reconciler,
 )
 from reconcile.external_resources.state import ExternalResourcesStateDynamoDB
-from reconcile.queries import get_aws_accounts
+from reconcile.gql_definitions.external_resources.aws_accounts import (
+    query as aws_accounts_query,
+)
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -25,7 +27,8 @@ from reconcile.typed_queries.external_resources import (
     get_namespaces,
     get_settings,
 )
-from reconcile.utils.aws_api import AWSApi
+from reconcile.utils import gql
+from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 from reconcile.utils.jobcontroller.controller import (
     build_job_controller,
 )
@@ -44,20 +47,24 @@ def fetch_current_state(
         ri.add_current(cluster, namespace, "Job", r.name, r)
 
 
-def get_dynamodb_client(
-    account: str, region: str, secret_reader: SecretReaderBase
-) -> Any:
-    accounts = get_aws_accounts(name=account, ecrs=False)
-    aws_api = AWSApi(
-        thread_pool_size=1,
-        accounts=accounts,
-        secret_reader=secret_reader,
-        init_users=False,
+def get_aws_api(
+    query_func: Callable,
+    account_name: str,
+    region: str,
+    secret_reader: SecretReaderBase,
+) -> AWSApi:
+    account = [
+        acc
+        for acc in aws_accounts_query(query_func).accounts or []
+        if acc.name == account_name
+    ][0]
+    automation_token = secret_reader.read_all_secret(account.automation_token)
+    aws_credentials = AWSStaticCredentials(
+        access_key_id=automation_token["aws_access_key_id"],
+        secret_access_key=automation_token["aws_secret_access_key"],
+        region=region,
     )
-    session = aws_api.get_session(account=account)
-    return aws_api.get_session_client(
-        session=session, service_name="dynamodb", region_name=region
-    )
+    return AWSApi(aws_credentials)
 
 
 def run(
@@ -89,8 +96,9 @@ def run(
         er_inventory=er_inventory,
         module_inventory=m_inventory,
         state_manager=ExternalResourcesStateDynamoDB(
-            dynamodb_client=get_dynamodb_client(
-                account=er_settings.state_dynamodb_account.name,
+            aws_api=get_aws_api(
+                query_func=gql.get_api().query,
+                account_name=er_settings.state_dynamodb_account.name,
                 region=er_settings.state_dynamodb_region,
                 secret_reader=secret_reader,
             ),
