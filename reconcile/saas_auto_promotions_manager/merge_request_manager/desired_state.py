@@ -1,7 +1,7 @@
 from collections import defaultdict
 from collections.abc import Iterable
 
-from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
+from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
     Promotion,
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber

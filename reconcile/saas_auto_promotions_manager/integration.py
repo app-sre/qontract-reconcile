@@ -6,14 +6,14 @@ from sretoolbox.utils import threaded
 from reconcile.openshift_saas_deploy import (
     QONTRACT_INTEGRATION as OPENSHIFT_SAAS_DEPLOY,
 )
+from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
+    Batcher,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager_v2 import (
     MergeRequestManagerV2,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
-)
-from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
-    Reconciler,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
@@ -135,7 +135,7 @@ def init_external_dependencies(
     mr_parser = MRParser(vcs=vcs)
     merge_request_manager_v2 = MergeRequestManagerV2(
         vcs=vcs,
-        reconciler=Reconciler(),
+        reconciler=Batcher(),
         mr_parser=mr_parser,
         renderer=Renderer(),
     )

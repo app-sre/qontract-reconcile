@@ -25,6 +25,7 @@ CONTENT_HASHES = "content_hashes"
 CHANNELS_REF = "channels"
 IS_BATCHABLE = "is_batchable"
 VERSION_REF = "sapm_version"
+MR_KIND_REF = "kind"
 
 
 class Renderer:
