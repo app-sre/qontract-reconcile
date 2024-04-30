@@ -59,12 +59,11 @@ def get_aws_api(
         ).accounts
         or []
     )
-    try:
-        account = accounts[0]
-    except IndexError:
+    if not accounts:
         raise Exception(
             "External Resources configured AWS account does not exist or can not be found"
         )
+    account = accounts[0]
     automation_token = secret_reader.read_all_secret(account.automation_token)
     aws_credentials = AWSStaticCredentials(
         access_key_id=automation_token["aws_access_key_id"],
