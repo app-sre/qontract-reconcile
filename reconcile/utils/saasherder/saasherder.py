@@ -498,7 +498,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         :return: (tkn_name, tkn_long_name)
         """
         tkn_long_name = f"{saas_file_name}-{env_name}"
-        tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
+        tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN].rstrip("-")
         return tkn_name, tkn_long_name
 
     def _check_saas_file_env_combo_unique(
