@@ -690,14 +690,14 @@ def test_act_update_usergroup_desc_and_channels(
 def test_act_add_new_usergroups(
     base_state: SlackState, slack_map: SlackMap, slack_client_mock: Mock
 ) -> None:
-    def get_users(users: str(str)):
+    def get_users(users: set[str]) -> dict[str, str]:
         if "username" in users:
             return {"USERA": "username"}
         if "userb" in users:
             return {"USERB": "userb", "USERC": "userc"}
         return {"USERF": "userf", "USERG": "userg"}
 
-    def get_channels(channels: str(str)):
+    def get_channels(channels: set[str]) -> dict[str, str]:
         if "channelname" in channels:
             return {"CHANA": "channelname"}
         if "channelb" in channels:
