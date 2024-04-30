@@ -612,7 +612,7 @@ def test_with_extended_early_exit_enabled(
     expected_params = integ.RunnerParams(
         terraform_client=mocks["tf"],
         terrascript_client=mocks["ts"],
-        dry_run= False,
+        dry_run=False,
         enable_deletion=False,
     )
 
@@ -629,7 +629,9 @@ def test_with_extended_early_exit_enabled(
         integration_version=integ.QONTRACT_INTEGRATION_VERSION,
         dry_run=False,
         shard="",
-        cache_source=integ.CacheSource(terraform_configurations=mocks["ts"].terraform_configurations.return_value),
+        cache_source=integ.CacheSource(
+            terraform_configurations=mocks["ts"].terraform_configurations.return_value
+        ),
         ttl_seconds=40,
         logger=mocks["logging"].getLogger.return_value,
         runner=integ.runner,
@@ -646,7 +648,7 @@ def test_with_extended_early_exit_disabled(
     tgw_account: AWSAccountV1,
     tgw: Mapping,
     vpc_details: Mapping,
-    assume_role: str,   
+    assume_role: str,
 ) -> None:
     mocks = _setup_mocks(
         mocker,
@@ -678,7 +680,7 @@ def test_with_feature_flag_disabled(
     tgw: Mapping,
     vpc_details: Mapping,
     assume_role: str,
-)->None:
+) -> None:
     mocks = _setup_mocks(
         mocker,
         vault_settings=app_interface_vault_settings,
@@ -702,6 +704,7 @@ def test_with_feature_flag_disabled(
     mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"])
     mocks["tf"].plan.assert_called_once_with(False)
     mocks["tf"].apply.assert_called_once()
+
 
 def test_empty_run(
     mocker: MockerFixture,

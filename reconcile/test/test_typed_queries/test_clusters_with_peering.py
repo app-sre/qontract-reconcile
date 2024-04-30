@@ -41,7 +41,11 @@ def clusters_without_peering(
 ) -> ClustersWithPeeringQueryData:
     return gql_class_factory(
         ClustersWithPeeringQueryData,
-        {"clusters": []},
+        {
+            "clusters": [
+                {"peering": None},
+            ]
+        },
     )
 
 
