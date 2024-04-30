@@ -120,10 +120,10 @@ def _cluster_version_needs_update(
     if not desired_version:
         return True
 
-    desired_version = parse_semver(desired_version)
-    current_version = parse_semver(current_version)
+    parsed_desired_version = parse_semver(desired_version)
+    parsed_current_version = parse_semver(current_version)
 
-    if current_version > desired_version:
+    if parsed_current_version > parsed_desired_version:
         # current version is geater due to an upgrade.
         # submit MR to update cluster version
         logging.info(
@@ -133,7 +133,7 @@ def _cluster_version_needs_update(
         )
         return True
 
-    if current_version < desired_version:
+    if parsed_current_version < parsed_desired_version:
         raise ClusterVersionError(
             f"[{cluster}] desired version [{desired_version}] is greater than "
             f"current version [{current_version}]. Please correct version to be "
