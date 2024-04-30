@@ -51,6 +51,7 @@ from reconcile.utils.jump_host import (
 )
 from reconcile.utils.metrics import reconcile_time
 from reconcile.utils.oc_connection_parameters import OCConnectionParameters
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.secret_reader import (
     SecretNotFound,
     SecretReader,
@@ -162,10 +163,10 @@ class OCDecorators:
             time_spent = time.time() - commit_time
 
             try:
-                resource_kind = msg.resource["kind"]
-                resource_name = msg.resource["metadata"]["name"]
-                annotations = msg.resource["metadata"].get("annotations", {})
-            except KeyError as e:
+                resource_kind = msg.resource.kind
+                resource_name = msg.resource.name
+                annotations = msg.resource.annotations
+            except Exception as e:
                 logging.warning(f"Error processing metric: {e}")
                 return result
 
@@ -204,11 +205,11 @@ class OCDecorators:
 class OCProcessReconcileTimeDecoratorMsg:
     def __init__(
         self,
-        namespace,
-        resource,
-        server,
-        slow_oc_reconcile_threshold,
-        is_log_slow_oc_reconcile,
+        namespace: str,
+        resource: OR,
+        server: Optional[str],
+        slow_oc_reconcile_threshold: float,
+        is_log_slow_oc_reconcile: bool,
     ):
         self.namespace = namespace
         self.resource = resource
@@ -523,7 +524,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         ]
         self._run(cmd)
 
-    def _msg_to_process_reconcile_time(self, namespace, resource):
+    def _msg_to_process_reconcile_time(self, namespace: str, resource: OR):
         return OCProcessReconcileTimeDecoratorMsg(
             namespace=namespace,
             resource=resource,
@@ -550,25 +551,25 @@ class OCCli:  # pylint: disable=too-many-public-methods
     def apply(self, namespace, resource):
         cmd = ["apply", "-n", namespace, "-f", "-"]
         self._run(cmd, stdin=resource.toJSON(), apply=True)
-        return self._msg_to_process_reconcile_time(namespace, resource.body)
+        return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
     def create(self, namespace, resource):
         cmd = ["create", "-n", namespace, "-f", "-"]
         self._run(cmd, stdin=resource.toJSON(), apply=True)
-        return self._msg_to_process_reconcile_time(namespace, resource.body)
+        return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
     def replace(self, namespace, resource):
         cmd = ["replace", "-n", namespace, "-f", "-"]
         self._run(cmd, stdin=resource.toJSON(), apply=True)
-        return self._msg_to_process_reconcile_time(namespace, resource.body)
+        return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
     def patch(self, namespace, kind, name, patch):
         cmd = ["patch", "-n", namespace, kind, name, "-p", json.dumps(patch)]
         self._run(cmd)
-        resource = {"kind": kind, "metadata": {"name": name}}
+        resource = OR({"kind": kind, "metadata": {"name": name}}, "", "")
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time

@@ -93,7 +93,7 @@ from reconcile.utils.state import State
 TARGET_CONFIG_HASH = "target_config_hash"
 
 
-UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 50
+UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 56
 
 
 def is_commit_sha(ref: str) -> bool:
@@ -491,7 +491,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         """
         Build a tuple of short and long names for a saas file and environment combo,
         max tekton pipelinerun name length can be 63,
-        leaving 12 for the timestamp leaves us with 51 to create a unique pipelinerun name.
+        leaving 7 for the rerun leaves us with 56 to create a unique pipelinerun name.
 
         :param saas_file_name: name of the saas file
         :param env_name: name of the environment
