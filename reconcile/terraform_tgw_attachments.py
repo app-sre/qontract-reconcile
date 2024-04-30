@@ -5,6 +5,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
+from datetime import datetime
 from typing import (
     Any,
     Optional,
@@ -111,6 +112,7 @@ class DesiredStateDataSource(BaseModel):
 
 class CacheSource(TypedDict):
     terraform_configurations: dict[str, str]
+
 
 class RunnerParams(TypedDict):
     terraform_client: Terraform
@@ -531,7 +533,6 @@ def run(
     if defer:
         defer(aws_api.cleanup)
         defer(tf.cleanup)
-    # publish metrics??
     if print_to_file:
         return
     runner_params: RunnerParams = dict(
