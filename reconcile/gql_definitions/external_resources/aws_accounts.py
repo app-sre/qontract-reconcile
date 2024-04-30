@@ -28,8 +28,8 @@ fragment VaultSecret on VaultSecret_v1 {
     format
 }
 
-query AWSExternalResourcesAccounts {
-  accounts: awsaccounts_v1 {
+query AWSExternalResourcesAccounts($filter: JSON) {
+  accounts: awsaccounts_v1(filter: $filter) {
     name
     automationToken {
       ...VaultSecret

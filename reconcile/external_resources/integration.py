@@ -53,11 +53,18 @@ def get_aws_api(
     region: str,
     secret_reader: SecretReaderBase,
 ) -> AWSApi:
-    account = [
-        acc
-        for acc in aws_accounts_query(query_func).accounts or []
-        if acc.name == account_name
-    ][0]
+    accounts = (
+        aws_accounts_query(
+            query_func, variables={"filter": {"name": account_name}}
+        ).accounts
+        or []
+    )
+    try:
+        account = accounts[0]
+    except IndexError:
+        raise Exception(
+            "External Resources configured AWS account does not exist or can not be found"
+        )
     automation_token = secret_reader.read_all_secret(account.automation_token)
     aws_credentials = AWSStaticCredentials(
         access_key_id=automation_token["aws_access_key_id"],
