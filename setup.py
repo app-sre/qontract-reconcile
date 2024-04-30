@@ -17,7 +17,7 @@ setup(
     packages=find_packages(exclude=("tests",)),
     package_data={"reconcile": ["templates/*.j2", "gql_queries/*/*.gql"]},
     install_requires=[
-        "sretoolbox~=2.5.2",
+        "sretoolbox~=2.5",
         "Click>=7.0,<9.0",
         "gql==3.1.0",
         "toml>=0.10.0,<0.11.0",
@@ -27,7 +27,7 @@ setup(
         "ldap3>=2.9.1,<2.10.0",
         "anymarkup>=0.7.0,<0.9.0",
         "python-gitlab>=1.11.0,<1.12.0",
-        "semver~=2.13",
+        "semver~=3.0",
         "boto3==1.34.94",
         "botocore==1.34.94",
         "mypy-boto3-s3==1.34.14",

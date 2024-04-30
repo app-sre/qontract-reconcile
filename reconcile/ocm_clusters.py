@@ -6,8 +6,6 @@ from collections.abc import (
 )
 from typing import Any, Optional
 
-import semver
-
 import reconcile.utils.mr.clusters_updates as cu
 import reconcile.utils.ocm as ocmmod
 from reconcile import (
@@ -35,10 +33,10 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.semver_helper import parse_semver
+from reconcile.utils.semver_helper import make_semver, parse_semver
 
 QONTRACT_INTEGRATION = "ocm-clusters"
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
