@@ -42,6 +42,8 @@ class SaasFilesInventory:
         for saas_file in self._saas_files:
             for resource_template in saas_file.resource_templates:
                 for target in resource_template.targets:
+                    if target.disable or target.delete:
+                        continue
                     if not target.promotion:
                         continue
                     auth_code = (
@@ -87,11 +89,17 @@ class SaasFilesInventory:
             for resource_template in saas_file.resource_templates:
                 for target in resource_template.targets:
                     file_path = target.path if target.path else saas_file.path
+                    if target.disable or target.delete:
+                        continue
                     if not target.promotion:
                         continue
                     if not target.promotion.auto:
                         continue
                     subscriber = Subscriber(
+                        uid=target.uid(
+                            parent_saas_file_name=saas_file.name,
+                            parent_resource_template_name=resource_template.name,
+                        ),
                         saas_name=saas_file.name,
                         template_name=resource_template.name,
                         target_file_path=file_path,

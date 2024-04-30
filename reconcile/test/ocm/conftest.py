@@ -4,15 +4,12 @@ from typing import (
     Any,
     Optional,
 )
-from urllib.parse import (
-    urljoin,
-    urlparse,
-)
+from urllib.parse import urlparse
 
-import httpretty as httpretty_module
 import pytest
-from httpretty.core import HTTPrettyRequest
 from pydantic.json import pydantic_encoder
+from pytest_httpserver import HTTPServer
+from werkzeug import Request, Response
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.test.ocm.fixtures import OcmUrl
@@ -26,23 +23,21 @@ def fx() -> Fixtures:
 
 
 @pytest.fixture
-def access_token_url() -> str:
-    return "https://sso/get_token"
+def access_token_url(httpserver: HTTPServer) -> str:
+    return httpserver.url_for("/get_token")
 
 
 @pytest.fixture
-def ocm_url() -> str:
-    return "http://ocm"
+def ocm_url(httpserver: HTTPServer) -> str:
+    return httpserver.url_for("/").rstrip("/")
 
 
 @pytest.fixture(autouse=True)
-def ocm_auth_mock(httpretty: httpretty_module, access_token_url: str) -> None:
-    httpretty.register_uri(
-        httpretty.POST,
-        access_token_url,
-        body=json.dumps({"access_token": "1234567890"}),
-        content_type="text/json",
-    )
+def ocm_auth_mock(httpserver: HTTPServer, access_token_url: str) -> None:
+    url = urlparse(access_token_url)
+    httpserver.expect_request(url.path, method="post").respond_with_json({
+        "access_token": "1234567890"
+    })
 
 
 @pytest.fixture
@@ -70,22 +65,31 @@ def ocm_api(
 
 
 @pytest.fixture
-def register_ocm_url_responses(
-    ocm_url: str, httpretty: httpretty_module
-) -> Callable[[list[OcmUrl]], int]:
-    def f(urls: list[OcmUrl]) -> int:
+def register_ocm_url_responses(httpserver: HTTPServer) -> Callable[[list[OcmUrl]], int]:
+    def f(urls: list[OcmUrl], max_page_size: int | None = None) -> int:
         i = 0
         for url in urls:
             i += len(url.responses) or 1
-            httpretty.register_uri(
-                url.method.upper(),
-                urljoin(ocm_url, url.uri),
-                responses=[
-                    httpretty.Response(body=json.dumps(r, default=pydantic_encoder))
-                    for r in url.responses
-                ],
-                content_type="text/json",
-            )
+            if not url.responses:
+                httpserver.expect_request(
+                    url.uri, method=url.method
+                ).respond_with_json({})
+            else:
+                for j, r in enumerate(url.responses):
+                    query = None
+                    if max_page_size is not None:
+                        query = (
+                            {"size": str(max_page_size)}
+                            if j == 0
+                            else {"page": str(j + 1), "size": str(max_page_size)}
+                        )
+
+                    httpserver.expect_request(
+                        url.uri, method=url.method, query_string=query
+                    ).respond_with_data(
+                        json.dumps(r, default=pydantic_encoder),
+                        content_type="text/json",
+                    )
         return i
 
     return f
@@ -93,27 +97,20 @@ def register_ocm_url_responses(
 
 @pytest.fixture
 def register_ocm_url_callback(
-    ocm_url: str, httpretty: httpretty_module
+    httpserver: HTTPServer,
 ) -> Callable[[str, str, Callable], None]:
     def f(
         method: str,
         uri: str,
-        callback: Callable[
-            [HTTPrettyRequest, str, dict[str, str]], tuple[int, dict, str]
-        ],
+        callback: Callable[[Request], Response],
     ) -> None:
-        httpretty.register_uri(
-            method.upper(),
-            urljoin(ocm_url, uri),
-            body=callback,
-            content_type="text/json",
-        )
+        httpserver.expect_request(uri, method=method).respond_with_handler(callback)
 
     return f
 
 
 def _request_matches(
-    req: HTTPrettyRequest, method: str, base_url: str, path: Optional[str] = None
+    req: Request, method: str, base_url: str, path: Optional[str] = None
 ) -> bool:
     if req.method != method:
         return False
@@ -130,11 +127,13 @@ def _request_matches(
 
 @pytest.fixture
 def find_ocm_http_request(
-    ocm_url: str,
-    httpretty: httpretty_module,
-) -> Callable[[str, str], Optional[HTTPrettyRequest]]:
-    def find_request(method: str, path: str) -> Optional[HTTPrettyRequest]:
-        for req in httpretty.latest_requests():
+    ocm_url: str, httpserver: HTTPServer, access_token_url: str
+) -> Callable[[str, str], Optional[Request]]:
+    def find_request(method: str, path: str) -> Optional[Request]:
+        for req, _ in httpserver.log:
+            if req.url == access_token_url:
+                # ignore the access token request
+                continue
             if _request_matches(req, method, ocm_url, path):
                 return req
 
@@ -145,12 +144,15 @@ def find_ocm_http_request(
 
 @pytest.fixture
 def find_all_ocm_http_requests(
-    ocm_url: str,
-    httpretty: httpretty_module,
-) -> Callable[[str, str], list[HTTPrettyRequest]]:
-    def find_request(method: str, path: Optional[str] = None) -> list[HTTPrettyRequest]:
+    ocm_url: str, httpserver: HTTPServer, access_token_url: str
+) -> Callable[[str, str], list[Request]]:
+    def find_request(method: str, path: Optional[str] = None) -> list[Request]:
         matching_requests = []
-        for req in httpretty.latest_requests():
+
+        for req, _ in httpserver.log:
+            if req.url == access_token_url:
+                # ignore the access token request
+                continue
             if _request_matches(req, method, ocm_url, path):
                 matching_requests.append(req)
 

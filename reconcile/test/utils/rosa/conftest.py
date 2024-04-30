@@ -1,10 +1,10 @@
-import json
 import tempfile
 from typing import Generator
 from unittest.mock import MagicMock
+from urllib.parse import urlparse
 
-import httpretty as httpretty_module
 import pytest
+from pytest_httpserver import HTTPServer
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils.jobcontroller.controller import K8sJobController
@@ -16,23 +16,21 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.fixture
-def access_token_url() -> str:
-    return "https://sso/get_token"
+def access_token_url(httpserver: HTTPServer) -> str:
+    return httpserver.url_for("/get_token")
 
 
 @pytest.fixture
-def ocm_url() -> str:
-    return "http://ocm"
+def ocm_url(httpserver: HTTPServer) -> str:
+    return httpserver.url_for("")
 
 
 @pytest.fixture(autouse=True)
-def ocm_auth_mock(httpretty: httpretty_module, access_token_url: str) -> None:
-    httpretty.register_uri(
-        httpretty.POST,
-        access_token_url,
-        body=json.dumps({"access_token": "1234567890"}),
-        content_type="text/json",
-    )
+def ocm_auth_mock(httpserver: HTTPServer, access_token_url: str) -> None:
+    url = urlparse(access_token_url)
+    httpserver.expect_request(url.path, method="post").respond_with_json({
+        "access_token": "1234567890"
+    })
 
 
 @pytest.fixture

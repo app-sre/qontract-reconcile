@@ -62,7 +62,9 @@ def base_state():
                 usergroup="usergroup-1",
                 usergroup_id="USERGA",
                 users={SlackObject(name="username", pk="USERA")},
+                user_names={"username"},
                 channels={SlackObject(name="channelname", pk="CHANA")},
+                channel_names={"channelname"},
                 description="Some description",
             )
         }
@@ -402,8 +404,6 @@ def test_include_user_to_cluster_usergroup(mocker: MockerFixture, user: UserV1) 
 def test_get_desired_state(
     mocker: MockerFixture,
     permissions: Sequence[PermissionSlackUsergroupV1],
-    slack_map: SlackMap,
-    slack_client_mock: Mock,
     user: UserV1,
 ) -> None:
     mocker.patch(
@@ -413,21 +413,13 @@ def test_get_desired_state(
         "reconcile.slack_usergroups.get_slack_usernames_from_owners"
     ).return_value = ["repo-user"]
     mock_pagerduty_map = create_autospec(PagerDutyMap)
-    slack_client_mock.get_usergroup_id.return_value = "ugid"
     result = integ.get_desired_state(
-        slack_map,
         mock_pagerduty_map,
         permissions[1:],
         [user],
         desired_workspace_name=None,
         desired_usergroup_name=None,
     )
-    assert slack_client_mock.get_users_by_names.call_args_list == [
-        call(["repo-user", "slack_username", "user1"]),
-    ]
-    assert slack_client_mock.get_channels_by_names.call_args_list == [
-        call(["sd-sre-platform", "sre-operators"])
-    ]
 
     assert result == {
         "coreos": {
@@ -436,7 +428,9 @@ def test_get_desired_state(
                 usergroup="saas-osd-operators",
                 description="SREP managed-cluster-config owners (managed via app-interface)",
                 users=set(),
+                user_names={"repo-user", "user1", "slack_username"},
                 channels=set(),
+                channel_names={"sre-operators", "sd-sre-platform"},
                 usergroup_id="ugid",
             )
         }
@@ -444,26 +438,18 @@ def test_get_desired_state(
 
 
 def test_get_desired_state_cluster_usergroups(
-    mocker: MockerFixture, slack_map: SlackMap, slack_client_mock: Mock, user: UserV1
+    mocker: MockerFixture, slack_map: SlackMap, user: UserV1
 ) -> None:
     mocker.patch("reconcile.openshift_users.fetch_desired_state", autospec=True)
     mocker.patch(
         "reconcile.slack_usergroups.include_user_to_cluster_usergroup"
     ).return_value = True
-    slack_client_mock.get_usergroup_id.return_value = "ugid"
 
     cluster = ClusterV1(name="cluster1", auth=[], disable={"integrations": []})
     result = integ.get_desired_state_cluster_usergroups(
         slack_map, [cluster], [user], None, None
     )
-    assert slack_client_mock.get_users_by_names.call_args_list == [
-        call(["slack"]),
-        call(["slack"]),
-    ]
-    assert slack_client_mock.get_channels_by_names.call_args_list == [
-        call(["channel"]),
-        call(["channel"]),
-    ]
+
     assert result == {
         "coreos": {
             "cluster1-cluster": State(
@@ -471,7 +457,9 @@ def test_get_desired_state_cluster_usergroups(
                 usergroup="cluster1-cluster",
                 description="Users with access to the cluster1 cluster",
                 users=set(),
+                user_names={"slack"},
                 channels=set(),
+                channel_names={"channel"},
                 usergroup_id="ugid",
             )
         },
@@ -481,7 +469,9 @@ def test_get_desired_state_cluster_usergroups(
                 usergroup="cluster1-cluster",
                 description="Users with access to the cluster1 cluster",
                 users=set(),
+                user_names={"slack"},
                 channels=set(),
+                channel_names={"channel"},
                 usergroup_id="ugid",
             )
         },
@@ -489,26 +479,18 @@ def test_get_desired_state_cluster_usergroups(
 
 
 def test_get_desired_state_non_existing_usergroup(
-    mocker: MockerFixture, slack_map: SlackMap, slack_client_mock: Mock, user: UserV1
+    mocker: MockerFixture, slack_map: SlackMap, user: UserV1
 ) -> None:
     mocker.patch("reconcile.openshift_users.fetch_desired_state", autospec=True)
     mocker.patch(
         "reconcile.slack_usergroups.include_user_to_cluster_usergroup"
     ).return_value = True
-    slack_client_mock.get_usergroup_id.return_value = None
 
     cluster = ClusterV1(name="cluster1", auth=[], disable={"integrations": []})
     result = integ.get_desired_state_cluster_usergroups(
         slack_map, [cluster], [user], None, None
     )
-    assert slack_client_mock.get_users_by_names.call_args_list == [
-        call(["slack"]),
-        call(["slack"]),
-    ]
-    assert slack_client_mock.get_channels_by_names.call_args_list == [
-        call(["channel"]),
-        call(["channel"]),
-    ]
+
     assert result == {
         "coreos": {
             "cluster1-cluster": State(
@@ -516,7 +498,9 @@ def test_get_desired_state_non_existing_usergroup(
                 usergroup="cluster1-cluster",
                 description="Users with access to the cluster1 cluster",
                 users=set(),
+                user_names={"slack"},
                 channels=set(),
+                channel_names={"channel"},
                 usergroup_id=None,
             )
         },
@@ -526,7 +510,9 @@ def test_get_desired_state_non_existing_usergroup(
                 usergroup="cluster1-cluster",
                 description="Users with access to the cluster1 cluster",
                 users=set(),
+                user_names={"slack"},
                 channels=set(),
+                channel_names={"channel"},
                 usergroup_id=None,
             )
         },
@@ -597,6 +583,9 @@ def test_act_empty_current_state(
     desired_state = base_state
 
     slack_client_mock.create_usergroup.return_value = "USERGA"
+    slack_client_mock.get_usergroup_id.return_value = "USERGA"
+    slack_client_mock.get_users_by_names.return_value = {"USERA": "username"}
+    slack_client_mock.get_channels_by_names.return_value = {"CHANA": "someotherchannel"}
 
     act(current_state, desired_state, slack_map, dry_run=False)
 
@@ -615,10 +604,12 @@ def test_act_update_usergroup_users(
     current_state = base_state
     desired_state = copy.deepcopy(base_state)
 
-    desired_state["slack-workspace"]["usergroup-1"].users = {
-        SlackObject(name="someotherusername", pk="USERB"),
-        SlackObject(name="anotheruser", pk="USERC"),
+    slack_client_mock.get_usergroup_id.return_value = "USERGA"
+    slack_client_mock.get_users_by_names.return_value = {
+        "USERB": "someotherusername",
+        "USERC": "anotheruser",
     }
+    slack_client_mock.get_channels_by_names.return_value = {"CHANA": "channelname"}
 
     act(current_state, desired_state, slack_map, dry_run=False)
 
@@ -634,9 +625,11 @@ def test_act_update_usergroup_channels(
     current_state = base_state
     desired_state = copy.deepcopy(base_state)
 
-    desired_state["slack-workspace"]["usergroup-1"].channels = {
-        SlackObject(pk="CHANB", name="someotherchannel")
-    }
+    desired_state["slack-workspace"]["usergroup-1"].channel_names = {"CHANB"}
+
+    slack_client_mock.get_usergroup_id.return_value = "USERGA"
+    slack_client_mock.get_users_by_names.return_value = {"USERA": "username"}
+    slack_client_mock.get_channels_by_names.return_value = {"CHANB": "channel"}
 
     act(current_state, desired_state, slack_map, dry_run=False)
 
@@ -655,6 +648,10 @@ def test_act_update_usergroup_description(
     desired_state["slack-workspace"][
         "usergroup-1"
     ].description = "A different description"
+
+    slack_client_mock.get_usergroup_id.return_value = "USERGA"
+    slack_client_mock.get_users_by_names.return_value = {"USERA": "username"}
+    slack_client_mock.get_channels_by_names.return_value = {"CHANA": "channel"}
 
     act(current_state, desired_state, slack_map, dry_run=False)
 
@@ -675,9 +672,10 @@ def test_act_update_usergroup_desc_and_channels(
     desired_state["slack-workspace"][
         "usergroup-1"
     ].description = "A different description"
-    desired_state["slack-workspace"]["usergroup-1"].channels = {
-        SlackObject(pk="CHANB", name="someotherchannel")
-    }
+
+    slack_client_mock.get_usergroup_id.return_value = "USERGA"
+    slack_client_mock.get_users_by_names.return_value = {"USERA": "username"}
+    slack_client_mock.get_channels_by_names.return_value = {"CHANB": "someotherchannel"}
 
     act(current_state, desired_state, slack_map, dry_run=False)
 
@@ -692,21 +690,40 @@ def test_act_update_usergroup_desc_and_channels(
 def test_act_add_new_usergroups(
     base_state: SlackState, slack_map: SlackMap, slack_client_mock: Mock
 ) -> None:
+    def get_users(users: set[str]) -> dict[str, str]:
+        if "username" in users:
+            return {"USERA": "username"}
+        if "userb" in users:
+            return {"USERB": "userb", "USERC": "userc"}
+        return {"USERF": "userf", "USERG": "userg"}
+
+    def get_channels(channels: set[str]) -> dict[str, str]:
+        if "channelname" in channels:
+            return {"CHANA": "channelname"}
+        if "channelb" in channels:
+            return {"CHANB": "channelb", "CHANC": "channelc"}
+        return {"CHANF": "channelf", "CHANG": "channelg"}
+
+    def get_ugid(usergroup: str) -> str:
+        if usergroup == "usergroup-1":
+            return "USERGA"
+        if usergroup == "usergroup-2":
+            return "USERGB"
+        return "USERGC"
+
     current_state = base_state
     desired_state = copy.deepcopy(base_state)
+
+    slack_client_mock.get_usergroup_id.side_effect = get_ugid
+    slack_client_mock.get_users_by_names.side_effect = get_users
+    slack_client_mock.get_channels_by_names.side_effect = get_channels
 
     desired_state["slack-workspace"]["usergroup-2"] = State(
         workspace="slack-workspace",
         usergroup="usergroup-2",
         usergroup_id="USERGB",
-        users=[
-            SlackObject(pk="USERB", name="userb"),
-            SlackObject(pk="USERC", name="userc"),
-        ],
-        channels=[
-            SlackObject(pk="CHANB", name="channelb"),
-            SlackObject(pk="CHANC", name="channelc"),
-        ],
+        user_names={"userb", "userc"},
+        channel_names={"channelb", "channelc"},
         description="A new usergroup",
     )
 
@@ -714,14 +731,8 @@ def test_act_add_new_usergroups(
         workspace="slack-workspace",
         usergroup="usergroup-3",
         usergroup_id="USERGC",
-        users=[
-            SlackObject(pk="USERF", name="userf"),
-            SlackObject(pk="USERG", name="userg"),
-        ],
-        channels=[
-            SlackObject(pk="CHANF", name="channelf"),
-            SlackObject(pk="CHANG", name="channelg"),
-        ],
+        user_names={"userf", "userg"},
+        channel_names={"channelf", "channelg"},
         description="Another new usergroup",
     )
     slack_client_mock.create_usergroup.side_effect = ["USERGB", "USERGC"]

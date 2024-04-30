@@ -13,17 +13,22 @@ from reconcile.gql_definitions.common.saas_files import (
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
+from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
+    MRKind,
+)
+from reconcile.saas_auto_promotions_manager.meta import QONTRACT_INTEGRATION_VERSION
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.utils.ruamel import create_ruamel_instance
 
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 )
-SAPM_VERSION = "2.1.3"
+SAPM_VERSION = QONTRACT_INTEGRATION_VERSION
 CONTENT_HASHES = "content_hashes"
 CHANNELS_REF = "channels"
 IS_BATCHABLE = "is_batchable"
 VERSION_REF = "sapm_version"
+MR_KIND_REF = "kind"
 
 
 class Renderer:
@@ -136,6 +141,8 @@ class Renderer:
 {CONTENT_HASHES}: {content_hashes}
 
 {IS_BATCHABLE}: {is_batchable}
+
+{MR_KIND_REF}: {MRKind.BATCHER.value}
 
 {VERSION_REF}: {SAPM_VERSION}
         """

@@ -1,8 +1,8 @@
-import json
 from typing import Callable
+from urllib.parse import urlparse
 
-import httpretty as httpretty_module
 import pytest
+from pytest_httpserver import HTTPServer
 from requests import HTTPError
 
 from reconcile.utils.prometheus import (
@@ -36,9 +36,9 @@ def test_prometheus_vector() -> None:
 
 
 @pytest.fixture
-def prometheus_http_querier() -> PrometheusHttpQuerier:
+def prometheus_http_querier(httpserver: HTTPServer) -> PrometheusHttpQuerier:
     return PrometheusHttpQuerier(
-        query_url="http://my-prometheus/api/v1/query",
+        query_url=httpserver.url_for("/api/v1/query"),
         auth_token="1234567890",
     )
 
@@ -58,20 +58,18 @@ PrometheusResponseBuilder = Callable[[int, str, str, list[dict]], None]
 
 @pytest.fixture
 def prometheus_response_builder(
-    prometheus_http_querier: PrometheusHttpQuerier, httpretty: httpretty_module
+    prometheus_http_querier: PrometheusHttpQuerier, httpserver: HTTPServer
 ) -> PrometheusResponseBuilder:
     def build_response(
         http_status: int, status: str, result_type: str, metrics: list[dict]
     ) -> None:
-        httpretty.register_uri(
-            httpretty.GET,
-            prometheus_http_querier.query_url,
-            status=http_status,
-            body=json.dumps({
+        url = urlparse(prometheus_http_querier.query_url)
+        httpserver.expect_request(url.path).respond_with_json(
+            {
                 "status": status,
                 "data": {"resultType": result_type, "result": metrics},
-            }),
-            content_type="text/json",
+            },
+            status=http_status,
         )
 
     return build_response

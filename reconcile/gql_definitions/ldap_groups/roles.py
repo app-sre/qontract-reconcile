@@ -33,7 +33,11 @@ fragment AWSAccountSSO on AWSAccount_v1 {
 query LdapGroupsRolesQuery {
   roles: roles_v1 {
     name
-    ldapGroup
+    ldapGroup {
+      name
+      notes
+      membersAreOwners
+    }
     users {
       org_username
     }
@@ -58,6 +62,12 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
+class LdapGroupV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    notes: Optional[str] = Field(..., alias="notes")
+    members_are_owners: Optional[bool] = Field(..., alias="membersAreOwners")
+
+
 class UserV1(ConfiguredBaseModel):
     org_username: str = Field(..., alias="org_username")
 
@@ -72,7 +82,7 @@ class AWSGroupV1(ConfiguredBaseModel):
 
 class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    ldap_group: Optional[str] = Field(..., alias="ldapGroup")
+    ldap_group: Optional[LdapGroupV1] = Field(..., alias="ldapGroup")
     users: list[UserV1] = Field(..., alias="users")
     user_policies: Optional[list[AWSUserPolicyV1]] = Field(..., alias="user_policies")
     aws_groups: Optional[list[AWSGroupV1]] = Field(..., alias="aws_groups")

@@ -8,19 +8,16 @@ from unittest.mock import create_autospec
 import pytest
 from gitlab.v4.objects import ProjectMergeRequest
 
-from reconcile.gql_definitions.fragments.saas_target_namespace import (
-    SaasTargetNamespace,
+from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
+    Batcher,
+    Diff,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager_v2 import (
     SAPM_LABEL,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
-    OpenMergeRequest,
-)
-from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
-    Diff,
-    Reconciler,
+    OpenBatcherMergeRequest,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     CHANNELS_REF,
@@ -31,24 +28,17 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     VERSION_REF,
     Renderer,
 )
-from reconcile.saas_auto_promotions_manager.subscriber import (
-    Channel,
-    Subscriber,
-)
 from reconcile.utils.vcs import VCS, MRCheckStatus
 
 from .data_keys import (
-    CHANNEL,
     DESCRIPTION,
     HAS_CONFLICTS,
     LABELS,
     OPEN_MERGE_REQUESTS,
     PIPELINE_RESULTS,
-    REF,
     SUBSCRIBER_BATCHABLE,
     SUBSCRIBER_CHANNELS,
     SUBSCRIBER_CONTENT_HASH,
-    SUBSCRIBER_TARGET_PATH,
 )
 
 
@@ -101,8 +91,8 @@ def vcs_builder(
 
 
 @pytest.fixture
-def mr_parser_builder() -> Callable[[Iterable[OpenMergeRequest]], MRParser]:
-    def builder(data: Iterable[OpenMergeRequest]) -> MRParser:
+def mr_parser_builder() -> Callable[[Iterable[OpenBatcherMergeRequest]], MRParser]:
+    def builder(data: Iterable[OpenBatcherMergeRequest]) -> MRParser:
         mr_parser = create_autospec(spec=MRParser)
         mr_parser.retrieve_open_mrs.side_effect = [data]
         return mr_parser
@@ -111,38 +101,11 @@ def mr_parser_builder() -> Callable[[Iterable[OpenMergeRequest]], MRParser]:
 
 
 @pytest.fixture
-def reconciler_builder() -> Callable[[Diff], Reconciler]:
-    def builder(data: Diff) -> Reconciler:
-        reconciler = create_autospec(spec=Reconciler)
+def reconciler_builder() -> Callable[[Diff], Batcher]:
+    def builder(data: Diff) -> Batcher:
+        reconciler = create_autospec(spec=Batcher)
         reconciler.reconcile.side_effect = [data]
         return reconciler
-
-    return builder
-
-
-@pytest.fixture
-def subscriber_builder(
-    saas_target_namespace_builder: Callable[..., SaasTargetNamespace],
-) -> Callable[..., Subscriber]:
-    def builder(data: Mapping) -> Subscriber:
-        subscriber = Subscriber(
-            saas_name="",
-            template_name="",
-            target_namespace=saas_target_namespace_builder({}),
-            ref="",
-            target_file_path=data.get(SUBSCRIBER_TARGET_PATH, ""),
-            use_target_config_hash=True,
-        )
-        subscriber.desired_hashes = []
-        subscriber.desired_ref = data.get(REF, "")
-        for channel in data.get(CHANNEL, []):
-            subscriber.channels.append(
-                Channel(
-                    name=channel,
-                    publishers=[],
-                )
-            )
-        return subscriber
 
     return builder
 

@@ -1,9 +1,7 @@
-import json
 from collections.abc import Callable
 from typing import Optional
 
-import httpretty as httpretty_module
-from httpretty.core import HTTPrettyRequest
+from werkzeug import Request
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm.base import (
@@ -66,7 +64,7 @@ def test_get_cluster_groups(
 def test_add_user_to_cluster_group(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_ocm_http_request: Callable[[str, str], Optional[HTTPrettyRequest]],
+    find_ocm_http_request: Callable[[str, str], Optional[Request]],
 ) -> None:
     cluster_id = "cluster_id"
     user_name = "user-to-add"
@@ -82,14 +80,15 @@ def test_add_user_to_cluster_group(
     )
 
     post_request = find_ocm_http_request("POST", add_user_url)
-    assert isinstance(post_request, HTTPrettyRequest)
-    assert json.loads(post_request.body).get("id") == user_name
+    assert (
+        post_request and post_request.json and post_request.json.get("id") == user_name
+    )
 
 
 def test_delete_user_from_cluster_group(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    httpretty: httpretty_module,
+    find_all_ocm_http_requests: Callable,
 ) -> None:
     cluster_id = "cluster_id"
     user_name = "user-to-delete"
@@ -104,11 +103,5 @@ def test_delete_user_from_cluster_group(
         user_name=user_name,
     )
 
-    assert next(
-        (
-            req
-            for req in httpretty.latest_requests()
-            if req.method == "DELETE" and req.path == user_delete_url
-        ),
-        None,
-    )
+    ocm_calls = find_all_ocm_http_requests("DELETE")
+    assert len(ocm_calls) == 1

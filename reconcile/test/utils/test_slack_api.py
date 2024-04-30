@@ -1,4 +1,3 @@
-import json
 from collections import namedtuple
 from typing import Any
 from unittest.mock import (
@@ -7,8 +6,9 @@ from unittest.mock import (
     patch,
 )
 
-import httpretty
 import pytest
+from pytest_httpserver import HTTPServer
+from pytest_mock import MockerFixture
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web import SlackResponse
 
@@ -22,9 +22,11 @@ from reconcile.utils.slack_api import (
     UserNotFoundException,
 )
 
+SlackApiMock = namedtuple("SlackApiMock", "client mock_slack_client")
+
 
 @pytest.fixture
-def slack_api(mocker):
+def slack_api(mocker: MockerFixture) -> SlackApiMock:
     mock_slack_client = mocker.patch.object(
         reconcile.utils.slack_api, "WebClient", autospec=True
     )
@@ -34,13 +36,11 @@ def slack_api(mocker):
 
     slack_api = SlackApi("some-workspace", "token")
 
-    SlackApiMock = namedtuple("SlackApiMock", "client mock_slack_client")
-
     return SlackApiMock(slack_api, mock_slack_client)
 
 
 @pytest.fixture
-def conversation_history(slack_api):
+def conversation_history(slack_api: SlackApiMock) -> SlackResponse:
     fixture = Fixtures("slack_api").get_anymarkup("conversations_history_messages.yaml")
     response = new_slack_response({
         "ok": True,
@@ -58,14 +58,14 @@ def conversation_history(slack_api):
     return response
 
 
-def test_slack_api_config_defaults():
+def test_slack_api_config_defaults() -> None:
     slack_api_config = SlackApiConfig()
 
     assert slack_api_config.max_retries == MAX_RETRIES
     assert slack_api_config.timeout == TIMEOUT
 
 
-def test_slack_api_config_from_dict():
+def test_slack_api_config_from_dict() -> None:
     data = {
         "global": {"max_retries": 1, "timeout": 5},
         "methods": [
@@ -86,7 +86,7 @@ def test_slack_api_config_from_dict():
     assert slack_api_config.timeout == 5
 
 
-def new_slack_response(data: dict[str, Any]):
+def new_slack_response(data: dict[str, Any]) -> SlackResponse:
     return SlackResponse(
         client="",
         http_verb="",
@@ -98,7 +98,7 @@ def new_slack_response(data: dict[str, Any]):
     )
 
 
-def test_instantiate_slack_api_with_config(mocker):
+def test_instantiate_slack_api_with_config(mocker: MockerFixture) -> None:
     """
     When SlackApiConfig is passed into SlackApi, the constructor shouldn't
     create a default configuration object.
@@ -117,7 +117,7 @@ def test_instantiate_slack_api_with_config(mocker):
     assert slack_api.config is config
 
 
-def test__get_default_args(slack_api):
+def test__get_default_args(slack_api: SlackApiMock) -> None:
     """
     There shouldn't be any extra params passed to the client if config is
     unset.
@@ -134,7 +134,7 @@ def test__get_default_args(slack_api):
     )
 
 
-def test__get_with_matching_method_config(slack_api):
+def test__get_with_matching_method_config(slack_api: SlackApiMock) -> None:
     """Passing in a SlackApiConfig object with a matching method name."""
     slack_api.mock_slack_client.return_value.api_call.return_value = {
         "channels": [],
@@ -152,7 +152,7 @@ def test__get_with_matching_method_config(slack_api):
     )
 
 
-def test__get_without_matching_method_config(slack_api):
+def test__get_without_matching_method_config(slack_api: SlackApiMock) -> None:
     """Passing in a SlackApiConfig object without a matching method name."""
     slack_api.mock_slack_client.return_value.api_call.return_value = {
         "something": [],
@@ -170,7 +170,7 @@ def test__get_without_matching_method_config(slack_api):
     )
 
 
-def test__get_uses_cache(slack_api):
+def test__get_uses_cache(slack_api: SlackApiMock) -> None:
     """The API is never called when the results are already cached."""
     # Reset the mock to clear any calls during __init__
     slack_api.mock_slack_client.return_value.api_call.reset_mock()
@@ -181,20 +181,22 @@ def test__get_uses_cache(slack_api):
     slack_api.mock_slack_client.return_value.api_call.assert_not_called()
 
 
-def test_chat_post_message(slack_api):
+def test_chat_post_message(slack_api: SlackApiMock) -> None:
     """Don't raise an exception when the channel is set."""
     slack_api.client.channel = "some-channel"
     slack_api.client.chat_post_message("test")
 
 
-def test_chat_post_message_missing_channel(slack_api):
+def test_chat_post_message_missing_channel(slack_api: SlackApiMock) -> None:
     """Raises an exception when channel isn't set."""
     slack_api.client.channel = None
     with pytest.raises(ValueError):
         slack_api.client.chat_post_message("test")
 
 
-def test_chat_post_message_channel_not_found(mocker, slack_api):
+def test_chat_post_message_channel_not_found(
+    mocker: MockerFixture, slack_api: SlackApiMock
+) -> None:
     slack_api.client.channel = "test"
     mock_join = mocker.patch(
         "reconcile.utils.slack_api.SlackApi.join_channel", autospec=True
@@ -209,7 +211,7 @@ def test_chat_post_message_channel_not_found(mocker, slack_api):
     mock_join.assert_called_once()
 
 
-def test_chat_post_message_ok(slack_api):
+def test_chat_post_message_ok(slack_api: SlackApiMock) -> None:
     slack_api.client.channel = "test"
     ok_resp = new_slack_response({"ok": True})
     slack_api.mock_slack_client.return_value.chat_postMessage.side_effect = ok_resp
@@ -217,7 +219,7 @@ def test_chat_post_message_ok(slack_api):
     slack_api.mock_slack_client.return_value.chat_postMessage.assert_called_once()
 
 
-def test_chat_post_message_raises_other(mocker, slack_api):
+def test_chat_post_message_raises_other(slack_api: SlackApiMock) -> None:
     slack_api.client.channel = "test"
     err_resp = new_slack_response({"ok": False, "error": "no_text"})
     slack_api.mock_slack_client.return_value.chat_postMessage.side_effect = (
@@ -228,7 +230,7 @@ def test_chat_post_message_raises_other(mocker, slack_api):
     slack_api.mock_slack_client.return_value.chat_postMessage.assert_called_once()
 
 
-def test_join_channel_missing_channel(slack_api):
+def test_join_channel_missing_channel(slack_api: SlackApiMock) -> None:
     """Raises an exception when the channel is not set."""
     slack_api.client.channel = None
     with pytest.raises(ValueError):
@@ -236,7 +238,9 @@ def test_join_channel_missing_channel(slack_api):
 
 
 @pytest.mark.parametrize("joined", [True, False])
-def test_join_channel_already_joined(slack_api, mocker, joined):
+def test_join_channel_already_joined(
+    slack_api: SlackApiMock, mocker: MockerFixture, joined: bool
+) -> None:
     mocker.patch(
         "reconcile.utils.slack_api.SlackApi.get_channels_by_names",
         return_value={"123": "test", "456": "foo"},
@@ -260,7 +264,7 @@ def test_join_channel_already_joined(slack_api, mocker, joined):
         )
 
 
-def test_create_usergroup(slack_api):
+def test_create_usergroup(slack_api: SlackApiMock) -> None:
     slack_api.client.create_usergroup("ABCD")
 
     assert slack_api.mock_slack_client.return_value.usergroups_create.call_args == call(
@@ -308,7 +312,9 @@ def test_create_usergroup(slack_api):
         ),
     ],
 )
-def test_get_users_by_ids(slack_api, user, ids, expected):
+def test_get_users_by_ids(
+    slack_api: SlackApiMock, user: dict, ids: list[str], expected: dict
+) -> None:
     slack_response = new_slack_response({
         "members": [user],
         "response_metadata": {"next_cursor": ""},
@@ -318,7 +324,7 @@ def test_get_users_by_ids(slack_api, user, ids, expected):
     assert slack_api.client.get_users_by_ids(ids) == expected
 
 
-def test_update_usergroup_users(slack_api):
+def test_update_usergroup_users(slack_api: SlackApiMock) -> None:
     slack_api.client.update_usergroup_users("ABCD", ["USERA", "USERB"])
 
     assert (
@@ -328,7 +334,9 @@ def test_update_usergroup_users(slack_api):
 
 
 @patch.object(SlackApi, "get_random_deleted_user", autospec=True)
-def test_update_usergroup_users_empty_list(mock_get_deleted, slack_api):
+def test_update_usergroup_users_empty_list(
+    mock_get_deleted: MagicMock, slack_api: SlackApiMock
+) -> None:
     """Passing in an empty list supports removing all users from a group."""
     mock_get_deleted.return_value = "a-deleted-user"
 
@@ -340,7 +348,7 @@ def test_update_usergroup_users_empty_list(mock_get_deleted, slack_api):
     )
 
 
-def test_get_user_id_by_name_user_not_found(slack_api):
+def test_get_user_id_by_name_user_not_found(slack_api: SlackApiMock) -> None:
     """
     Check that UserNotFoundException will be raised under expected conditions.
     """
@@ -352,7 +360,7 @@ def test_get_user_id_by_name_user_not_found(slack_api):
         slack_api.client.get_user_id_by_name("someuser", "redhat.com")
 
 
-def test_get_user_id_by_name_reraise(slack_api):
+def test_get_user_id_by_name_reraise(slack_api: SlackApiMock) -> None:
     """
     Check that SlackApiError is re-raised when not otherwise handled as a user
     not found error.
@@ -365,7 +373,9 @@ def test_get_user_id_by_name_reraise(slack_api):
         slack_api.client.get_user_id_by_name("someuser", "redhat.com")
 
 
-def test_update_usergroups_users_empty_no_raise(mocker, slack_api):
+def test_update_usergroups_users_empty_no_raise(
+    mocker: MockerFixture, slack_api: SlackApiMock
+) -> None:
     """
     invalid_users errors shouldn't be raised because providing an empty
     list is actually removing users from the usergroup.
@@ -379,7 +389,7 @@ def test_update_usergroups_users_empty_no_raise(mocker, slack_api):
     slack_api.client.update_usergroup_users("ABCD", [])
 
 
-def test_update_usergroups_users_raise(slack_api):
+def test_update_usergroups_users_raise(slack_api: SlackApiMock) -> None:
     """
     Any errors other than invalid_users should result in an exception being
     raised.
@@ -392,7 +402,9 @@ def test_update_usergroups_users_raise(slack_api):
         slack_api.client.update_usergroup_users("ABCD", ["USERA"])
 
 
-def test_get_flat_conversation_history_no_messages(slack_api, conversation_history):
+def test_get_flat_conversation_history_no_messages(
+    slack_api: SlackApiMock, conversation_history: SlackResponse
+) -> None:
     fixture_messages = conversation_history["messages"]
     first_ts = fixture_messages[0]["ts"]
 
@@ -408,7 +420,9 @@ def test_get_flat_conversation_history_no_messages(slack_api, conversation_histo
     assert len(messages) == 0
 
 
-def test_get_flat_conversation_history(slack_api, conversation_history):
+def test_get_flat_conversation_history(
+    slack_api: SlackApiMock, conversation_history: SlackResponse
+) -> None:
     fixture_messages = conversation_history["messages"]
     first_ts = fixture_messages[0]["ts"]
     last_ts = fixture_messages[-1]["ts"]
@@ -433,110 +447,98 @@ def test_get_flat_conversation_history(slack_api, conversation_history):
 # that the handlers are configured properly, as well as testing the custom
 # ServerErrorRetryHandler handler.
 #
+@pytest.fixture
+def slack_client(httpserver: HTTPServer) -> SlackApi:
+    return SlackApi(
+        "workspace",
+        "token",
+        init_usergroups=False,
+        slack_url=httpserver.url_for("/api/"),
+    )
 
 
-@httpretty.activate(allow_net_connect=False)
-@patch("time.sleep", autospec=True)
-def test_slack_api__client_throttle_raise(mock_sleep):
+def test_slack_api__client_throttle_raise(
+    patch_sleep: None, httpserver: HTTPServer, slack_client: SlackApi
+) -> None:
     """Raise an exception if the max retries is exceeded."""
-    httpretty.register_uri(
-        httpretty.POST,
-        "https://www.slack.com/api/users.list",
-        adding_headers={"Retry-After": "1"},
-        body=json.dumps({"ok": "false", "error": "ratelimited"}),
+    httpserver.expect_request("/api/users.list", method="post").respond_with_json(
+        {"ok": "false", "error": "ratelimited"},
+        headers={"Retry-After": "1"},
         status=429,
     )
 
-    slack_client = SlackApi("workspace", "token", init_usergroups=False)
-
     with pytest.raises(SlackApiError):
         slack_client._sc.api_call("users.list")
 
-    assert len(httpretty.latest_requests()) == MAX_RETRIES + 1
+    assert len(httpserver.log) == MAX_RETRIES + 1
 
 
-@httpretty.activate(allow_net_connect=False)
-@patch("time.sleep", autospec=True)
-def test_slack_api__client_throttle_doesnt_raise(mock_sleep):
+def test_slack_api__client_throttle_doesnt_raise(
+    patch_sleep: None, httpserver: HTTPServer, slack_client: SlackApi
+) -> None:
     """Don't raise an exception if the max retries aren't reached."""
-    uri_args = (httpretty.POST, "https://www.slack.com/api/users.list")
+    uri_args = ("/api/users.list", "post")
     uri_kwargs_failure = {
-        "adding_headers": {"Retry-After": "1"},
-        "body": json.dumps({"ok": "false", "error": "ratelimited"}),
+        "headers": {"Retry-After": "1"},
+        "response_json": {"ok": "false", "error": "ratelimited"},
         "status": 429,
     }
-    uri_kwargs_success = {"body": json.dumps({"ok": "true"}), "status": 200}
+    uri_kwargs_success = {"response_json": {"ok": "true"}, "status": 200}
 
-    # These are registered LIFO (3 failures and then 1 success)
-    httpretty.register_uri(*uri_args, **uri_kwargs_success)
-    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
-    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
-    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
-
-    slack_client = SlackApi("workspace", "token", init_usergroups=False)
+    httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_failure)
+    httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_failure)
+    httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_failure)
+    httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_success)
 
     slack_client._sc.api_call("users.list")
 
-    assert len(httpretty.latest_requests()) == 4
+    assert len(httpserver.log) == 4
 
 
-@httpretty.activate(allow_net_connect=False)
-@patch("time.sleep", autospec=True)
-def test_slack_api__client_5xx_raise(mock_sleep):
+def test_slack_api__client_5xx_raise(
+    patch_sleep: None, httpserver: HTTPServer, slack_client: SlackApi
+) -> None:
     """Raise an exception if the max retries is exceeded."""
-    httpretty.register_uri(
-        httpretty.POST,
-        "https://www.slack.com/api/users.list",
-        body=json.dumps({"ok": "false", "error": "internal_error"}),
+    httpserver.expect_request("/api/users.list", method="post").respond_with_json(
+        {"ok": "false", "error": "internal_error"},
         status=500,
     )
-
-    slack_client = SlackApi("workspace", "token", init_usergroups=False)
-
     with pytest.raises(SlackApiError):
         slack_client._sc.api_call("users.list")
 
-    assert len(httpretty.latest_requests()) == MAX_RETRIES + 1
+    assert len(httpserver.log) == MAX_RETRIES + 1
 
 
-@httpretty.activate(allow_net_connect=False)
-@patch("time.sleep", autospec=True)
-def test_slack_api__client_5xx_doesnt_raise(mock_sleep):
+def test_slack_api__client_5xx_doesnt_raise(
+    patch_sleep: None, httpserver: HTTPServer, slack_client: SlackApi
+) -> None:
     """Don't raise an exception if the max retries aren't reached."""
-    uri_args = (httpretty.POST, "https://www.slack.com/api/users.list")
+    uri_args = ("/api/users.list", "post")
     uri_kwargs_failure = {
-        "body": json.dumps({"ok": "false", "error": "internal_error"}),
+        "response_json": {"ok": "false", "error": "internal_error"},
         "status": 500,
     }
-    uri_kwargs_success = {"body": json.dumps({"ok": "true"}), "status": 200}
+    uri_kwargs_success = {"response_json": {"ok": "true"}, "status": 200}
 
-    # These are registered LIFO (3 failures and then 1 success)
-    httpretty.register_uri(*uri_args, **uri_kwargs_success)
-    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
-    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
-    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
-
-    slack_client = SlackApi("workspace", "token", init_usergroups=False)
+    httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_failure)
+    httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_failure)
+    httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_failure)
+    httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_success)
 
     slack_client._sc.api_call("users.list")
 
-    assert len(httpretty.latest_requests()) == 4
+    assert len(httpserver.log) == 4
 
 
-@httpretty.activate(allow_net_connect=False)
-@patch("time.sleep", autospec=True)
-def test_slack_api__client_dont_retry(mock_sleep):
+def test_slack_api__client_dont_retry(
+    patch_sleep: None, httpserver: HTTPServer, slack_client: SlackApi
+) -> None:
     """Don't retry client-side errors that aren't 429s."""
-    httpretty.register_uri(
-        httpretty.POST,
-        "https://www.slack.com/api/users.list",
-        body=json.dumps({"ok": "false", "error": "internal_error"}),
+    httpserver.expect_request("/api/users.list", method="post").respond_with_json(
+        {"ok": "false", "error": "internal_error"},
         status=401,
     )
-
-    slack_client = SlackApi("workspace", "token", init_usergroups=False)
-
     with pytest.raises(SlackApiError):
         slack_client._sc.api_call("users.list")
 
-    assert len(httpretty.latest_requests()) == 1
+    assert len(httpserver.log) == 1

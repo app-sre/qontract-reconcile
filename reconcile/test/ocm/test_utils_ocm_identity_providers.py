@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from httpretty.core import HTTPrettyRequest
+from werkzeug import Request
 
 from reconcile.test.ocm.fixtures import (
     OcmUrl,
@@ -60,7 +60,7 @@ def test_utils_get_subscription_labels(
 def test_add_identity_provider(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str], list[HTTPrettyRequest]],
+    find_all_ocm_http_requests: Callable[[str], list[Request]],
 ) -> None:
     ocm_cluster = build_ocm_cluster("cluster")
     ocm_cluster.identity_providers.href = "/api/foobar"
@@ -75,7 +75,7 @@ def test_add_identity_provider(
 def test_update_identity_provider(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str], list[HTTPrettyRequest]],
+    find_all_ocm_http_requests: Callable[[str], list[Request]],
 ) -> None:
     register_ocm_url_responses([OcmUrl(method="PATCH", uri=IDP_OIDC.href)])
     update_identity_provider(ocm_api, IDP_OIDC)
@@ -86,7 +86,7 @@ def test_update_identity_provider(
 def test_delete_identity_provider(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str], list[HTTPrettyRequest]],
+    find_all_ocm_http_requests: Callable[[str], list[Request]],
 ) -> None:
     register_ocm_url_responses([OcmUrl(method="DELETE", uri=IDP_OTHER.href)])
     delete_identity_provider(ocm_api, IDP_OTHER)

@@ -1,7 +1,7 @@
 from typing import Callable
 
 import pytest
-from httpretty.core import HTTPrettyRequest
+from werkzeug import Request
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.test.ocm.test_utils_ocm_get_json import build_paged_ocm_response
@@ -26,18 +26,21 @@ def test_get_json_pagination(
     nr_of_items: int,
     page_size: int,
     ocm_api: OCMBaseClient,
-    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str, str], list[HTTPrettyRequest]],
+    register_ocm_url_responses: Callable[[list[OcmUrl], int], int],
+    find_all_ocm_http_requests: Callable[[str, str], list[Request]],
 ) -> None:
-    register_ocm_url_responses([
-        OcmUrl(
-            method="GET",
-            uri="/api",
-            responses=build_paged_ocm_response(
-                nr_of_items=nr_of_items, page_size=page_size
-            ),
-        )
-    ])
+    register_ocm_url_responses(
+        [
+            OcmUrl(
+                method="GET",
+                uri="/api",
+                responses=build_paged_ocm_response(
+                    nr_of_items=nr_of_items, page_size=page_size
+                ),
+            )
+        ],
+        page_size,
+    )
 
     resp = list(ocm_api.get_paginated("/api", max_page_size=page_size))
 
@@ -50,21 +53,24 @@ def test_get_json_pagination(
 
 def test_get_json_pagination_max_pages(
     ocm_api: OCMBaseClient,
-    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str, str], list[HTTPrettyRequest]],
+    register_ocm_url_responses: Callable[[list[OcmUrl], int], int],
+    find_all_ocm_http_requests: Callable[[str, str], list[Request]],
 ) -> None:
     nr_of_items = 10
     page_size = 3
     max_pages = 2
-    register_ocm_url_responses([
-        OcmUrl(
-            method="GET",
-            uri="/api",
-            responses=build_paged_ocm_response(
-                nr_of_items=nr_of_items, page_size=page_size
-            ),
-        )
-    ])
+    register_ocm_url_responses(
+        [
+            OcmUrl(
+                method="GET",
+                uri="/api",
+                responses=build_paged_ocm_response(
+                    nr_of_items=nr_of_items, page_size=page_size
+                ),
+            )
+        ],
+        page_size,
+    )
     resp = list(
         ocm_api.get_paginated("/api", max_page_size=page_size, max_pages=max_pages)
     )

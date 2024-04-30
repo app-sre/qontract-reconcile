@@ -1,0 +1,20 @@
+# qenerate: plugin=pydantic_v1
+
+query ExternalResourcesSettings {
+    settings: external_resources_settings_v1 {
+        state_dynamodb_account {
+            name
+        }
+        state_dynamodb_table
+        state_dynamodb_region
+        workers_cluster {
+            name
+        }
+        workers_namespace {
+            name
+        }
+        tf_state_bucket
+        tf_state_region
+        tf_state_dynamodb_table
+    }
+}

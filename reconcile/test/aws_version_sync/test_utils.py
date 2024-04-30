@@ -1,12 +1,11 @@
-import json
 from collections.abc import (
     Iterable,
     Mapping,
 )
 from typing import Any
 
-import httpretty as httpretty_module
 import pytest
+from pytest_httpserver import HTTPServer
 
 from reconcile.aws_version_sync.utils import (
     get_values,
@@ -16,27 +15,23 @@ from reconcile.aws_version_sync.utils import (
 )
 
 
-def test_prom_get(httpretty: httpretty_module) -> None:
-    url = "http://prom.com"
-    httpretty.register_uri(
-        "GET",
-        f"{url}/api/v1/query",
-        status=200,
-        body=json.dumps({
-            "data": {
-                "result": [
-                    {"metric": "data1"},
-                    {"metric": "data2"},
-                ],
-            }
-        }),
-        content_type="text/json",
-    )
+def test_prom_get(httpserver: HTTPServer) -> None:
+    httpserver.expect_request("/api/v1/query").respond_with_json({
+        "data": {
+            "result": [
+                {"metric": "data1"},
+                {"metric": "data2"},
+            ],
+        }
+    })
 
-    assert prom_get(url, token="foobar", params={"query": "bar"}) == ["data1", "data2"]
-    assert httpretty.last_request().headers.get("accept") == "application/json"
-    assert httpretty.last_request().headers.get("authorization") == "Bearer foobar"
-    assert httpretty.last_request().querystring == {"query": ["bar"]}
+    assert prom_get(
+        httpserver.url_for(""), token="foobar", params={"query": "bar"}
+    ) == ["data1", "data2"]
+    req, _ = httpserver.log[0]
+    assert req.headers.get("accept") == "application/json"
+    assert req.headers.get("authorization") == "Bearer foobar"
+    assert req.args["query"] == "bar"
 
 
 @pytest.mark.parametrize(

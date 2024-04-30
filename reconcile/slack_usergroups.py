@@ -110,8 +110,9 @@ class State(BaseModel):
     usergroup: str = ""
     description: str = ""
     users: set[SlackObject] = set()
+    user_names: set[str] = set()
     channels: set[SlackObject] = set()
-    usergroup_id: Optional[str] = None
+    channel_names: set[str] = set()
 
     def __bool__(self) -> bool:
         return self.workspace != ""  # noqa: PLC1901
@@ -392,7 +393,6 @@ def include_user_to_cluster_usergroup(
 
 
 def get_desired_state(
-    slack_map: SlackMap,
     pagerduty_map: PagerDutyMap,
     permissions: Iterable[PermissionSlackUsergroupV1],
     users: Iterable[User],
@@ -418,9 +418,6 @@ def get_desired_state(
                     not in managed usergroups {p.workspace.managed_usergroups}"
             )
 
-        slack = slack_map[p.workspace.name].slack
-        ugid = slack.get_usergroup_id(usergroup)
-
         all_user_names = [get_slack_username(u) for r in p.roles or [] for u in r.users]
         slack_usernames_pagerduty = get_usernames_from_pagerduty(
             pagerduties=p.pagerduty or [],
@@ -442,27 +439,16 @@ def get_desired_state(
             )
             all_user_names.extend(slack_usernames_schedule)
 
-        user_names = list(set(all_user_names))
-        slack_users = {
-            SlackObject(pk=pk, name=name)
-            for pk, name in slack.get_users_by_names(sorted(user_names)).items()
-        }
-        slack_channels = {
-            SlackObject(pk=pk, name=name)
-            for pk, name in slack.get_channels_by_names(
-                sorted(p.channels or [])
-            ).items()
-        }
+        user_names = set(all_user_names)
 
         try:
-            desired_state[p.workspace.name][usergroup].users.update(slack_users)
+            desired_state[p.workspace.name][usergroup].user_names.update(user_names)
         except KeyError:
             desired_state.setdefault(p.workspace.name, {})[usergroup] = State(
                 workspace=p.workspace.name,
                 usergroup=usergroup,
-                usergroup_id=ugid,
-                users=slack_users,
-                channels=slack_channels,
+                user_names=user_names,
+                channel_names=sorted(p.channels or []),
                 description=p.description,
             )
     return desired_state
@@ -492,7 +478,7 @@ def get_desired_state_cluster_usergroups(
             for u in openshift_users_desired_state
             if u["cluster"] == cluster.name
         ]
-        cluster_usernames = list({
+        cluster_usernames = set({
             get_slack_username(u)
             for u in users
             if include_user_to_cluster_usergroup(u, cluster, desired_cluster_users)
@@ -509,29 +495,16 @@ def get_desired_state_cluster_usergroups(
             if desired_workspace_name and desired_workspace_name != workspace:
                 continue
 
-            ugid = spec.slack.get_usergroup_id(cluster_user_group)
-            slack_users = {
-                SlackObject(pk=pk, name=name)
-                for pk, name in spec.slack.get_users_by_names(
-                    sorted(cluster_usernames)
-                ).items()
-            }
-            slack_channels = {
-                SlackObject(pk=pk, name=name)
-                for pk, name in spec.slack.get_channels_by_names([
-                    spec.slack.channel
-                ]).items()
-            }
-
             try:
-                desired_state[workspace][cluster_user_group].users.update(slack_users)
+                desired_state[workspace][cluster_user_group].user_names.update(
+                    cluster_usernames
+                )
             except KeyError:
                 desired_state.setdefault(workspace, {})[cluster_user_group] = State(
                     workspace=workspace,
                     usergroup=cluster_user_group,
-                    usergroup_id=ugid,
-                    users=slack_users,
-                    channels=slack_channels,
+                    user_names=cluster_usernames,
+                    channel_names=set([spec.slack.channel]),
                     description=f"Users with access to the {cluster.name} cluster",
                 )
     return desired_state
@@ -558,8 +531,7 @@ def _create_usergroups(
     ])
     if not dry_run:
         try:
-            usergroup_id = slack_client.create_usergroup(desired_ug_state.usergroup)
-            desired_ug_state.usergroup_id = usergroup_id
+            slack_client.create_usergroup(desired_ug_state.usergroup)
         except SlackApiError as error:
             logging.error(error)
             error_occurred = True
@@ -597,13 +569,14 @@ def _update_usergroup_users_from_state(
 
     if not dry_run:
         try:
-            if not desired_ug_state.usergroup_id:
+            ugid = slack_client.get_usergroup_id(desired_ug_state.usergroup)
+            if not ugid:
                 logging.info(
                     f"Usergroup {desired_ug_state.usergroup} does not exist yet. Skipping for now."
                 )
                 return
             slack_client.update_usergroup_users(
-                id=desired_ug_state.usergroup_id,
+                id=ugid,
                 users_list=sorted([user.pk for user in desired_ug_state.users]),
             )
         except SlackApiError as error:
@@ -658,13 +631,14 @@ def _update_usergroup_from_state(
 
     if not dry_run:
         try:
-            if not desired_ug_state.usergroup_id:
+            ugid = slack_client.get_usergroup_id(desired_ug_state.usergroup)
+            if not ugid:
                 logging.info(
                     f"Usergroup {desired_ug_state.usergroup} does not exist yet. Skipping for now."
                 )
                 return
             slack_client.update_usergroup(
-                id=desired_ug_state.usergroup_id,
+                id=ugid,
                 channels_list=sorted([
                     channel.pk for channel in desired_ug_state.channels
                 ]),
@@ -689,24 +663,40 @@ def act(
                 usergroup, State()
             )
 
+            slack_client = slack_map[workspace].slack
+
+            desired_ug_state.users = {
+                SlackObject(pk=pk, name=name)
+                for pk, name in slack_client.get_users_by_names(
+                    sorted(desired_ug_state.user_names)
+                ).items()
+            }
+
+            desired_ug_state.channels = {
+                SlackObject(pk=pk, name=name)
+                for pk, name in slack_client.get_channels_by_names(
+                    sorted(desired_ug_state.channel_names or [])
+                ).items()
+            }
+
             _create_usergroups(
                 current_ug_state,
                 desired_ug_state,
-                slack_client=slack_map[workspace].slack,
+                slack_client=slack_client,
                 dry_run=dry_run,
             )
 
             _update_usergroup_users_from_state(
                 current_ug_state,
                 desired_ug_state,
-                slack_client=slack_map[workspace].slack,
+                slack_client=slack_client,
                 dry_run=dry_run,
             )
 
             _update_usergroup_from_state(
                 current_ug_state,
                 desired_ug_state,
-                slack_client=slack_map[workspace].slack,
+                slack_client=slack_client,
                 dry_run=dry_run,
             )
 
@@ -760,7 +750,6 @@ def run(
 
     # run
     desired_state = get_desired_state(
-        slack_map=slack_map,
         pagerduty_map=pagerduty_map,
         permissions=permissions,
         users=users,
@@ -776,6 +765,7 @@ def run(
     )
     # merge the two desired states recursively
     desired_state = deep_update(desired_state, desired_state_cluster_usergroups)
+
     current_state = get_current_state(
         slack_map=slack_map,
         desired_workspace_name=workspace_name,

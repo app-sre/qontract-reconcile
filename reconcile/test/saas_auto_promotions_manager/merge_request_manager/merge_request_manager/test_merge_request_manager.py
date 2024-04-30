@@ -3,19 +3,21 @@ from unittest.mock import call, create_autospec
 
 from gitlab.v4.objects import ProjectMergeRequest
 
+from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
+    Addition,
+    Batcher,
+    Deletion,
+    Diff,
+    Reason,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager_v2 import (
     MergeRequestManagerV2,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
-    OpenMergeRequest,
 )
-from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
-    Addition,
-    Deletion,
-    Diff,
-    Reason,
-    Reconciler,
+from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
+    OpenBatcherMergeRequest,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
@@ -29,7 +31,7 @@ from reconcile.utils.vcs import VCS
 
 
 def test_reconcile(
-    reconciler_builder: Callable[[Diff], Reconciler],
+    reconciler_builder: Callable[[Diff], Batcher],
     subscriber_builder: Callable[..., Subscriber],
 ) -> None:
     vcs = create_autospec(spec=VCS)
@@ -42,7 +44,7 @@ def test_reconcile(
         })
     ]
     deletion = Deletion(
-        mr=OpenMergeRequest(
+        mr=OpenBatcherMergeRequest(
             raw=create_autospec(spec=ProjectMergeRequest),
             channels=set(),
             content_hashes=set(),

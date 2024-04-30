@@ -78,7 +78,8 @@ glitchtip_urls:
       - id: 6
         slug: esa-pilots
   - name: "team users"
-    uri: /api/0/teams/esa/esa-pilots/members/?limit=100"
+    uri: /api/0/teams/esa/esa-pilots/members/
+    query: limit=100
     method: get
     responses:
       - - email: SamanthaCristoforetti@nasa.com
@@ -98,7 +99,8 @@ glitchtip_urls:
       - id: 7
         slug: esa-flight-control
   - name: "team users"
-    uri: /api/0/teams/esa/esa-flight-control/members/?limit=100"
+    uri: /api/0/teams/esa/esa-flight-control/members/
+    query: limit=100
     method: get
     responses:
       - - email: TimPeake@nasa.com

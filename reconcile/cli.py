@@ -3512,6 +3512,43 @@ def deadmanssnitch(ctx):
     )
 
 
+@integration.command(short_help="Manages External Resources")
+@click.pass_context
+@threaded(default=5)
+@click.option(
+    "--workers_cluster",
+    help="Cluster name where the Jobs will be created",
+    default=None,
+)
+@click.option(
+    "--workers_namespace",
+    help="Namespace name where the Jobs will be created",
+    default=None,
+)
+@click.option(
+    "--dry-run-job-suffix",
+    help="Suffix jons run in pr_checks. e.g: gitlab merge request id",
+    default="",
+)
+def external_resources(
+    ctx,
+    workers_cluster: str,
+    workers_namespace: str,
+    dry_run_job_suffix: str,
+    thread_pool_size: int,
+):
+    import reconcile.external_resources.integration
+
+    run_integration(
+        reconcile.external_resources.integration,
+        ctx.obj,
+        dry_run_job_suffix,
+        thread_pool_size,
+        workers_cluster,
+        workers_namespace,
+    )
+
+
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
     """
     returns all integrations known to cli.py via click introspection
