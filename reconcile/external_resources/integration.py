@@ -93,46 +93,47 @@ def run(
     if not workers_namespace:
         workers_namespace = er_settings.workers_namespace.name
 
-    er_mgr = ExternalResourcesManager(
-        thread_pool_size=thread_pool_size,
-        settings=er_settings,
+    with get_aws_api(
+        query_func=gql.get_api().query,
+        account_name=er_settings.state_dynamodb_account.name,
+        region=er_settings.state_dynamodb_region,
         secret_reader=secret_reader,
-        factories=setup_factories(
-            er_settings, m_inventory, er_inventory, secret_reader
-        ),
-        er_inventory=er_inventory,
-        module_inventory=m_inventory,
-        state_manager=ExternalResourcesStateDynamoDB(
-            aws_api=get_aws_api(
-                query_func=gql.get_api().query,
-                account_name=er_settings.state_dynamodb_account.name,
-                region=er_settings.state_dynamodb_region,
-                secret_reader=secret_reader,
+    ) as aws_api:
+        er_mgr = ExternalResourcesManager(
+            thread_pool_size=thread_pool_size,
+            settings=er_settings,
+            secret_reader=secret_reader,
+            factories=setup_factories(
+                er_settings, m_inventory, er_inventory, secret_reader
             ),
-            table_name=er_settings.state_dynamodb_table,
-        ),
-        reconciler=K8sExternalResourcesReconciler(
-            controller=build_job_controller(
-                integration=QONTRACT_INTEGRATION,
-                integration_version=QONTRACT_INTEGRATION_VERSION,
-                cluster=workers_cluster,
-                namespace=workers_namespace,
-                secret_reader=secret_reader,
+            er_inventory=er_inventory,
+            module_inventory=m_inventory,
+            state_manager=ExternalResourcesStateDynamoDB(
+                aws_api=aws_api,
+                table_name=er_settings.state_dynamodb_table,
+            ),
+            reconciler=K8sExternalResourcesReconciler(
+                controller=build_job_controller(
+                    integration=QONTRACT_INTEGRATION,
+                    integration_version=QONTRACT_INTEGRATION_VERSION,
+                    cluster=workers_cluster,
+                    namespace=workers_namespace,
+                    secret_reader=secret_reader,
+                    dry_run=dry_run,
+                ),
                 dry_run=dry_run,
+                dry_run_job_suffix=dry_run_job_suffix,
             ),
-            dry_run=dry_run,
-            dry_run_job_suffix=dry_run_job_suffix,
-        ),
-        secrets_reconciler=build_incluster_secrets_reconciler(
-            workers_cluster, workers_namespace, secret_reader, vault_path="app-sre"
-        ),
-    )
+            secrets_reconciler=build_incluster_secrets_reconciler(
+                workers_cluster, workers_namespace, secret_reader, vault_path="app-sre"
+            ),
+        )
 
-    if dry_run:
-        er_mgr.handle_dry_run_resources()
-        if er_mgr.errors:
-            logging.error("Validation Errors:")
-            for k, e in er_mgr.errors.items():
-                logging.error("ExternalResourceKey: %s, Error: %s" % (k, e))
-    else:
-        er_mgr.handle_resources()
+        if dry_run:
+            er_mgr.handle_dry_run_resources()
+            if er_mgr.errors:
+                logging.error("Validation Errors:")
+                for k, e in er_mgr.errors.items():
+                    logging.error("ExternalResourceKey: %s, Error: %s" % (k, e))
+        else:
+            er_mgr.handle_resources()
