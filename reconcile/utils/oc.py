@@ -584,7 +584,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         if not cascade:
             cmd.append("--cascade=orphan")
         self._run(cmd)
-        resource = {"kind": kind, "metadata": {"name": name}}
+        resource = OR({"kind": kind, "metadata": {"name": name}}, "", "")
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
@@ -596,7 +596,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         cmd = ["label"] + ns + [kind, name, overwrite_param]
         cmd.extend(added + removed)
         self._run(cmd)
-        resource = {"kind": kind, "metadata": {"name": name}}
+        resource = OR({"kind": kind, "metadata": {"name": name}}, "", "")
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     def project_exists(self, name):
@@ -627,7 +627,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
                 raise e
 
         # This return will be removed by the last decorator
-        resource = {"kind": "Namespace", "metadata": {"name": namespace}}
+        resource = OR({"kind": "Namespace", "metadata": {"name": namespace}}, "", "")
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
@@ -639,7 +639,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         self._run(cmd)
 
         # This return will be removed by the last decorator
-        resource = {"kind": "Namespace", "metadata": {"name": namespace}}
+        resource = OR({"kind": "Namespace", "metadata": {"name": namespace}}, "", "")
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     def get_group_if_exists(self, name):
