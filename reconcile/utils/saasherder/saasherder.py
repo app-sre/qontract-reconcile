@@ -16,7 +16,6 @@ from collections.abc import (
     Sequence,
 )
 from contextlib import suppress
-from datetime import datetime, timezone
 from types import TracebackType
 from typing import (
     Any,
@@ -1966,7 +1965,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
-        now = datetime.now(timezone.utc)
         for promotion in self.promotions:
             if promotion is None:
                 continue
@@ -1984,7 +1982,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             saas_file=promotion.saas_file,
                             success=success,
                             target_config_hash=promotion.target_config_hash,
-                            check_in=now,
                         ),
                     )
                     logging.info(

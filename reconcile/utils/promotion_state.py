@@ -1,6 +1,5 @@
 import logging
 from collections import defaultdict
-from datetime import datetime
 from typing import Optional
 
 from pydantic import (
@@ -23,7 +22,6 @@ class PromotionData(BaseModel):
     success: bool
     target_config_hash: Optional[str]
     saas_file: Optional[str]
-    check_in: Optional[datetime]
 
     class Config:
         smart_union = True
