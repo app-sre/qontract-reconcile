@@ -28,7 +28,10 @@ from reconcile.gql_definitions.external_resources.external_resources_modules imp
     ExternalResourcesModuleV1,
 )
 from reconcile.gql_definitions.external_resources.external_resources_settings import (
+    AWSAccountV1,
+    ClusterV1,
     ExternalResourcesSettingsV1,
+    NamespaceV1,
 )
 
 
@@ -38,8 +41,11 @@ def settings() -> ExternalResourcesSettingsV1:
         tf_state_bucket="bucket",
         tf_state_region="us-east-1",
         tf_state_dynamodb_table="dynamodb_table",
+        state_dynamodb_account=AWSAccountV1(name="app-int-example-01"),
         state_dynamodb_table="state_dynamo_table",
         state_dynamodb_region="us-east-1",
+        workers_cluster=ClusterV1(name="appint-ex-01"),
+        workers_namespace=NamespaceV1(name="external-resources-poc"),
     )
 
 
