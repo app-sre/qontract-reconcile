@@ -17,6 +17,7 @@ from typing import (
 
 import requests
 import yaml
+from github import GithubException
 from psycopg2 import (
     connect,
     sql,
@@ -418,7 +419,14 @@ class DashdotdbDORA(DashdotdbBase):
 
         LOG.info("Fetching commits %s", rc)
         if rc.repo_url.startswith("https://github.com"):
-            commits = self._github_compare_commits(rc)
+            try:
+                commits = self._github_compare_commits(rc)
+            except GithubException as e:
+                if e.status == 404:
+                    LOG.info(
+                        f"Ignoring RepoChanges for {rc} because could not calculate them: {e.data['message']}"
+                    )
+                    return rc, []
         elif rc.repo_url.startswith(self.gl.server):
             commits = self._gitlab_compare_commits(rc)
         else:
