@@ -1,28 +1,24 @@
 import logging
 import re
-from dataclasses import dataclass
+from collections.abc import Iterable
 
 from gitlab.v4.objects import ProjectMergeRequest
 
+from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
+    MRKind,
+    OpenBatcherMergeRequest,
+    OpenSchedulerMergeRequest,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     CHANNELS_REF,
     CONTENT_HASHES,
     IS_BATCHABLE,
+    MR_KIND_REF,
     PROMOTION_DATA_SEPARATOR,
     SAPM_VERSION,
     VERSION_REF,
 )
 from reconcile.utils.vcs import VCS, MRCheckStatus
-
-
-@dataclass
-class OpenMergeRequest:
-    raw: ProjectMergeRequest
-    content_hashes: set[str]
-    channels: set[str]
-    failed_mr_check: bool
-    is_batchable: bool
-
 
 ITEM_SEPARATOR = ","
 
@@ -41,6 +37,15 @@ class MRParser:
         self._content_hash_regex = re.compile(rf"{CONTENT_HASHES}: (.*)$", re.MULTILINE)
         self._channels_regex = re.compile(rf"{CHANNELS_REF}: (.*)$", re.MULTILINE)
         self._is_batchable_regex = re.compile(rf"{IS_BATCHABLE}: (.*)$", re.MULTILINE)
+        self._mr_kind_regex = re.compile(rf"{MR_KIND_REF}: (.*)$", re.MULTILINE)
+        self._open_batcher_mrs: list[OpenBatcherMergeRequest] = []
+        self._open_scheduler_mrs: list[OpenSchedulerMergeRequest] = []
+
+    def get_open_batcher_mrs(self) -> list[OpenBatcherMergeRequest]:
+        return self._open_batcher_mrs
+
+    def get_open_scheduler_mrs(self) -> list[OpenSchedulerMergeRequest]:
+        return self._open_scheduler_mrs
 
     def _apply_regex(self, pattern: re.Pattern, promotion_data: str) -> str:
         matches = pattern.search(promotion_data)
@@ -51,15 +56,9 @@ class MRParser:
             return ""
         return groups[0]
 
-    def _fetch_sapm_managed_open_merge_requests(
-        self, label: str
-    ) -> list[ProjectMergeRequest]:
-        all_open_mrs = self._vcs.get_open_app_interface_merge_requests()
-        return [mr for mr in all_open_mrs if label in mr.attributes.get("labels")]
-
-    def retrieve_open_mrs(self, label: str) -> list[OpenMergeRequest]:
+    def fetch_mrs(self, label: str) -> None:
         """
-        This function parses the state and returns a list of valid, parsed open MRs (current state).
+        This function parses the state of valid, parsed open MRs (current state).
         If any issue is encountered during parsing, we consider this MR
         to be broken and close it. Information we want to parse includes:
         - SAPM_VERSION -> Close if it doesnt match current version
@@ -68,21 +67,14 @@ class MRParser:
         - IS_BATCHABLE flag
         - MR has merge conflicts
         """
-        open_mrs: list[OpenMergeRequest] = []
-        seen: set[tuple[str, str, str]] = set()
-        for mr in self._fetch_sapm_managed_open_merge_requests(label=label):
+        all_open_mrs = self._vcs.get_open_app_interface_merge_requests()
+        sapm_mrs = [mr for mr in all_open_mrs if label in mr.attributes.get("labels")]
+        open_batcher_mrs: list[ProjectMergeRequest] = []
+        open_scheduler_mrs: list[ProjectMergeRequest] = []
+
+        for mr in sapm_mrs:
             attrs = mr.attributes
             desc = attrs.get("description")
-            has_conflicts = attrs.get("has_conflicts", False)
-            if has_conflicts:
-                logging.info(
-                    "Merge-conflict detected. Closing %s",
-                    mr.attributes.get("web_url", "NO_WEBURL"),
-                )
-                self._vcs.close_app_interface_mr(
-                    mr, "Closing this MR because of a merge-conflict."
-                )
-                continue
             parts = desc.split(PROMOTION_DATA_SEPARATOR)
             if not len(parts) == 2:
                 logging.info(
@@ -121,6 +113,49 @@ class MRParser:
                 )
                 continue
 
+            mr_kind_str = self._apply_regex(
+                pattern=self._mr_kind_regex, promotion_data=promotion_data
+            )
+            if not mr_kind_str or mr_kind_str not in {
+                MRKind.BATCHER.value,
+                MRKind.SCHEDULER.value,
+            }:
+                logging.info(
+                    "Bad %s format. Closing %s",
+                    MR_KIND_REF,
+                    mr.attributes.get("web_url", "NO_WEBURL"),
+                )
+                self._vcs.close_app_interface_mr(
+                    mr, f"Closing this MR because of bad {MR_KIND_REF} format."
+                )
+                continue
+
+            mr_kind = MRKind(mr_kind_str)
+            if mr_kind == MRKind.BATCHER:
+                open_batcher_mrs.append(mr)
+            elif mr_kind == MRKind.SCHEDULER:
+                open_scheduler_mrs.append(mr)
+
+        self._handle_open_batcher_mrs(open_batcher_mrs)
+
+    def _handle_open_batcher_mrs(self, mrs: Iterable[ProjectMergeRequest]) -> None:
+        seen: set[tuple[str, str]] = set()
+        for mr in mrs:
+            attrs = mr.attributes
+            desc = attrs.get("description")
+            parts = desc.split(PROMOTION_DATA_SEPARATOR)
+            promotion_data = parts[1]
+            has_conflicts = attrs.get("has_conflicts", False)
+            if has_conflicts:
+                logging.info(
+                    "Merge-conflict detected. Closing %s",
+                    mr.attributes.get("web_url", "NO_WEBURL"),
+                )
+                self._vcs.close_app_interface_mr(
+                    mr, "Closing this MR because of a merge-conflict."
+                )
+                continue
+
             content_hashes = self._apply_regex(
                 pattern=self._content_hash_regex, promotion_data=promotion_data
             )
@@ -149,7 +184,7 @@ class MRParser:
                 )
                 continue
 
-            key = (version_ref, channels_refs, content_hashes)
+            key = (channels_refs, content_hashes)
             if key in seen:
                 logging.info(
                     "Duplicate MR detected. Closing %s",
@@ -178,8 +213,8 @@ class MRParser:
 
             mr_check_status = self._vcs.get_gitlab_mr_check_status(mr)
 
-            open_mrs.append(
-                OpenMergeRequest(
+            self._open_batcher_mrs.append(
+                OpenBatcherMergeRequest(
                     raw=mr,
                     content_hashes=set(content_hashes.split(ITEM_SEPARATOR)),
                     channels=set(channels_refs.split(ITEM_SEPARATOR)),
@@ -187,4 +222,3 @@ class MRParser:
                     is_batchable=is_batchable_str == "True",
                 )
             )
-        return open_mrs

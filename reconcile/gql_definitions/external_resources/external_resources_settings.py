@@ -21,8 +21,17 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 DEFINITION = """
 query ExternalResourcesSettings {
     settings: external_resources_settings_v1 {
+        state_dynamodb_account {
+            name
+        }
         state_dynamodb_table
         state_dynamodb_region
+        workers_cluster {
+            name
+        }
+        workers_namespace {
+            name
+        }
         tf_state_bucket
         tf_state_region
         tf_state_dynamodb_table
@@ -37,9 +46,24 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
+class AWSAccountV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
+class ClusterV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
+class NamespaceV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class ExternalResourcesSettingsV1(ConfiguredBaseModel):
+    state_dynamodb_account: AWSAccountV1 = Field(..., alias="state_dynamodb_account")
     state_dynamodb_table: str = Field(..., alias="state_dynamodb_table")
     state_dynamodb_region: str = Field(..., alias="state_dynamodb_region")
+    workers_cluster: ClusterV1 = Field(..., alias="workers_cluster")
+    workers_namespace: NamespaceV1 = Field(..., alias="workers_namespace")
     tf_state_bucket: Optional[str] = Field(..., alias="tf_state_bucket")
     tf_state_region: Optional[str] = Field(..., alias="tf_state_region")
     tf_state_dynamodb_table: Optional[str] = Field(..., alias="tf_state_dynamodb_table")

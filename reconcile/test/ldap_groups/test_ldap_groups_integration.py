@@ -72,7 +72,19 @@ def test_ldap_groups_integration_get_roles(
             RoleV1,
             {
                 "name": "test-group",
-                "ldapGroup": "ai-dev-test-group",
+                "ldapGroup": {"name": "ai-dev-test-group"},
+                "users": [{"org_username": "pike"}, {"org_username": "uhura"}],
+            },
+        ),
+        gql_class_factory(
+            RoleV1,
+            {
+                "name": "test-group2",
+                "ldapGroup": {
+                    "name": "ai-dev-test-group-with-notes",
+                    "notes": "Just a note",
+                    "membersAreOwners": True,
+                },
                 "users": [{"org_username": "pike"}, {"org_username": "uhura"}],
             },
         ),
@@ -80,7 +92,7 @@ def test_ldap_groups_integration_get_roles(
             RoleV1,
             {
                 "name": "ldap-and-aws-role",
-                "ldapGroup": "ai-dev-test-group-2",
+                "ldapGroup": {"name": "ai-dev-test-group-2"},
                 "users": [{"org_username": "pike"}, {"org_username": "uhura"}],
                 "user_policies": None,
                 "aws_groups": [
@@ -209,15 +221,15 @@ def test_ldap_groups_integration_get_roles_duplicates(
 def test_ldap_groups_integration_get_desired_groups_for_roles(
     intg: LdapGroupsIntegration,
     roles: Iterable[RoleV1],
-    owners: Iterable[Entity],
-    group: Group,
-    group2: Group,
+    owners: list[Entity],
+    groups: list[Group],
 ) -> None:
-    assert intg.get_desired_groups_for_roles(
+    resp = intg.get_desired_groups_for_roles(
         roles=roles,
-        owners=owners,
+        default_owners=owners,
         contact_list="email@example.org",
-    ) == [group, group2]
+    )
+    assert resp == groups
 
 
 def test_ldap_groups_integration_get_desired_groups_for_aws_roles(
@@ -226,7 +238,7 @@ def test_ldap_groups_integration_get_desired_groups_for_aws_roles(
     owners: list[Entity],
 ) -> None:
     assert intg.get_desired_groups_for_aws_roles(
-        roles=roles, owners=owners, contact_list="email@example.org"
+        roles=roles, default_owners=owners, contact_list="email@example.org"
     ) == [
         Group(
             name="rover-prefix-123456789-ldap-and-aws-role",

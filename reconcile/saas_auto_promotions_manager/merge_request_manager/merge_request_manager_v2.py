@@ -3,6 +3,10 @@ from collections.abc import Iterable
 
 from gitlab.exceptions import GitlabGetError
 
+from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
+    Addition,
+    Batcher,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.desired_state import (
     DesiredState,
 )
@@ -20,10 +24,6 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.metrics import
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
-)
-from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
-    Addition,
-    Reconciler,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
@@ -61,7 +61,7 @@ class MergeRequestManagerV2:
     """
 
     def __init__(
-        self, vcs: VCS, mr_parser: MRParser, reconciler: Reconciler, renderer: Renderer
+        self, vcs: VCS, mr_parser: MRParser, reconciler: Batcher, renderer: Renderer
     ):
         self._vcs = vcs
         self._mr_parser = mr_parser
@@ -130,7 +130,8 @@ class MergeRequestManagerV2:
         )
 
     def reconcile(self, subscribers: Iterable[Subscriber]) -> None:
-        current_state = self._mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
+        self._mr_parser.fetch_mrs(label=SAPM_LABEL)
+        current_state = self._mr_parser.get_open_batcher_mrs()
         desired_state = DesiredState(subscribers=subscribers)
         self._desired_state = desired_state
 
