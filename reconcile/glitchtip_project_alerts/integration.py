@@ -10,6 +10,7 @@ from typing import (
 )
 from urllib.parse import urlencode
 
+from reconcile import jira_permissions_validator
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     query as glitchtip_instance_query,
 )
@@ -24,6 +25,7 @@ from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import
 )
 from reconcile.utils import gql
 from reconcile.utils.differ import diff_iterables
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.glitchtip.client import GlitchtipClient
 from reconcile.utils.glitchtip.models import (
     Organization,
@@ -121,35 +123,43 @@ class GlitchtipProjectAlertsIntegration(
                     )
                 )
             if glitchtip_project.jira and gjb_alert_url:
-                if not (jira_project_key := glitchtip_project.jira.project):
-                    if glitchtip_project.jira.board:
-                        jira_project_key = glitchtip_project.jira.board.name
-
-                # this shouldn't happen, because our schemas enforce it
-                if not jira_project_key:
-                    raise ValueError(
-                        "Either jira.project or jira.board must be set for Jira integration"
+                jira_project_key = None
+                if glitchtip_project.jira.project:
+                    jira_project_key = glitchtip_project.jira.project
+                elif (
+                    glitchtip_project.jira.board
+                    and integration_is_enabled(
+                        QONTRACT_INTEGRATION, glitchtip_project.jira.board
                     )
-
-                params: dict[str, str | list] = {}
-                if gjb_token:
-                    params["token"] = gjb_token
-                if glitchtip_project.jira.labels:
-                    params["labels"] = glitchtip_project.jira.labels
-                url = f"{gjb_alert_url}/{jira_project_key}?{urlencode(params, True)}"
-                alerts.append(
-                    ProjectAlert(
-                        name=GJB_ALERT_NAME,
-                        timespan_minutes=1,
-                        quantity=1,
-                        recipients=[
-                            ProjectAlertRecipient(
-                                recipient_type=RecipientType.WEBHOOK,
-                                url=url,
-                            )
-                        ],
+                    and integration_is_enabled(
+                        jira_permissions_validator.QONTRACT_INTEGRATION,
+                        glitchtip_project.jira.board,
                     )
-                )
+                ):
+                    jira_project_key = glitchtip_project.jira.board.name
+
+                if jira_project_key:
+                    params: dict[str, str | list] = {}
+                    if gjb_token:
+                        params["token"] = gjb_token
+                    if glitchtip_project.jira.labels:
+                        params["labels"] = glitchtip_project.jira.labels
+                    url = (
+                        f"{gjb_alert_url}/{jira_project_key}?{urlencode(params, True)}"
+                    )
+                    alerts.append(
+                        ProjectAlert(
+                            name=GJB_ALERT_NAME,
+                            timespan_minutes=1,
+                            quantity=1,
+                            recipients=[
+                                ProjectAlertRecipient(
+                                    recipient_type=RecipientType.WEBHOOK,
+                                    url=url,
+                                )
+                            ],
+                        )
+                    )
             # check for duplicates
             if not webhook_urls_are_unique(alerts):
                 raise ValueError(

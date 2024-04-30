@@ -60,6 +60,9 @@ query GlitchtipProjectsWithAlerts {
       project
       board {
         name
+        disable {
+          integrations
+        }
       }
       labels
     }
@@ -104,8 +107,13 @@ class GlitchtipProjectAlertV1(ConfiguredBaseModel):
     recipients: list[Union[GlitchtipProjectAlertRecipientWebhookV1, GlitchtipProjectAlertRecipientEmailV1, GlitchtipProjectAlertRecipientV1]] = Field(..., alias="recipients")
 
 
+class DisableJiraBoardAutomationsV1(ConfiguredBaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+
+
 class JiraBoardV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    disable: Optional[DisableJiraBoardAutomationsV1] = Field(..., alias="disable")
 
 
 class GlitchtipProjectJiraV1(ConfiguredBaseModel):

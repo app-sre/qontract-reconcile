@@ -49,6 +49,7 @@ glitchtip_projects:
     project: null
     board:
       name: JIRA-VIA-BOARD
+      disable: null
     labels:
     - example-label-1
     - example-label-2
@@ -69,5 +70,37 @@ glitchtip_projects:
   jira:
     board: null
     project: JIRA-VIA-PROJECT
+    labels: null
+  alerts: null
+
+- name: integration-disabled
+  projectId: null
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev
+  jira:
+    project: null
+    board:
+      name: JIRA-VIA-BOARD
+      disable:
+        integrations:
+        - glitchtip-project-alerts
+    labels: null
+  alerts: null
+
+- name: jira-permissions-validator-disabled
+  projectId: null
+  organization:
+    name: NASA
+    instance:
+      name: glitchtip-dev
+  jira:
+    project: null
+    board:
+      name: JIRA-VIA-BOARD
+      disable:
+        integrations:
+        - jira-permissions-validator
     labels: null
   alerts: null
