@@ -72,9 +72,11 @@ ENV OC_VERSION=4.10.15
 ENV TINI_VERSION v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
 
 # oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
 # versions in these environments so in this case we extract an older version of oc and kubectl
 COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.1.0 \
     /work/${OC_VERSION}/ /usr/local/bin/
+
+ENTRYPOINT ["/tini", "--"]
+CMD [ "/run-integration.py" ]
