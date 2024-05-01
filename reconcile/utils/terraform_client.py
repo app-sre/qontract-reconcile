@@ -142,8 +142,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             TerraformSpec(name=name, working_dir=wd)
             for name, wd in self.working_dirs.items()
         ]
-        for spec in self.specs:
-            self.terraform_init(spec)
+        threaded.run(self.terraform_init, self.specs, self.thread_pool_size)
 
     @contextmanager
     def _terraform_log_file(
