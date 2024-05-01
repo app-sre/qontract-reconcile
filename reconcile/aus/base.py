@@ -587,13 +587,22 @@ def fetch_current_state(
     for spec in org_upgrade_spec.specs:
         if addons and isinstance(spec, ClusterAddonUpgradeSpec):
             addon_spec = cast(ClusterAddonUpgradeSpec, spec)
-            upgrade_policies = addon_service.get_addon_upgrade_policies(
+            addon_upgrade_policies = addon_service.get_addon_upgrade_policies(
                 ocm_api, spec.cluster.id, addon_id=addon_spec.addon.addon.id
             )
-            for upgrade_policy in upgrade_policies:
-                upgrade_policy["cluster"] = spec.cluster
+            for addon_upgrade_policy in addon_upgrade_policies:
                 current_state.append(
-                    AddonUpgradePolicy(**upgrade_policy, addon_service=addon_service)
+                    AddonUpgradePolicy(
+                        id=addon_upgrade_policy.id,
+                        addon_id=addon_spec.addon.addon.id,
+                        cluster=spec.cluster,
+                        next_run=addon_upgrade_policy.next_run,
+                        schedule=addon_upgrade_policy.schedule,
+                        schedule_type=addon_upgrade_policy.schedule_type,
+                        version=addon_upgrade_policy.version,
+                        state=addon_upgrade_policy.state,
+                        addon_service=addon_service,
+                    )
                 )
         elif spec.cluster.is_rosa_hypershift():
             upgrade_policies = get_control_plane_upgrade_policies(
@@ -841,8 +850,8 @@ def is_gate_applicable_to_cluster(gate: OCMVersionGate, cluster: OCMCluster) -> 
     # consider only gates after the clusters current minor version
     # OCM onls supports creating gate agreements for later minor versions than the
     # current cluster version
-    if not semver.match(
-        f"{cluster.minor_version()}.0", f"<{gate.version_raw_id_prefix}.0"
+    if not parse_semver(f"{cluster.minor_version()}.0").match(
+        f"<{gate.version_raw_id_prefix}.0"
     ):
         return False
 

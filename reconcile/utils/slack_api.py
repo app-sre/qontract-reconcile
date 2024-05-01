@@ -24,6 +24,8 @@ from slack_sdk.http_retry import (
     RetryState,
 )
 
+from reconcile.utils.metrics import slack_request
+
 MAX_RETRIES = 5
 TIMEOUT = 30
 
@@ -166,6 +168,7 @@ class SlackApi:
         api_config: Optional[SlackApiConfig] = None,
         init_usergroups: bool = True,
         channel: Optional[str] = None,
+        slack_url: Optional[str] = None,
         **chat_kwargs: Any,
     ) -> None:
         """
@@ -187,7 +190,11 @@ class SlackApi:
         else:
             self.config = SlackApiConfig()
 
-        self._sc = WebClient(token=token, timeout=self.config.timeout)
+        self._sc = WebClient(
+            token=token,
+            timeout=self.config.timeout,
+            base_url=slack_url or WebClient.BASE_URL,
+        )
         self._configure_client_retry()
 
         self._results: dict[str, Any] = {}
@@ -195,6 +202,9 @@ class SlackApi:
 
         self.channel = channel
         self.chat_kwargs = chat_kwargs
+
+        self._user_groups_initialized = False
+        self.usergroups: list[dict] = []
 
         if init_usergroups:
             self._initiate_usergroups()
@@ -230,6 +240,7 @@ class SlackApi:
             )
 
         def do_send(c: str, t: str) -> None:
+            slack_request.labels("chat.postMessage", "POST").inc()
             self._sc.chat_postMessage(channel=c, text=t, **self.chat_kwargs)
 
         try:
@@ -278,6 +289,8 @@ class SlackApi:
 
         channels_found = self.get_channels_by_names(self.channel)
         [channel_id] = [k for k in channels_found if channels_found[k] == self.channel]
+        slack_request.labels("conversations.info", "GET").inc()
+
         info = self._sc.conversations_info(channel=channel_id)
         if not info.data["channel"]["is_member"]:  # type: ignore[call-overload]
             self._sc.conversations_join(channel=channel_id)
@@ -295,17 +308,26 @@ class SlackApi:
         :raises slack_sdk.errors.SlackApiError: if unsuccessful response from
         Slack API
         """
+        slack_request.labels("usergroups.list", "GET").inc()
+
         result = self._sc.usergroups_list(include_users=True)
         self.usergroups = result["usergroups"]
+        self._user_groups_initialized = True
 
     def get_usergroup(self, handle: str) -> dict[str, Any]:
+        if not self._user_groups_initialized:
+            self._initiate_usergroups()
         usergroup = [g for g in self.usergroups if g["handle"] == handle]
         if len(usergroup) != 1:
             raise UsergroupNotFoundException(handle)
         return usergroup[0]
 
     def create_usergroup(self, handle: str) -> str:
+        slack_request.labels("usergroups.create", "POST").inc()
+
         response = self._sc.usergroups_create(name=handle, handle=handle)
+        # Invalidate the usergroups list cache
+        self._user_groups_initialized = False
         return response["usergroup"]["id"]
 
     def update_usergroup(
@@ -321,6 +343,8 @@ class SlackApi:
         :raises slack_sdk.errors.SlackApiError: if unsuccessful response from
         Slack API
         """
+        slack_request.labels("usergroups.update", "POST").inc()
+
         self._sc.usergroups_update(
             usergroup=id, channels=channels_list, description=description
         )
@@ -341,6 +365,8 @@ class SlackApi:
             users_list = [self.get_random_deleted_user()]
 
         try:
+            slack_request.labels("usergroups.users.update", "POST").inc()
+
             self._sc.usergroups_users_update(usergroup=id, users=users_list)
         except SlackApiError as e:
             # Slack can throw an invalid_users error when emptying groups, but
@@ -369,6 +395,8 @@ class SlackApi:
         :raises UserNotFoundException: if the Slack user is not found
         """
         try:
+            slack_request.labels("users.lookupByEmail", "GET").inc()
+
             result = self._sc.users_lookupByEmail(email=f"{user_name}@{mail_address}")
         except SlackApiError as e:
             if e.response["error"] == "users_not_found":
@@ -428,6 +456,8 @@ class SlackApi:
             additional_kwargs.update(method_config)
 
         while True:
+            slack_request.labels(f"{api_key}.list", "GET").inc()
+
             result = self._sc.api_call(
                 "{}.list".format(api_key), http_verb="GET", params=additional_kwargs
             )
@@ -468,6 +498,8 @@ class SlackApi:
         responses = []
         keep_fetching = True
         while True:
+            slack_request.labels("conversations.history", "GET").inc()
+
             response = self._sc.conversations_history(
                 cursor=cursor, channel=self.channel, **self.chat_kwargs
             )

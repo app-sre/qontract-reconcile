@@ -6,18 +6,19 @@ from sretoolbox.utils import threaded
 from reconcile.openshift_saas_deploy import (
     QONTRACT_INTEGRATION as OPENSHIFT_SAAS_DEPLOY,
 )
+from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
+    Batcher,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager_v2 import (
     MergeRequestManagerV2,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
 )
-from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
-    Reconciler,
-)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
 )
+from reconcile.saas_auto_promotions_manager.meta import QONTRACT_INTEGRATION
 from reconcile.saas_auto_promotions_manager.publisher import Publisher
 from reconcile.saas_auto_promotions_manager.s3_exporter import S3Exporter
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
@@ -34,13 +35,9 @@ from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.utils.defer import defer
 from reconcile.utils.promotion_state import PromotionState
 from reconcile.utils.secret_reader import create_secret_reader
-from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import State, init_state
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
-
-QONTRACT_INTEGRATION = "saas-auto-promotions-manager"
-QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 class SaasAutoPromotionsManager:
@@ -138,7 +135,7 @@ def init_external_dependencies(
     mr_parser = MRParser(vcs=vcs)
     merge_request_manager_v2 = MergeRequestManagerV2(
         vcs=vcs,
-        reconciler=Reconciler(),
+        reconciler=Batcher(),
         mr_parser=mr_parser,
         renderer=Renderer(),
     )

@@ -12,10 +12,10 @@ from typing import (
 )
 from unittest.mock import create_autospec
 
-import httpretty as _httpretty
 import pytest
 from pydantic import BaseModel
 from pydantic.error_wrappers import ValidationError
+from pytest_httpserver import HTTPServer
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.test.fixtures import Fixtures
@@ -27,13 +27,6 @@ from reconcile.utils.state import State
 @pytest.fixture
 def patch_sleep(mocker):
     yield mocker.patch.object(time, "sleep")
-
-
-@pytest.fixture()
-def httpretty():
-    with _httpretty.enabled(allow_net_connect=False):
-        _httpretty.reset()
-        yield _httpretty
 
 
 @pytest.fixture
@@ -153,19 +146,18 @@ def gql_api_builder() -> Callable[[Optional[Mapping]], GqlApi]:
 
 
 @pytest.fixture
-def set_httpretty_responses_based_on_fixture(httpretty: _httpretty) -> Callable:
-    """Create httpretty responses based fixture files."""
+def set_httpserver_responses_based_on_fixture(httpserver: HTTPServer) -> Callable:
+    """Create httpserver responses based fixture files."""
 
-    def _(url: str, fx: Fixtures, paths: Iterable[str]) -> None:
+    def _(fx: Fixtures, paths: Iterable[str]) -> None:
         for path in paths:
             for method in ["get", "post", "put", "patch", "delete"]:
-                method_file = Path(fx.path(path)) / f"{method}.json"
+                method_file = Path(fx.path(path.lstrip("/"))) / f"{method}.json"
                 if method_file.exists():
-                    httpretty.register_uri(
-                        getattr(httpretty, method.upper()),
-                        f"{url}/{path}",
-                        body=method_file.read_text(),
-                        content_type="text/json",
+                    httpserver.expect_oneshot_request(
+                        path, method=method
+                    ).respond_with_data(
+                        method_file.read_text(), content_type="text/json"
                     )
 
     return _

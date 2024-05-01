@@ -8,13 +8,13 @@ from typing import (
     TypeVar,
 )
 
-import semver
 from pydantic import (
     BaseModel,
     Field,
 )
 
 from reconcile.utils.aws_helper import get_account_uid_from_arn, get_role_name_from_arn
+from reconcile.utils.semver_helper import parse_semver
 
 LabelSetTypeVar = TypeVar("LabelSetTypeVar", bound=BaseModel)
 ACTIVE_SUBSCRIPTION_STATES = {"Active", "Reserved"}
@@ -246,8 +246,8 @@ class OCMCluster(BaseModel):
     external_configuration: Optional[OCMExternalConfiguration]
 
     def minor_version(self) -> str:
-        version_info = semver.parse(self.version.raw_id)
-        return f"{version_info['major']}.{version_info['minor']}"
+        version_info = parse_semver(self.version.raw_id)
+        return f"{version_info.major}.{version_info.minor}"
 
     def available_upgrades(self) -> list[str]:
         return self.version.available_upgrades
@@ -573,6 +573,17 @@ class OCMOIdentityProviderOidc(OCMOIdentityProvider):
         if not isinstance(other, OCMOIdentityProviderOidc):
             return False
         return self.name == other.name and self.open_id == other.open_id
+
+
+class OCMAddonUpgradePolicy(BaseModel):
+    id: str
+    addon_id: str
+    cluster_id: str
+    next_run: Optional[str]
+    schedule: Optional[str]
+    schedule_type: str
+    version: str
+    state: Optional[str]
 
 
 def build_label_container(

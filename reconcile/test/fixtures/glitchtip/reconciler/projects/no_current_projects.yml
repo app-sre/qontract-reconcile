@@ -43,14 +43,6 @@ desired_projects:
         users: []
 
 expected_return_value:
-  - name: rosetta-flight-control
-    id: 10
-    platform: python
-    slug: rosetta-flight-control
-    teams:
-      - id: 7
-        slug: esa-flight-control
-        users: []
   - name: rosetta-spacecraft
     id: 9
     platform: python
@@ -61,6 +53,14 @@ expected_return_value:
         users: []
       - id: 6
         slug: esa-pilots
+        users: []
+  - name: rosetta-flight-control
+    id: 10
+    platform: python
+    slug: rosetta-flight-control
+    teams:
+      - id: 7
+        slug: esa-flight-control
         users: []
 
 glitchtip_urls:

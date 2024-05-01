@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from typing import Optional
 
+from pytest_httpserver import HTTPServer
 from pytest_mock import (
     MockerFixture,
     MockFixture,
@@ -192,6 +193,7 @@ def test_get_clusters_for_subscriptions(
     mocker: MockerFixture,
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+    httpserver: HTTPServer,
 ) -> None:
     """
     Tests the subscription and organization labels are properly queried
@@ -214,6 +216,8 @@ def test_get_clusters_for_subscriptions(
         build_organization_label("org_label", "value", "another_org_id"),
     ])
 
+    # clear default /api/clusters_mgmt/v1/clusters request handler
+    httpserver.clear_all_handlers()
     register_ocm_url_responses([
         OcmUrl(method="GET", uri="/api/clusters_mgmt/v1/clusters").add_list_response([
             build_ocm_cluster(

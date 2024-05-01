@@ -3,7 +3,11 @@
 query LdapGroupsRolesQuery {
   roles: roles_v1 {
     name
-    ldapGroup
+    ldapGroup {
+      name
+      notes
+      membersAreOwners
+    }
     users {
       org_username
     }

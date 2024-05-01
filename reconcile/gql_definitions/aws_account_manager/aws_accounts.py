@@ -80,6 +80,8 @@ query AWSAccountManagerAccounts {
       quotaLimits {
         path
       }
+      resourcesDefaultRegion
+      supportedDeploymentRegions
     }
     organization_accounts {
       ... AWSAccountManaged
@@ -129,6 +131,8 @@ class AWSAccountRequestV1(ConfiguredBaseModel):
     account_owner: OwnerV1 = Field(..., alias="accountOwner")
     organization: AWSOrganizationV1 = Field(..., alias="organization")
     quota_limits: Optional[list[AWSQuotaLimitsV1]] = Field(..., alias="quotaLimits")
+    resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
+    supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
 
 
 class AWSAccountV1(AWSAccountManaged):

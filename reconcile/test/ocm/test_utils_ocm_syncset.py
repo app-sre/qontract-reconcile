@@ -1,8 +1,8 @@
 from collections.abc import Callable
 from typing import Any
 
-from httpretty.core import HTTPrettyRequest
 from pytest_mock import MockerFixture
+from werkzeug import Request
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.utils.ocm import syncsets
@@ -54,7 +54,7 @@ def test_utils_get_syncsets(
 def test_create_syncset(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str], list[HTTPrettyRequest]],
+    find_all_ocm_http_requests: Callable[[str], list[Request]],
 ) -> None:
     cluster_id = "123abc"
     syncset_id = "xyz"
@@ -74,7 +74,7 @@ def test_create_syncset(
 def test_patch_syncset(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_all_ocm_http_requests: Callable[[str], list[HTTPrettyRequest]],
+    find_all_ocm_http_requests: Callable[[str], list[Request]],
 ) -> None:
     cluster_id = "123abc"
     syncset_id = "xyz"

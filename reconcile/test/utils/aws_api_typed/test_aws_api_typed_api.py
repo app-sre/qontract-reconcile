@@ -5,7 +5,10 @@ from pytest_mock import MockerFixture
 from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials, SubApi
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
 from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
+from reconcile.utils.aws_api_typed.s3 import AWSApiS3
+from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
 from reconcile.utils.aws_api_typed.sts import AWSApiSts, AWSCredentials
+from reconcile.utils.aws_api_typed.support import AWSApiSupport
 
 
 @pytest.fixture
@@ -48,7 +51,10 @@ def test_aws_api_typed_api_close(aws_api: AWSApi, mocker: MockerFixture) -> None
     [
         (AWSApiIam, "iam"),
         (AWSApiOrganizations, "organizations"),
+        (AWSApiS3, "s3"),
+        (AWSApiServiceQuotas, "service-quotas"),
         (AWSApiSts, "sts"),
+        (AWSApiSupport, "support"),
         pytest.param(
             object,
             "unknown",

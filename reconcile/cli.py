@@ -46,7 +46,7 @@ from reconcile.utils.runtime.runner import (
 )
 from reconcile.utils.unleash import get_feature_toggle_state
 
-TERRAFORM_VERSION = ["1.5.7"]
+TERRAFORM_VERSION = ["1.6.6"]
 TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 
 OC_VERSIONS = ["4.12.46", "4.10.15"]
@@ -1144,12 +1144,26 @@ def jenkins_webhooks_cleaner(ctx):
     help="Throw and error in case of board permission errors. Useful for PR checks.",
     default=True,
 )
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
-def jira_permissions_validator(ctx, exit_on_permission_errors):
+def jira_permissions_validator(
+    ctx,
+    exit_on_permission_errors,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
+):
     import reconcile.jira_permissions_validator
 
     run_integration(
-        reconcile.jira_permissions_validator, ctx.obj, exit_on_permission_errors
+        reconcile.jira_permissions_validator,
+        ctx.obj,
+        exit_on_permission_errors,
+        enable_extended_early_exit=enable_extended_early_exit,
+        extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+        log_cached_log_output=log_cached_log_output,
     )
 
 
@@ -3504,6 +3518,43 @@ def deadmanssnitch(ctx):
     run_class_integration(
         integration=deadmanssnitch.DeadMansSnitchIntegration(),
         ctx=ctx.obj,
+    )
+
+
+@integration.command(short_help="Manages External Resources")
+@click.pass_context
+@threaded(default=5)
+@click.option(
+    "--workers_cluster",
+    help="Cluster name where the Jobs will be created",
+    default=None,
+)
+@click.option(
+    "--workers_namespace",
+    help="Namespace name where the Jobs will be created",
+    default=None,
+)
+@click.option(
+    "--dry-run-job-suffix",
+    help="Suffix jons run in pr_checks. e.g: gitlab merge request id",
+    default="",
+)
+def external_resources(
+    ctx,
+    workers_cluster: str,
+    workers_namespace: str,
+    dry_run_job_suffix: str,
+    thread_pool_size: int,
+):
+    import reconcile.external_resources.integration
+
+    run_integration(
+        reconcile.external_resources.integration,
+        ctx.obj,
+        dry_run_job_suffix,
+        thread_pool_size,
+        workers_cluster,
+        workers_namespace,
     )
 
 

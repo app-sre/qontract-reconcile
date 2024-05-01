@@ -20,7 +20,7 @@ from reconcile.utils.deadmanssnitch_api import (
 
 
 @pytest.fixture
-def deadmanssnitch_api() -> MockerFixture:
+def deadmanssnitch_api() -> MagicMock:
     return create_autospec(DeadMansSnitchApi)
 
 
@@ -55,7 +55,7 @@ def secret_reader(mocker: MockerFixture) -> MockerFixture:
 
 def test_get_current_state(
     secret_reader: MagicMock,
-    deadmanssnitch_api: MockerFixture,
+    deadmanssnitch_api: MagicMock,
     mocker: MockerFixture,
     deadmanssnitch_settings: DeadMansSnitchSettingsV1,
 ) -> None:
