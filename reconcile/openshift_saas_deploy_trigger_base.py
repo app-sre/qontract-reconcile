@@ -1,4 +1,3 @@
-import datetime
 import logging
 from collections.abc import Callable
 from threading import Lock
@@ -356,11 +355,7 @@ def _construct_tekton_trigger_resource(
     tkn_name, tkn_long_name = SaasHerder.build_saas_file_env_combo(
         saas_file_name, env_name
     )
-    # using a timestamp to make the resource name unique.
-    # we may want to revisit traceability, but this is compatible
-    # with what we currently have in Jenkins.
-    ts = datetime.datetime.utcnow().strftime("%Y%m%d%H%M")  # len 12
-    name = f"{tkn_name.lower()}-{ts}"
+    name = tkn_name.lower()
 
     parameters = [
         {"name": "saas_file_name", "value": saas_file_name},
@@ -381,7 +376,7 @@ def _construct_tekton_trigger_resource(
     body: dict[str, Any] = {
         "apiVersion": "tekton.dev/v1",
         "kind": "PipelineRun",
-        "metadata": {"name": name},
+        "metadata": {"generateName": f"{name}-"},
         "spec": {
             "pipelineRef": {"name": tkn_pipeline_name},
             "params": parameters,

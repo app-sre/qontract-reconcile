@@ -17,6 +17,7 @@ from typing import (
 
 import requests
 import yaml
+from github import GithubException
 from psycopg2 import (
     connect,
     sql,
@@ -397,10 +398,14 @@ class DashdotdbDORA(DashdotdbBase):
     def get_repo_ref_for_sha(
         self, saastarget: SaasTarget, sha: str
     ) -> tuple[Optional[str], Optional[str]]:
-        saas_file_yaml = self.gl_app_interface_get_file(
-            saastarget.path, ref=sha
-        ).decode()
-        saas_file = yaml.safe_load(saas_file_yaml)
+        try:
+            saas_file_yaml = self.gl_app_interface_get_file(
+                saastarget.path, ref=sha
+            ).decode()
+            saas_file = yaml.safe_load(saas_file_yaml)
+        except Exception as e:
+            LOG.info(f"failed to decode saas file {saastarget.path} with error: {e}")
+            return (None, None)
 
         for rt in saas_file["resourceTemplates"]:
             if saastarget.resource_template != rt["name"]:
@@ -418,7 +423,14 @@ class DashdotdbDORA(DashdotdbBase):
 
         LOG.info("Fetching commits %s", rc)
         if rc.repo_url.startswith("https://github.com"):
-            commits = self._github_compare_commits(rc)
+            try:
+                commits = self._github_compare_commits(rc)
+            except GithubException as e:
+                if e.status == 404:
+                    LOG.info(
+                        f"Ignoring RepoChanges for {rc} because could not calculate them: {e.data['message']}"
+                    )
+                    return rc, []
         elif rc.repo_url.startswith(self.gl.server):
             commits = self._gitlab_compare_commits(rc)
         else:
