@@ -481,7 +481,6 @@ def runner(
     enable_deletion: bool = False,
 ) -> ExtendedEarlyExitRunnerResult:
     disabled_deletions_detected, err = terraform_client.plan(enable_deletion)
-    applied_count = 0
     if err:
         raise RuntimeError("Error running terraform plan")
     if disabled_deletions_detected:
@@ -490,10 +489,9 @@ def runner(
         err = terraform_client.apply()
         if err:
             raise RuntimeError("Error running terraform apply")
-        applied_count = terraform_client.apply_count
     return ExtendedEarlyExitRunnerResult(
         payload=terrascript_client.terraform_configurations(),
-        applied_count=applied_count,
+        applied_count=terraform_client.apply_count,
     )
 
 
