@@ -214,11 +214,19 @@ class OpenshiftResource:
 
     @property
     def name(self):
-        return self.body["metadata"]["name"]
+        # PipelineRun name can be empty when creating
+        if self.kind == "PipelineRun" and "name" not in self.body["metadata"]:
+            return self.body["metadata"]["generateName"][:-1]
+        else:
+            return self.body["metadata"]["name"]
 
     @property
     def kind(self):
         return self.body["kind"]
+
+    @property
+    def annotations(self):
+        return self.body["metadata"].get("annotations", {})
 
     @property
     def kind_and_group(self):

@@ -112,7 +112,6 @@ class TerraformRepoIntegration(
             # when updating TerraformRepoV1 GQL schema, Pydantic does not gracefully handle these changes and fails to parse
             # the existing state stored in S3. This is due to a behavior in Pydantic V1 that has since been addressed in V2
             # https://docs.pydantic.dev/latest/blog/pydantic-v2/#required-vs-nullable-cleanup
-            # so in this case, tf-repo will just recreate all of those state files in S3 and not actually do a plan or apply
             logging.error(err)
             logging.info(
                 "Unable to parse existing Terraform-Repo state from S3. Note that this is separate from the actual .tfstate files. Terraform Repo will re-create its own state upon merge and will not update any infrastructure. This typically occurs with changes to the Terraform Repo schema files and is normally resolved once state is re-created."
@@ -124,6 +123,9 @@ class TerraformRepoIntegration(
                 state=state,
                 recreate_state=True,
             )
+
+            if repo_diff_result:
+                self.print_output(repo_diff_result, dry_run)
 
     def print_output(self, diff: list[TerraformRepoV1], dry_run: bool) -> OutputFile:
         """Parses and prints the output of a Terraform Repo diff for the executor
