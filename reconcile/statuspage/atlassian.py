@@ -64,12 +64,17 @@ class LegacyLibAtlassianAPI:
         )
 
     def list_components(self) -> list[AtlassianRawComponent]:
-        return [
-            AtlassianRawComponent(
-                **c.toDict(),
-            )
-            for c in self._client.components.list()
-        ]
+        components = []
+        page = 1
+        while True:
+            response = self._client.components.list(page=page)
+            if not response:
+                break  
+            components.extend([
+                AtlassianRawComponent(**c.toDict()) for c in response
+            ])
+            page += 1
+        return components
 
     def update_component(self, id: str, data: dict[str, Any]) -> None:
         self._client.components.update(id, **data)
