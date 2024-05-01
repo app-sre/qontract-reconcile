@@ -5,6 +5,7 @@ from typing import (
     Protocol,
 )
 
+import requests
 import statuspageio  # type: ignore
 from pydantic import BaseModel
 
@@ -64,17 +65,22 @@ class LegacyLibAtlassianAPI:
         )
 
     def list_components(self) -> list[AtlassianRawComponent]:
-        components = []
+        url = f"{self.api_url}/v1/pages/{self.page_id}/components"
+        headers = {"Authorization": f"OAuth {self.token}"}
+        all_components: list[AtlassianRawComponent] = []
         page = 1
+        per_page = 100
         while True:
-            response = self._client.components.list(page=page)
-            if not response:
-                break  
-            components.extend([
-                AtlassianRawComponent(**c.toDict()) for c in response
-            ])
+            params = {"page": page, "per_page": per_page}
+            response = requests.get(url, params=params, headers=headers)
+            response.raise_for_status()
+            components = [AtlassianRawComponent(**c) for c in response.json()]
+            all_components += components
+            if len(components) < per_page:
+                break
             page += 1
-        return components
+
+        return all_components
 
     def update_component(self, id: str, data: dict[str, Any]) -> None:
         self._client.components.update(id, **data)
