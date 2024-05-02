@@ -43,6 +43,7 @@ class Subscriber:
         target_namespace: SaasTargetNamespace,
         use_target_config_hash: bool,
         uid: str,
+        soak_days: int,
     ):
         self.saas_name = saas_name
         self.template_name = template_name
@@ -54,6 +55,7 @@ class Subscriber:
         self.desired_hashes: list[ConfigHash] = []
         self.target_namespace = target_namespace
         self.uid = uid
+        self.soak_days = soak_days
         self._content_hash = ""
         self._use_target_config_hash = use_target_config_hash
 
@@ -85,9 +87,10 @@ class Subscriber:
             use_target_config_hash=data["5"],
             target_namespace=SaasTargetNamespace(**data["6"]),
             uid=data["7"],
+            soak_days=data["8"],
         )
-        subscriber.desired_hashes = data["8"]
-        subscriber.desired_ref = data["9"]
+        subscriber.desired_hashes = data["9"]
+        subscriber.desired_ref = data["10"]
         return subscriber
 
     def to_exportable_dict(self) -> dict[str, Any]:
@@ -103,8 +106,9 @@ class Subscriber:
         data["5"] = self._use_target_config_hash
         data["6"] = self.target_namespace.dict(by_alias=True)
         data["7"] = self.uid
-        data["8"] = self.desired_hashes
-        data["9"] = self.desired_ref
+        data["8"] = self.soak_days
+        data["9"] = self.desired_hashes
+        data["10"] = self.desired_ref
         return data
 
     def __eq__(self, other: object) -> bool:
@@ -143,6 +147,24 @@ class Subscriber:
             return None
         return deployment_info
 
+    def _passed_accumulated_soak_days(self) -> bool:
+        """
+        We accumulate the time a ref is running on all publishers for this subscriber.
+        We compare that accumulated time with the soak_days setting of the subscriber.
+        """
+        # now = datetime.now(timezone.utc)
+        # delta = timedelta(days=0)
+        # for channel in self.channels:
+        #     for publisher in channel.publishers:
+        #         deployed_at = publisher.deployment_info_by_channel.get(
+        #             channel.name
+        #         ).check_in
+        #         if not deployed_at:
+        #             continue
+        #         delta += now - deployed_at
+        # return delta >= timedelta(days=self.soak_days)
+        return True
+
     def _compute_desired_ref(self) -> None:
         """
         Compute the desired reference for this subscriber.
@@ -174,8 +196,12 @@ class Subscriber:
                 self.target_file_path,
                 publisher_refs,
             )
-        if len(publisher_refs) != 1 or any_bad_deployment:
-            # We keep current state due to issues/mismatches in publishers
+        if (
+            len(publisher_refs) != 1
+            or any_bad_deployment
+            or not self._passed_accumulated_soak_days()
+        ):
+            # We keep current state
             self.desired_ref = self.ref
         else:
             # We have a common single publisher ref w/o any deployment issues

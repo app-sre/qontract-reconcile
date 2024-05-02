@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 from reconcile.utils.promotion_state import PromotionState
@@ -17,6 +18,7 @@ class DeploymentInfo:
     success: bool
     saas_file: str
     target_config_hash: str
+    check_in: Optional[datetime]
 
 
 class Publisher:
@@ -80,8 +82,14 @@ class Publisher:
             ):
                 continue
 
+            check_in = (
+                datetime.fromisoformat(promotion_data.check_in)
+                if promotion_data.check_in
+                else None
+            )
             self.deployment_info_by_channel[channel] = DeploymentInfo(
                 success=promotion_data.success,
                 saas_file=promotion_data.saas_file,
                 target_config_hash=promotion_data.target_config_hash,
+                check_in=check_in,
             )
