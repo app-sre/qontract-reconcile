@@ -62,13 +62,16 @@ class LegacyLibAtlassianAPI:
         self.page_id = page_id
         self.api_url = api_url
         self.token = token
+        self.auth_headers = {"Authorization": f"OAuth {self.token}"}
         self._client = statuspageio.Client(
             api_key=self.token, page_id=self.page_id, organization_id="unset"
         )
 
     @retry(max_attempts=10)
     def _do_get(self, url: str, params: dict[str, Any]) -> Response:
-        response = requests.get(url, params=params, headers=self.auth_headers)
+        response = requests.get(
+            url, params=params, headers=self.auth_headers, timeout=60
+        )
         response.raise_for_status()
         return response
 
