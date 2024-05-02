@@ -224,7 +224,7 @@ class ExternalResourcesStateDynamoDB:
         to check if a resource has been removed from the configuration.
         Getting less data from DynamoDb saves money and the logic does not need it.
         """
-        logging.info("Getting Managed resources from DynamoDb")
+        logging.debug("Getting Managed resources from DynamoDb")
         partials = {}
         for item in self.aws_api.dynamodb.boto3_client.scan(
             TableName=self._table, ProjectionExpression=self.PARTIALS_PROJECTED_VALUES
