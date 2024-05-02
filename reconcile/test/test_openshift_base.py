@@ -766,7 +766,7 @@ def build_openshift_resource(
         "metadata": {"name": name},
     }
     if extra_body:
-        body = body | extra_body
+        body |= extra_body
 
     return resource.OpenshiftResource(
         body=body,

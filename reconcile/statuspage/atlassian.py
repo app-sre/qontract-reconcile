@@ -1,12 +1,16 @@
 import logging
+import time
 from typing import (
     Any,
     Optional,
     Protocol,
 )
 
+import requests
 import statuspageio  # type: ignore
 from pydantic import BaseModel
+from requests import Response
+from sretoolbox.utils import retry
 
 from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.page import (
@@ -59,17 +63,37 @@ class LegacyLibAtlassianAPI:
         self.page_id = page_id
         self.api_url = api_url
         self.token = token
+        self.auth_headers = {"Authorization": f"OAuth {self.token}"}
         self._client = statuspageio.Client(
             api_key=self.token, page_id=self.page_id, organization_id="unset"
         )
 
+    @retry(max_attempts=10)
+    def _do_get(self, url: str, params: dict[str, Any]) -> Response:
+        response = requests.get(
+            url, params=params, headers=self.auth_headers, timeout=30
+        )
+        response.raise_for_status()
+        return response
+
     def list_components(self) -> list[AtlassianRawComponent]:
-        return [
-            AtlassianRawComponent(
-                **c.toDict(),
-            )
-            for c in self._client.components.list()
-        ]
+        url = f"{self.api_url}/v1/pages/{self.page_id}/components"
+        all_components: list[AtlassianRawComponent] = []
+        page = 1
+        per_page = 100
+        while True:
+            params = {"page": page, "per_page": per_page}
+            response = self._do_get(url, params=params)
+            components = [AtlassianRawComponent(**c) for c in response.json()]
+            all_components += components
+            if len(components) < per_page:
+                break
+            page += 1
+            # https://developer.statuspage.io/#section/Rate-Limiting
+            # Each API token is limited to 1 request / second as measured on a 60 second rolling window
+            time.sleep(1)
+
+        return all_components
 
     def update_component(self, id: str, data: dict[str, Any]) -> None:
         self._client.components.update(id, **data)

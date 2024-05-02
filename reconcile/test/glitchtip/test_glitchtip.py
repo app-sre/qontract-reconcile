@@ -19,7 +19,6 @@ from reconcile.utils.internal_groups.models import (
 
 def test_fetch_current_state(
     glitchtip_client: GlitchtipClient,
-    glitchtip_server_full_api_response: None,
     fx: Fixtures,
 ) -> None:
     current_state = fetch_current_state(

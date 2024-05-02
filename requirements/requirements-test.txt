@@ -1,9 +1,8 @@
 anymarkup==0.8.1
-# Pin httpretty because of https://github.com/gabrielfalcao/HTTPretty/issues/425. version 1.1.5 should be fine when released
-git+https://github.com/gabrielfalcao/HTTPretty.git@c255165a86bef7f894c3a446b41d0b3379c5c2be
 kubernetes~=24.0
 pytest~=7.2
 pytest-cov~=4.0.0
+pytest-httpserver~=1.0
 pytest-mock~=3.6
 responses==0.23.1
 testslide~=2.7
@@ -13,4 +12,4 @@ MarkupSafe==2.1.1
 smtpdfix==0.3.3
 pyfakefs~=5.1
 botocore==1.34.15
-ruff==0.3.2
+ruff==0.4.1

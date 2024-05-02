@@ -509,6 +509,7 @@ def _setup_mocks(
     vpc_details: Optional[Mapping] = None,
     tgws: Optional[Iterable] = None,
     assume_role: Optional[str] = None,
+    feature_toggle_state: bool = True,
 ) -> dict:
     mocked_gql_api = create_autospec(GqlApi)
     mocker.patch(
@@ -564,7 +565,14 @@ def _setup_mocks(
     ).return_value
     mocked_tf.plan.return_value = (False, False)
     mocked_tf.apply.return_value = False
-
+    mocked_tf.apply_count = 0
+    get_feature_toggle_state = mocker.patch(
+        "reconcile.terraform_tgw_attachments.get_feature_toggle_state",
+        return_value=feature_toggle_state,
+    )
+    mock_extended_early_exit_run = mocker.patch(
+        "reconcile.terraform_tgw_attachments.extended_early_exit_run"
+    )
     mocked_logging = mocker.patch("reconcile.terraform_tgw_attachments.logging")
 
     return {
@@ -578,7 +586,124 @@ def _setup_mocks(
         "aws_api": mocked_aws_api,
         "gql_api": mocked_gql_api,
         "logging": mocked_logging,
+        "extended_early_exit_run": mock_extended_early_exit_run,
+        "get_feature_toggle_state": get_feature_toggle_state,
     }
+
+
+def test_with_extended_early_exit_enabled(
+    mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
+    cluster_with_tgw_connection: ClusterV1,
+    tgw_account: AWSAccountV1,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        vault_settings=app_interface_vault_settings,
+        clusters=[cluster_with_tgw_connection],
+        accounts=[tgw_account],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
+    )
+    expected_params = integ.RunnerParams(
+        terraform_client=mocks["tf"],
+        terrascript_client=mocks["ts"],
+        dry_run=False,
+        enable_deletion=False,
+    )
+
+    integ.run(
+        False,
+        enable_deletion=False,
+        enable_extended_early_exit=True,
+        extended_early_exit_cache_ttl_seconds=40,
+        log_cached_log_output=True,
+    )
+
+    mocks["extended_early_exit_run"].assert_called_once_with(
+        integration=integ.QONTRACT_INTEGRATION,
+        integration_version=integ.QONTRACT_INTEGRATION_VERSION,
+        dry_run=False,
+        shard="",
+        cache_source=integ.CacheSource(
+            terraform_configurations=mocks["ts"].terraform_configurations.return_value
+        ),
+        ttl_seconds=40,
+        logger=mocks["logging"].getLogger.return_value,
+        runner=integ.runner,
+        runner_params=expected_params,
+        secret_reader=mocks["secret_reader"],
+        log_cached_log_output=True,
+    )
+
+
+def test_with_extended_early_exit_disabled(
+    mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
+    cluster_with_tgw_connection: ClusterV1,
+    tgw_account: AWSAccountV1,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        vault_settings=app_interface_vault_settings,
+        clusters=[cluster_with_tgw_connection],
+        accounts=[tgw_account],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
+    )
+    integ.run(
+        False,
+        enable_deletion=False,
+        enable_extended_early_exit=False,
+    )
+    mocks["extended_early_exit_run"].assert_not_called()
+    mocks["get_app_interface_vault_settings"].assert_called_once_with()
+    mocks["get_clusters_with_peering"].assert_called_once_with(mocks["gql_api"])
+    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"])
+    mocks["tf"].plan.assert_called_once_with(False)
+    mocks["tf"].apply.assert_called_once()
+
+
+def test_with_feature_flag_disabled(
+    mocker: MockerFixture,
+    app_interface_vault_settings: AppInterfaceSettingsV1,
+    cluster_with_tgw_connection: ClusterV1,
+    tgw_account: AWSAccountV1,
+    tgw: Mapping,
+    vpc_details: Mapping,
+    assume_role: str,
+) -> None:
+    mocks = _setup_mocks(
+        mocker,
+        vault_settings=app_interface_vault_settings,
+        clusters=[cluster_with_tgw_connection],
+        accounts=[tgw_account],
+        vpc_details=vpc_details,
+        tgws=[tgw],
+        assume_role=assume_role,
+        feature_toggle_state=False,
+    )
+    integ.run(
+        False,
+        enable_deletion=False,
+        enable_extended_early_exit=True,
+        extended_early_exit_cache_ttl_seconds=40,
+        log_cached_log_output=True,
+    )
+    mocks["extended_early_exit_run"].assert_not_called()
+    mocks["get_app_interface_vault_settings"].assert_called_once_with()
+    mocks["get_clusters_with_peering"].assert_called_once_with(mocks["gql_api"])
+    mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"])
+    mocks["tf"].plan.assert_called_once_with(False)
+    mocks["tf"].apply.assert_called_once()
 
 
 def test_empty_run(

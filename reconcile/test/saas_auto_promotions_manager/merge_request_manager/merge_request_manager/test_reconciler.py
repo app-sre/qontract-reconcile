@@ -4,16 +4,16 @@ from unittest.mock import create_autospec
 import pytest
 from gitlab.v4.objects import ProjectMergeRequest
 
-from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
-    OpenMergeRequest,
-)
-from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
+from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
     Addition,
+    Batcher,
     Deletion,
     Diff,
     Promotion,
     Reason,
-    Reconciler,
+)
+from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
+    OpenBatcherMergeRequest,
 )
 
 
@@ -69,28 +69,28 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
         (
             [],
             [
-                OpenMergeRequest(
+                OpenBatcherMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
                     channels={"chan1", "chan2"},
                     content_hashes={"hash1", "hash2"},
                     failed_mr_check=True,
                     is_batchable=True,
                 ),
-                OpenMergeRequest(
+                OpenBatcherMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
                     channels={"chan3"},
                     content_hashes={"hash3"},
                     failed_mr_check=False,
                     is_batchable=True,
                 ),
-                OpenMergeRequest(
+                OpenBatcherMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
                     channels={"chan4"},
                     content_hashes={"hash4"},
                     failed_mr_check=False,
                     is_batchable=False,
                 ),
-                OpenMergeRequest(
+                OpenBatcherMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
                     channels={"chan5"},
                     content_hashes={"hash5"},
@@ -101,7 +101,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
             Diff(
                 deletions=[
                     Deletion(
-                        mr=OpenMergeRequest(
+                        mr=OpenBatcherMergeRequest(
                             raw=create_autospec(spec=ProjectMergeRequest),
                             channels={"chan1", "chan2"},
                             content_hashes={"hash1", "hash2"},
@@ -111,7 +111,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                         reason=Reason.MISSING_UNBATCHING,
                     ),
                     Deletion(
-                        mr=OpenMergeRequest(
+                        mr=OpenBatcherMergeRequest(
                             raw=create_autospec(spec=ProjectMergeRequest),
                             channels={"chan3"},
                             content_hashes={"hash3"},
@@ -121,7 +121,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                         reason=Reason.OUTDATED_CONTENT,
                     ),
                     Deletion(
-                        mr=OpenMergeRequest(
+                        mr=OpenBatcherMergeRequest(
                             raw=create_autospec(spec=ProjectMergeRequest),
                             channels={"chan4"},
                             content_hashes={"hash4"},
@@ -131,7 +131,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                         reason=Reason.OUTDATED_CONTENT,
                     ),
                     Deletion(
-                        mr=OpenMergeRequest(
+                        mr=OpenBatcherMergeRequest(
                             raw=create_autospec(spec=ProjectMergeRequest),
                             channels={"chan5"},
                             content_hashes={"hash5"},
@@ -161,7 +161,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 ),
             ],
             [
-                OpenMergeRequest(
+                OpenBatcherMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
                     channels={"chan1", "chan2"},
                     content_hashes={"hash1", "hash2"},
@@ -172,7 +172,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
             Diff(
                 deletions=[
                     Deletion(
-                        mr=OpenMergeRequest(
+                        mr=OpenBatcherMergeRequest(
                             raw=create_autospec(spec=ProjectMergeRequest),
                             channels={"chan1", "chan2"},
                             content_hashes={"hash1", "hash2"},
@@ -210,7 +210,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 ),
             ],
             [
-                OpenMergeRequest(
+                OpenBatcherMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
                     channels={"chan1", "chan2"},
                     content_hashes={"hash1", "hash2"},
@@ -243,7 +243,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 ),
             ],
             [
-                OpenMergeRequest(
+                OpenBatcherMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
                     channels={"chan1", "chan2"},
                     content_hashes={"hash1", "hash2"},
@@ -254,7 +254,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
             Diff(
                 deletions=[
                     Deletion(
-                        mr=OpenMergeRequest(
+                        mr=OpenBatcherMergeRequest(
                             raw=create_autospec(spec=ProjectMergeRequest),
                             channels={"chan1", "chan2"},
                             content_hashes={"hash1", "hash2"},
@@ -301,7 +301,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 ),
             ],
             [
-                OpenMergeRequest(
+                OpenBatcherMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
                     channels={"chan1", "chan2"},
                     content_hashes={"hash1", "hash2"},
@@ -312,7 +312,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
             Diff(
                 deletions=[
                     Deletion(
-                        mr=OpenMergeRequest(
+                        mr=OpenBatcherMergeRequest(
                             raw=create_autospec(spec=ProjectMergeRequest),
                             channels={"chan1", "chan2"},
                             content_hashes={"hash1", "hash2"},
@@ -380,7 +380,7 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 ),
             ],
             [
-                OpenMergeRequest(
+                OpenBatcherMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
                     channels={"chan1"},
                     content_hashes={"hash1"},
@@ -424,14 +424,14 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
                 ),
             ],
             [
-                OpenMergeRequest(
+                OpenBatcherMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
                     channels={"chan1"},
                     content_hashes={"hash1"},
                     failed_mr_check=False,
                     is_batchable=False,
                 ),
-                OpenMergeRequest(
+                OpenBatcherMergeRequest(
                     raw=create_autospec(spec=ProjectMergeRequest),
                     channels={"chan2"},
                     content_hashes={"hash2"},
@@ -457,10 +457,10 @@ def _aggregate_channels(items: Sequence[Addition | Deletion]) -> set[str]:
 )
 def test_reconcile(
     desired_promotions: list[Promotion],
-    open_mrs: list[OpenMergeRequest],
+    open_mrs: list[OpenBatcherMergeRequest],
     expected_diff: Diff,
 ) -> None:
-    reconciler = Reconciler()
+    reconciler = Batcher()
     diff = reconciler.reconcile(
         desired_promotions=desired_promotions, open_mrs=open_mrs, batch_limit=5
     )

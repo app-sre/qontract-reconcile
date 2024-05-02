@@ -15,6 +15,7 @@ from reconcile.utils import (
     openshift_resource,
     slack_api,
 )
+from reconcile.utils.saasherder.saasherder import UNIQUE_SAAS_FILE_ENV_COMBO_LEN
 
 
 @pytest.fixture
@@ -72,7 +73,7 @@ def test_compose_console_url_with_medium_saas_name(
 
     url = compose_console_url(saas_file, env_name)
 
-    expected_run_name = f"{saas_name}-{env_name}"[:50]
+    expected_run_name = f"{saas_name}-{env_name}"[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
     assert (
         url == "https://console.url/k8s/ns/namespace_name/tekton.dev~v1beta1~Pipeline/"
         "o-saas-deploy-saas-openshift-cert-manager-routes/"

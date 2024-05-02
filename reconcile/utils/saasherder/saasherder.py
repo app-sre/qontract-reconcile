@@ -16,6 +16,7 @@ from collections.abc import (
     Sequence,
 )
 from contextlib import suppress
+from datetime import datetime, timezone
 from types import TracebackType
 from typing import (
     Any,
@@ -93,7 +94,7 @@ from reconcile.utils.state import State
 TARGET_CONFIG_HASH = "target_config_hash"
 
 
-UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 50
+UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 56
 
 
 def is_commit_sha(ref: str) -> bool:
@@ -491,14 +492,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         """
         Build a tuple of short and long names for a saas file and environment combo,
         max tekton pipelinerun name length can be 63,
-        leaving 12 for the timestamp leaves us with 51 to create a unique pipelinerun name.
+        leaving 7 for the rerun leaves us with 56 to create a unique pipelinerun name.
 
         :param saas_file_name: name of the saas file
         :param env_name: name of the environment
         :return: (tkn_name, tkn_long_name)
         """
         tkn_long_name = f"{saas_file_name}-{env_name}"
-        tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
+        tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN].rstrip("-")
         return tkn_name, tkn_long_name
 
     def _check_saas_file_env_combo_unique(
@@ -1965,6 +1966,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
+        now = datetime.now(timezone.utc)
         for promotion in self.promotions:
             if promotion is None:
                 continue
@@ -1982,6 +1984,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             saas_file=promotion.saas_file,
                             success=success,
                             target_config_hash=promotion.target_config_hash,
+                            check_in=str(now),
                         ),
                     )
                     logging.info(

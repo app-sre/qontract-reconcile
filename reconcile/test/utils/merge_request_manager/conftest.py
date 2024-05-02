@@ -41,7 +41,7 @@ def compiled_regexes(version_ref: str, data_ref1: str) -> dict[str, re.Pattern]:
     }
 
 
-class TestModel(BaseModel):
+class ModelStub(BaseModel):
     data_ref1: str
 
 
@@ -50,8 +50,8 @@ def parser(
     compiled_regexes: dict[str, re.Pattern],
     version_ref: str,
 ) -> Parser:
-    return Parser[TestModel](
-        klass=TestModel,
+    return Parser[ModelStub](
+        klass=ModelStub,
         compiled_regexes=compiled_regexes,
         version_ref=version_ref,
         expected_version="1.0.0",

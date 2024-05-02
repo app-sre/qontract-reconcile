@@ -1,8 +1,8 @@
 from collections.abc import Callable
 
-import httpretty as httpretty_module
 import pytest
 import requests
+from pytest_httpserver import HTTPServer
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.internal_groups.client import (
@@ -17,8 +17,8 @@ def fx() -> Fixtures:
 
 
 @pytest.fixture
-def internal_groups_url() -> str:
-    return "http://fake-internal-groups-server.com"
+def internal_groups_url(httpserver: HTTPServer) -> str:
+    return httpserver.url_for("")
 
 
 @pytest.fixture
@@ -53,25 +53,22 @@ def internal_groups_token() -> str:
 
 @pytest.fixture
 def internal_groups_server_full_api_response(
-    httpretty: httpretty_module,
-    set_httpretty_responses_based_on_fixture: Callable,
+    httpserver: HTTPServer,
+    set_httpserver_responses_based_on_fixture: Callable,
     internal_groups_url: str,
     fx: Fixtures,
     group_name: str,
     non_existent_group_name: str,
 ) -> None:
-    set_httpretty_responses_based_on_fixture(
-        url=internal_groups_url,
+    set_httpserver_responses_based_on_fixture(
         fx=fx,
-        paths=["v1/groups/", f"v1/groups/{group_name}"],
+        paths=["/v1/groups/", f"/v1/groups/{group_name}"],
     )
     # 404 for non-existent group
     for method in ["get", "put", "patch", "delete"]:
-        httpretty.register_uri(
-            getattr(httpretty, method.upper()),
-            f"{internal_groups_url}/v1/groups/{non_existent_group_name}",
-            status=404,
-        )
+        httpserver.expect_request(
+            f"/v1/groups/{non_existent_group_name}", method=method
+        ).respond_with_data(status=404)
 
 
 @pytest.fixture

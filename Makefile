@@ -55,12 +55,12 @@ test-app: build-test ## Target to test app with tox on docker
 	@$(CONTAINER_ENGINE) run --rm $(IMAGE_TEST)
 
 test-container-image: build ## Target to test the final image
-	@$(CONTAINER_ENGINE) run --rm \
-		-v /var/run/docker.sock:/var/run/docker.sock \
-		-v $(CURDIR):/work \
-		 $(CTR_STRUCTURE_IMG) test \
-		--config /work/dockerfiles/structure-test.yaml \
-		-i $(IMAGE_NAME):$(IMAGE_TAG)
+	@CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	CTR_STRUCTURE_IMG=$(CTR_STRUCTURE_IMG) \
+	CURDIR=$(CURDIR) \
+	IMAGE_NAME=$(IMAGE_NAME) \
+	IMAGE_TAG=$(IMAGE_TAG) \
+	$(CURDIR)/run-test-container-image.sh
 
 test: test-app test-container-image
 

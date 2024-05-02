@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
-    OpenMergeRequest,
+from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
+    OpenBatcherMergeRequest,
 )
 
 
@@ -14,7 +14,7 @@ class Reason(Enum):
     NEW_BATCH = "Closing this MR in favor of a new batch MR."
 
 
-@dataclass
+@dataclass(order=True)
 class Promotion:
     content_hashes: set[str]
     channels: set[str]
@@ -22,7 +22,7 @@ class Promotion:
 
 @dataclass
 class Deletion:
-    mr: OpenMergeRequest
+    mr: OpenBatcherMergeRequest
     reason: Reason
 
 
@@ -39,18 +39,18 @@ class Diff:
     additions: list[Addition]
 
 
-class Reconciler:
+class Batcher:
     """
-    The reconciler calculates a Diff. I.e., which MRs need to be opened (Addition)
-    and which MRs need to be closed (Deletion). The reconciler has no external
-    dependencies and does not interact with VCS. The reconciler expects to be
+    The batcher calculates a Diff. I.e., which MRs need to be opened (Addition)
+    and which MRs need to be closed (Deletion). The batcher has no external
+    dependencies and does not interact with VCS. The batcher expects to be
     given the desired state (which promotions do we want) and the current state
     (the currently open MRs) in order to calculate the Diff.
     """
 
     def __init__(self) -> None:
         self._desired_promotions: Iterable[Promotion] = []
-        self._open_mrs: Iterable[OpenMergeRequest] = []
+        self._open_mrs: Iterable[OpenBatcherMergeRequest] = []
 
     def _unbatch(self, diff: Diff) -> None:
         """
@@ -61,7 +61,7 @@ class Reconciler:
         and close the old batched MR. By doing so, we ensure that unrelated MRs are not blocking each other.
         Unbatched MRs are marked and will never be batched again.
         """
-        open_mrs_after_unbatching: list[OpenMergeRequest] = []
+        open_mrs_after_unbatching: list[OpenBatcherMergeRequest] = []
         unbatchable_hashes: set[str] = set()
         falsely_marked_batchable_hashes: set[str] = set()
         for mr in self._open_mrs:
@@ -107,7 +107,7 @@ class Reconciler:
         for promotion in self._desired_promotions:
             all_desired_content_hashes.update(promotion.content_hashes)
 
-        open_mrs_after_deletion: list[OpenMergeRequest] = []
+        open_mrs_after_deletion: list[OpenBatcherMergeRequest] = []
         for mr in self._open_mrs:
             if mr.content_hashes.issubset(all_desired_content_hashes):
                 open_mrs_after_deletion.append(mr)
@@ -145,7 +145,7 @@ class Reconciler:
         if not unsubmitted_promotions:
             return
 
-        batch_with_capacity: Optional[OpenMergeRequest] = None
+        batch_with_capacity: Optional[OpenBatcherMergeRequest] = None
         for mr in self._open_mrs:
             if mr.is_batchable and len(mr.content_hashes) < batch_limit:
                 batch_with_capacity = mr
@@ -194,7 +194,7 @@ class Reconciler:
     def reconcile(
         self,
         desired_promotions: Iterable[Promotion],
-        open_mrs: Iterable[OpenMergeRequest],
+        open_mrs: Iterable[OpenBatcherMergeRequest],
         batch_limit: int,
     ) -> Diff:
         self._open_mrs = open_mrs

@@ -1,5 +1,5 @@
-import httpretty as httpretty_module
 import pytest
+from pytest_httpserver import HTTPServer
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.internal_groups.client import (
@@ -11,13 +11,13 @@ from reconcile.utils.internal_groups.models import Group
 
 
 def test_internal_groups_api_create_group(
-    httpretty: httpretty_module, internal_groups_api: InternalGroupsApi, fx: Fixtures
+    httpserver: HTTPServer, internal_groups_api: InternalGroupsApi, fx: Fixtures
 ) -> None:
     assert internal_groups_api.create_group(data={"fake": "fake"}) == fx.get_json(
         "v1/groups/post.json"
     )
 
-    assert httpretty.last_request().body == b'{"fake": "fake"}'
+    assert httpserver.log[0][0].json == {"fake": "fake"}
 
 
 def test_internal_groups_api_delete_group(
@@ -36,7 +36,7 @@ def test_internal_groups_api_delete_unknown_group(
 
 
 def test_internal_groups_api_update_group(
-    httpretty: httpretty_module,
+    httpserver: HTTPServer,
     internal_groups_api: InternalGroupsApi,
     fx: Fixtures,
     group_name: str,
@@ -45,11 +45,11 @@ def test_internal_groups_api_update_group(
         name=group_name, data={"fake": "fake"}
     ) == fx.get_json(f"v1/groups/{group_name}/patch.json")
 
-    assert httpretty.last_request().body == b'{"fake": "fake"}'
+    assert httpserver.log[0][0].json == {"fake": "fake"}
 
 
 def test_internal_groups_api_get_group(
-    httpretty: httpretty_module,
+    httpserver: HTTPServer,
     internal_groups_api: InternalGroupsApi,
     fx: Fixtures,
     group_name: str,
@@ -58,7 +58,7 @@ def test_internal_groups_api_get_group(
         f"v1/groups/{group_name}/get.json"
     )
 
-    assert httpretty.last_request().headers.get("content-type") == "application/json"
+    assert httpserver.log[0][0].headers.get("content-type") == "application/json"
 
 
 def test_internal_groups_api_get_group_not_found(

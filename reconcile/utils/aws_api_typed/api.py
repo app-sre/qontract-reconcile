@@ -9,12 +9,14 @@ from boto3 import Session
 from botocore.client import BaseClient
 from pydantic import BaseModel
 
+import reconcile.utils.aws_api_typed.dynamodb
 import reconcile.utils.aws_api_typed.iam
 import reconcile.utils.aws_api_typed.organization
 import reconcile.utils.aws_api_typed.s3
 import reconcile.utils.aws_api_typed.service_quotas
 import reconcile.utils.aws_api_typed.sts
 import reconcile.utils.aws_api_typed.support
+from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
 from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
 from reconcile.utils.aws_api_typed.s3 import AWSApiS3
@@ -22,7 +24,16 @@ from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
 from reconcile.utils.aws_api_typed.sts import AWSApiSts
 from reconcile.utils.aws_api_typed.support import AWSApiSupport
 
-SubApi = TypeVar("SubApi")
+SubApi = TypeVar(
+    "SubApi",
+    AWSApiIam,
+    AWSApiOrganizations,
+    AWSApiS3,
+    AWSApiServiceQuotas,
+    AWSApiSts,
+    AWSApiSupport,
+    AWSApiDynamoDB,
+)
 
 
 class AWSCredentials(ABC):
@@ -159,7 +170,7 @@ class AWSApi:
         match api_cls:
             case reconcile.utils.aws_api_typed.iam.AWSApiIam:
                 client = self.session.client("iam")
-                api = api_cls(client)  # type: ignore # mypy bug, it doesn't recognize that api_cls is callable
+                api = api_cls(client)
             case reconcile.utils.aws_api_typed.organization.AWSApiOrganizations:
                 client = self.session.client("organizations")
                 api = api_cls(client)
@@ -174,6 +185,9 @@ class AWSApi:
                 api = api_cls(client)
             case reconcile.utils.aws_api_typed.support.AWSApiSupport:
                 client = self.session.client("support")
+                api = api_cls(client)
+            case reconcile.utils.aws_api_typed.dynamodb.AWSApiDynamoDB:
+                client = self.session.client("dynamodb")
                 api = api_cls(client)
             case _:
                 raise ValueError(f"Unknown API class: {api_cls}")
@@ -210,6 +224,11 @@ class AWSApi:
     def support(self) -> AWSApiSupport:
         """Return an AWS Support Api client."""
         return self._init_sub_api(AWSApiSupport)
+
+    @cached_property
+    def dynamodb(self) -> AWSApiDynamoDB:
+        """Return an AWS DynamoDB Api client"""
+        return self._init_sub_api(AWSApiDynamoDB)
 
     def assume_role(self, account_id: str, role: str) -> AWSApi:
         """Return a new AWSApi with the assumed role."""

@@ -41,11 +41,6 @@ def raw_fixture_data(fx: Fixtures) -> dict[str, Any]:
 
 
 @pytest.fixture
-def raw_fixture_data_aws_groups(fx: Fixtures) -> dict[str, Any]:
-    return fx.get_anymarkup("aws_groups.yml")
-
-
-@pytest.fixture
 def roles(
     fx: Fixtures,
     data_factory: Callable[[type[RoleV1], Mapping[str, Any]], Mapping[str, Any]],
@@ -84,7 +79,34 @@ def group(owners: Iterable[Entity]) -> Group:
 
 
 @pytest.fixture
-def group2(owners: Iterable[Entity]) -> Group:
+def group2(owners: list[Entity]) -> Group:
+    # keep in sync with fx/roles.yml
+    return Group(
+        name="ai-dev-test-group-with-notes",
+        description="Persisted App-Interface role. Managed by qontract-reconcile",
+        member_approval_type="self-service",
+        contact_list="email@example.org",
+        owners=owners
+        + [
+            Entity(type=EntityType.USER, id="pike"),
+            Entity(type=EntityType.USER, id="uhura"),
+        ],
+        display_name="ai-dev-test-group-with-notes (App-Interface))",
+        notes="Just a note",
+        rover_group_member_query=None,
+        rover_group_inclusions=None,
+        rover_group_exclusions=None,
+        members=[
+            Entity(type=EntityType.USER, id="pike"),
+            Entity(type=EntityType.USER, id="uhura"),
+        ],
+        member_of=None,
+        namespace=None,
+    )
+
+
+@pytest.fixture
+def group3(owners: Iterable[Entity]) -> Group:
     # keep in sync with fx/roles.yml
     return Group(
         name="ai-dev-test-group-2",
@@ -104,6 +126,11 @@ def group2(owners: Iterable[Entity]) -> Group:
         member_of=None,
         namespace=None,
     )
+
+
+@pytest.fixture
+def groups(group: Group, group2: Group, group3: Group) -> list[Group]:
+    return [group, group2, group3]
 
 
 @pytest.fixture

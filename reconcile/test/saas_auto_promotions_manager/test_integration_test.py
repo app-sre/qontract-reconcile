@@ -1,14 +1,14 @@
 from unittest.mock import create_autospec
 
 from reconcile.saas_auto_promotions_manager.integration import SaasAutoPromotionsManager
+from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
+    Batcher,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_manager_v2 import (
     MergeRequestManagerV2,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
-)
-from reconcile.saas_auto_promotions_manager.merge_request_manager.reconciler import (
-    Reconciler,
 )
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     Renderer,
@@ -33,7 +33,7 @@ def test_integration_test():
     vcs = create_autospec(spec=VCS)
     merge_request_manager_v2 = MergeRequestManagerV2(
         vcs=vcs,
-        reconciler=create_autospec(spec=Reconciler),
+        reconciler=create_autospec(spec=Batcher),
         mr_parser=create_autospec(spec=MRParser),
         renderer=create_autospec(spec=Renderer),
     )

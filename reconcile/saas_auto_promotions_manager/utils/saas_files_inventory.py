@@ -42,6 +42,8 @@ class SaasFilesInventory:
         for saas_file in self._saas_files:
             for resource_template in saas_file.resource_templates:
                 for target in resource_template.targets:
+                    if target.disable or target.delete:
+                        continue
                     if not target.promotion:
                         continue
                     auth_code = (
@@ -87,16 +89,26 @@ class SaasFilesInventory:
             for resource_template in saas_file.resource_templates:
                 for target in resource_template.targets:
                     file_path = target.path if target.path else saas_file.path
+                    if target.disable or target.delete:
+                        continue
                     if not target.promotion:
                         continue
                     if not target.promotion.auto:
                         continue
+                    soak_days = (
+                        target.promotion.soak_days if target.promotion.soak_days else 0
+                    )
                     subscriber = Subscriber(
+                        uid=target.uid(
+                            parent_saas_file_name=saas_file.name,
+                            parent_resource_template_name=resource_template.name,
+                        ),
                         saas_name=saas_file.name,
                         template_name=resource_template.name,
                         target_file_path=file_path,
                         ref=target.ref,
                         target_namespace=target.namespace,
+                        soak_days=soak_days,
                         # Note: this will be refactored at a later point.
                         # https://issues.redhat.com/browse/APPSRE-7516
                         use_target_config_hash=bool(saas_file.publish_job_logs),

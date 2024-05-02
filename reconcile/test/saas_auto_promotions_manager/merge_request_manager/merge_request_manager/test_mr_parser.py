@@ -12,10 +12,14 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.merge_request_
 from reconcile.saas_auto_promotions_manager.merge_request_manager.mr_parser import (
     MRParser,
 )
+from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
+    MRKind,
+)
 from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer import (
     CHANNELS_REF,
     CONTENT_HASHES,
     IS_BATCHABLE,
+    MR_KIND_REF,
     PROMOTION_DATA_SEPARATOR,
     SAPM_VERSION,
     VERSION_REF,
@@ -44,6 +48,7 @@ def test_valid_parsing(
                     {CHANNELS_REF}: channel0
                     {CONTENT_HASHES}: hash0
                     {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
             {
@@ -55,6 +60,7 @@ def test_valid_parsing(
                     {CHANNELS_REF}: channel1
                     {CONTENT_HASHES}: hash1
                     {IS_BATCHABLE}: False
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
         ]
@@ -62,7 +68,8 @@ def test_valid_parsing(
     mr_parser = MRParser(
         vcs=vcs,
     )
-    open_mrs = mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
+    mr_parser.fetch_mrs(label=SAPM_LABEL)
+    open_mrs = mr_parser._open_batcher_mrs
     assert len(open_mrs) == 2
 
     assert open_mrs[0].raw == expectd_mrs[0]
@@ -90,6 +97,7 @@ def test_labels_filter(
                     {CHANNELS_REF}: other-channel
                     {CONTENT_HASHES}: other_hash
                     {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
             # This MR should get ignored
@@ -102,6 +110,7 @@ def test_labels_filter(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: some_hash
                     {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
         ]
@@ -109,7 +118,8 @@ def test_labels_filter(
     mr_parser = MRParser(
         vcs=vcs,
     )
-    open_mrs = mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
+    mr_parser.fetch_mrs(label=SAPM_LABEL)
+    open_mrs = mr_parser.get_open_batcher_mrs()
     assert len(open_mrs) == 1
     assert open_mrs[0].raw == expectd_mrs[0]
 
@@ -128,6 +138,7 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_1
                     {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
             {
@@ -139,6 +150,7 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {IS_BATCHABLE}: True
                     missing-content-hash-key: some_hash
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
             {
@@ -149,6 +161,7 @@ def test_bad_mrs(
                     {VERSION_REF}: {SAPM_VERSION}
                     {CONTENT_HASHES}: hash_3
                     {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
             {
@@ -160,6 +173,7 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_4
                     {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
             {
@@ -173,6 +187,7 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_5
                     {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
             {
@@ -184,6 +199,7 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_6
                     {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
             {
@@ -195,6 +211,7 @@ def test_bad_mrs(
                     bad_channel_ref: some-channel
                     {CONTENT_HASHES}: hash_7
                     {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
             {
@@ -206,6 +223,7 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_8
                     missing-batchable-key
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
             {
@@ -217,6 +235,19 @@ def test_bad_mrs(
                     {CHANNELS_REF}: some-channel
                     {CONTENT_HASHES}: hash_9
                     {IS_BATCHABLE}: Something-non-bool
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
+                """,
+            },
+            {
+                LABELS: [SAPM_LABEL],
+                DESCRIPTION: f"""
+                    Blabla
+                    {PROMOTION_DATA_SEPARATOR}
+                    {VERSION_REF}: {SAPM_VERSION}
+                    {CHANNELS_REF}: some-channel
+                    {CONTENT_HASHES}: hash_10
+                    {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: blub
                 """,
             },
         ]
@@ -261,11 +292,16 @@ def test_bad_mrs(
             expected_mrs[8],
             "Closing this MR because of bad is_batchable format.",
         ),
+        call(
+            expected_mrs[9],
+            "Closing this MR because of bad kind format.",
+        ),
     ]
 
-    open_mrs = mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
+    mr_parser.fetch_mrs(label=SAPM_LABEL)
+    open_mrs = mr_parser.get_open_batcher_mrs()
     assert len(open_mrs) == 0
-    vcs.close_app_interface_mr.assert_has_calls(expected_calls)  # type: ignore[attr-defined]
+    vcs.close_app_interface_mr.assert_has_calls(expected_calls, any_order=True)  # type: ignore[attr-defined]
     assert vcs.close_app_interface_mr.call_count == len(expected_calls)  # type: ignore[attr-defined]
 
 
@@ -283,6 +319,7 @@ def test_remove_duplicates(
                     {CHANNELS_REF}: some_channel
                     {CONTENT_HASHES}: same_hash
                     {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
             {
@@ -294,6 +331,7 @@ def test_remove_duplicates(
                     {CHANNELS_REF}: some_channel
                     {CONTENT_HASHES}: same_hash
                     {IS_BATCHABLE}: True
+                    {MR_KIND_REF}: {MRKind.BATCHER.value}
                 """,
             },
         ]
@@ -301,7 +339,8 @@ def test_remove_duplicates(
     mr_parser = MRParser(
         vcs=vcs,
     )
-    open_mrs = mr_parser.retrieve_open_mrs(label=SAPM_LABEL)
+    mr_parser.fetch_mrs(label=SAPM_LABEL)
+    open_mrs = mr_parser.get_open_batcher_mrs()
     vcs.close_app_interface_mr.assert_has_calls([  # type: ignore[attr-defined]
         call(
             expected_mrs[1],

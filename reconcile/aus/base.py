@@ -18,7 +18,6 @@ from typing import (
     cast,
 )
 
-import semver
 from croniter import croniter
 from pydantic import BaseModel, Extra
 from semver import VersionInfo
@@ -850,8 +849,8 @@ def is_gate_applicable_to_cluster(gate: OCMVersionGate, cluster: OCMCluster) -> 
     # consider only gates after the clusters current minor version
     # OCM onls supports creating gate agreements for later minor versions than the
     # current cluster version
-    if not semver.match(
-        f"{cluster.minor_version()}.0", f"<{gate.version_raw_id_prefix}.0"
+    if not parse_semver(f"{cluster.minor_version()}.0").match(
+        f"<{gate.version_raw_id_prefix}.0"
     ):
         return False
 
@@ -1013,7 +1012,7 @@ def _calculate_node_pool_diffs(
         for pool in node_pools:
             pool_version_id = pool.get("version", {}).get("id")
             pool_version = get_version(ocm_api, pool_version_id)["raw_id"]
-            if semver.match(pool_version, f"<{spec.current_version}"):
+            if parse_semver(pool_version).match(f"<{spec.current_version}"):
                 next_schedule = (now + timedelta(minutes=MIN_DELTA_MINUTES)).strftime(
                     "%Y-%m-%dT%H:%M:%SZ"
                 )
