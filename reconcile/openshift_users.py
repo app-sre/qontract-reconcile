@@ -18,6 +18,7 @@ from reconcile import (
 )
 from reconcile.gql_definitions.common.clusters_minimal import (
     ClusterAuthOIDCV1,
+    ClusterAuthRHIDPV1,
     ClusterV1,
 )
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -51,7 +52,7 @@ def get_cluster_users(
     identity_prefixes = ["github"]
 
     for auth in cluster_info.auth:
-        if isinstance(auth, ClusterAuthOIDCV1):
+        if isinstance(auth, (ClusterAuthOIDCV1, ClusterAuthRHIDPV1)):
             identity_prefixes.append(auth.name)
 
     for u in oc.get_users():

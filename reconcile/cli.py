@@ -2919,6 +2919,22 @@ def rhidp_sso_client(
 
 
 @integration.command(
+    short_help="Manages the OCM subscription labels for clusters with RHIDP authentication. Part of RHIDP."
+)
+@click.pass_context
+def cluster_auth_rhidp(ctx):
+    from reconcile.cluster_auth_rhidp.integration import (
+        ClusterAuthRhidpIntegration,
+        ClusterAuthRhidpIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=ClusterAuthRhidpIntegration(ClusterAuthRhidpIntegrationParams()),
+        ctx=ctx.obj,
+    )
+
+
+@integration.command(
     short_help="Automatically provide dedicated Dynatrace tokens to management clusters"
 )
 @click.option(

@@ -1,0 +1,75 @@
+
+clusters:
+- name: cluster-disabled
+  ocm:
+    environment:
+      name: ocm-stage
+      labels: "{}"
+      accessTokenClientSecret:
+        field: client_secret
+        path: path/to/client_secret
+    orgId: org-id-1
+  spec:
+    id: cluster-disabled_id
+  disable:
+    integrations:
+    - cluster-auth-rhidp
+  auth:
+  - service: rhidp
+    name: whatever
+- name: cluster-no-rhidp-auth
+  ocm:
+    environment:
+      name: ocm-stage
+      labels: "{}"
+      accessTokenClientSecret:
+        field: client_secret
+        path: path/to/client_secret
+    orgId: org-id-1
+  spec:
+    id: cluster-no-rhidp-auth_id
+  auth:
+  - service: oidc
+    name: whatever
+- name: cluster-1
+  ocm:
+    environment:
+      name: ocm-prod
+      labels: "{}"
+      accessTokenClientSecret:
+        field: client_secret
+        path: path/to/client_secret
+    orgId: org-id-1
+  spec:
+    id: cluster-1_id
+  auth:
+  - service: rhidp
+    name: whatever
+- name: cluster-2
+  ocm:
+    environment:
+      name: ocm-stage
+      labels: "{}"
+      accessTokenClientSecret:
+        field: client_secret
+        path: path/to/client_secret
+    orgId: org-id-2
+  spec:
+    id: cluster-2_id
+  auth:
+  - service: rhidp
+    name: whatever
+    issuer: https://example.com
+    status: disabled
+- name: cluster-3
+  ocm:
+    environment:
+      name: ocm-stage
+      labels: "{}"
+      accessTokenClientSecret:
+        field: client_secret
+        path: path/to/client_secret
+    orgId: org-id-3
+  spec:
+    id: cluster-3_id
+  auth: []

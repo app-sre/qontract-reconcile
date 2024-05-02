@@ -27,17 +27,17 @@ from reconcile.gql_definitions.ocm_labels.organizations import OpenShiftClusterM
 from reconcile.gql_definitions.ocm_labels.organizations import (
     query as organization_query,
 )
-from reconcile.ocm_labels.label_sources import (
-    ClusterRef,
-    LabelSource,
-    LabelState,
-    OrgRef,
-)
 from reconcile.utils import gql
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.helpers import flatten
 from reconcile.utils.ocm.clusters import discover_clusters_for_organizations
+from reconcile.utils.ocm.label_sources import (
+    ClusterRef,
+    LabelSource,
+    LabelState,
+    OrgRef,
+)
 from reconcile.utils.ocm.labels import (
     add_label,
     build_organization_labels_href,
