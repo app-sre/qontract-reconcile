@@ -7,7 +7,6 @@ from typing import (
 )
 
 import requests
-import statuspageio  # type: ignore
 from pydantic import BaseModel
 from requests import Response
 from sretoolbox.utils import retry
@@ -49,14 +48,9 @@ class AtlassianAPI(Protocol):
     def delete_component(self, id: str) -> None: ...
 
 
-class LegacyLibAtlassianAPI:
+class AtlassianRESTAPI:
     """
-    This API class wraps the statuspageio python library for basic component operations.
-    This class is named Legacy for a couple reasons:
-    * the underlying library is not maintained anymore
-    * the library has no type annotated
-    * the library does not support pagination which becomes important for this API
-    Therefore this lib will be replaced by a think wrapper based on uplink in an upcoming PR.
+    This API class wraps the statuspageio REST API for basic component operations.
     """
 
     def __init__(self, page_id: str, api_url: str, token: str):
@@ -64,9 +58,6 @@ class LegacyLibAtlassianAPI:
         self.api_url = api_url
         self.token = token
         self.auth_headers = {"Authorization": f"OAuth {self.token}"}
-        self._client = statuspageio.Client(
-            api_key=self.token, page_id=self.page_id, organization_id="unset"
-        )
 
     @retry(max_attempts=10)
     def _do_get(self, url: str, params: dict[str, Any]) -> Response:
@@ -96,14 +87,22 @@ class LegacyLibAtlassianAPI:
         return all_components
 
     def update_component(self, id: str, data: dict[str, Any]) -> None:
-        self._client.components.update(id, **data)
+        url = f"{self.api_url}/v1/pages/{self.page_id}/components/{id}"
+        requests.patch(
+            url, json={"component": data}, headers=self.auth_headers
+        ).raise_for_status()
 
     def create_component(self, data: dict[str, Any]) -> str:
-        result = self._client.components.create(**data)
-        return result["id"]
+        url = f"{self.api_url}/v1/pages/{self.page_id}/components"
+        response = requests.post(
+            url, json={"component": data}, headers=self.auth_headers
+        )
+        response.raise_for_status()
+        return response.json()["id"]
 
     def delete_component(self, id: str) -> None:
-        self._client.components.delete(id)
+        url = f"{self.api_url}/v1/pages/{self.page_id}/components/{id}"
+        requests.delete(url, headers=self.auth_headers).raise_for_status()
 
 
 class AtlassianStatusPageProvider(StatusPageProvider):
@@ -364,7 +363,7 @@ def init_provider_for_page(
     """
     return AtlassianStatusPageProvider(
         page_name=page.name,
-        api=LegacyLibAtlassianAPI(
+        api=AtlassianRESTAPI(
             page_id=page.page_id,
             api_url=page.api_url,
             token=token,
