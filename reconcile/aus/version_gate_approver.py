@@ -5,8 +5,6 @@ from typing import (
     Optional,
 )
 
-import semver
-
 from reconcile.aus.advanced_upgrade_service import aus_label_key
 from reconcile.aus.base import gates_to_agree, get_orgs_for_environment
 from reconcile.aus.version_gates import (
@@ -45,9 +43,10 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "version-gate-approver"
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 class VersionGateApproverParams(PydanticRunParams):

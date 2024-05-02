@@ -6,8 +6,6 @@ from collections.abc import (
 )
 from typing import Any, Optional
 
-import semver
-
 import reconcile.utils.mr.clusters_updates as cu
 import reconcile.utils.ocm as ocmmod
 from reconcile import (
@@ -35,10 +33,10 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.semver_helper import parse_semver
+from reconcile.utils.semver_helper import make_semver, parse_semver
 
 QONTRACT_INTEGRATION = "ocm-clusters"
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
@@ -122,10 +120,10 @@ def _cluster_version_needs_update(
     if not desired_version:
         return True
 
-    desired_version = parse_semver(desired_version)
-    current_version = parse_semver(current_version)
+    parsed_desired_version = parse_semver(desired_version)
+    parsed_current_version = parse_semver(current_version)
 
-    if current_version > desired_version:
+    if parsed_current_version > parsed_desired_version:
         # current version is geater due to an upgrade.
         # submit MR to update cluster version
         logging.info(
@@ -135,7 +133,7 @@ def _cluster_version_needs_update(
         )
         return True
 
-    if current_version < desired_version:
+    if parsed_current_version < parsed_desired_version:
         raise ClusterVersionError(
             f"[{cluster}] desired version [{desired_version}] is greater than "
             f"current version [{current_version}]. Please correct version to be "
