@@ -1,3 +1,4 @@
+import json
 from collections.abc import (
     Callable,
     Mapping,
@@ -18,6 +19,7 @@ def test_key_exists_v1(s3_state_builder: Callable[[Mapping], State]):
                 "success": True,
                 "target_config_hash": "hash",
                 "saas_file": "saas_file",
+                "check_in": "2024-04-30 13:47:31.722437+00:00",
             }
         },
     })
@@ -30,6 +32,7 @@ def test_key_exists_v1(s3_state_builder: Callable[[Mapping], State]):
         success=True,
         target_config_hash="hash",
         saas_file="saas_file",
+        check_in="2024-04-30 13:47:31.722437+00:00",
     )
 
 
@@ -99,6 +102,7 @@ def test_publish_info(s3_state_builder: Callable[[Mapping], State]):
         success=True,
         target_config_hash="some_hash",
         saas_file="some_saas",
+        check_in="2024-04-30 13:47:31.722437+00:00",
     )
     deployment_state.publish_promotion_data(
         channel="channel",
@@ -109,3 +113,16 @@ def test_publish_info(s3_state_builder: Callable[[Mapping], State]):
     deployment_state._state.add.assert_called_once_with(  # type: ignore[attr-defined]
         "promotions_v2/channel/uid/sha", promotion_info.dict(), force=True
     )
+
+
+def test_promotion_data_json_serializable():
+    """
+    We store promotion data as json in s3
+    """
+    promotion_data = PromotionData(
+        success=True,
+        target_config_hash="some_hash",
+        saas_file="some_saas",
+        check_in="2024-04-30 13:47:31.722437+00:00",
+    )
+    json.dumps(promotion_data.dict())

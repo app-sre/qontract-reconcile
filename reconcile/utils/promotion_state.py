@@ -22,6 +22,7 @@ class PromotionData(BaseModel):
     success: bool
     target_config_hash: Optional[str]
     saas_file: Optional[str]
+    check_in: Optional[str]
 
     class Config:
         smart_union = True
