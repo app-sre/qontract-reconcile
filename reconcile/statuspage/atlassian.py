@@ -71,7 +71,7 @@ class LegacyLibAtlassianAPI:
     @retry(max_attempts=10)
     def _do_get(self, url: str, params: dict[str, Any]) -> Response:
         response = requests.get(
-            url, params=params, headers=self.auth_headers, timeout=60
+            url, params=params, headers=self.auth_headers, timeout=30
         )
         response.raise_for_status()
         return response
