@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import (
     Any,
     Optional,
@@ -72,6 +73,9 @@ class LegacyLibAtlassianAPI:
         response = requests.get(
             url, params=params, headers=self.auth_headers, timeout=60
         )
+        # https://developer.statuspage.io/#section/Rate-Limiting
+        # Each API token is limited to 1 request / second as measured on a 60 second rolling window
+        time.sleep(1)
         response.raise_for_status()
         return response
 
