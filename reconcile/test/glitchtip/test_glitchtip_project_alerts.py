@@ -13,6 +13,7 @@ from reconcile.glitchtip_project_alerts.integration import (
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import (
+    DisableJiraBoardAutomationsV1,
     GlitchtipInstanceV1,
     GlitchtipOrganizationV1,
     GlitchtipProjectAlertRecipientEmailV1,
@@ -192,7 +193,7 @@ def test_glitchtip_project_alerts_get_projects(
             ],
             jira=GlitchtipProjectJiraV1(
                 project=None,
-                board=JiraBoardV1(name="JIRA-VIA-BOARD"),
+                board=JiraBoardV1(name="JIRA-VIA-BOARD", disable=None),
                 labels=["example-label-1", "example-label-2"],
             ),
         ),
@@ -205,6 +206,42 @@ def test_glitchtip_project_alerts_get_projects(
             alerts=None,
             jira=GlitchtipProjectJiraV1(
                 project="JIRA-VIA-PROJECT", board=None, labels=None
+            ),
+        ),
+        GlitchtipProjectsV1(
+            name="integration-disabled",
+            projectId=None,
+            organization=GlitchtipOrganizationV1(
+                name="NASA", instance=GlitchtipInstanceV1(name="glitchtip-dev")
+            ),
+            alerts=None,
+            jira=GlitchtipProjectJiraV1(
+                project=None,
+                board=JiraBoardV1(
+                    name="JIRA-VIA-BOARD",
+                    disable=DisableJiraBoardAutomationsV1(
+                        integrations=["glitchtip-project-alerts"]
+                    ),
+                ),
+                labels=None,
+            ),
+        ),
+        GlitchtipProjectsV1(
+            name="jira-permissions-validator-disabled",
+            projectId=None,
+            organization=GlitchtipOrganizationV1(
+                name="NASA", instance=GlitchtipInstanceV1(name="glitchtip-dev")
+            ),
+            alerts=None,
+            jira=GlitchtipProjectJiraV1(
+                project=None,
+                board=JiraBoardV1(
+                    name="JIRA-VIA-BOARD",
+                    disable=DisableJiraBoardAutomationsV1(
+                        integrations=["jira-permissions-validator"]
+                    ),
+                ),
+                labels=None,
             ),
         ),
     ]
