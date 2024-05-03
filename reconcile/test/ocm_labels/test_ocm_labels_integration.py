@@ -132,7 +132,9 @@ def test_ocm_labels_fetch_current_state(
 
     assert (
         ocm_labels.fetch_subscription_label_current_state(
-            clusters, managed_label_prefixes=["my-label-prefix"]
+            clusters,
+            managed_label_prefixes=["my-label-prefix"],
+            ignored_label_prefixes=["my-label-prefix.must-be-ignored"],
         )
         == subscription_label_current_state
     )

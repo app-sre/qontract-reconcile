@@ -147,6 +147,7 @@ def ocm_clusters(build_cluster_details: Callable) -> list[ClusterDetails]:
             subs_labels=[
                 ("my-label-prefix.to-be-removed", "enabled"),
                 ("my-label-prefix.to-be-changed", "disabled"),
+                ("my-label-prefix.must-be-ignored.foobar", "enabled"),
                 ("do-not-touch", "enabled"),
             ],
         ),

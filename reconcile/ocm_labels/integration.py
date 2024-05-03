@@ -63,8 +63,9 @@ QONTRACT_INTEGRATION = "ocm-labels"
 
 class OcmLabelsIntegrationParams(PydanticRunParams):
     managed_label_prefixes: list[str] = []
+    ignored_label_prefixes: list[str] = []
 
-    @validator("managed_label_prefixes")
+    @validator("managed_label_prefixes", "ignored_label_prefixes")
     def must_end_with_dot(  # pylint: disable=no-self-argument
         cls, v: list[str]
     ) -> list[str]:
@@ -250,7 +251,9 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         e.g. if a cluster can't be found in OCM or is not considered ready yet.
         """
         current_state = self.fetch_subscription_label_current_state(
-            clusters, self.params.managed_label_prefixes
+            clusters,
+            self.params.managed_label_prefixes,
+            self.params.ignored_label_prefixes,
         )
         desired_state = self.fetch_desired_state(
             self.subscription_label_sources(clusters, query_func)
@@ -258,7 +261,10 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         return current_state, desired_state
 
     def fetch_subscription_label_current_state(
-        self, clusters: Iterable[ClusterV1], managed_label_prefixes: list[str]
+        self,
+        clusters: Iterable[ClusterV1],
+        managed_label_prefixes: list[str],
+        ignored_label_prefixes: list[str],
     ) -> LabelState:
         """
         Fetches the current state of subscription labels for the given clusters.
@@ -287,6 +293,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
                     label: value
                     for label, value in cluster_details.subscription_labels.get_values_dict().items()
                     if label.startswith(tuple(managed_label_prefixes))
+                    and not label.startswith(tuple(ignored_label_prefixes))
                 }
                 states[
                     ClusterRef(
