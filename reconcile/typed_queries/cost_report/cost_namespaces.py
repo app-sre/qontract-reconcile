@@ -17,7 +17,16 @@ class CostNamespace(BaseModel):
 def get_cost_namespaces(
     gql_api: GqlApi,
 ) -> list[CostNamespace]:
-    namespaces = query(gql_api.query).namespaces or []
+    variables = {
+        "filter": {
+            "cluster": {
+                "filter": {
+                    "enableCostReport": True,
+                },
+            },
+        },
+    }
+    namespaces = query(gql_api.query, variables=variables).namespaces or []
     return [
         CostNamespace(
             name=namespace.name,

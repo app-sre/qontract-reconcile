@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from unittest.mock import ANY
 
 import pytest
 
@@ -59,7 +60,20 @@ def test_get_cost_namespaces(
     expected_cost_namespace: CostNamespace,
 ) -> None:
     gql_api = gql_api_builder(namespace_response.dict(by_alias=True))
+    expected_vars = {
+        "filter": {
+            "cluster": {
+                "filter": {
+                    "enableCostReport": True,
+                },
+            },
+        },
+    }
 
     namespaces = get_cost_namespaces(gql_api)
 
     assert namespaces == [expected_cost_namespace]
+    gql_api.query.assert_called_once_with(
+        ANY,
+        expected_vars,
+    )

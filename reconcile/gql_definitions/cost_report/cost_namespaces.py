@@ -19,8 +19,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query CostNamespaces {
-  namespaces: namespaces_v1 {
+query CostNamespaces($filter: JSON) {
+  namespaces: namespaces_v1(filter: $filter) {
     name
     app {
       name
