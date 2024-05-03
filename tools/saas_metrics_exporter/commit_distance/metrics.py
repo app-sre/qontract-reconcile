@@ -20,7 +20,6 @@ class SaasCommitDistanceGauge(SaasBaseMetric, GaugeMetric):
     subscriber: str
     subscriber_namespace: str
     app: str
-    env: str
 
     @classmethod
     def name(cls) -> str:

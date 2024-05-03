@@ -10,7 +10,6 @@ from reconcile.utils.secret_reader import HasSecret
 @dataclass
 class SaasTarget:
     app_name: str
-    env_name: str
     repo_url: str
     namespace_name: str
     target_name: str
@@ -40,7 +39,6 @@ def build_channels(saas_files: Iterable[SaasFile]) -> list[Channel]:
                 target_name = target.name if target.name else "NoName"
                 saas_target = SaasTarget(
                     app_name=saas_file.app.name,
-                    env_name=target.namespace.environment.name,
                     repo_url=resource_template.url,
                     ref=target.ref,
                     auth_code=auth_code,
