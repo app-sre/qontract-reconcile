@@ -98,9 +98,14 @@ class ClusterAuthRhidpIntegration(
         for cluster in clusters:
             assert cluster.ocm and cluster.spec and cluster.spec.q_id  # make mypy happy
             label = {}
-            for auth in cluster.auth:
-                if not isinstance(auth, ClusterAuthRHIDPV1) or auth.service != "rhidp":
-                    continue
+            if auth := next(
+                (
+                    a
+                    for a in cluster.auth
+                    if isinstance(a, ClusterAuthRHIDPV1) and a.service == "rhidp"
+                ),
+                None,
+            ):
                 label = {
                     STATUS_LABEL_KEY: auth.status or StatusValue.ENABLED.value,
                     AUTH_NAME_LABEL_KEY: auth.name,

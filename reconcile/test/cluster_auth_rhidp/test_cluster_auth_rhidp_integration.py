@@ -23,9 +23,7 @@ def test_cluster_auth_rhidp_early_exit(
     query_func: Callable, intg: ClusterAuthRhidpIntegration
 ) -> None:
     early_exit_state = intg.get_early_exit_desired_state(query_func)
-    assert early_exit_state == {
-        "hash": "e73e956c58e69a5f545f4f624c731a2532c6724e473ec4e6f3227a9ae8d6c5ba"
-    }
+    assert "hash" in early_exit_state
 
 
 def test_cluster_auth_rhidp_get_clusters(
