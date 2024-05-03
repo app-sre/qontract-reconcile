@@ -28,6 +28,7 @@ from reconcile.gql_definitions.ocm_labels.organizations import (
     query as organization_query,
 )
 from reconcile.utils import gql
+from reconcile.utils.defer import defer
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.helpers import flatten
@@ -138,7 +139,8 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         # of the desired state is sufficient
         return {"hash": DeepHash(desired).get(desired)}
 
-    def run(self, dry_run: bool) -> None:
+    @defer
+    def run(self, dry_run: bool, defer: Callable | None = None) -> None:
         gqlapi = gql.get_api()
         self.get_early_exit_desired_state()
         clusters = self.get_clusters(gqlapi.query)
@@ -146,6 +148,8 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
         environments = self.get_environments(gqlapi.query)
 
         self.ocm_apis = self.init_ocm_apis(environments, init_ocm_base_client)
+        if defer:
+            defer(lambda: [ocm_api.close() for ocm_api in self.ocm_apis.values()])  # type: ignore
 
         # organization labels
         orgs_current_state, orgs_desired_state = self.fetch_organization_label_states(
