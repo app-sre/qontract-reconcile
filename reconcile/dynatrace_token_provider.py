@@ -51,6 +51,7 @@ from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
     init_ocm_base_client,
 )
+from reconcile.utils.openshift_resource import QONTRACT_ANNOTATION_INTEGRATION
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -358,7 +359,13 @@ class DynatraceTokenProviderIntegration(
                 {
                     "apiVersion": "v1",
                     "kind": "Secret",
-                    "metadata": {"name": SECRET_NAME, "namespace": SECRET_NAMESPACE},
+                    "metadata": {
+                        "name": SECRET_NAME,
+                        "namespace": SECRET_NAMESPACE,
+                        "annotations": {
+                            QONTRACT_ANNOTATION_INTEGRATION: QONTRACT_INTEGRATION
+                        },
+                    },
                     "data": {
                         "apiUrl": f"{self.base64_encode_str(dt_api_url)}",
                         "dataIngestTokenId": f"{self.base64_encode_str(ingestion_token.id)}",
