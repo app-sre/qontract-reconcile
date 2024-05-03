@@ -13,6 +13,7 @@ class SaasTarget:
     env_name: str
     repo_url: str
     namespace_name: str
+    target_name: str
     ref: str
     auth_code: HasSecret | None
 
@@ -36,13 +37,15 @@ def build_channels(saas_files: Iterable[SaasFile]) -> list[Channel]:
                 auth_code = (
                     saas_file.authentication.code if saas_file.authentication else None
                 )
+                target_name = target.name if target.name else "NoName"
                 saas_target = SaasTarget(
                     app_name=saas_file.app.name,
                     env_name=target.namespace.environment.name,
                     repo_url=resource_template.url,
-                    namespace_name=target.namespace.name,
                     ref=target.ref,
                     auth_code=auth_code,
+                    namespace_name=target.namespace.name,
+                    target_name=target_name,
                 )
 
                 for channel in target.promotion.publish or []:
