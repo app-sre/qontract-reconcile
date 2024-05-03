@@ -1313,6 +1313,7 @@ def determine_user_keys_for_access(
         "github-org": "github_username",
         "github-org-team": "github_username",
         "oidc": "org_username",
+        "rhidp": "org_username",
     }
     user_keys: list[str] = []
 

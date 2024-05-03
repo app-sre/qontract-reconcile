@@ -80,6 +80,9 @@ query ClustersMinimal($name: String) {
       ... on ClusterAuthOIDC_v1 {
         name
       }
+      ... on ClusterAuthRHIDP_v1 {
+        name
+      }
     }
   }
 }
@@ -121,6 +124,10 @@ class ClusterAuthOIDCV1(ClusterAuthV1):
     name: str = Field(..., alias="name")
 
 
+class ClusterAuthRHIDPV1(ClusterAuthV1):
+    name: str = Field(..., alias="name")
+
+
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     server_url: str = Field(..., alias="serverUrl")
@@ -136,7 +143,7 @@ class ClusterV1(ConfiguredBaseModel):
     cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
-    auth: list[Union[ClusterAuthGithubOrgTeamV1, ClusterAuthGithubOrgV1, ClusterAuthOIDCV1, ClusterAuthV1]] = Field(..., alias="auth")
+    auth: list[Union[ClusterAuthGithubOrgTeamV1, ClusterAuthGithubOrgV1, ClusterAuthOIDCV1, ClusterAuthRHIDPV1, ClusterAuthV1]] = Field(..., alias="auth")
 
 
 class ClustersMinimalQueryData(ConfiguredBaseModel):

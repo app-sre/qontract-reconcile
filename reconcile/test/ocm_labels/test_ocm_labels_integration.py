@@ -15,11 +15,11 @@ from reconcile.ocm_labels.integration import (
     OcmLabelsIntegration,
     init_cluster_subscription_label_source,
 )
-from reconcile.ocm_labels.label_sources import (
+from reconcile.utils.ocm.base import ClusterDetails
+from reconcile.utils.ocm.label_sources import (
     LabelSource,
     LabelState,
 )
-from reconcile.utils.ocm.base import ClusterDetails
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
 

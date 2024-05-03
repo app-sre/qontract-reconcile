@@ -11,6 +11,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 ### qontract-reconcile
 
 ```text
+  acs-notifiers                   Manages RHACS notifier configurations
   acs-policies                    Manages RHACS security policy configurations
   acs-rbac                        Manages RHACS rbac configuration
   advanced-upgrade-scheduler      Manage Cluster Upgrade Policy schedules in
@@ -37,6 +38,9 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   blackbox-exporter
   change-owners                   Detects owners for changes in app-interface
                                   PRs and allows them to self-service merge.
+  cluster-auth-rhidp              Manages the OCM subscription labels for
+                                  clusters with RHIDP authentication. Part of
+                                  RHIDP.
   cluster-deployment-mapper       Maps ClusterDeployment resources to Cluster
                                   IDs.
   cna-resources                   Manage Cloud Resources using Cloud Native
@@ -54,6 +58,7 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   tokens to management clusters
   email-sender                    Send email notifications to app-interface
                                   audience.
+  external-resources              Manages External Resources
   gabi-authorized-users           Manages user access for GABI instances.
   gcr-mirror                      Mirrors external images into Google
                                   Container Registry.

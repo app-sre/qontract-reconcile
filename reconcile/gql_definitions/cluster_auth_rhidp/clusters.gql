@@ -1,0 +1,27 @@
+# qenerate: plugin=pydantic_v1
+
+query ClusterAuthRhidp {
+  clusters: clusters_v1 {
+    name
+    spec {
+      id
+    }
+    ocm {
+      environment {
+        ...OCMEnvironment
+      }
+      orgId
+    }
+    disable {
+      integrations
+    }
+    auth {
+      service
+      ... on ClusterAuthRHIDP_v1 {
+        name
+        status
+        issuer
+      }
+    }
+  }
+}

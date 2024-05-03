@@ -40,6 +40,9 @@ query ClustersMinimal($name: String) {
       ... on ClusterAuthOIDC_v1 {
         name
       }
+      ... on ClusterAuthRHIDP_v1 {
+        name
+      }
     }
   }
 }

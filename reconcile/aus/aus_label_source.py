@@ -16,7 +16,7 @@ from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import 
     query as aus_organizations_query,
 )
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
-from reconcile.ocm_labels.label_sources import (
+from reconcile.utils.ocm.label_sources import (
     ClusterRef,
     LabelSource,
     LabelState,
