@@ -142,7 +142,6 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
     @defer
     def run(self, dry_run: bool, defer: Callable | None = None) -> None:
         gqlapi = gql.get_api()
-        self.get_early_exit_desired_state()
         clusters = self.get_clusters(gqlapi.query)
         organizations = self.get_organizations(gqlapi.query)
         environments = self.get_environments(gqlapi.query)
