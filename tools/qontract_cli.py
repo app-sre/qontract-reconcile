@@ -32,7 +32,6 @@ from rich.console import (
 )
 from rich.table import Table
 from rich.tree import Tree
-from sretoolbox.utils import threaded
 
 import reconcile.aus.base as aus
 import reconcile.openshift_base as ob
@@ -1195,69 +1194,6 @@ def clusters_aws_account_ids(ctx):
 
     columns = ["cluster", "aws_account_id"]
     print_output(ctx.obj["options"], results, columns)
-
-
-@get.command()
-@click.pass_context
-def terraform_users_credentials(ctx) -> None:
-    credentials = []
-    state = init_state(integration="account-notifier")
-
-    skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
-
-    if skip_accounts:
-        accounts, working_dirs, _, aws_api = tfu.setup(
-            False,
-            1,
-            skip_accounts,
-            account_name=None,
-            appsre_pgp_key=appsre_pgp_key,
-        )
-
-        tf = Terraform(
-            tfu.QONTRACT_INTEGRATION,
-            tfu.QONTRACT_INTEGRATION_VERSION,
-            tfu.QONTRACT_TF_PREFIX,
-            accounts,
-            working_dirs,
-            10,
-            aws_api,
-            init_users=True,
-        )
-        for account, output in tf.outputs.items():
-            if account in skip_accounts:
-                user_passwords = tf.format_output(output, tf.OUTPUT_TYPE_PASSWORDS)
-                console_urls = tf.format_output(output, tf.OUTPUT_TYPE_CONSOLEURLS)
-                for user_name, enc_password in user_passwords.items():
-                    item = {
-                        "account": account,
-                        "console_url": console_urls[account],
-                        "user_name": user_name,
-                        "encrypted_password": enc_password,
-                    }
-                    credentials.append(item)
-
-    secrets = state.ls()
-
-    def _get_secret(secret_key: str):
-        if secret_key.startswith("/output/"):
-            secret_data = state.get(secret_key[1:])
-            if secret_data["account"] not in skip_accounts:
-                return secret_data
-        return None
-
-    secret_result = threaded.run(
-        _get_secret,
-        secrets,
-        10,
-    )
-
-    for secret in secret_result:
-        if secret and secret["account"] not in skip_accounts:
-            credentials.append(secret)
-
-    columns = ["account", "console_url", "user_name", "encrypted_password"]
-    print_output(ctx.obj["options"], credentials, columns)
 
 
 @root.command()
