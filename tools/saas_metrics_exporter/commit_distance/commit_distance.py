@@ -28,7 +28,7 @@ class CommitDistance:
 
     def _calculate_commit_distance(self, distance: Distance) -> None:
         if distance.subscriber.ref == distance.publisher.ref:
-            return 0
+            return
 
         commits = self._vcs.get_commits_between(
             repo_url=distance.publisher.repo_url,

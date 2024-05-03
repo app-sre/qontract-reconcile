@@ -76,7 +76,7 @@ def main(
     thread_pool_size: int,
     configfile: str,
     log_level: Optional[str],
-):
+) -> None:
     init_env(log_level=log_level, config_file=configfile)
     exporter = SaasMetricsExporter.create(dry_run=dry_run)
     exporter.run(
