@@ -52,7 +52,6 @@ setup(
         "websocket-client<0.55.0,>=0.35",
         "sshtunnel>=0.4.0",
         "croniter>=1.0.15,<1.1.0",
-        "transity-statuspageio>=0.0.3,<0.1",
         "pydantic~=1.10.6",
         "MarkupSafe==2.1.1",
         "filetype~=1.2.0",
