@@ -1,8 +1,3 @@
-from abc import (
-    ABC,
-    abstractmethod,
-)
-from collections.abc import Callable
 from typing import Optional
 
 from pydantic import BaseModel
@@ -11,7 +6,6 @@ from reconcile.gql_definitions.statuspage.statuspages import (
     StatusPageComponentV1,
     StatusPageV1,
 )
-from reconcile.statuspage.state import ComponentBindingState
 from reconcile.statuspage.status import (
     StatusProvider,
     build_status_provider_config,
@@ -65,21 +59,6 @@ class StatusComponent(BaseModel):
         arbitrary_types_allowed = True
 
 
-class StatusPageProvider(ABC):
-    """
-    Provider specific status page reconcile implementation.
-    """
-
-    @abstractmethod
-    def get_current_page(self) -> "StatusPage": ...
-
-    @abstractmethod
-    def apply_component(self, dry_run: bool, desired: StatusComponent) -> None: ...
-
-    @abstractmethod
-    def delete_component(self, dry_run: bool, component_name: str) -> None: ...
-
-
 def build_status_page(
     page: StatusPageV1,
 ) -> "StatusPage":
@@ -92,19 +71,6 @@ def build_status_page(
             build_status_page_component(component=c) for c in page.components or []
         ],
     )
-
-
-def init_provider_for_page(
-    page: StatusPageV1,
-    token: str,
-    component_binding_state: ComponentBindingState,
-) -> StatusPageProvider:
-    """
-    Initialize a status page provider for a given status page.
-    """
-    if page.provider in _PROVIDERS:
-        return _PROVIDERS[page.provider](page, token, component_binding_state)
-    raise ValueError(f"provider {page.provider} is not supported")
 
 
 class StatusPage(BaseModel):
@@ -123,14 +89,3 @@ class StatusPage(BaseModel):
     Important note: the actual status page might have more components than
     this desired state does. People can still manage components manually.
     """
-
-
-ProviderInitializer = Callable[
-    [StatusPageV1, str, ComponentBindingState], StatusPageProvider
-]
-
-_PROVIDERS: dict[str, ProviderInitializer] = {}
-
-
-def register_provider(provider: str, provider_init: ProviderInitializer) -> None:
-    _PROVIDERS[provider] = provider_init

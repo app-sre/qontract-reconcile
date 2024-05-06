@@ -15,7 +15,6 @@ from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.page import (
     StatusComponent,
     StatusPage,
-    StatusPageProvider,
 )
 from reconcile.statuspage.state import ComponentBindingState
 from reconcile.statuspage.status import ManualStatusProvider
@@ -105,7 +104,7 @@ class AtlassianRESTAPI:
         requests.delete(url, headers=self.auth_headers).raise_for_status()
 
 
-class AtlassianStatusPageProvider(StatusPageProvider):
+class AtlassianStatusPageProvider:
     """
     The provider implements CRUD operations for Atlassian status pages.
     It also takes care of a mixed set of components on a page, where some
