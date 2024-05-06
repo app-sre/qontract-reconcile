@@ -48,7 +48,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
+            "uid": "P7B77307D2CE073BC"
           },
           "fieldConfig": {
             "defaults": {
@@ -144,7 +144,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "exemplar": false,
@@ -158,7 +158,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "exemplar": false,
@@ -202,7 +202,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
+            "uid": "P7B77307D2CE073BC"
           },
           "fieldConfig": {
             "defaults": {
@@ -279,7 +279,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "expr": "sum by (org_id) (rate(aus_organization_reconcile_errors_total{integration=\"$aus_integration\"}[5m]))\n  / ignoring(statusCode) group_left\nsum by (org_id) (rate(aus_organization_reconciled_total{integration=\"$aus_integration\"}[5m]))",
@@ -309,7 +309,7 @@ data:
             },
             "datasource": {
               "type": "prometheus",
-              "uid": "P2C3F6ECC774D80E6"
+              "uid": "P7B77307D2CE073BC"
             },
             "definition": "label_values(aus_organization_reconciled_total{integration!=\"ocm-addons-upgrade-scheduler-org\"}, integration)",
             "hide": 0,

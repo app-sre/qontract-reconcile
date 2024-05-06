@@ -53,7 +53,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
+            "uid": "P7B77307D2CE073BC"
           },
           "fieldConfig": {
             "defaults": {
@@ -132,7 +132,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "expr": "sum(rhidp_managed_clusters{integration=~\"rhidp-sso-client.*\"})",
@@ -144,7 +144,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "expr": "sum(rhidp_managed_clusters{integration=~\"ocm-oidc-idp.*\"})",
@@ -161,7 +161,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
+            "uid": "P7B77307D2CE073BC"
           },
           "fieldConfig": {
             "defaults": {
@@ -241,7 +241,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "expr": "sum(rhidp_sso_client_number_of_clients{integration=~\"rhidp-sso-client.*\"})",
@@ -257,7 +257,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
+            "uid": "P7B77307D2CE073BC"
           },
           "description": "Expiration date for auth.stage.redhat.com initial-access-token (IAT)",
           "fieldConfig": {
@@ -306,7 +306,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "expr": "rhidp_sso_client_inital_access_token_expiration{integration=\"rhidp-sso-client\", path=\"app-sre/creds/rhidp/auth.redhat.com\"} * 1000",
@@ -322,7 +322,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
+            "uid": "P7B77307D2CE073BC"
           },
           "description": "Expiration date for auth.stage.redhat.com initial-access-token (IAT)",
           "fieldConfig": {
@@ -371,7 +371,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "expr": "rhidp_sso_client_inital_access_token_expiration{integration=\"rhidp-sso-client\", path=\"app-sre/creds/rhidp/auth.stage.redhat.com\"} * 1000",
