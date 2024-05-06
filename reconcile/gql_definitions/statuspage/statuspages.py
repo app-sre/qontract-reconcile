@@ -33,7 +33,6 @@ query StatusPages {
     name
     pageId
     apiUrl
-    provider
     credentials {
       ...VaultSecret
     }
@@ -100,7 +99,6 @@ class StatusPageV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     page_id: str = Field(..., alias="pageId")
     api_url: str = Field(..., alias="apiUrl")
-    provider: str = Field(..., alias="provider")
     credentials: VaultSecret = Field(..., alias="credentials")
     components: Optional[list[StatusPageComponentV1]] = Field(..., alias="components")
 
