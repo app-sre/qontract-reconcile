@@ -69,7 +69,7 @@ def construct_status_page_v1(
     )
 
 
-class MockAtlassianAPI:
+class MockAtlassianAPI(AtlassianAPI):
     def __init__(self, components: list[AtlassianRawComponent]):
         self.components = components
 
