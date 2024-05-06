@@ -19,8 +19,6 @@ from reconcile.statuspage.page import (
 from reconcile.statuspage.state import ComponentBindingState
 from reconcile.statuspage.status import ManualStatusProvider
 
-PROVIDER_NAME = "atlassian"
-
 
 class AtlassianRawComponent(BaseModel):
     """
