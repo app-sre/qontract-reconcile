@@ -4,11 +4,8 @@ from collections.abc import Callable
 
 from reconcile.gql_definitions.statuspage import statuspages
 from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
-from reconcile.statuspage import atlassian
-from reconcile.statuspage.page import (
-    StatusPage,
-    build_status_page,
-)
+from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
+from reconcile.statuspage.page import StatusPage
 from reconcile.statuspage.state import S3ComponentBindingState
 from reconcile.utils import gql
 from reconcile.utils.runtime.integration import (
@@ -52,7 +49,7 @@ class StatusPageComponentsIntegration(QontractReconcileIntegration[NoParams]):
         dry_run: bool,
         desired_state: StatusPage,
         current_state: StatusPage,
-        provider: atlassian.AtlassianStatusPageProvider,
+        provider: AtlassianStatusPageProvider,
     ) -> None:
         """
         Reconcile the desired state with the current state of a status page.
@@ -83,8 +80,8 @@ class StatusPageComponentsIntegration(QontractReconcileIntegration[NoParams]):
             error = False
             for p in pages:
                 try:
-                    desired_state = build_status_page(p)
-                    page_provider = atlassian.init_provider_for_page(
+                    desired_state = StatusPage.init_from_page(p)
+                    page_provider = AtlassianStatusPageProvider.init_from_page(
                         page=p,
                         token=self.secret_reader.read_secret(p.credentials),
                         component_binding_state=binding_state,

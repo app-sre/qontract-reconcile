@@ -12,19 +12,6 @@ from reconcile.statuspage.status import (
 )
 
 
-def build_status_page_component(component: StatusPageComponentV1) -> "StatusComponent":
-    status_configs = [
-        build_status_provider_config(cfg) for cfg in component.status_config or []
-    ]
-    return StatusComponent(
-        name=component.name,
-        display_name=component.display_name,
-        description=component.description,
-        group_name=component.group_name,
-        status_provider_configs=[c for c in status_configs if c is not None],
-    )
-
-
 class StatusComponent(BaseModel):
     """
     Represents a status page component from the desired state.
@@ -58,19 +45,18 @@ class StatusComponent(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-
-def build_status_page(
-    page: StatusPageV1,
-) -> "StatusPage":
-    """
-    Translate a desired state status page into a status page object.
-    """
-    return StatusPage(
-        name=page.name,
-        components=[
-            build_status_page_component(component=c) for c in page.components or []
-        ],
-    )
+    @staticmethod
+    def init_from_page_component(component: StatusPageComponentV1) -> "StatusComponent":
+        status_configs = [
+            build_status_provider_config(cfg) for cfg in component.status_config or []
+        ]
+        return StatusComponent(
+            name=component.name,
+            display_name=component.display_name,
+            description=component.description,
+            group_name=component.group_name,
+            status_provider_configs=[c for c in status_configs if c is not None],
+        )
 
 
 class StatusPage(BaseModel):
@@ -89,3 +75,18 @@ class StatusPage(BaseModel):
     Important note: the actual status page might have more components than
     this desired state does. People can still manage components manually.
     """
+
+    @staticmethod
+    def init_from_page(
+        page: StatusPageV1,
+    ) -> "StatusPage":
+        """
+        Translate a desired state status page into a status page object.
+        """
+        return StatusPage(
+            name=page.name,
+            components=[
+                StatusComponent.init_from_page_component(component=c)
+                for c in page.components or []
+            ],
+        )

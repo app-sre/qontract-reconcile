@@ -1,5 +1,5 @@
 from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
-from reconcile.statuspage.page import build_status_page
+from reconcile.statuspage.page import StatusPage
 
 
 def test_build_status_page_from_desired_state(
@@ -9,7 +9,7 @@ def test_build_status_page_from_desired_state(
     Test the transformation from the GQL desired state into a
     StatusPage object
     """
-    page = build_status_page(status_page_v1)
+    page = StatusPage.init_from_page(status_page_v1)
     assert page.name == "page"
     assert len(page.components) == 2
     assert {c.group_name for c in page.components if c.group_name} == {"group-1"}

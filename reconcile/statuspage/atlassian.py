@@ -338,21 +338,21 @@ class AtlassianStatusPageProvider:
         if not dry_run:
             self._binding_state.bind_component(component_name, component_id)
 
-
-def init_provider_for_page(
-    page: StatusPageV1,
-    token: str,
-    component_binding_state: ComponentBindingState,
-) -> AtlassianStatusPageProvider:
-    """
-    Initializes the provider for atlassian status page.
-    """
-    return AtlassianStatusPageProvider(
-        page_name=page.name,
-        api=AtlassianAPI(
-            page_id=page.page_id,
-            api_url=page.api_url,
-            token=token,
-        ),
-        component_binding_state=component_binding_state,
-    )
+    @staticmethod
+    def init_from_page(
+        page: StatusPageV1,
+        token: str,
+        component_binding_state: ComponentBindingState,
+    ) -> "AtlassianStatusPageProvider":
+        """
+        Initializes the provider for atlassian status page.
+        """
+        return AtlassianStatusPageProvider(
+            page_name=page.name,
+            api=AtlassianAPI(
+                page_id=page.page_id,
+                api_url=page.api_url,
+                token=token,
+            ),
+            component_binding_state=component_binding_state,
+        )
