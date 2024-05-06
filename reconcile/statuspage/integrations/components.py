@@ -2,7 +2,7 @@ import logging
 import sys
 
 from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
-from reconcile.statuspage.integration_base import get_binding_state, get_status_pages
+from reconcile.statuspage.integration import get_binding_state, get_status_pages
 from reconcile.statuspage.page import StatusPage
 from reconcile.utils.runtime.integration import (
     NoParams,
