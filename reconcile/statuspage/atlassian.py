@@ -35,7 +35,7 @@ class AtlassianRawComponent(BaseModel):
     group: Optional[bool]
 
 
-class AtlassianRESTAPI:
+class AtlassianAPI:
     """
     This API class wraps the statuspageio REST API for basic component operations.
     """
@@ -107,7 +107,7 @@ class AtlassianStatusPageProvider:
     def __init__(
         self,
         page_name: str,
-        api: AtlassianRESTAPI,
+        api: AtlassianAPI,
         component_binding_state: ComponentBindingState,
     ):
         self.page_name = page_name
@@ -350,7 +350,7 @@ def init_provider_for_page(
     """
     return AtlassianStatusPageProvider(
         page_name=page.name,
-        api=AtlassianRESTAPI(
+        api=AtlassianAPI(
             page_id=page.page_id,
             api_url=page.api_url,
             token=token,
