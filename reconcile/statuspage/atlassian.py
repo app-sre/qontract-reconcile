@@ -53,24 +53,28 @@ class AtlassianAPI:
         response.raise_for_status()
         return response
 
-    def list_components(self) -> list[AtlassianRawComponent]:
-        url = f"{self.api_url}/v1/pages/{self.page_id}/components"
-        all_components: list[AtlassianRawComponent] = []
+    def _list_items(self, url: str) -> list[Any]:
+        all_items: list[Any] = []
         page = 1
         per_page = 100
         while True:
             params = {"page": page, "per_page": per_page}
             response = self._do_get(url, params=params)
-            components = [AtlassianRawComponent(**c) for c in response.json()]
-            all_components += components
-            if len(components) < per_page:
+            items = response.json()
+            all_items += items
+            if len(items) < per_page:
                 break
             page += 1
             # https://developer.statuspage.io/#section/Rate-Limiting
             # Each API token is limited to 1 request / second as measured on a 60 second rolling window
             time.sleep(1)
 
-        return all_components
+        return all_items
+
+    def list_components(self) -> list[AtlassianRawComponent]:
+        url = f"{self.api_url}/v1/pages/{self.page_id}/components"
+        all_components = self._list_items(url)
+        return [AtlassianRawComponent(**c) for c in all_components]
 
     def update_component(self, id: str, data: dict[str, Any]) -> None:
         url = f"{self.api_url}/v1/pages/{self.page_id}/components/{id}"
