@@ -1,40 +1,18 @@
 import logging
 import sys
-from collections.abc import Callable
 
-from reconcile.gql_definitions.statuspage import statuspages
-from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
+from reconcile.statuspage.integration_base import get_binding_state, get_status_pages
 from reconcile.statuspage.page import StatusPage
-from reconcile.statuspage.state import S3ComponentBindingState
 from reconcile.utils import gql
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import (
-    SecretReaderBase,
-)
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.state import (
-    State,
-    init_state,
-)
 
 QONTRACT_INTEGRATION = "status-page-components"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
-
-
-def get_status_pages(query_func: Callable) -> list[StatusPageV1]:
-    return statuspages.query(query_func).status_pages or []
-
-
-def get_binding_state(secret_reader: SecretReaderBase) -> S3ComponentBindingState:
-    state = init_state(
-        integration=QONTRACT_INTEGRATION,
-        secret_reader=secret_reader,
-    )
-    return S3ComponentBindingState(state)
 
 
 class StatusPageComponentsIntegration(QontractReconcileIntegration[NoParams]):
@@ -74,7 +52,7 @@ class StatusPageComponentsIntegration(QontractReconcileIntegration[NoParams]):
             provider.apply_component(dry_run, desired)
 
     def run(self, dry_run: bool = False) -> None:
-        binding_state = get_binding_state(self.secret_reader)
+        binding_state = get_binding_state(self.name, self.secret_reader)
         pages = get_status_pages(query_func=gql.get_api().query)
 
         error = False

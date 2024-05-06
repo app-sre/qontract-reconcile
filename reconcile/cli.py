@@ -3177,7 +3177,9 @@ def gabi_authorized_users(ctx, thread_pool_size, internal, use_jump_host):
 )
 @click.pass_context
 def status_page_components(ctx):
-    from reconcile.statuspage.integration import StatusPageComponentsIntegration
+    from reconcile.statuspage.integrations.components import (
+        StatusPageComponentsIntegration,
+    )
 
     run_class_integration(StatusPageComponentsIntegration(), ctx.obj)
 
