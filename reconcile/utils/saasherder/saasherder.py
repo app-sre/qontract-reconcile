@@ -95,6 +95,7 @@ TARGET_CONFIG_HASH = "target_config_hash"
 
 
 UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 56
+REQUEST_TIMEOUT = 60
 
 
 def is_commit_sha(ref: str) -> bool:
@@ -1159,6 +1160,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         username=username,
                         password=password,
                         auth_server=image_auth.auth_server,
+                        timeout=REQUEST_TIMEOUT,
                     )
 
         # basic auth fallback for backwards compatibility
@@ -1168,6 +1170,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 username=image_auth.username,
                 password=image_auth.password,
                 auth_server=image_auth.auth_server,
+                timeout=REQUEST_TIMEOUT,
             )
         except Exception as e:
             logging.error(
