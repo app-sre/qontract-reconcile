@@ -3,7 +3,6 @@ import time
 from typing import (
     Any,
     Optional,
-    Protocol,
 )
 
 import requests
