@@ -29,11 +29,12 @@ def get_status_pages(query_func: Callable) -> list[StatusPageV1]:
     return statuspages.query(query_func).status_pages or []
 
 
-def get_state(secret_reader: SecretReaderBase) -> State:
-    return init_state(
+def get_binding_state(secret_reader: SecretReaderBase) -> S3ComponentBindingState:
+    state = init_state(
         integration=QONTRACT_INTEGRATION,
         secret_reader=secret_reader,
     )
+    return S3ComponentBindingState(state)
 
 
 class StatusPageComponentsIntegration(QontractReconcileIntegration[NoParams]):
@@ -73,28 +74,27 @@ class StatusPageComponentsIntegration(QontractReconcileIntegration[NoParams]):
             provider.apply_component(dry_run, desired)
 
     def run(self, dry_run: bool = False) -> None:
-        with get_state(self.secret_reader) as state:
-            binding_state = S3ComponentBindingState(state)
-            pages = get_status_pages(query_func=gql.get_api().query)
+        binding_state = get_binding_state(self.secret_reader)
+        pages = get_status_pages(query_func=gql.get_api().query)
 
-            error = False
-            for p in pages:
-                try:
-                    desired_state = StatusPage.init_from_page(p)
-                    page_provider = AtlassianStatusPageProvider.init_from_page(
-                        page=p,
-                        token=self.secret_reader.read_secret(p.credentials),
-                        component_binding_state=binding_state,
-                    )
-                    self.reconcile(
-                        dry_run,
-                        desired_state=desired_state,
-                        current_state=page_provider.get_current_page(),
-                        provider=page_provider,
-                    )
-                except Exception:
-                    logging.exception(f"failed to reconcile statuspage {p.name}")
-                    error = True
+        error = False
+        for p in pages:
+            try:
+                desired_state = StatusPage.init_from_page(p)
+                page_provider = AtlassianStatusPageProvider.init_from_page(
+                    page=p,
+                    token=self.secret_reader.read_secret(p.credentials),
+                    component_binding_state=binding_state,
+                )
+                self.reconcile(
+                    dry_run,
+                    desired_state=desired_state,
+                    current_state=page_provider.get_current_page(),
+                    provider=page_provider,
+                )
+            except Exception:
+                logging.exception(f"failed to reconcile statuspage {p.name}")
+                error = True
 
-            if error:
-                sys.exit(1)
+        if error:
+            sys.exit(1)
