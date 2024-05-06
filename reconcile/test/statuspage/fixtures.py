@@ -13,7 +13,7 @@ from reconcile.gql_definitions.statuspage.statuspages import (
     StatusPageV1,
 )
 from reconcile.statuspage.atlassian import (
-    AtlassianAPI,
+    AtlassianRESTAPI,
     AtlassianRawComponent,
     AtlassianStatusPageProvider,
 )
@@ -132,7 +132,7 @@ def construct_binding_state(
 def construct_atlassian_api(
     component_repr: Iterable[tuple[str, str, Optional[str], str, Optional[str]]],
     group_names: Iterable[str],
-) -> AtlassianAPI:
+) -> AtlassianRESTAPI:
     components = [
         AtlassianRawComponent(
             id=id,

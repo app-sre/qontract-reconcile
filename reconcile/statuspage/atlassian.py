@@ -35,16 +35,6 @@ class AtlassianRawComponent(BaseModel):
     group: Optional[bool]
 
 
-class AtlassianAPI(Protocol):
-    def list_components(self) -> list[AtlassianRawComponent]: ...
-
-    def update_component(self, id: str, data: dict[str, Any]) -> None: ...
-
-    def create_component(self, data: dict[str, Any]) -> str: ...
-
-    def delete_component(self, id: str) -> None: ...
-
-
 class AtlassianRESTAPI:
     """
     This API class wraps the statuspageio REST API for basic component operations.
@@ -117,7 +107,7 @@ class AtlassianStatusPageProvider:
     def __init__(
         self,
         page_name: str,
-        api: AtlassianAPI,
+        api: AtlassianRESTAPI,
         component_binding_state: ComponentBindingState,
     ):
         self.page_name = page_name
