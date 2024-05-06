@@ -10,9 +10,6 @@ from reconcile.statuspage.page import (
     build_status_page,
 )
 from reconcile.statuspage.state import S3ComponentBindingState
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
 from reconcile.utils import gql
 from reconcile.utils.runtime.integration import (
     NoParams,
@@ -20,7 +17,6 @@ from reconcile.utils.runtime.integration import (
 )
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
-    create_secret_reader,
 )
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import (
@@ -80,9 +76,7 @@ class StatusPageComponentsIntegration(QontractReconcileIntegration[NoParams]):
             provider.apply_component(dry_run, desired)
 
     def run(self, dry_run: bool = False) -> None:
-        vault_settings = get_app_interface_vault_settings()
-        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-        with get_state(secret_reader) as state:
+        with get_state(self.secret_reader) as state:
             binding_state = S3ComponentBindingState(state)
             pages = get_status_pages(query_func=gql.get_api().query)
 
@@ -92,7 +86,7 @@ class StatusPageComponentsIntegration(QontractReconcileIntegration[NoParams]):
                     desired_state = build_status_page(p)
                     page_provider = atlassian.init_provider_for_page(
                         page=p,
-                        token=secret_reader.read_secret(p.credentials),
+                        token=self.secret_reader.read_secret(p.credentials),
                         component_binding_state=binding_state,
                     )
                     self.reconcile(
