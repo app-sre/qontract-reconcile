@@ -4,7 +4,6 @@ import sys
 from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
 from reconcile.statuspage.integration_base import get_binding_state, get_status_pages
 from reconcile.statuspage.page import StatusPage
-from reconcile.utils import gql
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
@@ -53,7 +52,7 @@ class StatusPageComponentsIntegration(QontractReconcileIntegration[NoParams]):
 
     def run(self, dry_run: bool = False) -> None:
         binding_state = get_binding_state(self.name, self.secret_reader)
-        pages = get_status_pages(query_func=gql.get_api().query)
+        pages = get_status_pages()
 
         error = False
         for p in pages:
