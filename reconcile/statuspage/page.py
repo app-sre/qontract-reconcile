@@ -84,7 +84,7 @@ class StatusPage(BaseModel):
         """
         Translate a desired state status page into a status page object.
         """
-        return StatusPage(
+        return cls(
             name=page.name,
             components=[
                 StatusComponent.init_from_page_component(component=c)
