@@ -112,6 +112,14 @@ class AtlassianAPI:
         all_scheduled_incidents = self._list_items(url)
         return [AtlassianRawMaintenance(**i) for i in all_scheduled_incidents]
 
+    def create_incident(self, data: dict[str, Any]) -> str:
+        url = f"{self.api_url}/v1/pages/{self.page_id}/incidents"
+        response = requests.post(
+            url, json={"incident": data}, headers=self.auth_headers
+        )
+        response.raise_for_status()
+        return response.json()["id"]
+
 
 class AtlassianStatusPageProvider:
     """
@@ -391,5 +399,11 @@ class AtlassianStatusPageProvider:
             for m in self._api.list_scheduled_maintenances()
         ]
 
-    def create_maintenance(self, StatusMaintenace) -> None:
-        raise NotImplementedError("AtlassianStatusPageProvider.create_maintenance")
+    def create_maintenance(self, maintenance: StatusMaintenace) -> None:
+        data = {
+            "name": maintenance.name,
+            "scheduled_for": maintenance.schedule_start,
+            "scheduled_until": maintenance.schedule_end,
+            "body": maintenance.message,
+        }
+        self._api.create_incident(data)

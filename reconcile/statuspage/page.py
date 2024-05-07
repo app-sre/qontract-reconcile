@@ -100,6 +100,7 @@ class StatusMaintenace(BaseModel):
     """
 
     name: str
+    message: str
     schedule_start: str
     schedule_end: str
 
@@ -107,6 +108,7 @@ class StatusMaintenace(BaseModel):
     def init_from_maintenance(cls, maintenance: MaintenanceV1) -> Self:
         return cls(
             name=maintenance.name,
+            message=maintenance.message,
             schedule_start=maintenance.scheduled_start,
             schedule_end=maintenance.scheduled_end,
         )

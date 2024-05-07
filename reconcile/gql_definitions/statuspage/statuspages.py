@@ -58,12 +58,15 @@ query StatusPages {
     }
     maintenances {
       name
+      message
       scheduledStart
       scheduledEnd
       announcements {
         provider
         ... on MaintenanceStatuspageAnnouncement_v1 {
-          message
+          page {
+            name
+          }
         }
       }
     }
@@ -110,12 +113,17 @@ class MaintenanceAnnouncementV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
 
 
+class MaintenanceStatuspageAnnouncementV1_StatusPageV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class MaintenanceStatuspageAnnouncementV1(MaintenanceAnnouncementV1):
-    message: str = Field(..., alias="message")
+    page: MaintenanceStatuspageAnnouncementV1_StatusPageV1 = Field(..., alias="page")
 
 
 class MaintenanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    message: str = Field(..., alias="message")
     scheduled_start: str = Field(..., alias="scheduledStart")
     scheduled_end: str = Field(..., alias="scheduledEnd")
     announcements: Optional[list[Union[MaintenanceStatuspageAnnouncementV1, MaintenanceAnnouncementV1]]] = Field(..., alias="announcements")

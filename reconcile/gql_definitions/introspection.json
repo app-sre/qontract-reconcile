@@ -20095,6 +20095,22 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "message",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "affectedServices",
                             "description": null,
                             "args": [],
@@ -47598,22 +47614,6 @@
                                 "ofType": {
                                     "kind": "OBJECT",
                                     "name": "StatusPage_v1",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "message",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
                                     "ofType": null
                                 }
                             },
