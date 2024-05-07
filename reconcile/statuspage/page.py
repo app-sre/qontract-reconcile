@@ -94,7 +94,7 @@ class StatusPage(BaseModel):
         )
 
 
-class StatusMaintenace(BaseModel):
+class StatusMaintenance(BaseModel):
     """
     Represents the desired state of a status maintenance.
     """

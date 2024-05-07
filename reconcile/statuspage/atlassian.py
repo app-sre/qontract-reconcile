@@ -14,7 +14,7 @@ from sretoolbox.utils import retry
 from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.page import (
     StatusComponent,
-    StatusMaintenace,
+    StatusMaintenance,
     StatusPage,
 )
 from reconcile.statuspage.state import ComponentBindingState
@@ -398,9 +398,9 @@ class AtlassianStatusPageProvider:
         )
 
     @property
-    def maintenances(self) -> list[StatusMaintenace]:
+    def maintenances(self) -> list[StatusMaintenance]:
         return [
-            StatusMaintenace(
+            StatusMaintenance(
                 name=m.name,
                 message=m.incident_updates[0].body,
                 schedule_start=m.scheduled_for,
@@ -409,7 +409,7 @@ class AtlassianStatusPageProvider:
             for m in self._api.list_scheduled_maintenances()
         ]
 
-    def create_maintenance(self, maintenance: StatusMaintenace) -> None:
+    def create_maintenance(self, maintenance: StatusMaintenance) -> None:
         data = {
             "name": maintenance.name,
             "status": "scheduled",

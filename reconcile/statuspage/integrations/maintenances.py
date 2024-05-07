@@ -3,7 +3,7 @@ import sys
 
 from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
 from reconcile.statuspage.integration import get_binding_state, get_status_pages
-from reconcile.statuspage.page import StatusMaintenace
+from reconcile.statuspage.page import StatusMaintenance
 from reconcile.utils.differ import diff_iterables
 from reconcile.utils.runtime.integration import (
     NoParams,
@@ -23,8 +23,8 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
     def reconcile(
         self,
         dry_run: bool,
-        desired_state: list[StatusMaintenace],
-        current_state: list[StatusMaintenace],
+        desired_state: list[StatusMaintenance],
+        current_state: list[StatusMaintenance],
         provider: AtlassianStatusPageProvider,
     ) -> None:
         diff = diff_iterables(
@@ -51,7 +51,7 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
         for p in pages:
             try:
                 desired_state = [
-                    StatusMaintenace.init_from_maintenance(m)
+                    StatusMaintenance.init_from_maintenance(m)
                     for m in p.maintenances or []
                 ]
                 page_provider = AtlassianStatusPageProvider.init_from_page(
