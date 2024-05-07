@@ -49,7 +49,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
+            "uid": "P7B77307D2CE073BC"
           },
           "fieldConfig": {
             "defaults": {
@@ -102,7 +102,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "exemplar": false,
@@ -133,7 +133,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
+            "uid": "P7B77307D2CE073BC"
           },
           "description": "",
           "fieldConfig": {
@@ -248,7 +248,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "exemplar": false,
@@ -263,7 +263,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "exemplar": false,
@@ -356,7 +356,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
+            "uid": "P7B77307D2CE073BC"
           },
           "description": "A numeric value represents the remaining soak days per version and cluster<br/>\nA 🎉 is displayed for versions which have soaked enough and are ready to be upgraded to <br/>\nA ⏰ is displayed for versions scheduled to be upgraded to <br/>\nA 💫 is displayed for versions which are being upgraded to <br/>\nUpgrades taking more than 6 hours will be highlighted with ❗️<br/>\nUpgrade paths to blocked versions are displayed with ⛔<br/>",
           "fieldConfig": {
@@ -506,7 +506,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "exemplar": false,
@@ -555,7 +555,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
+            "uid": "P7B77307D2CE073BC"
           },
           "fieldConfig": {
             "defaults": {
@@ -605,7 +605,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "exemplar": false,
@@ -631,7 +631,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2C3F6ECC774D80E6"
+            "uid": "P7B77307D2CE073BC"
           },
           "fieldConfig": {
             "defaults": {
@@ -721,7 +721,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "P2C3F6ECC774D80E6"
+                "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
               "exemplar": false,
@@ -796,7 +796,7 @@ data:
             },
             "datasource": {
               "type": "prometheus",
-              "uid": "P2C3F6ECC774D80E6"
+              "uid": "P7B77307D2CE073BC"
             },
             "definition": "aus_addon_upgrade_policy_info",
             "hide": 0,
@@ -827,7 +827,7 @@ data:
             },
             "datasource": {
               "type": "prometheus",
-              "uid": "P2C3F6ECC774D80E6"
+              "uid": "P7B77307D2CE073BC"
             },
             "definition": "label_values(aus_addon_upgrade_policy_info, workloads)",
             "hide": 0,
@@ -858,7 +858,7 @@ data:
             },
             "datasource": {
               "type": "prometheus",
-              "uid": "P2C3F6ECC774D80E6"
+              "uid": "P7B77307D2CE073BC"
             },
             "definition": "label_values(aus_addon_upgrade_policy_info, addon)",
             "hide": 0,
