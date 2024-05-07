@@ -3,6 +3,8 @@ import sys
 
 from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
 from reconcile.statuspage.integration import get_binding_state, get_status_pages
+from reconcile.statuspage.page import StatusMaintenace
+from reconcile.utils.differ import diff_iterables
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
@@ -21,6 +23,21 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
+    def reconcile(
+        self,
+        dry_run: bool,
+        desired_state: list[StatusMaintenace],
+        current_state: list[StatusMaintenace],
+        provider: AtlassianStatusPageProvider,
+    ) -> None:
+        diff = diff_iterables(
+            current=current_state, desired=desired_state, key=lambda x: x.name
+        )
+        for a in diff.add.values():
+            logging.info(f"Create StatusPage Maintenance: {a.name}")
+            if not dry_run:
+                provider.create_maintenance(a)
+
     def run(self, dry_run: bool = False) -> None:
         binding_state = get_binding_state(self.name, self.secret_reader)
         pages = get_status_pages()
@@ -28,13 +45,21 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
         error = False
         for p in pages:
             try:
+                desired_state = [
+                    StatusMaintenace.init_from_maintenance(m)
+                    for m in p.maintenances or []
+                ]
                 page_provider = AtlassianStatusPageProvider.init_from_page(
                     page=p,
                     token=self.secret_reader.read_secret(p.credentials),
                     component_binding_state=binding_state,
                 )
-                maintenances = page_provider._api.list_maintenances()
-                print(maintenances)
+                self.reconcile(
+                    dry_run=dry_run,
+                    desired_state=desired_state,
+                    current_state=page_provider.maintenances,
+                    provider=page_provider,
+                )
             except Exception:
                 logging.exception(f"failed to reconcile statuspage {p.name}")
                 error = True

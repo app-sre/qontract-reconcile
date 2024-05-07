@@ -14,6 +14,7 @@ from sretoolbox.utils import retry
 from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.page import (
     StatusComponent,
+    StatusMaintenace,
     StatusPage,
 )
 from reconcile.statuspage.state import ComponentBindingState
@@ -41,6 +42,9 @@ class AtlassianRawMaintenance(BaseModel):
     """
 
     id: str
+    name: str
+    scheduled_for: str
+    scheduled_until: str
 
 
 class AtlassianAPI:
@@ -103,7 +107,7 @@ class AtlassianAPI:
         url = f"{self.api_url}/v1/pages/{self.page_id}/components/{id}"
         requests.delete(url, headers=self.auth_headers).raise_for_status()
 
-    def list_maintenances(self) -> list[AtlassianRawMaintenance]:
+    def list_scheduled_maintenances(self) -> list[AtlassianRawMaintenance]:
         url = f"{self.api_url}/v1/pages/{self.page_id}/incidents/scheduled"
         all_scheduled_incidents = self._list_items(url)
         return [AtlassianRawMaintenance(**i) for i in all_scheduled_incidents]
@@ -375,3 +379,17 @@ class AtlassianStatusPageProvider:
             ),
             component_binding_state=component_binding_state,
         )
+
+    @property
+    def maintenances(self) -> list[StatusMaintenace]:
+        return [
+            StatusMaintenace(
+                name=m.name,
+                schedule_start=m.scheduled_for,
+                schedule_end=m.scheduled_until,
+            )
+            for m in self._api.list_scheduled_maintenances()
+        ]
+
+    def create_maintenance(self, StatusMaintenace) -> None:
+        raise NotImplementedError("AtlassianStatusPageProvider.create_maintenance")
