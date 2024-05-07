@@ -16,9 +16,6 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
-    def __init__(self) -> None:
-        super().__init__(NoParams())
-
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION

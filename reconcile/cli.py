@@ -36,6 +36,7 @@ from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
     ModuleBasedQontractReconcileIntegration,
+    NoParams,
     PydanticRunParams,
     QontractReconcileIntegration,
 )
@@ -3193,7 +3194,7 @@ def status_page_maintenances(ctx):
         StatusPageMaintenancesIntegration,
     )
 
-    run_class_integration(StatusPageMaintenancesIntegration(), ctx.obj)
+    run_class_integration(StatusPageMaintenancesIntegration(NoParams()), ctx.obj)
 
 
 @integration.command(
