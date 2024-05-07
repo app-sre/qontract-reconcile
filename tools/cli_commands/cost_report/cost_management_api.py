@@ -69,7 +69,7 @@ class CostManagementApi(ApiBase):
             "delta": "cost",
             "filter[resolution]": "monthly",
             "filter[cluster]": cluster,
-            "filter[project]": project,
+            "filter[exact:project]": project,
             "filter[time_scope_units]": "month",
             "filter[time_scope_value]": "-2",
             "group_by[project]": "*",
