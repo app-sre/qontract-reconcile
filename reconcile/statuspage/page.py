@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Self
 
 from pydantic import BaseModel
 
@@ -45,12 +45,12 @@ class StatusComponent(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    @staticmethod
-    def init_from_page_component(component: StatusPageComponentV1) -> "StatusComponent":
+    @classmethod
+    def init_from_page_component(cls, component: StatusPageComponentV1) -> Self:
         status_configs = [
             build_status_provider_config(cfg) for cfg in component.status_config or []
         ]
-        return StatusComponent(
+        return cls(
             name=component.name,
             display_name=component.display_name,
             description=component.description,
@@ -76,10 +76,11 @@ class StatusPage(BaseModel):
     this desired state does. People can still manage components manually.
     """
 
-    @staticmethod
+    @classmethod
     def init_from_page(
+        cls,
         page: StatusPageV1,
-    ) -> "StatusPage":
+    ) -> Self:
         """
         Translate a desired state status page into a status page object.
         """

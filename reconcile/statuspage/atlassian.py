@@ -3,6 +3,7 @@ import time
 from typing import (
     Any,
     Optional,
+    Self,
 )
 
 import requests
@@ -342,16 +343,17 @@ class AtlassianStatusPageProvider:
         if not dry_run:
             self._binding_state.bind_component(component_name, component_id)
 
-    @staticmethod
+    @classmethod
     def init_from_page(
+        cls,
         page: StatusPageV1,
         token: str,
         component_binding_state: ComponentBindingState,
-    ) -> "AtlassianStatusPageProvider":
+    ) -> Self:
         """
         Initializes the provider for atlassian status page.
         """
-        return AtlassianStatusPageProvider(
+        return cls(
             page_name=page.name,
             api=AtlassianAPI(
                 page_id=page.page_id,
