@@ -1,0 +1,21 @@
+# qenerate: plugin=pydantic_v1
+
+query Maintenances {
+  maintenances: maintenance_v1 {
+    name
+    message
+    scheduledStart
+    scheduledEnd
+    affectedServices {
+      name
+    }
+    announcements {
+      provider
+      ... on MaintenanceStatuspageAnnouncement_v1 {
+        page {
+          name
+        }
+      }
+    }
+  }
+}

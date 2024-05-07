@@ -66,6 +66,7 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+from reconcile.gql_definitions.maintenance import maintenances as maintenances_gql
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.status_board import StatusBoardExporterIntegration
@@ -2573,6 +2574,27 @@ def osd_component_versions(ctx):
         "saas_file",
         "resource_template",
         "ref",
+    ]
+    print_output(ctx.obj["options"], data, columns)
+
+
+@get.command()
+@click.pass_context
+def maintenances(ctx):
+    now = datetime.now(timezone.utc)
+    maintenances = maintenances_gql.query(gql.get_api().query).maintenances or []
+    maintenances = [
+        m for m in maintenances if datetime.fromisoformat(m.scheduled_end) > now
+    ]
+    data = [vars(m) for m in maintenances]
+    for m in data:
+        m["services"] = ", ".join([a.name for a in m["affected_services"]])
+    print(data)
+    columns = [
+        "name",
+        "scheduled_start",
+        "scheduled_end",
+        "services",
     ]
     print_output(ctx.obj["options"], data, columns)
 
