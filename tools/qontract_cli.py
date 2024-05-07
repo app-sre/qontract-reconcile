@@ -2628,6 +2628,17 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     slack.update_usergroup_users(ugid, users)
 
 
+@root.command()
+@click.argument("message")
+@click.pass_context
+def slack_message(ctx, message):
+    """
+    Send a Slack message.
+    """
+    slack = slackapi_from_queries("qontract-cli", init_usergroups=False)
+    slack.chat_post_message(message)
+
+
 @set_command.command()
 @click.argument("org_name")
 @click.argument("cluster_name")
