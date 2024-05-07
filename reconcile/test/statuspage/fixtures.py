@@ -66,6 +66,7 @@ def construct_status_page_v1(
             format=None,
         ),
         components=components,
+        maintenances=[],
     )
 
 
