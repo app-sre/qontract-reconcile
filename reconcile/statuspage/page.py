@@ -108,7 +108,7 @@ class StatusMaintenace(BaseModel):
     def init_from_maintenance(cls, maintenance: MaintenanceV1) -> Self:
         return cls(
             name=maintenance.name,
-            message=maintenance.message,
+            message=maintenance.message.rstrip("\n"),
             schedule_start=maintenance.scheduled_start,
             schedule_end=maintenance.scheduled_end,
         )

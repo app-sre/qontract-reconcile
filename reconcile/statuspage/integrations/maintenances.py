@@ -34,6 +34,14 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
             logging.info(f"Create StatusPage Maintenance: {a.name}")
             if not dry_run:
                 provider.create_maintenance(a)
+        for c in diff.change.values():
+            raise NotImplementedError(
+                f"Update StatusPage Maintenance is not supported at this time: {c.desired.name}"
+            )
+        for d in diff.delete.values():
+            raise NotImplementedError(
+                f"Delete StatusPage Maintenance is not supported at this time: {d.name}"
+            )
 
     def run(self, dry_run: bool = False) -> None:
         binding_state = get_binding_state(self.name, self.secret_reader)

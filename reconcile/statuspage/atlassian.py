@@ -36,6 +36,14 @@ class AtlassianRawComponent(BaseModel):
     group: Optional[bool]
 
 
+class AtlassianRawMaintenanceUpdate(BaseModel):
+    """
+    atlassian status page REST schema for maintenance updates
+    """
+
+    body: str
+
+
 class AtlassianRawMaintenance(BaseModel):
     """
     atlassian status page REST schema for maintenance
@@ -45,6 +53,7 @@ class AtlassianRawMaintenance(BaseModel):
     name: str
     scheduled_for: str
     scheduled_until: str
+    incident_updates: list[AtlassianRawMaintenanceUpdate]
 
 
 class AtlassianAPI:
@@ -393,6 +402,7 @@ class AtlassianStatusPageProvider:
         return [
             StatusMaintenace(
                 name=m.name,
+                message=m.incident_updates[0].body,
                 schedule_start=m.scheduled_for,
                 schedule_end=m.scheduled_until,
             )
