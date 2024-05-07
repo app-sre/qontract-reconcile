@@ -412,8 +412,14 @@ class AtlassianStatusPageProvider:
     def create_maintenance(self, maintenance: StatusMaintenace) -> None:
         data = {
             "name": maintenance.name,
+            "status": "scheduled",
             "scheduled_for": maintenance.schedule_start,
             "scheduled_until": maintenance.schedule_end,
             "body": maintenance.message,
         }
-        self._api.create_incident(data)
+        incident_id = self._api.create_incident(data)
+        self._bind_component(
+            dry_run=False,
+            component_name=maintenance.name,
+            component_id=incident_id,
+        )
