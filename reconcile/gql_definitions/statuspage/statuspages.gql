@@ -28,5 +28,16 @@ query StatusPages {
         }
       }
     }
+    maintenances {
+      name
+      scheduledStart
+      scheduledEnd
+      announcements {
+        provider
+        ... on MaintenanceStatuspageAnnouncement_v1 {
+          message
+        }
+      }
+    }
   }
 }
