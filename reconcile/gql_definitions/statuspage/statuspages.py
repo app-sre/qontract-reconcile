@@ -56,6 +56,20 @@ query StatusPages {
         }
       }
     }
+    maintenances {
+      name
+      message
+      scheduledStart
+      scheduledEnd
+      announcements {
+        provider
+        ... on MaintenanceStatuspageAnnouncement_v1 {
+          page {
+            name
+          }
+        }
+      }
+    }
   }
 }
 """
@@ -95,12 +109,33 @@ class StatusPageComponentV1(ConfiguredBaseModel):
     status_config: Optional[list[Union[ManualStatusProviderV1, StatusProviderV1]]] = Field(..., alias="status_config")
 
 
+class MaintenanceAnnouncementV1(ConfiguredBaseModel):
+    provider: str = Field(..., alias="provider")
+
+
+class MaintenanceStatuspageAnnouncementV1_StatusPageV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
+class MaintenanceStatuspageAnnouncementV1(MaintenanceAnnouncementV1):
+    page: MaintenanceStatuspageAnnouncementV1_StatusPageV1 = Field(..., alias="page")
+
+
+class MaintenanceV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    message: str = Field(..., alias="message")
+    scheduled_start: str = Field(..., alias="scheduledStart")
+    scheduled_end: str = Field(..., alias="scheduledEnd")
+    announcements: Optional[list[Union[MaintenanceStatuspageAnnouncementV1, MaintenanceAnnouncementV1]]] = Field(..., alias="announcements")
+
+
 class StatusPageV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     page_id: str = Field(..., alias="pageId")
     api_url: str = Field(..., alias="apiUrl")
     credentials: VaultSecret = Field(..., alias="credentials")
     components: Optional[list[StatusPageComponentV1]] = Field(..., alias="components")
+    maintenances: Optional[list[MaintenanceV1]] = Field(..., alias="maintenances")
 
 
 class StatusPagesQueryData(ConfiguredBaseModel):

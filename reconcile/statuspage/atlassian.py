@@ -14,6 +14,7 @@ from sretoolbox.utils import retry
 from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.page import (
     StatusComponent,
+    StatusMaintenance,
     StatusPage,
 )
 from reconcile.statuspage.state import ComponentBindingState
@@ -33,6 +34,26 @@ class AtlassianRawComponent(BaseModel):
     automation_email: Optional[str]
     group_id: Optional[str]
     group: Optional[bool]
+
+
+class AtlassianRawMaintenanceUpdate(BaseModel):
+    """
+    atlassian status page REST schema for maintenance updates
+    """
+
+    body: str
+
+
+class AtlassianRawMaintenance(BaseModel):
+    """
+    atlassian status page REST schema for maintenance
+    """
+
+    id: str
+    name: str
+    scheduled_for: str
+    scheduled_until: str
+    incident_updates: list[AtlassianRawMaintenanceUpdate]
 
 
 class AtlassianAPI:
@@ -94,6 +115,19 @@ class AtlassianAPI:
     def delete_component(self, id: str) -> None:
         url = f"{self.api_url}/v1/pages/{self.page_id}/components/{id}"
         requests.delete(url, headers=self.auth_headers).raise_for_status()
+
+    def list_scheduled_maintenances(self) -> list[AtlassianRawMaintenance]:
+        url = f"{self.api_url}/v1/pages/{self.page_id}/incidents/scheduled"
+        all_scheduled_incidents = self._list_items(url)
+        return [AtlassianRawMaintenance(**i) for i in all_scheduled_incidents]
+
+    def create_incident(self, data: dict[str, Any]) -> str:
+        url = f"{self.api_url}/v1/pages/{self.page_id}/incidents"
+        response = requests.post(
+            url, json={"incident": data}, headers=self.auth_headers
+        )
+        response.raise_for_status()
+        return response.json()["id"]
 
 
 class AtlassianStatusPageProvider:
@@ -361,4 +395,31 @@ class AtlassianStatusPageProvider:
                 token=token,
             ),
             component_binding_state=component_binding_state,
+        )
+
+    @property
+    def maintenances(self) -> list[StatusMaintenance]:
+        return [
+            StatusMaintenance(
+                name=m.name,
+                message=m.incident_updates[0].body,
+                schedule_start=m.scheduled_for,
+                schedule_end=m.scheduled_until,
+            )
+            for m in self._api.list_scheduled_maintenances()
+        ]
+
+    def create_maintenance(self, maintenance: StatusMaintenance) -> None:
+        data = {
+            "name": maintenance.name,
+            "status": "scheduled",
+            "scheduled_for": maintenance.schedule_start,
+            "scheduled_until": maintenance.schedule_end,
+            "body": maintenance.message,
+        }
+        incident_id = self._api.create_incident(data)
+        self._bind_component(
+            dry_run=False,
+            component_name=maintenance.name,
+            component_id=incident_id,
         )

@@ -3,6 +3,7 @@ from typing import Optional, Self
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.statuspage.statuspages import (
+    MaintenanceV1,
     StatusPageComponentV1,
     StatusPageV1,
 )
@@ -90,4 +91,24 @@ class StatusPage(BaseModel):
                 StatusComponent.init_from_page_component(component=c)
                 for c in page.components or []
             ],
+        )
+
+
+class StatusMaintenance(BaseModel):
+    """
+    Represents the desired state of a status maintenance.
+    """
+
+    name: str
+    message: str
+    schedule_start: str
+    schedule_end: str
+
+    @classmethod
+    def init_from_maintenance(cls, maintenance: MaintenanceV1) -> Self:
+        return cls(
+            name=maintenance.name,
+            message=maintenance.message.rstrip("\n"),
+            schedule_start=maintenance.scheduled_start,
+            schedule_end=maintenance.scheduled_end,
         )

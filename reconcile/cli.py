@@ -36,6 +36,7 @@ from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
     ModuleArgsKwargsRunParams,
     ModuleBasedQontractReconcileIntegration,
+    NoParams,
     PydanticRunParams,
     QontractReconcileIntegration,
 )
@@ -3182,6 +3183,18 @@ def status_page_components(ctx):
     )
 
     run_class_integration(StatusPageComponentsIntegration(), ctx.obj)
+
+
+@integration.command(
+    short_help="Manages maintenances on statuspage.io hosted status pages."
+)
+@click.pass_context
+def status_page_maintenances(ctx):
+    from reconcile.statuspage.integrations.maintenances import (
+        StatusPageMaintenancesIntegration,
+    )
+
+    run_class_integration(StatusPageMaintenancesIntegration(NoParams()), ctx.obj)
 
 
 @integration.command(
