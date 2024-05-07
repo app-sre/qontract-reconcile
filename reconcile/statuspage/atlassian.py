@@ -35,6 +35,14 @@ class AtlassianRawComponent(BaseModel):
     group: Optional[bool]
 
 
+class AtlassianRawMaintenance(BaseModel):
+    """
+    atlassian status page REST schema for maintenance
+    """
+
+    id: str
+
+
 class AtlassianAPI:
     """
     This API class wraps the statuspageio REST API for basic component operations.
@@ -94,6 +102,11 @@ class AtlassianAPI:
     def delete_component(self, id: str) -> None:
         url = f"{self.api_url}/v1/pages/{self.page_id}/components/{id}"
         requests.delete(url, headers=self.auth_headers).raise_for_status()
+
+    def list_maintenances(self) -> list[AtlassianRawMaintenance]:
+        url = f"{self.api_url}/v1/pages/{self.page_id}/incidents/scheduled"
+        all_scheduled_incidents = self._list_items(url)
+        return [AtlassianRawMaintenance(**i) for i in all_scheduled_incidents]
 
 
 class AtlassianStatusPageProvider:

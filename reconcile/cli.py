@@ -3185,6 +3185,18 @@ def status_page_components(ctx):
 
 
 @integration.command(
+    short_help="Manages maintenances on statuspage.io hosted status pages."
+)
+@click.pass_context
+def status_page_maintenances(ctx):
+    from reconcile.statuspage.integrations.maintenances import (
+        StatusPageMaintenancesIntegration,
+    )
+
+    run_class_integration(StatusPageMaintenancesIntegration(), ctx.obj)
+
+
+@integration.command(
     short_help="Manages OCM cluster usergroups and notifications via OCM labels."
 )
 @click.option(
