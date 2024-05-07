@@ -3,7 +3,7 @@ import time
 from typing import (
     Any,
     Optional,
-    Protocol,
+    Self,
 )
 
 import requests
@@ -15,12 +15,9 @@ from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.page import (
     StatusComponent,
     StatusPage,
-    StatusPageProvider,
 )
 from reconcile.statuspage.state import ComponentBindingState
 from reconcile.statuspage.status import ManualStatusProvider
-
-PROVIDER_NAME = "atlassian"
 
 
 class AtlassianRawComponent(BaseModel):
@@ -38,17 +35,7 @@ class AtlassianRawComponent(BaseModel):
     group: Optional[bool]
 
 
-class AtlassianAPI(Protocol):
-    def list_components(self) -> list[AtlassianRawComponent]: ...
-
-    def update_component(self, id: str, data: dict[str, Any]) -> None: ...
-
-    def create_component(self, data: dict[str, Any]) -> str: ...
-
-    def delete_component(self, id: str) -> None: ...
-
-
-class AtlassianRESTAPI:
+class AtlassianAPI:
     """
     This API class wraps the statuspageio REST API for basic component operations.
     """
@@ -67,24 +54,28 @@ class AtlassianRESTAPI:
         response.raise_for_status()
         return response
 
-    def list_components(self) -> list[AtlassianRawComponent]:
-        url = f"{self.api_url}/v1/pages/{self.page_id}/components"
-        all_components: list[AtlassianRawComponent] = []
+    def _list_items(self, url: str) -> list[Any]:
+        all_items: list[Any] = []
         page = 1
         per_page = 100
         while True:
             params = {"page": page, "per_page": per_page}
             response = self._do_get(url, params=params)
-            components = [AtlassianRawComponent(**c) for c in response.json()]
-            all_components += components
-            if len(components) < per_page:
+            items = response.json()
+            all_items += items
+            if len(items) < per_page:
                 break
             page += 1
             # https://developer.statuspage.io/#section/Rate-Limiting
             # Each API token is limited to 1 request / second as measured on a 60 second rolling window
             time.sleep(1)
 
-        return all_components
+        return all_items
+
+    def list_components(self) -> list[AtlassianRawComponent]:
+        url = f"{self.api_url}/v1/pages/{self.page_id}/components"
+        all_components = self._list_items(url)
+        return [AtlassianRawComponent(**c) for c in all_components]
 
     def update_component(self, id: str, data: dict[str, Any]) -> None:
         url = f"{self.api_url}/v1/pages/{self.page_id}/components/{id}"
@@ -105,7 +96,7 @@ class AtlassianRESTAPI:
         requests.delete(url, headers=self.auth_headers).raise_for_status()
 
 
-class AtlassianStatusPageProvider(StatusPageProvider):
+class AtlassianStatusPageProvider:
     """
     The provider implements CRUD operations for Atlassian status pages.
     It also takes care of a mixed set of components on a page, where some
@@ -352,21 +343,22 @@ class AtlassianStatusPageProvider(StatusPageProvider):
         if not dry_run:
             self._binding_state.bind_component(component_name, component_id)
 
-
-def init_provider_for_page(
-    page: StatusPageV1,
-    token: str,
-    component_binding_state: ComponentBindingState,
-) -> AtlassianStatusPageProvider:
-    """
-    Initializes the provider for atlassian status page.
-    """
-    return AtlassianStatusPageProvider(
-        page_name=page.name,
-        api=AtlassianRESTAPI(
-            page_id=page.page_id,
-            api_url=page.api_url,
-            token=token,
-        ),
-        component_binding_state=component_binding_state,
-    )
+    @classmethod
+    def init_from_page(
+        cls,
+        page: StatusPageV1,
+        token: str,
+        component_binding_state: ComponentBindingState,
+    ) -> Self:
+        """
+        Initializes the provider for atlassian status page.
+        """
+        return cls(
+            page_name=page.name,
+            api=AtlassianAPI(
+                page_id=page.page_id,
+                api_url=page.api_url,
+                token=token,
+            ),
+            component_binding_state=component_binding_state,
+        )

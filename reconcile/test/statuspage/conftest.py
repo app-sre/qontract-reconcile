@@ -37,7 +37,6 @@ def atlassian_page() -> AtlassianStatusPageProvider:
 def status_page_v1() -> StatusPageV1:
     return construct_status_page_v1(
         name="page",
-        provider="atlassian",
         component_repr=[
             describe_component_v1(
                 "ai-component-1", "component-1", "group-1", "operational"

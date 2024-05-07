@@ -28,7 +28,6 @@ def describe_component_v1(
 
 def construct_status_page_v1(
     name: str,
-    provider: str,
     component_repr: list[tuple[str, str, Optional[str], Optional[str]]],
 ) -> StatusPageV1:
     components = [
@@ -60,7 +59,6 @@ def construct_status_page_v1(
         name=name,
         apiUrl="https://api.page.com",
         pageId=name,
-        provider=provider,
         credentials=VaultSecret(
             field="field",
             path="path",
@@ -71,7 +69,7 @@ def construct_status_page_v1(
     )
 
 
-class MockAtlassianAPI:
+class MockAtlassianAPI(AtlassianAPI):
     def __init__(self, components: list[AtlassianRawComponent]):
         self.components = components
 
