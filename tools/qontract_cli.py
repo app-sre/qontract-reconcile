@@ -2583,13 +2583,14 @@ def osd_component_versions(ctx):
 def maintenances(ctx):
     now = datetime.now(timezone.utc)
     maintenances = maintenances_gql.query(gql.get_api().query).maintenances or []
-    maintenances = [
-        m for m in maintenances if datetime.fromisoformat(m.scheduled_end) > now
+    data = [
+        {
+            **m.dict(),
+            "services": ", ".join(a.name for a in m.affected_services),
+        }
+        for m in maintenances
+        if datetime.fromisoformat(m.scheduled_end) > now
     ]
-    data = [vars(m) for m in maintenances]
-    for m in data:
-        m["services"] = ", ".join([a.name for a in m["affected_services"]])
-    print(data)
     columns = [
         "name",
         "scheduled_start",
