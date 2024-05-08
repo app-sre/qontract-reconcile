@@ -26,10 +26,12 @@ class AwsCostReportCommand:
         gql_api: gql.GqlApi,
         cost_management_api: CostManagementApi,
         cost_management_console_base_url: str,
+        thread_pool_size: int = THREAD_POOL_SIZE,
     ) -> None:
         self.gql_api = gql_api
         self.cost_management_api = cost_management_api
         self.cost_management_console_base_url = cost_management_console_base_url
+        self.thread_pool_size = thread_pool_size
 
     def execute(self) -> str:
         apps = self.get_apps()
@@ -53,7 +55,7 @@ class AwsCostReportCommand:
         """
         Fetch reports from cost management API
         """
-        results = threaded.run(self._get_report, apps, THREAD_POOL_SIZE)
+        results = threaded.run(self._get_report, apps, self.thread_pool_size)
         return dict(results)
 
     def process_reports(
@@ -144,4 +146,5 @@ class AwsCostReportCommand:
             gql_api=gql_api,
             cost_management_api=cost_management_api,
             cost_management_console_base_url=secret["console_base_url"],
+            thread_pool_size=THREAD_POOL_SIZE,
         )

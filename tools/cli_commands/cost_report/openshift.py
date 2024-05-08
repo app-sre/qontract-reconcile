@@ -30,9 +30,11 @@ class OpenShiftCostReportCommand:
         self,
         gql_api: gql.GqlApi,
         cost_management_api: CostManagementApi,
+        thread_pool_size: int = THREAD_POOL_SIZE,
     ) -> None:
         self.gql_api = gql_api
         self.cost_management_api = cost_management_api
+        self.thread_pool_size = thread_pool_size
 
     def execute(self) -> str:
         apps = self.get_apps()
@@ -69,7 +71,7 @@ class OpenShiftCostReportCommand:
         """
         Fetch reports from cost management API
         """
-        results = threaded.run(self._get_report, cost_namespaces, THREAD_POOL_SIZE)
+        results = threaded.run(self._get_report, cost_namespaces, self.thread_pool_size)
         return dict(results)
 
     def process_reports(
@@ -173,4 +175,5 @@ class OpenShiftCostReportCommand:
         return cls(
             gql_api=gql_api,
             cost_management_api=cost_management_api,
+            thread_pool_size=THREAD_POOL_SIZE,
         )

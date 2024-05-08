@@ -95,6 +95,7 @@ def test_aws_cost_report_create(
     assert (
         cost_report_command.cost_management_api == mock_cost_management_api.return_value
     )
+    assert cost_report_command.thread_pool_size == 10
     mock_cost_management_api.assert_called_once_with(
         base_url="base_url",
         token_url="token_url",
