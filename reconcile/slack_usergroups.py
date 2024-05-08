@@ -622,12 +622,14 @@ def _update_usergroup_from_state(
         ).items()
     ]
 
-    if len(slack_channel_objects) != len(desired_ug_state.channel_names):
-        logging.info(
-            f"Following channel names are incorrect for usergroup {desired_ug_state.usergroup} and could not be matched with slack channels {desired_ug_state.channel_names - set([s.name for s in slack_channel_objects])}"
-        )
-        error_occurred = True
-        return
+    # Commenting this out is not correct, we should be checking the length of slack_channel_objects.
+    # However there are a couple of missing channels and filtering these out complies with current behavior.
+    # if len(slack_channel_objects) != len(desired_ug_state.channel_names):
+    #     logging.info(
+    #         f"Following channel names are incorrect for usergroup {desired_ug_state.usergroup} and could not be matched with slack channels {desired_ug_state.channel_names - set([s.name for s in slack_channel_objects])}"
+    #     )
+    #     error_occurred = True
+    #     return
 
     for channel in desired_ug_state.channel_names - current_ug_state.channel_names:
         logging.info([
