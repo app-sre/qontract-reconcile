@@ -665,7 +665,7 @@ def _update_usergroup_from_state(
                 return
             slack_client.update_usergroup(
                 id=ugid,
-                channels_list=sorted([s.pk for s in slack_channel_objects]),
+                channels_list=sorted(s.pk for s in slack_channel_objects),
                 description=desired_ug_state.description,
             )
         except SlackApiError as error:
