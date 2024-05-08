@@ -1,5 +1,6 @@
 import logging
 import sys
+from datetime import datetime, timezone
 
 from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
 from reconcile.statuspage.integration import get_binding_state, get_status_pages
@@ -46,6 +47,7 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
     def run(self, dry_run: bool = False) -> None:
         binding_state = get_binding_state(self.name, self.secret_reader)
         pages = get_status_pages()
+        now = datetime.now(timezone.utc)
 
         error = False
         for p in pages:
@@ -53,6 +55,7 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
                 desired_state = [
                     StatusMaintenance.init_from_maintenance(m)
                     for m in p.maintenances or []
+                    if datetime.fromisoformat(m.scheduled_start) > now
                 ]
                 page_provider = AtlassianStatusPageProvider.init_from_page(
                     page=p,

@@ -2589,7 +2589,7 @@ def maintenances(ctx):
             "services": ", ".join(a.name for a in m.affected_services),
         }
         for m in maintenances
-        if datetime.fromisoformat(m.scheduled_end) > now
+        if datetime.fromisoformat(m.scheduled_start) > now
     ]
     columns = [
         "name",
