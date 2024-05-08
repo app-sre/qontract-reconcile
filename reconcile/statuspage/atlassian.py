@@ -54,6 +54,7 @@ class AtlassianRawMaintenance(BaseModel):
     scheduled_for: str
     scheduled_until: str
     incident_updates: list[AtlassianRawMaintenanceUpdate]
+    components: list[AtlassianRawComponent]
 
 
 class AtlassianAPI:
@@ -190,6 +191,26 @@ class AtlassianStatusPageProvider:
             components=[c for c in components if c is not None],
         )
 
+    def _raw_component_to_status_component(
+        self, raw_component: AtlassianRawComponent, name_override: Optional[str] = None
+    ) -> StatusComponent:
+        group_name = (
+            self._group_id_to_name.get(raw_component.group_id)
+            if raw_component.group_id
+            else None
+        )
+        return StatusComponent(
+            name=name_override or raw_component.name,
+            display_name=raw_component.name,
+            description=raw_component.description,
+            group_name=group_name,
+            status_provider_configs=[
+                ManualStatusProvider(
+                    component_status=raw_component.status,
+                )
+            ],
+        )
+
     def _bound_raw_component_to_status_component(
         self, raw_component: AtlassianRawComponent
     ) -> Optional[StatusComponent]:
@@ -197,21 +218,8 @@ class AtlassianStatusPageProvider:
             raw_component.id
         )
         if bound_component_name:
-            group_name = (
-                self._group_id_to_name.get(raw_component.group_id)
-                if raw_component.group_id
-                else None
-            )
-            return StatusComponent(
-                name=bound_component_name,
-                display_name=raw_component.name,
-                description=raw_component.description,
-                group_name=group_name,
-                status_provider_configs=[
-                    ManualStatusProvider(
-                        component_status=raw_component.status,
-                    )
-                ],
+            return self._raw_component_to_status_component(
+                raw_component, name_override=bound_component_name
             )
         return None
 
@@ -405,6 +413,9 @@ class AtlassianStatusPageProvider:
                 message=m.incident_updates[0].body,
                 schedule_start=m.scheduled_for,
                 schedule_end=m.scheduled_until,
+                components=[
+                    self._raw_component_to_status_component(c) for c in m.components
+                ],
             )
             for m in self._api.list_scheduled_maintenances()
         ]

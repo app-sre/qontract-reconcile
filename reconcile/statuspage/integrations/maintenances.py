@@ -51,7 +51,9 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
         for p in pages:
             try:
                 desired_state = [
-                    StatusMaintenance.init_from_maintenance(m)
+                    StatusMaintenance.init_from_maintenance(
+                        m, page_components=p.components or []
+                    )
                     for m in p.maintenances or []
                 ]
                 page_provider = AtlassianStatusPageProvider.init_from_page(
