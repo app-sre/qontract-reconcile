@@ -1,5 +1,4 @@
 from decimal import Decimal
-from typing import List
 
 from pydantic import BaseModel
 
@@ -18,11 +17,11 @@ class ChildAppReport(BaseModel):
 
 class Report(BaseModel):
     app_name: str
-    child_apps: List[ChildAppReport]
+    child_apps: list[ChildAppReport]
     child_apps_total: Decimal
     date: str
     parent_app_name: str | None
-    items: List[ReportItem]
+    items: list[ReportItem]
     items_delta_percent: float | None
     items_delta_value: Decimal
     items_total: Decimal

@@ -1,5 +1,3 @@
-from typing import List
-
 from urllib3.util import Retry
 
 from reconcile.utils.oauth2_backend_application_session import (
@@ -21,7 +19,7 @@ class CostManagementApi(ApiBase):
         token_url: str,
         client_id: str,
         client_secret: str,
-        scope: List[str] | None = None,
+        scope: list[str] | None = None,
     ) -> None:
         session = OAuth2BackendApplicationSession(
             client_id=client_id,

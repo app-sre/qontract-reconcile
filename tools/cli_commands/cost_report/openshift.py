@@ -1,7 +1,7 @@
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from decimal import Decimal
-from typing import Self, Tuple
+from typing import Self
 
 from sretoolbox.utils import threaded
 
@@ -50,7 +50,7 @@ class OpenShiftCostReportCommand:
     def _get_report(
         self,
         cost_namespace: CostNamespace,
-    ) -> Tuple[CostNamespace, OpenShiftReportCostResponse]:
+    ) -> tuple[CostNamespace, OpenShiftReportCostResponse]:
         cluster = (
             cost_namespace.cluster_external_id
             if cost_namespace.cluster_external_id is not None

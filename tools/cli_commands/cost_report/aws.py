@@ -1,6 +1,6 @@
 from collections.abc import Iterable, Mapping
 from decimal import Decimal
-from typing import List, Self, Tuple
+from typing import Self
 
 from sretoolbox.utils import threaded
 
@@ -43,7 +43,7 @@ class AwsCostReportCommand:
         """
         return get_app_names(self.gql_api)
 
-    def _get_report(self, app: App) -> Tuple[str, ReportCostResponse]:
+    def _get_report(self, app: App) -> tuple[str, ReportCostResponse]:
         return app.name, self.cost_management_api.get_aws_costs_report(app.name)
 
     def get_reports(
@@ -80,7 +80,7 @@ class AwsCostReportCommand:
     def _build_report(
         app_name: str,
         parent_app_name: str | None,
-        child_apps: List[str],
+        child_apps: list[str],
         reports: Mapping[str, Report],
         response: ReportCostResponse,
     ) -> Report:
