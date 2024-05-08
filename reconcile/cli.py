@@ -3562,6 +3562,23 @@ def acs_notifiers(ctx):
     )
 
 
+@integration.command(short_help="Manage Unleash feature toggles.")
+@click.option("--instance", help="Reconcile just this Unlash instance.", default=None)
+@click.pass_context
+def unleash_feature_toggles(ctx, instance):
+    from reconcile.unleash_feature_toggles.integration import (
+        UnleashTogglesIntegration,
+        UnleashTogglesIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=UnleashTogglesIntegration(
+            UnleashTogglesIntegrationParams(instance=instance)
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Automate Deadmanssnitch Creation/Deletion")
 @click.pass_context
 def deadmanssnitch(ctx):
