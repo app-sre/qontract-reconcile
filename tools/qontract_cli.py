@@ -2634,6 +2634,7 @@ def slack_usergroup(ctx, workspace, usergroup, username):
 def slack(ctx, output):
     ctx.obj["output"] = output
 
+
 @slack.command()
 @click.argument("message")
 @click.pass_context
@@ -2655,6 +2656,18 @@ def message_thread(ctx, message: str, thread_url: str):
     """
     slack = slackapi_from_queries("qontract-cli", init_usergroups=False)
     slack.chat_post_message_to_thread(message, thread_url)
+
+
+@slack.command()
+@click.argument("reaction")
+@click.argument("message_url")
+@click.pass_context
+def reaction(ctx, reaction: str, message_url: str):
+    """
+    React with an emoji to a message.
+    """
+    slack = slackapi_from_queries("qontract-cli", init_usergroups=False)
+    slack.add_reaction(reaction, message_url)
 
 
 @set_command.command()

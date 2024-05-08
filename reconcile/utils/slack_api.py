@@ -225,7 +225,12 @@ class SlackApi:
         self._sc.retry_handlers.append(rate_limit_handler)
         self._sc.retry_handlers.append(server_error_handler)
 
-    def chat_post_message(self, text: str, channel_override: Optional[str] = None, thread_ts: Optional[str] = None) -> None:
+    def chat_post_message(
+        self,
+        text: str,
+        channel_override: Optional[str] = None,
+        thread_ts: Optional[str] = None,
+    ) -> None:
         """
         Try to send a chat message into a channel. If the bot is not in the
         channel it will join the channel and send the message again.
@@ -243,7 +248,9 @@ class SlackApi:
 
         def do_send(c: str, t: str) -> None:
             slack_request.labels("chat.postMessage", "POST").inc()
-            self._sc.chat_postMessage(channel=c, text=t, **self.chat_kwargs, thread_ts=thread_ts)
+            self._sc.chat_postMessage(
+                channel=c, text=t, **self.chat_kwargs, thread_ts=thread_ts
+            )
 
         try:
             do_send(channel, text)
@@ -262,19 +269,28 @@ class SlackApi:
                 case _:
                     raise
 
+    def _get_channel_and_timestamp(self, url: str) -> tuple[str, str]:
+        # example parent message url
+        # https://example.slack.com/archives/C017E996GPP/p1715146351427019
+        parsed_url = urlparse(url)
+        if parsed_url.netloc != f"{self.workspace_name}.slack.com":
+            raise ValueError("Slack workspace must match thread URL.")
+        _, _, channel, p_timestamp = parsed_url.path.split("/")
+        timestamp = p_timestamp.replace("p", "")
+        ts = f"{timestamp[:10]}.{timestamp[10:]}" if "." not in timestamp else timestamp
+
+        return channel, ts
+
     def chat_post_message_to_thread(self, text: str, thread_url: str) -> None:
         """
         Send a message to a thread
         """
-        # example parent message url
-        # https://example.slack.com/archives/C017E996GPP/p1715146351427019
-        parsed_thread_url = urlparse(thread_url)
-        if parsed_thread_url.netloc != f"{self.workspace_name}.slack.com":
-            raise ValueError("Slack workspace must match thread URL.")
-        _, _, channel_id, p_timstamp = parsed_thread_url.path.split("/")
-        timstamp = p_timstamp.replace("p", "")
-        thread_ts = f"{timstamp[:10]}.{timstamp[10:]}"
-        self.chat_post_message(text, channel_override=channel_id, thread_ts=thread_ts)
+        channel, thread_ts = self._get_channel_and_timestamp(thread_url)
+        self.chat_post_message(text, channel_override=channel, thread_ts=thread_ts)
+
+    def add_reaction(self, reaction: str, message_url: str) -> None:
+        channel, message_ts = self._get_channel_and_timestamp(message_url)
+        self._sc.reactions_add(channel=channel, name=reaction, timestamp=message_ts)
 
     def describe_usergroup(
         self, handle: str
