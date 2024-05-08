@@ -13,6 +13,7 @@ from typing import (
     Protocol,
     Union,
 )
+from urllib.parse import urlparse
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -224,7 +225,7 @@ class SlackApi:
         self._sc.retry_handlers.append(rate_limit_handler)
         self._sc.retry_handlers.append(server_error_handler)
 
-    def chat_post_message(self, text: str) -> None:
+    def chat_post_message(self, text: str, channel_override: Optional[str] = None, thread_ts: Optional[str] = None) -> None:
         """
         Try to send a chat message into a channel. If the bot is not in the
         channel it will join the channel and send the message again.
@@ -234,22 +235,23 @@ class SlackApi:
         :raises slack_sdk.errors.SlackApiError: if unsuccessful response
         from Slack API, except for not_in_channel
         """
-        if not self.channel:
+        channel = channel_override or self.channel
+        if not channel:
             raise ValueError(
                 "Slack channel name must be provided when posting messages."
             )
 
         def do_send(c: str, t: str) -> None:
             slack_request.labels("chat.postMessage", "POST").inc()
-            self._sc.chat_postMessage(channel=c, text=t, **self.chat_kwargs)
+            self._sc.chat_postMessage(channel=c, text=t, **self.chat_kwargs, thread_ts=thread_ts)
 
         try:
-            do_send(self.channel, text)
+            do_send(channel, text)
         except SlackApiError as e:
             match e.response["error"]:
                 case "not_in_channel":
-                    self.join_channel()
-                    do_send(self.channel, text)
+                    self.join_channel(channel_override=channel_override)
+                    do_send(channel, text)
                 # When a message is sent to #someChannel and the Slack API can't find
                 # it, the message it provides in the exception doesn't include the
                 # channel name. We handle that here in case the consumer has many such
@@ -259,6 +261,20 @@ class SlackApi:
                     raise
                 case _:
                     raise
+
+    def chat_post_message_to_thread(self, text: str, thread_url: str) -> None:
+        """
+        Send a message to a thread
+        """
+        # example parent message url
+        # https://example.slack.com/archives/C017E996GPP/p1715146351427019
+        parsed_thread_url = urlparse(thread_url)
+        if parsed_thread_url.netloc != f"{self.workspace_name}.slack.com":
+            raise ValueError("Slack workspace must match thread URL.")
+        _, _, channel_id, p_timstamp = parsed_thread_url.path.split("/")
+        timstamp = p_timstamp.replace("p", "")
+        thread_ts = f"{timstamp[:10]}.{timstamp[10:]}"
+        self.chat_post_message(text, channel_override=channel_id, thread_ts=thread_ts)
 
     def describe_usergroup(
         self, handle: str
@@ -274,7 +290,7 @@ class SlackApi:
 
         return users, channels, description
 
-    def join_channel(self) -> None:
+    def join_channel(self, channel_override: Optional[str] = None) -> None:
         """
         Join a given channel if not already a member, will join self.channel
 
@@ -282,13 +298,14 @@ class SlackApi:
         Slack API
         :raises ValueError: if self.channel is not set
         """
-        if not self.channel:
+        channel = channel_override or self.channel
+        if channel:
             raise ValueError(
                 "Slack channel name must be provided when joining a channel."
             )
 
-        channels_found = self.get_channels_by_names(self.channel)
-        [channel_id] = [k for k in channels_found if channels_found[k] == self.channel]
+        channels_found = self.get_channels_by_names(channel)
+        [channel_id] = [k for k in channels_found if channels_found[k] == channel]
         slack_request.labels("conversations.info", "GET").inc()
 
         info = self._sc.conversations_info(channel=channel_id)
