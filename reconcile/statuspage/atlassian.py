@@ -400,6 +400,27 @@ class AtlassianStatusPageProvider:
         if not dry_run:
             self._binding_state.bind_component(component_name, component_id)
 
+    def _raw_maintenance_to_status_maintenance(
+        self,
+        raw_maintenance: AtlassianRawMaintenance,
+        name_override: Optional[str] = None,
+    ) -> StatusMaintenance:
+        return StatusMaintenance(
+            name=name_override or raw_maintenance.name,
+            message=raw_maintenance.incident_updates[0].body,
+            schedule_start=raw_maintenance.scheduled_for,
+            schedule_end=raw_maintenance.scheduled_until,
+            components=[
+                self._raw_component_to_status_component(c)
+                for c in raw_maintenance.components
+            ],
+            announcements=StatusMaintenanceAnnouncement(
+                remind_subscribers=raw_maintenance.scheduled_remind_prior,
+                notify_subscribers_on_start=raw_maintenance.auto_transition_deliver_notifications_at_start,
+                notify_subscribers_on_completion=raw_maintenance.auto_transition_deliver_notifications_at_end,
+            ),
+        )
+
     @classmethod
     def init_from_page(
         cls,
@@ -423,32 +444,14 @@ class AtlassianStatusPageProvider:
     @property
     def scheduled_maintenances(self) -> list[StatusMaintenance]:
         return [
-            StatusMaintenance(
-                name=m.name,
-                message=m.incident_updates[0].body,
-                schedule_start=m.scheduled_for,
-                schedule_end=m.scheduled_until,
-                components=[
-                    self._raw_component_to_status_component(c) for c in m.components
-                ],
-                announcements=StatusMaintenanceAnnouncement(
-                    remind_subscribers=m.scheduled_remind_prior,
-                    notify_subscribers_on_start=m.auto_transition_deliver_notifications_at_start,
-                    notify_subscribers_on_completion=m.auto_transition_deliver_notifications_at_end,
-                ),
-            )
+            self._raw_maintenance_to_status_maintenance(m)
             for m in self._api.list_scheduled_maintenances()
         ]
 
     @property
     def active_maintenances(self) -> list[StatusMaintenance]:
         return [
-            StatusMaintenance(
-                name=m.name,
-                message=m.incident_updates[0].body,
-                schedule_start=m.scheduled_for,
-                schedule_end=m.scheduled_until,
-            )
+            self._raw_maintenance_to_status_maintenance(m)
             for m in self._api.list_active_maintenances()
         ]
 
