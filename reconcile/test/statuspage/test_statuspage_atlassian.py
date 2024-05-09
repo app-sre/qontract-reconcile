@@ -227,7 +227,9 @@ def test_atlassian_page_apply_component_update(
     desired.description = "some other description"
 
     update_component_mock = mocker.patch.object(atlassian_page._api, "update_component")
-    mocker.patch.object(atlassian_page._api, "list_active_maintenances").return_value = []
+    mocker.patch.object(
+        atlassian_page._api, "list_active_maintenances"
+    ).return_value = []
     atlassian_page.apply_component(dry_run, desired)
 
     if dry_run:
