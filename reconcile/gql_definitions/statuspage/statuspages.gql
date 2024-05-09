@@ -33,6 +33,9 @@ query StatusPages {
       message
       scheduledStart
       scheduledEnd
+      affectedServices {
+        name
+      }
       announcements {
         provider
         ... on MaintenanceStatuspageAnnouncement_v1 {
