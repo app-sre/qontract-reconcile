@@ -42,6 +42,9 @@ query StatusPages {
           page {
             name
           }
+          remindSubscribers
+          notifySubscribersOnStart
+          notifySubscribersOnCompletion
         }
       }
     }
