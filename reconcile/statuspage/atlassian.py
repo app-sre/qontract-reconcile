@@ -406,7 +406,7 @@ class AtlassianStatusPageProvider:
         )
 
     @property
-    def maintenances(self) -> list[StatusMaintenance]:
+    def scheduled_maintenances(self) -> list[StatusMaintenance]:
         return [
             StatusMaintenance(
                 name=m.name,
