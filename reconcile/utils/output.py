@@ -41,6 +41,7 @@ def print_output(
 
     return formatted_content
 
+
 def format_table(content, columns, table_format="simple") -> str:
     headers = [column.upper() for column in columns]
     table_data = []
