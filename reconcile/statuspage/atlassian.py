@@ -15,6 +15,7 @@ from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.page import (
     StatusComponent,
     StatusMaintenance,
+    StatusMaintenanceAnnouncement,
     StatusPage,
 )
 from reconcile.statuspage.state import ComponentBindingState
@@ -55,6 +56,9 @@ class AtlassianRawMaintenance(BaseModel):
     scheduled_until: str
     incident_updates: list[AtlassianRawMaintenanceUpdate]
     components: list[AtlassianRawComponent]
+    auto_transition_deliver_notifications_at_end: bool
+    auto_transition_deliver_notifications_at_start: bool
+    scheduled_remind_prior: bool
 
 
 class AtlassianAPI:
@@ -416,6 +420,11 @@ class AtlassianStatusPageProvider:
                 components=[
                     self._raw_component_to_status_component(c) for c in m.components
                 ],
+                announcements=StatusMaintenanceAnnouncement(
+                    remind_subscribers=m.scheduled_remind_prior,
+                    notify_subscribers_on_start=m.auto_transition_deliver_notifications_at_start,
+                    notify_subscribers_on_completion=m.auto_transition_deliver_notifications_at_end,
+                ),
             )
             for m in self._api.list_scheduled_maintenances()
         ]

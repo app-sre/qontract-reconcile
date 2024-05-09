@@ -15,6 +15,9 @@ query Maintenances {
         page {
           name
         }
+        remindSubscribers
+        notifySubscribersOnStart
+        notifySubscribersOnCompletion
       }
     }
   }
