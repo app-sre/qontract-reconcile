@@ -64,10 +64,15 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
                     token=self.secret_reader.read_secret(p.credentials),
                     component_binding_state=binding_state,
                 )
+                current_state = [
+                    m
+                    for m in page_provider.scheduled_maintenances
+                    if page_provider.has_component_binding_for(m.name)
+                ]
                 self.reconcile(
                     dry_run=dry_run,
                     desired_state=desired_state,
-                    current_state=page_provider.scheduled_maintenances,
+                    current_state=current_state,
                     provider=page_provider,
                 )
             except Exception:
