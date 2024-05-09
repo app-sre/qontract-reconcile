@@ -3,7 +3,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Union
+from typing import Any, Union
 
 import yaml
 from tabulate import tabulate
@@ -13,7 +13,7 @@ def print_output(
     options: Mapping[str, Union[str, bool]],
     content: list[dict],
     columns: Iterable[str] = (),
-):
+) -> Any:
     if options["sort"]:
         content.sort(key=lambda c: tuple(c.values()))
     if options.get("to_string"):
@@ -23,17 +23,23 @@ def print_output(
 
     output = options["output"]
 
+    formatted_content = None
     if output == "table":
-        print_table(content, columns)
+        formatted_content = format_table(content, columns)
+        print(formatted_content)
     elif output == "md":
-        print_table(content, columns, table_format="github")
+        formatted_content = format_table(content, columns, table_format="github")
+        print(formatted_content)
     elif output == "json":
-        print(json.dumps(content))
+        formatted_content = json.dumps(content)
+        print(formatted_content)
     elif output == "yaml":
-        print(yaml.dump(content))
+        formatted_content = yaml.dump(content)
+        print(formatted_content)
     else:
         pass  # error
 
+    return formatted_content
 
 def format_table(content, columns, table_format="simple") -> str:
     headers = [column.upper() for column in columns]
@@ -58,7 +64,3 @@ def format_table(content, columns, table_format="simple") -> str:
             row_data.append(cell)
         table_data.append(row_data)
     return tabulate(table_data, headers=headers, tablefmt=table_format)
-
-
-def print_table(content, columns, table_format="simple"):
-    print(format_table(content, columns, table_format))
