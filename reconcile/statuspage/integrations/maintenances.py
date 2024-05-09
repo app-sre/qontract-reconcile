@@ -65,7 +65,7 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
                 self.reconcile(
                     dry_run=dry_run,
                     desired_state=desired_state,
-                    current_state=page_provider.maintenances,
+                    current_state=page_provider.scheduled_maintenances,
                     provider=page_provider,
                 )
             except Exception:
