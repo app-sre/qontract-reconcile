@@ -126,6 +126,11 @@ class AtlassianAPI:
         all_scheduled_incidents = self._list_items(url)
         return [AtlassianRawMaintenance(**i) for i in all_scheduled_incidents]
 
+    def list_active_maintenances(self) -> list[AtlassianRawMaintenance]:
+        url = f"{self.api_url}/v1/pages/{self.page_id}/incidents/active_maintenance"
+        all_active_incidents = self._list_items(url)
+        return [AtlassianRawMaintenance(**i) for i in all_active_incidents]
+
     def create_incident(self, data: dict[str, Any]) -> str:
         url = f"{self.api_url}/v1/pages/{self.page_id}/incidents"
         response = requests.post(
@@ -344,7 +349,13 @@ class AtlassianStatusPageProvider:
         # resolve status
         desired_component_status = desired.desired_component_status()
         if desired_component_status:
-            component_update["status"] = desired_component_status
+            active_maintenance_affecting_component = [
+                m
+                for m in self.active_maintenances
+                if desired.display_name in [c.name for c in m.components]
+            ]
+            if not active_maintenance_affecting_component:
+                component_update["status"] = desired_component_status
 
         if current_component:
             logging.info(f"update component {desired.name}: {component_update}")
@@ -427,6 +438,18 @@ class AtlassianStatusPageProvider:
                 ),
             )
             for m in self._api.list_scheduled_maintenances()
+        ]
+
+    @property
+    def active_maintenances(self) -> list[StatusMaintenance]:
+        return [
+            StatusMaintenance(
+                name=m.name,
+                message=m.incident_updates[0].body,
+                schedule_start=m.scheduled_for,
+                schedule_end=m.scheduled_until,
+            )
+            for m in self._api.list_active_maintenances()
         ]
 
     def create_maintenance(self, maintenance: StatusMaintenance) -> None:
