@@ -622,6 +622,9 @@ def _update_usergroup_from_state(
         ).items()
     ]
 
+    # This is a hack to filter out the missing channels
+    desired_channel_names = {s.name for s in slack_channel_objects}
+
     # Commenting this out is not correct, we should be checking the length of slack_channel_objects.
     # However there are a couple of missing channels and filtering these out complies with current behavior.
     # if len(slack_channel_objects) != len(desired_ug_state.channel_names):
@@ -631,7 +634,7 @@ def _update_usergroup_from_state(
     #     error_occurred = True
     #     return
 
-    for channel in desired_ug_state.channel_names - current_ug_state.channel_names:
+    for channel in desired_channel_names - current_ug_state.channel_names:
         logging.info([
             "add_channel_to_usergroup",
             desired_ug_state.workspace,
@@ -639,7 +642,7 @@ def _update_usergroup_from_state(
             channel,
         ])
 
-    for channel in current_ug_state.channel_names - desired_ug_state.channel_names:
+    for channel in current_ug_state.channel_names - desired_channel_names:
         logging.info([
             "del_channel_from_usergroup",
             desired_ug_state.workspace,
