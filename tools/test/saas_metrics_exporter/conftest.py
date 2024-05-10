@@ -1,8 +1,29 @@
 from collections.abc import Callable, Iterable, Mapping, MutableMapping
+from typing import Any
+from unittest.mock import create_autospec
 
 import pytest
 
 from reconcile.typed_queries.saas_files import SaasFile
+from reconcile.utils.vcs import VCS
+
+
+@pytest.fixture
+def vcs_builder() -> Callable[[Mapping], VCS]:
+    def builder(data: Mapping) -> VCS:
+        def _mocked_commits_between(*args: Any, **kwargs: Any) -> list:
+            commit_from = kwargs["commit_from"]
+            commit_to = kwargs["commit_to"]
+            key = f"{commit_from}/{commit_to}"
+            if data[key] == 0:
+                return []
+            return [1] * data[key]
+
+        vcs = create_autospec(spec=VCS)
+        vcs.get_commits_between = _mocked_commits_between
+        return vcs
+
+    return builder
 
 
 @pytest.fixture

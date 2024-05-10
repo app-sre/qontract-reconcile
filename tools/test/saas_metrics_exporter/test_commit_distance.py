@@ -74,6 +74,7 @@ def test_commit_distance_no_channels(
 
 def test_commit_distance_single_pub_sub_pair(
     saas_files_builder: Callable[[Iterable[Mapping]], list[SaasFile]],
+    vcs_builder: Callable[[Mapping], VCS],
 ) -> None:
     saas_files = saas_files_builder([
         {
@@ -121,7 +122,7 @@ def test_commit_distance_single_pub_sub_pair(
                     "url": "repo2/url",
                     "targets": [
                         {
-                            "ref": "main",
+                            "ref": "test123",
                             "namespace": {
                                 "path": "/namespace2.yml",
                                 "name": "subscriber_namespace",
@@ -155,14 +156,16 @@ def test_commit_distance_single_pub_sub_pair(
             ],
         },
     ])
-    vcs = create_autospec(spec=VCS)
+    vcs = vcs_builder({
+        "test123/main": 2,
+    })
     commit_distance_fetcher = CommitDistanceFetcher(vcs=vcs)
     commit_distance_metrics = commit_distance_fetcher.fetch(
         saas_files=saas_files, thread_pool_size=1
     )
     assert commit_distance_metrics == [
         CommitDistanceMetric(
-            value=0.0,
+            value=2.0,
             metric=SaasCommitDistanceGauge(
                 channel="channel-a",
                 app="APP",
