@@ -157,6 +157,7 @@ from tools.cli_commands.erv2 import (
     progress_spinner,
     task,
 )
+from tools.cli_commands.cost_report.openshift_cost_optimization import OpenShiftCostOptimizationReportCommand
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
@@ -2769,6 +2770,13 @@ def aws_cost_report(ctx):
 @click.pass_context
 def openshift_cost_report(ctx):
     command = OpenShiftCostReportCommand.create()
+    print(command.execute())
+
+
+@get.command()
+@click.pass_context
+def openshift_cost_optimization_report(ctx):
+    command = OpenShiftCostOptimizationReportCommand.create()
     print(command.execute())
 
 
