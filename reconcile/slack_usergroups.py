@@ -9,10 +9,15 @@ from typing import (
     Any,
     Optional,
     Sequence,
+    TypedDict,
     Union,
 )
 from urllib.parse import urlparse
 
+from build.lib.reconcile.utils.extended_early_exit import (
+    ExtendedEarlyExitRunnerResult,
+    extended_early_exit_run,
+)
 from github.GithubException import UnknownObjectException
 from pydantic import BaseModel
 from pydantic.utils import deep_update
@@ -67,6 +72,8 @@ from reconcile.utils.slack_api import (
 
 DATE_FORMAT = "%Y-%m-%d %H:%M"
 QONTRACT_INTEGRATION = "slack-usergroups"
+INTEGRATION_VERSION = "0.1.0"
+
 error_occurred = False
 
 
@@ -731,10 +738,22 @@ def get_clusters(query_func: Callable) -> list[ClusterV1]:
     return clusters_query(query_func=query_func).clusters or []
 
 
+class RunnerParams(TypedDict):
+    dry_run: bool
+    slack_map: SlackMap
+    desired_state: SlackState
+    clusters: list[ClusterV1]
+    workspace_name: Optional[str]
+    usergroup_name: Optional[str]
+
+
 def run(
     dry_run: bool,
     workspace_name: Optional[str] = None,
     usergroup_name: Optional[str] = None,
+    enable_extended_early_exit: bool = False,
+    extended_early_exit_cache_ttl_seconds: int = 3600,
+    log_cached_log_output: bool = False,
 ) -> None:
     global error_occurred  # noqa: PLW0603
     error_occurred = False
@@ -777,6 +796,45 @@ def run(
     # merge the two desired states recursively
     desired_state = deep_update(desired_state, desired_state_cluster_usergroups)
 
+    runner_params: RunnerParams = dict(
+        dry_run=dry_run,
+        slack_map=slack_map,
+        desired_state=desired_state,
+        clusters=clusters,
+        workspace_name=workspace_name,
+        usergroup_name=usergroup_name,
+    )
+
+    if enable_extended_early_exit:
+        extended_early_exit_run(
+            QONTRACT_INTEGRATION,
+            INTEGRATION_VERSION,
+            dry_run,
+            desired_state,
+            "",
+            extended_early_exit_cache_ttl_seconds,
+            logging.getLogger(),
+            runner,
+            runner_params=runner_params,
+            log_cached_log_output=log_cached_log_output,
+            secret_reader=secret_reader,
+        )
+    else:
+        runner(**runner_params)
+
+    if error_occurred:
+        logging.error("Error(s) occurred.")
+        sys.exit(1)
+
+
+def runner(
+    dry_run: bool,
+    slack_map: SlackMap,
+    desired_state: SlackState,
+    clusters: list[ClusterV1],
+    workspace_name: Optional[str] = None,
+    usergroup_name: Optional[str] = None,
+) -> ExtendedEarlyExitRunnerResult:
     current_state = get_current_state(
         slack_map=slack_map,
         desired_workspace_name=workspace_name,
@@ -793,9 +851,7 @@ def run(
         slack_map=slack_map,
         dry_run=dry_run,
     )
-    if error_occurred:
-        logging.error("Error(s) occurred.")
-        sys.exit(1)
+    return ExtendedEarlyExitRunnerResult(payload={}, applied_count=0)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
