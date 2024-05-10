@@ -171,3 +171,25 @@ def test_get_openshift_cost_report(
     assert result.output == "some report\n"
     mock_openshift_cost_report_command.create.assert_called_once_with()
     mock_openshift_cost_report_command.create.return_value.execute.assert_called_once_with()
+
+@pytest.fixture
+def mock_openshift_cost_optimization_report_command(mocker):
+    return mocker.patch("tools.qontract_cli.OpenShiftCostOptimizationReportCommand", autospec=True)
+
+def test_get_openshift_cost_optimization_report(
+    env_vars, mock_queries, mock_openshift_cost_optimization_report_command
+):
+    mock_openshift_cost_optimization_report_command.create.return_value.execute.return_value = (
+        "some report"
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        "openshift-cost-optimization-report",
+        obj={},
+    )
+
+    assert result.exit_code == 0
+    assert result.output == "some report\n"
+    mock_openshift_cost_optimization_report_command.create.assert_called_once_with()
+    mock_openshift_cost_optimization_report_command.create.return_value.execute.assert_called_once_with()
