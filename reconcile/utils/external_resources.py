@@ -36,6 +36,8 @@ def get_external_resource_specs(
     external_resources = namespace_info.get("externalResources") or []
     for e in external_resources:
         for r in e.get("resources", []):
+            if "managed_by_erv2" in r and r["managed_by_erv2"]:
+                continue
             spec = ExternalResourceSpec(
                 provision_provider=e["provider"],
                 provisioner=e["provisioner"],
