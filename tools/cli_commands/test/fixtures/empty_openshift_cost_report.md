@@ -1,10 +1,10 @@
 [TOC]
 
-# AWS Cost Report
+# OpenShift Cost Report
 
 ## Summary
 
-Total AWS Cost for : $0.00
+Total OpenShift Cost for : $0.00
 
 ```json:table
 {

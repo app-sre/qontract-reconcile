@@ -1,5 +1,4 @@
 from decimal import Decimal
-from typing import List
 
 from pydantic import BaseModel
 
@@ -35,14 +34,36 @@ class ServiceCostValueResponse(BaseModel):
 
 class ServiceCostResponse(BaseModel):
     service: str
-    values: List[ServiceCostValueResponse]
+    values: list[ServiceCostValueResponse]
 
 
 class CostResponse(BaseModel):
     date: str
-    services: List[ServiceCostResponse]
+    services: list[ServiceCostResponse]
 
 
 class ReportCostResponse(BaseModel):
     meta: ReportMetaResponse
-    data: List[CostResponse]
+    data: list[CostResponse]
+
+
+class ProjectCostValueResponse(BaseModel):
+    delta_value: Decimal
+    delta_percent: float | None
+    cost: CostTotalResponse
+    clusters: list[str]
+
+
+class ProjectCostResponse(BaseModel):
+    project: str
+    values: list[ProjectCostValueResponse]
+
+
+class OpenShiftCostResponse(BaseModel):
+    date: str
+    projects: list[ProjectCostResponse]
+
+
+class OpenShiftReportCostResponse(BaseModel):
+    meta: ReportMetaResponse
+    data: list[OpenShiftCostResponse]
