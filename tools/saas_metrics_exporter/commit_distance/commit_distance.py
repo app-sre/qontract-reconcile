@@ -28,6 +28,7 @@ class CommitDistanceMetric:
     metric: SaasCommitDistanceGauge
 
 
+# TODO: make better
 @dataclass
 class ThreadData:
     repo_url: str

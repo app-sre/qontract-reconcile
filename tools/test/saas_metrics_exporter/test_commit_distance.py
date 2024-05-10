@@ -1,5 +1,4 @@
 from collections.abc import Callable, Iterable, Mapping
-from unittest.mock import create_autospec
 
 from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.vcs import VCS
@@ -10,8 +9,10 @@ from tools.saas_metrics_exporter.commit_distance.commit_distance import (
 from tools.saas_metrics_exporter.commit_distance.metrics import SaasCommitDistanceGauge
 
 
-def test_commit_distance_no_saas_files() -> None:
-    vcs = create_autospec(spec=VCS)
+def test_commit_distance_no_saas_files(
+    vcs_builder: Callable[[Mapping], VCS],
+) -> None:
+    vcs = vcs_builder({})
     commit_distance_fetcher = CommitDistanceFetcher(vcs=vcs)
     commit_distance_metrics = commit_distance_fetcher.fetch(
         saas_files=[], thread_pool_size=1
@@ -21,6 +22,7 @@ def test_commit_distance_no_saas_files() -> None:
 
 def test_commit_distance_no_channels(
     saas_files_builder: Callable[[Iterable[Mapping]], list[SaasFile]],
+    vcs_builder: Callable[[Mapping], VCS],
 ) -> None:
     saas_files = saas_files_builder([
         {
@@ -64,7 +66,7 @@ def test_commit_distance_no_channels(
             ],
         },
     ])
-    vcs = create_autospec(spec=VCS)
+    vcs = vcs_builder({})
     commit_distance_fetcher = CommitDistanceFetcher(vcs=vcs)
     commit_distance_metrics = commit_distance_fetcher.fetch(
         saas_files=saas_files, thread_pool_size=1
