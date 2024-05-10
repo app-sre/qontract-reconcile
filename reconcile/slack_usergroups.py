@@ -14,10 +14,6 @@ from typing import (
 )
 from urllib.parse import urlparse
 
-from build.lib.reconcile.utils.extended_early_exit import (
-    ExtendedEarlyExitRunnerResult,
-    extended_early_exit_run,
-)
 from github.GithubException import UnknownObjectException
 from pydantic import BaseModel
 from pydantic.utils import deep_update
@@ -51,6 +47,10 @@ from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,
     UnknownError,
+)
+from reconcile.utils.extended_early_exit import (
+    ExtendedEarlyExitRunnerResult,
+    extended_early_exit_run,
 )
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
