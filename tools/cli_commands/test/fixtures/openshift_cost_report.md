@@ -1,10 +1,10 @@
 [TOC]
 
-# AWS Cost Report
+# OpenShift Cost Report
 
 ## Summary
 
-Total AWS Cost for 2024-02: $3,000.00
+Total OpenShift Cost for 2024-02: $3,300.00
 
 ```json:table
 {
@@ -12,9 +12,9 @@ Total AWS Cost for 2024-02: $3,000.00
   "items": [
     {
       "name": "parent",
-      "child_apps_total": 2000.0,
-      "items_total": 1000.0,
-      "total": 3000.0
+      "child_apps_total": 2200.0,
+      "items_total": 1100.0,
+      "total": 3300.0
     }
   ],
   "fields": [
@@ -53,14 +53,14 @@ Month over month change for 2024-02:
     {
       "name": "child",
       "delta_value": 200.0,
-      "delta_percent": 20.0,
-      "total": 2000.0
+      "delta_percent": 10.0,
+      "total": 2200.0
     },
     {
       "name": "parent",
       "delta_value": 100.0,
       "delta_percent": 10.0,
-      "total": 1000.0
+      "total": 1100.0
     }
   ],
   "fields": [
@@ -92,24 +92,23 @@ Month over month change for 2024-02:
 
 ### child
 
-AWS Services Cost: $2,000.00, +$200.00 (+20.00%) compared to previous month.
-View in [Cost Management Console](https://console.redhat.com/openshift/cost-management/explorer?dateRangeType=previous_month&filter[limit]=10&filter[offset]=0&filter_by[tag:app]=child&group_by[service]=*&order_by[cost]=desc&perspective=aws).
+OpenShift Workloads Cost: $2,200.00, +$200.00 (+10.00%) compared to previous month.
 
 ```json:table
 {
   "filter": true,
   "items": [
     {
-      "name": "service2",
+      "name": "child_cluster/child_namespace",
       "delta_value": 200.0,
-      "delta_percent": 20.0,
-      "total": 2000.0
+      "delta_percent": 10.0,
+      "total": 2200.0
     }
   ],
   "fields": [
     {
       "key": "name",
-      "label": "Service",
+      "label": "Cluster/Namespace",
       "sortable": true
     },
     {
@@ -133,24 +132,23 @@ View in [Cost Management Console](https://console.redhat.com/openshift/cost-mana
 
 ### parent
 
-AWS Services Cost: $1,000.00, +$100.00 (+10.00%) compared to previous month.
-View in [Cost Management Console](https://console.redhat.com/openshift/cost-management/explorer?dateRangeType=previous_month&filter[limit]=10&filter[offset]=0&filter_by[tag:app]=parent&group_by[service]=*&order_by[cost]=desc&perspective=aws).
+OpenShift Workloads Cost: $1,100.00, +$100.00 (+10.00%) compared to previous month.
 
 ```json:table
 {
   "filter": true,
   "items": [
     {
-      "name": "service1",
+      "name": "parent_cluster/parent_namespace",
       "delta_value": 100.0,
       "delta_percent": 10.0,
-      "total": 1000.0
+      "total": 1100.0
     }
   ],
   "fields": [
     {
       "key": "name",
-      "label": "Service",
+      "label": "Cluster/Namespace",
       "sortable": true
     },
     {
@@ -172,7 +170,7 @@ View in [Cost Management Console](https://console.redhat.com/openshift/cost-mana
 }
 ```
 
-Child Apps Cost: $2,000.00
+Child Apps Cost: $2,200.00
 
 ```json:table
 {
@@ -180,7 +178,7 @@ Child Apps Cost: $2,000.00
   "items": [
     {
       "name": "child",
-      "total": 2000.0
+      "total": 2200.0
     }
   ],
   "fields": [
@@ -198,4 +196,4 @@ Child Apps Cost: $2,000.00
 }
 ```
 
-Total Cost: $3,000.00
+Total Cost: $3,300.00

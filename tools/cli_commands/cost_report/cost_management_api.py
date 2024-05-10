@@ -1,12 +1,13 @@
-from typing import List
-
 from urllib3.util import Retry
 
 from reconcile.utils.oauth2_backend_application_session import (
     OAuth2BackendApplicationSession,
 )
 from reconcile.utils.rest_api_base import ApiBase
-from tools.cli_commands.cost_report.response import ReportCostResponse
+from tools.cli_commands.cost_report.response import (
+    OpenShiftReportCostResponse,
+    ReportCostResponse,
+)
 
 REQUEST_TIMEOUT = 60
 
@@ -18,7 +19,7 @@ class CostManagementApi(ApiBase):
         token_url: str,
         client_id: str,
         client_secret: str,
-        scope: List[str] | None = None,
+        scope: list[str] | None = None,
     ) -> None:
         session = OAuth2BackendApplicationSession(
             client_id=client_id,
@@ -56,3 +57,26 @@ class CostManagementApi(ApiBase):
         )
         response.raise_for_status()
         return ReportCostResponse.parse_obj(response.json())
+
+    def get_openshift_costs_report(
+        self,
+        cluster: str,
+        project: str,
+    ) -> OpenShiftReportCostResponse:
+        params = {
+            "delta": "cost",
+            "filter[resolution]": "monthly",
+            "filter[cluster]": cluster,
+            "filter[exact:project]": project,
+            "filter[time_scope_units]": "month",
+            "filter[time_scope_value]": "-2",
+            "group_by[project]": "*",
+        }
+        response = self.session.request(
+            method="GET",
+            url=f"{self.host}/reports/openshift/costs/",
+            params=params,
+            timeout=self.read_timeout,
+        )
+        response.raise_for_status()
+        return OpenShiftReportCostResponse.parse_obj(response.json())
