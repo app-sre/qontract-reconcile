@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sretoolbox.utils import threaded
 
@@ -22,12 +22,9 @@ class CommitDistanceMetric:
 @dataclass(frozen=True)
 class DistanceKey:
     repo_url: str
-    auth_code: HasSecret | None
+    auth_code: HasSecret | None = field(hash=False, compare=False)
     ref_from: str
     ref_to: str
-
-    def __hash__(self) -> int:
-        return hash((self.repo_url, self.ref_from, self.ref_to))
 
 
 class CommitDistanceFetcher:
