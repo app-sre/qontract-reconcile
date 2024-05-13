@@ -11,7 +11,7 @@ from typing import (
 from dynatrace import Dynatrace
 from dynatrace.environment_v2.tokens_api import ApiTokenCreated
 
-from reconcile.dynatrace_token_provider.merics import (
+from reconcile.dynatrace_token_provider.metrics import (
     DTPOrganizationErrorRate,
 )
 from reconcile.gql_definitions.common.ocm_environments import (
