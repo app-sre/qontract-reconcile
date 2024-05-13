@@ -24,6 +24,7 @@ from tools.cli_commands.cost_report.response import (
     ServiceCostValueResponse,
     TotalMetaResponse,
 )
+from tools.cli_commands.test.conftest import COST_REPORT_SECRET
 
 
 @pytest.fixture
@@ -40,9 +41,24 @@ def base_url(httpserver: HTTPServer) -> str:
 
 
 TOKEN_URL = "token_url"
-CLIENT_ID = "client_id"
-CLIENT_SECRET = "client_secret"
-SCOPE = ["some-scope"]
+CLIENT_ID = COST_REPORT_SECRET["client_id"]
+CLIENT_SECRET = COST_REPORT_SECRET["client_secret"]
+SCOPE = ["scope"]
+
+
+def test_cost_management_api_create_from_secret(
+    mock_session: Any,
+) -> None:
+    api = CostManagementApi.create_from_secret(COST_REPORT_SECRET)
+
+    assert api.host == COST_REPORT_SECRET["api_base_url"]
+    assert api.session == mock_session.return_value
+    mock_session.assert_called_once_with(
+        client_id=CLIENT_ID,
+        client_secret=CLIENT_SECRET,
+        token_url=TOKEN_URL,
+        scope=SCOPE,
+    )
 
 
 def test_cost_management_api_init(mock_session: Any, base_url: str) -> None:

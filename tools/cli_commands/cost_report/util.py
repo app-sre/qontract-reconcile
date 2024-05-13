@@ -2,7 +2,13 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from typing import Any
 
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.cost_report.app_names import App
+from reconcile.typed_queries.cost_report.settings import get_cost_report_settings
+from reconcile.utils.gql import GqlApi
+from reconcile.utils.secret_reader import create_secret_reader
 from tools.cli_commands.cost_report.model import Report
 
 
@@ -57,3 +63,10 @@ def process_reports(
             report_builder=report_builder,
         )
     return reports
+
+
+def fetch_cost_report_secret(gql_api: GqlApi) -> dict[str, str]:
+    vault_settings = get_app_interface_vault_settings(gql_api.query)
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    cost_report_settings = get_cost_report_settings(gql_api)
+    return secret_reader.read_all_secret(cost_report_settings.credentials)
