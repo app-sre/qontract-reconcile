@@ -1579,6 +1579,7 @@ def rds(ctx):
                 "engine": rds_attr("engine", overrides, defaults),
                 "engine_version": rds_attr("engine_version", overrides, defaults),
                 "instance_class": rds_attr("instance_class", overrides, defaults),
+                "storage_type": rds_attr("storage_type", overrides, defaults),
             }
             results.append(item)
 
@@ -1593,6 +1594,7 @@ def rds(ctx):
                 {"key": "engine", "sortable": True},
                 {"key": "engine_version", "sortable": True},
                 {"key": "instance_class", "sortable": True},
+                {"key": "storage_type", "sortable": True},
             ],
             "items": results,
         }
@@ -1617,6 +1619,7 @@ You can view the source of this Markdown to extract the JSON data.
             "engine",
             "engine_version",
             "instance_class",
+            "storage_type",
         ]
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], results, columns)
