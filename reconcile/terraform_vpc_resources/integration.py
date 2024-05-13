@@ -85,9 +85,10 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
 
             # If the output exists for that request get its value
             # Else get None
-            subnets = outputs_per_account.get(
+            private_subnets = outputs_per_account.get(
                 f"{request.identifier}-private_subnets", {}
-            ).get("value", []) + outputs_per_account.get(
+            ).get("value", [])
+            public_subnets = outputs_per_account.get(
                 f"{request.identifier}-public_subnets", {}
             ).get("value", [])
 
@@ -96,7 +97,10 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
                     "vpc_id": outputs_per_account.get(
                         f"{request.identifier}-vpc_id", {}
                     ).get("value"),
-                    "subnets": subnets,
+                    "subnets": {
+                        "private": private_subnets,
+                        "public": public_subnets,
+                    },
                     "account_name": request.account.name,
                     "region": request.region,
                     "cidr_block": request.cidr_block.network_address,
