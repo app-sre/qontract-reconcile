@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 from pytest_httpserver import HTTPServer
@@ -37,6 +38,8 @@ def unleash_server_full_api_response(
     set_httpserver_responses_based_on_fixture(
         fx=fx,
         paths=[
-            "/api/admin/projects",
+            "/" + p.relative_to(fx.path("")).as_posix()
+            for p in Path(fx.path("")).rglob("*")
+            if p.is_dir()
         ],
     )

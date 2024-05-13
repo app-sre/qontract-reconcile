@@ -1,0 +1,67 @@
+{
+  "version": 2,
+  "features": [
+    {
+      "type": "release",
+      "description": "just a test toggle",
+      "name": "toggle-1",
+      "createdAt": "2022-02-21T15:27:47.640Z",
+      "stale": false,
+      "impressionData": false,
+      "lastSeenAt": null,
+      "environments": [
+        {
+          "name": "default",
+          "enabled": true,
+          "type": "production",
+          "sortOrder": 1,
+          "variantCount": 0,
+          "lastSeenAt": null,
+          "hasStrategies": true,
+          "hasEnabledStrategies": true
+        },
+        {
+          "name": "development",
+          "enabled": false,
+          "type": "development",
+          "sortOrder": 2,
+          "variantCount": 0,
+          "lastSeenAt": null,
+          "hasStrategies": false,
+          "hasEnabledStrategies": false
+        }
+      ]
+    },
+    {
+      "type": "release",
+      "description": "see above",
+      "name": "toggle-2",
+      "createdAt": "2022-02-21T15:27:47.640Z",
+      "stale": false,
+      "impressionData": false,
+      "lastSeenAt": null,
+      "environments": [
+        {
+          "name": "default",
+          "enabled": false,
+          "type": "production",
+          "sortOrder": 1,
+          "variantCount": 0,
+          "lastSeenAt": null,
+          "hasStrategies": true,
+          "hasEnabledStrategies": true
+        },
+        {
+          "name": "development",
+          "enabled": false,
+          "type": "development",
+          "sortOrder": 2,
+          "variantCount": 0,
+          "lastSeenAt": null,
+          "hasStrategies": false,
+          "hasEnabledStrategies": false
+        }
+      ]
+    }
+  ]
+}
