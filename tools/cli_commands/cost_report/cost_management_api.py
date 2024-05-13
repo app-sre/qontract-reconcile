@@ -1,3 +1,6 @@
+from collections.abc import Mapping
+from typing import Self
+
 from urllib3.util import Retry
 
 from reconcile.utils.oauth2_backend_application_session import (
@@ -13,6 +16,12 @@ REQUEST_TIMEOUT = 60
 
 
 class CostManagementApi(ApiBase):
+    """
+    Cost Management API client.
+
+    Doc at https://console.redhat.com/docs/api/cost-management
+    """
+
     def __init__(
         self,
         base_url: str,
@@ -80,3 +89,16 @@ class CostManagementApi(ApiBase):
         )
         response.raise_for_status()
         return OpenShiftReportCostResponse.parse_obj(response.json())
+
+    @classmethod
+    def create_from_secret(
+        cls,
+        secret: Mapping[str, str],
+    ) -> Self:
+        return cls(
+            base_url=secret["api_base_url"],
+            token_url=secret["token_url"],
+            client_id=secret["client_id"],
+            client_secret=secret["client_secret"],
+            scope=secret["scope"].split(" "),
+        )
