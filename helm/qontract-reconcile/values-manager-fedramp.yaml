@@ -18,6 +18,7 @@ integrations:
     slack: false
     googleChat: true
   disableUnleash: true
+  unleashConnectionPool: true
   shard_specs:
   - shard_id: 0
     shards: 1

@@ -157,6 +157,16 @@ objects:
               </exclude>
             </filter>
 
+            {{- if $integration.unleashConnectionPool}}
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Max retries exceeded with url: \/api\/client\/features/
+              </exclude>
+            </filter>
+            {{- end}}
+
             <match integration>
               @type copy
               {{- if $logs.slack }}
