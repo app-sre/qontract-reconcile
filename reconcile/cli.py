@@ -3489,8 +3489,15 @@ def skupper_network(ctx, thread_pool_size, internal, use_jump_host):
     envvar="OL_MANAGED_LABEL_PREFIXES",
     default="sre-capabilities",
 )
+@click.option(
+    "--ignored-label-prefixes",
+    help="A comma list of label prefixes that must be ignored.",
+    required=True,
+    envvar="OL_IGNORED_LABEL_PREFIXES",
+    default="sre-capabilities.rhidp",
+)
 @click.pass_context
-def ocm_labels(ctx, managed_label_prefixes):
+def ocm_labels(ctx, managed_label_prefixes, ignored_label_prefixes):
     from reconcile.ocm_labels.integration import (
         OcmLabelsIntegration,
         OcmLabelsIntegrationParams,
@@ -3500,6 +3507,7 @@ def ocm_labels(ctx, managed_label_prefixes):
         integration=OcmLabelsIntegration(
             OcmLabelsIntegrationParams(
                 managed_label_prefixes=list(set(managed_label_prefixes.split(","))),
+                ignored_label_prefixes=list(set(ignored_label_prefixes.split(","))),
             )
         ),
         ctx=ctx.obj,
