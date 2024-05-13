@@ -4,7 +4,6 @@ from collections.abc import Mapping, MutableMapping
 from typing import Any, Iterable, Optional
 
 import jinja2
-from pydantic import BaseModel
 
 from reconcile.gql_definitions.fragments.aws_vpc_request import (
     AWSAccountV1,
@@ -49,12 +48,6 @@ class TerraformVpcResourcesParams(PydanticRunParams):
 
 class NoManagedVPCForAccount(Exception):
     pass
-
-
-class OutputData(BaseModel):
-    vpc_id: str
-    private_subnet_ids: Iterable[str]
-    public_subnet_ids: Iterable[str]
 
 
 class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesParams]):
