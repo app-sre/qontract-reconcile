@@ -26,6 +26,9 @@ class DistanceKey:
     ref_from: str
     ref_to: str
 
+    def __hash__(self) -> int:
+        return hash((self.repo_url, self.ref_from, self.ref_to))
+
 
 class CommitDistanceFetcher:
     def __init__(self, vcs: VCS):
