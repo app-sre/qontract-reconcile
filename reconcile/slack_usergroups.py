@@ -615,6 +615,7 @@ def _update_usergroup_from_state(
 ) -> int:
     """Update a Slack usergroup."""
     global error_occurred  # noqa: PLW0603
+    change_detected = False
     if (
         current_ug_state.channel_names == desired_ug_state.channel_names
         and current_ug_state.description == desired_ug_state.description
@@ -644,6 +645,7 @@ def _update_usergroup_from_state(
     #     return
 
     for channel in desired_channel_names - current_ug_state.channel_names:
+        change_detected = True
         logging.info([
             "add_channel_to_usergroup",
             desired_ug_state.workspace,
@@ -652,6 +654,7 @@ def _update_usergroup_from_state(
         ])
 
     for channel in current_ug_state.channel_names - desired_channel_names:
+        change_detected = True
         logging.info([
             "del_channel_from_usergroup",
             desired_ug_state.workspace,
@@ -660,6 +663,7 @@ def _update_usergroup_from_state(
         ])
 
     if current_ug_state.description != desired_ug_state.description:
+        change_detected = True
         logging.info([
             "update_usergroup_description",
             desired_ug_state.workspace,
@@ -667,7 +671,7 @@ def _update_usergroup_from_state(
             desired_ug_state.description,
         ])
 
-    if not dry_run:
+    if not dry_run and change_detected:
         try:
             ugid = slack_client.get_usergroup_id(desired_ug_state.usergroup)
             if not ugid:
@@ -683,7 +687,8 @@ def _update_usergroup_from_state(
         except SlackApiError as error:
             logging.error(error)
             error_occurred = True
-    return 1
+        return 1
+    return 0
 
 
 def act(
