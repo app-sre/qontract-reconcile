@@ -1198,7 +1198,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "create_database_subnet_group": False,
                 "enable_dns_hostnames": True,
                 "tags": {
-                    "Terraform": True,
+                    "managed_by_integration": self.integration,
                 },
             }
 
