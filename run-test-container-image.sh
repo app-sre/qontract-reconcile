@@ -90,6 +90,7 @@ run_cst_using_container() {
             -i "$IMAGE_NAME:$IMAGE_TAG"
     else
         echo "Unsupported $CONTAINER_ENGINE to run container structure tests"
+        return 1
     fi
 }
 
