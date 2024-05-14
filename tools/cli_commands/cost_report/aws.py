@@ -8,7 +8,7 @@ from reconcile.typed_queries.cost_report.app_names import App, get_app_names
 from reconcile.utils import gql
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
-from tools.cli_commands.cost_report.response import ReportCostResponse
+from tools.cli_commands.cost_report.response import AwsReportCostResponse
 from tools.cli_commands.cost_report.util import (
     fetch_cost_report_secret,
     process_reports,
@@ -43,13 +43,13 @@ class AwsCostReportCommand:
         """
         return get_app_names(self.gql_api)
 
-    def _get_report(self, app: App) -> tuple[str, ReportCostResponse]:
+    def _get_report(self, app: App) -> tuple[str, AwsReportCostResponse]:
         return app.name, self.cost_management_api.get_aws_costs_report(app.name)
 
     def get_reports(
         self,
         apps: Iterable[App],
-    ) -> Mapping[str, ReportCostResponse]:
+    ) -> Mapping[str, AwsReportCostResponse]:
         """
         Fetch reports from cost management API
         """
@@ -59,7 +59,7 @@ class AwsCostReportCommand:
     def process_reports(
         self,
         apps: Iterable[App],
-        responses: Mapping[str, ReportCostResponse],
+        responses: Mapping[str, AwsReportCostResponse],
     ) -> dict[str, Report]:
         """
         Build reports with parent-child app tree.
@@ -82,7 +82,7 @@ class AwsCostReportCommand:
         parent_app_name: str | None,
         child_apps: list[str],
         reports: Mapping[str, Report],
-        response: ReportCostResponse,
+        response: AwsReportCostResponse,
     ) -> Report:
         child_app_reports = [
             ChildAppReport(

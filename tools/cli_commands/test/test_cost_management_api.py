@@ -10,16 +10,26 @@ from requests import HTTPError
 
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
 from tools.cli_commands.cost_report.response import (
+    AwsReportCostResponse,
     CostResponse,
     CostTotalResponse,
     DeltaResponse,
     MoneyResponse,
+    OpenShiftCostOptimizationReportResponse,
+    OpenShiftCostOptimizationResponse,
     OpenShiftCostResponse,
     OpenShiftReportCostResponse,
     ProjectCostResponse,
     ProjectCostValueResponse,
-    ReportCostResponse,
+    RecommendationEngineResponse,
+    RecommendationEnginesResponse,
+    RecommendationResourcesResponse,
+    RecommendationsResponse,
+    RecommendationTermResponse,
+    RecommendationTermsResponse,
     ReportMetaResponse,
+    ResourceConfigResponse,
+    ResourceResponse,
     ServiceCostResponse,
     ServiceCostValueResponse,
     TotalMetaResponse,
@@ -97,7 +107,7 @@ def cost_management_api(mock_session: Any, base_url: str) -> CostManagementApi:
     )
 
 
-EXPECTED_REPORT_COST_RESPONSE = ReportCostResponse(
+EXPECTED_REPORT_COST_RESPONSE = AwsReportCostResponse(
     meta=ReportMetaResponse(
         delta=DeltaResponse(
             value=Decimal(100),
@@ -266,6 +276,147 @@ def test_get_openshift_costs_report_error(
 
     with pytest.raises(HTTPError) as error:
         cost_management_api.get_openshift_costs_report(
+            cluster="some-cluster",
+            project="some-project",
+        )
+
+    assert error.value.response.status_code == 500
+
+
+EXPECTED_OPENSHIFT_COST_OPTIMIZATION_RESPONSE = OpenShiftCostOptimizationReportResponse(
+    data=[
+        OpenShiftCostOptimizationResponse(
+            cluster_alias="some-cluster",
+            cluster_uuid="some-cluster-uuid",
+            container="test",
+            id="id-uuid",
+            project="some-project",
+            workload="test-deployment",
+            workload_type="deployment",
+            recommendations=RecommendationsResponse(
+                current=RecommendationResourcesResponse(
+                    limits=ResourceResponse(
+                        cpu=ResourceConfigResponse(amount=4),
+                        memory=ResourceConfigResponse(amount=5, format="Gi"),
+                    ),
+                    requests=ResourceResponse(
+                        cpu=ResourceConfigResponse(amount=1),
+                        memory=ResourceConfigResponse(amount=400, format="Mi"),
+                    ),
+                ),
+                recommendation_terms=RecommendationTermsResponse(
+                    long_term=RecommendationTermResponse(),
+                    medium_term=RecommendationTermResponse(),
+                    short_term=RecommendationTermResponse(
+                        recommendation_engines=RecommendationEnginesResponse(
+                            cost=RecommendationEngineResponse(
+                                config=RecommendationResourcesResponse(
+                                    limits=ResourceResponse(
+                                        cpu=ResourceConfigResponse(amount=5),
+                                        memory=ResourceConfigResponse(
+                                            amount=6, format="Gi"
+                                        ),
+                                    ),
+                                    requests=ResourceResponse(
+                                        cpu=ResourceConfigResponse(amount=3),
+                                        memory=ResourceConfigResponse(
+                                            amount=700, format="Mi"
+                                        ),
+                                    ),
+                                ),
+                                variation=RecommendationResourcesResponse(
+                                    limits=ResourceResponse(
+                                        cpu=ResourceConfigResponse(amount=1),
+                                        memory=ResourceConfigResponse(
+                                            amount=1, format="Gi"
+                                        ),
+                                    ),
+                                    requests=ResourceResponse(
+                                        cpu=ResourceConfigResponse(amount=2),
+                                        memory=ResourceConfigResponse(
+                                            amount=300, format="Mi"
+                                        ),
+                                    ),
+                                ),
+                            ),
+                            performance=RecommendationEngineResponse(
+                                config=RecommendationResourcesResponse(
+                                    limits=ResourceResponse(
+                                        cpu=ResourceConfigResponse(amount=3),
+                                        memory=ResourceConfigResponse(
+                                            amount=6, format="Gi"
+                                        ),
+                                    ),
+                                    requests=ResourceResponse(
+                                        cpu=ResourceConfigResponse(
+                                            amount=600, format="millicores"
+                                        ),
+                                        memory=ResourceConfigResponse(
+                                            amount=700, format="Mi"
+                                        ),
+                                    ),
+                                ),
+                                variation=RecommendationResourcesResponse(
+                                    limits=ResourceResponse(
+                                        cpu=ResourceConfigResponse(amount=-1),
+                                        memory=ResourceConfigResponse(
+                                            amount=1, format="Gi"
+                                        ),
+                                    ),
+                                    requests=ResourceResponse(
+                                        cpu=ResourceConfigResponse(
+                                            amount=-400, format="millicores"
+                                        ),
+                                        memory=ResourceConfigResponse(
+                                            amount=300, format="Mi"
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        )
+                    ),
+                ),
+            ),
+        )
+    ]
+)
+
+
+def test_get_openshift_cost_optimization_report(
+    cost_management_api: CostManagementApi,
+    fx: Callable,
+    httpserver: HTTPServer,
+) -> None:
+    response_body = fx("openshift_cost_optimization_report.json")
+    project = "some-project"
+    cluster = "some-cluster-uuid"
+    httpserver.expect_request(
+        "/recommendations/openshift",
+        query_string={
+            "cluster": cluster,
+            "project": project,
+        },
+    ).respond_with_data(response_body)
+
+    report_cost_response = cost_management_api.get_openshift_cost_optimization_report(
+        cluster=cluster,
+        project=project,
+    )
+
+    assert report_cost_response == EXPECTED_OPENSHIFT_COST_OPTIMIZATION_RESPONSE
+
+
+def test_get_openshift_cost_optimization_report_error(
+    cost_management_api: CostManagementApi,
+    fx: Callable,
+    httpserver: HTTPServer,
+) -> None:
+    httpserver.expect_request("/recommendations/openshift").respond_with_data(
+        status=500
+    )
+
+    with pytest.raises(HTTPError) as error:
+        cost_management_api.get_openshift_cost_optimization_report(
             cluster="some-cluster",
             project="some-project",
         )

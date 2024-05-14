@@ -8,7 +8,7 @@ from pytest_mock import MockerFixture
 from reconcile.typed_queries.cost_report.app_names import App
 from tools.cli_commands.cost_report.aws import AwsCostReportCommand
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
-from tools.cli_commands.cost_report.response import ReportCostResponse
+from tools.cli_commands.cost_report.response import AwsReportCostResponse
 from tools.cli_commands.test.conftest import (
     COST_REPORT_SECRET,
 )
@@ -111,8 +111,8 @@ def aws_report_cost_response_builder(
     delta_percent: int,
     total: int,
     service: str,
-) -> ReportCostResponse:
-    return ReportCostResponse.parse_obj({
+) -> AwsReportCostResponse:
+    return AwsReportCostResponse.parse_obj({
         "meta": {
             "delta": {
                 "value": delta_value,

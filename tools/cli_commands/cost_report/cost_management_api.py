@@ -8,8 +8,9 @@ from reconcile.utils.oauth2_backend_application_session import (
 )
 from reconcile.utils.rest_api_base import ApiBase
 from tools.cli_commands.cost_report.response import (
+    AwsReportCostResponse,
+    OpenShiftCostOptimizationReportResponse,
     OpenShiftReportCostResponse,
-    ReportCostResponse,
 )
 
 REQUEST_TIMEOUT = 60
@@ -48,7 +49,7 @@ class CostManagementApi(ApiBase):
             max_retries=max_retries,
         )
 
-    def get_aws_costs_report(self, app: str) -> ReportCostResponse:
+    def get_aws_costs_report(self, app: str) -> AwsReportCostResponse:
         params = {
             "cost_type": "calculated_amortized_cost",
             "delta": "cost",
@@ -65,7 +66,7 @@ class CostManagementApi(ApiBase):
             timeout=self.read_timeout,
         )
         response.raise_for_status()
-        return ReportCostResponse.parse_obj(response.json())
+        return AwsReportCostResponse.parse_obj(response.json())
 
     def get_openshift_costs_report(
         self,
@@ -89,6 +90,24 @@ class CostManagementApi(ApiBase):
         )
         response.raise_for_status()
         return OpenShiftReportCostResponse.parse_obj(response.json())
+
+    def get_openshift_cost_optimization_report(
+        self,
+        cluster: str,
+        project: str,
+    ) -> OpenShiftCostOptimizationReportResponse:
+        params = {
+            "cluster": cluster,
+            "project": project,
+        }
+        response = self.session.request(
+            method="GET",
+            url=f"{self.host}/recommendations/openshift",
+            params=params,
+            timeout=self.read_timeout,
+        )
+        response.raise_for_status()
+        return OpenShiftCostOptimizationReportResponse.parse_obj(response.json())
 
     @classmethod
     def create_from_secret(
