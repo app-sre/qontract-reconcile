@@ -14,16 +14,13 @@ from dynatrace.environment_v2.tokens_api import ApiTokenCreated
 from reconcile.dynatrace_token_provider.metrics import (
     DTPOrganizationErrorRate,
 )
-from reconcile.gql_definitions.common.ocm_environments import (
-    query as ocm_environment_query,
-)
 from reconcile.gql_definitions.dynatrace_token_provider import (
     dynatrace_bootstrap_tokens,
 )
 from reconcile.gql_definitions.dynatrace_token_provider.dynatrace_bootstrap_tokens import (
     DynatraceEnvironmentQueryData,
 )
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+from reconcile.typed_queries.ocm_environments import get_ocm_environments
 from reconcile.utils import (
     gql,
     metrics,
@@ -85,7 +82,7 @@ class DynatraceTokenProviderIntegration(
     def run(self, dry_run: bool) -> None:
         with metrics.transactional_metrics(self.name):
             unhandled_exceptions = []
-            for env in self.get_ocm_environments():
+            for env in get_ocm_environments(gql.get_api()):
                 ocm_client = init_ocm_base_client(env, self.secret_reader)
                 clusters = discover_clusters_by_labels(
                     ocm_api=ocm_client,
@@ -151,9 +148,6 @@ class DynatraceTokenProviderIntegration(
         if unhandled_exceptions:
             raise ReconcileErrorSummary(unhandled_exceptions)
         sys.exit(0)
-
-    def get_ocm_environments(self) -> list[OCMEnvironment]:
-        return ocm_environment_query(gql.get_api().query).environments
 
     def get_all_dynatrace_tenants(self) -> DynatraceEnvironmentQueryData:
         dt_tenants = dynatrace_bootstrap_tokens.query(query_func=gql.get_api().query)
