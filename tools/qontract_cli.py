@@ -156,7 +156,9 @@ from tools.cli_commands.erv2 import (
     progress_spinner,
     task,
 )
-from tools.cli_commands.cost_report.openshift_cost_optimization import OpenShiftCostOptimizationReportCommand
+from tools.cli_commands.cost_report.openshift_cost_optimization import (
+    OpenShiftCostOptimizationReportCommand,
+)
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,

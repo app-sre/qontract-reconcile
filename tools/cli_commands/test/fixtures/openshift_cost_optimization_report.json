@@ -1,0 +1,192 @@
+{
+  "data": [
+    {
+      "cluster_alias": "some-cluster",
+      "cluster_uuid": "some-cluster-uuid",
+      "container": "test",
+      "id": "id-uuid",
+      "last_reported": "2023-04-18T15:48:54.000Z",
+      "project": "some-project",
+      "recommendations": {
+        "current": {
+          "limits": {
+            "cpu": {
+              "amount": 4,
+              "format": null
+            },
+            "memory": {
+              "amount": 5,
+              "format": "Gi"
+            }
+          },
+          "requests": {
+            "cpu": {
+              "amount": 1,
+              "format": null
+            },
+            "memory": {
+              "amount": 400,
+              "format": "Mi"
+            }
+          }
+        },
+        "monitoring_end_time": "2024-05-13T05:56:06.466Z",
+        "notifications": {
+          "type": "info",
+          "code": "112101",
+          "message": "Short Term Recommendations Available"
+        },
+        "recommendation_terms": {
+          "long_term": {
+            "duration_in_hours": 24.7,
+            "monitoring_start_time": "0001-01-01T00:00:00Z",
+            "notifications": {
+              "120001": {
+                "code": 120001,
+                "message": "There is not enough data available to generate a recommendation.",
+                "type": "info"
+              }
+            }
+          },
+          "medium_term": {
+            "duration_in_hours": 24.7,
+            "monitoring_start_time": "0001-01-01T00:00:00Z",
+            "notifications": {
+              "120001": {
+                "code": 120001,
+                "message": "There is not enough data available to generate a recommendation.",
+                "type": "info"
+              }
+            }
+          },
+          "short_term": {
+            "duration_in_hours": 24.7,
+            "monitoring_start_time": "0001-01-01T00:00:00Z",
+            "notifications": {
+              "112101": {
+                "code": 112101,
+                "message": "Cost Recommendations Available",
+                "type": "info"
+              },
+              "112102": {
+                "code": 112102,
+                "message": "Performance Recommendations Available",
+                "type": "info"
+              }
+            },
+            "recommendation_engines": {
+              "cost": {
+                "config": {
+                  "limits": {
+                    "cpu": {
+                      "amount": 5,
+                      "format": null
+                    },
+                    "memory": {
+                      "amount": 6,
+                      "format": "Gi"
+                    }
+                  },
+                  "requests": {
+                    "cpu": {
+                      "amount": 3,
+                      "format": null
+                    },
+                    "memory": {
+                      "amount": 700,
+                      "format": "Mi"
+                    }
+                  }
+                },
+                "pods_count": 1,
+                "variation": {
+                  "limits": {
+                    "cpu": {
+                      "amount": 1,
+                      "format": null
+                    },
+                    "memory": {
+                      "amount": 1,
+                      "format": "Gi"
+                    }
+                  },
+                  "requests": {
+                    "cpu": {
+                      "amount": 2,
+                      "format": null
+                    },
+                    "memory": {
+                      "amount": 300,
+                      "format": "Mi"
+                    }
+                  }
+                }
+              },
+              "performance": {
+                "config": {
+                  "limits": {
+                    "cpu": {
+                      "amount": 3,
+                      "format": null
+                    },
+                    "memory": {
+                      "amount": 6,
+                      "format": "Gi"
+                    }
+                  },
+                  "requests": {
+                    "cpu": {
+                      "amount": 600,
+                      "format": "millicores"
+                    },
+                    "memory": {
+                      "amount": 700,
+                      "format": "Mi"
+                    }
+                  }
+                },
+                "pods_count": 1,
+                "variation": {
+                  "limits": {
+                    "cpu": {
+                      "amount": -1,
+                      "format": null
+                    },
+                    "memory": {
+                      "amount": 1,
+                      "format": "Gi"
+                    }
+                  },
+                  "requests": {
+                    "cpu": {
+                      "amount": -400,
+                      "format": "millicores"
+                    },
+                    "memory": {
+                      "amount": 300,
+                      "format": "Mi"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "source_id": "some-source-id",
+      "workload": "test-deployment",
+      "workload_type": "deployment"
+    }
+  ],
+  "meta": {
+    "count": 1,
+    "limit": 10,
+    "offset": 0
+  },
+  "links": {
+    "first": "string",
+    "previous": "string",
+    "next": "string",
+    "last": "string"
+  }
+}
