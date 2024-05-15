@@ -34,6 +34,9 @@ query Maintenances {
         page {
           name
         }
+        remindSubscribers
+        notifySubscribersOnStart
+        notifySubscribersOnCompletion
       }
     }
   }
@@ -61,6 +64,9 @@ class StatusPageV1(ConfiguredBaseModel):
 
 class MaintenanceStatuspageAnnouncementV1(MaintenanceAnnouncementV1):
     page: StatusPageV1 = Field(..., alias="page")
+    remind_subscribers: Optional[bool] = Field(..., alias="remindSubscribers")
+    notify_subscribers_on_start: Optional[bool] = Field(..., alias="notifySubscribersOnStart")
+    notify_subscribers_on_completion: Optional[bool] = Field(..., alias="notifySubscribersOnCompletion")
 
 
 class MaintenanceV1(ConfiguredBaseModel):
