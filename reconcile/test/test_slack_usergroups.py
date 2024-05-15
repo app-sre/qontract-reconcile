@@ -36,7 +36,6 @@ from reconcile.gql_definitions.slack_usergroups.users import (
 from reconcile.gql_definitions.slack_usergroups.users import ClusterV1 as AccessCluster
 from reconcile.slack_usergroups import (
     SlackMap,
-    SlackObject,
     SlackState,
     State,
     WorkspaceSpec,
@@ -61,9 +60,7 @@ def base_state():
                 workspace="slack-workspace",
                 usergroup="usergroup-1",
                 usergroup_id="USERGA",
-                users={SlackObject(name="username", pk="USERA")},
                 user_names={"username"},
-                channels={SlackObject(name="channelname", pk="CHANA")},
                 channel_names={"channelname"},
                 description="Some description",
             )
@@ -561,9 +558,7 @@ def test_act_dryrun_no_changes_made(
     current_state = base_state
     desired_state = copy.deepcopy(base_state)
 
-    desired_state["slack-workspace"]["usergroup-1"].users = {
-        SlackObject(name="foo", pk="bar")
-    }
+    desired_state["slack-workspace"]["usergroup-1"].user_names = {"foo"}
 
     act(current_state, desired_state, slack_map, dry_run=True)
 
@@ -604,6 +599,11 @@ def test_act_update_usergroup_users(
     current_state = base_state
     desired_state = copy.deepcopy(base_state)
 
+    desired_state["slack-workspace"]["usergroup-1"].user_names = {
+        "someotherusername",
+        "anotheruser",
+    }
+
     slack_client_mock.get_usergroup_id.return_value = "USERGA"
     slack_client_mock.get_users_by_names.return_value = {
         "USERB": "someotherusername",
@@ -614,6 +614,7 @@ def test_act_update_usergroup_users(
     act(current_state, desired_state, slack_map, dry_run=False)
 
     slack_client_mock.update_usergroup.assert_not_called()
+    slack_client_mock.update_usergroup_users.assert_called_once()
     assert slack_client_mock.update_usergroup_users.call_args_list == [
         call(id="USERGA", users_list=["USERB", "USERC"])
     ]

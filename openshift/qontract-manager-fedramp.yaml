@@ -85,6 +85,13 @@ objects:
                 pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Max retries exceeded with url: \/api\/client\/features/
+              </exclude>
+            </filter>
 
             <match integration>
               @type copy

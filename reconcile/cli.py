@@ -1200,8 +1200,18 @@ def openshift_upgrade_watcher(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command(short_help="Manage Slack User Groups (channels and users).")
 @workspace_name
 @usergroup_name
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
-def slack_usergroups(ctx, workspace_name, usergroup_name):
+def slack_usergroups(
+    ctx,
+    workspace_name,
+    usergroup_name,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
+):
     import reconcile.slack_usergroups
 
     run_integration(
@@ -1209,6 +1219,9 @@ def slack_usergroups(ctx, workspace_name, usergroup_name):
         ctx.obj,
         workspace_name,
         usergroup_name,
+        enable_extended_early_exit,
+        extended_early_exit_cache_ttl_seconds,
+        log_cached_log_output,
     )
 
 
@@ -2940,20 +2953,20 @@ def cluster_auth_rhidp(ctx):
 )
 @click.option(
     "--ocm-org-ids",
-    help="A comma seperated list of OCM organization IDs DTP should operator on. If none is specified, all organizations are considered.",
+    help="A comma seperated list of OCM organization IDs DTP should operate on. If none is specified, all organizations are considered.",
     required=False,
     envvar="DTP_OCM_ORG_IDS",
 )
 @click.pass_context
 def dynatrace_token_provider(ctx, ocm_org_ids):
-    from reconcile import dynatrace_token_provider
-    from reconcile.dynatrace_token_provider import (
+    from reconcile.dynatrace_token_provider.integration import (
+        DynatraceTokenProviderIntegration,
         DynatraceTokenProviderIntegrationParams,
     )
 
     parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     run_class_integration(
-        integration=dynatrace_token_provider.DynatraceTokenProviderIntegration(
+        integration=DynatraceTokenProviderIntegration(
             DynatraceTokenProviderIntegrationParams(
                 ocm_organization_ids=parsed_ocm_org_ids
             )
@@ -3476,8 +3489,15 @@ def skupper_network(ctx, thread_pool_size, internal, use_jump_host):
     envvar="OL_MANAGED_LABEL_PREFIXES",
     default="sre-capabilities",
 )
+@click.option(
+    "--ignored-label-prefixes",
+    help="A comma list of label prefixes that must be ignored.",
+    required=True,
+    envvar="OL_IGNORED_LABEL_PREFIXES",
+    default="sre-capabilities.rhidp",
+)
 @click.pass_context
-def ocm_labels(ctx, managed_label_prefixes):
+def ocm_labels(ctx, managed_label_prefixes, ignored_label_prefixes):
     from reconcile.ocm_labels.integration import (
         OcmLabelsIntegration,
         OcmLabelsIntegrationParams,
@@ -3487,6 +3507,7 @@ def ocm_labels(ctx, managed_label_prefixes):
         integration=OcmLabelsIntegration(
             OcmLabelsIntegrationParams(
                 managed_label_prefixes=list(set(managed_label_prefixes.split(","))),
+                ignored_label_prefixes=list(set(ignored_label_prefixes.split(","))),
             )
         ),
         ctx=ctx.obj,

@@ -48,6 +48,7 @@ query TerraformResourcesNamespaces {
                 data_classification {
                     loss_impact
                 }
+                managed_by_erv2
             }
             ... on NamespaceTerraformResourceS3_v1 {
                 region
@@ -116,6 +117,7 @@ query TerraformResourcesNamespaces {
                   prevent_destroy
                   ignore_changes
                 }
+                managed_by_erv2
             }
             ... on NamespaceTerraformResourceSQS_v1 {
                 region
