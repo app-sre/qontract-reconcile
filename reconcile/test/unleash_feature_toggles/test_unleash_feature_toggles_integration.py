@@ -108,7 +108,6 @@ def test_unleash_feature_toggles_integration_validate_unleash_projects(
     intg: UnleashTogglesIntegration,
 ) -> None:
     intg.validate_unleash_projects(
-        instance_name="instance-name",
         current_projects=current_projects,
         desired_projects=desired_projects,
     )
@@ -122,31 +121,9 @@ def test_unleash_feature_toggles_integration_validate_unleash_projects_missing_p
     desired_projects[0].name = "missing-project"
     with pytest.raises(ValueError):
         intg.validate_unleash_projects(
-            instance_name="instance-name",
             current_projects=current_projects,
             desired_projects=desired_projects,
         )
-
-
-def test_unleash_feature_toggles_integration_get_project_by_name(
-    desired_projects: list[UnleashProjectV1],
-    intg: UnleashTogglesIntegration,
-) -> None:
-    assert (
-        intg.get_project_by_name(
-            projects=desired_projects,
-            name=desired_projects[0].name.upper(),
-        )
-        == desired_projects[0]
-    )
-
-
-def test_unleash_feature_toggles_integration_get_project_by_name_not_found(
-    desired_projects: list[UnleashProjectV1],
-    intg: UnleashTogglesIntegration,
-) -> None:
-    with pytest.raises(ValueError):
-        intg.get_project_by_name(projects=desired_projects, name="missing-project")
 
 
 @pytest.mark.parametrize("dry_run", [True, False])

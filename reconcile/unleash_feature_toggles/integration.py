@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence, ValuesView
 from typing import Any
 
 from reconcile.gql_definitions.unleash_feature_toggles.feature_toggles import (
@@ -11,7 +11,7 @@ from reconcile.gql_definitions.unleash_feature_toggles.feature_toggles import (
     query as unleash_instances_query,
 )
 from reconcile.utils import gql
-from reconcile.utils.differ import diff_any_iterables
+from reconcile.utils.differ import DiffPair, diff_any_iterables
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -96,27 +96,22 @@ class UnleashTogglesIntegration(
         """Fetch the current state of all Unleash projects including their feature toggles."""
         return client.projects(include_feature_toggles=True)
 
-    def get_project_by_name(
-        self, projects: Iterable[UnleashProjectV1], name: str
-    ) -> UnleashProjectV1:
-        for project in projects:
-            if project.name.lower() == name.lower():
-                return project
-        raise ValueError(f"Project {name} not found")
-
     def validate_unleash_projects(
         self,
-        instance_name: str,
         current_projects: Iterable[Project],
         desired_projects: Iterable[UnleashProjectV1],
-    ) -> None:
+    ) -> ValuesView[DiffPair[Project, UnleashProjectV1]]:
         """Validate that all projects referenced in the desired state are actually exist."""
-        current_project_names = {p.name.lower() for p in current_projects}
-        desired_project_names = {p.name.lower() for p in desired_projects}
-        if missing_projects := desired_project_names - current_project_names:
-            for p in missing_projects:
-                logging.error(f"[{instance_name}] Project '{p}' does not exist!")
-            raise ValueError(f"Non-existing projects: {missing_projects}")
+        diff = diff_any_iterables(
+            current=current_projects,
+            desired=desired_projects,
+            current_key=lambda c: c.name.lower(),
+            desired_key=lambda d: d.name.lower(),
+            equal=lambda c, d: c.name.lower() == d.name.lower(),
+        )
+        if diff.add:
+            raise ValueError(f"Non-existing projects: {','.join(diff.add.keys())}")
+        return diff.identical.values()
 
     def _reconcile_feature_toggles(
         self,
@@ -290,21 +285,21 @@ class UnleashTogglesIntegration(
                 host=instance.url,
                 auth=TokenAuth(self.secret_reader.read_secret(instance.admin_token)),
             ) as client:
-                projects = self.fetch_current_state(client)
-                self.validate_unleash_projects(
-                    instance_name=instance.name,
-                    current_projects=projects,
-                    desired_projects=instance.projects or [],
-                )
-                for project in projects:
+                try:
+                    project_pairs = self.validate_unleash_projects(
+                        current_projects=self.fetch_current_state(client),
+                        desired_projects=instance.projects or [],
+                    )
+                except ValueError:
+                    logging.error(f"[{instance.name}] Missing projects!")
+                    raise
+
+                for pair in project_pairs:
                     self.reconcile(
                         client=client,
                         instance=instance,
-                        project_id=project.pk,
+                        project_id=pair.current.pk,
                         dry_run=dry_run,
-                        current_state=project.feature_toggles,
-                        desired_state=self.get_project_by_name(
-                            instance.projects or [], project.name
-                        ).feature_toggles
-                        or [],
+                        current_state=pair.current.feature_toggles,
+                        desired_state=pair.desired.feature_toggles or [],
                     )
