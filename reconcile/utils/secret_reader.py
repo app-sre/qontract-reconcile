@@ -12,7 +12,6 @@ from typing import (
 )
 
 from hvac.exceptions import Forbidden
-from sretoolbox.utils import retry
 
 from reconcile.utils import (
     config,
@@ -152,7 +151,6 @@ class VaultSecretReader(SecretReaderBase):
             self._vault_client = VaultClient()
         return self._vault_client
 
-    @retry()
     def _read_all(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
     ) -> dict[str, str]:
@@ -173,10 +171,9 @@ class VaultSecretReader(SecretReaderBase):
             raise SecretNotFound(*e.args) from e
         return data
 
-    @retry()
     def _read(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
-    ) -> dict[str, str]:
+    ) -> str:
         try:
             data = self.vault_client.read(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
                 self._parameters_to_dict(
@@ -259,7 +256,6 @@ class SecretReader(SecretReaderBase):
             self._vault_client = VaultClient()
         return self._vault_client
 
-    @retry()
     def _read(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
     ) -> str:
@@ -295,7 +291,6 @@ class SecretReader(SecretReaderBase):
 
         return data
 
-    @retry()
     def _read_all(
         self, path: str, field: str, format: Optional[str], version: Optional[int]
     ) -> dict[str, str]:
