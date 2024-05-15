@@ -191,7 +191,6 @@ class _VaultClient:
 
         return data, version
 
-    @retry()
     def read_all(self, secret: Mapping) -> dict:
         """Returns a dictionary of keys and values in a Vault secret.
 
