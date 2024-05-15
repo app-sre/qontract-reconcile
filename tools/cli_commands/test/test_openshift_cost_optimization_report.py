@@ -10,6 +10,7 @@ from tools.cli_commands.cost_report.openshift_cost_optimization import (
 )
 from tools.cli_commands.test.conftest import (
     COST_REPORT_SECRET,
+    OPENSHIFT_COST_OPTIMIZATION_RESPONSE,
 )
 
 
@@ -97,7 +98,7 @@ APP_NAMESPACE = CostNamespace(
 )
 
 
-def test_openshift_cost_report_execute(
+def test_openshift_cost_optimization_report_execute(
     openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
     mock_get_app_names: Any,
     mock_get_cost_namespaces: Any,
@@ -110,7 +111,7 @@ def test_openshift_cost_report_execute(
     assert output == ""
 
 
-def test_openshift_cost_report_get_apps(
+def test_openshift_cost_optimization_report_get_apps(
     openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
     mock_get_app_names: Any,
 ) -> None:
@@ -122,7 +123,7 @@ def test_openshift_cost_report_get_apps(
     assert apps == expected_apps
 
 
-def test_openshift_cost_report_get_cost_namespaces(
+def test_openshift_cost_optimization_report_get_cost_namespaces(
     openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
     mock_get_cost_namespaces: Any,
 ) -> None:
@@ -132,3 +133,21 @@ def test_openshift_cost_report_get_cost_namespaces(
     apps = openshift_cost_optimization_report_command.get_cost_namespaces()
 
     assert apps == expected_namespaces
+
+
+def test_openshift_cost_optimization_report_get_reports(
+    openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
+    mock_cost_management_api: Any,
+) -> None:
+    mocked_api = mock_cost_management_api.create_from_secret.return_value
+    mocked_api.get_openshift_cost_optimization_report.return_value = (
+        OPENSHIFT_COST_OPTIMIZATION_RESPONSE
+    )
+
+    reports = openshift_cost_optimization_report_command.get_reports([APP_NAMESPACE])
+
+    assert reports == {APP_NAMESPACE: OPENSHIFT_COST_OPTIMIZATION_RESPONSE}
+    mocked_api.get_openshift_cost_optimization_report.assert_called_once_with(
+        project=APP_NAMESPACE.name,
+        cluster=APP_NAMESPACE.cluster_external_id,
+    )

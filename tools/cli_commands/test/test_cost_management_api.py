@@ -15,26 +15,19 @@ from tools.cli_commands.cost_report.response import (
     CostTotalResponse,
     DeltaResponse,
     MoneyResponse,
-    OpenShiftCostOptimizationReportResponse,
-    OpenShiftCostOptimizationResponse,
     OpenShiftCostResponse,
     OpenShiftReportCostResponse,
     ProjectCostResponse,
     ProjectCostValueResponse,
-    RecommendationEngineResponse,
-    RecommendationEnginesResponse,
-    RecommendationResourcesResponse,
-    RecommendationsResponse,
-    RecommendationTermResponse,
-    RecommendationTermsResponse,
     ReportMetaResponse,
-    ResourceConfigResponse,
-    ResourceResponse,
     ServiceCostResponse,
     ServiceCostValueResponse,
     TotalMetaResponse,
 )
-from tools.cli_commands.test.conftest import COST_REPORT_SECRET
+from tools.cli_commands.test.conftest import (
+    COST_REPORT_SECRET,
+    OPENSHIFT_COST_OPTIMIZATION_RESPONSE,
+)
 
 
 @pytest.fixture
@@ -283,105 +276,6 @@ def test_get_openshift_costs_report_error(
     assert error.value.response.status_code == 500
 
 
-EXPECTED_OPENSHIFT_COST_OPTIMIZATION_RESPONSE = OpenShiftCostOptimizationReportResponse(
-    data=[
-        OpenShiftCostOptimizationResponse(
-            cluster_alias="some-cluster",
-            cluster_uuid="some-cluster-uuid",
-            container="test",
-            id="id-uuid",
-            project="some-project",
-            workload="test-deployment",
-            workload_type="deployment",
-            recommendations=RecommendationsResponse(
-                current=RecommendationResourcesResponse(
-                    limits=ResourceResponse(
-                        cpu=ResourceConfigResponse(amount=4),
-                        memory=ResourceConfigResponse(amount=5, format="Gi"),
-                    ),
-                    requests=ResourceResponse(
-                        cpu=ResourceConfigResponse(amount=1),
-                        memory=ResourceConfigResponse(amount=400, format="Mi"),
-                    ),
-                ),
-                recommendation_terms=RecommendationTermsResponse(
-                    long_term=RecommendationTermResponse(),
-                    medium_term=RecommendationTermResponse(),
-                    short_term=RecommendationTermResponse(
-                        recommendation_engines=RecommendationEnginesResponse(
-                            cost=RecommendationEngineResponse(
-                                config=RecommendationResourcesResponse(
-                                    limits=ResourceResponse(
-                                        cpu=ResourceConfigResponse(amount=5),
-                                        memory=ResourceConfigResponse(
-                                            amount=6, format="Gi"
-                                        ),
-                                    ),
-                                    requests=ResourceResponse(
-                                        cpu=ResourceConfigResponse(amount=3),
-                                        memory=ResourceConfigResponse(
-                                            amount=700, format="Mi"
-                                        ),
-                                    ),
-                                ),
-                                variation=RecommendationResourcesResponse(
-                                    limits=ResourceResponse(
-                                        cpu=ResourceConfigResponse(amount=1),
-                                        memory=ResourceConfigResponse(
-                                            amount=1, format="Gi"
-                                        ),
-                                    ),
-                                    requests=ResourceResponse(
-                                        cpu=ResourceConfigResponse(amount=2),
-                                        memory=ResourceConfigResponse(
-                                            amount=300, format="Mi"
-                                        ),
-                                    ),
-                                ),
-                            ),
-                            performance=RecommendationEngineResponse(
-                                config=RecommendationResourcesResponse(
-                                    limits=ResourceResponse(
-                                        cpu=ResourceConfigResponse(amount=3),
-                                        memory=ResourceConfigResponse(
-                                            amount=6, format="Gi"
-                                        ),
-                                    ),
-                                    requests=ResourceResponse(
-                                        cpu=ResourceConfigResponse(
-                                            amount=600, format="millicores"
-                                        ),
-                                        memory=ResourceConfigResponse(
-                                            amount=700, format="Mi"
-                                        ),
-                                    ),
-                                ),
-                                variation=RecommendationResourcesResponse(
-                                    limits=ResourceResponse(
-                                        cpu=ResourceConfigResponse(amount=-1),
-                                        memory=ResourceConfigResponse(
-                                            amount=1, format="Gi"
-                                        ),
-                                    ),
-                                    requests=ResourceResponse(
-                                        cpu=ResourceConfigResponse(
-                                            amount=-400, format="millicores"
-                                        ),
-                                        memory=ResourceConfigResponse(
-                                            amount=300, format="Mi"
-                                        ),
-                                    ),
-                                ),
-                            ),
-                        )
-                    ),
-                ),
-            ),
-        )
-    ]
-)
-
-
 def test_get_openshift_cost_optimization_report(
     cost_management_api: CostManagementApi,
     fx: Callable,
@@ -403,7 +297,7 @@ def test_get_openshift_cost_optimization_report(
         project=project,
     )
 
-    assert report_cost_response == EXPECTED_OPENSHIFT_COST_OPTIMIZATION_RESPONSE
+    assert report_cost_response == OPENSHIFT_COST_OPTIMIZATION_RESPONSE
 
 
 def test_get_openshift_cost_optimization_report_error(

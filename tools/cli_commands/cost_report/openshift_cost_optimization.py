@@ -1,4 +1,7 @@
+from collections.abc import Iterable
 from typing import Self
+
+from sretoolbox.utils import threaded
 
 from reconcile.typed_queries.cost_report.app_names import App, get_app_names
 from reconcile.typed_queries.cost_report.cost_namespaces import (
@@ -7,6 +10,9 @@ from reconcile.typed_queries.cost_report.cost_namespaces import (
 )
 from reconcile.utils import gql
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
+from tools.cli_commands.cost_report.response import (
+    OpenShiftCostOptimizationReportResponse,
+)
 from tools.cli_commands.cost_report.util import fetch_cost_report_secret
 
 THREAD_POOL_SIZE = 10
@@ -26,6 +32,7 @@ class OpenShiftCostOptimizationReportCommand:
     def execute(self) -> str:
         apps = self.get_apps()
         cost_namespaces = self.get_cost_namespaces()
+        responses = self.get_reports(cost_namespaces)
         return ""
 
     def get_apps(self) -> list[App]:
@@ -33,6 +40,28 @@ class OpenShiftCostOptimizationReportCommand:
 
     def get_cost_namespaces(self) -> list[CostNamespace]:
         return get_cost_namespaces(self.gql_api)
+
+    def get_reports(
+        self,
+        cost_namespaces: Iterable[CostNamespace],
+    ) -> dict[CostNamespace, OpenShiftCostOptimizationReportResponse]:
+        results = threaded.run(self._get_report, cost_namespaces, self.thread_pool_size)
+        return dict(results)
+
+    def _get_report(
+        self,
+        cost_namespace: CostNamespace,
+    ) -> tuple[CostNamespace, OpenShiftCostOptimizationReportResponse]:
+        cluster = (
+            cost_namespace.cluster_external_id
+            if cost_namespace.cluster_external_id is not None
+            else cost_namespace.cluster_name
+        )
+        response = self.cost_management_api.get_openshift_cost_optimization_report(
+            project=cost_namespace.name,
+            cluster=cluster,
+        )
+        return cost_namespace, response
 
     @classmethod
     def create(cls) -> Self:
