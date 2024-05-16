@@ -18,6 +18,11 @@ class Environment(BaseModel):
     name: str
     enabled: bool
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Environment):
+            return self.name == other.name
+        return self.name == other
+
 
 class FeatureToggle(BaseModel):
     name: str

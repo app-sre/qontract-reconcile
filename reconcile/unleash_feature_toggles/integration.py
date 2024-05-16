@@ -11,7 +11,7 @@ from reconcile.gql_definitions.unleash_feature_toggles.feature_toggles import (
     query as unleash_instances_query,
 )
 from reconcile.utils import gql
-from reconcile.utils.differ import DiffPair, diff_any_iterables
+from reconcile.utils.differ import DiffPair, diff_any_iterables, diff_mappings
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -200,51 +200,32 @@ class UnleashTogglesIntegration(
         available_environments: Iterable[Environment],
     ) -> None:
         """Reconcile the feature toggle states."""
-        # Manage the actual feature toggle states
-        for desired_toggle in desired_state:
-            if not desired_toggle.unleash.environments:
-                continue
+        current_toggle_states = {
+            (state.name, env.name): env.enabled
+            for state in current_state
+            for env in state.environments
+        }
+        desired_toggle_states = {
+            (state.name, env_name): enabled
+            for state in desired_state
+            for env_name, enabled in (state.unleash.environments or {}).items()
+        }
 
-            try:
-                current_toggle = current_state[current_state.index(desired_toggle.name)]
-            except ValueError:
-                # The feature toggle does not exist yet
-                continue
-
-            desired_envs = [
-                Environment(name=name, enabled=enabled)
-                for name, enabled in desired_toggle.unleash.environments.items()
-            ]
-            non_existing_envs = set(e.name for e in desired_envs) - set(
-                e.name for e in available_environments
-            )
-            for non_existing_env in non_existing_envs:
-                logging.error(
-                    f"[{instance.name}/{project_id}/{desired_toggle.name}] Environment '{non_existing_env}' does not exist!"
-                )
-            if non_existing_envs:
+        diff_result = diff_mappings(
+            current=current_toggle_states, desired=desired_toggle_states
+        )
+        for (name, env), pair in diff_result.change.items():
+            if env not in available_environments:
                 raise ValueError(
-                    f"[{instance.name}/{project_id}/{desired_toggle.name}] Check the environments in the feature toggle!"
+                    f"[{instance.name}/{project_id}/{name}] Environment '{env}' does not exist in Unleash!"
                 )
-            diff_envs = diff_any_iterables(
-                current=current_toggle.environments,
-                desired=desired_envs,
-                current_key=lambda c: c.name,
-                desired_key=lambda d: d.name,
-                equal=lambda c, d: c.enabled == d.enabled,
-            )
-            # we only care about the states of all managed environments and ignore all other
-            for env_change in diff_envs.change.values():
-                logging.info(
-                    f"[{instance.name}/{project_id}/{desired_toggle.name}] Setting {env_change.desired.name}={env_change.desired.enabled}"
+            if not dry_run:
+                client.set_feature_toggle_state(
+                    project_id=project_id,
+                    name=name,
+                    environment=env,
+                    enabled=pair.desired,
                 )
-                if not dry_run:
-                    client.set_feature_toggle_state(
-                        project_id=project_id,
-                        name=desired_toggle.name,
-                        environment=env_change.desired.name,
-                        enabled=env_change.desired.enabled,
-                    )
 
     def reconcile(
         self,
