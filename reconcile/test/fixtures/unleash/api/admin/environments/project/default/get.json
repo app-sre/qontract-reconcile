@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "environments": [
+    {
+      "name": "default",
+      "type": "production",
+      "sortOrder": 1,
+      "enabled": true,
+      "protected": true,
+      "projectApiTokenCount": 1,
+      "projectEnabledToggleCount": 11
+    },
+    {
+      "name": "development",
+      "type": "development",
+      "sortOrder": 2,
+      "enabled": true,
+      "protected": false,
+      "projectApiTokenCount": 1,
+      "projectEnabledToggleCount": 2
+    },
+    {
+      "name": "production",
+      "type": "production",
+      "sortOrder": 3,
+      "enabled": true,
+      "protected": false,
+      "projectApiTokenCount": 1,
+      "projectEnabledToggleCount": 0
+    }
+  ]
+}

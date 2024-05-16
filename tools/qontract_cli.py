@@ -2066,7 +2066,10 @@ def app_interface_review_queue(ctx) -> None:
 
     queue_data.sort(key=itemgetter("updated_at"))
     ctx.obj["options"]["sort"] = False  # do not sort
-    print_output(ctx.obj["options"], queue_data, columns)
+    text = print_output(ctx.obj["options"], queue_data, columns)
+    if text:
+        slack = slackapi_from_queries("app-interface-review-queue")
+        slack.chat_post_message("```\n" + text + "\n```")
 
 
 @get.command()
@@ -2600,7 +2603,7 @@ def maintenances(ctx):
             "services": ", ".join(a.name for a in m.affected_services),
         }
         for m in maintenances
-        if datetime.fromisoformat(m.scheduled_end) > now
+        if datetime.fromisoformat(m.scheduled_start) > now
     ]
     columns = [
         "name",
