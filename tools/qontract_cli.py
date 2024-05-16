@@ -2614,6 +2614,46 @@ def maintenances(ctx):
     print_output(ctx.obj["options"], data, columns)
 
 
+@get.command()
+@click.pass_context
+def hcp_migration_status(ctx):
+    counts: dict[str, dict[str, int]] = {"total": {"source": 0, "target": 0}}
+    saas_files = get_saas_files()
+    for sf in saas_files:
+        if sf.publish_job_logs:
+            # ignore post deployment test saas files
+            continue
+        app = sf.app.name
+        counts.setdefault(app, {"source": 0, "target": 0})
+        for rt in sf.resource_templates:
+            if rt.provider == "directory":
+                # ignore grafana dashboards
+                continue
+            for t in rt.targets:
+                if t.namespace.path.startswith("/openshift/"):
+                    # ignore per-cluster namespaces
+                    continue
+                if hcp_migration := t.namespace.cluster.labels.get("hcp_migration"):
+                    counts[app][hcp_migration] += 1
+                    counts["total"][hcp_migration] += 1
+    data = []
+    for a, c in counts.items():
+        source = c["source"]
+        target = c["target"]
+        item = {}
+        item["app"] = a
+        item["classic"] = source or "0"
+        item["hcp"] = target or "0"
+        total = source + target
+        if total == 0:
+            continue
+        progress = round(target / total * 100, 2) or "0"
+        item["progress"] = progress
+        data.append(item)
+    columns = ["app", "classic", "hcp", "progress"]
+    print_output(ctx.obj["options"], data, columns)
+
+
 @root.group(name="set")
 @output
 @click.pass_context
