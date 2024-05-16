@@ -2626,7 +2626,7 @@ def hcp_migration_status(ctx):
         app = sf.app.parent_app.name if sf.app.parent_app else sf.app.name
         counts.setdefault(app, {"source": 0, "target": 0})
         for rt in sf.resource_templates:
-            if rt.provider == "directory":
+            if rt.provider == "directory" or "dashboard" in rt.name:
                 # ignore grafana dashboards
                 continue
             for t in rt.targets:
