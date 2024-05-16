@@ -69,7 +69,7 @@ class UnleashServer(ApiBase):
         return projects
 
     def feature_toggles(self, project_id: str) -> list[FeatureToggle]:
-        """List all feature toggles for an project."""
+        """List all feature toggles for a project."""
         return [
             FeatureToggle(**i)
             for i in self._list(
