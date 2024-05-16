@@ -2639,9 +2639,8 @@ def hcp_migration_status(ctx):
                 if hcp_migration := t.namespace.cluster.labels.get("hcp_migration"):
                     counts[app][hcp_migration] += 1
 
-    def _get_data_item_from_count(
-        a: str, c: dict[str, int]
-    ) -> Optional[dict[str, Any]]:
+    data = []
+    for a, c in counts.items():
         source = c["source"]
         target = c["target"]
         item = {}
@@ -2650,17 +2649,10 @@ def hcp_migration_status(ctx):
         item["hcp"] = target or "0"
         total = source + target
         if total == 0:
-            return None
+            continue
         progress = round(target / total * 100, 2) or "0"
         item["progress"] = progress
-
-        return item
-
-    data = []
-    for a, c in counts.items():
-        item = _get_data_item_from_count(a, c)
-        if item:
-            data.append(item)
+        data.append(item)
 
     summary_completed = len([d for d in data if d["progress"] == 100])
     print(f"SUMMARY: {summary_completed} / {len(data)} COMPLETED")
