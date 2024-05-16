@@ -2617,7 +2617,7 @@ def maintenances(ctx):
 @get.command()
 @click.pass_context
 def hcp_migration_status(ctx):
-    counts: dict[str, dict[str, int]] = {"total": {"source": 0, "target": 0}}
+    counts: dict[str, dict[str, int]] = {}
     saas_files = get_saas_files()
     for sf in saas_files:
         if sf.publish_job_logs:
@@ -2638,9 +2638,10 @@ def hcp_migration_status(ctx):
                     continue
                 if hcp_migration := t.namespace.cluster.labels.get("hcp_migration"):
                     counts[app][hcp_migration] += 1
-                    counts["total"][hcp_migration] += 1
-    data = []
-    for a, c in counts.items():
+
+    def _get_data_item_from_count(
+        app: str, count: dict[str, int]
+    ) -> Optional[dict[str, Any]]:
         source = c["source"]
         target = c["target"]
         item = {}
@@ -2649,18 +2650,20 @@ def hcp_migration_status(ctx):
         item["hcp"] = target or "0"
         total = source + target
         if total == 0:
-            continue
+            return None
         progress = round(target / total * 100, 2) or "0"
         item["progress"] = progress
-        data.append(item)
 
-    summary = {
-        "apps": len(data) - 1,  # reduce 1 for "total"
-        "completed": len([d for d in data if d["progress"] == 100]),
-    }
+        return item
 
-    columns = ["apps", "completed"]
-    print_output(ctx.obj["options"], [summary], columns)
+    data = []
+    for a, c in counts.items():
+        item = _get_data_item_from_count(a, c)
+        if item:
+            data.append(item)
+
+    summary_completed = len([d for d in data if d["progress"] == 100])
+    print(f"SUMMARY: {summary_completed} / {len(data)} COMPLETED")
 
     columns = ["app", "classic", "hcp", "progress"]
     print_output(ctx.obj["options"], data, columns)
