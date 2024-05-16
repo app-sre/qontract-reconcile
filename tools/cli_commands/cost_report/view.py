@@ -1,10 +1,10 @@
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Iterable
 from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel
 
-from tools.cli_commands.cost_report.model import Report
+from tools.cli_commands.cost_report.model import Report, OptimizationReport
 
 LAYOUT = """\
 [TOC]
@@ -15,12 +15,23 @@ LAYOUT = """\
 {cost_breakdown}\
 """
 
+OPTIMIZATION_LAYOUT = """\
+[TOC]
+
+{header}
+{optimizations}\
+"""
+
 AWS_HEADER = """\
 # AWS Cost Report
 """
 
 OPENSHIFT_HEADER = """\
 # OpenShift Cost Report
+"""
+
+OPTIMIZATION_HEADER = """\
+# OpenShift Cost Optimization Report
 """
 
 AWS_SUMMARY = """\
@@ -107,6 +118,14 @@ TOTAL_COST = """\
 Total Cost: {total}
 """
 
+OPTIMIZATION = """\
+## {app_name}
+
+```json:table
+{json_table}
+```
+"""
+
 
 class TableField(BaseModel):
     key: str
@@ -144,6 +163,19 @@ class ViewReportItem(BaseModel):
 class ViewChildAppReport(BaseModel):
     name: str
     total: Decimal
+
+
+class ViewOptimizationReportItem(BaseModel):
+    namespace: str
+    workload: str
+    current_cpu_limit: str
+    current_cpu_request: str
+    current_memory_limit: str
+    current_memory_request: str
+    recommend_cpu_limit: str
+    recommend_cpu_request: str
+    recommend_memory_limit: str
+    recommend_memory_request: str
 
 
 def format_cost_value(value: Decimal) -> str:
@@ -395,4 +427,65 @@ def render_openshift_cost_report(
             reports,
             item_cost_renderer=render_openshift_workloads_cost,
         ),
+    )
+
+
+def render_optimization(
+    report: OptimizationReport,
+) -> str:
+    items = [
+        ViewOptimizationReportItem(
+            namespace=f"{i.cluster}/{i.project}",
+            workload=f"{i.workload_type}/{i.workload}/{i.container}",
+            current_cpu_limit=i.current_cpu_limit,
+            current_cpu_request=i.current_cpu_request,
+            current_memory_limit=i.current_memory_limit,
+            current_memory_request=i.current_memory_request,
+            recommend_cpu_limit=i.recommend_cpu_limit,
+            recommend_cpu_request=i.recommend_cpu_request,
+            recommend_memory_limit=i.recommend_memory_limit,
+            recommend_memory_request=i.recommend_memory_request,
+        )
+        for i in report.items
+    ]
+    json_table = JsonTable(
+        filter=True,
+        items=sorted(items, key=lambda item: (item.namespace, item.workload)),
+        fields=[
+            TableField(key="namespace", label="Namespace", sortable=True),
+            TableField(key="workload", label="Workload", sortable=True),
+            TableField(key="current_cpu_request", label="Current CPU Request", sortable=True),
+            TableField(key="recommend_cpu_request", label="Recommend CPU Request", sortable=True),
+            TableField(key="current_cpu_limit", label="Current CPU Limit", sortable=True),
+            TableField(key="recommend_cpu_limit", label="Recommend CPU Limit", sortable=True),
+            TableField(key="current_memory_request", label="Current Memory Request", sortable=True),
+            TableField(key="recommend_memory_request", label="Recommend Memory Request", sortable=True),
+            TableField(key="current_memory_limit", label="Current Memory Limit", sortable=True),
+            TableField(key="recommend_memory_limit", label="Recommend Memory Limit", sortable=True),
+        ],
+    )
+    return OPTIMIZATION.format(
+        app_name=report.app_name,
+        json_table=json_table.json(indent=2),
+    )
+
+
+def render_optimizations(
+    reports: Iterable[OptimizationReport],
+) -> str:
+    return "\n".join(
+        render_optimization(report=report)
+        for report in sorted(
+            reports,
+            key=lambda item: item.app_name.lower(),
+        )
+    )
+
+
+def render_openshift_cost_optimization_report(
+    reports: Iterable[OptimizationReport],
+) -> str:
+    return OPTIMIZATION_LAYOUT.format(
+        header=OPTIMIZATION_HEADER,
+        optimizations=render_optimizations(reports),
     )

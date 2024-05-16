@@ -16,6 +16,7 @@ from tools.cli_commands.cost_report.response import (
     OpenShiftCostOptimizationReportResponse, OpenShiftCostOptimizationResponse, ResourceConfigResponse,
 )
 from tools.cli_commands.cost_report.util import fetch_cost_report_secret
+from tools.cli_commands.cost_report.view import render_openshift_cost_optimization_report
 
 THREAD_POOL_SIZE = 10
 
@@ -35,7 +36,8 @@ class OpenShiftCostOptimizationReportCommand:
         apps = self.get_apps()
         cost_namespaces = self.get_cost_namespaces()
         responses = self.get_reports(cost_namespaces)
-        return ""
+        reports = self.process_reports(apps, responses)
+        return self.render(reports)
 
     def get_apps(self) -> list[App]:
         return get_app_names(self.gql_api)
@@ -54,17 +56,17 @@ class OpenShiftCostOptimizationReportCommand:
         self,
         apps: Iterable[App],
         responses: Mapping[CostNamespace, OpenShiftCostOptimizationReportResponse],
-    ) -> dict[str, OptimizationReport]:
+    ) -> list[OptimizationReport]:
         app_responses = defaultdict(list)
         for cost_namespace, response in responses.items():
             app_responses[cost_namespace.app_name].append(response)
-        return {
-            app.name: self._build_report(
+        return [
+            self._build_report(
                 app.name,
                 app_responses.get(app.name, []),
             )
             for app in apps
-        }
+        ]
 
     def _get_report(
         self,
@@ -81,16 +83,11 @@ class OpenShiftCostOptimizationReportCommand:
         )
         return cost_namespace, response
 
-    @classmethod
-    def create(cls) -> Self:
-        gql_api = gql.get_api()
-        secret = fetch_cost_report_secret(gql_api)
-        cost_management_api = CostManagementApi.create_from_secret(secret)
-        return cls(
-            gql_api=gql_api,
-            cost_management_api=cost_management_api,
-            thread_pool_size=THREAD_POOL_SIZE,
-        )
+    @staticmethod
+    def render(
+        reports: Iterable[OptimizationReport],
+    ) -> str:
+        return render_openshift_cost_optimization_report(reports)
 
     def _build_report(
         self,
@@ -135,3 +132,14 @@ class OpenShiftCostOptimizationReportCommand:
         if response.format is None:
             return str(round(response.amount))
         return f"{round(response.amount)}{response.format}"
+
+    @classmethod
+    def create(cls) -> Self:
+        gql_api = gql.get_api()
+        secret = fetch_cost_report_secret(gql_api)
+        cost_management_api = CostManagementApi.create_from_secret(secret)
+        return cls(
+            gql_api=gql_api,
+            cost_management_api=cost_management_api,
+            thread_pool_size=THREAD_POOL_SIZE,
+        )
