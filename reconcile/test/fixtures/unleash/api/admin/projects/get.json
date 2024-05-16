@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "projects": [
+    {
+      "name": "Default",
+      "id": "default",
+      "description": "Default project",
+      "health": 8,
+      "featureCount": 13,
+      "staleFeatureCount": 0,
+      "potentiallyStaleFeatureCount": 12,
+      "memberCount": 0,
+      "updatedAt": "2024-05-08T12:26:54.209Z",
+      "createdAt": "2022-02-21T10:55:55.732Z",
+      "mode": "open",
+      "defaultStickiness": "default",
+      "avgTimeToProduction": 224.3
+    }
+  ]
+}

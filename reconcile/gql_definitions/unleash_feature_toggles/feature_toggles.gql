@@ -1,0 +1,26 @@
+# qenerate: plugin=pydantic_v1
+
+query UnleashFeatureToggles {
+  instances: unleash_instances_v1 {
+    name
+    url
+    adminToken {
+      ...VaultSecret
+    }
+    allowUnmanagedFeatureToggles
+    projects {
+      name
+      feature_toggles {
+        name
+        description
+        delete
+        provider
+        unleash {
+          type
+          impressionData
+          environments
+        }
+      }
+    }
+  }
+}
