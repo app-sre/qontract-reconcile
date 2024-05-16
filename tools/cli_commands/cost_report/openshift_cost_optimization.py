@@ -1,4 +1,5 @@
-from collections.abc import Iterable
+from collections import defaultdict
+from collections.abc import Iterable, Mapping
 from typing import Self
 
 from sretoolbox.utils import threaded
@@ -10,8 +11,9 @@ from reconcile.typed_queries.cost_report.cost_namespaces import (
 )
 from reconcile.utils import gql
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
+from tools.cli_commands.cost_report.model import OptimizationReport, OptimizationReportItem
 from tools.cli_commands.cost_report.response import (
-    OpenShiftCostOptimizationReportResponse,
+    OpenShiftCostOptimizationReportResponse, OpenShiftCostOptimizationResponse, ResourceConfigResponse,
 )
 from tools.cli_commands.cost_report.util import fetch_cost_report_secret
 
@@ -48,6 +50,22 @@ class OpenShiftCostOptimizationReportCommand:
         results = threaded.run(self._get_report, cost_namespaces, self.thread_pool_size)
         return dict(results)
 
+    def process_reports(
+        self,
+        apps: Iterable[App],
+        responses: Mapping[CostNamespace, OpenShiftCostOptimizationReportResponse],
+    ) -> dict[str, OptimizationReport]:
+        app_responses = defaultdict(list)
+        for cost_namespace, response in responses.items():
+            app_responses[cost_namespace.app_name].append(response)
+        return {
+            app.name: self._build_report(
+                app.name,
+                app_responses.get(app.name, []),
+            )
+            for app in apps
+        }
+
     def _get_report(
         self,
         cost_namespace: CostNamespace,
@@ -73,3 +91,47 @@ class OpenShiftCostOptimizationReportCommand:
             cost_management_api=cost_management_api,
             thread_pool_size=THREAD_POOL_SIZE,
         )
+
+    def _build_report(
+        self,
+        app_name: str,
+        responses: list[OpenShiftCostOptimizationReportResponse],
+    ) -> OptimizationReport:
+        return OptimizationReport(
+            app_name=app_name,
+            items=[self._build_report_item(data) for r in responses for data in r.data],
+        )
+
+    def _build_report_item(
+        self,
+        data: OpenShiftCostOptimizationResponse,
+    ) -> OptimizationReportItem:
+        current = data.recommendations.current
+        terms = data.recommendations.recommendation_terms
+        recommend = next(
+            engine.cost.config
+            for t in [terms.long_term, terms.medium_term, terms.short_term]
+            if (engine := t.recommendation_engines) is not None
+        )
+
+        return OptimizationReportItem(
+            cluster=data.cluster_alias,
+            project=data.project,
+            workload=data.workload,
+            workload_type=data.workload_type,
+            container=data.container,
+            current_cpu_limit=self._build_resource_config(current.limits.cpu),
+            current_cpu_request=self._build_resource_config(current.requests.cpu),
+            current_memory_limit=self._build_resource_config(current.limits.memory),
+            current_memory_request=self._build_resource_config(current.requests.memory),
+            recommend_cpu_limit=self._build_resource_config(recommend.limits.cpu),
+            recommend_cpu_request=self._build_resource_config(recommend.requests.cpu),
+            recommend_memory_limit=self._build_resource_config(recommend.limits.memory),
+            recommend_memory_request=self._build_resource_config(recommend.requests.memory),
+        )
+
+    @staticmethod
+    def _build_resource_config(response: ResourceConfigResponse) -> str:
+        if response.format is None:
+            return str(round(response.amount))
+        return f"{round(response.amount)}{response.format}"
