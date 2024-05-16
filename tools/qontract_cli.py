@@ -2623,7 +2623,7 @@ def hcp_migration_status(ctx):
         if sf.publish_job_logs:
             # ignore post deployment test saas files
             continue
-        app = sf.app.name
+        app = sf.app.parent_app.name if sf.app.parent_app else sf.app.name
         counts.setdefault(app, {"source": 0, "target": 0})
         for rt in sf.resource_templates:
             if rt.provider == "directory":
