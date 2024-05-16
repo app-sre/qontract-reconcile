@@ -2650,6 +2650,15 @@ def hcp_migration_status(ctx):
         progress = round(target / total * 100, 2) or "0"
         item["progress"] = progress
         data.append(item)
+
+    summary = {
+        "apps": len(data) - 1,  # reduce 1 for "total"
+        "completed": len([d for d in data if d["progress"] == 100]),
+    }
+
+    columns = ["apps", "completed"]
+    print_output(ctx.obj["options"], [summary], columns)
+
     columns = ["app", "classic", "hcp", "progress"]
     print_output(ctx.obj["options"], data, columns)
 
