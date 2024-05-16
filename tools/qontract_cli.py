@@ -2640,7 +2640,7 @@ def hcp_migration_status(ctx):
                     counts[app][hcp_migration] += 1
 
     def _get_data_item_from_count(
-        app: str, count: dict[str, int]
+        a: str, c: dict[str, int]
     ) -> Optional[dict[str, Any]]:
         source = c["source"]
         target = c["target"]
