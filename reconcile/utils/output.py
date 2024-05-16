@@ -3,7 +3,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Any, Union
+from typing import Optional, Union
 
 import yaml
 from tabulate import tabulate
@@ -13,7 +13,7 @@ def print_output(
     options: Mapping[str, Union[str, bool]],
     content: list[dict],
     columns: Iterable[str] = (),
-) -> Any:
+) -> Optional[str]:
     if options["sort"]:
         content.sort(key=lambda c: tuple(c.values()))
     if options.get("to_string"):
