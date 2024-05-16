@@ -2636,6 +2636,8 @@ def hcp_migration_status(ctx):
                 if t.namespace.path.startswith("/openshift/"):
                     # ignore per-cluster namespaces
                     continue
+                if t.delete:
+                    continue
                 if hcp_migration := t.namespace.cluster.labels.get("hcp_migration"):
                     counts[app][hcp_migration] += 1
 
