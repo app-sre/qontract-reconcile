@@ -5,6 +5,7 @@ from pytest_mock import MockerFixture
 
 from reconcile.typed_queries.cost_report.app_names import App
 from reconcile.typed_queries.cost_report.cost_namespaces import CostNamespace
+from tools.cli_commands.cost_report.model import OptimizationReportItem, OptimizationReport
 from tools.cli_commands.cost_report.openshift_cost_optimization import (
     OpenShiftCostOptimizationReportCommand,
 )
@@ -91,9 +92,9 @@ def mock_get_cost_namespaces(mocker: MockerFixture) -> Any:
 APP = App(name="app", parent_app_name=None)
 
 APP_NAMESPACE = CostNamespace(
-    name="app_namespace",
+    name="some-project",
     app_name=APP.name,
-    cluster_name="cluster",
+    cluster_name="some-cluster",
     cluster_external_id="cluster_external_id",
 )
 
@@ -151,3 +152,40 @@ def test_openshift_cost_optimization_report_get_reports(
         project=APP_NAMESPACE.name,
         cluster=APP_NAMESPACE.cluster_external_id,
     )
+
+
+EXPECTED_REPORT = OptimizationReport(
+    app_name=APP.name,
+    items=[OptimizationReportItem(
+        cluster=APP_NAMESPACE.cluster_name,
+        project=APP_NAMESPACE.name,
+        workload="test-deployment",
+        workload_type="deployment",
+        container="test",
+        current_cpu_limit="4",
+        current_cpu_request="1",
+        current_memory_limit="5Gi",
+        current_memory_request="400Mi",
+        recommend_cpu_request="3",
+        recommend_cpu_limit="5",
+        recommend_memory_request="700Mi",
+        recommend_memory_limit="6Gi",
+    )]
+)
+
+
+def test_openshift_cost_report_process_reports(
+    openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
+) -> None:
+    expected_reports = {
+        "app": EXPECTED_REPORT,
+    }
+
+    reports = openshift_cost_optimization_report_command.process_reports(
+        apps=[APP],
+        responses={
+            APP_NAMESPACE: OPENSHIFT_COST_OPTIMIZATION_RESPONSE,
+        },
+    )
+
+    assert reports == expected_reports
