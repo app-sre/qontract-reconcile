@@ -17,7 +17,6 @@ from pydantic import BaseModel
 from reconcile.utils.metrics import GaugeMetric
 
 SECRET_MAX_KEY_LENGTH = 253
-LAC_ANNOTATION = "kubectl.kubernetes.io/last-applied-configuration"
 
 
 class ResourceKeyExistsError(Exception):

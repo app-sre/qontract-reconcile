@@ -20,6 +20,8 @@ NORMALIZE_COMPARE_EXCLUDED_ATTRS = {
     "managedFields",
     "namespace",
 }
+K8S_ANNOTATION_LAC = "kubectl.kubernetes.io/last-applied-configuration"
+NORMALIZE_IGNORE_ANNOTATIONS = QONTRACT_ANNOTATIONS | {K8S_ANNOTATION_LAC}
 
 
 def _normalize_secret(secret: OR) -> None:
@@ -59,9 +61,9 @@ def normalize_object(item: OR) -> OR:
         validate_k8s_object=False,
     )
 
-    annotations = n.body.get("annotations", {})
+    annotations = n.body.get("metadata", {}).get("annotations", {})
     metadata["annotations"] = {
-        k: v for k, v in annotations.items() if k not in QONTRACT_ANNOTATIONS
+        k: v for k, v in annotations.items() if k not in NORMALIZE_IGNORE_ANNOTATIONS
     }
 
     # Run normalizers on Kinds with special needs
