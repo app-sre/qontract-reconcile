@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -103,13 +104,15 @@ def test_openshift_cost_optimization_report_execute(
     openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
     mock_get_app_names: Any,
     mock_get_cost_namespaces: Any,
+    fx: Callable,
 ) -> None:
     mock_get_app_names.return_value = []
     mock_get_cost_namespaces.return_value = []
+    expected_output = fx("empty_openshift_cost_optimization_report.md")
 
     output = openshift_cost_optimization_report_command.execute()
 
-    assert output == ""
+    assert output.rstrip() == expected_output.rstrip()
 
 
 def test_openshift_cost_optimization_report_get_apps(
@@ -154,7 +157,7 @@ def test_openshift_cost_optimization_report_get_reports(
     )
 
 
-EXPECTED_REPORT = OptimizationReport(
+APP_REPORT = OptimizationReport(
     app_name=APP.name,
     items=[OptimizationReportItem(
         cluster=APP_NAMESPACE.cluster_name,
@@ -177,9 +180,7 @@ EXPECTED_REPORT = OptimizationReport(
 def test_openshift_cost_report_process_reports(
     openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
 ) -> None:
-    expected_reports = {
-        "app": EXPECTED_REPORT,
-    }
+    expected_reports = [APP_REPORT]
 
     reports = openshift_cost_optimization_report_command.process_reports(
         apps=[APP],
@@ -189,3 +190,15 @@ def test_openshift_cost_report_process_reports(
     )
 
     assert reports == expected_reports
+
+
+def test_openshift_cost_report_render(
+    openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
+    fx: Callable,
+) -> None:
+    expected_output = fx("openshift_cost_optimization_report.md")
+    reports = [APP_REPORT]
+
+    output = openshift_cost_optimization_report_command.render(reports)
+
+    assert output == expected_output
