@@ -2630,6 +2630,9 @@ def hcp_migration_status(ctx):
                 # ignore grafana dashboards
                 continue
             for t in rt.targets:
+                if t.namespace.name.startswith("openshift-"):
+                    # ignore openshift namespaces
+                    continue
                 if t.namespace.path.startswith("/openshift/"):
                     # ignore per-cluster namespaces
                     continue
