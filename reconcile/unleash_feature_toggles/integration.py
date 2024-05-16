@@ -36,9 +36,10 @@ class UnleashTogglesIntegrationParams(PydanticRunParams):
 
 def feature_toggle_equal(c: FeatureToggle, d: FeatureToggleUnleashV1) -> bool:
     """Check if two feature toggles are different, but ignore the actual toggle state."""
+    assert d.unleash.q_type  # make mypy happy
     return (
         c.description == d.description
-        and c.type.value == d.unleash.q_type
+        and c.type == FeatureToggleType[d.unleash.q_type]
         and c.impression_data == bool(d.unleash.impression_data)
     )
 

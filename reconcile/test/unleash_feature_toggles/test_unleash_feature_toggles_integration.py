@@ -4,14 +4,17 @@ from unittest.mock import MagicMock, call
 import pytest
 
 from reconcile.gql_definitions.unleash_feature_toggles.feature_toggles import (
+    FeatureToggleUnleashV1,
+    UnleashFeatureToggleV1,
     UnleashInstanceV1,
     UnleashProjectV1,
 )
 from reconcile.unleash_feature_toggles.integration import (
     UnleashFeatureToggleDeleteError,
     UnleashTogglesIntegration,
+    feature_toggle_equal,
 )
-from reconcile.utils.unleash.server import Environment, Project
+from reconcile.utils.unleash.server import Environment, FeatureToggle, Project
 
 
 def test_unleash_feature_toggles_integration_early_exit(
@@ -252,3 +255,130 @@ def test_unleash_feature_toggles_integration_reconcile_states_non_existing_env(
                 Environment(name="default", enabled=True),
             ],
         )
+
+
+@pytest.mark.parametrize(
+    "a, b, expected",
+    [
+        (
+            FeatureToggle(
+                name="name",
+                type="release",
+                description="description",
+                impression_data=False,
+                environments=[
+                    Environment(name="default", enabled=False),
+                ],
+            ),
+            FeatureToggleUnleashV1(
+                name="name",
+                description="description",
+                delete=False,
+                provider="unleash",
+                unleash=UnleashFeatureToggleV1(
+                    type="release",
+                    impressionData=False,
+                    environments=None,
+                ),
+            ),
+            True,
+        ),
+        # kill_switch vs kill-switch
+        (
+            FeatureToggle(
+                name="name",
+                type="kill-switch",
+                description="description",
+                impression_data=False,
+                environments=[
+                    Environment(name="default", enabled=False),
+                ],
+            ),
+            FeatureToggleUnleashV1(
+                name="name",
+                description="description",
+                delete=False,
+                provider="unleash",
+                unleash=UnleashFeatureToggleV1(
+                    type="kill_switch",
+                    impressionData=False,
+                    environments=None,
+                ),
+            ),
+            True,
+        ),
+        (
+            FeatureToggle(
+                name="name",
+                type="release",
+                description="description",
+                impression_data=False,
+                environments=[
+                    Environment(name="default", enabled=False),
+                ],
+            ),
+            FeatureToggleUnleashV1(
+                name="name",
+                description="description - updated",
+                delete=False,
+                provider="unleash",
+                unleash=UnleashFeatureToggleV1(
+                    type="release",
+                    impressionData=False,
+                    environments=None,
+                ),
+            ),
+            False,
+        ),
+        (
+            FeatureToggle(
+                name="name",
+                type="release",
+                description="description",
+                impression_data=False,
+                environments=[
+                    Environment(name="default", enabled=False),
+                ],
+            ),
+            FeatureToggleUnleashV1(
+                name="name",
+                description="description",
+                delete=False,
+                provider="unleash",
+                unleash=UnleashFeatureToggleV1(
+                    type="kill_switch",
+                    impressionData=False,
+                    environments=None,
+                ),
+            ),
+            False,
+        ),
+        (
+            FeatureToggle(
+                name="name",
+                type="release",
+                description="description",
+                impression_data=False,
+                environments=[
+                    Environment(name="default", enabled=False),
+                ],
+            ),
+            FeatureToggleUnleashV1(
+                name="name",
+                description="description",
+                delete=False,
+                provider="unleash",
+                unleash=UnleashFeatureToggleV1(
+                    type="release",
+                    impressionData=True,
+                    environments=None,
+                ),
+            ),
+            False,
+        ),
+    ],
+)
+def test_unleash_feature_toggles_integration_feature_toggle_equal(
+    a: FeatureToggle, b: FeatureToggleUnleashV1, expected: bool
+) -> None:
+    assert feature_toggle_equal(a, b) == expected
