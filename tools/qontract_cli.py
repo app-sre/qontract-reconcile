@@ -2063,7 +2063,10 @@ def app_interface_review_queue(ctx) -> None:
 
     queue_data.sort(key=itemgetter("updated_at"))
     ctx.obj["options"]["sort"] = False  # do not sort
-    print_output(ctx.obj["options"], queue_data, columns)
+    text = print_output(ctx.obj["options"], queue_data, columns)
+    if text:
+        slack = slackapi_from_queries("app-interface-review-queue")
+        slack.chat_post_message("```\n" + text + "\n```")
 
 
 @get.command()
