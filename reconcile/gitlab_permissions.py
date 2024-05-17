@@ -9,10 +9,11 @@ from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 
 QONTRACT_INTEGRATION = "gitlab-permissions"
+PAGE_SIZE = 100
 
 
 def get_members_to_add(repo, gl, app_sre):
-    maintainers = gl.get_project_maintainers(repo)
+    maintainers = get_all_app_sre_maintainers(repo, gl, app_sre)
     if maintainers is None:
         return []
     if gl.user.username not in maintainers:
@@ -24,6 +25,25 @@ def get_members_to_add(repo, gl, app_sre):
         {"user": u, "repo": repo} for u in app_sre if u.username not in maintainers
     ]
     return members_to_add
+
+
+def get_all_app_sre_maintainers(repo, gl, app_sre):
+    app_sre_user_ids = [user.id for user in app_sre]
+    app_sre_maintainers = []
+    chunks = [
+        app_sre_user_ids[i : i + PAGE_SIZE]
+        for i in range(0, len(app_sre_user_ids), PAGE_SIZE)
+    ]
+    for chunk in chunks:
+        maintainers = gl.get_project_maintainers(
+            repo, query=create_user_ids_query(chunk)
+        )
+        app_sre_maintainers.extend(maintainers)
+    return app_sre_maintainers
+
+
+def create_user_ids_query(ids):
+    return {"user_ids": ",".join(str(id) for id in ids)}
 
 
 @defer
@@ -38,7 +58,6 @@ def run(dry_run, thread_pool_size=10, defer=None):
     results = threaded.run(
         get_members_to_add, repos, thread_pool_size, gl=gl, app_sre=app_sre
     )
-
     members_to_add = list(itertools.chain.from_iterable(results))
     for m in members_to_add:
         logging.info(["add_maintainer", m["repo"], m["user"].username])

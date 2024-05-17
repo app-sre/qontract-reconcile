@@ -223,14 +223,19 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return any(mr.title == title for mr in mrs)
 
     @retry()
-    def get_project_maintainers(self, repo_url: str | None = None) -> list[str] | None:
+    def get_project_maintainers(
+        self, repo_url: str | None = None, query: dict | None = None
+    ) -> list[str] | None:
         if repo_url is None:
             project = self.project
         else:
             project = self.get_project(repo_url)
         if project is None:
             return None
-        members = self.get_items(project.members.all)
+        if query:
+            members = self.get_items(project.members.all, query_parameters=query)
+        else:
+            members = self.get_items(project.members.all)
         return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self):
