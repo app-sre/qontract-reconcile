@@ -2690,9 +2690,9 @@ def hcp_migration_status(ctx):
                     total_count.inc(hcp_migration)
 
     data = [c.item for c in counts.values()]
-
-    print(f"SUMMARY: {total_count.hcp} / {total_count.total} COMPLETED ({total_count.progress}%)")
-
+    print(
+        f"SUMMARY: {total_count.hcp} / {total_count.total} COMPLETED ({total_count.progress}%)"
+    )
     columns = ["app", "classic", "hcp", "progress"]
     print_output(ctx.obj["options"], data, columns)
 
