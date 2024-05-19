@@ -2664,6 +2664,7 @@ class MigrationStatusCount:
 @click.pass_context
 def hcp_migration_status(ctx):
     counts: dict[str, MigrationStatusCount] = {}
+    total_count = MigrationStatusCount("total")
     saas_files = get_saas_files()
     for sf in saas_files:
         if sf.publish_job_logs:
@@ -2686,11 +2687,11 @@ def hcp_migration_status(ctx):
                     app = sf.app.parent_app.name if sf.app.parent_app else sf.app.name
                     counts.setdefault(app, MigrationStatusCount(app))
                     counts[app].inc(hcp_migration)
+                    total_count.inc(hcp_migration)
 
     data = [c.item for c in counts.values()]
 
-    summary_completed = len([c.item for c in counts.values() if c.progress == 100])
-    print(f"SUMMARY: {summary_completed} / {len(data)} COMPLETED")
+    print(f"SUMMARY: {total_count.hcp} / {total_count.total} COMPLETED ({total_count.progress}%)")
 
     columns = ["app", "classic", "hcp", "progress"]
     print_output(ctx.obj["options"], data, columns)
