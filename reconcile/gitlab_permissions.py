@@ -5,6 +5,7 @@ from typing import Any
 from sretoolbox.utils import threaded
 
 from reconcile import queries
+from reconcile.utils.batches import batched
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 
@@ -29,17 +30,12 @@ def get_members_to_add(repo, gl, app_sre):
 
 def get_all_app_sre_maintainers(repo, gl, app_sre):
     app_sre_user_ids = [user.id for user in app_sre]
-    app_sre_maintainers = []
-    chunks = [
-        app_sre_user_ids[i : i + PAGE_SIZE]
-        for i in range(0, len(app_sre_user_ids), PAGE_SIZE)
-    ]
-    for chunk in chunks:
-        maintainers = gl.get_project_maintainers(
-            repo, query=create_user_ids_query(chunk)
-        )
-        app_sre_maintainers.extend(maintainers)
-    return app_sre_maintainers
+    chunks = batched(app_sre_user_ids, PAGE_SIZE)
+    app_sre_maintainers = (
+        gl.get_project_maintainers(repo, query=create_user_ids_query(chunk))
+        for chunk in chunks
+    )
+    return list(itertools.chain.from_iterable(app_sre_maintainers))
 
 
 def create_user_ids_query(ids):
