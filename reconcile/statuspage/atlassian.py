@@ -56,9 +56,9 @@ class AtlassianRawMaintenance(BaseModel):
     scheduled_until: str
     incident_updates: list[AtlassianRawMaintenanceUpdate]
     components: list[AtlassianRawComponent]
-    auto_transition_deliver_notifications_at_end: bool
-    auto_transition_deliver_notifications_at_start: bool
-    scheduled_remind_prior: bool
+    auto_transition_deliver_notifications_at_end: Optional[bool]
+    auto_transition_deliver_notifications_at_start: Optional[bool]
+    scheduled_remind_prior: Optional[bool]
 
 
 class AtlassianAPI:
@@ -301,8 +301,15 @@ class AtlassianStatusPageProvider:
 
         # component status
         desired_component_status = desired.desired_component_status()
-        status_update_required = desired_component_status is not None and (
-            not current or desired_component_status != current.status
+        active_maintenance_affecting_component = [
+            m
+            for m in self.active_maintenances
+            if desired.display_name in [c.name for c in m.components]
+        ]
+        status_update_required = (
+            desired_component_status is not None
+            and (not current or desired_component_status != current.status)
+            and not active_maintenance_affecting_component
         )
 
         # shortcut execution if there is nothing to do
@@ -326,7 +333,7 @@ class AtlassianStatusPageProvider:
                 component_id=current_component.id,
             )
 
-        # validte the component and check if the current state needs to be updated
+        # validate the component and check if the current state needs to be updated
         needs_update = self.should_apply(desired, current_component)
         if not needs_update:
             return
@@ -456,12 +463,26 @@ class AtlassianStatusPageProvider:
         ]
 
     def create_maintenance(self, maintenance: StatusMaintenance) -> None:
+        component_ids: list[str] = []
+        for sc in maintenance.components:
+            current_component, _ = self.lookup_component(sc)
+            if current_component:
+                component_ids.append(current_component.id)
         data = {
             "name": maintenance.name,
             "status": "scheduled",
             "scheduled_for": maintenance.schedule_start,
             "scheduled_until": maintenance.schedule_end,
             "body": maintenance.message,
+            "scheduled_remind_prior": maintenance.announcements.remind_subscribers,
+            "scheduled_auto_transition": True,
+            "scheduled_auto_in_progress": True,
+            "scheduled_auto_completed": True,
+            "component_ids": component_ids,
+            "auto_transition_to_maintenance_state": True,
+            "auto_transition_to_operational_state": True,
+            "auto_transition_deliver_notifications_at_start": maintenance.announcements.notify_subscribers_on_start,
+            "auto_transition_deliver_notifications_at_end": maintenance.announcements.notify_subscribers_on_completion,
         }
         incident_id = self._api.create_incident(data)
         self._bind_component(
