@@ -32775,6 +32775,22 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "vault_secrets_path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "tf_state_bucket",
                             "description": null,
                             "args": [],

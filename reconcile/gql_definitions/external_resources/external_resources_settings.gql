@@ -16,5 +16,6 @@ query ExternalResourcesSettings {
         tf_state_bucket
         tf_state_region
         tf_state_dynamodb_table
+        vault_secrets_path
     }
 }

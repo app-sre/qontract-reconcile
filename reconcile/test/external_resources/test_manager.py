@@ -46,6 +46,7 @@ def settings() -> ExternalResourcesSettingsV1:
         state_dynamodb_region="us-east-1",
         workers_cluster=ClusterV1(name="appint-ex-01"),
         workers_namespace=NamespaceV1(name="external-resources-poc"),
+        vault_secrets_path="app-sre/integration-outputs/external-resources",
     )
 
 

@@ -3712,6 +3712,24 @@ def external_resources(
     )
 
 
+@integration.command(
+    short_help="Syncs External Resources Secrets from Vault to Clusters"
+)
+@click.pass_context
+@threaded(default=5)
+def external_resources_secrets_sync(
+    ctx,
+    thread_pool_size: int,
+):
+    import reconcile.external_resources.integration_secrets_sync
+
+    run_integration(
+        reconcile.external_resources.integration_secrets_sync,
+        ctx.obj,
+        thread_pool_size,
+    )
+
+
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
     """
     returns all integrations known to cli.py via click introspection
