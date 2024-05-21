@@ -53,6 +53,7 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
         binding_state: S3ComponentBindingState,
     ) -> None:
         now = datetime.now(timezone.utc)
+        slack = slackapi_from_queries(QONTRACT_INTEGRATION, init_usergroups=False)
         for m in desired_state:
             scheduled_start = datetime.fromisoformat(m.schedule_start)
             if now <= scheduled_start <= now + timedelta(hours=1):
@@ -61,7 +62,6 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
                     continue
                 logging.info(f"Notify StatusPage Maintenance: {m.name}")
                 if not dry_run:
-                    slack = slackapi_from_queries(QONTRACT_INTEGRATION)
                     slack.chat_post_message(m.message)
                     binding_state.state.add(f"notifications/{m.name}")
 
