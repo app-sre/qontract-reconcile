@@ -463,7 +463,7 @@ class AtlassianStatusPageProvider:
         ]
 
     def create_maintenance(self, maintenance: StatusMaintenance) -> None:
-        component_ids: list[str] = set()
+        component_ids: list[str] = []
         for sc in maintenance.components:
             current_component, _ = self.lookup_component(sc)
             if current_component:
