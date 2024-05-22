@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from reconcile.utils.metrics import (
     CounterMetric,
     ErrorRateMetricSet,
+    GaugeMetric,
 )
 
 
@@ -41,3 +42,11 @@ class DTPOrganizationErrorRate(ErrorRateMetricSet):
                 org_id=org_id,
             ),
         )
+
+
+class DTPClustersManagedGauge(DTPBaseMetric, GaugeMetric):
+    "Gauge for the number of clusters DTP manages"
+
+    @classmethod
+    def name(cls) -> str:
+        return "dtp_clusters_managed"
