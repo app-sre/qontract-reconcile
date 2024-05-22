@@ -410,6 +410,7 @@ class TestRun(testslide.TestCase):
         self.mock_constructor(terraform, "TerraformClient").to_return_value(
             self.terraform
         )
+        self.terraform.apply_count = 1
         self.mock_constructor(terrascript, "TerrascriptClient").to_return_value(
             self.terrascript
         )
@@ -440,6 +441,9 @@ class TestRun(testslide.TestCase):
         self.mock_callable(self.terrascript, "dump").to_return_value({
             "some_account": "/some/dir"
         }).and_assert_called_once()
+        self.mock_callable(
+            self.terrascript, "terraform_configurations"
+        ).to_return_value({"foo": "bar"}).and_assert_called_once()
         # Sigh...
         self.exit = self.mock_callable(sys, "exit").to_raise(OSError("Exit called!"))
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
@@ -509,9 +513,7 @@ class TestRun(testslide.TestCase):
         self.mock_callable(self.terraform, "apply").to_return_value(
             None
         ).and_assert_called_once()
-        self.exit.for_call(0).and_assert_called_once()
-        with self.assertRaises(OSError):
-            integ.run(False, print_to_file=None, enable_deletion=False)
+        integ.run(False, print_to_file=None, enable_deletion=False)
 
     def test_fail_state(self) -> None:
         """Ensure we don't change the world if there are failures"""
@@ -543,9 +545,7 @@ class TestRun(testslide.TestCase):
         self.mock_callable(self.terraform, "apply").to_return_value(
             None
         ).and_assert_not_called()
-        self.exit.for_call(0).and_assert_called_once()
-        with self.assertRaises(OSError):
-            integ.run(True, print_to_file=None, enable_deletion=False)
+        integ.run(True, print_to_file=None, enable_deletion=False)
 
     def test_dry_run_with_failures(self) -> None:
         """This is what we do during PR checks and new clusters!"""

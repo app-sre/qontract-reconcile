@@ -2,7 +2,7 @@ import json
 import logging
 import sys
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any
+from typing import Any, TypedDict
 
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_aws_client as terrascript
@@ -13,11 +13,16 @@ from reconcile.utils import (
 )
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
+from reconcile.utils.extended_early_exit import (
+    ExtendedEarlyExitRunnerResult,
+    extended_early_exit_run,
+)
 from reconcile.utils.ocm import (
     OCM,
     OCMMap,
 )
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.unleash.client import get_feature_toggle_state
 
 QONTRACT_INTEGRATION = "terraform_vpc_peerings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -563,6 +568,9 @@ def run(
     enable_deletion: bool = False,
     thread_pool_size: int = 10,
     account_name: str | None = None,
+    enable_extended_early_exit: bool = False,
+    extended_early_exit_cache_ttl_seconds: int = 3600,
+    log_cached_log_output: bool = False,
     defer: Callable | None = None,
 ) -> None:
     settings = queries.get_secret_reader_settings()
@@ -658,6 +666,7 @@ def run(
             ts.populate_additional_providers(infra_account_name, items)
         ts.populate_vpc_peerings(desired_state)
         working_dirs = ts.dump(print_to_file=print_to_file)
+        terraform_configurations = ts.terraform_configurations()
 
     if print_to_file:
         sys.exit(0 if dry_run else int(any(errors)))
@@ -675,22 +684,67 @@ def run(
     if any(errors):
         sys.exit(1)
 
+    runner_params: RunnerParams = dict(
+        tf=tf,
+        dry_run=dry_run,
+        enable_deletion=enable_deletion,
+        defer=defer,
+    )
+
+    if enable_extended_early_exit and get_feature_toggle_state(
+        "terraform-vpc-peerings-extended-early-exit",
+        default=True,
+    ):
+        cache_source = CacheSource(terraform_configurations=terraform_configurations)
+        extended_early_exit_run(
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            dry_run=dry_run,
+            cache_source=cache_source,
+            shard=account_name if account_name else "",
+            ttl_seconds=extended_early_exit_cache_ttl_seconds,
+            logger=logging.getLogger(),
+            runner=runner,
+            runner_params=runner_params,
+            log_cached_log_output=log_cached_log_output,
+        )
+    else:
+        runner(**runner_params)
+
+
+class CacheSource(TypedDict):
+    terraform_configurations: dict[str, str]
+
+
+class RunnerParams(TypedDict):
+    tf: terraform.TerraformClient
+    dry_run: bool
+    enable_deletion: bool
+    defer: Callable | None
+
+
+def runner(
+    dry_run: bool,
+    tf: terraform.TerraformClient,
+    enable_deletion: bool = False,
+    defer: Callable | None = None,
+) -> ExtendedEarlyExitRunnerResult:
     if defer:
         defer(tf.cleanup)
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
-    errors.append(err)
     if disabled_deletions_detected:
-        logging.error("Deletions detected when they are disabled")
-        sys.exit(1)
+        raise RuntimeError("Terraform plan has disabled deletions detected")
+    if err:
+        raise RuntimeError("Terraform plan has errors")
 
     if dry_run:
-        sys.exit(int(any(errors)))
-    if any(errors):
-        sys.exit(1)
+        return ExtendedEarlyExitRunnerResult(payload={}, applied_count=0)
 
-    errors.append(tf.apply())
-    sys.exit(int(any(errors)))
+    if err := tf.apply():
+        raise RuntimeError("Terraform apply has errors")
+
+    return ExtendedEarlyExitRunnerResult(payload={}, applied_count=tf.apply_count)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
