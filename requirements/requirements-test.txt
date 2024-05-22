@@ -11,5 +11,5 @@ moto~=2.2
 MarkupSafe==2.1.1
 smtpdfix==0.3.3
 pyfakefs~=5.1
-botocore==1.34.15
+botocore==1.34.94
 ruff==0.4.1
