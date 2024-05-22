@@ -1,10 +1,8 @@
 import json
 import logging
 import sys
-from typing import (
-    Any,
-    Optional,
-)
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any
 
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_aws_client as terrascript
@@ -29,7 +27,11 @@ class BadTerraformPeeringState(Exception):
     pass
 
 
-def find_matching_peering(from_cluster, to_cluster, desired_provider):
+def find_matching_peering(
+    from_cluster: Mapping[str, Any],
+    to_cluster: Mapping[str, Any],
+    desired_provider: str,
+) -> Mapping[str, Any] | None:
     """
     Ensures there is a matching peering with the desired provider type
     going from the destination (to) cluster back to this one (from)
@@ -47,8 +49,8 @@ def find_matching_peering(from_cluster, to_cluster, desired_provider):
 
 
 def _get_default_management_account(
-    cluster: dict[str, Any],
-) -> Optional[dict[str, Any]]:
+    cluster: Mapping[str, Any],
+) -> Mapping[str, Any] | None:
     cluster_infra_accounts = cluster["awsInfrastructureManagementAccounts"]
     for infra_account_def in cluster_infra_accounts or []:
         if (
@@ -60,11 +62,11 @@ def _get_default_management_account(
 
 
 def _build_infrastructure_assume_role(
-    account: dict[str, Any],
-    cluster: dict[str, Any],
-    ocm: Optional[OCM],
-    provided_assume_role: Optional[str],
-) -> Optional[dict[str, Any]]:
+    account: Mapping[str, Any],
+    cluster: Mapping[str, Any],
+    ocm: OCM | None,
+    provided_assume_role: str | None,
+) -> Mapping[str, Any] | None:
     if provided_assume_role:
         assume_role = provided_assume_role
     elif cluster["spec"].get("account"):
@@ -97,12 +99,12 @@ def _build_infrastructure_assume_role(
 
 
 def aws_assume_roles_for_cluster_vpc_peering(
-    requester_connection: dict[str, Any],
-    requester_cluster: dict[str, Any],
-    accepter_connection: dict[str, Any],
-    accepter_cluster: dict[str, Any],
-    ocm: Optional[OCM],
-) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    requester_connection: Mapping[str, Any],
+    requester_cluster: Mapping[str, Any],
+    accepter_connection: Mapping[str, Any],
+    accepter_cluster: Mapping[str, Any],
+    ocm: OCM | None,
+) -> tuple[str, Mapping[str, Any], Mapping[str, Any]]:
     # check if dedicated infra accounts have been declared on the
     # accepters peering connection or on the accepters cluster
     allowed_accounts = {
@@ -159,8 +161,11 @@ def aws_assume_roles_for_cluster_vpc_peering(
 
 
 def build_desired_state_single_cluster(
-    cluster_info, ocm: Optional[OCM], awsapi: AWSApi, account_filter: Optional[str]
-):
+    cluster_info: Mapping[str, Any],
+    ocm: OCM | None,
+    awsapi: AWSApi,
+    account_filter: str | None,
+) -> list[dict[str, Any]]:
     cluster_name = cluster_info["name"]
 
     peerings = []
@@ -268,8 +273,11 @@ def build_desired_state_single_cluster(
 
 
 def build_desired_state_all_clusters(
-    clusters, ocm_map: Optional[OCMMap], awsapi: AWSApi, account_filter: Optional[str]
-):
+    clusters: Iterable[Mapping[str, Any]],
+    ocm_map: OCMMap | None,
+    awsapi: AWSApi,
+    account_filter: str | None,
+) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch state for VPC peerings between two OCM clusters
     """
@@ -292,8 +300,11 @@ def build_desired_state_all_clusters(
 
 
 def build_desired_state_vpc_mesh_single_cluster(
-    cluster_info, ocm: Optional[OCM], awsapi: AWSApi, account_filter: Optional[str]
-):
+    cluster_info: Mapping[str, Any],
+    ocm: OCM | None,
+    awsapi: AWSApi,
+    account_filter: str | None,
+) -> list[dict[str, Any]]:
     desired_state = []
 
     cluster = cluster_info["name"]
@@ -386,8 +397,11 @@ def build_desired_state_vpc_mesh_single_cluster(
 
 
 def build_desired_state_vpc_mesh(
-    clusters, ocm_map: Optional[OCMMap], awsapi: AWSApi, account_filter: Optional[str]
-):
+    clusters: Iterable[Mapping[str, Any]],
+    ocm_map: OCMMap | None,
+    awsapi: AWSApi,
+    account_filter: str | None,
+) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch state for VPC peerings between a cluster and all VPCs in an account
     """
@@ -410,8 +424,11 @@ def build_desired_state_vpc_mesh(
 
 
 def build_desired_state_vpc_single_cluster(
-    cluster_info, ocm: Optional[OCM], awsapi: AWSApi, account_filter: Optional[str]
-):
+    cluster_info: Mapping[str, Any],
+    ocm: OCM | None,
+    awsapi: AWSApi,
+    account_filter: str | None,
+) -> list[dict[str, Any]]:
     desired_state = []
 
     peering_info = cluster_info["peering"]
@@ -506,15 +523,18 @@ def build_desired_state_vpc_single_cluster(
     return desired_state
 
 
-def _private_hosted_control_plane(cluster_info: dict[str, Any]) -> bool:
+def _private_hosted_control_plane(cluster_info: Mapping[str, Any]) -> bool:
     return bool(
         cluster_info["spec"].get("hypershift") and cluster_info["spec"].get("private")
     )
 
 
 def build_desired_state_vpc(
-    clusters, ocm_map: Optional[OCMMap], awsapi: AWSApi, account_filter: Optional[str]
-):
+    clusters: Iterable[Mapping[str, Any]],
+    ocm_map: OCMMap | None,
+    awsapi: AWSApi,
+    account_filter: str | None,
+) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch state for VPC peerings between a cluster and a VPC (account)
     """
@@ -538,13 +558,13 @@ def build_desired_state_vpc(
 
 @defer
 def run(
-    dry_run,
-    print_to_file=None,
-    enable_deletion=False,
-    thread_pool_size=10,
-    account_name: Optional[str] = None,
-    defer=None,
-):
+    dry_run: bool,
+    print_to_file: bool | None = None,
+    enable_deletion: bool = False,
+    thread_pool_size: int = 10,
+    account_name: str | None = None,
+    defer: Callable | None = None,
+) -> None:
     settings = queries.get_secret_reader_settings()
     clusters = queries.get_clusters_with_peering_settings()
     with_ocm = any(c.get("ocm") for c in clusters)
@@ -655,7 +675,8 @@ def run(
     if any(errors):
         sys.exit(1)
 
-    defer(tf.cleanup)
+    if defer:
+        defer(tf.cleanup)
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
     errors.append(err)
@@ -672,13 +693,8 @@ def run(
     sys.exit(int(any(errors)))
 
 
-def early_exit_desired_state(
-    print_to_file=None,
-    enable_deletion=False,
-    thread_pool_size=10,
-    account_name: Optional[str] = None,
-) -> dict[str, Any]:
-    if account_name:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    if kwargs.get("account_name"):
         raise ValueError(
             "terraform-vpc-peerings early-exit check does not support sharding yet"
         )

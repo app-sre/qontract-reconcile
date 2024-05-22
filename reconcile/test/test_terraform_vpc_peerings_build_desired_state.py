@@ -1,5 +1,6 @@
 import pytest
 import testslide
+from pytest_mock import MockerFixture
 
 import reconcile.terraform_vpc_peerings as sut
 from reconcile.test.test_terraform_vpc_peerings import (
@@ -15,7 +16,7 @@ from reconcile.utils import (
 )
 
 
-def test_c2c_all_clusters(mocker):
+def test_c2c_all_clusters() -> None:
     """
     happy path
     """
@@ -101,27 +102,36 @@ def test_c2c_all_clusters(mocker):
 
     # no account filter
     result, error = sut.build_desired_state_all_clusters(
-        [requester_cluster], ocm_map, awsapi, account_filter=None
+        [requester_cluster],
+        ocm_map,  # type: ignore
+        awsapi,  # type: ignore
+        account_filter=None,
     )
     assert result == expected
     assert not error
 
     # correct account filter
     result, error = sut.build_desired_state_all_clusters(
-        [requester_cluster], ocm_map, awsapi, account_filter="acc"
+        [requester_cluster],
+        ocm_map,  # type: ignore
+        awsapi,  # type: ignore
+        account_filter="acc",
     )
     assert result == expected
     assert not error
 
     # wrong account filter
     result, error = sut.build_desired_state_all_clusters(
-        [requester_cluster], ocm_map, awsapi, account_filter="another_account"
+        [requester_cluster],
+        ocm_map,  # type: ignore
+        awsapi,  # type: ignore
+        account_filter="another_account",
     )
     assert not result
     assert not error
 
 
-def test_c2c_one_cluster_failing_recoverable(mocker):
+def test_c2c_one_cluster_failing_recoverable(mocker: MockerFixture) -> None:
     """
     in this scenario, the handling of a single cluster fails with known
     exceptions
@@ -134,14 +144,17 @@ def test_c2c_one_cluster_failing_recoverable(mocker):
     )
 
     result, error = sut.build_desired_state_all_clusters(
-        [{"name": "cluster"}], {}, {}, account_filter=None
+        [{"name": "cluster"}],
+        None,
+        None,  # type: ignore
+        account_filter=None,
     )
 
     assert not result
     assert error
 
 
-def test_c2c_one_cluster_failing_weird(mocker):
+def test_c2c_one_cluster_failing_weird(mocker: MockerFixture) -> None:
     """
     in this scenario, the handling of a single cluster fails with unexpected
     exceptions
@@ -154,7 +167,10 @@ def test_c2c_one_cluster_failing_weird(mocker):
 
     with pytest.raises(ValueError) as ex:
         sut.build_desired_state_all_clusters(
-            [{"name": "cluster"}], {}, {}, account_filter=None
+            [{"name": "cluster"}],
+            None,
+            None,  # type: ignore
+            account_filter=None,
         )
 
     assert str(ex.value) == SOMETHING_UNEXPECTED
@@ -173,14 +189,13 @@ def test_c2c_one_cluster_failing_weird(mocker):
     ],
 )
 def test_c2c_hcp(
-    accepter_hcp,
-    accepter_private,
-    requester_hcp,
-    requester_private,
-    expected_accepter_security_group,
-    expected_requester_security_group,
-    mocker,
-):
+    accepter_hcp: bool,
+    accepter_private: bool,
+    requester_hcp: bool,
+    requester_private: bool,
+    expected_accepter_security_group: str | None,
+    expected_requester_security_group: str | None,
+) -> None:
     accepter_cluster = build_cluster(
         name="accepter_cluster",
         vpc="accepter_vpc",
@@ -267,24 +282,33 @@ def test_c2c_hcp(
 
     # no account filtering
     result = sut.build_desired_state_single_cluster(
-        requester_cluster, ocm, awsapi, account_filter=None
+        requester_cluster,
+        ocm,  # type: ignore
+        awsapi,  # type: ignore
+        account_filter=None,
     )
     assert result == expected
 
     # correct account filtering
     result = sut.build_desired_state_single_cluster(
-        requester_cluster, ocm, awsapi, account_filter="acc"
+        requester_cluster,
+        ocm,  # type: ignore
+        awsapi,  # type: ignore
+        account_filter="acc",
     )
     assert result == expected
 
     # correct account filtering
     result = sut.build_desired_state_single_cluster(
-        requester_cluster, ocm, awsapi, account_filter="another_account"
+        requester_cluster,
+        ocm,  # type: ignore
+        awsapi,  # type: ignore
+        account_filter="another_account",
     )
     assert not result
 
 
-def test_c2c_base(mocker):
+def test_c2c_base() -> None:
     """
     happy path
     """
@@ -368,24 +392,33 @@ def test_c2c_base(mocker):
 
     # no account filtering
     result = sut.build_desired_state_single_cluster(
-        requester_cluster, ocm, awsapi, account_filter=None
+        requester_cluster,
+        ocm,  # type: ignore
+        awsapi,  # type: ignore
+        account_filter=None,
     )
     assert result == expected
 
     # correct account filtering
     result = sut.build_desired_state_single_cluster(
-        requester_cluster, ocm, awsapi, account_filter="acc"
+        requester_cluster,
+        ocm,  # type: ignore
+        awsapi,  # type: ignore
+        account_filter="acc",
     )
     assert result == expected
 
     # correct account filtering
     result = sut.build_desired_state_single_cluster(
-        requester_cluster, ocm, awsapi, account_filter="another_account"
+        requester_cluster,
+        ocm,  # type: ignore
+        awsapi,  # type: ignore
+        account_filter="another_account",
     )
     assert not result
 
 
-def test_c2c_no_peerings(mocker):
+def test_c2c_no_peerings() -> None:
     """
     in this scenario, the requester cluster has no peerings defines,
     which results in an empty desired state
@@ -398,14 +431,14 @@ def test_c2c_no_peerings(mocker):
     )
     result = sut.build_desired_state_single_cluster(
         requester_cluster,
-        MockOCM(),
-        MockAWSAPI(),
+        MockOCM(),  # type: ignore
+        MockAWSAPI(),  # type: ignore
         account_filter=None,
     )
     assert not result
 
 
-def test_c2c_no_matches(mocker):
+def test_c2c_no_matches() -> None:
     """
     in this scenario, the accepter cluster has no cluster-vpc-accepter
     connection that references back to the requester cluster
@@ -430,14 +463,14 @@ def test_c2c_no_matches(mocker):
     with pytest.raises(sut.BadTerraformPeeringState) as ex:
         sut.build_desired_state_single_cluster(
             requester_cluster,
-            MockOCM(),
-            MockAWSAPI(),
+            MockOCM(),  # type: ignore
+            MockAWSAPI(),  # type: ignore
             account_filter=None,
         )
     assert str(ex.value).startswith("[no_matching_peering]")
 
 
-def test_c2c_no_vpc_in_aws(mocker):
+def test_c2c_no_vpc_in_aws() -> None:
     """
     in this scenario, there are no VPCs found in AWS
     """
@@ -467,12 +500,15 @@ def test_c2c_no_vpc_in_aws(mocker):
     awsapi = MockAWSAPI()
 
     desired_state = sut.build_desired_state_single_cluster(
-        requester_cluster, ocm, awsapi, account_filter=None
+        requester_cluster,
+        ocm,  # type: ignore
+        awsapi,  # type: ignore
+        account_filter=None,
     )
     assert desired_state == []
 
 
-def test_c2c_no_peer_account(mocker):
+def test_c2c_no_peer_account() -> None:
     """
     in this scenario, the accepters connection and the accepters cluster
     have no aws infrastructura account available to set up the peering″
@@ -503,13 +539,16 @@ def test_c2c_no_peer_account(mocker):
 
     with pytest.raises(sut.BadTerraformPeeringState) as ex:
         sut.build_desired_state_single_cluster(
-            requester_cluster, ocm, awsapi, account_filter=None
+            requester_cluster,
+            ocm,  # type: ignore
+            awsapi,  # type: ignore
+            account_filter=None,
         )
     assert str(ex.value).startswith("[no_account_available]")
 
 
 class TestBuildDesiredStateVpcMesh(testslide.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
         self.clusters = [
             {
@@ -577,8 +616,8 @@ class TestBuildDesiredStateVpcMesh(testslide.TestCase):
             "assume_region": "mars-hellas-1",
             "assume_cidr": "172.25.0.0/12",
         }
-        self.clusters[0]["peering"]["connections"][0]["cluster"] = self.peer_cluster
-        self.clusters[0]["peering"]["connections"][0]["account"] = self.peer_account
+        self.clusters[0]["peering"]["connections"][0]["cluster"] = self.peer_cluster  # type: ignore
+        self.clusters[0]["peering"]["connections"][0]["account"] = self.peer_account  # type: ignore
         self.peer_vpc = {
             "cidr_block": "172.30.0.0/12",
             "vpc_id": "peervpcid",
@@ -589,11 +628,11 @@ class TestBuildDesiredStateVpcMesh(testslide.TestCase):
         )
         self.maxDiff = None
         self.ocm = testslide.StrictMock(ocm.OCM)
-        self.ocm_map = {"clustername": self.ocm}
+        self.ocm_map: ocm.OCMMap = {"clustername": self.ocm}  # type: ignore
         self.ocm.get_aws_infrastructure_access_terraform_assume_role = (
             lambda cluster, uid, tfuser: self.peer_account["assume_role"]
         )
-        self.awsapi = testslide.StrictMock(aws_api.AWSApi)
+        self.awsapi: aws_api.AWSApi = testslide.StrictMock(aws_api.AWSApi)  # type: ignore
         self.account_vpcs = [
             {
                 "vpc_id": "vpc1",
@@ -610,7 +649,7 @@ class TestBuildDesiredStateVpcMesh(testslide.TestCase):
         ]
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
 
-    def test_all_fine(self):
+    def test_all_fine(self) -> None:
         expected = [
             {
                 "connection_provider": "account-vpc-mesh",
@@ -652,7 +691,10 @@ class TestBuildDesiredStateVpcMesh(testslide.TestCase):
             },
         ]
         self.vpc_mesh_single_cluster.for_call(
-            self.clusters[0], self.ocm, self.awsapi, None
+            self.clusters[0],
+            self.ocm,
+            self.awsapi,
+            None,
         ).to_return_value(expected)
 
         rs = sut.build_desired_state_vpc_mesh(
@@ -663,25 +705,31 @@ class TestBuildDesiredStateVpcMesh(testslide.TestCase):
         )
         self.assertEqual(rs, (expected, False))
 
-    def test_cluster_raises(self):
+    def test_cluster_raises(self) -> None:
         self.vpc_mesh_single_cluster.to_raise(
             sut.BadTerraformPeeringState("This is wrong")
         )
         rs = sut.build_desired_state_vpc_mesh(
-            self.clusters, self.ocm_map, self.awsapi, None
+            self.clusters,
+            self.ocm_map,
+            self.awsapi,
+            None,
         )
         self.assertEqual(rs, ([], True))
 
-    def test_cluster_raises_unexpected(self):
+    def test_cluster_raises_unexpected(self) -> None:
         self.vpc_mesh_single_cluster.to_raise(ValueError("Nope"))
         with self.assertRaises(ValueError):
             sut.build_desired_state_vpc_mesh(
-                self.clusters, self.ocm_map, self.awsapi, None
+                self.clusters,
+                self.ocm_map,
+                self.awsapi,
+                None,
             )
 
 
 class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
         self.cluster = {
             "name": "clustername",
@@ -728,7 +776,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
                 ]
             },
         }
-        self.awsapi = testslide.StrictMock(aws_api.AWSApi)
+        self.awsapi: aws_api.AWSApi = testslide.StrictMock(aws_api.AWSApi)  # type: ignore
         self.mock_constructor(aws_api, "AWSApi").to_return_value(self.awsapi)
         self.find_matching_peering = self.mock_callable(sut, "find_matching_peering")
         self.aws_account = {
@@ -749,8 +797,8 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
             "assume_region": "mars-hellas-1",
             "assume_cidr": "172.25.0.0/12",
         }
-        self.cluster["peering"]["connections"][0]["cluster"] = self.peer_cluster
-        self.cluster["peering"]["connections"][0]["account"] = self.peer_account
+        self.cluster["peering"]["connections"][0]["cluster"] = self.peer_cluster  # type: ignore
+        self.cluster["peering"]["connections"][0]["account"] = self.peer_account  # type: ignore
         self.peer_vpc = {
             "cidr_block": "172.30.0.0/12",
             "vpc_id": "peervpcid",
@@ -758,8 +806,8 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
         }
         self.maxDiff = None
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
-        self.ocm = testslide.StrictMock(template=ocm.OCM)
-        self.ocm.get_aws_infrastructure_access_terraform_assume_role = (
+        self.ocm: ocm.OCM = testslide.StrictMock(template=ocm.OCM)  # type: ignore
+        self.ocm.get_aws_infrastructure_access_terraform_assume_role = (  # type: ignore
             lambda cluster, uid, tfuser: self.peer_account["assume_role"]
         )
         self.account_vpcs = [
@@ -777,7 +825,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
             },
         ]
 
-    def test_one_cluster(self):
+    def test_one_cluster(self) -> None:
         req_account = {
             **self.peer_account,
             "assume_region": "mars-plain-1",
@@ -842,11 +890,14 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
         ]
 
         rs = sut.build_desired_state_vpc_mesh_single_cluster(
-            self.cluster, self.ocm, self.awsapi, None
+            self.cluster,
+            self.ocm,
+            self.awsapi,
+            None,
         )
         self.assertEqual(rs, expected)
 
-    def test_one_cluster_private_hcp(self):
+    def test_one_cluster_private_hcp(self) -> None:
         self.cluster["spec"] = {
             "region": "mars-plain-1",
             "hypershift": True,
@@ -920,14 +971,14 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
         )
         self.assertEqual(rs, expected)
 
-    def test_no_peering_connections(self):
-        self.cluster["peering"]["connections"] = []
+    def test_no_peering_connections(self) -> None:
+        self.cluster["peering"]["connections"] = []  # type: ignore
         rs = sut.build_desired_state_vpc_mesh_single_cluster(
             self.cluster, self.ocm, self.awsapi, None
         )
         self.assertEqual(rs, [])
 
-    def test_no_peer_vpc_id(self):
+    def test_no_peer_vpc_id(self) -> None:
         self.mock_callable(self.awsapi, "get_cluster_vpc_details").to_return_value((
             None,
             [None],
@@ -942,7 +993,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
 
 
 class TestBuildDesiredStateVpc(testslide.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
         self.peer = {
             "vpc": "172.17.0.0/12",
@@ -1007,13 +1058,13 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
                 ]
             },
         }
-        self.clusters[0]["peering"]["connections"][0]["cluster"] = self.peer_cluster
+        self.clusters[0]["peering"]["connections"][0]["cluster"] = self.peer_cluster  # type: ignore
         self.build_single_cluster = self.mock_callable(
             sut, "build_desired_state_single_cluster"
         )
         self.ocm = testslide.StrictMock(template=ocm.OCM)
-        self.ocm_map = {"clustername": self.ocm}
-        self.awsapi = testslide.StrictMock(aws_api.AWSApi)
+        self.ocm_map: ocm.OCMMap = {"clustername": self.ocm}  # type: ignore
+        self.awsapi: aws_api.AWSApi = testslide.StrictMock(aws_api.AWSApi)  # type: ignore
 
         self.build_single_cluster = self.mock_callable(
             sut, "build_desired_state_vpc_single_cluster"
@@ -1021,7 +1072,7 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
         self.maxDiff = None
 
-    def test_all_fine(self):
+    def test_all_fine(self) -> None:
         expected = [
             {
                 "accepter": {
@@ -1067,7 +1118,7 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         )
         self.assertEqual(rs, (expected, False))
 
-    def test_cluster_fails(self):
+    def test_cluster_fails(self) -> None:
         self.build_single_cluster.to_raise(
             sut.BadTerraformPeeringState("I have failed")
         )
@@ -1079,10 +1130,10 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
             ([], True),
         )
 
-    def test_error_persists(self):
+    def test_error_persists(self) -> None:
         self.clusters.append(self.clusters[0].copy())
         self.clusters[1]["name"] = "afailingcluster"
-        self.ocm_map["afailingcluster"] = self.ocm
+        self.ocm_map["afailingcluster"] = self.ocm  # type: ignore
         self.build_single_cluster.for_call(
             self.clusters[0], self.ocm, self.awsapi, None
         ).to_return_value([{"a dict": "a value"}]).and_assert_called_once()
@@ -1100,10 +1151,10 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
             ([{"a dict": "a value"}], True),
         )
 
-    def test_other_exceptions_raise(self):
+    def test_other_exceptions_raise(self) -> None:
         self.clusters.append(self.clusters[0].copy())
         self.clusters[1]["name"] = "afailingcluster"
-        self.ocm_map["afailingcluster"] = self.ocm
+        self.ocm_map["afailingcluster"] = self.ocm  # type: ignore
         self.build_single_cluster.for_call(
             self.clusters[0], self.ocm, self.awsapi, None
         ).to_raise(ValueError("I am not planned!")).and_assert_called_once()
@@ -1114,7 +1165,7 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
 
 
 class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
         self.peer = {
             "vpc": "172.17.0.0/12",
@@ -1177,20 +1228,20 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
                 ]
             },
         }
-        self.cluster["peering"]["connections"][0]["cluster"] = self.peer_cluster
+        self.cluster["peering"]["connections"][0]["cluster"] = self.peer_cluster  # type: ignore
         self.build_single_cluster = self.mock_callable(
             sut, "build_desired_state_single_cluster"
         )
-        self.ocm = testslide.StrictMock(template=ocm.OCM)
-        self.awsapi = testslide.StrictMock(aws_api.AWSApi)
+        self.ocm: ocm.OCM = testslide.StrictMock(template=ocm.OCM)  # type: ignore
+        self.awsapi: aws_api.AWSApi = testslide.StrictMock(aws_api.AWSApi)  # type: ignore
         self.mock_constructor(aws_api, "AWSApi").to_return_value(self.awsapi)
-        self.ocm.get_aws_infrastructure_access_terraform_assume_role = (
+        self.ocm.get_aws_infrastructure_access_terraform_assume_role = (  # type: ignore
             lambda cluster, uid, tfuser: self.aws_account["assume_role"]
         )
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
         self.maxDiff = None
 
-    def test_all_fine(self):
+    def test_all_fine(self) -> None:
         expected = [
             {
                 "accepter": {
@@ -1252,7 +1303,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
         )
         self.assertEqual(rs, expected)
 
-    def test_private_hcp(self):
+    def test_private_hcp(self) -> None:
         self.cluster["spec"] = {
             "region": "mars-plain-1",
             "hypershift": True,
@@ -1319,16 +1370,19 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
         )
         self.assertEqual(rs, expected)
 
-    def test_different_provider(self):
-        self.cluster["peering"]["connections"][0]["provider"] = "something-else"
+    def test_different_provider(self) -> None:
+        self.cluster["peering"]["connections"][0]["provider"] = "something-else"  # type: ignore
         self.assertEqual(
             sut.build_desired_state_vpc_single_cluster(
-                self.cluster, self.ocm, self.awsapi, None
+                self.cluster,
+                self.ocm,
+                self.awsapi,
+                None,
             ),
             [],
         )
 
-    def test_no_vpc_id(self):
+    def test_no_vpc_id(self) -> None:
         self.mock_callable(self.awsapi, "get_cluster_vpc_details").to_return_value((
             None,
             None,
@@ -1345,7 +1399,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
         )
         assert desired_state == []
 
-    def test_aws_exception(self):
+    def test_aws_exception(self) -> None:
         exc_txt = "AWS Problem!"
         self.mock_callable(self.awsapi, "get_cluster_vpc_details").to_raise(
             Exception(exc_txt)
@@ -1357,5 +1411,8 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
 
         with pytest.raises(Exception, match=exc_txt):
             sut.build_desired_state_vpc_single_cluster(
-                self.cluster, self.ocm, self.awsapi, None
+                self.cluster,
+                self.ocm,
+                self.awsapi,
+                None,
             )

@@ -1,11 +1,9 @@
 import sys
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any, Self
 
 import pytest
 import testslide
+from pytest_mock import MockerFixture
 
 import reconcile.terraform_vpc_peerings as integ
 import reconcile.utils.terraform_client as terraform
@@ -23,8 +21,8 @@ class MockOCM:
         self.assumes: dict[str, str] = {}
 
     def register(
-        self, cluster: str, tf_account_id: str, tf_user: str, assume_role: Optional[str]
-    ) -> "MockOCM":
+        self, cluster: str, tf_account_id: str, tf_user: str, assume_role: str | None
+    ) -> Self:
         if not assume_role:
             assume_role = f"arn::::{cluster}"
         if not assume_role.startswith("arn:"):
@@ -33,11 +31,11 @@ class MockOCM:
         return self
 
     def get_aws_infrastructure_access_terraform_assume_role(
-        self, cluster, tf_account_id, tf_user
-    ):
+        self, cluster: str, tf_account_id: str, tf_user: str
+    ) -> str | None:
         return self.assumes.get(f"{cluster}/{tf_account_id}/{tf_user}")
 
-    def auto_speced_mock(self, mocker) -> ocm.OCM:
+    def auto_speced_mock(self, mocker: MockerFixture) -> ocm.OCM:
         ocm_mock = mocker.patch("reconcile.utils.ocm.OCM", autospec=True).return_value
         ocm_mock.get_aws_infrastructure_access_terraform_assume_role.mock_add_spec(
             ocm.OCM.get_aws_infrastructure_access_terraform_assume_role
@@ -50,15 +48,15 @@ class MockOCM:
 
 class MockAWSAPI:
     def __init__(self) -> None:
-        self.vpc_details: dict[str, tuple[str, list[str], Optional[str]]] = {}
+        self.vpc_details: dict[str, tuple[str, list[str], str | None]] = {}
 
     def register(
         self,
         vpc: str,
         vpc_id: str,
         route_tables: list[str],
-        vpce_sg: Optional[str] = None,
-    ) -> "MockAWSAPI":
+        vpce_sg: str | None = None,
+    ) -> Self:
         self.vpc_details[vpc] = (
             vpc_id,
             route_tables,
@@ -69,9 +67,9 @@ class MockAWSAPI:
     def get_cluster_vpc_details(
         self,
         account: dict[str, Any],
-        route_tables=False,
-        subnets=False,
-        hcp_vpc_endpoint_sg=False,
+        route_tables: bool = False,
+        subnets: bool = False,
+        hcp_vpc_endpoint_sg: bool = False,
     ) -> tuple:
         if account["assume_cidr"] in self.vpc_details:
             vpc_id, rt, sg_id = self.vpc_details[account["assume_cidr"]]
@@ -80,7 +78,7 @@ class MockAWSAPI:
             return vpc_id, rt, None, sg_id if hcp_vpc_endpoint_sg else None
         return None, None, None, None
 
-    def auto_speced_mock(self, mocker) -> aws_api.AWSApi:
+    def auto_speced_mock(self, mocker: MockerFixture) -> aws_api.AWSApi:
         aws_api_mock = mocker.patch(
             "reconcile.utils.aws_api.AWSApi", autospec=True
         ).return_value
@@ -93,14 +91,14 @@ class MockAWSAPI:
 
 def build_cluster(
     name: str,
-    vpc: Optional[str] = None,
-    read_only_accounts: Optional[list[str]] = None,
-    network_mgmt_accounts: Optional[list[str]] = None,
-    peering_connections: Optional[list[dict[str, Any]]] = None,
+    vpc: str | None = None,
+    read_only_accounts: list[str] | None = None,
+    network_mgmt_accounts: list[str] | None = None,
+    peering_connections: list[dict[str, Any]] | None = None,
     hcp: bool = False,
     private: bool = False,
-    sg: Optional[str] = None,
-):
+    sg: str | None = None,
+) -> dict[str, Any]:
     if not vpc:
         vpc = name
     cluster = {
@@ -150,7 +148,7 @@ def build_cluster(
 
 def build_requester_connection(
     name: str, peer_cluster: dict[str, Any], manage_routes: bool = True
-):
+) -> dict[str, Any]:
     return {
         "name": name,
         "provider": "cluster-vpc-requester",
@@ -162,9 +160,9 @@ def build_requester_connection(
 def build_accepter_connection(
     name: str,
     cluster: str,
-    aws_infra_acc: Optional[str] = None,
+    aws_infra_acc: str | None = None,
     manage_routes: bool = True,
-):
+) -> dict[str, Any]:
     connection = {
         "name": name,
         "provider": "cluster-vpc-accepter",
@@ -182,7 +180,7 @@ def build_accepter_connection(
     return connection
 
 
-def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite(mocker):
+def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite() -> None:
     """
     makes sure the peer connection account overwrite on the accepter is used
     when available. in this test, the overwrite is also allowed
@@ -210,7 +208,7 @@ def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite(mocker):
         requester_cluster,
         accepter_connection,
         accepter_cluster,
-        ocm,
+        ocm,  # type: ignore
     )
 
     assert infra_acc_name == "acc_overwrite"
@@ -238,7 +236,7 @@ def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite(mocker):
     assert acc_aws == expected_acc_aws
 
 
-def test_c2c_vpc_peering_assume_role_acc_overwrite_fail(mocker):
+def test_c2c_vpc_peering_assume_role_acc_overwrite_fail() -> None:
     """
     try overwrite the account to be used on the accepter connection with an
     account not listed on the accepter cluster
@@ -263,12 +261,12 @@ def test_c2c_vpc_peering_assume_role_acc_overwrite_fail(mocker):
             requester_cluster,
             accepter_connection,
             accepter_cluster,
-            ocm,
+            ocm,  # type: ignore
         )
     assert str(ex.value).startswith("[account_not_allowed]")
 
 
-def test_c2c_vpc_peering_assume_role_accepter_cluster_account(mocker):
+def test_c2c_vpc_peering_assume_role_accepter_cluster_account() -> None:
     """
     makes sure the clusters default infra account is used when no peer
     connection overwrite exists
@@ -292,7 +290,7 @@ def test_c2c_vpc_peering_assume_role_accepter_cluster_account(mocker):
         requester_cluster,
         accepter_connection,
         accepter_cluster,
-        ocm,
+        ocm,  # type: ignore
     )
 
     assert infra_acc_name == "default_acc"
@@ -320,7 +318,7 @@ def test_c2c_vpc_peering_assume_role_accepter_cluster_account(mocker):
     assert acc_aws == expected_acc_aws
 
 
-def test_c2c_vpc_peering_missing_ocm_assume_role(mocker):
+def test_c2c_vpc_peering_missing_ocm_assume_role() -> None:
     """
     makes sure the clusters infra account is used when no peer connection
     overwrite exists
@@ -338,12 +336,12 @@ def test_c2c_vpc_peering_missing_ocm_assume_role(mocker):
             requester_cluster,
             accepter_connection,
             accepter_cluster,
-            ocm,
+            ocm,  # type: ignore
         )
     assert str(ex.value).startswith("[assume_role_not_found]")
 
 
-def test_c2c_vpc_peering_missing_account(mocker):
+def test_c2c_vpc_peering_missing_account() -> None:
     """
     test the fallback logic, looking for network-mgmt groups accounts
     """
@@ -360,12 +358,12 @@ def test_c2c_vpc_peering_missing_account(mocker):
             requester_cluster,
             accepter_connection,
             accepter_cluster,
-            ocm,
+            ocm,  # type: ignore
         )
     assert str(ex.value).startswith("[no_account_available]")
 
 
-def test_empty_run(mocker):
+def test_empty_run(mocker: MockerFixture) -> None:
     mocked_queries = mocker.patch("reconcile.terraform_vpc_peerings.queries")
     mocked_queries.get_secret_reader_settings.return_value = {}
     mocked_queries.get_clusters_with_peering_settings.return_value = []
@@ -390,7 +388,7 @@ def test_empty_run(mocker):
 
 
 class TestRun(testslide.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
 
         self.awsapi = testslide.StrictMock(aws_api.AWSApi)
@@ -446,7 +444,7 @@ class TestRun(testslide.TestCase):
         self.exit = self.mock_callable(sys, "exit").to_raise(OSError("Exit called!"))
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
 
-    def initialize_desired_states(self, error_code):
+    def initialize_desired_states(self, error_code: bool) -> None:
         self.build_desired_state_vpc.to_return_value((
             [
                 {
@@ -499,7 +497,7 @@ class TestRun(testslide.TestCase):
             ],
         ).to_return_value(None).and_assert_called_once()
 
-    def test_all_fine(self):
+    def test_all_fine(self) -> None:
         self.initialize_desired_states(False)
         self.mock_callable(self.terraform, "plan").to_return_value((
             False,
@@ -515,7 +513,7 @@ class TestRun(testslide.TestCase):
         with self.assertRaises(OSError):
             integ.run(False, print_to_file=None, enable_deletion=False)
 
-    def test_fail_state(self):
+    def test_fail_state(self) -> None:
         """Ensure we don't change the world if there are failures"""
         self.initialize_desired_states(True)
         self.mock_callable(self.terraform, "plan").to_return_value((
@@ -532,7 +530,7 @@ class TestRun(testslide.TestCase):
         with self.assertRaises(OSError):
             integ.run(False, print_to_file=None, enable_deletion=True)
 
-    def test_dry_run(self):
+    def test_dry_run(self) -> None:
         self.initialize_desired_states(False)
 
         self.mock_callable(self.terraform, "plan").to_return_value((
@@ -549,7 +547,7 @@ class TestRun(testslide.TestCase):
         with self.assertRaises(OSError):
             integ.run(True, print_to_file=None, enable_deletion=False)
 
-    def test_dry_run_with_failures(self):
+    def test_dry_run_with_failures(self) -> None:
         """This is what we do during PR checks and new clusters!"""
         self.initialize_desired_states(True)
         self.mock_callable(self.terraform, "plan").to_return_value((
@@ -563,7 +561,7 @@ class TestRun(testslide.TestCase):
         with self.assertRaises(OSError):
             integ.run(True, print_to_file=None, enable_deletion=False)
 
-    def test_dry_run_print_only_with_failures(self):
+    def test_dry_run_print_only_with_failures(self) -> None:
         """This is what we do during PR checks and new clusters!"""
         self.initialize_desired_states(True)
         self.mock_callable(self.terraform, "plan").to_return_value((
