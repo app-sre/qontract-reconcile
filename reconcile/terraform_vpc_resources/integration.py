@@ -37,6 +37,7 @@ from reconcile.utils.vcs import VCS
 QONTRACT_INTEGRATION = "terraform_vpc_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 QONTRACT_TF_PREFIX = "qrtvr"
+AWS_PROVIDER_VERSION = "5.7.1"
 
 
 class TerraformVpcResourcesParams(PydanticRunParams):
@@ -143,7 +144,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             accounts=accounts_untyped,
             secret_reader=secret_reader,
         ) as ts_client:
-            ts_client.populate_vpc_requests(data)
+            ts_client.populate_vpc_requests(data, AWS_PROVIDER_VERSION)
 
         working_dirs = ts_client.dump(print_to_file=self.params.print_to_file)
 

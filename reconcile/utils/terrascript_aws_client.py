@@ -1185,12 +1185,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     tf_resource = aws_route(route_identifier, **values)
                     self.add_resource(infra_account_name, tf_resource)
 
-    def populate_vpc_requests(self, vpc_requests: Iterable[VPCRequest]) -> None:
+    def populate_vpc_requests(
+        self, vpc_requests: Iterable[VPCRequest], aws_provider_version: str
+    ) -> None:
         for request in vpc_requests:
             # The default values here come from infra repo's module configuration
             values = {
                 "source": "terraform-aws-modules/vpc/aws",
-                "version": "5.7.1",
+                "version": aws_provider_version,
                 "name": request.identifier,
                 "cidr": request.cidr_block.network_address,
                 "private_subnet_tags": {"kubernetes.io/role/internal-elb": "1"},
