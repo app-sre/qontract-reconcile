@@ -49,7 +49,7 @@ def run(dry_run, thread_pool_size=10, defer=None):
     gl = GitLabApi(instance, settings=settings)
     if defer:
         defer(gl.cleanup)
-    repos = queries.get_repos(server=gl.server)
+    repos = queries.get_repos(server=gl.server, exclude_manage_permissions=True)
     app_sre = gl.get_app_sre_group_users()
     results = threaded.run(
         get_members_to_add, repos, thread_pool_size, gl=gl, app_sre=app_sre
