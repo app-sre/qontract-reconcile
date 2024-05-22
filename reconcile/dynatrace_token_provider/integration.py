@@ -12,6 +12,7 @@ from dynatrace import Dynatrace
 from dynatrace.environment_v2.tokens_api import ApiTokenCreated
 
 from reconcile.dynatrace_token_provider.metrics import (
+    DTPClustersManagedGauge,
     DTPOrganizationErrorRate,
 )
 from reconcile.gql_definitions.common.ocm_environments import (
@@ -92,6 +93,13 @@ class DynatraceTokenProviderIntegration(
                     label_filter=subscription_label_filter().like(
                         "key", dtp_label_key("%")
                     ),
+                )
+                metrics.set_gauge(
+                    DTPClustersManagedGauge(
+                        integration=self.name,
+                        ocm_env=env.name,
+                    ),
+                    len(clusters),
                 )
                 if not clusters:
                     continue
