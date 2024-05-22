@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Self
 from urllib.parse import urljoin
 
@@ -76,7 +77,14 @@ class ApiBase:
     def _get(self, url: str) -> dict[str, Any]:
         response = self.session.get(urljoin(self.host, url), timeout=self.read_timeout)
         response.raise_for_status()
-        return response.json()
+        try:
+            return response.json()
+        except requests.exceptions.JSONDecodeError:
+            logging.error(
+                f"Failed to decode JSON response from {url}"
+                f"Response: {response.text}"
+            )
+            raise
 
     def _list(
         self, url: str, params: dict | None = None, attribute: str | None = None
@@ -100,7 +108,7 @@ class ApiBase:
             urljoin(self.host, url), json=data, timeout=self.read_timeout
         )
         response.raise_for_status()
-        if response.status_code == 204:
+        if response.status_code == 204 or not response.text:
             return {}
         return response.json()
 
@@ -109,7 +117,7 @@ class ApiBase:
             urljoin(self.host, url), json=data, timeout=self.read_timeout
         )
         response.raise_for_status()
-        if response.status_code == 204:
+        if response.status_code == 204 or not response.text:
             return {}
         return response.json()
 

@@ -1579,6 +1579,10 @@ def rds(ctx):
                 "engine": rds_attr("engine", overrides, defaults),
                 "engine_version": rds_attr("engine_version", overrides, defaults),
                 "instance_class": rds_attr("instance_class", overrides, defaults),
+                "storage_type": rds_attr("storage_type", overrides, defaults),
+                "ca_cert_identifier": rds_attr(
+                    "ca_cert_identifier", overrides, defaults
+                ),
             }
             results.append(item)
 
@@ -1593,6 +1597,8 @@ def rds(ctx):
                 {"key": "engine", "sortable": True},
                 {"key": "engine_version", "sortable": True},
                 {"key": "instance_class", "sortable": True},
+                {"key": "storage_type", "sortable": True},
+                {"key": "ca_cert_identifier", "sortable": True},
             ],
             "items": results,
         }
@@ -1617,6 +1623,8 @@ You can view the source of this Markdown to extract the JSON data.
             "engine",
             "engine_version",
             "instance_class",
+            "storage_type",
+            "ca_cert_identifier",
         ]
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], results, columns)
@@ -2063,7 +2071,10 @@ def app_interface_review_queue(ctx) -> None:
 
     queue_data.sort(key=itemgetter("updated_at"))
     ctx.obj["options"]["sort"] = False  # do not sort
-    print_output(ctx.obj["options"], queue_data, columns)
+    text = print_output(ctx.obj["options"], queue_data, columns)
+    if text:
+        slack = slackapi_from_queries("app-interface-review-queue")
+        slack.chat_post_message("```\n" + text + "\n```")
 
 
 @get.command()
@@ -2597,7 +2608,7 @@ def maintenances(ctx):
             "services": ", ".join(a.name for a in m.affected_services),
         }
         for m in maintenances
-        if datetime.fromisoformat(m.scheduled_end) > now
+        if datetime.fromisoformat(m.scheduled_start) > now
     ]
     columns = [
         "name",
@@ -2605,6 +2616,84 @@ def maintenances(ctx):
         "scheduled_end",
         "services",
     ]
+    print_output(ctx.obj["options"], data, columns)
+
+
+class MigrationStatusCount:
+    def __init__(self, app: str) -> None:
+        self.app = app
+        self._source = 0
+        self._target = 0
+
+    def inc(self, source_or_target: str) -> None:
+        match source_or_target:
+            case "source":
+                self._source += 1
+            case "target":
+                self._target += 1
+            case _:
+                raise ValueError("hcp migration label must be source or target")
+
+    @property
+    def classic(self) -> int:
+        return self._source
+
+    @property
+    def hcp(self) -> int:
+        return self._target
+
+    @property
+    def total(self) -> int:
+        return self.classic + self.hcp
+
+    @property
+    def progress(self) -> float:
+        return round(self.hcp / self.total * 100, 0)
+
+    @property
+    def item(self) -> dict[str, Any]:
+        return {
+            "app": self.app,
+            "classic": self.classic or "0",
+            "hcp": self.hcp or "0",
+            "progress": self.progress or "0",
+        }
+
+
+@get.command()
+@click.pass_context
+def hcp_migration_status(ctx):
+    counts: dict[str, MigrationStatusCount] = {}
+    total_count = MigrationStatusCount("total")
+    saas_files = get_saas_files()
+    for sf in saas_files:
+        if sf.publish_job_logs:
+            # ignore post deployment test saas files
+            continue
+        for rt in sf.resource_templates:
+            if rt.provider == "directory" or "dashboard" in rt.name:
+                # ignore grafana dashboards
+                continue
+            for t in rt.targets:
+                if t.namespace.name.startswith("openshift-"):
+                    # ignore openshift namespaces
+                    continue
+                if t.namespace.path.startswith("/openshift/"):
+                    # ignore per-cluster namespaces
+                    continue
+                if t.delete:
+                    continue
+                if hcp_migration := t.namespace.cluster.labels.get("hcp_migration"):
+                    app = sf.app.parent_app.name if sf.app.parent_app else sf.app.name
+                    counts.setdefault(app, MigrationStatusCount(app))
+                    counts[app].inc(hcp_migration)
+                    total_count.inc(hcp_migration)
+
+    data = [c.item for c in counts.values()]
+    print(
+        f"SUMMARY: {total_count.hcp} / {total_count.total} COMPLETED ({total_count.progress}%)"
+    )
+    columns = ["app", "classic", "hcp", "progress"]
     print_output(ctx.obj["options"], data, columns)
 
 

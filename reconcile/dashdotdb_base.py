@@ -153,7 +153,7 @@ class DashdotdbBase:
                 f"Basic {b64encode(f'{username}:{password}'.encode()).decode('utf-8')}"
             )
         response = requests.get(
-            url, params=params, headers=headers, verify=ssl_verify, timeout=(5, 120)
+            url, params=params, headers=headers, verify=ssl_verify, timeout=(5, 300)
         )
         response.raise_for_status()
 
