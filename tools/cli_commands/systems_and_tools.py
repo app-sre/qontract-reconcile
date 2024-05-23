@@ -62,41 +62,41 @@ class SystemTool(BaseModel):
     description: str
 
     @classmethod
-    def init_from_model(cls, model: BaseModel) -> Self:
-        match model.__module__:
-            case GitlabInstanceV1.__module__:
+    def init_from_model(cls, model: Any) -> Self:
+        match model:
+            case GitlabInstanceV1():
                 return cls.init_from_gitlab(cast(GitlabInstanceV1, model))
-            case JenkinsInstanceV1.__module__:
+            case JenkinsInstanceV1():
                 return cls.init_from_jenkins(cast(JenkinsInstanceV1, model))
-            case ClusterV1.__module__:
+            case ClusterV1():
                 return cls.init_from_cluster(cast(ClusterV1, model))
-            case AWSAccountV1.__module__:
+            case AWSAccountV1():
                 return cls.init_from_aws_account(cast(AWSAccountV1, model))
-            case DynatraceEnvironmentV1.__module__:
+            case DynatraceEnvironmentV1():
                 return cls.init_from_dynatrace_environment(
                     cast(DynatraceEnvironmentV1, model)
                 )
-            case GlitchtipInstanceV1.__module__:
+            case GlitchtipInstanceV1():
                 return cls.init_from_glitchtip_instance(
                     cast(GlitchtipInstanceV1, model)
                 )
-            case JiraServerV1.__module__:
+            case JiraServerV1():
                 return cls.init_from_jira_server(cast(JiraServerV1, model))
-            case OCMEnvironment.__module__:
+            case OCMEnvironment():
                 return cls.init_from_ocm_environment(cast(OCMEnvironment, model))
-            case PagerDutyInstanceV1.__module__:
+            case PagerDutyInstanceV1():
                 return cls.init_from_pagerduty_instance(
                     cast(PagerDutyInstanceV1, model)
                 )
-            case QuayInstanceV1.__module__:
+            case QuayInstanceV1():
                 return cls.init_from_quay_instance(cast(QuayInstanceV1, model))
-            case SlackWorkspaceV1.__module__:
+            case SlackWorkspaceV1():
                 return cls.init_from_slack_workspace(cast(SlackWorkspaceV1, model))
-            case StatusPageV1.__module__:
+            case StatusPageV1():
                 return cls.init_from_status_page(cast(StatusPageV1, model))
-            case UnleashInstanceV1.__module__:
+            case UnleashInstanceV1():
                 return cls.init_from_unleash_instance(cast(UnleashInstanceV1, model))
-            case VaultInstanceV1.__module__:
+            case VaultInstanceV1():
                 return cls.init_from_vault_instance(cast(VaultInstanceV1, model))
             case _:
                 raise NotImplementedError(f"unsupported: {model}")
@@ -246,10 +246,10 @@ class SystemToolInventory:
     def __init__(self) -> None:
         self.systems_and_tools: list[SystemTool] = []
 
-    def append(self, model: BaseModel) -> None:
+    def append(self, model: Any) -> None:
         self.systems_and_tools.append(SystemTool.init_from_model(model))
 
-    def update(self, models: list[BaseModel]) -> None:
+    def update(self, models: list[Any]) -> None:
         for m in models:
             self.append(m)
 
