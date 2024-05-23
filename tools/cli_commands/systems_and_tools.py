@@ -261,7 +261,7 @@ class SystemToolInventory:
                 "id": st.system_id,
                 "name": st.name,
                 "url": st.url,
-                "description": st.description,
+                "description": st.description.replace("\n", "\\n"),
             }
             for st in self.systems_and_tools
         ]
