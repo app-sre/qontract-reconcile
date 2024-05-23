@@ -690,7 +690,6 @@ def run(
         tf=tf,
         dry_run=dry_run,
         enable_deletion=enable_deletion,
-        defer=defer,
     )
 
     if enable_extended_early_exit and get_feature_toggle_state(
