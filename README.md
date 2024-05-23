@@ -227,6 +227,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   terraform-users                 Manage AWS users using Terraform.
   terraform-vpc-peerings          Manage VPC peerings between OSD clusters and
                                   AWS accounts or other OSD clusters.
+  terraform-vpc-resources         Manage VPC creation through a VPC request.
   vault-replication               Allow vault to replicate secrets to other
                                   instances.
   version-gate-approver           Approves OCM cluster upgrade version gates.
