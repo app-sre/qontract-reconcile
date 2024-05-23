@@ -4,7 +4,6 @@
 from typing import (
     Any,
     Self,
-    cast,
 )
 
 from pydantic import BaseModel
@@ -65,39 +64,33 @@ class SystemTool(BaseModel):
     def init_from_model(cls, model: Any) -> Self:
         match model:
             case GitlabInstanceV1():
-                return cls.init_from_gitlab(cast(GitlabInstanceV1, model))
+                return cls.init_from_gitlab(model)
             case JenkinsInstanceV1():
-                return cls.init_from_jenkins(cast(JenkinsInstanceV1, model))
+                return cls.init_from_jenkins(model)
             case ClusterV1():
-                return cls.init_from_cluster(cast(ClusterV1, model))
+                return cls.init_from_cluster(model)
             case AWSAccountV1():
-                return cls.init_from_aws_account(cast(AWSAccountV1, model))
+                return cls.init_from_aws_account(model)
             case DynatraceEnvironmentV1():
-                return cls.init_from_dynatrace_environment(
-                    cast(DynatraceEnvironmentV1, model)
-                )
+                return cls.init_from_dynatrace_environment(model)
             case GlitchtipInstanceV1():
-                return cls.init_from_glitchtip_instance(
-                    cast(GlitchtipInstanceV1, model)
-                )
+                return cls.init_from_glitchtip_instance(model)
             case JiraServerV1():
-                return cls.init_from_jira_server(cast(JiraServerV1, model))
+                return cls.init_from_jira_server(model)
             case OCMEnvironment():
-                return cls.init_from_ocm_environment(cast(OCMEnvironment, model))
+                return cls.init_from_ocm_environment(model)
             case PagerDutyInstanceV1():
-                return cls.init_from_pagerduty_instance(
-                    cast(PagerDutyInstanceV1, model)
-                )
+                return cls.init_from_pagerduty_instance(model)
             case QuayInstanceV1():
-                return cls.init_from_quay_instance(cast(QuayInstanceV1, model))
+                return cls.init_from_quay_instance(model)
             case SlackWorkspaceV1():
-                return cls.init_from_slack_workspace(cast(SlackWorkspaceV1, model))
+                return cls.init_from_slack_workspace(model)
             case StatusPageV1():
-                return cls.init_from_status_page(cast(StatusPageV1, model))
+                return cls.init_from_status_page(model)
             case UnleashInstanceV1():
-                return cls.init_from_unleash_instance(cast(UnleashInstanceV1, model))
+                return cls.init_from_unleash_instance(model)
             case VaultInstanceV1():
-                return cls.init_from_vault_instance(cast(VaultInstanceV1, model))
+                return cls.init_from_vault_instance(model)
             case _:
                 raise NotImplementedError(f"unsupported: {model}")
 
