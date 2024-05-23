@@ -2,6 +2,8 @@
 
 query JiraServers {
   jira_servers: jira_servers_v1 {
+    name
+    description
     serverUrl
     username
     token {

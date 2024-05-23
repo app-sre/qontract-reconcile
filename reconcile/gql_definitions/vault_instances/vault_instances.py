@@ -31,6 +31,7 @@ fragment VaultSecret on VaultSecret_v1 {
 query VaultInstances {
   vault_instances: vault_instances_v1 {
     name
+    description
     address
     auth {
       provider
@@ -215,6 +216,7 @@ class VaultReplicationConfigV1(ConfiguredBaseModel):
 
 class VaultInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    description: str = Field(..., alias="description")
     address: str = Field(..., alias="address")
     auth: Union[VaultInstanceAuthApproleV1, VaultInstanceAuthV1] = Field(..., alias="auth")
     replication: Optional[list[VaultReplicationConfigV1]] = Field(..., alias="replication")

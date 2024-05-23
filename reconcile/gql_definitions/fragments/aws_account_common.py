@@ -44,6 +44,7 @@ class DisableClusterAutomationsV1(ConfiguredBaseModel):
 class AWSAccountCommon(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
+    description: Optional[str] = Field(..., alias="description")
     uid: str = Field(..., alias="uid")
     terraform_username: Optional[str] = Field(..., alias="terraformUsername")
     console_url: str = Field(..., alias="consoleUrl")

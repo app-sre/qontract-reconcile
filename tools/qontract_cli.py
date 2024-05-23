@@ -142,6 +142,7 @@ from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
 )
+from tools.cli_commands.systems_and_tools import get_systems_and_tools_inventory
 from tools.sre_checkpoints import (
     full_name,
     get_latest_sre_checkpoints,
@@ -2695,6 +2696,13 @@ def hcp_migration_status(ctx):
     )
     columns = ["app", "classic", "hcp", "progress"]
     print_output(ctx.obj["options"], data, columns)
+
+
+@get.command()
+@click.pass_context
+def systems_and_tools(ctx):
+    inventory = get_systems_and_tools_inventory()
+    print_output(ctx.obj["options"], inventory.data, inventory.columns)
 
 
 @root.group(name="set")

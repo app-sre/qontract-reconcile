@@ -3,6 +3,7 @@
 query VaultInstances {
   vault_instances: vault_instances_v1 {
     name
+    description
     address
     auth {
       provider

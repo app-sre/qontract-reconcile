@@ -3,6 +3,7 @@
 query UnleashFeatureToggles {
   instances: unleash_instances_v1 {
     name
+    description
     url
     adminToken {
       ...VaultSecret

@@ -31,7 +31,9 @@ fragment VaultSecret on VaultSecret_v1 {
 query StatusPages {
   status_pages: status_page_v1 {
     name
+    description
     pageId
+    url
     apiUrl
     credentials {
       ...VaultSecret
@@ -145,7 +147,9 @@ class MaintenanceV1(ConfiguredBaseModel):
 
 class StatusPageV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    description: str = Field(..., alias="description")
     page_id: str = Field(..., alias="pageId")
+    url: Optional[str] = Field(..., alias="url")
     api_url: str = Field(..., alias="apiUrl")
     credentials: VaultSecret = Field(..., alias="credentials")
     components: Optional[list[StatusPageComponentV1]] = Field(..., alias="components")
