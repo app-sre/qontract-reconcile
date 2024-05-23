@@ -57,6 +57,8 @@ def construct_status_page_v1(
     ]
     return StatusPageV1(
         name=name,
+        description="status page desc",
+        url="https://page.statuspage.io",
         apiUrl="https://api.page.com",
         pageId=name,
         credentials=VaultSecret(
