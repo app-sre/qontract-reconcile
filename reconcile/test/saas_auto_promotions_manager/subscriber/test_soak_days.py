@@ -12,7 +12,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 
 def test_single_publisher_soak_days_not_passed(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "SOAK_DAYS": 1,
@@ -35,7 +35,7 @@ def test_single_publisher_soak_days_not_passed(
 
 def test_single_publisher_soak_days_passed(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "SOAK_DAYS": 1,
@@ -59,7 +59,7 @@ def test_single_publisher_soak_days_passed(
 
 def test_multiple_publisher_accumulated_soak_days_not_passed(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "SOAK_DAYS": 1,
@@ -88,7 +88,7 @@ def test_multiple_publisher_accumulated_soak_days_not_passed(
 
 def test_multiple_publisher_accumulated_soak_days_passed(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "SOAK_DAYS": 1,

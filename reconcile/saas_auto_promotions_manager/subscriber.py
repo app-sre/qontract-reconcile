@@ -157,9 +157,11 @@ class Subscriber:
         delta = timedelta(days=0)
         for channel in self.channels:
             for publisher in channel.publishers:
-                deployed_at = publisher.deployment_info_by_channel.get(
-                    channel.name
-                ).check_in
+                deploy_info = publisher.deployment_info_by_channel.get(channel.name)
+                if not deploy_info:
+                    # At this stage we always expect a deploy_info to be present
+                    return False
+                deployed_at = deploy_info.check_in
                 if not deployed_at:
                     continue
                 delta += now - deployed_at
