@@ -2296,9 +2296,19 @@ def terraform_users(
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
 @account_name
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
 def terraform_vpc_peerings(
-    ctx, print_to_file, enable_deletion, thread_pool_size, account_name
+    ctx,
+    print_to_file,
+    enable_deletion,
+    thread_pool_size,
+    account_name,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
 ):
     import reconcile.terraform_vpc_peerings
 
@@ -2311,6 +2321,9 @@ def terraform_vpc_peerings(
         enable_deletion,
         thread_pool_size,
         account_name,
+        enable_extended_early_exit=enable_extended_early_exit,
+        extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+        log_cached_log_output=log_cached_log_output,
     )
 
 

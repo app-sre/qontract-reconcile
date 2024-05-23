@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 88
 target-version = 'py311'
-required-version = "0.4.1"
+required-version = "0.4.5"
 
 src = ["reconcile", "tools", "release", "dockerfiles/hack", "setup.py"]
 extend-exclude = ["reconcile/gql_definitions"]
@@ -141,7 +141,6 @@ module = [
     "reconcile.terraform_aws_route53",
     "reconcile.terraform_cloudflare_resources",
     "reconcile.terraform_users",
-    "reconcile.terraform_vpc_peerings",
     "reconcile.utils.aggregated_list",
     "reconcile.utils.aws_api",
     "reconcile.utils.aws_helper",
@@ -291,8 +290,6 @@ module = [
     "reconcile.test.test_terraform_repo",
     "reconcile.test.test_terraform_resources",
     "reconcile.test.test_terraform_users",
-    "reconcile.test.test_terraform_vpc_peerings_build_desired_state",
-    "reconcile.test.test_terraform_vpc_peerings",
     "reconcile.test.test_three_way_diff_strategy",
     "reconcile.test.test_typed_queries.conftest",
     "reconcile.test.test_typed_queries.test_clusters_with_peering",

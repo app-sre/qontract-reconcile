@@ -2,6 +2,7 @@ import hashlib
 import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
@@ -152,18 +153,19 @@ class Subscriber:
         We accumulate the time a ref is running on all publishers for this subscriber.
         We compare that accumulated time with the soak_days setting of the subscriber.
         """
-        # now = datetime.now(timezone.utc)
-        # delta = timedelta(days=0)
-        # for channel in self.channels:
-        #     for publisher in channel.publishers:
-        #         deployed_at = publisher.deployment_info_by_channel.get(
-        #             channel.name
-        #         ).check_in
-        #         if not deployed_at:
-        #             continue
-        #         delta += now - deployed_at
-        # return delta >= timedelta(days=self.soak_days)
-        return True
+        now = datetime.now(timezone.utc)
+        delta = timedelta(days=0)
+        for channel in self.channels:
+            for publisher in channel.publishers:
+                deploy_info = publisher.deployment_info_by_channel.get(channel.name)
+                if not deploy_info:
+                    # At this stage we always expect a deploy_info to be present
+                    return False
+                deployed_at = deploy_info.check_in
+                if not deployed_at:
+                    continue
+                delta += now - deployed_at
+        return delta >= timedelta(days=self.soak_days)
 
     def _compute_desired_ref(self) -> None:
         """
