@@ -28,9 +28,9 @@ setup(
         "anymarkup>=0.7.0,<0.9.0",
         "python-gitlab>=1.11.0,<1.12.0",
         "semver~=3.0",
+        # keep in sync with boto3-stubs in requirements-type.txt
         "boto3==1.34.94",
         "botocore==1.34.94",
-        "mypy-boto3-s3==1.34.14",
         "urllib3~=2.2",
         "slack_sdk>=3.10,<4.0",
         "pypd>=1.1.0,<1.2.0",

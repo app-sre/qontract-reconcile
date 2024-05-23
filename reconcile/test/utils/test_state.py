@@ -1,10 +1,14 @@
 from collections.abc import Generator
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import boto3
 import pytest
 from moto import mock_s3
-from mypy_boto3_s3 import S3Client
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+else:
+    S3Client = object
 from pytest import MonkeyPatch
 from pytest_mock import MockerFixture
 

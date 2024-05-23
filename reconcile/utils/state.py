@@ -6,6 +6,7 @@ from abc import abstractmethod
 from collections.abc import Callable, Generator, Mapping
 from dataclasses import dataclass, field
 from typing import (
+    TYPE_CHECKING,
     Any,
     Optional,
     Self,
@@ -13,7 +14,12 @@ from typing import (
 
 import boto3
 from botocore.errorfactory import ClientError
-from mypy_boto3_s3 import S3Client
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+else:
+    S3Client = object
+
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.common.app_interface_state_settings import (
