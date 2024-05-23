@@ -31,6 +31,7 @@ fragment VaultSecret on VaultSecret_v1 {
 query TerraformCloudflareAccounts {
   accounts: cloudflare_accounts_v1 {
     name
+    description
     providerVersion
     apiCredentials {
       ... VaultSecret
@@ -94,6 +95,7 @@ class DeletionApprovalV1(ConfiguredBaseModel):
 
 class CloudflareAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    description: Optional[str] = Field(..., alias="description")
     provider_version: str = Field(..., alias="providerVersion")
     api_credentials: VaultSecret = Field(..., alias="apiCredentials")
     terraform_state_account: AWSAccountV1 = Field(..., alias="terraformStateAccount")

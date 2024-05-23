@@ -25,6 +25,9 @@ from reconcile.gql_definitions.jenkins_configs.jenkins_instances import (
 )
 from reconcile.gql_definitions.jira.jira_servers import JiraServerV1
 from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
+from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
+    CloudflareAccountV1,
+)
 from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
     AWSAccountV1,
 )
@@ -33,6 +36,7 @@ from reconcile.gql_definitions.unleash_feature_toggles.feature_toggles import (
 )
 from reconcile.gql_definitions.vault_instances.vault_instances import VaultInstanceV1
 from reconcile.statuspage.integration import get_status_pages
+from reconcile.typed_queries.cloudflare import get_cloudflare_accounts
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.dynatrace import get_dynatrace_environments
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
@@ -91,6 +95,8 @@ class SystemTool(BaseModel):
                 return cls.init_from_unleash_instance(model)
             case VaultInstanceV1():
                 return cls.init_from_vault_instance(model)
+            case CloudflareAccountV1():
+                return cls.init_from_cloudflare_account(model)
             case _:
                 raise NotImplementedError(f"unsupported: {model}")
 
@@ -234,6 +240,16 @@ class SystemTool(BaseModel):
             description=v.description,
         )
 
+    @classmethod
+    def init_from_cloudflare_account(cls, a: CloudflareAccountV1) -> Self:
+        return cls(
+            system_type="cloudflare",
+            system_id=a.name,
+            name=a.name,
+            url="https://dash.cloudflare.com/",
+            description=a.description,
+        )
+
 
 class SystemToolInventory:
     def __init__(self) -> None:
@@ -288,6 +304,7 @@ def get_systems_and_tools_inventory() -> SystemToolInventory:
     inventory.update(get_status_pages())
     inventory.update(get_unleash_instances())
     inventory.update(get_vault_instances())
+    inventory.update(get_cloudflare_accounts())
 
     inventory.systems_and_tools.append(
         SystemTool(
