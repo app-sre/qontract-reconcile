@@ -213,6 +213,7 @@ def mock_cloudflare_accounts(mocker):
             accounts=[
                 CFAccountV1(
                     name="cfaccount",
+                    description="cfaccount",
                     providerVersion="0.33.x",
                     apiCredentials=VaultSecret(
                         path="cf-account-path",
