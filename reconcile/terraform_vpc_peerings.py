@@ -71,7 +71,7 @@ def _build_infrastructure_assume_role(
     cluster: Mapping[str, Any],
     ocm: OCM | None,
     provided_assume_role: str | None,
-) -> Mapping[str, Any] | None:
+) -> dict[str, Any] | None:
     if provided_assume_role:
         assume_role = provided_assume_role
     elif cluster["spec"].get("account"):
@@ -109,7 +109,7 @@ def aws_assume_roles_for_cluster_vpc_peering(
     accepter_connection: Mapping[str, Any],
     accepter_cluster: Mapping[str, Any],
     ocm: OCM | None,
-) -> tuple[str, Mapping[str, Any], Mapping[str, Any]]:
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
     # check if dedicated infra accounts have been declared on the
     # accepters peering connection or on the accepters cluster
     allowed_accounts = {
@@ -671,6 +671,9 @@ def run(
     if print_to_file:
         sys.exit(0 if dry_run else int(any(errors)))
 
+    if any(errors):
+        sys.exit(1)
+
     tf = terraform.TerraformClient(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
@@ -680,9 +683,8 @@ def run(
         thread_pool_size,
         awsapi,
     )
-
-    if any(errors):
-        sys.exit(1)
+    if defer:
+        defer(tf.cleanup)
 
     runner_params: RunnerParams = dict(
         tf=tf,
@@ -720,18 +722,13 @@ class RunnerParams(TypedDict):
     tf: terraform.TerraformClient
     dry_run: bool
     enable_deletion: bool
-    defer: Callable | None
 
 
 def runner(
     dry_run: bool,
     tf: terraform.TerraformClient,
     enable_deletion: bool = False,
-    defer: Callable | None = None,
 ) -> ExtendedEarlyExitRunnerResult:
-    if defer:
-        defer(tf.cleanup)
-
     disabled_deletions_detected, err = tf.plan(enable_deletion)
     if disabled_deletions_detected:
         raise RuntimeError("Terraform plan has disabled deletions detected")
