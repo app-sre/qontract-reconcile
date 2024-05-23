@@ -1,11 +1,15 @@
 from collections.abc import Callable, Generator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import boto3
 import pytest
 from moto import mock_s3
-from mypy_boto3_s3 import S3Client
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+else:
+    S3Client = object
 from pytest_mock import MockerFixture
 
 from reconcile.aws_account_manager.reconciler import (

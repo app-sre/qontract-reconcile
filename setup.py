@@ -1,9 +1,8 @@
+from release import version
 from setuptools import (
     find_packages,
     setup,
 )
-
-from release import version
 
 setup(
     name="qontract-reconcile",
@@ -32,7 +31,6 @@ setup(
         # keep in sync with boto3-stubs in requirements-type.txt
         "boto3==1.34.94",
         "botocore==1.34.94",
-        "mypy-boto3-s3==1.34.14",
         "urllib3~=2.2",
         "slack_sdk>=3.10,<4.0",
         "pypd>=1.1.0,<1.2.0",
