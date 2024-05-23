@@ -145,13 +145,16 @@ class StatusMaintenance(BaseModel):
             for c in page_components
             if c.app.name in affected_services
         ]
-        statuspage_announcements = [
-            StatusMaintenanceAnnouncement.init_from_announcement(
-                cast(MaintenanceStatuspageAnnouncementV1, m)
-            )
-            for m in maintenance.announcements or []
-            if m.provider == PROVIDER_NAME
-        ]
+        if affected_components:
+            statuspage_announcements = [
+                StatusMaintenanceAnnouncement.init_from_announcement(
+                    cast(MaintenanceStatuspageAnnouncementV1, m)
+                )
+                for m in maintenance.announcements or []
+                if m.provider == PROVIDER_NAME
+            ]
+        else:
+            statuspage_announcements = [StatusMaintenanceAnnouncement()]
         if len(statuspage_announcements) != 1:
             raise ValueError(
                 f"Maintenanace announcements must include exactly one item of provider {PROVIDER_NAME}"
