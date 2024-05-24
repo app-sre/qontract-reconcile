@@ -17,7 +17,7 @@ objects:
       ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
     name: qontract-reconcile-integ-acc-1
   spec:
-    revisionHistoryLimit: 50
+    revisionHistoryLimit: 5
     replicas: 1
     selector:
       matchLabels:
@@ -214,7 +214,7 @@ objects:
       ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
     name: qontract-reconcile-integ-acc-2
   spec:
-    revisionHistoryLimit: 50
+    revisionHistoryLimit: 5
     replicas: 0
     selector:
       matchLabels:
