@@ -26,7 +26,7 @@ objects:
         resources:
           requests:
             storage: 25Gi
-    revisionHistoryLimit: 50
+    revisionHistoryLimit: 5
     replicas: 1
     selector:
       matchLabels:
@@ -197,7 +197,7 @@ objects:
             mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-sa-token
-          projected: 
+          projected:
             sources:
             - serviceAccountToken:
                 expirationSeconds: 1800
