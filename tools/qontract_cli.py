@@ -1265,8 +1265,9 @@ def aws_route53_zones(ctx):
 
 @get.command()
 @click.argument("cluster_name")
+@click.option("--cluster-admin/--no-cluster-admin", default=False)
 @click.pass_context
-def bot_login(ctx, cluster_name):
+def bot_login(ctx, cluster_name, cluster_admin):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     clusters = queries.get_clusters()
@@ -1277,7 +1278,10 @@ def bot_login(ctx, cluster_name):
 
     cluster = clusters[0]
     server = cluster["serverUrl"]
-    token = secret_reader.read(cluster["automationToken"])
+    automation_token_name = (
+        "clusterAdminAutomationToken" if cluster_admin else "automationToken"
+    )
+    token = secret_reader.read(cluster[automation_token_name])
     print(f"oc login --server {server} --token {token}")
 
 
