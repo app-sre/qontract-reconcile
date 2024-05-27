@@ -31,6 +31,7 @@ fragment VaultSecret on VaultSecret_v1 {
 query GlitchtipInstance {
   instances: glitchtip_instances_v1 {
     name
+    description
     consoleUrl
     automationUserEmail {
       ...VaultSecret
@@ -58,6 +59,7 @@ class ConfiguredBaseModel(BaseModel):
 
 class GlitchtipInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    description: str = Field(..., alias="description")
     console_url: str = Field(..., alias="consoleUrl")
     automation_user_email: VaultSecret = Field(..., alias="automationUserEmail")
     automation_token: VaultSecret = Field(..., alias="automationToken")

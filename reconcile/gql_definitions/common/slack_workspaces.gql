@@ -1,0 +1,8 @@
+# qenerate: plugin=pydantic_v1
+
+query SlackWorkspace {
+  workspaces: slack_workspaces_v1 {
+    name
+    description
+  }
+}

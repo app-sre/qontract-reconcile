@@ -1,0 +1,8 @@
+# qenerate: plugin=pydantic_v1
+query QuayInstances {
+  instances: quay_instances_v1 {
+    name
+    description
+    url
+  }
+}

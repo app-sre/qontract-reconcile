@@ -2,6 +2,7 @@
 query PagerduytInstances {
   pagerduty_instances: pagerduty_instances_v1 {
     name
+    description
     token {
       ...VaultSecret
     }

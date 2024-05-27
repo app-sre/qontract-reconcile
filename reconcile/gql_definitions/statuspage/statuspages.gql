@@ -3,7 +3,9 @@
 query StatusPages {
   status_pages: status_page_v1 {
     name
+    description
     pageId
+    url
     apiUrl
     credentials {
       ...VaultSecret

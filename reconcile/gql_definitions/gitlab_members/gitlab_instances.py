@@ -30,6 +30,8 @@ fragment VaultSecret on VaultSecret_v1 {
 
 query GitlabInstance {
   instances: gitlabinstance_v1 {
+    name
+    description
     url
     token {
       ...VaultSecret
@@ -48,6 +50,8 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class GitlabInstanceV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    description: str = Field(..., alias="description")
     url: str = Field(..., alias="url")
     token: VaultSecret = Field(..., alias="token")
     ssl_verify: Optional[bool] = Field(..., alias="sslVerify")

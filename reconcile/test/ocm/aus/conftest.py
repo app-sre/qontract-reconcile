@@ -15,6 +15,7 @@ from reconcile.utils.ocm.base import OCMVersionGate
 def ocm_env() -> OCMEnvironment:
     return OCMEnvironment(
         name="env",
+        description="env desc",
         labels="{}",
         url="https://ocm",
         accessTokenUrl="https://sso/token",

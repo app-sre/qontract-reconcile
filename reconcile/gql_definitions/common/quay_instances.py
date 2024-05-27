@@ -19,18 +19,11 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query JiraServers {
-  jira_servers: jira_servers_v1 {
+query QuayInstances {
+  instances: quay_instances_v1 {
     name
     description
-    serverUrl
-    username
-    token {
-      path
-      version
-      field
-      format
-    }
+    url
   }
 }
 """
@@ -42,26 +35,17 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
-class VaultSecretV1(ConfiguredBaseModel):
-    path: str = Field(..., alias="path")
-    version: Optional[int] = Field(..., alias="version")
-    field: str = Field(..., alias="field")
-    q_format: Optional[str] = Field(..., alias="format")
-
-
-class JiraServerV1(ConfiguredBaseModel):
+class QuayInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     description: str = Field(..., alias="description")
-    server_url: str = Field(..., alias="serverUrl")
-    username: str = Field(..., alias="username")
-    token: VaultSecretV1 = Field(..., alias="token")
+    url: str = Field(..., alias="url")
 
 
-class JiraServersQueryData(ConfiguredBaseModel):
-    jira_servers: Optional[list[JiraServerV1]] = Field(..., alias="jira_servers")
+class QuayInstancesQueryData(ConfiguredBaseModel):
+    instances: Optional[list[QuayInstanceV1]] = Field(..., alias="instances")
 
 
-def query(query_func: Callable, **kwargs: Any) -> JiraServersQueryData:
+def query(query_func: Callable, **kwargs: Any) -> QuayInstancesQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -74,7 +58,7 @@ def query(query_func: Callable, **kwargs: Any) -> JiraServersQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        JiraServersQueryData: queried data parsed into generated classes
+        QuayInstancesQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return JiraServersQueryData(**raw_data)
+    return QuayInstancesQueryData(**raw_data)

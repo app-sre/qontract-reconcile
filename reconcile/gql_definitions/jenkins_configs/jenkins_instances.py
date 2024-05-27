@@ -17,20 +17,26 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
-query JiraServers {
-  jira_servers: jira_servers_v1 {
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
+query JenkinsInstances {
+  instances: jenkins_instances_v1 {
     name
     description
     serverUrl
-    username
     token {
-      path
-      version
-      field
-      format
+      ... VaultSecret
     }
+    deleteMethod
   }
 }
 """
@@ -42,26 +48,19 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
-class VaultSecretV1(ConfiguredBaseModel):
-    path: str = Field(..., alias="path")
-    version: Optional[int] = Field(..., alias="version")
-    field: str = Field(..., alias="field")
-    q_format: Optional[str] = Field(..., alias="format")
-
-
-class JiraServerV1(ConfiguredBaseModel):
+class JenkinsInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     description: str = Field(..., alias="description")
     server_url: str = Field(..., alias="serverUrl")
-    username: str = Field(..., alias="username")
-    token: VaultSecretV1 = Field(..., alias="token")
+    token: VaultSecret = Field(..., alias="token")
+    delete_method: Optional[str] = Field(..., alias="deleteMethod")
 
 
-class JiraServersQueryData(ConfiguredBaseModel):
-    jira_servers: Optional[list[JiraServerV1]] = Field(..., alias="jira_servers")
+class JenkinsInstancesQueryData(ConfiguredBaseModel):
+    instances: Optional[list[JenkinsInstanceV1]] = Field(..., alias="instances")
 
 
-def query(query_func: Callable, **kwargs: Any) -> JiraServersQueryData:
+def query(query_func: Callable, **kwargs: Any) -> JenkinsInstancesQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -74,7 +73,7 @@ def query(query_func: Callable, **kwargs: Any) -> JiraServersQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        JiraServersQueryData: queried data parsed into generated classes
+        JenkinsInstancesQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return JiraServersQueryData(**raw_data)
+    return JenkinsInstancesQueryData(**raw_data)
