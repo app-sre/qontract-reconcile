@@ -59,9 +59,6 @@ def run(dry_run, thread_pool_size=10, defer=None):
             gl.share_project_with_group(repo_url=repo, group_id=group_id)
 
 
-def get_id_to_repo_mapping(repo, gl):
-    return {gl.get_project(repo_url=repo).get_id(): repo}
-
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     instance = queries.get_gitlab_instance()
