@@ -250,12 +250,29 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         except gitlab.exceptions.GitlabGetError:
             return None
 
-    def share_project_with_group(self, repo_url, group_id, access="maintainer"):
+    def share_project_with_group(
+        self, repo_url, group_id, dry_run, access="maintainer"
+    ):
         project = self.get_project(repo_url)
         if project is None:
             return
         access_level = self.get_access_level(access)
-        project.share(group_id, access_level)
+        try:
+            member = project.members.get(self.user.id)
+            if member.access_level < access_level:
+                logging.error(
+                    "'{}' is not shared with {} as 'Maintainer'".format(
+                        repo_url, self.user.username
+                    )
+                )
+        except gitlab.exceptions.GitlabGetError:
+            logging.error(
+                "'{}' is not shared with {}".format(repo_url, self.user.username)
+            )
+            return
+        logging.info(["add_group_as_maintainer"], repo_url, "app-sre")
+        if not dry_run:
+            project.share(group_id, access_level)
 
     def get_group_id_and_shared_projects(self, group_name):
         group = self.gl.groups.get(group_name)
