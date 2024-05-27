@@ -8,7 +8,9 @@ from typing import (
 
 from pydantic import BaseModel
 
-from reconcile.gql_definitions.common.app_code_component_repos import AppCodeComponentsV1
+from reconcile.gql_definitions.common.app_code_component_repos import (
+    AppCodeComponentsV1,
+)
 from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.gql_definitions.common.pagerduty_instances import (
     PagerDutyInstanceV1,
@@ -319,7 +321,9 @@ def get_systems_and_tools_inventory() -> SystemToolInventory:
     inventory.update(get_unleash_instances())
     inventory.update(get_vault_instances())
     inventory.update(get_cloudflare_accounts())
-    inventory.update([c for c in get_code_components() if c.resource == "app-interface"])
+    inventory.update([
+        c for c in get_code_components() if c.resource == "app-interface"
+    ])
 
     inventory.systems_and_tools.append(
         SystemTool(
