@@ -8,6 +8,9 @@ from typing import (
 
 from pydantic import BaseModel
 
+from reconcile.gql_definitions.common.app_code_component_repos import (
+    AppCodeComponentsV1,
+)
 from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.gql_definitions.common.pagerduty_instances import (
     PagerDutyInstanceV1,
@@ -46,6 +49,7 @@ from reconcile.typed_queries.jira import get_jira_servers
 from reconcile.typed_queries.ocm import get_ocm_environments
 from reconcile.typed_queries.pagerduty_instances import get_pagerduty_instances
 from reconcile.typed_queries.quay import get_quay_instances
+from reconcile.typed_queries.repos import get_code_components
 from reconcile.typed_queries.slack import get_slack_workspaces
 from reconcile.typed_queries.terraform_tgw_attachments.aws_accounts import (
     get_aws_accounts,
@@ -97,6 +101,8 @@ class SystemTool(BaseModel):
                 return cls.init_from_vault_instance(model)
             case CloudflareAccountV1():
                 return cls.init_from_cloudflare_account(model)
+            case AppCodeComponentsV1():
+                return cls.init_from_code_component(model)
             case _:
                 raise NotImplementedError(f"unsupported: {model}")
 
@@ -250,6 +256,16 @@ class SystemTool(BaseModel):
             description=a.description,
         )
 
+    @classmethod
+    def init_from_code_component(cls, c: AppCodeComponentsV1) -> Self:
+        return cls(
+            system_type=c.resource,
+            system_id=c.name,
+            name=c.name,
+            url=c.url,
+            description=c.name,
+        )
+
 
 class SystemToolInventory:
     def __init__(self) -> None:
@@ -305,6 +321,9 @@ def get_systems_and_tools_inventory() -> SystemToolInventory:
     inventory.update(get_unleash_instances())
     inventory.update(get_vault_instances())
     inventory.update(get_cloudflare_accounts())
+    inventory.update([
+        c for c in get_code_components() if c.resource == "app-interface"
+    ])
 
     inventory.systems_and_tools.append(
         SystemTool(
