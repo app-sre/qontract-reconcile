@@ -103,7 +103,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}) by (current_version)",
+              "expr": "sum(aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\"$workloads\", cluster_name=~\"$clusters\"}) by (current_version)",
               "format": "table",
               "instant": true,
               "legendFormat": "__auto",
@@ -140,7 +140,9 @@ data:
               },
               "custom": {
                 "align": "auto",
-                "displayMode": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
                 "filterable": true,
                 "inspect": false
               },
@@ -225,7 +227,9 @@ data:
           },
           "id": 4,
           "options": {
+            "cellHeight": "sm",
             "footer": {
+              "countRows": false,
               "fields": "",
               "reducer": [
                 "sum"
@@ -240,7 +244,7 @@ data:
               }
             ]
           },
-          "pluginVersion": "9.3.8",
+          "pluginVersion": "10.4.1",
           "targets": [
             {
               "datasource": {
@@ -249,7 +253,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "label_join((aus_cluster_version_remaining_soak_days >= 0) * on (cluster_uuid, soaking_version) (clamp_max(changes(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]), 1) > 0) * on (cluster_uuid) group_left(cluster_name, current_version, workloads, schedule, sector, soak_days) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\")",
+              "expr": "label_join((aus_cluster_version_remaining_soak_days >= 0) * on (cluster_uuid, soaking_version) (clamp_max(changes(min(aus_cluster_version_remaining_soak_days) by(cluster_uuid, soaking_version)[1h:1m]), 1) > 0) * on (cluster_uuid) group_left(cluster_name, current_version, workloads, schedule, sector, soak_days) aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\"$workloads\", cluster_name=~\"$clusters\"}, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\")",
               "format": "table",
               "instant": true,
               "interval": "5m",
@@ -264,7 +268,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "label_join(delta(min((aus_cluster_version_remaining_soak_days >= 0)) by(cluster_uuid, soaking_version)[1h:1m]) * -24 * on (cluster_uuid) group_left aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\") > 0",
+              "expr": "label_join(delta(min((aus_cluster_version_remaining_soak_days >= 0)) by(cluster_uuid, soaking_version)[1h:1m]) * -24 * on (cluster_uuid) group_left aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\"$workloads\", cluster_name=~\"$clusters\"} > 0, \"cluster_soaking_version\", \"-\", \"cluster_uuid\", \"soaking_version\") > 0",
               "format": "table",
               "hide": false,
               "instant": true,
@@ -363,7 +367,9 @@ data:
               },
               "custom": {
                 "align": "auto",
-                "displayMode": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
                 "filterable": false,
                 "inspect": false
               },
@@ -483,7 +489,9 @@ data:
           },
           "id": 2,
           "options": {
+            "cellHeight": "sm",
             "footer": {
+              "countRows": false,
               "fields": "",
               "reducer": [
                 "sum"
@@ -498,7 +506,7 @@ data:
               }
             ]
           },
-          "pluginVersion": "9.3.8",
+          "pluginVersion": "10.4.1",
           "targets": [
             {
               "datasource": {
@@ -507,7 +515,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "aus_cluster_version_remaining_soak_days * on (cluster_uuid) group_left(cluster_name, workloads, schedule, sector, cluster_name_version) label_join(aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}, \"cluster_name_version\", \" @ \", \"cluster_name\", \"current_version\")",
+              "expr": "aus_cluster_version_remaining_soak_days * on (cluster_uuid) group_left(cluster_name, workloads, schedule, sector, cluster_name_version) label_join(aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\"$workloads\", cluster_name=~\"$clusters\"}, \"cluster_name_version\", \" @ \", \"cluster_name\", \"current_version\")",
               "format": "table",
               "instant": true,
               "legendFormat": "__auto",
@@ -596,9 +604,11 @@ data:
               "fields": "",
               "values": false
             },
-            "textMode": "auto"
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
           },
-          "pluginVersion": "9.3.8",
+          "pluginVersion": "10.4.1",
           "targets": [
             {
               "datasource": {
@@ -606,7 +616,7 @@ data:
                 "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
-              "expr": "count(sum(\n    resets(\n    ((aus_cluster_version_remaining_soak_days == 0 or aus_cluster_version_remaining_soak_days == -2)*-1)[24h:]\n    )\n) by (cluster_uuid, soaking_version)\n* on (cluster_uuid, soaking_version) count(aus_cluster_version_remaining_soak_days) by (cluster_uuid, soaking_version)\n* on (cluster_uuid) group_left(cluster_name, ocm_env, org_name, current_version) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0)",
+              "expr": "count(sum(\n    resets(\n    ((aus_cluster_version_remaining_soak_days == 0 or aus_cluster_version_remaining_soak_days == -2)*-1)[24h:]\n    )\n) by (cluster_uuid, soaking_version)\n* on (cluster_uuid, soaking_version) count(aus_cluster_version_remaining_soak_days) by (cluster_uuid, soaking_version)\n* on (cluster_uuid) group_left(cluster_name, ocm_env, org_name, current_version) aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\"$workloads\", cluster_name=~\"$clusters\"} > 0)",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -627,7 +637,9 @@ data:
               },
               "custom": {
                 "align": "auto",
-                "displayMode": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
                 "inspect": false
               },
               "mappings": [],
@@ -696,7 +708,9 @@ data:
           },
           "id": 18,
           "options": {
+            "cellHeight": "sm",
             "footer": {
+              "countRows": false,
               "fields": "",
               "reducer": [
                 "sum"
@@ -706,7 +720,7 @@ data:
             "showHeader": true,
             "sortBy": []
           },
-          "pluginVersion": "9.3.8",
+          "pluginVersion": "10.4.1",
           "targets": [
             {
               "datasource": {
@@ -715,7 +729,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(\n    resets(\n    ((aus_cluster_version_remaining_soak_days == 0 or aus_cluster_version_remaining_soak_days == -2)*-1)[24h:]\n    )\n) by (cluster_uuid, soaking_version)\n* on (cluster_uuid, soaking_version) count(aus_cluster_version_remaining_soak_days) by (cluster_uuid, soaking_version)\n* on (cluster_uuid) group_left(cluster_name, ocm_env, org_name, current_version) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 0",
+              "expr": "sum(\n    resets(\n    ((aus_cluster_version_remaining_soak_days == 0 or aus_cluster_version_remaining_soak_days == -2)*-1)[24h:]\n    )\n) by (cluster_uuid, soaking_version)\n* on (cluster_uuid, soaking_version) count(aus_cluster_version_remaining_soak_days) by (cluster_uuid, soaking_version)\n* on (cluster_uuid) group_left(cluster_name, ocm_env, org_name, current_version) aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\"$workloads\", cluster_name=~\"$clusters\"} > 0",
               "format": "table",
               "instant": true,
               "interval": "10m",
@@ -793,9 +807,11 @@ data:
               "fields": "",
               "values": false
             },
-            "textMode": "auto"
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
           },
-          "pluginVersion": "9.3.8",
+          "pluginVersion": "10.4.1",
           "targets": [
             {
               "datasource": {
@@ -804,7 +820,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "count(count(sum by(cluster_uuid, current_version)(last_over_time({__name__=\"aus_cluster_upgrade_policy_info\"}[25h]))) by (__name__, cluster_uuid) * on (cluster_uuid) group_left (org_id, org_name, cluster_name, current_version) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} > 1) or vector(0)\n",
+              "expr": "count(count(sum by(cluster_uuid, current_version)(last_over_time({__name__=\"aus_cluster_upgrade_policy_info\"}[25h]))) by (__name__, cluster_uuid) * on (cluster_uuid) group_left (org_id, org_name, cluster_name, current_version) aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\"$workloads\", cluster_name=~\"$clusters\"} > 1) or vector(0)\n",
               "format": "table",
               "instant": true,
               "legendFormat": "__auto",
@@ -835,7 +851,9 @@ data:
               },
               "custom": {
                 "align": "auto",
-                "displayMode": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
                 "filterable": true,
                 "inspect": false
               },
@@ -901,7 +919,9 @@ data:
           },
           "id": 10,
           "options": {
+            "cellHeight": "sm",
             "footer": {
+              "countRows": false,
               "fields": "",
               "reducer": [
                 "sum"
@@ -911,7 +931,7 @@ data:
             "showHeader": true,
             "sortBy": []
           },
-          "pluginVersion": "9.3.8",
+          "pluginVersion": "10.4.1",
           "targets": [
             {
               "datasource": {
@@ -920,7 +940,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "count(sum by(cluster_uuid, current_version)(last_over_time({__name__=\"aus_cluster_upgrade_policy_info\"}[25h]))) by (__name__, cluster_uuid) * on (cluster_uuid) group_left (org_id, org_name, cluster_name, current_version) aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"} * on (cluster_uuid) group_left(previous_version) label_replace(aus_cluster_upgrade_policy_info offset 25h, \"previous_version\", \"$1\", \"current_version\", \"(.+)\") > 1",
+              "expr": "count(sum by(cluster_uuid, current_version)(last_over_time({__name__=\"aus_cluster_upgrade_policy_info\"}[25h]))) by (__name__, cluster_uuid) * on (cluster_uuid) group_left (org_id, org_name, cluster_name, current_version) aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\"$workloads\", cluster_name=~\"$clusters\"} * on (cluster_uuid) group_left(previous_version) label_replace(aus_cluster_upgrade_policy_info offset 25h, \"previous_version\", \"$1\", \"current_version\", \"(.+)\") > 1",
               "format": "table",
               "instant": true,
               "interval": "10",
@@ -998,7 +1018,9 @@ data:
               },
               "custom": {
                 "align": "auto",
-                "displayMode": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
                 "filterable": true,
                 "inspect": false
               },
@@ -1040,7 +1062,9 @@ data:
           },
           "id": 6,
           "options": {
+            "cellHeight": "sm",
             "footer": {
+              "countRows": false,
               "fields": "",
               "reducer": [
                 "sum"
@@ -1055,7 +1079,7 @@ data:
               }
             ]
           },
-          "pluginVersion": "9.3.8",
+          "pluginVersion": "10.4.1",
           "targets": [
             {
               "datasource": {
@@ -1064,7 +1088,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": " aus_cluster_upgrade_policy_info{workloads=~\".*$workloads.*\", org_id=~\".*$org_id.*\"}",
+              "expr": " aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\"$workloads\", cluster_name=~\"$clusters\"}",
               "format": "table",
               "instant": true,
               "legendFormat": "__auto",
@@ -1137,8 +1161,7 @@ data:
           "type": "table"
         }
       ],
-      "schemaVersion": 37,
-      "style": "dark",
+      "schemaVersion": 39,
       "tags": [],
       "templating": {
         "list": [
@@ -1187,7 +1210,39 @@ data:
               "type": "prometheus",
               "uid": "P7B77307D2CE073BC"
             },
-            "definition": "label_values(aus_cluster_upgrade_policy_info, workloads)",
+            "definition": "label_values(aus_cluster_upgrade_policy_info{org_id=~\"$org_id\"},sector)",
+            "hide": 0,
+            "includeAll": true,
+            "label": "Sectors",
+            "multi": true,
+            "name": "sectors",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(aus_cluster_upgrade_policy_info{org_id=~\"$org_id\"},sector)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 2,
+            "regex": "((?:[^\\\",]|(?:\\\"(?:\\\\\\\\{2}|\\\\\\\\\\\"|[^\\\"])*?\\\"))*)",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "current": {
+              "selected": true,
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "P7B77307D2CE073BC"
+            },
+            "definition": "label_values(aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\"},workloads)",
             "hide": 0,
             "includeAll": true,
             "label": "Workloads",
@@ -1195,8 +1250,41 @@ data:
             "name": "workloads",
             "options": [],
             "query": {
-              "query": "label_values(aus_cluster_upgrade_policy_info, workloads)",
-              "refId": "StandardVariableQuery"
+              "qryType": 1,
+              "query": "label_values(aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\"},workloads)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 2,
+            "regex": "((?:[^\\\",]|(?:\\\"(?:\\\\\\\\{2}|\\\\\\\\\\\"|[^\\\"])*?\\\"))*)",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "current": {
+              "selected": true,
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "P7B77307D2CE073BC"
+            },
+            "definition": "label_values(aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\"$workloads\"},cluster_name)",
+            "hide": 0,
+            "includeAll": true,
+            "label": "Clusters",
+            "multi": true,
+            "name": "clusters",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\"$workloads\"},cluster_name)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
             "refresh": 2,
             "regex": "((?:[^\\\",]|(?:\\\"(?:\\\\\\\\{2}|\\\\\\\\\\\"|[^\\\"])*?\\\"))*)",
