@@ -2287,6 +2287,35 @@ def terraform_users(
     )
 
 
+@integration.command(short_help="Manage VPC creation")
+@binary(["terraform"])
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@account_name
+@print_to_file
+@threaded()
+@enable_deletion(default=False)
+@click.pass_context
+def terraform_vpc_resources(
+    ctx, account_name, print_to_file, thread_pool_size, enable_deletion
+):
+    from reconcile.terraform_vpc_resources.integration import (
+        TerraformVpcResources,
+        TerraformVpcResourcesParams,
+    )
+
+    run_class_integration(
+        TerraformVpcResources(
+            TerraformVpcResourcesParams(
+                account_name=account_name,
+                print_to_file=print_to_file,
+                thread_pool_size=thread_pool_size,
+                enable_deletion=enable_deletion,
+            )
+        ),
+        ctx.obj,
+    )
+
+
 @integration.command(
     short_help="Manage VPC peerings between OSD clusters and AWS accounts or other OSD clusters."
 )

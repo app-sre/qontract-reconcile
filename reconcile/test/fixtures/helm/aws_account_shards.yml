@@ -17,7 +17,7 @@ objects:
       ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
     name: qontract-reconcile-integ-acc-1
   spec:
-    revisionHistoryLimit: 50
+    revisionHistoryLimit: 5
     replicas: 1
     selector:
       matchLabels:
@@ -188,7 +188,7 @@ objects:
             mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-sa-token
-          projected: 
+          projected:
             sources:
             - serviceAccountToken:
                 expirationSeconds: 1800
@@ -214,7 +214,7 @@ objects:
       ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
     name: qontract-reconcile-integ-acc-2
   spec:
-    revisionHistoryLimit: 50
+    revisionHistoryLimit: 5
     replicas: 1
     selector:
       matchLabels:
@@ -385,7 +385,7 @@ objects:
             mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-sa-token
-          projected: 
+          projected:
             sources:
             - serviceAccountToken:
                 expirationSeconds: 1800

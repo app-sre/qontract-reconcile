@@ -178,6 +178,29 @@ class GqlApi:
 
         return result["data"]
 
+    def get_template(self, path: str) -> dict[str, str]:
+        query = """
+        query Template($path: String) {
+          templates: template_v1(path: $path) {
+            path
+            template
+          }
+        }
+        """
+
+        try:
+            templates = []
+            q_result = self.query(query, {"path": path})
+            if q_result:
+                templates = q_result["templates"]
+        except GqlApiError:
+            raise GqlGetResourceError(path, "Template not found.")
+
+        if len(templates) != 1:
+            raise GqlGetResourceError(path, "Expecting one and only one template.")
+
+        return templates[0]
+
     def get_resource(self, path: str) -> dict[str, Any]:
         query = """
         query Resource($path: String) {

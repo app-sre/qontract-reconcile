@@ -15,6 +15,7 @@ from reconcile.aus.healthchecks import (
     AUSClusterHealthCheckProvider,
     build_cluster_health_providers_for_organization,
 )
+from reconcile.aus.metrics import AUSOCMEnvironmentError
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
     OrganizationUpgradeSpec,
@@ -37,6 +38,7 @@ from reconcile.gql_definitions.fragments.upgrade_policy import (
     ClusterUpgradePolicyConditionsV1,
     ClusterUpgradePolicyV1,
 )
+from reconcile.utils import metrics
 from reconcile.utils.clusterhealth.providerbase import ClusterHealthProvider
 from reconcile.utils.models import (
     CSV,
@@ -85,14 +87,28 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
 
     def get_upgrade_specs(self) -> dict[str, dict[str, OrganizationUpgradeSpec]]:
         inheritance_network = self.init_version_data_network()
-
-        return {
-            ocm_env.name: self._build_ocm_env_upgrade_specs(
-                ocm_env=ocm_env,
-                inheritance_network=inheritance_network,
-            )
-            for ocm_env in self.get_ocm_environments()
-        }
+        envs_org_upgrade_specs: dict[str, dict[str, OrganizationUpgradeSpec]] = {}
+        for ocm_env in self.get_ocm_environments():
+            try:
+                envs_org_upgrade_specs[ocm_env.name] = (
+                    self._build_ocm_env_upgrade_specs(
+                        ocm_env=ocm_env,
+                        inheritance_network=inheritance_network,
+                    )
+                )
+            except Exception as e:
+                logging.exception(
+                    "Failed to get org upgrade specs for OCM environment %s. Skipping. %s",
+                    ocm_env.name,
+                    e,
+                )
+                metrics.inc_counter(
+                    AUSOCMEnvironmentError(
+                        integration=self.name,
+                        ocm_env=ocm_env.name,
+                    )
+                )
+        return envs_org_upgrade_specs
 
     def init_version_data_network(self) -> dict["OrgRef", "VersionDataInheritance"]:
         # collect all version data labels from all OCM environments ...
