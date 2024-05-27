@@ -22,6 +22,8 @@ DEFINITION = """
 query AppCodeComponentRepos {
   apps: apps_v1 {
     codeComponents {
+      name
+      resource
       url
     }
   }
@@ -36,6 +38,8 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class AppCodeComponentsV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    resource: str = Field(..., alias="resource")
     url: str = Field(..., alias="url")
 
 
