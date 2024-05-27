@@ -250,6 +250,23 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         except gitlab.exceptions.GitlabGetError:
             return None
 
+    def share_project_with_group(self, repo_url, group_id, access="maintainer"):
+        project = self.get_project(repo_url)
+        if project is None:
+            return
+        access_level = self.get_access_level(access)
+        project.share(group_id, access_level)
+
+    def get_group_id_and_shared_projects(self, group_name):
+        group = self.gl.groups.get(group_name)
+        return group.id, [
+            project
+            for project in group.shared_projects
+            for shared_group in project["shared_with_groups"]
+            if shared_group["group_id"] == group.id
+            and shared_group["group_access_level"] >= 40
+        ]
+
     @staticmethod
     def _is_bot_username(username: str) -> bool:
         """crudely checking for the username

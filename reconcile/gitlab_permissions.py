@@ -2,8 +2,6 @@ import itertools
 import logging
 from typing import Any
 
-from sretoolbox.utils import threaded
-
 from reconcile import queries
 from reconcile.utils import batches
 from reconcile.utils.defer import defer
@@ -11,6 +9,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 
 QONTRACT_INTEGRATION = "gitlab-permissions"
 PAGE_SIZE = 100
+APP_SRE_GROUP_NAME = "app-sre"
 
 
 def get_members_to_add(repo, gl, app_sre):
@@ -50,15 +49,18 @@ def run(dry_run, thread_pool_size=10, defer=None):
     if defer:
         defer(gl.cleanup)
     repos = queries.get_repos(server=gl.server, exclude_manage_permissions=True)
-    app_sre = gl.get_app_sre_group_users()
-    results = threaded.run(
-        get_members_to_add, repos, thread_pool_size, gl=gl, app_sre=app_sre
-    )
-    members_to_add = list(itertools.chain.from_iterable(results))
-    for m in members_to_add:
-        logging.info(["add_maintainer", m["repo"], m["user"].username])
+    logging.debug(len(repos))
+    group_id, shared_projects = gl.get_group_id_and_shared_projects(APP_SRE_GROUP_NAME)
+    shared_project_repos = [project["web_url"] for project in shared_projects]
+    repos_to_share = [repo_url for repo_url in set(repos) - set(shared_project_repos)]
+    for repo in repos_to_share:
+        logging.info(["add_group_as_maintainer", repo, "app-sre"])
         if not dry_run:
-            gl.add_project_member(m["repo"], m["user"])
+            gl.share_project_with_group(repo_url=repo, group_id=group_id)
+
+
+def get_id_to_repo_mapping(repo, gl):
+    return {gl.get_project(repo_url=repo).get_id(): repo}
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
