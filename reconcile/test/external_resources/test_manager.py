@@ -60,6 +60,7 @@ def module() -> ExternalResourcesModuleV1:
         provider="aws-iam-role",
         reconcile_drift_interval_minutes=60,
         reconcile_timeout_minutes=60,
+        outputs_secret_sync=True,
     )
 
 
