@@ -232,6 +232,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             project = self.get_project(repo_url)
         if project is None:
             return None
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         if query:
             members = self.get_items(project.members.all, query_parameters=query)
         else:
@@ -251,30 +252,35 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return None
 
     def share_project_with_group(
-        self, repo_url, group_id, dry_run, access="maintainer"
-    ):
+        self, repo_url: str, group_id: int, dry_run: bool, access: str = "maintainer"
+    ) -> None:
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         project = self.get_project(repo_url)
         if project is None:
-            return
+            return None
         access_level = self.get_access_level(access)
-        try:
-            member = project.members.get(self.user.id)
-            if member.access_level < access_level:
-                logging.error(
-                    "'{}' is not shared with {} as 'Maintainer'".format(
-                        repo_url, self.user.username
-                    )
-                )
-        except gitlab.exceptions.GitlabGetError:
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        # check if we have 'access_level' access so we can  add the group with same role.
+        members = self.get_items(
+            project.members.all, query_parameters={"user_ids": self.user.id}
+        )
+        if self.user.id not in [
+            member.id for member in members if member.access_level >= access_level
+        ]:
             logging.error(
-                "'{}' is not shared with {}".format(repo_url, self.user.username)
+                "'{}' is not shared with {} as 'Maintainer'".format(
+                    repo_url, self.user.username
+                )
             )
-            return
-        logging.info(["add_group_as_maintainer", repo_url, "app-sre"])
+            return None
+        logging.info(["add_group_as_maintainer", repo_url,group_id])
         if not dry_run:
+            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             project.share(group_id, access_level)
 
-    def get_group_id_and_shared_projects(self, group_name):
+    def get_group_id_and_shared_projects(
+        self, group_name: str
+    ) -> tuple[int, list[dict]]:
         group = self.gl.groups.get(group_name)
         return group.id, [
             project

@@ -1226,12 +1226,11 @@ def slack_usergroups(
 
 
 @integration.command(short_help="Manage permissions on GitLab projects.")
-@threaded()
 @click.pass_context
-def gitlab_permissions(ctx, thread_pool_size):
+def gitlab_permissions(ctx):
     import reconcile.gitlab_permissions
 
-    run_integration(reconcile.gitlab_permissions, ctx.obj, thread_pool_size)
+    run_integration(reconcile.gitlab_permissions, ctx.obj)
 
 
 @integration.command(short_help="Manage issues and merge requests on GitLab projects.")
