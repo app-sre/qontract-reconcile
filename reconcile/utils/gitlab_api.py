@@ -273,7 +273,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                 )
             )
             return None
-        logging.info(["add_group_as_maintainer", repo_url,group_id])
+        logging.info(["add_group_as_maintainer", repo_url, group_id])
         if not dry_run:
             gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             project.share(group_id, access_level)
