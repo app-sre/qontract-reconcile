@@ -270,7 +270,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                 "'{}' is not shared with {}".format(repo_url, self.user.username)
             )
             return
-        logging.info(["add_group_as_maintainer"], repo_url, "app-sre")
+        logging.info(["add_group_as_maintainer", repo_url, "app-sre"])
         if not dry_run:
             project.share(group_id, access_level)
 
