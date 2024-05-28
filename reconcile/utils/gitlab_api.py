@@ -281,6 +281,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_group_id_and_shared_projects(
         self, group_name: str
     ) -> tuple[int, list[dict]]:
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
         return group.id, [
             project
