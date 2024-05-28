@@ -1206,34 +1206,50 @@ class TestSoakDays(TestCase):
         self.gfc_patcher.stop()
 
     def test_soak_days_passed(self) -> None:
-        """A promotion is valid if the parent target accumulated soak_days
-        passed. We have a soakDays setting of 2 days. In this case, the
-        deployment happened 2 days ago, so the promotion is valid.
+        """A promotion is valid if the parent targets accumulated soak_days
+        passed. We have a soakDays setting of 2 days.
         """
-        publisher_state = {
-            "success": True,
-            "saas_file": self.saas_file.name,
-            "target_config_hash": "ed2af38cf21f268c",
-            # the deployment happened 2 days ago
-            "check_in": str(datetime.now(timezone.utc) - timedelta(days=2)),
-        }
-        self.state_mock.get.return_value = publisher_state
+        publisher_states = [
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+                # the deployment happened 1 hour ago
+                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=1)),
+            },
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+                # the deployment happened 47 hours ago
+                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=47)),
+            },
+        ]
+        self.state_mock.get.side_effect = publisher_states
         result = self.saasherder.validate_promotions()
         self.assertTrue(result)
 
     def test_soak_days_not_passed(self) -> None:
         """A promotion is valid if the parent target accumulated soak_days
-        passed. We have a soakDays setting of 2 days. In this case, the
-        deployment happened 1 day ago, meaning soakDays didnt pass.
+        passed. We have a soakDays setting of 2 days.
         """
-        publisher_state = {
-            "success": True,
-            "saas_file": self.saas_file.name,
-            "target_config_hash": "ed2af38cf21f268c",
-            # the deployment happened 2 days ago
-            "check_in": str(datetime.now(timezone.utc) - timedelta(days=1)),
-        }
-        self.state_mock.get.return_value = publisher_state
+        publisher_states = [
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+                # the deployment happened 12 hours ago
+                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=12)),
+            },
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+                # the deployment happened 1 hour ago
+                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=1)),
+            },
+        ]
+        self.state_mock.get.side_effect = publisher_states
         result = self.saasherder.validate_promotions()
         self.assertFalse(result)
 

@@ -66,7 +66,27 @@ resourceTemplates:
   parameters: '{"PARAM":"test"}'
   targets:
   - namespace:
-      name: test-ns-publisher
+      name: test-ns-publisher-1
+      environment:
+        name: App-SRE-stage
+        parameters: '{"CHANNEL":"staging"}'
+      app:
+        name: test-saas-deployments
+      cluster:
+        name: appsres03ue1
+        serverUrl: 'https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443'
+        internal: true
+    ref: main
+    path: openshift/deploy-template.yml
+    promotion:
+      publish: [test-saas-deployments-deploy]
+    upstream:
+      instance:
+        name: ci
+        serverUrl: 'https://jenkins.com'
+      name: job
+  - namespace:
+      name: test-ns-publisher-2
       environment:
         name: App-SRE-stage
         parameters: '{"CHANNEL":"staging"}'
