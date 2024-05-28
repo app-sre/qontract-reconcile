@@ -5,7 +5,6 @@ from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 
 QONTRACT_INTEGRATION = "gitlab-permissions"
-PAGE_SIZE = 100
 APP_SRE_GROUP_NAME = "app-sre"
 
 
