@@ -16,7 +16,7 @@ from collections.abc import (
     Sequence,
 )
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import TracebackType
 from typing import (
     Any,
@@ -1068,6 +1068,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     parent_resource_template_name=resource_template_name,
                     parent_saas_file_name=saas_file_name,
                 ),
+                soak_days=target.promotion.soak_days or 0,
             )
         return resources, html_url, target_promotion
 
@@ -1887,12 +1888,17 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
+        has_errors = False
+
         for promotion in self.promotions:
             if promotion is None:
                 continue
             # validate that the commit sha being promoted
             # was successfully published to the subscribed channel(s)
             if promotion.subscribe:
+                now = datetime.now(timezone.utc)
+                passed_soak_days = timedelta(days=0)
+
                 for channel in promotion.subscribe:
                     config_hashes: set[str] = set()
                     for target_uid in channel.publisher_uids:
@@ -1907,7 +1913,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                                 f"Commit {promotion.commit_sha} was not "
                                 + f"published with success to channel {channel.name}"
                             )
-                            return False
+                            has_errors = True
+                            continue
+                        check_in = (
+                            datetime.fromisoformat(deployment.check_in)
+                            if deployment.check_in
+                            else None
+                        )
+                        if check_in:
+                            passed_soak_days += now - check_in
                         if deployment.target_config_hash:
                             config_hashes.add(deployment.target_config_hash)
 
@@ -1918,7 +1932,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             "Promotion data is missing; rely on the success "
                             "state only"
                         )
-                        return True
+                        continue
 
                     # Validate the promotion_data section.
                     # Just validate parent_saas_config hash
@@ -1939,12 +1953,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             "Parent Saas config missing on target "
                             "rely on the success state only"
                         )
-                        return True
+                        continue
 
                     # Validate that the state config_hash set by the parent
                     # matches with the hash set in promotion_data
                     if parent_saas_config.target_config_hash in config_hashes:
-                        return True
+                        continue
 
                     logging.error(
                         "Parent saas target has run with a newer "
@@ -1953,8 +1967,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         f"or update {parent_saas_config.target_config_hash} "
                         f"to any in {config_hashes} for channel {channel.name}"
                     )
-                    return False
-        return True
+                    has_errors = True
+
+                if passed_soak_days < timedelta(days=promotion.soak_days):
+                    logging.error(
+                        f"SoakDays in publishers did not pass. So far accumulated soakDays is {passed_soak_days},"
+                        f"but we have a soakDays setting of {promotion.soak_days}. We cannot proceed with this promotion."
+                    )
+                    has_errors = True
+        return not has_errors
 
     def publish_promotions(
         self,

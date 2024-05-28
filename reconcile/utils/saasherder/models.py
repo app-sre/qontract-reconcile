@@ -179,6 +179,7 @@ class Promotion(BaseModel):
     saas_file: str
     target_config_hash: str
     saas_target_uid: str
+    soak_days: int
     auto: Optional[bool] = None
     publish: Optional[list[str]] = None
     subscribe: Optional[list[Channel]] = None
