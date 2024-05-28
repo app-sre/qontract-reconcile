@@ -1,10 +1,12 @@
 import base64
+import dataclasses
 import json
 import logging
 from abc import abstractmethod
 from collections.abc import Iterable, Mapping
+from datetime import datetime
 from hashlib import shake_128
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from pydantic import BaseModel
 from sretoolbox.utils import threaded
@@ -13,8 +15,9 @@ from reconcile.external_resources.meta import (
     QONTRACT_INTEGRATION,
     QONTRACT_INTEGRATION_VERSION,
 )
+from reconcile.external_resources.model import ExternalResourceKey
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
-from reconcile.utils.differ import diff_mappings
+from reconcile.utils.differ import DiffPair, diff_mappings
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
 )
@@ -29,6 +32,14 @@ from reconcile.utils.vault import (
     VaultClient,
     _VaultClient,  # noqa
 )
+
+SECRET_ANN_PREFIX = "external-resources"
+SECRET_ANN_PROVISION_PROVIDER = SECRET_ANN_PREFIX + "/provision_provider"
+SECRET_ANN_PROVISIONER = SECRET_ANN_PREFIX + "/provisioner_name"
+SECRET_ANN_PROVIDER = SECRET_ANN_PREFIX + "/provider"
+SECRET_ANN_IDENTIFIER = SECRET_ANN_PREFIX + "/identifier"
+SECRET_UPDATED_AT = SECRET_ANN_PREFIX + "/updated_at"
+SECRET_UPDATED_AT_TIMEFORMAT = "%d/%m/%Y %H:%M:%S"
 
 
 class VaultSecret(BaseModel):
@@ -57,15 +68,20 @@ class SecretsReconciler:
     def _populate_secret_data(self, specs: Iterable[ExternalResourceSpec]) -> None:
         raise NotImplementedError()
 
+    def _del_secret_updated_at(self, spec: ExternalResourceSpec) -> None:
+        data = cast(dict[str, str], spec.secret)
+        del data[SECRET_UPDATED_AT]
+
     def _annotate(self, spec: ExternalResourceSpec) -> None:
         try:
             annotations = json.loads(spec.resource["annotations"])
         except Exception:
             annotations = {}
-        annotations["external-resources/provision_provider"] = spec.provision_provider
-        annotations["external-resources/provisioner_name"] = spec.provisioner_name
-        annotations["external-resources/provider"] = spec.provider
-        annotations["external-resources/identifier"] = spec.identifier
+        annotations[SECRET_ANN_PROVISION_PROVIDER] = spec.provision_provider
+        annotations[SECRET_ANN_PROVISIONER] = spec.provisioner_name
+        annotations[SECRET_ANN_PROVIDER] = spec.provider
+        annotations[SECRET_ANN_IDENTIFIER] = spec.identifier
+        annotations[SECRET_UPDATED_AT] = spec.secret[SECRET_UPDATED_AT]
         spec.resource["annotations"] = json.dumps(annotations)
 
     def _specs_with_secret(
@@ -102,12 +118,25 @@ class SecretsReconciler:
             integration=QONTRACT_INTEGRATION,
         )
 
-    def sync_secrets(self, specs: Iterable[ExternalResourceSpec]) -> None:
+    def _copy_spec(self, spec: ExternalResourceSpec) -> ExternalResourceSpec:
+        copy = dataclasses.replace(spec)
+        copy.secret = dict(spec.secret)
+        return copy
+
+    def sync_secrets(
+        self, specs: Iterable[ExternalResourceSpec]
+    ) -> list[ExternalResourceSpec]:
         self._populate_secret_data(specs)
 
-        to_sync_specs = self._specs_with_secret(specs)
+        # Updated_at attribute must be removed before syncing the secret
+        # but is needed afterwards. All specs are copied to preserve the originals.
+        to_sync_specs = [
+            self._copy_spec(spec) for spec in self._specs_with_secret(specs)
+        ]
+
         for spec in to_sync_specs:
             self._annotate(spec)
+            self._del_secret_updated_at(spec)
             self._add_secret_to_ri(spec)
 
         ocmap = self._init_ocmap(to_sync_specs)
@@ -117,6 +146,22 @@ class SecretsReconciler:
             thread_pool_size=self.thread_pool_size,
             ocmap=ocmap,
         )
+
+        return []
+
+    def _current_secret_is_newer(self, i: DiffPair) -> bool:
+        try:
+            current = datetime.strptime(
+                i.current.annotations[SECRET_UPDATED_AT],
+                SECRET_UPDATED_AT_TIMEFORMAT,
+            )
+            desired = datetime.strptime(
+                i.desired.annotations[SECRET_UPDATED_AT],
+                SECRET_UPDATED_AT_TIMEFORMAT,
+            )
+            return current > desired
+        except KeyError:
+            return False
 
     def reconcile_data(
         self,
@@ -142,9 +187,12 @@ class SecretsReconciler:
         diff = diff_mappings(
             data["current"], data["desired"], equal=three_way_diff_using_hash
         )
-        items_to_update = [i.desired for i in diff.change.values()] + list(
-            diff.add.values()
-        )
+        items_to_update = [
+            i.desired
+            for i in diff.change.values()
+            if not self._current_secret_is_newer(i)
+        ] + list(diff.add.values())
+
         self.apply_action(oc, namespace, items_to_update)
 
     def apply_action(
@@ -214,25 +262,48 @@ class InClusterSecretsReconciler(SecretsReconciler):
                 else:
                     data[k] = decoded
 
+            data[SECRET_UPDATED_AT] = datetime.now().strftime(
+                SECRET_UPDATED_AT_TIMEFORMAT
+            )
             spec.secret = data
 
-    def _delete_source_secrets(self, specs: Iterable[ExternalResourceSpec]) -> None:
-        for spec in self._specs_with_secret(specs):
-            secret_name = "external-resources-output-" + self._get_spec_hash(spec)
-            logging.debug("Deleting secret " + secret_name)
-            self.oc.delete(namespace=self.namespace, kind="Secret", name=secret_name)
+    def _delete_source_secret(self, spec: ExternalResourceSpec) -> None:
+        secret_name = self._get_spec_outputs_secret_name(spec)
+        logging.debug("Deleting secret " + secret_name)
+        self.oc.delete(namespace=self.namespace, kind="Secret", name=secret_name)
 
-    def _write_secrets_to_vault(self, specs: Iterable[ExternalResourceSpec]) -> None:
-        for spec in self._specs_with_secret(specs):
-            secret_path = f"{self.vault_path}/{spec.cluster_name}/{spec.namespace_name}/{spec.identifier}"
-            stringified_secret = {k: str(v) for k, v in spec.secret.items()}
-            desired_secret = {"path": secret_path, "data": stringified_secret}
-            self.vault_client.write(desired_secret, decode_base64=False)  # type: ignore[attr-defined]
+    def _write_secret_to_vault(self, spec: ExternalResourceSpec) -> None:
+        secret_path = f"{self.vault_path}/{spec.cluster_name}/{spec.namespace_name}/{spec.identifier}"
+        stringified_secret = {k: str(v) for k, v in spec.secret.items()}
+        desired_secret = {"path": secret_path, "data": stringified_secret}
+        self.vault_client.write(desired_secret, decode_base64=False)  # type: ignore[attr-defined]
 
-    def sync_secrets(self, specs: Iterable[ExternalResourceSpec]) -> None:
-        super().sync_secrets(specs)
-        self._write_secrets_to_vault(specs)
-        self._delete_source_secrets(specs)
+    def sync_secrets(
+        self, specs: Iterable[ExternalResourceSpec]
+    ) -> list[ExternalResourceSpec]:
+        try:
+            specs_with_error = super().sync_secrets(specs)
+        except Exception as e:
+            # There is no an easy way to map which secrets have not been reconciled with the specs. If the sync
+            # fails at this stage all the involved specs will be retried in the next iteration
+            logging.error(
+                "Error syncing Secrets to clusters. "
+                "All specs reconciled in this iteration are marked as pending secret syncronization\n%s",
+                e,
+            )
+            return list(specs)
+
+        for spec in self._specs_with_secret(specs):
+            try:
+                self._write_secret_to_vault(spec)
+                self._delete_source_secret(spec)
+            except Exception as e:
+                key = ExternalResourceKey.from_spec(spec)
+                logging.error("Error writting Secret to Vault. Key: %s.\n%s", key, e)
+                specs_with_error.append(spec)
+                continue
+
+        return specs_with_error
 
 
 def build_incluster_secrets_reconciler(
@@ -287,4 +358,4 @@ class VaultSecretsReconciler(SecretsReconciler):
             spec.secret = data
         except Exception:
             msg = f"Error getting secret from vault, skipping. [{secret_path}]"
-            logging.debug(msg)
+            logging.info(msg)
