@@ -232,7 +232,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             project = self.get_project(repo_url)
         if project is None:
             return None
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         if query:
             members = self.get_items(project.members.all, query_parameters=query)
         else:
@@ -254,7 +253,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def share_project_with_group(
         self, repo_url: str, group_id: int, dry_run: bool, access: str = "maintainer"
     ) -> None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         project = self.get_project(repo_url)
         if project is None:
             return None
@@ -264,13 +262,15 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         members = self.get_items(
             project.members.all, query_parameters={"user_ids": self.user.id}
         )
-        if self.user.id not in [
-            member.id for member in members if member.access_level >= access_level
-        ]:
+        if not any(
+            self.user.id == member.id and member.access_level >= access_level
+            for member in members
+        ):
             logging.error(
-                "'{}' is not shared with {} as 'Maintainer'".format(
-                    repo_url, self.user.username
-                )
+                "%s is not shared with %s as %s",
+                repo_url,
+                self.user.username,
+                access,
             )
             return None
         logging.info(["add_group_as_maintainer", repo_url, group_id])
@@ -288,7 +288,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             for project in group.shared_projects
             for shared_group in project["shared_with_groups"]
             if shared_group["group_id"] == group.id
-            and shared_group["group_access_level"] >= 40
+            and shared_group["group_access_level"] >= gitlab.MAINTAINER_ACCESS
         ]
 
     @staticmethod
