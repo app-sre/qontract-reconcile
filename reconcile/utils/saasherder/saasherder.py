@@ -959,6 +959,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 )
                 raise
 
+            # add COMMIT_SHA only if it is unspecified
+            consolidated_parameters.setdefault("COMMIT_SHA", commit_sha)
+
             # add IMAGE_TAG only if it is unspecified
             if not (image_tag := consolidated_parameters.get("IMAGE_TAG", "")):
                 sha_substring = commit_sha[:hash_length]
