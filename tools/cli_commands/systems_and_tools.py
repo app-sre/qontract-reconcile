@@ -322,7 +322,7 @@ def get_systems_and_tools_inventory() -> SystemToolInventory:
     inventory.update(get_vault_instances())
     inventory.update(get_cloudflare_accounts())
     inventory.update([
-        c for c in get_code_components() if c.resource == "app-interface"
+        c for c in get_code_components() if c.resource in {"gitops", "infrastructure"}
     ])
 
     inventory.systems_and_tools.append(
