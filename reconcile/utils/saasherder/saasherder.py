@@ -1881,7 +1881,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             # TODO: add environment.parameters to the include list!?!?
         )
 
-    def _validate_promotion(self, promotion: Promotion) -> bool:
+    def _validate_promotion(self, promotion: Promotion | None) -> bool:
+        # Placing this check here to make mypy happy
+        if not (self.state and self._promotion_state):
+            raise Exception("state is not initialized")
+
         if not promotion:
             return True
 
@@ -1966,9 +1970,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         """
         If there were promotion sections in the participating saas files
         validate that the conditions are met."""
-        if not (self.state and self._promotion_state):
-            raise Exception("state is not initialized")
-
         return all(
             self._validate_promotion(promotion)
             for promotion in self.promotions
