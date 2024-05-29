@@ -2705,6 +2705,9 @@ def hcp_migration_status(ctx):
 @get.command()
 @click.pass_context
 def systems_and_tools(ctx):
+    print(
+        f"This report is obtained from app-interface Graphql endpoint available at: {config.get_config()['graphql']['server']}"
+    )
     inventory = get_systems_and_tools_inventory()
     print_output(ctx.obj["options"], inventory.data, inventory.columns)
 
