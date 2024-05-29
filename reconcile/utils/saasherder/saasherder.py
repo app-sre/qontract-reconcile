@@ -1915,13 +1915,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             )
                             has_errors = True
                             continue
-                        check_in = (
-                            datetime.fromisoformat(deployment.check_in)
-                            if deployment.check_in
-                            else None
-                        )
-                        if check_in:
-                            passed_soak_days += now - check_in
+                        if check_in := deployment.check_in:
+                            passed_soak_days += now - datetime.fromisoformat(check_in)
                         if deployment.target_config_hash:
                             config_hashes.add(deployment.target_config_hash)
 
