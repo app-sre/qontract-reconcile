@@ -263,7 +263,7 @@ class SystemTool(BaseModel):
             system_id=c.name,
             name=c.name,
             url=c.url,
-            description=c.name,
+            description=c.description or "",
         )
 
 
