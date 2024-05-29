@@ -181,7 +181,7 @@ def process_jinja2_template(
         "query": lookup_graphql_query_results,
         "url": url_makes_sense,
         "s3": lookup_s3_object,
-        "flatten": flatten,
+        "flatten_dict": flatten,
     })
     if "_template_mocks" in vars:
         for k, v in vars["_template_mocks"].items():
