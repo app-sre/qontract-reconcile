@@ -617,9 +617,11 @@ data:
                 "uid": "P7B77307D2CE073BC"
               },
               "editorMode": "code",
+              "exemplar": false,
               "expr": "count(sum(\n    resets(\n    ((aus_cluster_version_remaining_soak_days == 0 or aus_cluster_version_remaining_soak_days == -2)*-1)[24h:]\n    )\n) by (cluster_uuid, soaking_version)\n* on (cluster_uuid, soaking_version) count(aus_cluster_version_remaining_soak_days) by (cluster_uuid, soaking_version)\n* on (cluster_uuid) group_left(cluster_name, ocm_env, org_name, current_version) aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\".*$workloads.*\", cluster_name=~\"$clusters\"} > 0)",
+              "instant": true,
               "legendFormat": "__auto",
-              "range": true,
+              "range": false,
               "refId": "A"
             }
           ],
@@ -1307,7 +1309,7 @@ data:
       "timezone": "",
       "title": "AUS Cluster Upgrade Overview",
       "uid": "ukLXCSwVz",
-      "version": 3,
+      "version": 28,
       "weekStart": ""
     }
 kind: ConfigMap
