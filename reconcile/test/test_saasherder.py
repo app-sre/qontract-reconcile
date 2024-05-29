@@ -1027,7 +1027,7 @@ class TestConfigHashPromotionsValidation(TestCase):
 
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas-multi-channel.gql.yml")
         )
         self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
         self.state_mock = self.state_patcher.start().return_value
@@ -1096,12 +1096,24 @@ class TestConfigHashPromotionsValidation(TestCase):
         promotion_data. This could happen if the parent target has run again
         with the same ref before the subscriber target promotion MR is merged.
         """
-        publisher_state = {
-            "success": True,
-            "saas_file": self.saas_file.name,
-            "target_config_hash": "will_not_match",
-        }
-        self.state_mock.get.return_value = publisher_state
+        publisher_states = [
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+            },
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+            },
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "will_not_match",
+            },
+        ]
+        self.state_mock.get.side_effect = publisher_states
         result = self.saasherder.validate_promotions()
         self.assertFalse(result)
 
@@ -1127,10 +1139,10 @@ class TestConfigHashPromotionsValidation(TestCase):
             "target_config_hash": "whatever",
         }
 
-        self.assertEqual(len(self.saasherder.promotions), 2)
-        self.assertIsNotNone(self.saasherder.promotions[1])
+        self.assertEqual(len(self.saasherder.promotions), 4)
+        self.assertIsNotNone(self.saasherder.promotions[3])
         # Remove promotion_data on the promoted target
-        self.saasherder.promotions[1].promotion_data = None  # type: ignore
+        self.saasherder.promotions[3].promotion_data = None  # type: ignore
 
         self.state_mock.get.return_value = publisher_state
         result = self.saasherder.validate_promotions()
