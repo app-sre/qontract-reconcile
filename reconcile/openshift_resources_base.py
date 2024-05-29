@@ -24,6 +24,7 @@ from typing import (
     Protocol,
     Tuple,
 )
+from unittest.mock import DEFAULT, patch
 
 import anymarkup
 from deepdiff import DeepHash
@@ -32,9 +33,9 @@ from sretoolbox.utils import (
 )
 
 import reconcile.openshift_base as ob
+import reconcile.utils.jinja2.utils as jinja2_utils
 from reconcile import queries
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
-from reconcile.checkpoint import url_makes_sense
 from reconcile.utils import (
     amtool,
     gql,
@@ -44,9 +45,6 @@ from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.jinja2.utils import (
     FetchSecretError,
-    lookup_github_file_content,
-    lookup_s3_object,
-    lookup_secret,
     process_extracurlyjinja2_template,
     process_jinja2_template,
 )
@@ -1198,57 +1196,22 @@ def _early_exit_fetch_resource(spec: Sequence, settings: Mapping) -> dict[str, s
 @contextmanager
 def early_exit_monkey_patch() -> Generator:
     """Avoid looking outside of app-interface on early-exit pr-check."""
-    orig_lookup_secret = lookup_secret
-    orig_lookup_github_file_content = lookup_github_file_content
-    orig_url_makes_sense = url_makes_sense
-    orig_check_alertmanager_config = check_alertmanager_config
-    orig_lookup_s3_object = lookup_s3_object
-
-    try:
-        _early_exit_monkey_patch_assign(
-            lambda path,
-            key,
-            version=None,
-            tvars=None,
-            allow_not_found=False,
-            settings=None,
-            secret_reader=None: f"vault({path}, {key}, {version}, {allow_not_found})",
-            lambda repo,
-            path,
-            ref,
-            tvars=None,
-            settings=None,
-            secret_reader=None: f"github({repo}, {path}, {ref})",
-            lambda url: False,
-            lambda data, path, alertmanager_config_key, decode_base64=False: True,
-            lambda account_name,
-            bucket_name,
-            path,
-            region_name=None: f"lookup_s3_object({account_name}, {bucket_name}, {path}, {region_name})",
-        )
-        yield
-    finally:
-        _early_exit_monkey_patch_assign(
-            orig_lookup_secret,
-            orig_lookup_github_file_content,
-            orig_url_makes_sense,
-            orig_check_alertmanager_config,
-            orig_lookup_s3_object,
-        )
-
-
-def _early_exit_monkey_patch_assign(
-    lookup_secret: Callable,
-    lookup_github_file_content: Callable,
-    url_makes_sense: Callable,
-    check_alertmanager_config: Callable,
-    lookup_s3_object: Callable,
-) -> None:
-    sys.modules[__name__].lookup_secret = lookup_secret  # type: ignore
-    sys.modules[__name__].lookup_github_file_content = lookup_github_file_content  # type: ignore
-    sys.modules[__name__].url_makes_sense = url_makes_sense  # type: ignore
-    sys.modules[__name__].check_alertmanager_config = check_alertmanager_config  # type: ignore
-    sys.modules[__name__].lookup_s3_object = lookup_s3_object  # type: ignore
+    with patch.multiple(
+        jinja2_utils,
+        lookup_secret=DEFAULT,
+        lookup_github_file_content=DEFAULT,
+        url_makes_sense=DEFAULT,
+        lookup_s3_object=DEFAULT,
+    ) as mocks:
+        mocks["lookup_secret"].return_value = "secret"
+        mocks["lookup_github_file_content"].return_value = "file-content"
+        mocks["url_makes_sense"].return_value = False
+        mocks["lookup_s3_object"].return_value = "s3-object"
+        with patch(
+            "reconcile.openshift_resources_base.check_alertmanager_config",
+            return_value=True,
+        ):
+            yield
 
 
 def desired_state_shard_config() -> DesiredStateShardConfig:
