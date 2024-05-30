@@ -16,7 +16,7 @@ from collections.abc import (
     Sequence,
 )
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import TracebackType
 from typing import (
     Any,
@@ -1068,6 +1068,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     parent_resource_template_name=resource_template_name,
                     parent_saas_file_name=saas_file_name,
                 ),
+                soak_days=target.promotion.soak_days or 0,
             )
         return resources, html_url, target_promotion
 
@@ -1880,81 +1881,97 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             # TODO: add environment.parameters to the include list!?!?
         )
 
+    def _validate_promotion(self, promotion: Promotion) -> bool:
+        # Placing this check here to make mypy happy
+        if not (self.state and self._promotion_state):
+            raise Exception("state is not initialized")
+
+        if not promotion.subscribe:
+            return True
+
+        now = datetime.now(timezone.utc)
+        passed_soak_days = timedelta(days=0)
+
+        for channel in promotion.subscribe:
+            config_hashes: set[str] = set()
+            for target_uid in channel.publisher_uids:
+                deployment = self._promotion_state.get_promotion_data(
+                    sha=promotion.commit_sha,
+                    channel=channel.name,
+                    target_uid=target_uid,
+                    local_lookup=False,
+                )
+                if not (deployment and deployment.success):
+                    logging.error(
+                        f"Commit {promotion.commit_sha} was not "
+                        + f"published with success to channel {channel.name}"
+                    )
+                    return False
+                if check_in := deployment.check_in:
+                    passed_soak_days += now - datetime.fromisoformat(check_in)
+                if deployment.target_config_hash:
+                    config_hashes.add(deployment.target_config_hash)
+
+            # This code supports current saas targets that does
+            # not have promotion_data yet
+            if not config_hashes or not promotion.promotion_data:
+                logging.info(
+                    "Promotion data is missing; rely on the success " "state only"
+                )
+                continue
+
+            # Validate the promotion_data section.
+            # Just validate parent_saas_config hash
+            # promotion_data type by now.
+            parent_saas_config = None
+            for pd in promotion.promotion_data:
+                if pd.channel == channel.name:
+                    for data in pd.data or []:
+                        if isinstance(data, SaasParentSaasPromotion):
+                            parent_saas_config = data
+
+            # This section might not exist due to a manual MR.
+            # Promotion shall continue if this data is missing.
+            # The parent at the same ref has succeed if this code
+            # is reached though.
+            if not parent_saas_config:
+                logging.info(
+                    "Parent Saas config missing on target "
+                    "rely on the success state only"
+                )
+                continue
+
+            # Validate that the state config_hash set by the parent
+            # matches with the hash set in promotion_data
+            if parent_saas_config.target_config_hash in config_hashes:
+                continue
+
+            logging.error(
+                "Parent saas target has run with a newer "
+                "configuration and the same commit (ref). "
+                "Check if other MR exists for this target, "
+                f"or update {parent_saas_config.target_config_hash} "
+                f"to any in {config_hashes} for channel {channel.name}"
+            )
+            return False
+
+        if passed_soak_days < timedelta(days=promotion.soak_days):
+            logging.error(
+                f"SoakDays in publishers did not pass. So far accumulated soakDays is {passed_soak_days},"
+                f"but we have a soakDays setting of {promotion.soak_days}. We cannot proceed with this promotion."
+            )
+            return False
+        return True
+
     def validate_promotions(self) -> bool:
         """
         If there were promotion sections in the participating saas files
         validate that the conditions are met."""
-        if not (self.state and self._promotion_state):
-            raise Exception("state is not initialized")
-
-        for promotion in self.promotions:
-            if promotion is None:
-                continue
-            # validate that the commit sha being promoted
-            # was successfully published to the subscribed channel(s)
-            if promotion.subscribe:
-                for channel in promotion.subscribe:
-                    config_hashes: set[str] = set()
-                    for target_uid in channel.publisher_uids:
-                        deployment = self._promotion_state.get_promotion_data(
-                            sha=promotion.commit_sha,
-                            channel=channel.name,
-                            target_uid=target_uid,
-                            local_lookup=False,
-                        )
-                        if not (deployment and deployment.success):
-                            logging.error(
-                                f"Commit {promotion.commit_sha} was not "
-                                + f"published with success to channel {channel.name}"
-                            )
-                            return False
-                        if deployment.target_config_hash:
-                            config_hashes.add(deployment.target_config_hash)
-
-                    # This code supports current saas targets that does
-                    # not have promotion_data yet
-                    if not config_hashes or not promotion.promotion_data:
-                        logging.info(
-                            "Promotion data is missing; rely on the success "
-                            "state only"
-                        )
-                        return True
-
-                    # Validate the promotion_data section.
-                    # Just validate parent_saas_config hash
-                    # promotion_data type by now.
-                    parent_saas_config = None
-                    for pd in promotion.promotion_data:
-                        if pd.channel == channel.name:
-                            for data in pd.data or []:
-                                if isinstance(data, SaasParentSaasPromotion):
-                                    parent_saas_config = data
-
-                    # This section might not exist due to a manual MR.
-                    # Promotion shall continue if this data is missing.
-                    # The parent at the same ref has succeed if this code
-                    # is reached though.
-                    if not parent_saas_config:
-                        logging.info(
-                            "Parent Saas config missing on target "
-                            "rely on the success state only"
-                        )
-                        return True
-
-                    # Validate that the state config_hash set by the parent
-                    # matches with the hash set in promotion_data
-                    if parent_saas_config.target_config_hash in config_hashes:
-                        return True
-
-                    logging.error(
-                        "Parent saas target has run with a newer "
-                        "configuration and the same commit (ref). "
-                        "Check if other MR exists for this target, "
-                        f"or update {parent_saas_config.target_config_hash} "
-                        f"to any in {config_hashes} for channel {channel.name}"
-                    )
-                    return False
-        return True
+        return all(
+            self._validate_promotion(promotion)
+            for promotion in self.promotions
+            if promotion is not None
+        )
 
     def publish_promotions(
         self,
