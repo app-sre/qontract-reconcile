@@ -37,6 +37,8 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
         for update in self.updates_info["updates"]:
             action = update["action"]
             cluster_name = update["cluster"]
+            cluster_id = update.get("id")
+            cluster_server_url = update.get("url")
             upgrade_policy = update.get("policy")
 
             if action == "add":
@@ -47,8 +49,8 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
                     continue
                 item = {
                     "name": cluster_name,
-                    "serverUrl": update["url"],
-                    "spec": {"id": update["id"]},
+                    "serverUrl": cluster_server_url,
+                    "spec": {"id": cluster_id},
                     "upgradePolicy": upgrade_policy,
                 }
                 upgrade_policy_clusters.append(item)
