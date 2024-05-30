@@ -14,6 +14,8 @@ from gitlab.v4.objects import (
     ProjectIssueNoteManager,
     ProjectLabel,
     ProjectLabelManager,
+    ProjectMember,
+    ProjectMemberManager,
     ProjectMergeRequest,
     ProjectMergeRequestManager,
     ProjectMergeRequestNote,
@@ -468,3 +470,70 @@ def test_get_group_members(
     assert mocked_gitlab_api.get_group_members("group") == [
         {"user": "small", "access_level": None}
     ]
+
+
+def test_share_project_with_group_positive(
+    mocker: MockerFixture, mocked_gitlab_api: GitLabApi
+):
+    project = create_autospec(Project)
+    project.members = create_autospec(ProjectMemberManager)
+    project.members.all.return_value = [
+        create_autospec(ProjectMember, id=mocked_gitlab_api.user.id, access_level=40)
+    ]
+    mocker.patch(
+        "reconcile.utils.gitlab_api.GitLabApi.get_project"
+    ).return_value = project
+    mocker.patch(
+        "reconcile.utils.gitlab_api.GitLabApi.get_access_level"
+    ).return_value = 40
+    mocked_gitlab_api.share_project_with_group("test_repo", 1111, False)
+    project.share.assert_called_once_with(1111, 40)
+
+
+def test_share_project_with_group_errored(
+    mocker: MockerFixture, mocked_gitlab_api: GitLabApi
+):
+    project = create_autospec(Project)
+    project.members = create_autospec(ProjectMemberManager)
+    project.members.all.return_value = []
+    mocker.patch(
+        "reconcile.utils.gitlab_api.GitLabApi.get_project"
+    ).return_value = project
+    mocker.patch(
+        "reconcile.utils.gitlab_api.GitLabApi.get_access_level"
+    ).return_value = 40
+    mocked_gitlab_api.share_project_with_group("test_repo", 1111, False, "maintainer")
+    project.share.assert_not_called()
+
+
+def test_get_group_id_and_shared_projects(
+    mocker: MockerFixture, mocked_gitlab_api: GitLabApi, mocked_gl: Any
+):
+    groups = create_autospec(GroupManager)
+    groups.get.return_value = create_autospec(
+        Group,
+        id=1234,
+        shared_projects=[
+            {
+                "shared_with_groups": [
+                    {
+                        "group_id": 1234,
+                        "group_access_level": 40,
+                    },
+                    {"group_id": 1244, "group_access_level": 50},
+                ],
+                "web_url": "https://xyz.com",
+            },
+            {
+                "web_url": "https://xyz.com",
+                "shared_with_groups": [{"group_id": 1234, "group_access_level": 30}],
+            },
+        ],
+    )
+    mocked_gl.groups = groups
+    mocker.patch(
+        "reconcile.utils.gitlab_api.GitLabApi.get_access_level"
+    ).return_value = 40
+    id, shared_projects = mocked_gitlab_api.get_group_id_and_shared_projects("test")
+    assert id == 1234
+    assert shared_projects[0]["web_url"] == "https://xyz.com"

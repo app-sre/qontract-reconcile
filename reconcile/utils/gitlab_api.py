@@ -257,7 +257,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if project is None:
             return None
         access_level = self.get_access_level(access)
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         # check if we have 'access_level' access so we can  add the group with same role.
         members = self.get_items(
             project.members.all, query_parameters={"user_ids": self.user.id}
@@ -288,7 +287,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             for project in group.shared_projects
             for shared_group in project["shared_with_groups"]
             if shared_group["group_id"] == group.id
-            and shared_group["group_access_level"] >= gitlab.MAINTAINER_ACCESS
+            and shared_group["group_access_level"]
+            >= self.get_access_level("maintainer")
         ]
 
     @staticmethod
