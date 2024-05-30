@@ -90,6 +90,8 @@ def run(dry_run, gitlab_project_id):
                         item = {
                             "action": "add",
                             "cluster": ocm_cluster_name,
+                            "url": ocm_cluster_spec.server_url,
+                            "id": ocm_cluster_spec.spec.id,
                             "policy": policy,
                         }
                         updates.append(item)
