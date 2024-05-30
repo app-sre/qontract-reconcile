@@ -242,6 +242,7 @@ class SaasResourceTemplateTargetPromotion(Protocol):
     auto: Optional[bool]
     publish: Optional[list[str]]
     subscribe: Optional[list[str]]
+    soak_days: Optional[int]
 
     @property
     def promotion_data(self) -> Optional[Sequence[SaasPromotionData]]: ...
@@ -261,6 +262,7 @@ class SaasPromotion(Protocol):
     publish: Optional[list[str]] = None
     saas_file_paths: Optional[list[str]] = None
     target_paths: Optional[list[str]] = None
+    soak_days: Optional[int] = None
 
     @property
     def promotion_data(self) -> Optional[Sequence[SaasPromotionData]]: ...
