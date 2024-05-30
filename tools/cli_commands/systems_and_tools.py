@@ -3,11 +3,16 @@
 
 from typing import (
     Any,
+    Optional,
     Self,
 )
 
 from pydantic import BaseModel
 
+from reconcile.aus.base import get_orgs_for_environment
+from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
+    DEFINITION as AUS_ORGANIZATION_DEFINITION,
+)
 from reconcile.gql_definitions.common.app_code_component_repos import (
     DEFINITION as CODE_COMPONENTS_DEFINITION,
 )
@@ -46,6 +51,9 @@ from reconcile.gql_definitions.dynatrace_token_provider.dynatrace_bootstrap_toke
 )
 from reconcile.gql_definitions.dynatrace_token_provider.dynatrace_bootstrap_tokens import (
     DynatraceEnvironmentV1,
+)
+from reconcile.gql_definitions.fragments.aus_organization import (
+    OpenShiftClusterManagerUpgradePolicyClusterV1,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.gitlab_members.gitlab_instances import (
@@ -136,7 +144,9 @@ class SystemTool(BaseModel):
     enumeration: str
 
     @classmethod
-    def init_from_model(cls, model: Any, enumeration: Any) -> Self:
+    def init_from_model(
+        cls, model: Any, enumeration: Any, parent: Optional[str] = None
+    ) -> Self:
         match model:
             case GitlabInstanceV1():
                 return cls.init_from_gitlab(model, enumeration)
@@ -154,6 +164,10 @@ class SystemTool(BaseModel):
                 return cls.init_from_jira_server(model, enumeration)
             case OCMEnvironment():
                 return cls.init_from_ocm_environment(model, enumeration)
+            case OpenShiftClusterManagerUpgradePolicyClusterV1():
+                return cls.init_from_ocm_org_upgrade_policy_cluster(
+                    model, enumeration, parent
+                )
             case PagerDutyInstanceV1():
                 return cls.init_from_pagerduty_instance(model, enumeration)
             case QuayInstanceV1():
@@ -266,6 +280,24 @@ class SystemTool(BaseModel):
         )
 
     @classmethod
+    def init_from_ocm_org_upgrade_policy_cluster(
+        cls,
+        c: OpenShiftClusterManagerUpgradePolicyClusterV1,
+        enumeration: Any,
+        parent: Optional[str] = None,
+    ) -> Self:
+        return cls(
+            system_type="openshift",
+            system_id=c.spec.q_id if c.spec else "",
+            name=c.name,
+            url=c.server_url,
+            description=f"cluster {c.name} in organization {parent}"
+            if parent
+            else c.name,
+            enumeration=enumeration,
+        )
+
+    @classmethod
     def init_from_pagerduty_instance(
         cls, p: PagerDutyInstanceV1, enumeration: Any
     ) -> Self:
@@ -362,12 +394,18 @@ class SystemToolInventory:
     def __init__(self) -> None:
         self.systems_and_tools: list[SystemTool] = []
 
-    def append(self, model: Any, enumeration: Any) -> None:
-        self.systems_and_tools.append(SystemTool.init_from_model(model, enumeration))
+    def append(
+        self, model: Any, enumeration: Any, parent: Optional[str] = None
+    ) -> None:
+        self.systems_and_tools.append(
+            SystemTool.init_from_model(model, enumeration, parent=parent)
+        )
 
-    def update(self, models: list[Any], enumeration: Any) -> None:
+    def update(
+        self, models: list[Any], enumeration: Any, parent: Optional[str] = None
+    ) -> None:
         for m in models:
-            self.append(m, enumeration)
+            self.append(m, enumeration, parent=parent)
 
     @property
     def data(self) -> list[dict[str, Any]]:
@@ -408,7 +446,20 @@ def get_systems_and_tools_inventory() -> SystemToolInventory:
     inventory.update(get_dynatrace_environments(), DYNATRACE_ENVIRONMENTS_DEFINITION)
     inventory.update(get_glitchtip_instances(), GLITCHTIP_INSTANCES_DEFINITION)
     inventory.update(get_jira_servers(), JIRA_SERVERS_DEFINITION)
-    inventory.update(get_ocm_environments(), OCM_ENVIRONMENTS_DEFINITION)
+    ocm_environments = get_ocm_environments()
+    inventory.update(ocm_environments, OCM_ENVIRONMENTS_DEFINITION)
+    for ocm_env in ocm_environments:
+        ocm_env_orgs = get_orgs_for_environment(
+            "", ocm_env.name, query_func=gql_api.query
+        )
+        for ocm_org in ocm_env_orgs:
+            if ocm_org.labels and "systems_and_tools_report" in ocm_org.labels:
+                inventory.update(
+                    ocm_org.upgrade_policy_clusters or [],
+                    AUS_ORGANIZATION_DEFINITION,
+                    parent=f"{ocm_org.name} ({ocm_env.name})",
+                )
+
     inventory.update(
         get_pagerduty_instances(gql_api.query), PAGERDUTY_INSTANCES_DEFINITION
     )

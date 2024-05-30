@@ -24,6 +24,7 @@ from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePol
 DEFINITION = """
 fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   name
+  labels
   environment {
     ... OCMEnvironment
   }
@@ -75,6 +76,10 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   upgradePolicyAllowedWorkloads
   upgradePolicyClusters {
     name
+    serverUrl
+    spec {
+      id
+    }
     upgradePolicy {
       ... ClusterUpgradePolicyV1
     }
