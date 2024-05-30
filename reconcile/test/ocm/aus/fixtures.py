@@ -94,6 +94,7 @@ def build_organization(
     )
     return AUSOCMOrganization(
         name=org_name or "org-name",
+        labels=None,
         environment=ocm_env or build_ocm_environment(env_name or "env-name"),
         orgId=org_id,
         blockedVersions=blocked_versions,

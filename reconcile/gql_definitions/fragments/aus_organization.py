@@ -70,8 +70,14 @@ class OpenShiftClusterManagerSectorV1(ConfiguredBaseModel):
     dependencies: Optional[list[OpenShiftClusterManagerSectorDependenciesV1]] = Field(..., alias="dependencies")
 
 
+class OpenShiftClusterManagerUpgradePolicyClusterSpecV1(ConfiguredBaseModel):
+    q_id: str = Field(..., alias="id")
+
+
 class OpenShiftClusterManagerUpgradePolicyClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    server_url: Optional[str] = Field(..., alias="serverUrl")
+    spec: Optional[OpenShiftClusterManagerUpgradePolicyClusterSpecV1] = Field(..., alias="spec")
     upgrade_policy: ClusterUpgradePolicyV1 = Field(..., alias="upgradePolicy")
 
 
@@ -82,6 +88,7 @@ class AusClusterHealthCheckV1(ConfiguredBaseModel):
 
 class AUSOCMOrganization(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     environment: OCMEnvironment = Field(..., alias="environment")
     org_id: str = Field(..., alias="orgId")
     access_token_client_id: Optional[str] = Field(..., alias="accessTokenClientId")
