@@ -1,3 +1,4 @@
+import logging
 import sys
 from collections.abc import (
     Callable,
@@ -5,6 +6,7 @@ from collections.abc import (
 )
 from typing import (
     Any,
+    TypedDict,
 )
 
 import requests
@@ -21,6 +23,10 @@ from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.extended_early_exit import (
+    ExtendedEarlyExitRunnerResult,
+    extended_early_exit_run,
+)
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -28,6 +34,7 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript_aws_client import TerrascriptClient
+from reconcile.utils.unleash.client import get_feature_toggle_state
 
 QONTRACT_INTEGRATION = "aws-saml-idp"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
@@ -41,12 +48,22 @@ class AwsSamlIdpIntegrationParams(PydanticRunParams):
     saml_idp_name: str
     saml_metadata_url: HttpUrl
     account_name: str | None = None
+    # extended early exit parameters
+    enable_extended_early_exit: bool = False
+    extended_early_exit_cache_ttl_seconds: int = 3600
+    log_cached_log_output: bool = False
 
 
 class SamlIdpConfig(BaseModel):
     account_name: str
     name: str
     metadata: str
+
+
+class RunnerParams(TypedDict):
+    tf: TerraformClient
+    dry_run: bool
+    enable_deletion: bool
 
 
 class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationParams]):
@@ -146,13 +163,42 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
         if defer:
             defer(tf.cleanup)
 
-        _, err = tf.plan(self.params.enable_deletion)
-        if err:
-            sys.exit(ExitCodes.ERROR)
+        runner_params: RunnerParams = dict(
+            tf=tf,
+            dry_run=dry_run,
+            enable_deletion=self.params.enable_deletion,
+        )
 
-        if dry_run:
-            return
+        if self.params.enable_extended_early_exit and get_feature_toggle_state(
+            f"{QONTRACT_INTEGRATION}-extended-early-exit", default=True
+        ):
+            extended_early_exit_run(
+                integration=QONTRACT_INTEGRATION,
+                integration_version=QONTRACT_INTEGRATION_VERSION,
+                dry_run=dry_run,
+                cache_source=ts.terraform_configurations(),
+                shard=self.params.account_name if self.params.account_name else "",
+                ttl_seconds=self.params.extended_early_exit_cache_ttl_seconds,
+                logger=logging.getLogger(),
+                runner=runner,
+                runner_params=runner_params,
+                log_cached_log_output=self.params.log_cached_log_output,
+            )
+        else:
+            runner(**runner_params)
 
-        err = tf.apply()
-        if err:
-            sys.exit(ExitCodes.ERROR)
+
+def runner(
+    dry_run: bool, tf: TerraformClient, enable_deletion: bool
+) -> ExtendedEarlyExitRunnerResult:
+    _, err = tf.plan(enable_deletion)
+    if err:
+        raise RuntimeError("Terraform plan has errors")
+
+    if dry_run:
+        return ExtendedEarlyExitRunnerResult(payload={}, applied_count=0)
+
+    if err := tf.apply():
+        raise RuntimeError("Terraform apply has errors")
+
+    return ExtendedEarlyExitRunnerResult(payload={}, applied_count=tf.apply_count)
