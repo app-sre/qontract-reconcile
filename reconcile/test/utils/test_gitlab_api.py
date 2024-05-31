@@ -474,7 +474,6 @@ def test_get_group_members(
 
 
 def test_share_project_with_group_positive(
-    mocker: MockerFixture,
     mocked_gitlab_api: GitLabApi,
     mocked_gl: Any,
 ):
@@ -501,13 +500,17 @@ def test_share_project_with_group_errored(
     project.members.all.return_value = []
     projects.get.return_value = project
     mocked_gl.projects = projects
+    mocked_logger = mocker.patch("reconcile.utils.gitlab_api.logging")
     mocked_gitlab_api.share_project_with_group("test_repo", 1111, False, "maintainer")
-    project.share.assert_not_called()
+    mocked_logger.error.assert_called_once_with(
+        "%s is not shared with %s as %s",
+        "test_repo",
+        mocked_gitlab_api.user.username,
+        "maintainer",
+    )
 
 
-def test_get_group_id_and_shared_projects(
-    mocker: MockerFixture, mocked_gitlab_api: GitLabApi, mocked_gl: Any
-):
+def test_get_group_id_and_shared_projects(mocked_gitlab_api: GitLabApi, mocked_gl: Any):
     groups = create_autospec(GroupManager)
     groups.get.return_value = create_autospec(
         Group,
