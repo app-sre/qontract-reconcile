@@ -144,7 +144,6 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
                 metadata=saml_idp_config.metadata,
             )
         working_dirs = ts.dump(print_to_file=self.params.print_to_file)
-        terraform_configurations = ts.terraform_configurations()
 
         if self.params.print_to_file:
             sys.exit(ExitCodes.SUCCESS)
@@ -177,7 +176,7 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
                 integration=QONTRACT_INTEGRATION,
                 integration_version=QONTRACT_INTEGRATION_VERSION,
                 dry_run=dry_run,
-                cache_source=terraform_configurations,
+                cache_source=ts.terraform_configurations(),
                 shard=self.params.account_name if self.params.account_name else "",
                 ttl_seconds=self.params.extended_early_exit_cache_ttl_seconds,
                 logger=logging.getLogger(),
