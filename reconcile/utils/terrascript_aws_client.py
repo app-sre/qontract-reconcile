@@ -1189,6 +1189,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self, vpc_requests: Iterable[VPCRequest], aws_provider_version: str
     ) -> None:
         for request in vpc_requests:
+            # skiping deleted requests
+            if request.delete:
+                continue
             # The default values here come from infra repo's module configuration
             values = {
                 "source": "terraform-aws-modules/vpc/aws",

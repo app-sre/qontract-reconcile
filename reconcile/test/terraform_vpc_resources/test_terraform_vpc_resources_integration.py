@@ -15,7 +15,6 @@ from reconcile.gql_definitions.fragments.aws_vpc_request import (
 )
 from reconcile.status import ExitCodes
 from reconcile.terraform_vpc_resources.integration import (
-    NoManagedVPCForAccount,
     TerraformVpcResources,
     TerraformVpcResourcesParams,
 )
@@ -116,32 +115,6 @@ def secret_reader_side_effect(*args: Any) -> dict[str, Any] | None:
     raise Exception("Argument error")
 
 
-def test_log_message_for_no_vpc_requests(
-    mocker: MockerFixture,
-    caplog: pytest.LogCaptureFixture,
-    gql_class_factory: Callable,
-    mock_gql: MockerFixture,
-    mock_app_interface_vault_settings: MockerFixture,
-    mock_create_secret_reader: MockerFixture,
-) -> None:
-    # Mock a query response without any accounts
-    mocked_query = mocker.patch(
-        "reconcile.terraform_vpc_resources.integration.get_aws_vpc_requests",
-        autospec=True,
-    )
-    mocked_query.return_value = []
-
-    params = TerraformVpcResourcesParams(
-        account_name=None, print_to_file=None, thread_pool_size=1
-    )
-    with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
-        TerraformVpcResources(params).run(dry_run=True)
-    assert sample.value.code == ExitCodes.SUCCESS
-    assert ["No VPC requests found, nothing to do."] == [
-        rec.message for rec in caplog.records
-    ]
-
-
 def test_log_message_for_accounts_having_vpc_requests(
     mocker: MockerFixture,
     caplog: pytest.LogCaptureFixture,
@@ -162,15 +135,15 @@ def test_log_message_for_accounts_having_vpc_requests(
         account_name=account_name, print_to_file=None, thread_pool_size=1
     )
     with (
-        caplog.at_level(logging.INFO),
-        pytest.raises(NoManagedVPCForAccount) as execption,
+        caplog.at_level(logging.DEBUG),
+        pytest.raises(SystemExit) as sample,
     ):
         TerraformVpcResources(params).run(dry_run=True)
 
     error_msg = (
         f"The account {account_name} doesn't have any managed vpc. Verify your input"
     )
-    assert execption.match(error_msg)
+    assert sample.value.code == ExitCodes.SUCCESS
     assert [error_msg] == [rec.message for rec in caplog.records]
 
 

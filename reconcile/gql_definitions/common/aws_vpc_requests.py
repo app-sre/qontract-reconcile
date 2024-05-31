@@ -33,6 +33,7 @@ fragment TerraformState on TerraformStateAWS_v1 {
 
 fragment VPCRequest on VPCRequest_v1 {
   identifier
+  delete
   account {
     name
     uid

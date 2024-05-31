@@ -50,6 +50,7 @@ class VPCRequestSubnetsListsV1(ConfiguredBaseModel):
 
 class VPCRequest(ConfiguredBaseModel):
     identifier: str = Field(..., alias="identifier")
+    delete: Optional[bool] = Field(..., alias="delete")
     account: AWSAccountV1 = Field(..., alias="account")
     region: str = Field(..., alias="region")
     cidr_block: NetworkV1 = Field(..., alias="cidr_block")

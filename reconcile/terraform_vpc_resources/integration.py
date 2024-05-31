@@ -47,10 +47,6 @@ class TerraformVpcResourcesParams(PydanticRunParams):
     enable_deletion: bool = False
 
 
-class NoManagedVPCForAccount(Exception):
-    pass
-
-
 class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesParams]):
     @property
     def name(self) -> str:
@@ -129,11 +125,11 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         if data:
             accounts = self._filter_accounts(data, account_name)
             if account_name and not accounts:
-                error_msg = f"The account {account_name} doesn't have any managed vpc. Verify your input"
-                logging.error(error_msg)
-                raise NoManagedVPCForAccount(error_msg)
+                msg = f"The account {account_name} doesn't have any managed vpc. Verify your input"
+                logging.debug(msg)
+                sys.exit(ExitCodes.SUCCESS)
         else:
-            logging.warning("No VPC requests found, nothing to do.")
+            logging.debug("No VPC requests found, nothing to do.")
             sys.exit(ExitCodes.SUCCESS)
 
         accounts_untyped: list[dict] = [acc.dict(by_alias=True) for acc in accounts]

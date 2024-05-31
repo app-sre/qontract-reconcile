@@ -2,6 +2,7 @@
 
 fragment VPCRequest on VPCRequest_v1 {
   identifier
+  delete
   account {
     name
     uid
