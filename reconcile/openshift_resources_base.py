@@ -1203,10 +1203,30 @@ def early_exit_monkey_patch() -> Generator:
         url_makes_sense=DEFAULT,
         lookup_s3_object=DEFAULT,
     ) as mocks:
-        mocks["lookup_secret"].return_value = "secret"
-        mocks["lookup_github_file_content"].return_value = "file-content"
+        mocks["lookup_secret"].side_effect = (
+            lambda path,
+            key,
+            version=None,
+            tvars=None,
+            allow_not_found=False,
+            settings=None,
+            secret_reader=None: f"vault({path}, {key}, {version}"
+        )
+        mocks["lookup_github_file_content"].side_effect = (
+            lambda repo,
+            path,
+            ref,
+            tvars=None,
+            settings=None,
+            secret_reader=None: f"github({repo}, {path}, {ref})"
+        )
         mocks["url_makes_sense"].return_value = False
-        mocks["lookup_s3_object"].return_value = "s3-object"
+        mocks["lookup_s3_object"].side_effect = (
+            lambda account_name,
+            bucket_name,
+            path,
+            region_name=None: f"lookup_s3_object({account_name}, {bucket_name}, {path}, {region_name})"
+        )
         with patch(
             "reconcile.openshift_resources_base.check_alertmanager_config",
             return_value=True,
