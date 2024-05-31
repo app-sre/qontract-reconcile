@@ -148,6 +148,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   openshift-namespace-labels      Manages labels on OpenShift namespaces.
   openshift-namespaces            Manages OpenShift Namespaces.
   openshift-network-policies      Manages OpenShift NetworkPolicies.
+  openshift-prometheus-rules      Manages OpenShift Prometheus Rules.
   openshift-resourcequotas        Manages OpenShift ResourceQuota objects.
   openshift-resources             Manages OpenShift Resources.
   openshift-rolebindings          Configures Rolebindings in OpenShift
@@ -212,6 +213,8 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   to Status Board.
   status-page-components          Manages components on statuspage.io hosted
                                   status pages.
+  status-page-maintenances        Manages maintenances on statuspage.io hosted
+                                  status pages.
   template-renderer               Render datafile templates in app-interface.
   template-validator              Test app-interface templates.
   terraform-aws-route53           Manage AWS Route53 resources using
@@ -227,7 +230,8 @@ Additional tools that use the libraries created by the reconciliations are also 
   terraform-users                 Manage AWS users using Terraform.
   terraform-vpc-peerings          Manage VPC peerings between OSD clusters and
                                   AWS accounts or other OSD clusters.
-  terraform-vpc-resources         Manage VPC creation through a VPC request.
+  terraform-vpc-resources         Manage VPC creation
+  unleash-feature-toggles         Manage Unleash feature toggles.
   vault-replication               Allow vault to replicate secrets to other
                                   instances.
   version-gate-approver           Approves OCM cluster upgrade version gates.

@@ -835,6 +835,8 @@ def canonicalize_namespaces(
                 override = ["Secret"]
             elif providers[0] == "route":
                 override = ["Route"]
+            elif providers[0] == "prometheus-rule":
+                override = ["PrometheusRule"]
 
             namespace_info["openshiftResources"] = ors
             canonicalized_namespaces.append(namespace_info)
