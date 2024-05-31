@@ -1,14 +1,13 @@
 from collections.abc import Iterable
 from typing import Any
 
-import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
 
-QONTRACT_INTEGRATION = "openshift_resources"
-QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
-PROVIDERS = ["resource", "resource-template"]
+QONTRACT_INTEGRATION = "openshift-prometheus-rules"
+QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
+PROVIDERS = ["prometheus-rule"]
 
 
 def run(
@@ -23,7 +22,7 @@ def run(
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
 
-    ri = orb.run(
+    orb.run(
         dry_run=dry_run,
         thread_pool_size=thread_pool_size,
         internal=internal,
@@ -34,11 +33,6 @@ def run(
         namespace_name=namespace_name,
         init_api_resources=True,
     )
-
-    # check for unused resources types
-    # listed under `managedResourceTypes`
-    if ri:
-        ob.check_unused_resource_types(ri)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:

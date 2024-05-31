@@ -1776,6 +1776,31 @@ def openshift_routes(
     )
 
 
+@integration.command(short_help="Manages OpenShift Prometheus Rules.")
+@threaded()
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@use_jump_host()
+@cluster_name
+@namespace_name
+@click.pass_context
+def openshift_prometheus_rules(
+    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
+):
+    import reconcile.openshift_prometheus_rules
+
+    run_integration(
+        reconcile.openshift_prometheus_rules,
+        ctx.obj,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
+    )
+
+
 @integration.command(short_help="Configures the teams and members in Quay.")
 @click.pass_context
 def quay_membership(ctx):
