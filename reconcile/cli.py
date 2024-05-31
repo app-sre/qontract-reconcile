@@ -933,6 +933,9 @@ def openshift_serviceaccount_tokens(
     required=True,
     default=6,
 )
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
 def aws_saml_roles(
     ctx,
@@ -942,6 +945,9 @@ def aws_saml_roles(
     account_name,
     saml_idp_name,
     max_session_duration_hours,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
 ):
     from reconcile.aws_saml_roles.integration import (
         AwsSamlRolesIntegration,
@@ -957,6 +963,9 @@ def aws_saml_roles(
                 saml_idp_name=saml_idp_name,
                 max_session_duration_hours=max_session_duration_hours,
                 account_name=account_name,
+                enable_extended_early_exit=enable_extended_early_exit,
+                extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+                log_cached_log_output=log_cached_log_output,
             )
         ),
         ctx=ctx.obj,
