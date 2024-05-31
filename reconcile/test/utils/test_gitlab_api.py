@@ -14,6 +14,7 @@ from gitlab.v4.objects import (
     ProjectIssueNoteManager,
     ProjectLabel,
     ProjectLabelManager,
+    ProjectManager,
     ProjectMember,
     ProjectMemberManager,
     ProjectMergeRequest,
@@ -468,40 +469,38 @@ def test_get_group_members(
     assert mocked_gitlab_api.get_group_if_exists("group") is group
 
     assert mocked_gitlab_api.get_group_members("group") == [
-        {"user": "small", "access_level": None}
+        {"user": "small", "access_level": "owner"}
     ]
 
 
 def test_share_project_with_group_positive(
-    mocker: MockerFixture, mocked_gitlab_api: GitLabApi
+    mocker: MockerFixture,
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Any,
 ):
+    projects = create_autospec(ProjectManager)
     project = create_autospec(Project)
     project.members = create_autospec(ProjectMemberManager)
     project.members.all.return_value = [
         create_autospec(ProjectMember, id=mocked_gitlab_api.user.id, access_level=40)
     ]
-    mocker.patch(
-        "reconcile.utils.gitlab_api.GitLabApi.get_project"
-    ).return_value = project
-    mocker.patch(
-        "reconcile.utils.gitlab_api.GitLabApi.get_access_level"
-    ).return_value = 40
+    projects.get.return_value = project
+    mocked_gl.projects = projects
     mocked_gitlab_api.share_project_with_group("test_repo", 1111, False)
     project.share.assert_called_once_with(1111, 40)
 
 
 def test_share_project_with_group_errored(
-    mocker: MockerFixture, mocked_gitlab_api: GitLabApi
+    mocker: MockerFixture,
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Any,
 ):
+    projects = create_autospec(ProjectManager)
     project = create_autospec(Project)
     project.members = create_autospec(ProjectMemberManager)
     project.members.all.return_value = []
-    mocker.patch(
-        "reconcile.utils.gitlab_api.GitLabApi.get_project"
-    ).return_value = project
-    mocker.patch(
-        "reconcile.utils.gitlab_api.GitLabApi.get_access_level"
-    ).return_value = 40
+    projects.get.return_value = project
+    mocked_gl.projects = projects
     mocked_gitlab_api.share_project_with_group("test_repo", 1111, False, "maintainer")
     project.share.assert_not_called()
 
@@ -531,9 +530,6 @@ def test_get_group_id_and_shared_projects(
         ],
     )
     mocked_gl.groups = groups
-    mocker.patch(
-        "reconcile.utils.gitlab_api.GitLabApi.get_access_level"
-    ).return_value = 40
     id, shared_projects = mocked_gitlab_api.get_group_id_and_shared_projects("test")
     assert id == 1234
     assert shared_projects[0]["web_url"] == "https://xyz.com"

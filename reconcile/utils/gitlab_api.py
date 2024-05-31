@@ -19,6 +19,13 @@ from urllib.parse import urlparse
 
 import gitlab
 import urllib3
+from gitlab.const import (
+    DEVELOPER_ACCESS,
+    GUEST_ACCESS,
+    MAINTAINER_ACCESS,
+    OWNER_ACCESS,
+    REPORTER_ACCESS,
+)
 from gitlab.v4.objects import (
     CurrentUser,
     Group,
@@ -287,8 +294,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             for project in group.shared_projects
             for shared_group in project["shared_with_groups"]
             if shared_group["group_id"] == group.id
-            and shared_group["group_access_level"]
-            >= self.get_access_level("maintainer")
+            and shared_group["group_access_level"] >= MAINTAINER_ACCESS
         ]
 
     @staticmethod
@@ -372,30 +378,30 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def get_access_level_string(access_level):
-        if access_level == gitlab.OWNER_ACCESS:
+        if access_level == OWNER_ACCESS:
             return "owner"
-        if access_level == gitlab.MAINTAINER_ACCESS:
+        if access_level == MAINTAINER_ACCESS:
             return "maintainer"
-        if access_level == gitlab.DEVELOPER_ACCESS:
+        if access_level == DEVELOPER_ACCESS:
             return "developer"
-        if access_level == gitlab.REPORTER_ACCESS:
+        if access_level == REPORTER_ACCESS:
             return "reporter"
-        if access_level == gitlab.GUEST_ACCESS:
+        if access_level == GUEST_ACCESS:
             return "guest"
 
     @staticmethod
     def get_access_level(access):
         access = access.lower()
         if access == "owner":
-            return gitlab.OWNER_ACCESS
+            return OWNER_ACCESS
         if access == "maintainer":
-            return gitlab.MAINTAINER_ACCESS
+            return MAINTAINER_ACCESS
         if access == "developer":
-            return gitlab.DEVELOPER_ACCESS
+            return DEVELOPER_ACCESS
         if access == "reporter":
-            return gitlab.REPORTER_ACCESS
+            return REPORTER_ACCESS
         if access == "guest":
-            return gitlab.GUEST_ACCESS
+            return GUEST_ACCESS
 
     def get_group_id_and_projects(self, group_name: str) -> tuple[str, list[str]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
