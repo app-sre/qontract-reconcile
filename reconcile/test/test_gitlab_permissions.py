@@ -18,7 +18,7 @@ def mocked_queries(mocker: MockerFixture) -> MagicMock:
 
 
 @pytest.fixture()
-def mocked_gl() -> GitLabApi:
+def mocked_gl() -> MagicMock:
     gl = create_autospec(GitLabApi)
     gl.server = "test_server"
     gl.user = create_autospec(CurrentUser)
@@ -27,7 +27,7 @@ def mocked_gl() -> GitLabApi:
 
 
 def test_run_share_with_members(
-    mocked_queries: MagicMock, mocker: MockerFixture, mocked_gl: GitLabApi
+    mocked_queries: MagicMock, mocker: MockerFixture, mocked_gl: MagicMock
 ) -> None:
     mocker.patch("reconcile.gitlab_permissions.GitLabApi").return_value = mocked_gl
     mocked_gl.get_app_sre_group_users.return_value = [
@@ -43,7 +43,7 @@ def test_run_share_with_members(
 
 
 def test_run_share_with_group(
-    mocked_queries: MagicMock, mocker: MockerFixture, mocked_gl: GitLabApi
+    mocked_queries: MagicMock, mocker: MockerFixture, mocked_gl: MagicMock
 ) -> None:
     mocker.patch("reconcile.gitlab_permissions.GitLabApi").return_value = mocked_gl
     mocker.patch(
