@@ -35,7 +35,7 @@ def test_run_share_with_members(
     ]
     mocker.patch(
         "reconcile.gitlab_permissions.get_feature_toggle_state"
-    ).return_value = True
+    ).return_value = False
     mocked_gl.get_project_maintainers.return_value = ["test_name"]
 
     gitlab_permissions.run(False, thread_pool_size=1)
@@ -48,7 +48,7 @@ def test_run_share_with_group(
     mocker.patch("reconcile.gitlab_permissions.GitLabApi").return_value = mocked_gl
     mocker.patch(
         "reconcile.gitlab_permissions.get_feature_toggle_state"
-    ).return_value = False
+    ).return_value = True
     mocked_gl.get_group_id_and_shared_projects.return_value = (
         1234,
         [{"web_url": "https://test.com"}],

@@ -52,11 +52,11 @@ def run(dry_run, thread_pool_size=10, defer=None):
     if defer:
         defer(gl.cleanup)
     repos = queries.get_repos(server=gl.server, exclude_manage_permissions=True)
-    toggle_state = get_feature_toggle_state(
-        "gitlab-permissions-should-share-project-with-group",
+    share_with_group_enabled = get_feature_toggle_state(
+        "gitlab-permissions-share-with-group",
         default=False,
     )
-    if not toggle_state:
+    if share_with_group_enabled:
         share_project_with_group(gl, repos, dry_run)
     else:
         share_project_with_group_members(gl, repos, thread_pool_size, dry_run)
