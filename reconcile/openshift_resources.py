@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from typing import Any
 
 import reconcile.openshift_base as ob
@@ -12,14 +11,15 @@ PROVIDERS = ["resource", "resource-template", "prometheus-rule"]
 
 
 def run(
-    dry_run: bool,
-    thread_pool_size: int = 10,
-    internal: bool | None = None,
-    use_jump_host: bool = True,
-    cluster_name: Iterable[str] | None = None,
-    exclude_cluster: Iterable[str] | None = None,
-    namespace_name: str | None = None,
-) -> None:
+    dry_run,
+    thread_pool_size=10,
+    internal=None,
+    use_jump_host=True,
+    cluster_name=None,
+    exclude_cluster=None,
+    namespace_name=None,
+    defer=None,
+):
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
 
@@ -41,7 +41,7 @@ def run(
         ob.check_unused_resource_types(ri)
 
 
-def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     return orb.early_exit_desired_state(PROVIDERS)
 
 
