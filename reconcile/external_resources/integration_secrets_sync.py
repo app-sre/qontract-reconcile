@@ -31,11 +31,11 @@ def run(dry_run: bool, thread_pool_size: int) -> None:
     er_inventory = ExternalResourcesInventory(namespaces)
     m_inventory = load_module_inventory(get_modules())
 
-    to_sync_specs = []
-    for key, spec in er_inventory.items():
-        module = m_inventory.get_from_external_resource_key(key)
-        if module.outputs_secret_sync:
-            to_sync_specs.append(spec)
+    to_sync_specs = [
+        spec
+        for key, spec in er_inventory.items()
+        if m_inventory.get_from_external_resource_key(key).outputs_secret_sync
+    ]
 
     reconciler = VaultSecretsReconciler(
         ri=ResourceInventory(),

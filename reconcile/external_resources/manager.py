@@ -231,7 +231,7 @@ class ExternalResourcesManager:
                     r.key,
                 )
                 if r.action == Action.APPLY:
-                    state.resource_status = ResourceStatus.CREATED
+                    state.resource_status = ResourceStatus.PENDING_SECRET_SYNC
                     state.reconciliation_errors = 0
                     self.state_mgr.set_external_resource_state(state)
                     need_secret_sync = True
@@ -278,12 +278,9 @@ class ExternalResourcesManager:
     def _sync_secrets(
         self,
         to_sync_keys: Iterable[ExternalResourceKey],
-        pending_sync_keys: Iterable[ExternalResourceKey],
     ) -> None:
         specs = [
-            spec
-            for key in set(to_sync_keys) | set(pending_sync_keys)
-            if (spec := self.er_inventory.get(key))
+            spec for key in set(to_sync_keys) if (spec := self.er_inventory.get(key))
         ]
 
         sync_error_spec_keys = {
@@ -293,22 +290,11 @@ class ExternalResourcesManager:
 
         for key in to_sync_keys:
             if key in sync_error_spec_keys:
-                logging.info(
-                    "Marking Resource: %s as %s",
-                    key,
-                    ResourceStatus.PENDING_SECRET_SYNC,
-                )
-                self.state_mgr.update_resource_status(
-                    key, ResourceStatus.PENDING_SECRET_SYNC
-                )
-
-        for key in pending_sync_keys:
-            if key in sync_error_spec_keys:
-                logging.info(
+                logging.error(
                     "Outputs secret for key can not be reconciled. Key: %s", key
                 )
             else:
-                logging.info(
+                logging.debug(
                     "Outputs secret for key has been reconciled. Marking resource as %s. Key: %s",
                     ResourceStatus.CREATED,
                     key,
@@ -357,9 +343,7 @@ class ExternalResourcesManager:
         )
 
         if to_sync_keys or pending_sync_keys:
-            self._sync_secrets(
-                to_sync_keys=to_sync_keys, pending_sync_keys=pending_sync_keys
-            )
+            self._sync_secrets(to_sync_keys=to_sync_keys | pending_sync_keys)
 
     def handle_dry_run_resources(self) -> None:
         desired_r = self._get_desired_objects_reconciliations()

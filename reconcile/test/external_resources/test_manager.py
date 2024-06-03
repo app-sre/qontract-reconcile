@@ -163,7 +163,7 @@ def test_resource_needs_reconciliation_drift(
             ResourceStatus.IN_PROGRESS,
             Action.APPLY,
             ReconcileStatus.SUCCESS,
-            ResourceStatus.CREATED,
+            ResourceStatus.PENDING_SECRET_SYNC,
         ),
         (
             ResourceStatus.IN_PROGRESS,
