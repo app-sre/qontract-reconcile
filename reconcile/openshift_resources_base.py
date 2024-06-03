@@ -1203,6 +1203,7 @@ def early_exit_monkey_patch() -> Generator:
         url_makes_sense=DEFAULT,
         lookup_s3_object=DEFAULT,
     ) as mocks:
+        # mock lookup_secret
         mocks["lookup_secret"].side_effect = (
             lambda path,
             key,
@@ -1212,6 +1213,11 @@ def early_exit_monkey_patch() -> Generator:
             settings=None,
             secret_reader=None: f"vault({path}, {key}, {version}"
         )
+        # needed for jinja2 `is_safe_callable`
+        mocks["lookup_secret"].unsafe_callable = False
+        mocks["lookup_secret"].alters_data = False
+
+        # mock lookup_github_file_content
         mocks["lookup_github_file_content"].side_effect = (
             lambda repo,
             path,
@@ -1220,13 +1226,27 @@ def early_exit_monkey_patch() -> Generator:
             settings=None,
             secret_reader=None: f"github({repo}, {path}, {ref})"
         )
-        mocks["url_makes_sense"].return_value = False
+        # needed for jinja2 `is_safe_callable`
+        mocks["lookup_github_file_content"].unsafe_callable = False
+        mocks["lookup_github_file_content"].alters_data = False
+
+        # mock url_makes_sense
+        mocks["url_makes_sense"].side_effect = lambda url: False
+        # needed for jinja2 `is_safe_callable`
+        mocks["url_makes_sense"].unsafe_callable = False
+        mocks["url_makes_sense"].alters_data = False
+
+        # mock lookup_s3_object
         mocks["lookup_s3_object"].side_effect = (
             lambda account_name,
             bucket_name,
             path,
             region_name=None: f"lookup_s3_object({account_name}, {bucket_name}, {path}, {region_name})"
         )
+        # needed for jinja2 `is_safe_callable`
+        mocks["lookup_s3_object"].unsafe_callable = False
+        mocks["lookup_s3_object"].alters_data = False
+
         with patch(
             "reconcile.openshift_resources_base.check_alertmanager_config",
             return_value=True,
