@@ -1899,7 +1899,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     sha=promotion.commit_sha,
                     channel=channel.name,
                     target_uid=target_uid,
-                    local_lookup=False,
+                    pre_check_sha_exists=False,
                 )
                 if not (deployment and deployment.success):
                     logging.error(
@@ -2007,6 +2007,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             saas_file=promotion.saas_file,
                             success=success,
                             target_config_hash=promotion.target_config_hash,
+                            # TODO: do not override - check if timestamp already exists
                             check_in=str(now),
                         ),
                     )

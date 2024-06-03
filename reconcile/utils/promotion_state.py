@@ -39,6 +39,7 @@ class PromotionState:
     def __init__(self, state: State):
         self._state = state
         self._commits_by_channel: dict[str, set[str]] = defaultdict(set)
+        self._promotion_data_cache: dict[str, PromotionData | None] = {}
 
     def _target_key(self, channel: str, target_uid: str) -> str:
         return f"{channel}/{target_uid}"
@@ -59,18 +60,28 @@ class PromotionState:
             self._commits_by_channel[key].add(commit_sha)
 
     def get_promotion_data(
-        self, sha: str, channel: str, target_uid: str = "", local_lookup: bool = True
+        self,
+        sha: str,
+        channel: str,
+        target_uid: str = "",
+        pre_check_sha_exists: bool = True,
+        use_cache: bool = False,
     ) -> Optional[PromotionData]:
         cache_key_v2 = self._target_key(channel=channel, target_uid=target_uid)
-        if local_lookup and sha not in self._commits_by_channel[cache_key_v2]:
+        if pre_check_sha_exists and sha not in self._commits_by_channel[cache_key_v2]:
             # Lets reduce unecessary calls to S3
             return None
 
         path_v2 = f"promotions_v2/{channel}/{target_uid}/{sha}"
+        if use_cache and path_v2 in self._promotion_data_cache:
+            return self._promotion_data_cache[path_v2]
         try:
             data = self._state.get(path_v2)
-            return PromotionData(**data)
+            promotion_data = PromotionData(**data)
+            self._promotion_data_cache[path_v2] = promotion_data
+            return promotion_data
         except KeyError:
+            self._promotion_data_cache[path_v2] = None
             return None
 
     def publish_promotion_data(
