@@ -183,7 +183,7 @@ def test_promotion_data_cache(s3_state_builder: Callable[[Mapping], State]) -> N
     state.ls.assert_not_called()  # type: ignore[attr-defined]
 
 
-def test_promotion_data_disabled_cache(
+def test_promotion_data_disabled_cache_by_default(
     s3_state_builder: Callable[[Mapping], State],
 ) -> None:
     check_in = "2024-04-17 13:47:31.722437+00:00"
@@ -206,7 +206,6 @@ def test_promotion_data_disabled_cache(
         sha="sha",
         target_uid="uid",
         pre_check_sha_exists=False,
-        use_cache=False,
     )
 
     # Fetch second time -> disabled cache
