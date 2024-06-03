@@ -8,8 +8,10 @@ from reconcile import queries
 from reconcile.utils import batches
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.unleash import get_feature_toggle_state
 
 QONTRACT_INTEGRATION = "gitlab-permissions"
+APP_SRE_GROUP_NAME = "app-sre"
 PAGE_SIZE = 100
 
 
@@ -50,6 +52,19 @@ def run(dry_run, thread_pool_size=10, defer=None):
     if defer:
         defer(gl.cleanup)
     repos = queries.get_repos(server=gl.server, exclude_manage_permissions=True)
+    share_with_group_enabled = get_feature_toggle_state(
+        "gitlab-permissions-share-with-group",
+        default=False,
+    )
+    if share_with_group_enabled:
+        share_project_with_group(gl, repos, dry_run)
+    else:
+        share_project_with_group_members(gl, repos, thread_pool_size, dry_run)
+
+
+def share_project_with_group_members(
+    gl: GitLabApi, repos: list[str], thread_pool_size: int, dry_run: bool
+) -> None:
     app_sre = gl.get_app_sre_group_users()
     results = threaded.run(
         get_members_to_add, repos, thread_pool_size, gl=gl, app_sre=app_sre
@@ -59,6 +74,14 @@ def run(dry_run, thread_pool_size=10, defer=None):
         logging.info(["add_maintainer", m["repo"], m["user"].username])
         if not dry_run:
             gl.add_project_member(m["repo"], m["user"])
+
+
+def share_project_with_group(gl: GitLabApi, repos: list[str], dry_run: bool) -> None:
+    group_id, shared_projects = gl.get_group_id_and_shared_projects(APP_SRE_GROUP_NAME)
+    shared_project_repos = {project["web_url"] for project in shared_projects}
+    repos_to_share = set(repos) - shared_project_repos
+    for repo in repos_to_share:
+        gl.share_project_with_group(repo_url=repo, group_id=group_id, dry_run=dry_run)
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
