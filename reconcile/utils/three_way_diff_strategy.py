@@ -131,6 +131,14 @@ def three_way_diff_using_hash(c_item: OR, d_item: OR) -> bool:
         logging.debug("Current object QR hash is missing -> Apply")
         return False
 
+    if (
+        c_item_integration := annotations["qontract.integration"]
+    ) != d_item.integration:
+        logging.info(
+            f"resource switching integration from {c_item_integration} to {d_item.integration}"
+        )
+        return False
+
     # Original object does not match Desired -> Apply
     # Current object hash is not recalculated!
     if c_item_sha256 != d_item.sha256sum():
