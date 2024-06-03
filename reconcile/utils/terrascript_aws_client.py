@@ -36,6 +36,7 @@ from sretoolbox.utils import threaded
 from terrascript import (
     Backend,
     Data,
+    Module,
     Output,
     Provider,
     Resource,
@@ -144,6 +145,9 @@ import reconcile.utils.aws_helper as awsh
 from reconcile import queries
 from reconcile.cli import TERRAFORM_VERSION
 from reconcile.github_org import get_default_config
+from reconcile.gql_definitions.fragments.aws_vpc_request import (
+    VPCRequest,
+)
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
 )
@@ -1180,6 +1184,69 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     route_identifier = f"{identifier}-{route_table_id}"
                     tf_resource = aws_route(route_identifier, **values)
                     self.add_resource(infra_account_name, tf_resource)
+
+    def populate_vpc_requests(
+        self, vpc_requests: Iterable[VPCRequest], aws_provider_version: str
+    ) -> None:
+        for request in vpc_requests:
+            # skiping deleted requests
+            if request.delete:
+                continue
+            # The default values here come from infra repo's module configuration
+            values = {
+                "source": "terraform-aws-modules/vpc/aws",
+                "version": aws_provider_version,
+                "name": request.identifier,
+                "cidr": request.cidr_block.network_address,
+                "private_subnet_tags": {"kubernetes.io/role/internal-elb": "1"},
+                "public_subnet_tags": {"kubernetes.io/role/elb": "1"},
+                "create_database_subnet_group": False,
+                "enable_dns_hostnames": True,
+                "tags": {
+                    "managed_by_integration": self.integration,
+                },
+            }
+
+            if request.subnets and request.subnets.public:
+                values["public_subnets"] = request.subnets.public
+            if request.subnets and request.subnets.private:
+                values["private_subnets"] = request.subnets.private
+            if request.subnets and request.subnets.availability_zones:
+                values["azs"] = request.subnets.availability_zones
+
+            # We only want to enable nat_gateway if we have public and private subnets
+            if request.subnets and request.subnets.public and request.subnets.private:
+                values["enable_nat_gateway"] = True
+
+            aws_account = request.account.name
+            module = Module(request.identifier, **values)
+            self.add_resource(aws_account, module)
+
+            # The outputs for module are only working with this sintaxe
+            vpc_id_output = Output(
+                f"{request.identifier}-vpc_id", value=f"${{{module.vpc_id}}}"
+            )
+            self.add_resource(aws_account, vpc_id_output)
+
+            vpc_cidr_block_output = Output(
+                f"{request.identifier}-vpc_cidr_block",
+                value=f"${{{module.vpc_cidr_block}}}",
+            )
+            self.add_resource(aws_account, vpc_cidr_block_output)
+
+            if request.subnets and request.subnets.private:
+                private_subnets_output = Output(
+                    f"{request.identifier}-private_subnets",
+                    value=f"${{module.{request.identifier}.private_subnets}}",
+                )
+                self.add_resource(aws_account, private_subnets_output)
+
+            if request.subnets and request.subnets.public:
+                public_subnets_output = Output(
+                    f"{request.identifier}-public_subnets",
+                    value=f"${{module.{request.identifier}.public_subnets}}",
+                )
+                self.add_resource(aws_account, public_subnets_output)
 
     def populate_tgw_attachments(self, desired_state):
         for item in desired_state:

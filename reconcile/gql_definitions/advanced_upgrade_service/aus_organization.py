@@ -23,6 +23,7 @@ from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganizat
 DEFINITION = """
 fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   name
+  labels
   environment {
     ... OCMEnvironment
   }
@@ -74,6 +75,10 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   upgradePolicyAllowedWorkloads
   upgradePolicyClusters {
     name
+    serverUrl
+    spec {
+      id
+    }
     upgradePolicy {
       ... ClusterUpgradePolicyV1
     }
@@ -107,6 +112,7 @@ fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {
 
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
     name
+    description
     labels
     url
     accessTokenClientId

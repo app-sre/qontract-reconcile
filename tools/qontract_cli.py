@@ -142,6 +142,7 @@ from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
 )
+from tools.cli_commands.systems_and_tools import get_systems_and_tools_inventory
 from tools.sre_checkpoints import (
     full_name,
     get_latest_sre_checkpoints,
@@ -1264,8 +1265,9 @@ def aws_route53_zones(ctx):
 
 @get.command()
 @click.argument("cluster_name")
+@click.option("--cluster-admin/--no-cluster-admin", default=False)
 @click.pass_context
-def bot_login(ctx, cluster_name):
+def bot_login(ctx, cluster_name, cluster_admin):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     clusters = queries.get_clusters()
@@ -1276,7 +1278,10 @@ def bot_login(ctx, cluster_name):
 
     cluster = clusters[0]
     server = cluster["serverUrl"]
-    token = secret_reader.read(cluster["automationToken"])
+    automation_token_name = (
+        "clusterAdminAutomationToken" if cluster_admin else "automationToken"
+    )
+    token = secret_reader.read(cluster[automation_token_name])
     print(f"oc login --server {server} --token {token}")
 
 
@@ -2695,6 +2700,16 @@ def hcp_migration_status(ctx):
     )
     columns = ["app", "classic", "hcp", "progress"]
     print_output(ctx.obj["options"], data, columns)
+
+
+@get.command()
+@click.pass_context
+def systems_and_tools(ctx):
+    print(
+        f"This report is obtained from app-interface Graphql endpoint available at: {config.get_config()['graphql']['server']}"
+    )
+    inventory = get_systems_and_tools_inventory()
+    print_output(ctx.obj["options"], inventory.data, inventory.columns)
 
 
 @root.group(name="set")

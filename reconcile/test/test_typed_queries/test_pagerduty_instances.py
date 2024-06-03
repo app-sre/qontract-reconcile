@@ -22,12 +22,14 @@ def test_get_pagerduty_instances(fxt: Fixtures) -> None:
     assert items == [
         PagerDutyInstanceV1(
             name="instance-1",
+            description="instance 1",
             token=VaultSecret(
                 path="vault-path", field="token", version=None, format=None
             ),
         ),
         PagerDutyInstanceV1(
             name="instance-2",
+            description="instance 2",
             token=VaultSecret(
                 path="vault-path2", field="token2", version=2, format="format"
             ),

@@ -21,6 +21,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 DEFINITION = """
 query JiraServers {
   jira_servers: jira_servers_v1 {
+    name
+    description
     serverUrl
     username
     token {
@@ -48,6 +50,8 @@ class VaultSecretV1(ConfiguredBaseModel):
 
 
 class JiraServerV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    description: str = Field(..., alias="description")
     server_url: str = Field(..., alias="serverUrl")
     username: str = Field(..., alias="username")
     token: VaultSecretV1 = Field(..., alias="token")

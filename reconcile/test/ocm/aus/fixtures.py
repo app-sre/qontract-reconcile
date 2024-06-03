@@ -62,6 +62,7 @@ def build_upgrade_policy(
 def build_ocm_environment(env_name: Optional[str] = None) -> OCMEnvironment:
     return OCMEnvironment(
         name=env_name or "env-name",
+        description="env desc",
         labels=None,
         accessTokenClientId="client-id",
         accessTokenUrl="https://token-url",
@@ -93,6 +94,7 @@ def build_organization(
     )
     return AUSOCMOrganization(
         name=org_name or "org-name",
+        labels=None,
         environment=ocm_env or build_ocm_environment(env_name or "env-name"),
         orgId=org_id,
         blockedVersions=blocked_versions,

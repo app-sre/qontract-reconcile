@@ -4,6 +4,7 @@ query Clusters($name: String) {
   clusters: clusters_v1(name: $name) {
     path
     name
+    description
     serverUrl
     consoleUrl
     elbFQDN

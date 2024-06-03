@@ -10,6 +10,7 @@ from reconcile.checkpoint import url_makes_sense
 from reconcile.github_users import init_github
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.helpers import flatten
 from reconcile.utils.jinja2.extensions import B64EncodeExtension, RaiseErrorExtension
 from reconcile.utils.jinja2.filters import (
     eval_filter,
@@ -180,6 +181,7 @@ def process_jinja2_template(
         "query": lookup_graphql_query_results,
         "url": url_makes_sense,
         "s3": lookup_s3_object,
+        "flatten_dict": flatten,
     })
     if "_template_mocks" in vars:
         for k, v in vars["_template_mocks"].items():

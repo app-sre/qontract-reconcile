@@ -3,6 +3,7 @@
 query GlitchtipInstance {
   instances: glitchtip_instances_v1 {
     name
+    description
     consoleUrl
     automationUserEmail {
       ...VaultSecret

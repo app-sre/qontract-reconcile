@@ -25,6 +25,7 @@ DEFINITION = """
 fragment AWSAccountCommon on AWSAccount_v1 {
   path
   name
+  description
   uid
   terraformUsername
   consoleUrl

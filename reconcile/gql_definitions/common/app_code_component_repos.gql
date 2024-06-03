@@ -3,6 +3,9 @@
 query AppCodeComponentRepos {
   apps: apps_v1 {
     codeComponents {
+      name
+      description
+      resource
       url
     }
   }

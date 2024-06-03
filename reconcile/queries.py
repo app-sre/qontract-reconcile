@@ -950,6 +950,12 @@ CLUSTERS_QUERY = """
       version
       format
     }
+    clusterAdminAutomationToken {
+      path
+      field
+      version
+      format
+    }
     clusterAdmin
     internal
     disable {

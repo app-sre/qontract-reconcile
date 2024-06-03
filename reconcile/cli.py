@@ -737,6 +737,9 @@ def terraform_aws_route53(
     required=True,
     default="https://auth.redhat.com/auth/realms/EmployeeIDP/protocol/saml/descriptor",
 )
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
 def aws_saml_idp(
     ctx,
@@ -746,6 +749,9 @@ def aws_saml_idp(
     account_name,
     saml_idp_name,
     saml_metadata_url,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
 ):
     from reconcile.aws_saml_idp.integration import (
         AwsSamlIdpIntegration,
@@ -761,6 +767,9 @@ def aws_saml_idp(
                 saml_idp_name=saml_idp_name,
                 saml_metadata_url=saml_metadata_url,
                 account_name=account_name,
+                enable_extended_early_exit=enable_extended_early_exit,
+                extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+                log_cached_log_output=log_cached_log_output,
             )
         ),
         ctx=ctx.obj,
@@ -924,6 +933,9 @@ def openshift_serviceaccount_tokens(
     required=True,
     default=6,
 )
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
 def aws_saml_roles(
     ctx,
@@ -933,6 +945,9 @@ def aws_saml_roles(
     account_name,
     saml_idp_name,
     max_session_duration_hours,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
 ):
     from reconcile.aws_saml_roles.integration import (
         AwsSamlRolesIntegration,
@@ -948,6 +963,9 @@ def aws_saml_roles(
                 saml_idp_name=saml_idp_name,
                 max_session_duration_hours=max_session_duration_hours,
                 account_name=account_name,
+                enable_extended_early_exit=enable_extended_early_exit,
+                extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+                log_cached_log_output=log_cached_log_output,
             )
         ),
         ctx=ctx.obj,
@@ -1758,6 +1776,31 @@ def openshift_routes(
     )
 
 
+@integration.command(short_help="Manages OpenShift Prometheus Rules.")
+@threaded()
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@use_jump_host()
+@cluster_name
+@namespace_name
+@click.pass_context
+def openshift_prometheus_rules(
+    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
+):
+    import reconcile.openshift_prometheus_rules
+
+    run_integration(
+        reconcile.openshift_prometheus_rules,
+        ctx.obj,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
+    )
+
+
 @integration.command(short_help="Configures the teams and members in Quay.")
 @click.pass_context
 def quay_membership(ctx):
@@ -2284,6 +2327,35 @@ def terraform_users(
         thread_pool_size,
         send_mails,
         account_name=account_name,
+    )
+
+
+@integration.command(short_help="Manage VPC creation")
+@binary(["terraform"])
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@account_name
+@print_to_file
+@threaded()
+@enable_deletion(default=False)
+@click.pass_context
+def terraform_vpc_resources(
+    ctx, account_name, print_to_file, thread_pool_size, enable_deletion
+):
+    from reconcile.terraform_vpc_resources.integration import (
+        TerraformVpcResources,
+        TerraformVpcResourcesParams,
+    )
+
+    run_class_integration(
+        TerraformVpcResources(
+            TerraformVpcResourcesParams(
+                account_name=account_name,
+                print_to_file=print_to_file,
+                thread_pool_size=thread_pool_size,
+                enable_deletion=enable_deletion,
+            )
+        ),
+        ctx.obj,
     )
 
 

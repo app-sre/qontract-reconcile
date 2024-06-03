@@ -31,6 +31,7 @@ fragment VaultSecret on VaultSecret_v1 {
 query UnleashFeatureToggles {
   instances: unleash_instances_v1 {
     name
+    description
     url
     adminToken {
       ...VaultSecret
@@ -82,6 +83,7 @@ class UnleashProjectV1(ConfiguredBaseModel):
 
 class UnleashInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    description: str = Field(..., alias="description")
     url: str = Field(..., alias="url")
     admin_token: Optional[VaultSecret] = Field(..., alias="adminToken")
     allow_unmanaged_feature_toggles: Optional[bool] = Field(..., alias="allowUnmanagedFeatureToggles")

@@ -116,8 +116,6 @@ module = [
     "reconcile.openshift_namespace_labels",
     "reconcile.openshift_network_policies",
     "reconcile.openshift_resourcequotas",
-    "reconcile.openshift_resources_base",
-    "reconcile.openshift_resources",
     "reconcile.openshift_rolebindings",
     "reconcile.openshift_routes",
     "reconcile.openshift_serviceaccount_tokens",
