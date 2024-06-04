@@ -557,7 +557,7 @@ def _update_usergroup_users_from_state(
 
     slack_user_objects = [
         SlackObject(pk=pk, name=name)
-        for pk, name in slack_client.get_users_by_names(
+        for pk, name in slack_client.get_active_users_by_names(
             desired_ug_state.user_names
         ).items()
     ]
