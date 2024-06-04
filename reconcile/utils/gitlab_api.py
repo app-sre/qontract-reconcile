@@ -29,9 +29,9 @@ from gitlab.const import (
 from gitlab.v4.objects import (
     CurrentUser,
     Group,
+    GroupProject,
     Project,
     ProjectIssue,
-    GroupProject,
     ProjectMergeRequest,
     ProjectMergeRequestNote,
 )
