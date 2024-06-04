@@ -77,9 +77,11 @@ def share_project_with_group_members(
 
 
 def share_project_with_group(gl: GitLabApi, repos: list[str], dry_run: bool) -> None:
+    # get repos not owned by app-sre
+    non_app_sre_projects = {repo for repo in repos if "/app-sre/" not in repo}
     group_id, shared_projects = gl.get_group_id_and_shared_projects(APP_SRE_GROUP_NAME)
     shared_project_repos = {project["web_url"] for project in shared_projects}
-    repos_to_share = set(repos) - shared_project_repos
+    repos_to_share = non_app_sre_projects - shared_project_repos
     for repo in repos_to_share:
         gl.share_project_with_group(repo_url=repo, group_id=group_id, dry_run=dry_run)
 

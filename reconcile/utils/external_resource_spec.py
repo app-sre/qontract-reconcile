@@ -87,6 +87,11 @@ class ExternalResourceSpec:
     resource: MutableMapping[str, Any]
     namespace: Mapping[str, Any]
     secret: Mapping[str, str] = field(init=False, default_factory=lambda: {})
+    # Metadata is used for processing data that shuold not be included in the secret data
+    # e.g: ERV2 adds a updated_at attribute that acts as optimistic lock.
+    metadata: MutableMapping[str, str] = field(
+        init=False, compare=False, repr=False, hash=False, default_factory=lambda: {}
+    )
 
     @property
     def provider(self) -> str:

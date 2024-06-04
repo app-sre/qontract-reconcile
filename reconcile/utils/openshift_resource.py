@@ -14,6 +14,7 @@ from typing import (
 import semver
 from pydantic import BaseModel
 
+from reconcile.external_resources.meta import SECRET_UPDATED_AT
 from reconcile.utils.metrics import GaugeMetric
 
 SECRET_MAX_KEY_LENGTH = 253
@@ -526,6 +527,9 @@ class OpenshiftResource:
         # remove qontract specific params
         for a in QONTRACT_ANNOTATIONS:
             annotations.pop(a, None)
+
+        # Remove external resources annotation used for optimistic locking
+        annotations.pop(SECRET_UPDATED_AT, None)
         return body
 
     @staticmethod
