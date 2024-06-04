@@ -566,8 +566,6 @@ def _update_usergroup_users_from_state(
         logging.info(
             f"Following usernames are incorrect for usergroup {desired_ug_state.usergroup} and could not be matched with slack users {desired_ug_state.user_names - set(s.name for s in slack_user_objects)}"
         )
-        error_occurred = True
-        return 0
 
     for user in desired_ug_state.user_names - current_ug_state.user_names:
         logging.info([
