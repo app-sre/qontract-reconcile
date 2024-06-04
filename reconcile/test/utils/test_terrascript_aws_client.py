@@ -749,3 +749,100 @@ def test_get_resource_lifecycle_all(
         "ignore_changes": "all",
     }
     assert lifecycle == expected
+
+
+def test_output_resource_name_not_unique_raises_exception(ts):
+    external_resource_1 = {
+        "identifier": "a",
+        "provider": "rds",
+        "output_resource_name": "oa",
+    }
+    external_resource_2 = {
+        "identifier": "b",
+        "provider": "rds",
+        "output_resource_name": "oa",
+    }
+    namespace_1 = {
+        "name": "ns1",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": "aws",
+                "provisioner": {"name": "a"},
+                "resources": [external_resource_1, external_resource_2],
+            }
+        ],
+        "cluster": {"name": "test"},
+    }
+    namespaces = [namespace_1]
+
+    with pytest.raises(tsclient.OutputResourceNameNotUniqueException):
+        ts.init_populate_specs(namespaces, "account")
+
+
+def test_output_resource_name_unique_success(ts):
+    external_resource_1 = {
+        "identifier": "a",
+        "provider": "rds",
+        "output_resource_name": "output-1",
+    }
+    external_resource_2 = {
+        "identifier": "b",
+        "provider": "rds",
+        "output_resource_name": "output-2",
+    }
+
+    #  cluster 'test1' with namespace 'app-interface' and two different output_resource_name values.
+    namespace_1 = {
+        "name": "app-interface",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": "aws",
+                "provisioner": {"name": "a"},
+                "resources": [external_resource_1, external_resource_2],
+            }
+        ],
+        "cluster": {"name": "test1"},
+    }
+
+    # cluster 'test1' with namespace 'app-interface-stage' and output_resource_name overlaps with the value from external_resource_2
+    external_resource_3 = {
+        "identifier": "c",
+        "provider": "rds",
+        "output_resource_name": "output-2",
+    }
+    namespace_2 = {
+        "name": "app-interface-stage",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": "aws",
+                "provisioner": {"name": "a"},
+                "resources": [external_resource_3],
+            }
+        ],
+        "cluster": {"name": "test1"},
+    }
+
+    # cluster 'test2' with namespace 'app-interface' and output_resource_name overlaps with value from external_resource_2
+    external_resource_4 = {
+        "identifier": "c",
+        "provider": "rds",
+        "output_resource_name": "output-2",
+    }
+    namespace_3 = {
+        "name": "app-interface",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": "aws",
+                "provisioner": {"name": "a"},
+                "resources": [external_resource_4],
+            }
+        ],
+        "cluster": {"name": "test2"},
+    }
+
+    namespaces = [namespace_1, namespace_2, namespace_3]
+    ts.init_populate_specs(namespaces, "account")

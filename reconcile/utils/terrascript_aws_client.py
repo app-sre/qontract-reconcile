@@ -272,6 +272,19 @@ DEFAULT_TAGS = {
 }
 
 
+class OutputResourceNameNotUniqueException(Exception):
+    def __init__(self, unique_constraint):
+        self.cluster, self.namespace, self.output_resource_name = unique_constraint
+        super().__init__(
+            str.format(
+                "Duplicate external resources with  'output_resource_name': '{}' found in cluster '{}' and namespace '{}'. Each 'output_resource_name' value must be unique for a given cluster and namespace",
+                self.output_resource_name,
+                self.cluster,
+                self.namespace,
+            )
+        )
+
+
 class StateInaccessibleException(Exception):
     pass
 
@@ -487,6 +500,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if prefetch_resources_by_schemas:
             for schema in prefetch_resources_by_schemas:
                 self._resource_cache.update(self.prefetch_resources(schema))
+
+        self.unique_constraint_for_external_resource: set[tuple] = set()
 
     def __enter__(self):
         return self
@@ -1497,6 +1512,20 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 self.account_resource_specs.setdefault(
                     spec.provisioner_name, []
                 ).append(spec)
+
+                unique_constraint = (
+                    spec.cluster_name,
+                    spec.namespace_name,
+                    spec.output_resource_name,
+                )
+                if (
+                    unique_constraint
+                    not in self.unique_constraint_for_external_resource
+                ):
+                    self.unique_constraint_for_external_resource.add(unique_constraint)
+                else:
+                    raise OutputResourceNameNotUniqueException(unique_constraint)
+
                 self.resource_spec_inventory[spec.id_object()] = spec
 
     def populate_tf_resources(self, spec, ocm_map=None):
