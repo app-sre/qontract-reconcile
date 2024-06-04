@@ -35,6 +35,7 @@ class ResourceStatus(str, Enum):
     IN_PROGRESS: str = "IN_PROGRESS"
     DELETE_IN_PROGRESS: str = "DELETE_IN_PROGRESS"
     ERROR: str = "ERROR"
+    PENDING_SECRET_SYNC: str = "PENDING_SECRET_SYNC"
 
 
 class ExternalResourceState(BaseModel):
@@ -235,6 +236,15 @@ class ExternalResourcesStateDynamoDB:
 
     def get_all_resource_keys(self) -> set[ExternalResourceKey]:
         return {k for k in self.partial_resources.keys()}
+
+    def get_keys_by_status(
+        self, resource_status: ResourceStatus
+    ) -> set[ExternalResourceKey]:
+        return {
+            k
+            for k, v in self.partial_resources.items()
+            if v.resource_status == resource_status
+        }
 
     def update_resource_status(
         self, key: ExternalResourceKey, status: ResourceStatus

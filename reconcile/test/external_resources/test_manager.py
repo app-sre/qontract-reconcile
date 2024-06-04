@@ -46,6 +46,7 @@ def settings() -> ExternalResourcesSettingsV1:
         state_dynamodb_region="us-east-1",
         workers_cluster=ClusterV1(name="appint-ex-01"),
         workers_namespace=NamespaceV1(name="external-resources-poc"),
+        vault_secrets_path="app-sre/integration-outputs/external-resources",
     )
 
 
@@ -59,6 +60,7 @@ def module() -> ExternalResourcesModuleV1:
         provider="aws-iam-role",
         reconcile_drift_interval_minutes=60,
         reconcile_timeout_minutes=60,
+        outputs_secret_sync=True,
     )
 
 
@@ -161,7 +163,7 @@ def test_resource_needs_reconciliation_drift(
             ResourceStatus.IN_PROGRESS,
             Action.APPLY,
             ReconcileStatus.SUCCESS,
-            ResourceStatus.CREATED,
+            ResourceStatus.PENDING_SECRET_SYNC,
         ),
         (
             ResourceStatus.IN_PROGRESS,
