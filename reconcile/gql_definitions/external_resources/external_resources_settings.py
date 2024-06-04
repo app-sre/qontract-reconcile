@@ -35,6 +35,7 @@ query ExternalResourcesSettings {
         tf_state_bucket
         tf_state_region
         tf_state_dynamodb_table
+        vault_secrets_path
     }
 }
 """
@@ -67,6 +68,7 @@ class ExternalResourcesSettingsV1(ConfiguredBaseModel):
     tf_state_bucket: Optional[str] = Field(..., alias="tf_state_bucket")
     tf_state_region: Optional[str] = Field(..., alias="tf_state_region")
     tf_state_dynamodb_table: Optional[str] = Field(..., alias="tf_state_dynamodb_table")
+    vault_secrets_path: str = Field(..., alias="vault_secrets_path")
 
 
 class ExternalResourcesSettingsQueryData(ConfiguredBaseModel):
