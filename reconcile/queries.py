@@ -2793,3 +2793,36 @@ BLACKBOX_EXPORTER_MONITORING_PROVIDER = """
 def get_blackbox_exporter_monitoring_provider() -> dict:
     gqlapi = gql.get_api()
     return gqlapi.query(BLACKBOX_EXPORTER_MONITORING_PROVIDER)["providers"]
+
+
+JENKINS_CONFIGS = """
+{
+  jenkins_configs: jenkins_configs_v1 {
+    name
+    app {
+      name
+    }
+    instance {
+      name
+      serverUrl
+      token {
+        path
+        field
+        version
+        format
+      }
+      deleteMethod
+    }
+    type
+    config
+    config_path {
+      content
+    }
+  }
+}
+"""
+
+
+def get_jenkins_configs():
+    gqlapi = gql.get_api()
+    return gqlapi.query(JENKINS_CONFIGS)["jenkins_configs"]
