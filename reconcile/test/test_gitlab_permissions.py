@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
-from gitlab.v4.objects import CurrentUser, GroupMember
+from gitlab.v4.objects import CurrentUser, GroupMember, GroupProject
 from pytest_mock import MockerFixture
 
 from reconcile import gitlab_permissions
@@ -51,7 +51,7 @@ def test_run_share_with_group(
     ).return_value = True
     mocked_gl.get_group_id_and_shared_projects.return_value = (
         1234,
-        [{"web_url": "https://test.com"}],
+        [create_autospec(GroupProject, web_url="https://test.com")],
     )
     gitlab_permissions.run(False, thread_pool_size=1)
     mocked_gl.share_project_with_group.assert_called_once()

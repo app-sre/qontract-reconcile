@@ -289,10 +289,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     ) -> tuple[int, list[dict]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
+        shared_projects = self.get_items(group.projects.list, all=True)
         return group.id, [
             project
-            for project in group.shared_projects
-            for shared_group in project["shared_with_groups"]
+            for project in shared_projects
+            for shared_group in project.shared_with_groups
             if shared_group["group_id"] == group.id
             and shared_group["group_access_level"] >= MAINTAINER_ACCESS
         ]
