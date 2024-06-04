@@ -561,13 +561,14 @@ def _update_usergroup_users_from_state(
             desired_ug_state.user_names
         ).items()
     ]
+    active_user_names = set(s.name for s in slack_user_objects)
 
-    if len(slack_user_objects) != len(desired_ug_state.user_names):
+    if len(active_user_names) != len(desired_ug_state.user_names):
         logging.info(
-            f"Following usernames are incorrect for usergroup {desired_ug_state.usergroup} and could not be matched with slack users {desired_ug_state.user_names - set(s.name for s in slack_user_objects)}"
+            f"Following usernames are incorrect for usergroup {desired_ug_state.usergroup} and could not be matched with slack users {desired_ug_state.user_names - active_user_names}"
         )
 
-    for user in desired_ug_state.user_names - current_ug_state.user_names:
+    for user in active_user_names - current_ug_state.user_names:
         logging.info([
             "add_user_to_usergroup",
             desired_ug_state.workspace,
@@ -575,7 +576,7 @@ def _update_usergroup_users_from_state(
             user,
         ])
 
-    for user in current_ug_state.user_names - desired_ug_state.user_names:
+    for user in current_ug_state.user_names - active_user_names:
         logging.info([
             "del_user_from_usergroup",
             desired_ug_state.workspace,
