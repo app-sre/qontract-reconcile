@@ -47,6 +47,12 @@ fragment VPCRequest on VPCRequest_v1 {
     terraformState {
       ...TerraformState
     }
+    enableDeletion
+    deletionApprovals {
+      type
+      name
+      expiration
+    }
   }
   region
   cidr_block {
