@@ -122,7 +122,7 @@ class GqlApi:
                     self._valid_schemas = integration["schemas"]
                     break
 
-            if not self._valid_schemas:
+            if validate_schemas and not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
     def _init_gql_client(self) -> Client:
