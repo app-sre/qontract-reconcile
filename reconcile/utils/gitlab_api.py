@@ -29,6 +29,7 @@ from gitlab.const import (
 from gitlab.v4.objects import (
     CurrentUser,
     Group,
+    GroupProject,
     Project,
     ProjectIssue,
     ProjectMergeRequest,
@@ -286,13 +287,14 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def get_group_id_and_shared_projects(
         self, group_name: str
-    ) -> tuple[int, list[dict]]:
+    ) -> tuple[int, list[GroupProject]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
+        shared_projects = self.get_items(group.projects.list, all=True)
         return group.id, [
             project
-            for project in group.shared_projects
-            for shared_group in project["shared_with_groups"]
+            for project in shared_projects
+            for shared_group in project.shared_with_groups
             if shared_group["group_id"] == group.id
             and shared_group["group_access_level"] >= MAINTAINER_ACCESS
         ]
