@@ -31,6 +31,7 @@ from gitlab.v4.objects import (
     Group,
     Project,
     ProjectIssue,
+    GroupProject,
     ProjectMergeRequest,
     ProjectMergeRequestNote,
 )
@@ -286,7 +287,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def get_group_id_and_shared_projects(
         self, group_name: str
-    ) -> tuple[int, list[dict]]:
+    ) -> tuple[int, list[GroupProject]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
         shared_projects = self.get_items(group.projects.list, all=True)
