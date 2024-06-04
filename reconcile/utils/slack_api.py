@@ -417,11 +417,11 @@ class SlackApi:
             k: v["name"] for k, v in self._get("channels").items() if k in channels_ids
         }
 
-    def get_users_by_names(self, user_names: Iterable[str]) -> dict[str, str]:
+    def get_active_users_by_names(self, user_names: Iterable[str]) -> dict[str, str]:
         return {
             k: v["name"]
             for k, v in self._get("users").items()
-            if v["name"] in user_names
+            if v["name"] in user_names and not v["deleted"]
         }
 
     def get_users_by_ids(self, users_ids: Iterable[str]) -> dict[str, str]:
