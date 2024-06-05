@@ -22,11 +22,15 @@ from reconcile.aws_account_manager.reconciler import (
     TASK_ENABLE_ENTERPRISE_SUPPORT,
     TASK_MOVE_ACCOUNT,
     TASK_REQUEST_SERVICE_QUOTA,
+    TASK_SET_SECURITY_CONTACT,
     TASK_TAG_ACCOUNT,
     AWSReconciler,
 )
 from reconcile.aws_account_manager.utils import state_key
-from reconcile.gql_definitions.fragments.aws_account_managed import AWSQuotaV1
+from reconcile.gql_definitions.fragments.aws_account_managed import (
+    AwsContactV1,
+    AWSQuotaV1,
+)
 from reconcile.utils.aws_api_typed.iam import (
     AWSAccessKey,
     AWSEntityAlreadyExistsException,
@@ -617,6 +621,54 @@ def test_aws_account_manager_reconcile_check_enterprise_support_status_dry_run(
     aws_api.support.describe_case.assert_not_called()
 
 
+def test_aws_account_manager_reconcile_set_security_contact(
+    aws_api: MagicMock, reconciler: AWSReconciler
+) -> None:
+    reconciler._set_security_contact(
+        aws_api, "account", "name", "title", "email", "phone"
+    )
+
+    aws_api.account.set_security_contact.assert_called_once_with(
+        name="name", title="title", email="email", phone_number="phone"
+    )
+
+
+def test_aws_account_manager_reconcile_set_security_contact_state_exists_and_up2date(
+    aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
+) -> None:
+    state_exists(
+        state_key("account", TASK_SET_SECURITY_CONTACT),
+        "name title email phone",
+    )
+    reconciler._set_security_contact(
+        aws_api, "account", "name", "title", "email", "phone"
+    )
+
+    aws_api.account.set_security_contact.assert_not_called()
+
+
+def test_aws_account_manager_reconcile_set_security_contact_state_exists_and_needs_update(
+    aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
+) -> None:
+    state_exists(state_key("account", TASK_SET_SECURITY_CONTACT), "whatever")
+    reconciler._set_security_contact(
+        aws_api, "account", "name", "title", "email", "phone"
+    )
+
+    aws_api.account.set_security_contact.assert_called_once_with(
+        name="name", title="title", email="email", phone_number="phone"
+    )
+
+
+def test_aws_account_manager_reconcile_set_security_contact_dry_run(
+    aws_api: MagicMock, reconciler_dry_run: AWSReconciler
+) -> None:
+    reconciler_dry_run._set_security_contact(
+        aws_api, "account", "name", "title", "email", "phone"
+    )
+    aws_api.account.set_security_contact.assert_not_called()
+
+
 #
 # Public methods
 #
@@ -780,16 +832,21 @@ def test_aws_account_manager_reconcile_reconcile_account(
     reconciler._set_account_alias = MagicMock()  # type: ignore
     reconciler._request_quotas = MagicMock(return_value=["id1"])  # type: ignore
     reconciler._check_quota_change_requests = MagicMock()  # type: ignore
+    reconciler._set_security_contact = MagicMock()  # type: ignore
 
     reconciler.reconcile_account(
         aws_api,
         "account",
         "alias",
         quotas=[AWSQuotaV1(serviceCode="serviceA", quotaCode="codeA", value=1.0)],
+        security_contact=AwsContactV1(
+            name="name", title="title", email="email", phoneNumber="phone"
+        ),
     )
     reconciler._set_account_alias.assert_called_once()
     reconciler._request_quotas.assert_called_once()
     reconciler._check_quota_change_requests.assert_called_once()
+    reconciler._set_security_contact.assert_called_once()
 
 
 def test_aws_account_manager_reconcile_reconcile_account_no_initial_user(
@@ -798,13 +855,18 @@ def test_aws_account_manager_reconcile_reconcile_account_no_initial_user(
     reconciler._set_account_alias = MagicMock()  # type: ignore
     reconciler._request_quotas = MagicMock(return_value=["id1"])  # type: ignore
     reconciler._check_quota_change_requests = MagicMock()  # type: ignore
+    reconciler._set_security_contact = MagicMock()  # type: ignore
 
     reconciler.reconcile_account(
         aws_api,
         "account",
         "alias",
         quotas=[AWSQuotaV1(serviceCode="serviceA", quotaCode="codeA", value=1.0)],
+        security_contact=AwsContactV1(
+            name="name", title="title", email="email", phoneNumber="phone"
+        ),
     )
     reconciler._set_account_alias.assert_called_once()
     reconciler._request_quotas.assert_called_once()
     reconciler._check_quota_change_requests.assert_called_once()
+    reconciler._set_security_contact.assert_called_once()
