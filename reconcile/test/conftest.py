@@ -10,7 +10,7 @@ from typing import (
     Any,
     Optional,
 )
-from unittest.mock import create_autospec
+from unittest.mock import MagicMock, create_autospec
 
 import pytest
 from pydantic import BaseModel
@@ -74,7 +74,8 @@ def s3_state_builder() -> Callable[[Mapping], State]:
             return get(key)
 
         state = create_autospec(spec=State)
-        state.get = get
+        mock_get = MagicMock(side_effect=get)
+        state.get = mock_get
         state.__getitem__ = __getitem__
         state.ls.side_effect = [data.get("ls", [])]
         return state
