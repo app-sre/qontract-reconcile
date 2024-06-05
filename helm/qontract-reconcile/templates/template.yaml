@@ -660,6 +660,8 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
+        - name: vector-config
+          emptyDir: {}
         - name: tmp-dir
           emptyDir: { }
         {{- if $logs.googleChat }}
