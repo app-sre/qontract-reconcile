@@ -28,7 +28,7 @@ from reconcile.aws_account_manager.reconciler import (
 )
 from reconcile.aws_account_manager.utils import state_key
 from reconcile.gql_definitions.fragments.aws_account_managed import (
-    AwsContactV1,
+    AWSContactV1,
     AWSQuotaV1,
 )
 from reconcile.utils.aws_api_typed.iam import (
@@ -839,7 +839,7 @@ def test_aws_account_manager_reconcile_reconcile_account(
         "account",
         "alias",
         quotas=[AWSQuotaV1(serviceCode="serviceA", quotaCode="codeA", value=1.0)],
-        security_contact=AwsContactV1(
+        security_contact=AWSContactV1(
             name="name", title="title", email="email", phoneNumber="phone"
         ),
     )
@@ -862,7 +862,7 @@ def test_aws_account_manager_reconcile_reconcile_account_no_initial_user(
         "account",
         "alias",
         quotas=[AWSQuotaV1(serviceCode="serviceA", quotaCode="codeA", value=1.0)],
-        security_contact=AwsContactV1(
+        security_contact=AWSContactV1(
             name="name", title="title", email="email", phoneNumber="phone"
         ),
     )

@@ -9854,7 +9854,7 @@
                             "args": [],
                             "type": {
                                 "kind": "OBJECT",
-                                "name": "AwsContact_v1",
+                                "name": "AWSContact_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -10322,7 +10322,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "AwsContact_v1",
+                    "name": "AWSContact_v1",
                     "description": null,
                     "fields": [
                         {

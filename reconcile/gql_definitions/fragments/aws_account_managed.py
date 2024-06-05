@@ -40,7 +40,7 @@ class AWSQuotaLimitsV1(ConfiguredBaseModel):
     quotas: list[AWSQuotaV1] = Field(..., alias="quotas")
 
 
-class AwsContactV1(ConfiguredBaseModel):
+class AWSContactV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     title: Optional[str] = Field(..., alias="title")
     email: str = Field(..., alias="email")
@@ -54,4 +54,4 @@ class AWSAccountManaged(ConfiguredBaseModel):
     premium_support: bool = Field(..., alias="premiumSupport")
     organization: Optional[AWSOrganizationV1] = Field(..., alias="organization")
     quota_limits: Optional[list[AWSQuotaLimitsV1]] = Field(..., alias="quotaLimits")
-    security_contact: Optional[AwsContactV1] = Field(..., alias="securityContact")
+    security_contact: Optional[AWSContactV1] = Field(..., alias="securityContact")
