@@ -5343,6 +5343,11 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "GitlabInstance_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "Integration_v1",
                             "ofType": null
                         },
@@ -28136,7 +28141,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
