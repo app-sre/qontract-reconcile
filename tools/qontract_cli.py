@@ -2712,6 +2712,76 @@ def systems_and_tools(ctx):
     print_output(ctx.obj["options"], inventory.data, inventory.columns)
 
 
+@get.command
+@click.pass_context
+def jenkins_jobs(ctx):
+    jenkins_configs = queries.get_jenkins_configs()
+
+    # stats dicts
+    apps = {}
+    totals = {"rhel8": 0, "other": 0}
+
+    for jc in jenkins_configs:
+        app_name = jc["app"]["name"]
+
+        if app_name not in apps:
+            apps[app_name] = {"rhel8": 0, "other": 0}
+
+        config = json.loads(jc["config"]) if jc["config"] else []
+        for c in config:
+            if "project" not in c:
+                continue
+
+            project = c["project"]
+            root_node = project.get("node") or ""
+            if "jobs" not in project:
+                continue
+
+            for pj in project["jobs"]:
+                for job in pj.values():
+                    node = job["node"] if "node" in job else root_node
+                    if node == "rhel8":
+                        apps[app_name]["rhel8"] += 1
+                        totals["rhel8"] += 1
+                    else:
+                        apps[app_name]["other"] += 1
+                        totals["other"] += 1
+
+    results = [
+        {"app": app} | stats
+        for app, stats in sorted(apps.items(), key=lambda i: i[0].lower())
+        if not (stats["other"] == 0 and stats["rhel8"] == 0)
+    ]
+    results.append({"app": "TOTALS"} | totals)
+
+    if ctx.obj["options"]["output"] == "md":
+        json_table = {
+            "filter": True,
+            "fields": [
+                {"key": "app"},
+                {"key": "other"},
+                {"key": "rhel8"},
+            ],
+            "items": results,
+        }
+
+        print(
+            f"""
+You can view the source of this Markdown to extract the JSON data.
+
+{len(results)} apps with Jenkins jobs
+
+```json:table
+{json.dumps(json_table)}
+```
+            """
+        )
+    else:
+        columns = ["app", "other", "rhel8"]
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], results, columns)
+
+
 @root.group(name="set")
 @output
 @click.pass_context

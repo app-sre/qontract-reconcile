@@ -7,7 +7,6 @@ from typing import (
 )
 
 from reconcile import queries
-from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.secret_reader import (
@@ -16,46 +15,14 @@ from reconcile.utils.secret_reader import (
 )
 from reconcile.utils.state import init_state
 
-QUERY = """
-{
-  jenkins_configs: jenkins_configs_v1 {
-    name
-    app {
-      name
-    }
-    instance {
-      name
-      serverUrl
-      token {
-        path
-        field
-        version
-        format
-      }
-      deleteMethod
-    }
-    type
-    config
-    config_path {
-      content
-    }
-  }
-}
-"""
-
 QONTRACT_INTEGRATION = "jenkins-job-builder"
 GENERATE_TYPE = ["jobs", "views"]
-
-
-def get_jenkins_configs():
-    gqlapi = gql.get_api()
-    return gqlapi.query(QUERY)["jenkins_configs"]
 
 
 def collect_configs(
     instance_name: Optional[str], config_name: Optional[str]
 ) -> list[dict[str, Any]]:
-    configs = get_jenkins_configs()
+    configs = queries.get_jenkins_configs()
     if instance_name is not None:
         configs = [n for n in configs if n["instance"]["name"] == instance_name]
         if not configs:
