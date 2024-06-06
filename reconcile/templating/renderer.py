@@ -3,6 +3,7 @@ import os
 import tempfile
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, Optional, Self
 
 from deepdiff import DeepHash
@@ -85,12 +86,9 @@ class LocalFilePersistence(FilePersistence):
 
     def write(self, outputs: list[TemplateOutput]) -> None:
         for output in outputs:
-            with open(
-                f"{join_path(self.app_interface_data_path, output.path)}",
-                "w",
-                encoding="utf-8",
-            ) as f:
-                f.write(output.content)
+            filepath = Path(join_path(self.app_interface_data_path, output.path))
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_text(output.content, encoding="utf-8")
 
     def read(self, path: str) -> Optional[str]:
         return self._read_local_file(join_path(self.app_interface_data_path, path))
