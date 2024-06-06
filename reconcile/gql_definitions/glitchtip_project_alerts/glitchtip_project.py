@@ -122,7 +122,7 @@ class GlitchtipProjectJiraV1(ConfiguredBaseModel):
     labels: Optional[list[str]] = Field(..., alias="labels")
 
 
-class GlitchtipProjectsV1(ConfiguredBaseModel):
+class GlitchtipProjectV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     project_id: Optional[str] = Field(..., alias="projectId")
     organization: GlitchtipOrganizationV1 = Field(..., alias="organization")
@@ -131,7 +131,7 @@ class GlitchtipProjectsV1(ConfiguredBaseModel):
 
 
 class GlitchtipProjectsWithAlertsQueryData(ConfiguredBaseModel):
-    glitchtip_projects: Optional[list[GlitchtipProjectsV1]] = Field(..., alias="glitchtip_projects")
+    glitchtip_projects: Optional[list[GlitchtipProjectV1]] = Field(..., alias="glitchtip_projects")
 
 
 def query(query_func: Callable, **kwargs: Any) -> GlitchtipProjectsWithAlertsQueryData:

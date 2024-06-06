@@ -7,7 +7,7 @@ from reconcile.glitchtip.integration import (
     fetch_current_state,
     fetch_desired_state,
 )
-from reconcile.gql_definitions.glitchtip.glitchtip_project import GlitchtipProjectsV1
+from reconcile.gql_definitions.glitchtip.glitchtip_project import GlitchtipProjectV1
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.glitchtip import GlitchtipClient
 from reconcile.utils.internal_groups.models import (
@@ -41,7 +41,7 @@ def test_desire_state(
     gql_class_factory: Callable,
 ) -> None:
     projects = [
-        gql_class_factory(GlitchtipProjectsV1, i)
+        gql_class_factory(GlitchtipProjectV1, i)
         for i in fx.get_anymarkup("desire_state_projects.yml")
     ]
     from_emea_ldap_group = Group(
