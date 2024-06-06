@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import tempfile
@@ -30,7 +31,7 @@ from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.git import clone
-from reconcile.utils.gql import init_from_config
+from reconcile.utils.gql import GqlApi, init_from_config
 from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
@@ -158,18 +159,29 @@ class ClonedRepoGitlabPersistence(FilePersistence):
 
 def unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
+    foreach_item: dict[str, Any],
 ) -> dict:
-    return collection_variables.static or {}
+    return {
+        k: json.loads(
+            process_jinja2_template(
+                body=json.dumps(v), vars={"foreach_item": foreach_item}
+            )
+        )
+        for k, v in (collection_variables.static or {}).items()
+    }
 
 
 def unpack_dynamic_variables(
-    collection_variables: TemplateCollectionVariablesV1, gql: gql.GqlApi
+    collection_variables: TemplateCollectionVariablesV1,
+    foreach_item: dict[str, Any],
+    gql: gql.GqlApi,
 ) -> dict[str, dict[str, Any]]:
     static = collection_variables.static or {}
     dynamic: dict[str, dict[str, Any]] = {}
     for dv in collection_variables.dynamic or []:
         query = process_jinja2_template(
-            body=dv.query, vars={"static": static, "dynamic": dynamic}
+            body=dv.query,
+            vars={"static": static, "dynamic": dynamic, "foreach_item": foreach_item},
         )
         dynamic[dv.name] = gql.query(query) or {}
     return dynamic
@@ -238,6 +250,39 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 )
         return None
 
+    def reconcile_template_collection(
+        self,
+        collection: TemplateCollectionV1,
+        gql_api: GqlApi,
+        dry_run: bool,
+        persistence: FilePersistence,
+        ruamel_instance: yaml.YAML,
+        foreach_item: dict[str, Any],
+    ) -> None:
+        variables = {}
+        if collection.variables:
+            variables = {
+                "dynamic": unpack_dynamic_variables(
+                    collection.variables, foreach_item, gql_api
+                ),
+                "static": unpack_static_variables(collection.variables, foreach_item),
+                "foreach_item": foreach_item,
+            }
+
+        with PersistenceTransaction(persistence, dry_run) as p:
+            input = TemplateInput(
+                collection=collection.name,
+                collection_hash=calc_template_hash(collection, variables),
+                enable_auto_approval=collection.enable_auto_approval or False,
+                labels=collection.additional_mr_labels or [],
+            )
+            for template in collection.templates:
+                output = self.process_template(
+                    template, variables, p, ruamel_instance, input
+                )
+                if not dry_run and output:
+                    p.write([output])
+
     def reconcile(
         self,
         dry_run: bool,
@@ -247,26 +292,18 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         gql_no_validation = init_from_config(validate_schemas=False)
 
         for c in get_template_collections():
-            variables = {}
-            if c.variables:
-                variables = {
-                    "dynamic": unpack_dynamic_variables(c.variables, gql_no_validation),
-                    "static": unpack_static_variables(c.variables),
-                }
-
-            with PersistenceTransaction(persistence, dry_run) as p:
-                input = TemplateInput(
-                    collection=c.name,
-                    collection_hash=calc_template_hash(c, variables),
-                    enable_auto_approval=c.enable_auto_approval or False,
-                    labels=c.additional_mr_labels or [],
+            for_each_items: list[dict[str, Any]] = [{}]
+            if c.for_each and c.for_each.items:
+                for_each_items = c.for_each.items
+            for item in for_each_items:
+                self.reconcile_template_collection(
+                    c,
+                    gql_no_validation,
+                    dry_run,
+                    persistence,
+                    ruamel_instance,
+                    item,
                 )
-                for template in c.templates:
-                    output = self.process_template(
-                        template, variables, p, ruamel_instance, input
-                    )
-                    if not dry_run and output:
-                        p.write([output])
 
     @property
     def name(self) -> str:

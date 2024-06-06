@@ -6,6 +6,9 @@ query TemplateCollection_v1 {
     additionalMrLabels
     description
     enableAutoApproval
+    forEach {
+      items
+    }
     variables {
       static
       dynamic {

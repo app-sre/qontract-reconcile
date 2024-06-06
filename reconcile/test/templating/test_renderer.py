@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 from unittest.mock import ANY
 
 import pytest
@@ -39,6 +39,24 @@ def collection_variables(gql_class_factory: Callable) -> TemplateCollectionVaria
     return gql_class_factory(
         TemplateCollectionVariablesV1,
         {"static": '{"foo": "bar"}', "dynamic": [{"name": "foo", "query": "query {}"}]},
+    )
+
+
+@pytest.fixture
+def foreach_item() -> dict[str, Any]:
+    return {"name": "item-0"}
+
+
+@pytest.fixture
+def collection_variables_foreach(
+    gql_class_factory: Callable,
+) -> TemplateCollectionVariablesV1:
+    return gql_class_factory(
+        TemplateCollectionVariablesV1,
+        {
+            "static": '{"foo": "{{ foreach_item.name }}"}',
+            "dynamic": [{"name": "foo", "query": "query {{ foreach_item.name }}"}],
+        },
     )
 
 
@@ -135,7 +153,25 @@ def reconcile_mocks(mocker: MockerFixture) -> tuple:
 def test_unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
 ) -> None:
-    assert unpack_static_variables(collection_variables) == {"foo": "bar"}
+    assert unpack_static_variables(collection_variables, {}) == {"foo": "bar"}
+
+
+def test_unpack_static_variables_foreach(
+    collection_variables_foreach: TemplateCollectionVariablesV1,
+    foreach_item: dict[str, Any],
+) -> None:
+    # "static": '{"foo": "{{ foreach_item.name }}"}',
+    #         "dynamic": [{"name": "foo", "query": "query {{ foreach_item.name }}"}],
+    assert unpack_static_variables(collection_variables_foreach, foreach_item) == {
+        "foo": "item-0"
+    }
+
+
+def test_unpack_static_variables_foreach_error(
+    collection_variables_foreach: TemplateCollectionVariablesV1,
+) -> None:
+    with pytest.raises(Jinja2TemplateError):
+        unpack_static_variables(collection_variables_foreach, {})
 
 
 def test_unpack_dynamic_variables_empty(
@@ -143,7 +179,7 @@ def test_unpack_dynamic_variables_empty(
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
     gql.query.return_value = {}
-    assert unpack_dynamic_variables(collection_variables, gql) == {"foo": {}}
+    assert unpack_dynamic_variables(collection_variables, {}, gql) == {"foo": {}}
 
 
 def test_unpack_dynamic_variables(
@@ -151,7 +187,7 @@ def test_unpack_dynamic_variables(
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
     gql.query.return_value = {"foo": [{"bar": "baz"}]}
-    assert unpack_dynamic_variables(collection_variables, gql) == {
+    assert unpack_dynamic_variables(collection_variables, {}, gql) == {
         "foo": {"foo": [{"bar": "baz"}]}
     }
 
@@ -164,7 +200,7 @@ def test_unpack_dynamic_variables_multiple_result(
         "baz": [{"baz": "zab"}],
         "foo": [{"bar": "baz"}, {"faa": "baz"}],
     }
-    assert unpack_dynamic_variables(collection_variables, gql) == {
+    assert unpack_dynamic_variables(collection_variables, {}, gql) == {
         "foo": {"baz": [{"baz": "zab"}], "foo": [{"bar": "baz"}, {"faa": "baz"}]}
     }
 
@@ -178,7 +214,7 @@ def test_unpack_dynamic_variables_templated_query(
             name="baz", query="templated query {{ static.foo }}"
         )
     ]
-    unpack_dynamic_variables(collection_variables, gql)
+    unpack_dynamic_variables(collection_variables, {}, gql)
     gql.query.assert_called_once_with("templated query bar")
 
 
@@ -192,7 +228,26 @@ def test_unpack_dynamic_variables_templated_query_jinja_error(
         )
     ]
     with pytest.raises(Jinja2TemplateError):
-        unpack_dynamic_variables(collection_variables, gql)
+        unpack_dynamic_variables(collection_variables, {}, gql)
+
+
+def test_unpack_dynamic_variables_foreach(
+    mocker: MockerFixture,
+    collection_variables_foreach: TemplateCollectionVariablesV1,
+    foreach_item: dict[str, Any],
+) -> None:
+    gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
+    unpack_dynamic_variables(collection_variables_foreach, foreach_item, gql)
+    gql.query.assert_called_once_with("query item-0")
+
+
+def test_unpack_dynamic_variables_foreach_error(
+    mocker: MockerFixture,
+    collection_variables_foreach: TemplateCollectionVariablesV1,
+) -> None:
+    gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
+    with pytest.raises(Jinja2TemplateError):
+        unpack_dynamic_variables(collection_variables_foreach, {}, gql)
 
 
 def test_join_path() -> None:
@@ -510,7 +565,7 @@ def test_reconcile_variables(
     pt.assert_called_once()
     assert pt.call_args[0] == (
         ANY,
-        {"dynamic": {"foo": "bar"}, "static": {"baz": "qux"}},
+        {"dynamic": {"foo": "bar"}, "static": {"baz": "qux"}, "foreach_item": {}},
         ANY,
         r,
         ANY,
