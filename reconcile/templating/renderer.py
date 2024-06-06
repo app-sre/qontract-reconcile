@@ -31,6 +31,7 @@ from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.git import clone
 from reconcile.utils.gql import init_from_config
+from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
@@ -164,12 +165,14 @@ def unpack_static_variables(
 def unpack_dynamic_variables(
     collection_variables: TemplateCollectionVariablesV1, gql: gql.GqlApi
 ) -> dict[str, dict[str, Any]]:
-    if not collection_variables.dynamic:
-        return {}
-
-    return {
-        dv.name: gql.query(dv.query) or {} for dv in collection_variables.dynamic or []
-    }
+    static = collection_variables.static or {}
+    dynamic: dict[str, dict[str, Any]] = {}
+    for dv in collection_variables.dynamic or []:
+        query = process_jinja2_template(
+            body=dv.query, vars={"static": static, "dynamic": dynamic}
+        )
+        dynamic[dv.name] = gql.query(query)
+    return dynamic
 
 
 def calc_template_hash(c: TemplateCollectionV1, variables: dict[str, Any]) -> str:
