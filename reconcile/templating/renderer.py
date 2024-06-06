@@ -171,7 +171,7 @@ def unpack_dynamic_variables(
         query = process_jinja2_template(
             body=dv.query, vars={"static": static, "dynamic": dynamic}
         )
-        dynamic[dv.name] = gql.query(query)
+        dynamic[dv.name] = gql.query(query) or {}
     return dynamic
 
 
