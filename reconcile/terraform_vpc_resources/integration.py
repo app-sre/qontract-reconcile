@@ -170,6 +170,8 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
 
         tf_client.apply()
 
+        tf_client.init_outputs()
+
         handled_output = self._handle_outputs(data, tf_client.outputs)
 
         # MR and template Management
