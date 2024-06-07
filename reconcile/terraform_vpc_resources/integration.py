@@ -72,8 +72,9 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         for request in requests:
             # Skiping requests that don't have outputs,
             # this happens because we are not filtering the requests
-            # when running the integration for a single account with --account-name
-            if request.account.name not in outputs.keys():
+            # when running the integration for a single account with --account-name.
+            # We also don't want to create outputs for deleted requets.
+            if request.account.name not in outputs.keys() or request.delete:
                 continue
 
             outputs_per_request[request.identifier] = []
