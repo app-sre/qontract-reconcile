@@ -70,7 +70,14 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         """Receives a terraform outputs dict and returns a map of outputs per VPC requests"""
         outputs_per_request: MutableMapping[str, Any] = {}
         for request in requests:
+            # Skiping requests that don't have outputs,
+            # this happens because we are not filtering the requests
+            # when running the integration for a single account with --account-name
+            if request.account.name not in outputs.keys():
+                continue
+
             outputs_per_request[request.identifier] = []
+
             outputs_per_account = outputs[request.account.name]
 
             # If the output exists for that request get its value
@@ -162,6 +169,8 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             sys.exit(ExitCodes.SUCCESS)
 
         tf_client.apply()
+
+        tf_client.init_outputs()
 
         handled_output = self._handle_outputs(data, tf_client.outputs)
 
