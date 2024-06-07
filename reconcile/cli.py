@@ -3045,8 +3045,25 @@ def dynatrace_token_provider(ctx, ocm_org_ids):
         DynatraceTokenProviderIntegration,
         DynatraceTokenProviderIntegrationParams,
     )
+    from reconcile.dynatrace_token_provider.integration_v2 import (
+        DynatraceTokenProviderIntegrationParamsV2,
+        DynatraceTokenProviderIntegrationV2,
+    )
 
     parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
+
+    # We will remove V1 once migrations towards new token declaration is done
+    # Run V2
+    run_class_integration(
+        integration=DynatraceTokenProviderIntegrationV2(
+            DynatraceTokenProviderIntegrationParamsV2(
+                ocm_organization_ids=parsed_ocm_org_ids
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+    # Run V1
     run_class_integration(
         integration=DynatraceTokenProviderIntegration(
             DynatraceTokenProviderIntegrationParams(
