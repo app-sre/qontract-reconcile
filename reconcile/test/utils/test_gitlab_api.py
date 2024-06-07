@@ -522,7 +522,7 @@ def test_get_group_id_and_shared_projects(mocked_gitlab_api: GitLabApi, mocked_g
     mocked_group.projects.list.return_value = [
         create_autospec(
             GroupProject,
-            web_url="https://xyz.com",
+            web_url="https://xyz1.com",
             shared_with_groups=[
                 {
                     "group_id": 1234,
@@ -533,7 +533,7 @@ def test_get_group_id_and_shared_projects(mocked_gitlab_api: GitLabApi, mocked_g
         ),
         create_autospec(
             GroupProject,
-            web_url="https://xyz.com",
+            web_url="https://xyz2.com",
             shared_with_groups=[{"group_id": 1234, "group_access_level": 30}],
         ),
     ]
@@ -541,4 +541,4 @@ def test_get_group_id_and_shared_projects(mocked_gitlab_api: GitLabApi, mocked_g
     mocked_gl.groups = groups
     id, shared_projects = mocked_gitlab_api.get_group_id_and_shared_projects("test")
     assert id == 1234
-    assert shared_projects[0].web_url == "https://xyz.com"
+    assert shared_projects["https://xyz1.com"]["group_access_level"] == 40

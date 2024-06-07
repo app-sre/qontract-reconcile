@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
-from gitlab.v4.objects import CurrentUser, GroupMember, GroupProject
+from gitlab.v4.objects import CurrentUser, GroupMember
 from pytest_mock import MockerFixture
 
 from reconcile import gitlab_permissions
@@ -51,7 +51,26 @@ def test_run_share_with_group(
     ).return_value = True
     mocked_gl.get_group_id_and_shared_projects.return_value = (
         1234,
-        [create_autospec(GroupProject, web_url="https://test.com")],
+        {"https://test.com": {"group_access_level": 30}},
     )
     gitlab_permissions.run(False, thread_pool_size=1)
-    mocked_gl.share_project_with_group.assert_called_once()
+    mocked_gl.share_project_with_group.assert_called_once_with(
+        repo_url="https://test-gitlab.com", group_id=1234, dry_run=False
+    )
+
+
+def test_run_reshare_with_group(
+    mocked_queries: MagicMock, mocker: MockerFixture, mocked_gl: MagicMock
+) -> None:
+    mocker.patch("reconcile.gitlab_permissions.GitLabApi").return_value = mocked_gl
+    mocker.patch(
+        "reconcile.gitlab_permissions.get_feature_toggle_state"
+    ).return_value = True
+    mocked_gl.get_group_id_and_shared_projects.return_value = (
+        1234,
+        {"https://test-gitlab.com": {"group_access_level": 30}},
+    )
+    gitlab_permissions.run(False, thread_pool_size=1)
+    mocked_gl.share_project_with_group.assert_called_once_with(
+        repo_url="https://test-gitlab.com", group_id=1234, dry_run=False, reshare=True
+    )
