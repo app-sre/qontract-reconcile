@@ -2,6 +2,7 @@ import itertools
 import logging
 from typing import Any
 
+from gitlab.const import MAINTAINER_ACCESS
 from sretoolbox.utils import threaded
 
 from reconcile import queries
@@ -78,12 +79,22 @@ def share_project_with_group_members(
 
 def share_project_with_group(gl: GitLabApi, repos: list[str], dry_run: bool) -> None:
     # get repos not owned by app-sre
-    non_app_sre_projects = {repo for repo in repos if "/app-sre/" not in repo}
+    non_app_sre_project_repos = {repo for repo in repos if "/app-sre/" not in repo}
     group_id, shared_projects = gl.get_group_id_and_shared_projects(APP_SRE_GROUP_NAME)
-    shared_project_repos = {project.web_url for project in shared_projects}
-    repos_to_share = non_app_sre_projects - shared_project_repos
+    shared_project_repos = shared_projects.keys()
+    repos_to_share = non_app_sre_project_repos - shared_project_repos
+    repos_to_reshare = {
+        repo
+        for repo in non_app_sre_project_repos
+        if (group_data := shared_projects.get(repo))
+        and group_data["group_access_level"] < MAINTAINER_ACCESS
+    }
     for repo in repos_to_share:
         gl.share_project_with_group(repo_url=repo, group_id=group_id, dry_run=dry_run)
+    for repo in repos_to_reshare:
+        gl.share_project_with_group(
+            repo_url=repo, group_id=group_id, dry_run=dry_run, reshare=True
+        )
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:

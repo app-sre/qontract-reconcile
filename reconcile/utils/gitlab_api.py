@@ -29,7 +29,6 @@ from gitlab.const import (
 from gitlab.v4.objects import (
     CurrentUser,
     Group,
-    GroupProject,
     Project,
     ProjectIssue,
     ProjectMergeRequest,
@@ -259,7 +258,12 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return None
 
     def share_project_with_group(
-        self, repo_url: str, group_id: int, dry_run: bool, access: str = "maintainer"
+        self,
+        repo_url: str,
+        group_id: int,
+        dry_run: bool,
+        access: str = "maintainer",
+        reshare: bool = False,
     ) -> None:
         project = self.get_project(repo_url)
         if project is None:
@@ -282,22 +286,24 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return None
         logging.info(["add_group_as_maintainer", repo_url, group_id])
         if not dry_run:
+            if reshare:
+                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+                project.unshare(group_id)
             gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             project.share(group_id, access_level)
 
     def get_group_id_and_shared_projects(
         self, group_name: str
-    ) -> tuple[int, list[GroupProject]]:
+    ) -> tuple[int, dict[str, Any]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
         shared_projects = self.get_items(group.projects.list, all=True)
-        return group.id, [
-            project
+        return group.id, {
+            project.web_url: shared_group
             for project in shared_projects
             for shared_group in project.shared_with_groups
             if shared_group["group_id"] == group.id
-            and shared_group["group_access_level"] >= MAINTAINER_ACCESS
-        ]
+        }
 
     @staticmethod
     def _is_bot_username(username: str) -> bool:
