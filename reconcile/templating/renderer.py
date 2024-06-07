@@ -3,6 +3,7 @@ import os
 import tempfile
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, Optional, Self
 
 from deepdiff import DeepHash
@@ -30,6 +31,7 @@ from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.git import clone
 from reconcile.utils.gql import init_from_config
+from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
@@ -85,12 +87,9 @@ class LocalFilePersistence(FilePersistence):
 
     def write(self, outputs: list[TemplateOutput]) -> None:
         for output in outputs:
-            with open(
-                f"{join_path(self.app_interface_data_path, output.path)}",
-                "w",
-                encoding="utf-8",
-            ) as f:
-                f.write(output.content)
+            filepath = Path(join_path(self.app_interface_data_path, output.path))
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_text(output.content, encoding="utf-8")
 
     def read(self, path: str) -> Optional[str]:
         return self._read_local_file(join_path(self.app_interface_data_path, path))
@@ -166,12 +165,14 @@ def unpack_static_variables(
 def unpack_dynamic_variables(
     collection_variables: TemplateCollectionVariablesV1, gql: gql.GqlApi
 ) -> dict[str, dict[str, Any]]:
-    if not collection_variables.dynamic:
-        return {}
-
-    return {
-        dv.name: gql.query(dv.query) or {} for dv in collection_variables.dynamic or []
-    }
+    static = collection_variables.static or {}
+    dynamic: dict[str, dict[str, Any]] = {}
+    for dv in collection_variables.dynamic or []:
+        query = process_jinja2_template(
+            body=dv.query, vars={"static": static, "dynamic": dynamic}
+        )
+        dynamic[dv.name] = gql.query(query) or {}
+    return dynamic
 
 
 def calc_template_hash(c: TemplateCollectionV1, variables: dict[str, Any]) -> str:
