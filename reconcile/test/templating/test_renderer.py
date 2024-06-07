@@ -10,6 +10,7 @@ from ruamel import yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionV1,
+    TemplateCollectionVariablesQueriesV1,
     TemplateCollectionVariablesV1,
     TemplateV1,
 )
@@ -27,6 +28,7 @@ from reconcile.templating.renderer import (
     unpack_dynamic_variables,
     unpack_static_variables,
 )
+from reconcile.utils.jinja2.utils import Jinja2TemplateError
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.vcs import VCS
@@ -165,6 +167,32 @@ def test_unpack_dynamic_variables_multiple_result(
     assert unpack_dynamic_variables(collection_variables, gql) == {
         "foo": {"baz": [{"baz": "zab"}], "foo": [{"bar": "baz"}, {"faa": "baz"}]}
     }
+
+
+def test_unpack_dynamic_variables_templated_query(
+    mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
+) -> None:
+    gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
+    collection_variables.dynamic = [
+        TemplateCollectionVariablesQueriesV1(
+            name="baz", query="templated query {{ static.foo }}"
+        )
+    ]
+    unpack_dynamic_variables(collection_variables, gql)
+    gql.query.assert_called_once_with("templated query bar")
+
+
+def test_unpack_dynamic_variables_templated_query_jinja_error(
+    mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
+) -> None:
+    gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
+    collection_variables.dynamic = [
+        TemplateCollectionVariablesQueriesV1(
+            name="foo", query="templated query {{ static.does_not_exist }}"
+        )
+    ]
+    with pytest.raises(Jinja2TemplateError):
+        unpack_dynamic_variables(collection_variables, gql)
 
 
 def test_join_path() -> None:
