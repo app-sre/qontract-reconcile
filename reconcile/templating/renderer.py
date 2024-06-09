@@ -159,21 +159,17 @@ class ClonedRepoGitlabPersistence(FilePersistence):
 
 def unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
-    foreach_item: dict[str, Any],
+    each: dict[str, Any],
 ) -> dict:
     return {
-        k: json.loads(
-            process_jinja2_template(
-                body=json.dumps(v), vars={"foreach_item": foreach_item}
-            )
-        )
+        k: json.loads(process_jinja2_template(body=json.dumps(v), vars={"each": each}))
         for k, v in (collection_variables.static or {}).items()
     }
 
 
 def unpack_dynamic_variables(
     collection_variables: TemplateCollectionVariablesV1,
-    foreach_item: dict[str, Any],
+    each: dict[str, Any],
     gql: gql.GqlApi,
 ) -> dict[str, dict[str, Any]]:
     static = collection_variables.static or {}
@@ -181,7 +177,7 @@ def unpack_dynamic_variables(
     for dv in collection_variables.dynamic or []:
         query = process_jinja2_template(
             body=dv.query,
-            vars={"static": static, "dynamic": dynamic, "foreach_item": foreach_item},
+            vars={"static": static, "dynamic": dynamic, "each": each},
         )
         dynamic[dv.name] = gql.query(query) or {}
     return dynamic
@@ -257,16 +253,15 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         dry_run: bool,
         persistence: FilePersistence,
         ruamel_instance: yaml.YAML,
-        foreach_item: dict[str, Any],
+        each: dict[str, Any],
     ) -> None:
         variables = {}
         if collection.variables:
             variables = {
                 "dynamic": unpack_dynamic_variables(
-                    collection.variables, foreach_item, gql_api
+                    collection.variables, each, gql_api
                 ),
-                "static": unpack_static_variables(collection.variables, foreach_item),
-                "foreach_item": foreach_item,
+                "static": unpack_static_variables(collection.variables, each),
             }
 
         with PersistenceTransaction(persistence, dry_run) as p:

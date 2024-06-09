@@ -43,7 +43,7 @@ def collection_variables(gql_class_factory: Callable) -> TemplateCollectionVaria
 
 
 @pytest.fixture
-def foreach_item() -> dict[str, Any]:
+def each() -> dict[str, Any]:
     return {"name": "item-0"}
 
 
@@ -54,8 +54,8 @@ def collection_variables_foreach(
     return gql_class_factory(
         TemplateCollectionVariablesV1,
         {
-            "static": '{"foo": "{{ foreach_item.name }}"}',
-            "dynamic": [{"name": "foo", "query": "query {{ foreach_item.name }}"}],
+            "static": '{"foo": "{{ each.name }}"}',
+            "dynamic": [{"name": "foo", "query": "query {{ each.name }}"}],
         },
     )
 
@@ -158,11 +158,9 @@ def test_unpack_static_variables(
 
 def test_unpack_static_variables_foreach(
     collection_variables_foreach: TemplateCollectionVariablesV1,
-    foreach_item: dict[str, Any],
+    each: dict[str, Any],
 ) -> None:
-    # "static": '{"foo": "{{ foreach_item.name }}"}',
-    #         "dynamic": [{"name": "foo", "query": "query {{ foreach_item.name }}"}],
-    assert unpack_static_variables(collection_variables_foreach, foreach_item) == {
+    assert unpack_static_variables(collection_variables_foreach, each) == {
         "foo": "item-0"
     }
 
@@ -234,10 +232,10 @@ def test_unpack_dynamic_variables_templated_query_jinja_error(
 def test_unpack_dynamic_variables_foreach(
     mocker: MockerFixture,
     collection_variables_foreach: TemplateCollectionVariablesV1,
-    foreach_item: dict[str, Any],
+    each: dict[str, Any],
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
-    unpack_dynamic_variables(collection_variables_foreach, foreach_item, gql)
+    unpack_dynamic_variables(collection_variables_foreach, each, gql)
     gql.query.assert_called_once_with("query item-0")
 
 
@@ -565,7 +563,7 @@ def test_reconcile_variables(
     pt.assert_called_once()
     assert pt.call_args[0] == (
         ANY,
-        {"dynamic": {"foo": "bar"}, "static": {"baz": "qux"}, "foreach_item": {}},
+        {"dynamic": {"foo": "bar"}, "static": {"baz": "qux"}},
         ANY,
         r,
         ANY,
