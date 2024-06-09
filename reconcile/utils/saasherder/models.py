@@ -175,6 +175,7 @@ class Channel(BaseModel):
 class Promotion(BaseModel):
     """Implementation of the SaasPromotion interface for saasherder and AutoPromoter."""
 
+    url: str
     commit_sha: str
     saas_file: str
     target_config_hash: str
