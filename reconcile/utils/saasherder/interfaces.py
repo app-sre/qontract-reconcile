@@ -361,7 +361,7 @@ class SaasServiceOwner(Protocol):
 
 class AppCodeComponent(Protocol):
     url: str
-    hotfix_versions: list[str]
+    hotfix_versions: Optional[list[str]]
 
 
 SaasPipelinesProviders = Union[SaasPipelinesProviderTekton, SaasPipelinesProvider]
