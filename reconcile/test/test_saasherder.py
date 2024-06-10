@@ -33,9 +33,12 @@ from reconcile.typed_queries.saas_files import (
 )
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.promotion_state import PromotionData
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.saasherder.interfaces import SaasFile as SaasFileInterface
 from reconcile.utils.saasherder.models import (
+    Channel,
+    Promotion,
     TriggerSpecContainerImage,
     TriggerSpecMovingCommit,
     TriggerSpecUpstreamJob,
@@ -1348,6 +1351,59 @@ class TestRemoveNoneAttributes(TestCase):
         expected: dict[Any, Any] = {}
         res = SaasHerder.remove_none_values(input)
         self.assertEqual(res, expected)
+
+
+@pytest.mark.usefixtures("inject_gql_class_factory")
+class TestPromotionHoxfixVersions(TestCase):
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFile,
+            Fixtures("saasherder").get_anymarkup("saas.gql.yml"),
+        )
+        state_patcher = patch("reconcile.utils.state.State", autospec=True)
+        self.state_mock = state_patcher.start().return_value
+        self.saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            state=self.state_mock,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+        )
+        self.promotion_state_patcher = (
+            patch("reconcile.utils.promotion_state.PromotionState", autospec=True)
+            .start()
+            .return_value
+        )
+        self.saasherder._promotion_state = self.promotion_state_patcher
+
+    def test_hotfix_version_valid_promotion(self) -> None:
+        code_component_url = "https://github.com/app-sre/test-saas-deployments"
+        hotfix_version = "1234567890123456789012345678901234567890"
+        # code_component = self.saas_file.app.code_components[0]
+        channel = Channel(
+            name="",
+            publisher_uids=[""],
+        )
+        promotion = Promotion(
+            url=code_component_url,
+            commit_sha=hotfix_version,
+            saas_file=self.saas_file.name,
+            target_config_hash="",
+            saas_target_uid="",
+            soak_days=0,
+            subscribe=[channel],
+        )
+        self.saasherder.promotions = [promotion]
+        self.promotion_state_patcher.get_promotion_data.return_value = PromotionData(
+            success=False
+        )
+        self.assertFalse(self.saasherder.validate_promotions())
+
+        self.saasherder.hotfix_versions[code_component_url] = {hotfix_version}
+        self.assertTrue(self.saasherder.validate_promotions())
 
 
 def test_render_templated_parameters(
