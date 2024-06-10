@@ -637,6 +637,7 @@ def test_export_model(
                 "parentApp": None,
                 "selfServiceRoles": None,
                 "serviceOwners": None,
+                "codeComponents": None,
             },
             "skipSuccessfulDeployNotifications": None,
             "pipelinesProvider": {
@@ -715,6 +716,7 @@ def test_export_model(
                                     "parentApp": None,
                                     "selfServiceRoles": None,
                                     "serviceOwners": None,
+                                    "codeComponents": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -765,6 +767,7 @@ def test_export_model(
                                     "parentApp": None,
                                     "selfServiceRoles": None,
                                     "serviceOwners": None,
+                                    "codeComponents": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -809,6 +812,7 @@ def test_export_model(
                 "parentApp": None,
                 "selfServiceRoles": None,
                 "serviceOwners": None,
+                "codeComponents": None,
             },
             "skipSuccessfulDeployNotifications": None,
             "pipelinesProvider": {
@@ -887,6 +891,7 @@ def test_export_model(
                                     "parentApp": None,
                                     "selfServiceRoles": None,
                                     "serviceOwners": None,
+                                    "codeComponents": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -937,6 +942,7 @@ def test_export_model(
                                     "parentApp": None,
                                     "selfServiceRoles": None,
                                     "serviceOwners": None,
+                                    "codeComponents": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -981,6 +987,7 @@ def test_export_model(
                 "parentApp": None,
                 "selfServiceRoles": None,
                 "serviceOwners": None,
+                "codeComponents": None,
             },
             "skipSuccessfulDeployNotifications": None,
             "pipelinesProvider": {
@@ -1059,6 +1066,7 @@ def test_export_model(
                                     "selfServiceRoles": None,
                                     "labels": None,
                                     "serviceOwners": None,
+                                    "codeComponents": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
@@ -1109,6 +1117,7 @@ def test_export_model(
                                     "selfServiceRoles": None,
                                     "labels": None,
                                     "serviceOwners": None,
+                                    "codeComponents": None,
                                 },
                                 "cluster": {
                                     "name": "appint-ex-01",
