@@ -61,6 +61,10 @@ fragment SaasTargetNamespace on Namespace_v1 {
       name
       email
     }
+    codeComponents {
+      url
+      hotfixVersions
+    }
   }
   cluster {
     name

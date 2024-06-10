@@ -63,6 +63,9 @@ class SaasApp(Protocol):
     @property
     def service_owners(self) -> Optional[Sequence[SaasServiceOwner]]: ...
 
+    @property
+    def code_components(self) -> Optional[Sequence[AppCodeComponent]]: ...
+
 
 class SaasPipelinesProvider(Protocol):
     name: str
@@ -354,6 +357,11 @@ class SaasRole(Protocol):
 class SaasServiceOwner(Protocol):
     name: str
     email: str
+
+
+class AppCodeComponent(Protocol):
+    url: str
+    hotfix_versions: Optional[list[str]]
 
 
 SaasPipelinesProviders = Union[SaasPipelinesProviderTekton, SaasPipelinesProvider]

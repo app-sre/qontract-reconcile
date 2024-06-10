@@ -150,6 +150,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self._promotion_state = PromotionState(state=state) if state else None
         self._channel_map = self._assemble_channels(saas_files=all_saas_files)
         self.images: set[str] = set()
+        self.hotfix_versions = self._collect_hotfix_versions()
 
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -1057,6 +1058,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 self._channel_map[sub] for sub in target.promotion.subscribe or []
             ]
             target_promotion = Promotion(
+                url=url,
                 auto=target.promotion.auto,
                 publish=target.promotion.publish,
                 subscribe=channels,
@@ -1097,6 +1099,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             )
                         channel_map[publish].publisher_uids.append(publisher_uid)
         return channel_map
+
+    def _collect_hotfix_versions(self) -> dict[str, set[str]]:
+        hotfix_versions: dict[str, set[str]] = {}
+        for saas_file in self.saas_files:
+            for cc in saas_file.app.code_components or []:
+                for v in cc.hotfix_versions or []:
+                    hotfix_versions.setdefault(cc.url, set()).add(v)
+        return hotfix_versions
 
     @staticmethod
     def _collect_images(resource: Resource) -> set[str]:
@@ -1887,6 +1897,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             raise Exception("state is not initialized")
 
         if not promotion.subscribe:
+            return True
+
+        # hotfix must run before further gates are evaluated to override them
+        if promotion.commit_sha in self.hotfix_versions.get(promotion.url, set()):
             return True
 
         now = datetime.now(timezone.utc)

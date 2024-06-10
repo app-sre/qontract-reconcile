@@ -82,6 +82,10 @@ fragment SaasTargetNamespace on Namespace_v1 {
       name
       email
     }
+    codeComponents {
+      url
+      hotfixVersions
+    }
   }
   cluster {
     name
@@ -136,6 +140,10 @@ query SaasFiles {
       serviceOwners {
         name
         email
+      }
+      codeComponents {
+        url
+        hotfixVersions
       }
     }
     pipelinesProvider {
@@ -320,11 +328,17 @@ class OwnerV1(ConfiguredBaseModel):
     email: str = Field(..., alias="email")
 
 
+class AppCodeComponentsV1(ConfiguredBaseModel):
+    url: str = Field(..., alias="url")
+    hotfix_versions: Optional[list[str]] = Field(..., alias="hotfixVersions")
+
+
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     parent_app: Optional[AppV1_AppV1] = Field(..., alias="parentApp")
     self_service_roles: Optional[list[RoleV1]] = Field(..., alias="selfServiceRoles")
     service_owners: Optional[list[OwnerV1]] = Field(..., alias="serviceOwners")
+    code_components: Optional[list[AppCodeComponentsV1]] = Field(..., alias="codeComponents")
 
 
 class PipelinesProviderV1(ConfiguredBaseModel):

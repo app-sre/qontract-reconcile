@@ -17,6 +17,10 @@ query SaasFiles {
         name
         email
       }
+      codeComponents {
+        url
+        hotfixVersions
+      }
     }
     pipelinesProvider {
       name
