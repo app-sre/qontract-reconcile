@@ -127,6 +127,10 @@ class JobNotRunningError(Exception):
     pass
 
 
+class RequestEntityTooLargeError(Exception):
+    pass
+
+
 class OCDecorators:
     @classmethod
     def process_reconcile_time(cls, function):
@@ -1118,6 +1122,8 @@ class OCCli:  # pylint: disable=too-many-public-methods
                     raise StatefulSetUpdateForbidden(f"[{self.server}]: {err}")
                 if "the object has been modified" in err:
                     raise ObjectHasBeenModifiedError(f"[{self.server}]: {err}")
+                if "Request entity too large" in err:
+                    raise RequestEntityTooLargeError(f"[{self.server}]: {err}")
             if not (allow_not_found and "NotFound" in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 
