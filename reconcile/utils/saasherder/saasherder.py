@@ -1899,6 +1899,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if not promotion.subscribe:
             return True
 
+        # hotfix must run before further gates are evaluated to override them
         if promotion.commit_sha in self.hotfix_versions.get(promotion.url, set()):
             return True
 
