@@ -19,6 +19,7 @@ query SaasFiles {
       }
       codeComponents {
         url
+        blockedVersions
         hotfixVersions
       }
     }

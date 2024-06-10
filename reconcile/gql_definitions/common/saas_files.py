@@ -84,6 +84,7 @@ fragment SaasTargetNamespace on Namespace_v1 {
     }
     codeComponents {
       url
+      blockedVersions
       hotfixVersions
     }
   }
@@ -143,6 +144,7 @@ query SaasFiles {
       }
       codeComponents {
         url
+        blockedVersions
         hotfixVersions
       }
     }
@@ -330,6 +332,7 @@ class OwnerV1(ConfiguredBaseModel):
 
 class AppCodeComponentsV1(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
+    blocked_versions: Optional[list[str]] = Field(..., alias="blockedVersions")
     hotfix_versions: Optional[list[str]] = Field(..., alias="hotfixVersions")
 
 
