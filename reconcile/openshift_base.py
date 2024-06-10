@@ -40,6 +40,7 @@ from reconcile.utils.oc import (
     OCClient,
     OCLogMsg,
     PrimaryClusterIPCanNotBeUnsetError,
+    RequestEntityTooLargeError,
     StatefulSetUpdateForbidden,
     StatusCodeError,
     UnsupportedMediaTypeError,
@@ -402,7 +403,7 @@ def apply(
 
         try:
             oc.apply(namespace, annotated)
-        except InvalidValueApplyError:
+        except (InvalidValueApplyError, RequestEntityTooLargeError):
             oc.remove_last_applied_configuration(
                 namespace, resource_type, resource.name
             )
