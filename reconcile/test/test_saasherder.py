@@ -1360,8 +1360,8 @@ class TestPromotionHoxfixVersions(TestCase):
             SaasFile,
             Fixtures("saasherder").get_anymarkup("saas.gql.yml"),
         )
-        state_patcher = patch("reconcile.utils.state.State", autospec=True)
-        self.state_mock = state_patcher.start().return_value
+        self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
+        self.state_mock = self.state_patcher.start().return_value
         self.saasherder = SaasHerder(
             [self.saas_file],
             secret_reader=MockSecretReader(),
@@ -1372,12 +1372,15 @@ class TestPromotionHoxfixVersions(TestCase):
             hash_length=7,
             repo_url="https://repo-url.com",
         )
-        self.promotion_state_patcher = (
-            patch("reconcile.utils.promotion_state.PromotionState", autospec=True)
-            .start()
-            .return_value
+        self.promotion_state_patcher = patch(
+            "reconcile.utils.promotion_state.PromotionState", autospec=True
         )
-        self.saasherder._promotion_state = self.promotion_state_patcher
+        self.promotion_state_mock = self.promotion_state_patcher.start().return_value
+        self.saasherder._promotion_state = self.promotion_state_mock
+
+    def tearDown(self) -> None:
+        self.state_patcher.stop()
+        self.promotion_state_patcher.stop()
 
     def test_hotfix_version_valid_promotion(self) -> None:
         code_component_url = "https://github.com/app-sre/test-saas-deployments"
@@ -1397,7 +1400,7 @@ class TestPromotionHoxfixVersions(TestCase):
             subscribe=[channel],
         )
         self.saasherder.promotions = [promotion]
-        self.promotion_state_patcher.get_promotion_data.return_value = PromotionData(
+        self.promotion_state_mock.get_promotion_data.return_value = PromotionData(
             success=False
         )
         self.assertFalse(self.saasherder.validate_promotions())
