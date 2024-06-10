@@ -150,6 +150,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self._promotion_state = PromotionState(state=state) if state else None
         self._channel_map = self._assemble_channels(saas_files=all_saas_files)
         self.images: set[str] = set()
+        self.blocked_versions = self._collect_blocked_versions()
         self.hotfix_versions = self._collect_hotfix_versions()
 
         # each namespace is in fact a target,
@@ -1100,6 +1101,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         channel_map[publish].publisher_uids.append(publisher_uid)
         return channel_map
 
+    def _collect_blocked_versions(self) -> dict[str, set[str]]:
+        blocked_versions: dict[str, set[str]] = {}
+        for saas_file in self.saas_files:
+            for cc in saas_file.app.code_components or []:
+                for v in cc.blocked_versions or []:
+                    blocked_versions.setdefault(cc.url, set()).add(v)
+        return blocked_versions
+
     def _collect_hotfix_versions(self) -> dict[str, set[str]]:
         hotfix_versions: dict[str, set[str]] = {}
         for saas_file in self.saas_files:
@@ -1898,6 +1907,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
         if not promotion.subscribe:
             return True
+
+        if promotion.commit_sha in self.blocked_versions.get(promotion.url, set()):
+            logging.error(f"Commit {promotion.commit_sha} is blocked!")
+            return False
 
         # hotfix must run before further gates are evaluated to override them
         if promotion.commit_sha in self.hotfix_versions.get(promotion.url, set()):

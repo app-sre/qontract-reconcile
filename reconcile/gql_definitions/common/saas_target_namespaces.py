@@ -63,6 +63,7 @@ fragment SaasTargetNamespace on Namespace_v1 {
     }
     codeComponents {
       url
+      blockedVersions
       hotfixVersions
     }
   }

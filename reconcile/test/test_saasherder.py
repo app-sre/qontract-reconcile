@@ -1354,7 +1354,7 @@ class TestRemoveNoneAttributes(TestCase):
 
 
 @pytest.mark.usefixtures("inject_gql_class_factory")
-class TestPromotionHoxfixVersions(TestCase):
+class TestPromotionBlockedHoxfixVersions(TestCase):
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
             SaasFile,
@@ -1382,7 +1382,7 @@ class TestPromotionHoxfixVersions(TestCase):
         self.state_patcher.stop()
         self.promotion_state_patcher.stop()
 
-    def test_hotfix_version_valid_promotion(self) -> None:
+    def test_blocked_hotfix_version_promotion_validity(self) -> None:
         code_component_url = "https://github.com/app-sre/test-saas-deployments"
         hotfix_version = "1234567890123456789012345678901234567890"
         # code_component = self.saas_file.app.code_components[0]
@@ -1407,6 +1407,9 @@ class TestPromotionHoxfixVersions(TestCase):
 
         self.saasherder.hotfix_versions[code_component_url] = {hotfix_version}
         self.assertTrue(self.saasherder.validate_promotions())
+
+        self.saasherder.blocked_versions[code_component_url] = {hotfix_version}
+        self.assertFalse(self.saasherder.validate_promotions())
 
 
 def test_render_templated_parameters(
