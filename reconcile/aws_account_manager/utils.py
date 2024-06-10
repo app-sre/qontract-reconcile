@@ -30,6 +30,9 @@ def validate(account: AWSAccountV1) -> bool:
                 f"Premium support is required for payer account {account.name}"
             )
 
+    # security contact is mandatory for all accounts since June 2024
+    if not account.security_contact:
+        raise ValueError(f"Security contact is required for account {account.name}")
     return True
 
 

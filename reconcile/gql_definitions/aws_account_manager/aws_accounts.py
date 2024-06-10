@@ -39,6 +39,12 @@ fragment AWSAccountManaged on AWSAccount_v1 {
       value
     }
   }
+  securityContact {
+    name
+    title
+    email
+    phoneNumber
+  }
 }
 
 fragment VaultSecret on VaultSecret_v1 {

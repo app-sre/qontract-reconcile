@@ -9,6 +9,7 @@ from boto3 import Session
 from botocore.client import BaseClient
 from pydantic import BaseModel
 
+import reconcile.utils.aws_api_typed.account
 import reconcile.utils.aws_api_typed.dynamodb
 import reconcile.utils.aws_api_typed.iam
 import reconcile.utils.aws_api_typed.organization
@@ -16,6 +17,7 @@ import reconcile.utils.aws_api_typed.s3
 import reconcile.utils.aws_api_typed.service_quotas
 import reconcile.utils.aws_api_typed.sts
 import reconcile.utils.aws_api_typed.support
+from reconcile.utils.aws_api_typed.account import AWSApiAccount
 from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
 from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
@@ -26,13 +28,14 @@ from reconcile.utils.aws_api_typed.support import AWSApiSupport
 
 SubApi = TypeVar(
     "SubApi",
+    AWSApiAccount,
+    AWSApiDynamoDB,
     AWSApiIam,
     AWSApiOrganizations,
     AWSApiS3,
     AWSApiServiceQuotas,
     AWSApiSts,
     AWSApiSupport,
-    AWSApiDynamoDB,
 )
 
 
@@ -168,6 +171,12 @@ class AWSApi:
     def _init_sub_api(self, api_cls: type[SubApi]) -> SubApi:
         """Return a new or cached sub api client."""
         match api_cls:
+            case reconcile.utils.aws_api_typed.account.AWSApiAccount:
+                client = self.session.client("account")
+                api = api_cls(client)
+            case reconcile.utils.aws_api_typed.dynamodb.AWSApiDynamoDB:
+                client = self.session.client("dynamodb")
+                api = api_cls(client)
             case reconcile.utils.aws_api_typed.iam.AWSApiIam:
                 client = self.session.client("iam")
                 api = api_cls(client)
@@ -186,14 +195,21 @@ class AWSApi:
             case reconcile.utils.aws_api_typed.support.AWSApiSupport:
                 client = self.session.client("support")
                 api = api_cls(client)
-            case reconcile.utils.aws_api_typed.dynamodb.AWSApiDynamoDB:
-                client = self.session.client("dynamodb")
-                api = api_cls(client)
             case _:
                 raise ValueError(f"Unknown API class: {api_cls}")
 
         self._session_clients.append(client)
         return api
+
+    @cached_property
+    def account(self) -> AWSApiAccount:
+        """Return an AWS Acount Api client"""
+        return self._init_sub_api(AWSApiAccount)
+
+    @cached_property
+    def dynamodb(self) -> AWSApiDynamoDB:
+        """Return an AWS DynamoDB Api client"""
+        return self._init_sub_api(AWSApiDynamoDB)
 
     @cached_property
     def iam(self) -> AWSApiIam:
@@ -224,11 +240,6 @@ class AWSApi:
     def support(self) -> AWSApiSupport:
         """Return an AWS Support Api client."""
         return self._init_sub_api(AWSApiSupport)
-
-    @cached_property
-    def dynamodb(self) -> AWSApiDynamoDB:
-        """Return an AWS DynamoDB Api client"""
-        return self._init_sub_api(AWSApiDynamoDB)
 
     def assume_role(self, account_id: str, role: str) -> AWSApi:
         """Return a new AWSApi with the assumed role."""

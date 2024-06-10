@@ -17,4 +17,10 @@ fragment AWSAccountManaged on AWSAccount_v1 {
       value
     }
   }
+  securityContact {
+    name
+    title
+    email
+    phoneNumber
+  }
 }

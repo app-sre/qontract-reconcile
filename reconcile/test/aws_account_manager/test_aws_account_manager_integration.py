@@ -14,6 +14,7 @@ from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
 )
 from reconcile.gql_definitions.fragments.aws_account_managed import (
     AWSAccountManaged,
+    AWSContactV1,
     AWSQuotaV1,
 )
 from reconcile.utils.aws_api_typed.iam import AWSAccessKey
@@ -208,6 +209,12 @@ def test_aws_account_manager_utils_integration_reconcile_account(
             AWSQuotaV1(serviceCode="ec2", quotaCode="L-1216C47A", value=64.0),
             AWSQuotaV1(serviceCode="eks", quotaCode="L-1194D53C", value=102.0),
         ],
+        security_contact=AWSContactV1(
+            name="security contact name",
+            title=None,
+            email="security@example.com",
+            phoneNumber="+1234567890",
+        ),
     )
 
 
