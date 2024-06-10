@@ -7,6 +7,7 @@ import random
 import re
 import string
 import tempfile
+from collections import Counter
 from collections.abc import (
     Iterable,
     Mapping,
@@ -273,13 +274,12 @@ DEFAULT_TAGS = {
 
 
 class OutputResourceNameNotUniqueException(Exception):
-    def __init__(self, unique_constraint):
-        self.cluster, self.namespace, self.output_resource_name = unique_constraint
+    def __init__(self, namespace, duplicates):
+        self.namespace, self.duplicates = namespace, duplicates
         super().__init__(
             str.format(
-                "Duplicate external resources with  'output_resource_name': '{}' found in cluster '{}' and namespace '{}'. Each 'output_resource_name' value must be unique for a given cluster and namespace",
-                self.output_resource_name,
-                self.cluster,
+                "Found duplicate values {} for 'output_resource_name' in namespace {}. Please ensure 'output_resource_name' is unique in a given namespace.",
+                self.duplicates,
                 self.namespace,
             )
         )
@@ -500,8 +500,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if prefetch_resources_by_schemas:
             for schema in prefetch_resources_by_schemas:
                 self._resource_cache.update(self.prefetch_resources(schema))
-
-        self.unique_constraint_for_external_resource: set[tuple] = set()
 
     def __enter__(self):
         return self
@@ -1506,25 +1504,18 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             specs = get_external_resource_specs(
                 namespace_info, provision_provider=PROVIDER_AWS
             )
+            name_counter = Counter(spec.output_resource_name for spec in specs)
+            duplicates = [name for name, count in name_counter.items() if count > 1]
+            if duplicates:
+                raise OutputResourceNameNotUniqueException(
+                    namespace_info.get("name"), duplicates
+                )
             for spec in specs:
                 if account_names and spec.provisioner_name not in account_names:
                     continue
                 self.account_resource_specs.setdefault(
                     spec.provisioner_name, []
                 ).append(spec)
-
-                unique_constraint = (
-                    spec.cluster_name,
-                    spec.namespace_name,
-                    spec.output_resource_name,
-                )
-                if (
-                    unique_constraint
-                    not in self.unique_constraint_for_external_resource
-                ):
-                    self.unique_constraint_for_external_resource.add(unique_constraint)
-                else:
-                    raise OutputResourceNameNotUniqueException(unique_constraint)
 
                 self.resource_spec_inventory[spec.id_object()] = spec
 
