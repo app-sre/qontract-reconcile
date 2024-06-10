@@ -19,7 +19,7 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     DEFINITION as GLITCHTIP_PROJECT_DEFINITION,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
-    GlitchtipProjectsV1,
+    GlitchtipProjectV1,
     RoleV1,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
@@ -87,7 +87,7 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    glitchtip_projects: Sequence[GlitchtipProjectsV1],
+    glitchtip_projects: Sequence[GlitchtipProjectV1],
     mail_domain: str,
     internal_groups_client: InternalGroupsClient,
 ) -> list[Organization]:
@@ -143,7 +143,7 @@ def fetch_desired_state(
     return list(organizations.values())
 
 
-def get_glitchtip_projects(query_func: Callable) -> list[GlitchtipProjectsV1]:
+def get_glitchtip_projects(query_func: Callable) -> list[GlitchtipProjectV1]:
     glitchtip_projects = (
         glitchtip_project_query(query_func=query_func).glitchtip_projects or []
     )

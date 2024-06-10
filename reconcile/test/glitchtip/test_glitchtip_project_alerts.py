@@ -20,7 +20,7 @@ from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import
     GlitchtipProjectAlertRecipientWebhookV1,
     GlitchtipProjectAlertV1,
     GlitchtipProjectJiraV1,
-    GlitchtipProjectsV1,
+    GlitchtipProjectV1,
     JiraBoardV1,
 )
 from reconcile.test.fixtures import Fixtures
@@ -53,7 +53,7 @@ def intg(
 @pytest.fixture
 def projects(
     fx: Fixtures, intg: GlitchtipProjectAlertsIntegration
-) -> list[GlitchtipProjectsV1]:
+) -> list[GlitchtipProjectV1]:
     def q(*args: Any, **kwargs: Any) -> dict:
         return fx.get_anymarkup("project_alerts.yml")
 
@@ -116,10 +116,10 @@ def test_glitchtip_project_alerts_webhook_urls_are_unique() -> None:
 
 
 def test_glitchtip_project_alerts_get_projects(
-    projects: Sequence[GlitchtipProjectsV1],
+    projects: Sequence[GlitchtipProjectV1],
 ) -> None:
     assert projects == [
-        GlitchtipProjectsV1(
+        GlitchtipProjectV1(
             name="example",
             projectId=None,
             organization=GlitchtipOrganizationV1(
@@ -163,7 +163,7 @@ def test_glitchtip_project_alerts_get_projects(
             ],
             jira=None,
         ),
-        GlitchtipProjectsV1(
+        GlitchtipProjectV1(
             name="no-alerts",
             projectId=None,
             organization=GlitchtipOrganizationV1(
@@ -172,7 +172,7 @@ def test_glitchtip_project_alerts_get_projects(
             alerts=None,
             jira=None,
         ),
-        GlitchtipProjectsV1(
+        GlitchtipProjectV1(
             name="jira-board-and-alerts",
             projectId=None,
             organization=GlitchtipOrganizationV1(
@@ -197,7 +197,7 @@ def test_glitchtip_project_alerts_get_projects(
                 labels=["example-label-1", "example-label-2"],
             ),
         ),
-        GlitchtipProjectsV1(
+        GlitchtipProjectV1(
             name="jira-project",
             projectId=None,
             organization=GlitchtipOrganizationV1(
@@ -208,7 +208,7 @@ def test_glitchtip_project_alerts_get_projects(
                 project="JIRA-VIA-PROJECT", board=None, labels=None
             ),
         ),
-        GlitchtipProjectsV1(
+        GlitchtipProjectV1(
             name="integration-disabled",
             projectId=None,
             organization=GlitchtipOrganizationV1(
@@ -226,7 +226,7 @@ def test_glitchtip_project_alerts_get_projects(
                 labels=None,
             ),
         ),
-        GlitchtipProjectsV1(
+        GlitchtipProjectV1(
             name="jira-permissions-validator-disabled",
             projectId=None,
             organization=GlitchtipOrganizationV1(
@@ -249,7 +249,7 @@ def test_glitchtip_project_alerts_get_projects(
 
 def test_glitchtip_project_alerts_fetch_desire_state(
     intg: GlitchtipProjectAlertsIntegration,
-    projects: Sequence[GlitchtipProjectsV1],
+    projects: Sequence[GlitchtipProjectV1],
 ) -> None:
     org = intg.fetch_desired_state(
         projects, gjb_alert_url="http://gjb.com", gjb_token="secret"
@@ -337,7 +337,7 @@ def test_glitchtip_project_alerts_fetch_desire_state(
 
 def test_glitchtip_project_alerts_fetch_desire_state_duplicated_webhook(
     intg: GlitchtipProjectAlertsIntegration,
-    projects: Sequence[GlitchtipProjectsV1],
+    projects: Sequence[GlitchtipProjectV1],
 ) -> None:
     # duplicate first alert with webhook
     projects[0].alerts.append(projects[0].alerts[0])  # type: ignore

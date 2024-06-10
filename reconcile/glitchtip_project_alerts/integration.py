@@ -18,7 +18,7 @@ from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import
     GlitchtipProjectAlertRecipientEmailV1,
     GlitchtipProjectAlertRecipientV1,
     GlitchtipProjectAlertRecipientWebhookV1,
-    GlitchtipProjectsV1,
+    GlitchtipProjectV1,
 )
 from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import (
     query as glitchtip_project_query,
@@ -73,7 +73,7 @@ class GlitchtipProjectAlertsIntegration(
     def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
         return {"projects": [c.dict() for c in self.get_projects(gql.get_api().query)]}
 
-    def get_projects(self, query_func: Callable) -> list[GlitchtipProjectsV1]:
+    def get_projects(self, query_func: Callable) -> list[GlitchtipProjectV1]:
         return glitchtip_project_query(query_func=query_func).glitchtip_projects or []
 
     def _build_project_alert_recipient(
@@ -95,7 +95,7 @@ class GlitchtipProjectAlertsIntegration(
 
     def fetch_desired_state(
         self,
-        glitchtip_projects: Iterable[GlitchtipProjectsV1],
+        glitchtip_projects: Iterable[GlitchtipProjectV1],
         gjb_alert_url: str | None,
         gjb_token: str | None,
     ) -> list[Organization]:
@@ -264,7 +264,7 @@ class GlitchtipProjectAlertsIntegration(
         glitchtip_instances = glitchtip_instance_query(
             query_func=gqlapi.query
         ).instances
-        glitchtip_projects_by_instance: dict[str, list[GlitchtipProjectsV1]] = (
+        glitchtip_projects_by_instance: dict[str, list[GlitchtipProjectV1]] = (
             defaultdict(list)
         )
         for glitchtip_project in self.get_projects(query_func=gqlapi.query):
