@@ -25,6 +25,9 @@ query TemplateCollection_v1 {
     additionalMrLabels
     description
     enableAutoApproval
+    forEach {
+      items
+    }
     variables {
       static
       dynamic {
@@ -52,6 +55,10 @@ class ConfiguredBaseModel(BaseModel):
     class Config:
         smart_union=True
         extra=Extra.forbid
+
+
+class TemplateCollectionForEachV1(ConfiguredBaseModel):
+    items: Optional[list[Json]] = Field(..., alias="items")
 
 
 class TemplateCollectionVariablesQueriesV1(ConfiguredBaseModel):
@@ -83,6 +90,7 @@ class TemplateCollectionV1(ConfiguredBaseModel):
     additional_mr_labels: Optional[list[str]] = Field(..., alias="additionalMrLabels")
     description: str = Field(..., alias="description")
     enable_auto_approval: Optional[bool] = Field(..., alias="enableAutoApproval")
+    for_each: Optional[TemplateCollectionForEachV1] = Field(..., alias="forEach")
     variables: Optional[TemplateCollectionVariablesV1] = Field(..., alias="variables")
     templates: list[TemplateV1] = Field(..., alias="templates")
 

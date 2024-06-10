@@ -1304,6 +1304,16 @@
                             "description": null,
                             "args": [
                                 {
+                                    "name": "name",
+                                    "description": null,
+                                    "type": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    },
+                                    "defaultValue": null
+                                },
+                                {
                                     "name": "path",
                                     "description": null,
                                     "type": {
@@ -1392,7 +1402,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "escalation_policies_1",
+                            "name": "escalation_policies_v1",
                             "description": null,
                             "args": [
                                 {
@@ -32194,6 +32204,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "forEach",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "TemplateCollectionForEach_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "description",
                             "description": null,
                             "args": [],
@@ -32254,6 +32276,37 @@
                             "ofType": null
                         }
                     ],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "TemplateCollectionForEach_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "items",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "JSON",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
                     "enumValues": null,
                     "possibleTypes": null
                 },
