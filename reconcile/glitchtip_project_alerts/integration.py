@@ -123,30 +123,16 @@ class GlitchtipProjectAlertsIntegration(
                     )
                 )
             if glitchtip_project.jira and gjb_alert_url:
-                jira_project_key = None
-                if glitchtip_project.jira.project:
-                    jira_project_key = glitchtip_project.jira.project
-                elif (
-                    glitchtip_project.jira.board
-                    and integration_is_enabled(
-                        QONTRACT_INTEGRATION, glitchtip_project.jira.board
-                    )
-                    and integration_is_enabled(
-                        jira_permissions_validator.QONTRACT_INTEGRATION,
-                        glitchtip_project.jira.board,
-                    )
-                ):
-                    jira_project_key = glitchtip_project.jira.board.name
+                params: dict[str, str | list[str]] = {}
+                if gjb_token:
+                    params["token"] = gjb_token
+                alert_labels = glitchtip_project.jira.labels or []
 
-                if jira_project_key:
-                    params: dict[str, str | list] = {}
-                    if gjb_token:
-                        params["token"] = gjb_token
-                    if glitchtip_project.jira.labels:
-                        params["labels"] = glitchtip_project.jira.labels
-                    url = (
-                        f"{gjb_alert_url}/{jira_project_key}?{urlencode(params, True)}"
-                    )
+                if glitchtip_project.jira.project:
+                    if glitchtip_project.jira.components:
+                        params["components"] = glitchtip_project.jira.components
+                    params["labels"] = alert_labels
+                    url = f"{gjb_alert_url}/{glitchtip_project.jira.project}?{urlencode(params, True)}"
                     alerts.append(
                         ProjectAlert(
                             name=GJB_ALERT_NAME,
@@ -160,6 +146,44 @@ class GlitchtipProjectAlertsIntegration(
                             ],
                         )
                     )
+
+                elif (
+                    glitchtip_project.jira.escalation_policy
+                    and glitchtip_project.jira.escalation_policy.channels.jira_board
+                ):
+                    # definition via escalation policy
+                    channels = glitchtip_project.jira.escalation_policy.channels
+                    for board in channels.jira_board:
+                        if not integration_is_enabled(
+                            QONTRACT_INTEGRATION, board
+                        ) or not integration_is_enabled(
+                            jira_permissions_validator.QONTRACT_INTEGRATION, board
+                        ):
+                            continue
+                        params["labels"] = alert_labels + (channels.jira_labels or [])
+                        if channels.jira_component:
+                            params["components"] = [channels.jira_component]
+                        if board.issue_type:
+                            params["issue_type"] = board.issue_type
+                        url = f"{gjb_alert_url}/{board.name}?{urlencode(params, True)}"
+                        alerts.append(
+                            ProjectAlert(
+                                name=GJB_ALERT_NAME,
+                                timespan_minutes=1,
+                                quantity=1,
+                                recipients=[
+                                    ProjectAlertRecipient(
+                                        recipient_type=RecipientType.WEBHOOK,
+                                        url=url,
+                                    )
+                                ],
+                            )
+                        )
+                else:
+                    raise ValueError(
+                        "Jira integration requires either project or escalation policy to be set"
+                    )
+
             # check for duplicates
             if not webhook_urls_are_unique(alerts):
                 raise ValueError(

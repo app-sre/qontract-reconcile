@@ -58,10 +58,18 @@ query GlitchtipProjectsWithAlerts {
     }
     jira {
       project
-      board {
-        name
-        disable {
-          integrations
+      components
+      escalationPolicy {
+        channels {
+          jiraBoard {
+            name
+            issueType
+            disable {
+              integrations
+            }
+          }
+          jiraComponent
+          jiraLabels
         }
       }
       labels
@@ -113,12 +121,24 @@ class DisableJiraBoardAutomationsV1(ConfiguredBaseModel):
 
 class JiraBoardV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    issue_type: Optional[str] = Field(..., alias="issueType")
     disable: Optional[DisableJiraBoardAutomationsV1] = Field(..., alias="disable")
+
+
+class AppEscalationPolicyChannelsV1(ConfiguredBaseModel):
+    jira_board: list[JiraBoardV1] = Field(..., alias="jiraBoard")
+    jira_component: Optional[str] = Field(..., alias="jiraComponent")
+    jira_labels: Optional[list[str]] = Field(..., alias="jiraLabels")
+
+
+class AppEscalationPolicyV1(ConfiguredBaseModel):
+    channels: AppEscalationPolicyChannelsV1 = Field(..., alias="channels")
 
 
 class GlitchtipProjectJiraV1(ConfiguredBaseModel):
     project: Optional[str] = Field(..., alias="project")
-    board: Optional[JiraBoardV1] = Field(..., alias="board")
+    components: Optional[list[str]] = Field(..., alias="components")
+    escalation_policy: Optional[AppEscalationPolicyV1] = Field(..., alias="escalationPolicy")
     labels: Optional[list[str]] = Field(..., alias="labels")
 
 
