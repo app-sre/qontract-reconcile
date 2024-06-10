@@ -47,6 +47,10 @@ class TerraformVpcResourcesParams(PydanticRunParams):
     enable_deletion: bool = False
 
 
+class PlanStepError(Exception):
+    pass
+
+
 class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesParams]):
     @property
     def name(self) -> str:
@@ -164,7 +168,10 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             thread_pool_size=thread_pool_size,
         )
 
-        tf_client.plan(enable_deletion=enable_deletion)
+        disable_deletions, errors = tf_client.plan(enable_deletion=enable_deletion)
+
+        if disable_deletions or errors:
+            raise PlanStepError("Errors in terraform plan step, please verify output.")
 
         if dry_run:
             sys.exit(ExitCodes.SUCCESS)
