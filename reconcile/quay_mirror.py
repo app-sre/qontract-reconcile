@@ -370,7 +370,7 @@ class QuayMirror:
     @staticmethod
     def check_compare_tags_elapsed_time(path, interval) -> bool:
         try:
-            with open(path, "r", encoding="locale") as file_obj:
+            with open(path, encoding="locale") as file_obj:
                 last_compare_tags = float(file_obj.read())
         except FileNotFoundError:
             return True

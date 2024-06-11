@@ -2511,7 +2511,7 @@ def alerts(ctx, file_path):
             case _:
                 return BIG_NUMBER
 
-    with open(file_path, "r", encoding="locale") as f:
+    with open(file_path, encoding="locale") as f:
         content = json.loads(f.read())
 
     columns = [

@@ -14,10 +14,10 @@ def file_contents() -> Callable[[str], tuple[str, str]]:
             "files",
         )
 
-        with open(f"{path}/{case}.yml", "r", encoding="locale") as f:
+        with open(f"{path}/{case}.yml", encoding="locale") as f:
             a = f.read().strip()
 
-        with open(f"{path}/{case}.result.yml", "r", encoding="locale") as f:
+        with open(f"{path}/{case}.result.yml", encoding="locale") as f:
             b = f.read().strip()
 
         return (a, b)

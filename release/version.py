@@ -35,7 +35,7 @@ def git() -> str:
         # if we're not in a git repo, try reading out from the GIT_VERSION file
         if os.path.exists(GIT_VERSION_FILE):
             with open(
-                GIT_VERSION_FILE, "r", encoding=locale.getpreferredencoding(False)
+                GIT_VERSION_FILE, encoding=locale.getpreferredencoding(False)
             ) as f:
                 return f.read()
         print(e.stderr)

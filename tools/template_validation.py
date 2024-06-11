@@ -27,7 +27,7 @@ def load_clean_yaml(path: str) -> dict:
 
 def load_yaml(to_load: str) -> dict:
     ruamel_instance = create_ruamel_instance()
-    with open(to_load, "r", encoding="utf-8") as file:
+    with open(to_load, encoding="utf-8") as file:
         return ruamel_instance.load(file)
 
 

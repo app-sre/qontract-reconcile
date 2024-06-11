@@ -42,13 +42,13 @@ class LogHandle:
     ) -> Iterable[str]:
         if max_lines <= 0:
             return []
-        with open(self.log_file, "r", encoding="utf-8") as f:
+        with open(self.log_file, encoding="utf-8") as f:
             if from_file_end:
                 return collections.deque(f, maxlen=max_lines)
             return [line.rstrip() for line in itertools.islice(f, max_lines)]
 
     def write_logs_to_logger(self, logger: Callable[..., None]) -> None:
-        with open(self.log_file, "r", encoding="utf-8") as f:
+        with open(self.log_file, encoding="utf-8") as f:
             logger(f.read())
 
     def exists(self) -> bool:

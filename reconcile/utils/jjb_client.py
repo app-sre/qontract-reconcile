@@ -136,7 +136,7 @@ class JJB:  # pylint: disable=too-many-public-methods
         configs = {}
         for name, wd in self.working_dirs.items():
             config_path = "{}/config.yaml".format(wd)
-            with open(config_path, "r", encoding="locale") as f:
+            with open(config_path, encoding="locale") as f:
                 configs[name] = f.read()
 
         return configs
