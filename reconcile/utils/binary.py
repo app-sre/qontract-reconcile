@@ -37,7 +37,7 @@ def binary_version(binary, version_args, search_regex, expected_versions):
             cmd.extend(version_args)
             try:
                 result = subprocess.run(
-                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
+                    cmd, capture_output=True, check=True
                 )
             except subprocess.CalledProcessError as e:
                 msg = (

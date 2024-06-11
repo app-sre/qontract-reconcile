@@ -21,7 +21,7 @@ def git() -> str:
     """
     cmd = "git describe --tags --match=[0-9]*.[0-9]*.[0-9]*"
     try:
-        p = subprocess.run(cmd.split(" "), stdout=PIPE, stderr=PIPE, check=True)
+        p = subprocess.run(cmd.split(" "), capture_output=True, check=True)
         v = p.stdout.decode("utf-8").strip()
         # tox is running setup.py sdist from the git repo, and then runs again outside
         # of the git repo. At this second step, we cannot run git commands.
@@ -45,7 +45,7 @@ def git() -> str:
 def commit(length: int = 7) -> str:
     """get the current git commitid"""
     cmd = f"git rev-parse --short={length} HEAD"
-    p = subprocess.run(cmd.split(" "), stdout=PIPE, stderr=PIPE, check=True)
+    p = subprocess.run(cmd.split(" "), capture_output=True, check=True)
     return p.stdout.decode("utf-8").strip()
 
 
