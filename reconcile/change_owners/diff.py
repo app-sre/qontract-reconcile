@@ -78,7 +78,7 @@ class Diff:
 
     def _value_repr(self, value: Any | None) -> str | None:
         if value:
-            if isinstance(value, (dict, list)):
+            if isinstance(value, dict | list):
                 return json.dumps(value, indent=2)
             return str(value)
         return value

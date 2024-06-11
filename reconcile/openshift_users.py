@@ -52,7 +52,7 @@ def get_cluster_users(
     identity_prefixes = ["github"]
 
     for auth in cluster_info.auth:
-        if isinstance(auth, (ClusterAuthOIDCV1, ClusterAuthRHIDPV1)):
+        if isinstance(auth, ClusterAuthOIDCV1 | ClusterAuthRHIDPV1):
             identity_prefixes.append(auth.name)
 
     for u in oc.get_users():

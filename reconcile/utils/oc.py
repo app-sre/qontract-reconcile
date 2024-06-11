@@ -157,7 +157,7 @@ class OCDecorators:
         @wraps(function)
         def wrapper(*args, **kwargs):
             result = function(*args, **kwargs)
-            msg = result[:-1] if isinstance(result, (list, tuple)) else result
+            msg = result[:-1] if isinstance(result, list | tuple) else result
 
             if not isinstance(msg, OCProcessReconcileTimeDecoratorMsg):
                 return result

@@ -82,7 +82,7 @@ class ExternalResourcesInventory(MutableMapping):
             for (p, ns) in desired_providers
             for r in p.resources
             if isinstance(
-                r, (NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRoleV1)
+                r, NamespaceTerraformResourceRDSV1 | NamespaceTerraformResourceRoleV1
             )
             and r.managed_by_erv2
         ]

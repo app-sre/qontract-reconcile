@@ -54,11 +54,11 @@ def narrow_jsonpath_node(
         if path_2.fields == ("*",):
             return path_1
     elif isinstance(path_1, jsonpath_ng.Index) and isinstance(
-        path_2, (jsonpath_ng.Slice, jsonpath_ng.ext.filter.Filter)
+        path_2, jsonpath_ng.Slice | jsonpath_ng.ext.filter.Filter
     ):
         return path_1
     elif isinstance(
-        path_1, (jsonpath_ng.Slice, jsonpath_ng.ext.filter.Filter)
+        path_1, jsonpath_ng.Slice | jsonpath_ng.ext.filter.Filter
     ) and isinstance(path_2, jsonpath_ng.Index):
         return path_2
     elif isinstance(path_1, jsonpath_ng.ext.filter.Filter) and isinstance(

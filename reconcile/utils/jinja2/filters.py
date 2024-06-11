@@ -78,7 +78,7 @@ def hash_list(input: Iterable) -> str:
     lst = list(input)
     str_lst = []
     for el in lst:
-        if isinstance(el, (list, dict)):
+        if isinstance(el, list | dict):
             raise RuntimeError(
                 f"jinja2 hash_list function received non-primitive value {el}. All values received {lst}"
             )
