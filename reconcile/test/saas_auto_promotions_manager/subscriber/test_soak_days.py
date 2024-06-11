@@ -2,7 +2,7 @@ from collections.abc import (
     Callable,
     Mapping,
 )
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from typing import Any
 
 from reconcile.saas_auto_promotions_manager.subscriber import (
@@ -21,7 +21,7 @@ def test_single_publisher_soak_days_not_passed(
             "channel-a": {
                 "publisher_a": {
                     "REAL_WORLD_SHA": "new_sha",
-                    "CHECK_IN": datetime.now(timezone.utc),
+                    "CHECK_IN": datetime.now(UTC),
                 }
             },
         },
@@ -44,7 +44,7 @@ def test_single_publisher_soak_days_passed(
             "channel-a": {
                 "publisher_a": {
                     "REAL_WORLD_SHA": "new_sha",
-                    "CHECK_IN": datetime.now(timezone.utc)
+                    "CHECK_IN": datetime.now(UTC)
                     - timedelta(days=1, minutes=1),
                 }
             },
@@ -68,13 +68,13 @@ def test_multiple_publisher_accumulated_soak_days_not_passed(
             "channel-a": {
                 "publisher_a": {
                     "REAL_WORLD_SHA": "new_sha",
-                    "CHECK_IN": datetime.now(timezone.utc) - timedelta(hours=11),
+                    "CHECK_IN": datetime.now(UTC) - timedelta(hours=11),
                 }
             },
             "channel-b": {
                 "publisher_b": {
                     "REAL_WORLD_SHA": "new_sha",
-                    "CHECK_IN": datetime.now(timezone.utc) - timedelta(hours=11),
+                    "CHECK_IN": datetime.now(UTC) - timedelta(hours=11),
                 }
             },
         },
@@ -97,17 +97,17 @@ def test_multiple_publisher_accumulated_soak_days_passed(
             "channel-a": {
                 "publisher_a1": {
                     "REAL_WORLD_SHA": "new_sha",
-                    "CHECK_IN": datetime.now(timezone.utc) - timedelta(hours=8),
+                    "CHECK_IN": datetime.now(UTC) - timedelta(hours=8),
                 },
                 "publisher_a2": {
                     "REAL_WORLD_SHA": "new_sha",
-                    "CHECK_IN": datetime.now(timezone.utc) - timedelta(hours=8),
+                    "CHECK_IN": datetime.now(UTC) - timedelta(hours=8),
                 },
             },
             "channel-b": {
                 "publisher_b": {
                     "REAL_WORLD_SHA": "new_sha",
-                    "CHECK_IN": datetime.now(timezone.utc) - timedelta(hours=8),
+                    "CHECK_IN": datetime.now(UTC) - timedelta(hours=8),
                 }
             },
         },

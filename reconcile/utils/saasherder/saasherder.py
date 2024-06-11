@@ -16,7 +16,7 @@ from collections.abc import (
     Sequence,
 )
 from contextlib import suppress
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from types import TracebackType
 from typing import (
     Any,
@@ -1911,7 +1911,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if promotion.commit_sha in self.hotfix_versions.get(promotion.url, set()):
             return True
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         passed_soak_days = timedelta(days=0)
 
         for channel in promotion.subscribe:
@@ -2011,7 +2011,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for promotion in self.promotions:
             if promotion is None:
                 continue

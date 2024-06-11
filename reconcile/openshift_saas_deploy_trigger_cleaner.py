@@ -4,6 +4,7 @@ from datetime import (
     datetime,
     timedelta,
     timezone,
+UTC,
 )
 from typing import (
     Any,
@@ -71,7 +72,7 @@ def run(
     use_jump_host: bool = True,
     defer: Callable | None = None,
 ) -> None:
-    now_date = datetime.now(timezone.utc)
+    now_date = datetime.now(UTC)
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     pipeline_providers = get_tekton_pipeline_providers()

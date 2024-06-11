@@ -3,6 +3,7 @@ from datetime import (
     datetime,
     timedelta,
     timezone,
+UTC,
 )
 from typing import Optional
 
@@ -36,7 +37,7 @@ def build_service_log(
     cluster_uuid: str = "",
     service_name: str = "some-service",
     severity: OCMServiceLogSeverity = OCMServiceLogSeverity.Info,
-    timestamp: datetime = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc),
+    timestamp: datetime = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC),
 ) -> OCMClusterServiceLog:
     return OCMClusterServiceLog(
         id="",
@@ -116,7 +117,7 @@ def test_create_service_log(
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
     find_ocm_http_request: Callable[[str, str], Request | None],
 ) -> None:
-    timestamp = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc)
+    timestamp = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC)
     register_ocm_url_responses([
         OcmUrl(
             method="POST",

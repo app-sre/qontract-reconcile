@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import Any
 
 import jinja2
@@ -83,7 +83,7 @@ class TerraformInitIntegration(
             "account_name": account.name,
             "bucket_name": bucket_name,
             "region": account.resources_default_region,
-            "timestamp": int(datetime.now(tz=timezone.utc).timestamp()),
+            "timestamp": int(datetime.now(tz=UTC).timestamp()),
         })
 
     def reconcile_account(

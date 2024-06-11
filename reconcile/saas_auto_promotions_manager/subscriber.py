@@ -2,7 +2,7 @@ import hashlib
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from typing import Optional
 
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
@@ -103,7 +103,7 @@ class Subscriber:
         We accumulate the time a ref is running on all publishers for this subscriber.
         We compare that accumulated time with the soak_days setting of the subscriber.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         delta = timedelta(days=0)
         for channel in self.channels:
             for publisher in channel.publishers:

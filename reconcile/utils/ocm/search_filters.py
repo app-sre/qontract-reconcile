@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import (
     datetime,
     timezone,
+UTC,
 )
 from enum import Enum
 from typing import (
@@ -180,7 +181,7 @@ class DateRangeCondition(FilterCondition):
 
     @staticmethod
     def now() -> datetime:
-        return datetime.now(tz=timezone.utc)
+        return datetime.now(tz=UTC)
 
 
 class InvalidFilterError(Exception):

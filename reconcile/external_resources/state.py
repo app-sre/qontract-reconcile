@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from enum import Enum
 from typing import Any
 
@@ -198,7 +198,7 @@ class ExternalResourcesStateDynamoDB:
         else:
             return ExternalResourceState(
                 key=key,
-                ts=datetime.now(timezone.utc),
+                ts=datetime.now(UTC),
                 resource_status=ResourceStatus.NOT_EXISTS,
                 reconciliation=Reconciliation(key=key),
                 reconciliation_errors=0,

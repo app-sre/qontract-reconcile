@@ -424,7 +424,7 @@ class AbstractUpgradePolicy(ABC, BaseModel):
 
 
 def addon_upgrade_policy_soonest_next_run() -> str:
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=dt.UTC)
     next_run = now + timedelta(minutes=MIN_DELTA_MINUTES)
     return next_run.strftime("%Y-%m-%dT%H:%M:%SZ")
 

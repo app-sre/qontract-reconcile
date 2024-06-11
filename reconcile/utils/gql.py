@@ -4,6 +4,7 @@ import threading
 from datetime import (
     datetime,
     timezone,
+UTC,
 )
 from typing import (
     Any,
@@ -250,7 +251,7 @@ class GqlApi:
     def commit_timestamp_utc(self) -> str | None:
         if self.commit_timestamp:
             return datetime.fromtimestamp(
-                int(self.commit_timestamp), timezone.utc
+                int(self.commit_timestamp), UTC
             ).isoformat()
         return None
 

@@ -1,6 +1,7 @@
 from datetime import (
     datetime,
     timezone,
+UTC,
 )
 
 import pytest
@@ -109,7 +110,7 @@ def test_search_filter_merge_like_chain() -> None:
 def test_search_filter_before() -> None:
     assert (
         Filter()
-        .before("timestamp", datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc))
+        .before("timestamp", datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=UTC))
         .render()
         == "timestamp <= '2020-01-01T00:00:00+00:00'"
     )
@@ -117,7 +118,7 @@ def test_search_filter_before() -> None:
 
 def test_search_filter_before_relative(mocker: MockerFixture) -> None:
     now_mock = mocker.patch.object(DateRangeCondition, "now")
-    now_mock.return_value = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc)
+    now_mock.return_value = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC)
 
     assert (
         Filter().before("timestamp", "1 day ago").render()
@@ -128,7 +129,7 @@ def test_search_filter_before_relative(mocker: MockerFixture) -> None:
 def test_search_filter_after() -> None:
     assert (
         Filter()
-        .after("timestamp", datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc))
+        .after("timestamp", datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=UTC))
         .render()
         == "timestamp >= '2020-01-01T00:00:00+00:00'"
     )
@@ -136,7 +137,7 @@ def test_search_filter_after() -> None:
 
 def test_search_filter_after_relative(mocker: MockerFixture) -> None:
     now_mock = mocker.patch.object(DateRangeCondition, "now")
-    now_mock.return_value = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc)
+    now_mock.return_value = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC)
 
     assert (
         Filter().after("timestamp", "1 day ago").render()
@@ -149,8 +150,8 @@ def test_search_filter_between() -> None:
         Filter()
         .between(
             "timestamp",
-            datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
-            datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc),
+            datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=UTC),
+            datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC),
         )
         .render()
         == "timestamp >= '2020-01-01T00:00:00+00:00' and timestamp <= '2020-01-02T00:00:00+00:00'"
@@ -161,8 +162,8 @@ def test_search_filter_between_end_before_start() -> None:
     with pytest.raises(InvalidFilterError):
         Filter().between(
             "timestamp",
-            datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc),
-            datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+            datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC),
+            datetime(2020, 1, 1, 0, 0, 0, 0, tzinfo=UTC),
         ).render()
 
 

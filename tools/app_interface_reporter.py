@@ -4,6 +4,7 @@ import textwrap
 from datetime import (
     datetime,
     timezone,
+UTC,
 )
 
 import click
@@ -221,7 +222,7 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
     jjb: JJB = init_jjb(secret_reader)
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
-    timestamp_limit = int(time_limit.replace(tzinfo=timezone.utc).timestamp())
+    timestamp_limit = int(time_limit.replace(tzinfo=UTC).timestamp())
 
     secret_content = secret_reader.read_all({"path": DASHDOTDB_SECRET})
     dashdotdb_url = secret_content["url"]

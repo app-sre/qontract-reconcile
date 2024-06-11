@@ -6,6 +6,7 @@ from datetime import (
     datetime,
     timedelta,
     timezone,
+UTC,
 )
 from typing import (
     Any,
@@ -162,11 +163,11 @@ class Commit:
         finish_timestamp_tzaware = finish_timestamp
 
         if commit_date_tzaware.tzinfo is None:
-            commit_date_tzaware = commit_date_tzaware.replace(tzinfo=timezone.utc)
+            commit_date_tzaware = commit_date_tzaware.replace(tzinfo=UTC)
 
         if finish_timestamp_tzaware.tzinfo is None:
             finish_timestamp_tzaware = finish_timestamp_tzaware.replace(
-                tzinfo=timezone.utc
+                tzinfo=UTC
             )
 
         return int((finish_timestamp_tzaware - commit_date_tzaware).total_seconds())

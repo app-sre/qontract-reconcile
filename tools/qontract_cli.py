@@ -12,6 +12,7 @@ from datetime import (
     datetime,
     timedelta,
     timezone,
+UTC,
 )
 from operator import itemgetter
 from statistics import median
@@ -2358,7 +2359,7 @@ def ec2_jenkins_workers(ctx, aws_access_key_id, aws_secret_access_key, aws_regio
     client = boto3.client("autoscaling")
     ec2 = boto3.resource("ec2")
     results = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
     columns = [
         "type",
@@ -2605,7 +2606,7 @@ def osd_component_versions(ctx):
 @get.command()
 @click.pass_context
 def maintenances(ctx):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     maintenances = maintenances_gql.query(gql.get_api().query).maintenances or []
     data = [
         {

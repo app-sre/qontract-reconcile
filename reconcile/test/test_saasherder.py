@@ -3,7 +3,7 @@ from collections.abc import (
     Iterable,
     MutableMapping,
 )
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from typing import (
     Any,
     Optional,
@@ -1230,14 +1230,14 @@ class TestSoakDays(TestCase):
                 "saas_file": self.saas_file.name,
                 "target_config_hash": "ed2af38cf21f268c",
                 # the deployment happened 1 hour ago
-                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=1)),
+                "check_in": str(datetime.now(UTC) - timedelta(hours=1)),
             },
             {
                 "success": True,
                 "saas_file": self.saas_file.name,
                 "target_config_hash": "ed2af38cf21f268c",
                 # the deployment happened 47 hours ago
-                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=47)),
+                "check_in": str(datetime.now(UTC) - timedelta(hours=47)),
             },
         ]
         self.state_mock.get.side_effect = publisher_states
@@ -1254,14 +1254,14 @@ class TestSoakDays(TestCase):
                 "saas_file": self.saas_file.name,
                 "target_config_hash": "ed2af38cf21f268c",
                 # the deployment happened 12 hours ago
-                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=12)),
+                "check_in": str(datetime.now(UTC) - timedelta(hours=12)),
             },
             {
                 "success": True,
                 "saas_file": self.saas_file.name,
                 "target_config_hash": "ed2af38cf21f268c",
                 # the deployment happened 1 hour ago
-                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=1)),
+                "check_in": str(datetime.now(UTC) - timedelta(hours=1)),
             },
         ]
         self.state_mock.get.side_effect = publisher_states

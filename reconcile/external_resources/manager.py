@@ -1,7 +1,7 @@
 import json
 import logging
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from enum import Enum
 
 from sretoolbox.utils import threaded
@@ -260,7 +260,7 @@ class ExternalResourcesManager:
         return need_secret_sync
 
     def _update_state(self, r: Reconciliation, state: ExternalResourceState) -> None:
-        state.ts = datetime.now(timezone.utc)
+        state.ts = datetime.now(UTC)
         if r.action == Action.APPLY:
             state.resource_status = ResourceStatus.IN_PROGRESS
         elif r.action == Action.DESTROY:

@@ -5,6 +5,7 @@ from abc import (
 from datetime import (
     datetime,
     timezone,
+UTC,
 )
 from typing import Optional
 
@@ -71,7 +72,7 @@ class ManualStatusProvider(StatusProvider, BaseModel):
             raise ValueError(
                 "manual component status time window is invalid: end before start"
             )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if self.start and now < self.start:
             return False
         if self.end and self.end < now:
