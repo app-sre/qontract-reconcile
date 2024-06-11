@@ -155,7 +155,7 @@ class Subscriber:
             return
 
         if not self._passed_accumulated_soak_days():
-            logging.info(
+            logging.debug(
                 "Subscriber at path %s promotion stopped because of soak days",
                 self.target_file_path,
             )
