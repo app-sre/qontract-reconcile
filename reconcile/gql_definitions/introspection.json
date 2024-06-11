@@ -23630,6 +23630,18 @@
                     "description": null,
                     "fields": [
                         {
+                            "name": "escalationPolicy",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "AppEscalationPolicy_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "project",
                             "description": null,
                             "args": [],
@@ -23642,13 +23654,21 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "board",
+                            "name": "components",
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "OBJECT",
-                                "name": "JiraBoard_v1",
-                                "ofType": null
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null

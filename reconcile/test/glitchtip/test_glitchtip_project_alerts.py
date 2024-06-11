@@ -13,6 +13,8 @@ from reconcile.glitchtip_project_alerts.integration import (
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import (
+    AppEscalationPolicyChannelsV1,
+    AppEscalationPolicyV1,
     DisableJiraBoardAutomationsV1,
     GlitchtipInstanceV1,
     GlitchtipOrganizationV1,
@@ -193,7 +195,20 @@ def test_glitchtip_project_alerts_get_projects(
             ],
             jira=GlitchtipProjectJiraV1(
                 project=None,
-                board=JiraBoardV1(name="JIRA-VIA-BOARD", disable=None),
+                components=None,
+                escalationPolicy=AppEscalationPolicyV1(
+                    channels=AppEscalationPolicyChannelsV1(
+                        jiraBoard=[
+                            JiraBoardV1(
+                                name="JIRA-VIA-BOARD",
+                                issueType="CustomIssueType",
+                                disable=None,
+                            )
+                        ],
+                        jiraComponent="jira-component",
+                        jiraLabels=["escalation-label-1", "escalation-label-2"],
+                    )
+                ),
                 labels=["example-label-1", "example-label-2"],
             ),
         ),
@@ -205,7 +220,10 @@ def test_glitchtip_project_alerts_get_projects(
             ),
             alerts=None,
             jira=GlitchtipProjectJiraV1(
-                project="JIRA-VIA-PROJECT", board=None, labels=None
+                project="JIRA-VIA-PROJECT",
+                components=["jira-component-1", "jira-component-2"],
+                escalationPolicy=None,
+                labels=["example-label-1", "example-label-2"],
             ),
         ),
         GlitchtipProjectV1(
@@ -217,11 +235,21 @@ def test_glitchtip_project_alerts_get_projects(
             alerts=None,
             jira=GlitchtipProjectJiraV1(
                 project=None,
-                board=JiraBoardV1(
-                    name="JIRA-VIA-BOARD",
-                    disable=DisableJiraBoardAutomationsV1(
-                        integrations=["glitchtip-project-alerts"]
-                    ),
+                components=None,
+                escalationPolicy=AppEscalationPolicyV1(
+                    channels=AppEscalationPolicyChannelsV1(
+                        jiraBoard=[
+                            JiraBoardV1(
+                                name="JIRA-VIA-BOARD",
+                                issueType=None,
+                                disable=DisableJiraBoardAutomationsV1(
+                                    integrations=["glitchtip-project-alerts"]
+                                ),
+                            )
+                        ],
+                        jiraComponent=None,
+                        jiraLabels=None,
+                    )
                 ),
                 labels=None,
             ),
@@ -235,11 +263,21 @@ def test_glitchtip_project_alerts_get_projects(
             alerts=None,
             jira=GlitchtipProjectJiraV1(
                 project=None,
-                board=JiraBoardV1(
-                    name="JIRA-VIA-BOARD",
-                    disable=DisableJiraBoardAutomationsV1(
-                        integrations=["jira-permissions-validator"]
-                    ),
+                components=None,
+                escalationPolicy=AppEscalationPolicyV1(
+                    channels=AppEscalationPolicyChannelsV1(
+                        jiraBoard=[
+                            JiraBoardV1(
+                                name="JIRA-VIA-BOARD",
+                                issueType=None,
+                                disable=DisableJiraBoardAutomationsV1(
+                                    integrations=["jira-permissions-validator"]
+                                ),
+                            )
+                        ],
+                        jiraComponent=None,
+                        jiraLabels=None,
+                    )
                 ),
                 labels=None,
             ),
@@ -312,7 +350,7 @@ def test_glitchtip_project_alerts_fetch_desire_state(
                 ProjectAlertRecipient(
                     pk=None,
                     recipient_type=RecipientType.WEBHOOK,
-                    url="http://gjb.com/JIRA-VIA-BOARD?token=secret&labels=example-label-1&labels=example-label-2",
+                    url="http://gjb.com/JIRA-VIA-BOARD?labels=example-label-1&labels=example-label-2&labels=escalation-label-1&labels=escalation-label-2&components=jira-component&token=secret&issue_type=CustomIssueType",
                 )
             ],
         ),
@@ -328,7 +366,7 @@ def test_glitchtip_project_alerts_fetch_desire_state(
                 ProjectAlertRecipient(
                     pk=None,
                     recipient_type=RecipientType.WEBHOOK,
-                    url="http://gjb.com/JIRA-VIA-PROJECT?token=secret",
+                    url="http://gjb.com/JIRA-VIA-PROJECT?labels=example-label-1&labels=example-label-2&components=jira-component-1&components=jira-component-2&token=secret",
                 )
             ],
         )
