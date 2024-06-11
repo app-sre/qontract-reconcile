@@ -47,10 +47,6 @@ class TerraformVpcResourcesParams(PydanticRunParams):
     enable_deletion: bool = False
 
 
-class PlanStepError(Exception):
-    pass
-
-
 class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesParams]):
     @property
     def name(self) -> str:
