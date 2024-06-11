@@ -2686,6 +2686,17 @@ def ocm_upgrade_scheduler_org(
     )
 
 
+@integration.command(short_help="Manage Upgrade Policy schedules in ACM.")
+@click.pass_context
+def acm_upgrade_scheduler(ctx) -> None:
+    from reconcile.aus.acm_upgrade_scheduler import ACMUpgradeServiceIntegration
+
+    run_class_integration(
+        integration=ACMUpgradeServiceIntegration(NoParams()),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Update Upgrade Policy schedules in OCM organizations.")
 @gitlab_project_id
 @click.pass_context
