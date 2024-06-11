@@ -1098,8 +1098,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         client = self._account_cloudwatch_client(account_name, region_name=region_name)
         paginator = client.get_paginator("describe_log_groups")
         for page in paginator.paginate():
-            for log_group in page["logGroups"]:
-                yield log_group
+            yield from page["logGroups"]
 
     def get_cloudwatch_log_group_tags(
         self,

@@ -94,8 +94,7 @@ class OCMBaseClient:
 
         while True:
             rs = self.get(api_path, params=params_copy)
-            for item in rs.get("items", []):
-                yield item
+            yield from rs.get("items", [])
             current_page = rs.get("page", 0)
             records_on_page = rs.get("size", len(rs.get("items", [])))
             if records_on_page < max_page_size:
