@@ -227,7 +227,7 @@ def get_node_pools(ocm_api: OCMBaseClient, cluster_id: str) -> list[dict[str, An
     return results
 
 
-@lru_cache()
+@lru_cache
 def get_version(ocm_api: OCMBaseClient, version: str) -> dict[str, Any]:
     api = f"/api/clusters_mgmt/v1/versions/{version}"
 
