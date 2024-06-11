@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import sys
+from typing import Optional
 
 GIT_VERSION_FILE = "GIT_VERSION"
 
@@ -47,7 +48,7 @@ def commit(length: int = 7) -> str:
     return p.stdout.decode("utf-8").strip()
 
 
-def semver(git_version: str | None = None) -> str:
+def semver(git_version: Optional[str] = None) -> str:  # noqa: UP007 - RHEL8 has python 3.8
     """get a semantic version out of the input git version (see git())
     - if a X.Y.Z tag is set on the current HEAD, we'll use this
     - else we'll use X.Y.<Z+1>-<count>+<commitid> to respect semver and version
@@ -70,7 +71,7 @@ def semver(git_version: str | None = None) -> str:
     return str(v)
 
 
-def pip(git_version: str | None = None) -> str:
+def pip(git_version: Optional[str] = None) -> str:  # noqa: UP007 - RHEL8 has python 3.8
     """get a pip version out of the input git version (see git()),
     according to https://peps.python.org/pep-0440/
     - if a X.Y.Z tag is set on the current HEAD, we'll use this
@@ -86,7 +87,7 @@ def pip(git_version: str | None = None) -> str:
     # return str(v)
 
 
-def docker(git_version: str | None = None) -> str:
+def docker(git_version: Optional[str] = None) -> str:  # noqa: UP007 - RHEL8 has python 3.8
     # docker tags don't like '+' characters, let's remove the buildinfo/commitid
     return pip(git_version)
 
