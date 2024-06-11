@@ -209,6 +209,15 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             self.created_users.extend(created_users)
         return disabled_deletions_detected, errors
 
+    def safe_plan(self, enable_deletion: bool) -> None:
+        """Raises exception if errors are detected at plan step"""
+        disable_deletions_detected, errors = self.plan(enable_deletion)
+
+        if errors:
+            raise RuntimeError("Terraform plan has errors")
+        if disable_deletions_detected:
+            raise RuntimeError("Terraform plan has disabled deletions detected")
+
     @retry()
     def terraform_plan(
         self, spec: TerraformSpec, enable_deletion: bool

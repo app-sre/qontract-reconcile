@@ -91,7 +91,7 @@ def mock_terraform_client(mocker: MockerFixture) -> MockerFixture:
     mocked_tf_client = mocker.patch(
         "reconcile.terraform_vpc_resources.integration.TerraformClient", autospec=True
     )
-    mocked_tf_client.return_value.plan.return_value = False, None
+    mocked_tf_client.return_value.safe_plan.return_value = None
     return mocked_tf_client
 
 

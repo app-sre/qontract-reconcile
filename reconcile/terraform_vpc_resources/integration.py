@@ -164,7 +164,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             thread_pool_size=thread_pool_size,
         )
 
-        tf_client.plan(enable_deletion=enable_deletion)
+        tf_client.safe_plan(enable_deletion=enable_deletion)
 
         if dry_run:
             sys.exit(ExitCodes.SUCCESS)
