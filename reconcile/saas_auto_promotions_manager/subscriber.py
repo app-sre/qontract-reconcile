@@ -44,6 +44,7 @@ class Subscriber:
         use_target_config_hash: bool,
         uid: str,
         soak_days: int,
+        blocked_versions: set[str],
     ):
         self.saas_name = saas_name
         self.template_name = template_name
@@ -58,6 +59,7 @@ class Subscriber:
         self.soak_days = soak_days
         self._content_hash = ""
         self._use_target_config_hash = use_target_config_hash
+        self._blocked_versions = blocked_versions
 
     def has_diff(self) -> bool:
         current_hashes = {
@@ -141,22 +143,42 @@ class Subscriber:
                     break
                 publisher_refs.add(publisher.commit_sha)
 
+        # By default we keep current state
+        self.desired_ref = self.ref
+
         if len(publisher_refs) > 1:
             logging.info(
                 "Publishers for subscriber at path %s have mismatching refs: %s",
                 self.target_file_path,
                 publisher_refs,
             )
-        if (
-            len(publisher_refs) != 1
-            or any_bad_deployment
-            or not self._passed_accumulated_soak_days()
-        ):
-            # We keep current state
-            self.desired_ref = self.ref
-        else:
-            # We have a common single publisher ref w/o any deployment issues
-            self.desired_ref = next(iter(publisher_refs))
+            return
+
+        if not self._passed_accumulated_soak_days():
+            logging.info(
+                "Subscriber at path %s promotion stopped because of soak days",
+                self.target_file_path,
+            )
+            return
+
+        if any_bad_deployment:
+            logging.info(
+                "Subscriber at path %s promotion stopped because of bad publisher deployment",
+                self.target_file_path,
+            )
+            return
+
+        desired_ref = next(iter(publisher_refs))
+        if desired_ref in self._blocked_versions:
+            logging.info(
+                "Subscriber at path %s promotion stopped because of blocked ref: %s",
+                self.target_file_path,
+                desired_ref,
+            )
+            return
+
+        # Passed all gates -> lets promote desired ref
+        self.desired_ref = desired_ref
 
     def _compute_desired_config_hashes(self) -> None:
         """
