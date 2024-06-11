@@ -168,10 +168,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             thread_pool_size=thread_pool_size,
         )
 
-        disable_deletions, errors = tf_client.plan(enable_deletion=enable_deletion)
-
-        if disable_deletions or errors:
-            raise PlanStepError("Errors in terraform plan step, please verify output.")
+        tf_client.safe_plan(enable_deletion=enable_deletion)
 
         if dry_run:
             sys.exit(ExitCodes.SUCCESS)
