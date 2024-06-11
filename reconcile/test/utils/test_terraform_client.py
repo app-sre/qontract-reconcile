@@ -908,7 +908,7 @@ def test_terraform_plan_with_error(
 def test_terraform_safe_plan_raises_errors(
     tf: tfclient.TerraformClient,
     mocker: MockerFixture,
-):
+) -> None:
     mocked_threaded_run = mocker.patch("reconcile.utils.terraform_client.threaded.run")
     error_message = "exceeded available rate limit retries"
     mocked_threaded_run.return_value = [(1, "", error_message)]
