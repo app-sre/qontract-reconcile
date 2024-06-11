@@ -2,11 +2,11 @@ import logging
 import sys
 from typing import (
     Any,
-    Iterable,
     Optional,
     Tuple,
     cast,
 )
+from collections.abc import Iterable
 
 from sretoolbox.utils import threaded
 

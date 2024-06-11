@@ -11,12 +11,11 @@ from datetime import (
     timezone,
 )
 from typing import (
-    Callable,
     Optional,
     Protocol,
-    Sequence,
     cast,
 )
+from collections.abc import Callable, Sequence
 
 from croniter import croniter
 from pydantic import BaseModel, Extra

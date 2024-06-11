@@ -7,12 +7,11 @@ from collections.abc import (
 from dataclasses import asdict
 from typing import (
     Any,
-    Collection,
     Optional,
-    Sequence,
     TypedDict,
     cast,
 )
+from collections.abc import Collection, Sequence
 
 from deepdiff import DeepHash
 from sretoolbox.utils import (

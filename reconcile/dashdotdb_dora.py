@@ -10,11 +10,10 @@ UTC,
 )
 from typing import (
     Any,
-    Iterable,
-    Mapping,
     Optional,
     Self,
 )
+from collections.abc import Iterable, Mapping
 
 import requests
 import yaml

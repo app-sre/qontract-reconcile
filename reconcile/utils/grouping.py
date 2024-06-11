@@ -1,10 +1,8 @@
 from collections import defaultdict
 from typing import (
-    Callable,
-    Hashable,
-    Iterable,
     TypeVar,
 )
+from collections.abc import Callable, Hashable, Iterable
 
 ElementType = TypeVar("ElementType")
 KeyType = TypeVar("KeyType", bound=Hashable)

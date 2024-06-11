@@ -1,9 +1,8 @@
 from typing import (
     Any,
-    Callable,
-    Iterable,
     Optional,
 )
+from collections.abc import Callable, Iterable
 
 from jsonpath_ng.ext import parser
 

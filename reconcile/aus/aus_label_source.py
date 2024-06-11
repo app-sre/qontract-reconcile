@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Callable
+from collections.abc import Callable
 
 from reconcile.aus.advanced_upgrade_service import (
     aus_label_key,

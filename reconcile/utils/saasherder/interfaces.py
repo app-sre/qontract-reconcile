@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence, Set
 from typing import (
-    AbstractSet,
     Any,
     Protocol,
     runtime_checkable,
@@ -33,7 +32,7 @@ class SaasFileSecretParameters(Protocol):
 
 SaasSecretParameters = Sequence[SaasFileSecretParameters] | None
 # Taken from pydantic.typing
-AbstractSetIntStr = AbstractSet[int | str]
+AbstractSetIntStr = Set[int | str]
 MappingIntStrAny = Mapping[int | str, Any]
 
 

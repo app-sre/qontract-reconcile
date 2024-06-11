@@ -4,8 +4,8 @@ from datetime import (
 )
 from typing import (
     Any,
-    Callable,
 )
+from collections.abc import Callable
 from unittest.mock import ANY
 
 import pytest

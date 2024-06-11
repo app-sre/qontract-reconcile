@@ -7,11 +7,11 @@ from string import (
 )
 from typing import (
     Any,
-    Callable,
     Optional,
     TypedDict,
     cast,
 )
+from collections.abc import Callable
 
 from pydantic import BaseModel
 

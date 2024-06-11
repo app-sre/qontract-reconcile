@@ -1,9 +1,8 @@
 from typing import (
     Any,
-    Callable,
-    Mapping,
     Optional,
 )
+from collections.abc import Callable, Mapping
 
 import pytest
 

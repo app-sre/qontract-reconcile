@@ -1,9 +1,9 @@
 import logging
 import sys
 from typing import (
-    Callable,
     Optional,
 )
+from collections.abc import Callable
 
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.status import ExitCodes

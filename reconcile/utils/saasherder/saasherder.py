@@ -20,12 +20,12 @@ from datetime import datetime, timedelta, timezone, UTC
 from types import TracebackType
 from typing import (
     Any,
-    Generator,
     Optional,
     Tuple,
     Type,
     Union,
 )
+from collections.abc import Generator
 from urllib.parse import urlparse
 
 import yaml

@@ -7,8 +7,8 @@ from collections.abc import (
 from typing import (
     Any,
     Optional,
-    Sequence,
 )
+from collections.abc import Sequence
 
 from deepdiff import DeepHash
 

@@ -3,11 +3,9 @@ import multiprocessing
 from dataclasses import dataclass
 from typing import (
     Any,
-    Callable,
-    Iterable,
-    Mapping,
     Optional,
 )
+from collections.abc import Callable, Iterable, Mapping
 
 from deepdiff import DeepHash
 from jsonpath_ng.ext.parser import parse

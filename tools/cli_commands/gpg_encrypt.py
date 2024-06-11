@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from typing import (
-    Mapping,
     Optional,
 )
+from collections.abc import Mapping
 
 from reconcile import queries
 from reconcile.utils import (

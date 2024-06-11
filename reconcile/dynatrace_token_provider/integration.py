@@ -5,8 +5,8 @@ from collections.abc import Iterable
 from datetime import timedelta
 from typing import (
     Any,
-    Mapping,
 )
+from collections.abc import Mapping
 
 from dynatrace import Dynatrace
 from dynatrace.environment_v2.tokens_api import ApiTokenCreated

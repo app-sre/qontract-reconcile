@@ -2,11 +2,7 @@ import copy
 import os
 import subprocess
 import tempfile
-from typing import (
-    Iterable,
-    Mapping,
-    MutableMapping,
-)
+from collections.abc import Iterable, Mapping, MutableMapping
 
 import yaml
 

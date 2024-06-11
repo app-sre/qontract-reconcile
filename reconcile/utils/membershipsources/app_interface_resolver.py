@@ -1,6 +1,6 @@
 import base64
 from contextlib import contextmanager
-from typing import Generator
+from collections.abc import Generator
 
 from reconcile import queries
 from reconcile.gql_definitions.fragments.membership_source import (

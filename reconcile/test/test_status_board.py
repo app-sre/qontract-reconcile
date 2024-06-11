@@ -1,7 +1,7 @@
 from typing import (
-    Callable,
     Optional,
 )
+from collections.abc import Callable
 from unittest.mock import call
 
 import pytest

@@ -1,9 +1,8 @@
 import logging
 from typing import (
-    Callable,
-    Iterable,
     Optional,
 )
+from collections.abc import Callable, Iterable
 
 from reconcile.aus.advanced_upgrade_service import aus_label_key
 from reconcile.aus.base import gates_to_agree, get_orgs_for_environment

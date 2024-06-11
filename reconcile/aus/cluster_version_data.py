@@ -2,9 +2,9 @@ import json
 from datetime import datetime
 from typing import (
     Any,
-    Iterable,
     Optional,
 )
+from collections.abc import Iterable
 
 from pydantic import (
     BaseModel,

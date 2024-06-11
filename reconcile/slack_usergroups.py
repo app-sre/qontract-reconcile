@@ -8,10 +8,10 @@ from datetime import datetime
 from typing import (
     Any,
     Optional,
-    Sequence,
     TypedDict,
     Union,
 )
+from collections.abc import Sequence
 from urllib.parse import urlparse
 
 from github.GithubException import UnknownObjectException

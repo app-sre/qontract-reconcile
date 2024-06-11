@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from types import ModuleType
 from typing import (
     Any,
-    Callable,
     Generic,
     Optional,
     TypeVar,
 )
+from collections.abc import Callable
 
 from pydantic import BaseModel
 

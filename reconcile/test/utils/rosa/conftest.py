@@ -1,5 +1,5 @@
 import tempfile
-from typing import Generator
+from collections.abc import Generator
 from unittest.mock import MagicMock
 from urllib.parse import urlparse
 

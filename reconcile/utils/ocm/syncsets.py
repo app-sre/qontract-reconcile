@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import (
     Any,
-    Mapping,
 )
+from collections.abc import Mapping
 
 from reconcile.utils.ocm_base_client import OCMBaseClient
 

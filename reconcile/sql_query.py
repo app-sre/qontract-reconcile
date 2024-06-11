@@ -9,10 +9,10 @@ from enum import Enum
 from textwrap import indent
 from typing import (
     Any,
-    Callable,
     Optional,
     Union,
 )
+from collections.abc import Callable
 
 import jinja2
 

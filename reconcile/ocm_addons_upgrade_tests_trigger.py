@@ -1,8 +1,8 @@
 import logging
 from typing import (
-    Callable,
     Optional,
 )
+from collections.abc import Callable
 
 from reconcile import queries
 from reconcile.typed_queries.app_interface_vault_settings import (

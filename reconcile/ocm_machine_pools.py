@@ -6,9 +6,9 @@ from abc import (
 from collections.abc import Mapping
 from enum import Enum
 from typing import (
-    Iterable,
     Optional,
 )
+from collections.abc import Iterable
 
 from pydantic import (
     BaseModel,
