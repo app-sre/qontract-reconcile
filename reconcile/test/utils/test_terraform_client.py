@@ -916,19 +916,13 @@ def test_terraform_safe_plan_raises_errors(
     with mocked_tempfile.NamedTemporaryFile.return_value as f:
         f.name = "temp-name"
         f.read.return_value.decode.return_value = ""
-    with (
-        tempfile.TemporaryDirectory() as working_dir,
-        pytest.raises(RuntimeError) as exception,
-    ):
+    with pytest.raises(RuntimeError) as exception:
         tf.safe_plan(enable_deletion=False)
 
     assert str(exception.value) == "Terraform plan has errors"
 
     mocked_threaded_run.return_value = [(1, "detected disable deletion", False)]
-    with (
-        tempfile.TemporaryDirectory() as working_dir,
-        pytest.raises(RuntimeError) as exception,
-    ):
+    with pytest.raises(RuntimeError) as exception:
         tf.safe_plan(enable_deletion=False)
 
     assert str(exception.value) == "Terraform plan has disabled deletions detected"
