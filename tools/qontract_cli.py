@@ -56,6 +56,14 @@ from reconcile.cli import (
     config_file,
     use_jump_host,
 )
+from reconcile.external_resources.manager import (
+    FLAG_RESOURCE_MANAGED_BY_ERV2,
+    setup_factories,
+)
+from reconcile.external_resources.model import (
+    ExternalResourcesInventory,
+    load_module_inventory,
+)
 from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
     query as aus_clusters_query,
 )
@@ -72,6 +80,11 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.clusters import get_clusters
+from reconcile.typed_queries.external_resources import (
+    get_modules,
+    get_namespaces,
+    get_settings,
+)
 from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.typed_queries.status_board import get_status_board
@@ -3782,6 +3795,46 @@ def remove(ctx, sso_client_vault_secret_path: str):
         bg="red",
         fg="white",
     )
+
+
+@root.group()
+@click.pass_context
+def external_resources(ctx):
+    """External resources commands"""
+
+
+@external_resources.command()
+@click.argument("provision-provider", required=True)
+@click.argument("provisioner", required=True)
+@click.argument("provider", required=True)
+@click.argument("identifier", required=True)
+@click.pass_context
+def get_input(
+    ctx, provision_provider: str, provisioner: str, provider: str, identifier: str
+):
+    """Gets the input data for an external resource asset. Input data is what is used
+    in the Reconciliation Job to manage the resource.
+
+    e.g: qontract-reconcile --config=<config> external-resources get-input aws app-sre-stage rds dashdotdb-stage
+    """
+    namespaces = [ns for ns in get_namespaces() if ns.external_resources]
+    er_inventory = ExternalResourcesInventory(namespaces)
+
+    spec = er_inventory.get_inventory_spec(
+        provision_provider=provision_provider,
+        provisioner=provisioner,
+        provider=provider,
+        identifier=identifier,
+    )
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    er_settings = get_settings()[0]
+    m_inventory = load_module_inventory(get_modules())
+    factories = setup_factories(er_settings, m_inventory, er_inventory, secret_reader)
+    f = factories.get_factory(spec.provision_provider)
+    resource = f.create_external_resource(spec)
+    f.validate_external_resource(resource)
+    print(resource.json(exclude={"data": {FLAG_RESOURCE_MANAGED_BY_ERV2}}))
 
 
 if __name__ == "__main__":
