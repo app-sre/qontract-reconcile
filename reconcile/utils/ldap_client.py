@@ -30,7 +30,7 @@ class LdapClient:
         self.connection.unbind()
 
     def get_users(self, uids: Iterable[str]) -> set[str]:
-        user_filter = "".join((f"(uid={u})" for u in uids))
+        user_filter = "".join(f"(uid={u})" for u in uids)
         _, _, results, _ = self.connection.search(
             self.base_dn, f"(&(objectclass=person)(|{user_filter}))", attributes=["uid"]
         )

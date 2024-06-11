@@ -1351,7 +1351,7 @@ def user_has_cluster_access(
 ) -> bool:
     """Check user has access to cluster."""
     userkeys = determine_user_keys_for_access(cluster.name, cluster.auth)
-    return any((getattr(user, userkey) in cluster_users for userkey in userkeys))
+    return any(getattr(user, userkey) in cluster_users for userkey in userkeys)
 
 
 def get_namespace_type_overrides(namespace: Mapping) -> dict[str, str]:

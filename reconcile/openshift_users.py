@@ -46,7 +46,7 @@ def get_cluster_users(
     users: list[str] = []
 
     # get cluster info for current cluster name from clusters list
-    cluster_info = next((cl for cl in clusters if cl.name == cluster))
+    cluster_info = next(cl for cl in clusters if cl.name == cluster)
 
     # backwarts compatibiltiy for clusters w/o auth
     identity_prefixes = ["github"]
