@@ -129,8 +129,7 @@ class GlitchtipProjectAlertsIntegration(
                 alert_labels = glitchtip_project.jira.labels or []
 
                 if glitchtip_project.jira.project:
-                    if glitchtip_project.jira.components:
-                        params["components"] = glitchtip_project.jira.components
+                    params["components"] = glitchtip_project.jira.components or []
                     params["labels"] = alert_labels
                     url = f"{gjb_alert_url}/{glitchtip_project.jira.project}?{urlencode(params, True)}"
                     alerts.append(
@@ -161,10 +160,10 @@ class GlitchtipProjectAlertsIntegration(
                         ):
                             continue
                         params["labels"] = alert_labels + (channels.jira_labels or [])
-                        if channels.jira_component:
-                            params["components"] = [channels.jira_component]
-                        if board.issue_type:
-                            params["issue_type"] = board.issue_type
+                        params["components"] = (
+                            [channels.jira_component] if channels.jira_component else []
+                        )
+                        params["issue_type"] = board.issue_type or "Bug"
                         url = f"{gjb_alert_url}/{board.name}?{urlencode(params, True)}"
                         alerts.append(
                             ProjectAlert(
