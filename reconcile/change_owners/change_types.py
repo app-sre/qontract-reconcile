@@ -395,7 +395,7 @@ class ContextExpansion:
             context_schema=self.change_type.context_schema,
             change=change,
         )
-        expaned_context_file_refs: list["ResolvedContext"] = []
+        expaned_context_file_refs: list[ResolvedContext] = []
         for ref in context_file_refs:
             ref_old_data, ref_new_data = self.file_diff_resolver.lookup_file_diff(ref)
             expaned_context_file_refs.extend(

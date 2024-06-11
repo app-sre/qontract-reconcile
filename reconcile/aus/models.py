@@ -199,7 +199,7 @@ class SectorConfigError(Exception):
 
 class Sector(BaseModel):
     name: str
-    dependencies: list["Sector"] = Field(default_factory=list)
+    dependencies: list[Sector] = Field(default_factory=list)
     _specs: dict[str, ClusterUpgradeSpec] = PrivateAttr(default_factory=dict)
 
     def __key(self) -> str:
