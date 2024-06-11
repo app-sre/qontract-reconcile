@@ -1,4 +1,4 @@
-from functools import lru_cache
+from functools import lru_cache, cache
 
 from reconcile.utils.clusterhealth.providerbase import (
     ClusterHealth,
@@ -14,7 +14,7 @@ class TelemeterClusterHealthProvider(ClusterHealthProvider):
     def __init__(self, querier: PrometheusQuerier):
         self.querier = querier
 
-    @lru_cache(maxsize=None)
+    @cache
     def cluster_health_for_org(self, org_id: str) -> dict[str, ClusterHealth]:
         vectors_by_cluster = group_by(
             self.querier.instant_vector_query(telemeter_alert_query(org_id)),
