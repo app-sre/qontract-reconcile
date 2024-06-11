@@ -4,10 +4,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from urllib.parse import urlencode
 
 from reconcile import jira_permissions_validator

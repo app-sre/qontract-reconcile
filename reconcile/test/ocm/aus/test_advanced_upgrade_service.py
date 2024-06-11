@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 from pydantic import ValidationError
 from pytest_mock import MockerFixture

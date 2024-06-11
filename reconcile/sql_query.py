@@ -2,17 +2,13 @@ import logging
 import sys
 import time
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
 )
 from enum import Enum
 from textwrap import indent
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
-from collections.abc import Callable
+from typing import Any
 
 import jinja2
 

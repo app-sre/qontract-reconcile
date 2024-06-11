@@ -4,10 +4,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import jinja2
 import yaml

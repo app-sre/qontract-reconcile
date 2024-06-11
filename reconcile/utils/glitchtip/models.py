@@ -3,10 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import MutableMapping
 from enum import Enum
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from pydantic import (
     BaseModel,

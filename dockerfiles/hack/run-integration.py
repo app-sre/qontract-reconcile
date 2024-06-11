@@ -6,7 +6,6 @@ import sys
 import time
 from collections.abc import Callable
 from importlib import metadata
-from typing import Optional
 
 import click
 from prometheus_client import (

@@ -1,10 +1,6 @@
 import logging
 from collections.abc import Iterable
 from threading import Lock
-from typing import (
-    Optional,
-    Union,
-)
 
 from sretoolbox.utils import threaded
 
@@ -142,9 +138,7 @@ class OCMap:
                     privileged,
                 )
 
-    def _set_oc(
-        self, cluster: str, value: OCCli | OCLogMsg, privileged: bool
-    ) -> None:
+    def _set_oc(self, cluster: str, value: OCCli | OCLogMsg, privileged: bool) -> None:
         with self._lock:
             if privileged:
                 self._privileged_oc_map[cluster] = value

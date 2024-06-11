@@ -12,7 +12,6 @@ from operator import (
 )
 from typing import (
     Any,
-    Optional,
     TypedDict,
 )
 from urllib.parse import urlparse

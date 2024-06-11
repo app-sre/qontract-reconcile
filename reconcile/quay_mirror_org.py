@@ -3,7 +3,7 @@ import os
 import tempfile
 from collections import defaultdict
 from collections.abc import Iterable
-from typing import Any, Optional, Self
+from typing import Any, Self
 
 import requests
 from sretoolbox.container import (

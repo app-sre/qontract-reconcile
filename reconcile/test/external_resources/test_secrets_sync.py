@@ -1,5 +1,5 @@
 import copy
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 
 from pytest import fixture
 

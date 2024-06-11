@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 from jsonpath_ng import (
     Child,

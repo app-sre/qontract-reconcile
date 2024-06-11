@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from reconcile.gql_definitions.common.pipeline_providers import (
     PipelinesProviderTektonV1,

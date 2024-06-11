@@ -66,9 +66,7 @@ def _run_yaml_spec_cmd(cmd: list[str], yaml_spec: Mapping) -> CommandExecutionRe
             return CommandExecutionResult(False, f"Error creating temporary file: {e}")
 
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, check=True
-            )
+            result = subprocess.run(cmd, capture_output=True, check=True)
         except subprocess.CalledProcessError as e:
             msg = f'Error running promtool command [{" ".join(cmd)}]'
             if e.stdout:

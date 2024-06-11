@@ -1,8 +1,5 @@
-from typing import (
-    Any,
-    Optional,
-)
 from collections.abc import Callable, Mapping
+from typing import Any
 
 import pytest
 

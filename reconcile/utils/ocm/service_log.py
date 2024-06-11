@@ -3,7 +3,6 @@ from datetime import (
     datetime,
     timedelta,
 )
-from typing import Optional
 
 from reconcile.utils.ocm.base import (
     OCMClusterServiceLog,

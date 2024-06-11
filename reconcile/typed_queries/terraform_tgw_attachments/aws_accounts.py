@@ -1,5 +1,3 @@
-from typing import Optional
-
 from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
     AWSAccountV1,
     query,

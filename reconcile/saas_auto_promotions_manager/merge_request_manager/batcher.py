@@ -1,7 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
     OpenBatcherMergeRequest,

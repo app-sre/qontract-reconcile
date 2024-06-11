@@ -3,11 +3,9 @@ from abc import (
     abstractmethod,
 )
 from datetime import (
+    UTC,
     datetime,
-    timezone,
-UTC,
 )
-from typing import Optional
 
 from dateutil.parser import isoparse
 from pydantic import BaseModel

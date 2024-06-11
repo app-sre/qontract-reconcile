@@ -1,9 +1,7 @@
 from collections.abc import Mapping
 from typing import (
     Any,
-    Optional,
     Protocol,
-    Union,
     runtime_checkable,
 )
 

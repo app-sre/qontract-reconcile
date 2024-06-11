@@ -4,10 +4,7 @@ from collections.abc import (
     MutableMapping,
 )
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.gql_definitions.terraform_cloudflare_users import (
     app_interface_setting_cloudflare_and_vault,

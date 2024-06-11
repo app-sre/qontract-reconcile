@@ -14,10 +14,7 @@ from subprocess import (
     STDOUT,
     CalledProcessError,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import yaml
 from jenkins_jobs.builder import JenkinsManager

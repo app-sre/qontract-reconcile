@@ -3,7 +3,6 @@ from abc import (
     abstractmethod,
 )
 from collections.abc import Iterable
-from typing import Union
 
 from terrascript import (
     Data,

@@ -12,7 +12,6 @@ from datetime import (
 from typing import (
     TYPE_CHECKING,
     Any,
-    Optional,
 )
 
 from botocore.exceptions import ClientError

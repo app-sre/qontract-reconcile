@@ -9,17 +9,13 @@ import re
 import sys
 from collections import defaultdict
 from datetime import (
+    UTC,
     datetime,
     timedelta,
-    timezone,
-UTC,
 )
 from operator import itemgetter
 from statistics import median
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import boto3
 import click
@@ -1408,9 +1404,7 @@ def rosa_create_cluster_command(ctx, cluster_name):
 @click.argument("jumphost_hostname", required=False)
 @click.argument("cluster_name", required=False)
 @click.pass_context
-def sshuttle_command(
-    ctx, jumphost_hostname: str | None, cluster_name: str | None
-):
+def sshuttle_command(ctx, jumphost_hostname: str | None, cluster_name: str | None):
     jumphosts_query_data = queries.get_jumphosts(hostname=jumphost_hostname)
     jumphosts = jumphosts_query_data.jumphosts or []
     for jh in jumphosts:

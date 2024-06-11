@@ -3,7 +3,6 @@ import sys
 from dataclasses import dataclass
 from typing import (
     Any,
-    Optional,
     TypeVar,
 )
 
@@ -89,9 +88,7 @@ class IntegrationRunConfiguration:
             print_url=self.print_url,
         )
 
-    def switch_to_comparison_bundle(
-        self, validate_schemas: bool | None = None
-    ) -> None:
+    def switch_to_comparison_bundle(self, validate_schemas: bool | None = None) -> None:
         final_validate_schemas = (
             validate_schemas if validate_schemas is not None else self.valdiate_schemas
         )

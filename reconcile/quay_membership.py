@@ -1,7 +1,6 @@
 import logging
 import sys
 from collections.abc import Sequence
-from typing import Union
 
 from reconcile.gql_definitions.quay_membership import quay_membership
 from reconcile.gql_definitions.quay_membership.quay_membership import (

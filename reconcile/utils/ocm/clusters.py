@@ -4,10 +4,7 @@ from collections.abc import (
     Iterable,
 )
 from functools import lru_cache
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.utils.ocm.base import (
     ACTIVE_SUBSCRIPTION_STATES,

@@ -3,7 +3,7 @@ from collections.abc import (
     Iterable,
     MutableMapping,
 )
-from enum import Enum, StrEnum
+from enum import StrEnum
 from typing import Any
 from urllib.parse import urlparse
 

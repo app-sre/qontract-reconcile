@@ -1,5 +1,3 @@
-from typing import Optional
-
 from reconcile.gql_definitions.common.aws_vpc_requests import VPCRequest, query
 from reconcile.utils import gql
 from reconcile.utils.gql import GqlApi

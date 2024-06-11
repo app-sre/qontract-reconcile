@@ -3,11 +3,8 @@ from collections.abc import (
     Iterable,
     MutableMapping,
 )
-from datetime import datetime, timedelta, timezone, UTC
-from typing import (
-    Any,
-    Optional,
-)
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest import TestCase
 from unittest.mock import (
     MagicMock,

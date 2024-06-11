@@ -2,7 +2,6 @@ from collections.abc import (
     Callable,
     Mapping,
 )
-from typing import Optional
 
 import pytest
 

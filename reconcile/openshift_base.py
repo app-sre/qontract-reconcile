@@ -930,7 +930,7 @@ def _realize_resource_data_3way_diff(
     actions: list[dict] = []
 
     if ri.has_error_registered(cluster=cluster):
-        msg = (f"[{cluster}] skipping realize_data for " "cluster with errors")
+        msg = f"[{cluster}] skipping realize_data for " "cluster with errors"
         logging.error(msg)
         return actions
 

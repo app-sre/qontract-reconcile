@@ -2,7 +2,6 @@ from collections.abc import (
     Callable,
     Mapping,
 )
-from typing import Optional
 
 from reconcile.gql_definitions.common.clusters_with_dms import (
     DEFINITION,

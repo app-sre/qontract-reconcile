@@ -6,10 +6,7 @@ from collections.abc import (
     MutableMapping,
 )
 from pathlib import Path
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from unittest.mock import MagicMock, create_autospec
 
 import pytest

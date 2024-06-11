@@ -6,10 +6,7 @@ from collections.abc import (
     Mapping,
     Sequence,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from sretoolbox.utils import threaded
 

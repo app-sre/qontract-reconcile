@@ -1,10 +1,7 @@
 import logging
 import sys
 from collections.abc import Callable
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile import queries
 from reconcile.utils.defer import defer

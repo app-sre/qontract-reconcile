@@ -1,5 +1,4 @@
 import sys
-from typing import Optional
 
 import reconcile.openshift_saas_deploy_trigger_base as osdt_base
 from reconcile.status import ExitCodes

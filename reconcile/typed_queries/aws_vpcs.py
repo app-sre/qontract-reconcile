@@ -1,5 +1,3 @@
-from typing import Optional
-
 from reconcile.gql_definitions.common.aws_vpcs import (
     AWSVPC,
     query,

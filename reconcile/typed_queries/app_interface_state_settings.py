@@ -1,5 +1,3 @@
-from typing import Optional
-
 from reconcile.gql_definitions.common.app_interface_state_settings import (
     AppInterfaceStateConfigurationV1,
     query,

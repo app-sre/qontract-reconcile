@@ -1,11 +1,9 @@
 from collections.abc import Callable
 from datetime import (
+    UTC,
     datetime,
     timedelta,
-    timezone,
-UTC,
 )
-from typing import Optional
 
 import pytest
 from pytest_mock import MockerFixture

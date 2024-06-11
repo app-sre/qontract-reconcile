@@ -10,22 +10,16 @@ from collections import (
     defaultdict,
 )
 from collections.abc import (
+    Generator,
     Iterable,
     Mapping,
     MutableMapping,
     Sequence,
 )
 from contextlib import suppress
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import UTC, datetime, timedelta
 from types import TracebackType
-from typing import (
-    Any,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
-from collections.abc import Generator
+from typing import Any
 from urllib.parse import urlparse
 
 import yaml
@@ -434,7 +428,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 self.valid = False
                 # This should never be possible theoretically ...
                 logging.error(
-                    f"Non-unique resource template reference {rt_ref} in " f"channel {channel}"
+                    f"Non-unique resource template reference {rt_ref} in "
+                    f"channel {channel}"
                 )
                 continue
             publications[channel].add(rt_ref)
@@ -1451,7 +1446,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     def get_diff(
         self, trigger_type: TriggerTypes, dry_run: bool
     ) -> tuple[
-        list[TriggerSpecConfig] | list[TriggerSpecMovingCommit] | list[TriggerSpecUpstreamJob] | list[TriggerSpecContainerImage],
+        list[TriggerSpecConfig]
+        | list[TriggerSpecMovingCommit]
+        | list[TriggerSpecUpstreamJob]
+        | list[TriggerSpecContainerImage],
         bool,
     ]:
         if trigger_type == TriggerTypes.MOVING_COMMITS:

@@ -3,7 +3,6 @@
 
 from typing import (
     Any,
-    Optional,
     Self,
 )
 
@@ -394,9 +393,7 @@ class SystemToolInventory:
     def __init__(self) -> None:
         self.systems_and_tools: list[SystemTool] = []
 
-    def append(
-        self, model: Any, enumeration: Any, parent: str | None = None
-    ) -> None:
+    def append(self, model: Any, enumeration: Any, parent: str | None = None) -> None:
         self.systems_and_tools.append(
             SystemTool.init_from_model(model, enumeration, parent=parent)
         )

@@ -3,15 +3,13 @@ import sys
 from collections.abc import (
     Callable,
     Iterable,
+    Sequence,
 )
 from datetime import datetime
 from typing import (
     Any,
-    Optional,
     TypedDict,
-    Union,
 )
-from collections.abc import Sequence
 from urllib.parse import urlparse
 
 from github.GithubException import UnknownObjectException

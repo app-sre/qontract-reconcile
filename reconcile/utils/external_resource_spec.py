@@ -7,7 +7,6 @@ from collections.abc import (
 from dataclasses import field
 from typing import (
     Any,
-    Optional,
     cast,
 )
 

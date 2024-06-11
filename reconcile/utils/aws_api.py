@@ -614,7 +614,9 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         if managed_by_integration_tag[0] == "terraform_resources":
             return "service_account"
 
-        huh = f"unrecognized managed_by_integration tag: {managed_by_integration_tag[0]}"
+        huh = (
+            f"unrecognized managed_by_integration tag: {managed_by_integration_tag[0]}"
+        )
         raise InvalidResourceTypeError(huh)
 
     def delete_keys(

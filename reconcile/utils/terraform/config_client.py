@@ -4,7 +4,6 @@ from abc import (
     abstractmethod,
 )
 from collections.abc import Iterable
-from typing import Optional
 
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.external_resource_spec import (

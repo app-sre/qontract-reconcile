@@ -6,7 +6,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from gitlab.v4.objects import ProjectMergeRequest
 

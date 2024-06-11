@@ -5,10 +5,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from deepdiff import DeepHash
 from pydantic import validator

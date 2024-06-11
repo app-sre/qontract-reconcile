@@ -1,10 +1,8 @@
 import datetime
 from collections.abc import Iterable
 from typing import (
-    Optional,
     Protocol,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -15,9 +13,7 @@ class FilterableRole(Protocol):
     expiration_date: str | None
 
 
-DictsOrRoles = TypeVar(
-    "DictsOrRoles", bound=Iterable[FilterableRole] | Iterable[dict]
-)
+DictsOrRoles = TypeVar("DictsOrRoles", bound=Iterable[FilterableRole] | Iterable[dict])
 
 
 def date_expired(date: str) -> bool:

@@ -1,7 +1,6 @@
 import logging
 import sys
 from typing import (
-    Optional,
     cast,
 )
 

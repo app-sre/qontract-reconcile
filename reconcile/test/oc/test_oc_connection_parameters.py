@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Optional
 from unittest.mock import create_autospec
 
 import pytest

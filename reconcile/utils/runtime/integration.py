@@ -2,6 +2,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import ModuleType
 from typing import (
@@ -10,7 +11,6 @@ from typing import (
     Optional,
     TypeVar,
 )
-from collections.abc import Callable
 
 from pydantic import BaseModel
 

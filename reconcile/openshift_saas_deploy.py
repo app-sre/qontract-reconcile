@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 from collections.abc import Callable
-from typing import Optional
 
 import reconcile.openshift_base as ob
 from reconcile import (

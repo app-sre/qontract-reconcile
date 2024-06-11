@@ -1,5 +1,4 @@
 from collections import defaultdict
-from typing import Optional
 
 from reconcile.change_owners.approver import (
     ApproverReachability,

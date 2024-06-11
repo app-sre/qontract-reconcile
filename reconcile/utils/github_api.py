@@ -1,10 +1,6 @@
 import os
 from pathlib import Path
 from types import TracebackType
-from typing import (
-    Optional,
-    Type,
-)
 from urllib.parse import urlparse
 
 from github import (

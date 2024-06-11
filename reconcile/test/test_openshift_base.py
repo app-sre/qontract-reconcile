@@ -1,9 +1,6 @@
 import logging
-from typing import (
-    Any,
-    Optional,
-)
 from collections.abc import Mapping
+from typing import Any
 from unittest.mock import patch
 
 import pytest

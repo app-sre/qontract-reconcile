@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Sequence
-from datetime import date, timezone
-from datetime import datetime as dt, UTC
+from datetime import UTC, date
+from datetime import datetime as dt
 from pathlib import Path
 
 from jinja2 import Template

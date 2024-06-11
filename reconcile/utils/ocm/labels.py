@@ -1,9 +1,6 @@
 from collections import defaultdict
 from collections.abc import Generator
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.utils.ocm.base import (
     LabelContainer,

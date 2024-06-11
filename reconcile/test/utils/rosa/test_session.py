@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 
 from reconcile.test.utils.rosa.conftest import ROSA_CLI_IMAGE

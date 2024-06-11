@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 from typing import (
-    Optional,
     Protocol,
     TypeVar,
 )

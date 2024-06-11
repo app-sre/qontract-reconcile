@@ -77,7 +77,8 @@ class SkupperSite(BaseModel):
             if (
                 isinstance(
                     c,
-                    ClusterPeeringConnectionClusterRequesterV1 | ClusterPeeringConnectionClusterAccepterV1,
+                    ClusterPeeringConnectionClusterRequesterV1
+                    | ClusterPeeringConnectionClusterAccepterV1,
                 )
             ) and c.cluster.name == other.cluster.name:
                 return True

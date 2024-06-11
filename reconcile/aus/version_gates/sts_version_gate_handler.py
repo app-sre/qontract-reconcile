@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.utils.jobcontroller.controller import K8sJobController

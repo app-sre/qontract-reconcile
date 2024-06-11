@@ -2,7 +2,6 @@ import sys
 from textwrap import indent
 from typing import (
     Any,
-    Optional,
     cast,
 )
 

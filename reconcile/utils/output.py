@@ -3,7 +3,6 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Optional, Union
 
 import yaml
 from tabulate import tabulate

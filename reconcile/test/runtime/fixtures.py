@@ -1,7 +1,4 @@
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.utils.runtime.integration import (
     DesiredStateShardConfig,

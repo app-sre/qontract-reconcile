@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterable
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from typing import Any
 
 import jinja2

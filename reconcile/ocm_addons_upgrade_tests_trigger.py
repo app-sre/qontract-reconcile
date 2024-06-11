@@ -1,7 +1,4 @@
 import logging
-from typing import (
-    Optional,
-)
 from collections.abc import Callable
 
 from reconcile import queries

@@ -1,7 +1,6 @@
 import logging
 from collections import defaultdict
 from datetime import timedelta
-from typing import Optional
 
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.oum.base import OCMUserManagementIntegration

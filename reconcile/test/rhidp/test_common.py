@@ -1,5 +1,4 @@
 from collections.abc import Iterable
-from typing import Optional
 from unittest.mock import (
     Mock,
     call,

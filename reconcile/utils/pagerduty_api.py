@@ -6,7 +6,6 @@ from collections.abc import (
 from datetime import datetime as dt
 from datetime import timedelta
 from typing import (
-    Optional,
     Protocol,
 )
 

@@ -1,8 +1,8 @@
 import json
 import logging
 from collections.abc import Iterable
-from datetime import datetime, timezone, UTC
-from enum import Enum, StrEnum
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from sretoolbox.utils import threaded
 

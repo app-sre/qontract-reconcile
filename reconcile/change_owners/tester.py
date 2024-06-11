@@ -2,10 +2,7 @@ import os
 import sys
 from collections.abc import Generator
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import jsonpath_ng
 import pygments

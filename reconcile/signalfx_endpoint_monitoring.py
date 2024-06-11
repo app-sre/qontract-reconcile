@@ -1,9 +1,6 @@
 import logging
 import sys
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.closedbox_endpoint_monitoring_base import (
     Endpoint,

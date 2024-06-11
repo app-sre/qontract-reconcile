@@ -1,8 +1,4 @@
 from datetime import datetime
-from typing import (
-    Optional,
-    Tuple,
-)
 from unittest.mock import Mock
 
 import pytest

@@ -1,8 +1,8 @@
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import (
     TypeVar,
 )
-from collections.abc import Callable, Iterable
 
 import pytest
 

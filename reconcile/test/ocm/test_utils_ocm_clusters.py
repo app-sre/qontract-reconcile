@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from pytest_httpserver import HTTPServer
 from pytest_mock import (

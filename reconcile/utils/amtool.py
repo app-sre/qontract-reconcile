@@ -2,7 +2,6 @@ import re
 import tempfile
 from collections.abc import Mapping
 from subprocess import (
-    PIPE,
     CalledProcessError,
     run,
 )

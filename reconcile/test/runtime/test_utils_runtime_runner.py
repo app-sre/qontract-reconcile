@@ -1,9 +1,6 @@
 import sys
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -41,9 +38,7 @@ class MockIntegrationRunConfiguration(IntegrationRunConfiguration):
     def switch_to_main_bundle(self, validate_schemas: bool | None = None) -> None:
         pass
 
-    def switch_to_comparison_bundle(
-        self, validate_schemas: bool | None = None
-    ) -> None:
+    def switch_to_comparison_bundle(self, validate_schemas: bool | None = None) -> None:
         pass
 
 

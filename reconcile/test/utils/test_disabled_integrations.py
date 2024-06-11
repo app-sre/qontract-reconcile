@@ -1,9 +1,5 @@
 from collections.abc import Mapping
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 import pytest
 from pydantic import BaseModel

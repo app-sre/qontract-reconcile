@@ -1,19 +1,17 @@
 import functools
 import os
 from collections import defaultdict
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import (
+    UTC,
     datetime,
     timedelta,
-    timezone,
-UTC,
 )
 from typing import (
     Any,
-    Optional,
     Self,
 )
-from collections.abc import Iterable, Mapping
 
 import requests
 import yaml
@@ -165,9 +163,7 @@ class Commit:
             commit_date_tzaware = commit_date_tzaware.replace(tzinfo=UTC)
 
         if finish_timestamp_tzaware.tzinfo is None:
-            finish_timestamp_tzaware = finish_timestamp_tzaware.replace(
-                tzinfo=UTC
-            )
+            finish_timestamp_tzaware = finish_timestamp_tzaware.replace(tzinfo=UTC)
 
         return int((finish_timestamp_tzaware - commit_date_tzaware).total_seconds())
 

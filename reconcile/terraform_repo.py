@@ -1,9 +1,6 @@
 import logging
 from collections.abc import Callable
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import yaml
 from pydantic import (

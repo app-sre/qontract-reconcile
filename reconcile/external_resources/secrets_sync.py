@@ -3,9 +3,9 @@ import json
 import logging
 from abc import abstractmethod
 from collections.abc import Iterable, Mapping
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from hashlib import shake_128
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel
 from sretoolbox.utils import threaded

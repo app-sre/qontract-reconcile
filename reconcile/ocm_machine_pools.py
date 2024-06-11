@@ -3,12 +3,8 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from enum import Enum
-from typing import (
-    Optional,
-)
-from collections.abc import Iterable
 
 from pydantic import (
     BaseModel,

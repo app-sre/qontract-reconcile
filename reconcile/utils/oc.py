@@ -478,9 +478,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
                 cmd.extend(["-n", namespace])
 
         if "labels" in kwargs:
-            labels_list = [
-                f"{k}={v}" for k, v in kwargs.get("labels").items()
-            ]
+            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels").items()]
 
             cmd.append("-l")
             cmd.append(",".join(labels_list))
@@ -1335,9 +1333,7 @@ class OCNative(OCCli):
 
         labels = ""
         if "labels" in kwargs:
-            labels_list = [
-                f"{k}={v}" for k, v in kwargs.get("labels").items()
-            ]
+            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels").items()]
 
             labels = ",".join(labels_list)
 
@@ -1866,6 +1862,4 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
             return results[0]
         if not results:
             raise ResourceNotFoundError(f"No matches found for {kwargs}")
-        raise ResourceNotUniqueError(
-            f"Multiple matches found for {kwargs}: {results}"
-        )
+        raise ResourceNotUniqueError(f"Multiple matches found for {kwargs}: {results}")

@@ -8,7 +8,6 @@ from collections.abc import (
 )
 from typing import (
     Any,
-    Optional,
     Protocol,
 )
 

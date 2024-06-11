@@ -1,9 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import jinja2
 import requests

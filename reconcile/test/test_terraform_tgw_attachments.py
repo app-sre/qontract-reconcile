@@ -3,10 +3,6 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import (
-    Optional,
-    Union,
-)
 from unittest.mock import create_autospec
 
 import pytest
@@ -260,7 +256,11 @@ def peering_builder(
 ) -> Callable[..., ClusterPeeringV1]:
     def builder(
         connections: list[
-            ClusterPeeringConnectionAccountTGWV1 | ClusterPeeringConnectionAccountV1 | ClusterPeeringConnectionAccountVPCMeshV1 | ClusterPeeringConnectionClusterRequesterV1 | ClusterPeeringConnectionV1
+            ClusterPeeringConnectionAccountTGWV1
+            | ClusterPeeringConnectionAccountV1
+            | ClusterPeeringConnectionAccountVPCMeshV1
+            | ClusterPeeringConnectionClusterRequesterV1
+            | ClusterPeeringConnectionV1
         ],
     ) -> ClusterPeeringV1:
         return gql_class_factory(

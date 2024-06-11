@@ -1,10 +1,10 @@
 import json
+from collections.abc import Iterable
 from datetime import datetime
 from typing import (
     Any,
     Optional,
 )
-from collections.abc import Iterable
 
 from pydantic import (
     BaseModel,

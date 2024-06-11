@@ -1,8 +1,5 @@
 import logging
 import sys
-from typing import (
-    Optional,
-)
 from collections.abc import Callable
 
 from reconcile.jenkins_job_builder import init_jjb

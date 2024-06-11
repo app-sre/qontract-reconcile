@@ -5,15 +5,13 @@ from abc import (
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import (
+    UTC,
     datetime,
-    timezone,
-UTC,
 )
 from enum import Enum
 from typing import (
     Any,
     Optional,
-    Union,
 )
 
 import dateparser

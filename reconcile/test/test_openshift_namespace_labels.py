@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 from unittest import TestCase
 from unittest.mock import (
     Mock,

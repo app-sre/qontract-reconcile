@@ -1,6 +1,5 @@
 import logging
 import tempfile
-from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel

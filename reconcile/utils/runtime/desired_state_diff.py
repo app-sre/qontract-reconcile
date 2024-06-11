@@ -1,11 +1,8 @@
 import logging
 import multiprocessing
-from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
 from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
+from typing import Any
 
 from deepdiff import DeepHash
 from jsonpath_ng.ext.parser import parse

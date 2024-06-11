@@ -2,9 +2,8 @@ import collections
 import itertools
 import os
 import textwrap
-from collections.abc import Iterable
-from typing import Any, Optional
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from kubernetes.client import (
     V1Container,

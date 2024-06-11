@@ -1,5 +1,3 @@
-from typing import Optional
-
 from reconcile.utils.glitchtip.models import (
     Organization,
     Project,

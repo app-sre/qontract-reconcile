@@ -5,10 +5,6 @@ from abc import (
 )
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import (
-    Optional,
-    Union,
-)
 
 from terrascript import (
     Backend,
@@ -192,9 +188,7 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
         """Return the Terraform JSON representation of the resources"""
         return str(self._terrascript)
 
-    def _add_resources(
-        self, tf_resources: Iterable[Resource | Output | Data]
-    ) -> None:
+    def _add_resources(self, tf_resources: Iterable[Resource | Output | Data]) -> None:
         for resource in tf_resources:
             self._terrascript.add(resource)
 

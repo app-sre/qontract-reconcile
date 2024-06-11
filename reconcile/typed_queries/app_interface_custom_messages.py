@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from reconcile.gql_definitions.common.app_interface_custom_messages import (
     query,

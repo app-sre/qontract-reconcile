@@ -1,5 +1,3 @@
-from typing import Optional
-
 from reconcile.gql_definitions.common.app_interface_dms_settings import (
     DeadMansSnitchSettingsV1,
     query,

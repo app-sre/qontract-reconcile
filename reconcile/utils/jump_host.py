@@ -4,7 +4,6 @@ import shutil
 import tempfile
 import threading
 from dataclasses import dataclass
-from typing import Optional
 
 from sshtunnel import SSHTunnelForwarder
 

@@ -1,10 +1,7 @@
 import logging
 import sys
 from collections.abc import Iterable
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from pydantic import BaseModel
 from sretoolbox.utils import threaded

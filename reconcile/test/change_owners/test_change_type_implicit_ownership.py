@@ -1,5 +1,3 @@
-from typing import Optional
-
 import jsonpath_ng.ext
 import pytest
 

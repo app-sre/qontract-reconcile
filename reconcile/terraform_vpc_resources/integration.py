@@ -1,8 +1,7 @@
 import logging
 import sys
-from collections.abc import Mapping, MutableMapping
-from typing import Any, Optional
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, MutableMapping
+from typing import Any
 
 import jinja2
 

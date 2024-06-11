@@ -7,9 +7,7 @@ from collections.abc import (
 )
 from typing import (
     Any,
-    Optional,
     TypedDict,
-    Union,
     cast,
 )
 
@@ -353,7 +351,11 @@ def _populate_tgw_attachments_working_dirs(
 
 
 def _is_tgw_peer_connection(
-    peer_connection: ClusterPeeringConnectionAccountTGWV1 | ClusterPeeringConnectionAccountV1 | ClusterPeeringConnectionAccountVPCMeshV1 | ClusterPeeringConnectionClusterRequesterV1 | ClusterPeeringConnectionV1,
+    peer_connection: ClusterPeeringConnectionAccountTGWV1
+    | ClusterPeeringConnectionAccountV1
+    | ClusterPeeringConnectionAccountVPCMeshV1
+    | ClusterPeeringConnectionClusterRequesterV1
+    | ClusterPeeringConnectionV1,
     account_name: str | None,
 ) -> bool:
     if peer_connection.provider != TGW_CONNECTION_PROVIDER:

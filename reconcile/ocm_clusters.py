@@ -4,7 +4,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Any, Optional
+from typing import Any
 
 import reconcile.utils.mr.clusters_updates as cu
 import reconcile.utils.ocm as ocmmod

@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from reconcile.gql_definitions.common.app_code_component_repos import (
     AppCodeComponentsV1,

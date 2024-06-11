@@ -3,7 +3,6 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Optional
 
 from reconcile.cna.assets.asset_factory import asset_factory_from_schema
 from reconcile.cna.client import CNAClient

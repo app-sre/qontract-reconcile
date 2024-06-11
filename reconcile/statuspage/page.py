@@ -1,4 +1,4 @@
-from typing import Optional, Self, cast
+from typing import Self, cast
 
 from pydantic import BaseModel
 

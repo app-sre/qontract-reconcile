@@ -1,7 +1,7 @@
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable
 from unittest.mock import ANY
 
 import pytest

@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from reconcile.aus.base import ClusterUpgradePolicy
 from reconcile.aus.healthchecks import AUSClusterHealth, AUSHealthError

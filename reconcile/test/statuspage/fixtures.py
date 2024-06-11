@@ -1,8 +1,5 @@
 from collections.abc import Iterable
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.statuspage.statuspages import (

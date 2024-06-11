@@ -3,10 +3,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -50,9 +47,7 @@ class OcmUrl(BaseModel):
     method: str = "POST"
     responses: list[Any] = Field(default_factory=list)
 
-    def add_list_response(
-        self, items: list[Any], kind: str | None = None
-    ) -> "OcmUrl":
+    def add_list_response(self, items: list[Any], kind: str | None = None) -> "OcmUrl":
         self.responses.append({
             "kind": f"{kind}List" if kind else "List",
             "items": items,

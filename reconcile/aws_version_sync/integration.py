@@ -3,7 +3,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from enum import Enum, StrEnum
+from enum import StrEnum
 from typing import Any
 
 import semver

@@ -5,10 +5,7 @@ from collections.abc import (
 )
 from dataclasses import dataclass
 from enum import Enum
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.change_owners.approver import (
     Approver,

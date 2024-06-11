@@ -1,7 +1,7 @@
 import hashlib
 import inspect
 from abc import ABC, abstractmethod
-from enum import Enum, IntFlag, StrEnum
+from enum import IntFlag, StrEnum
 from typing import Any
 
 from deepdiff import DeepHash

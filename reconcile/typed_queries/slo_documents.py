@@ -1,5 +1,3 @@
-from typing import Optional
-
 from reconcile.gql_definitions.slo_documents.slo_documents import (
     SLODocumentV1,
     query,

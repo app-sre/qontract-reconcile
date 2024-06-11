@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 import pytest
 from pytest_mock import MockerFixture

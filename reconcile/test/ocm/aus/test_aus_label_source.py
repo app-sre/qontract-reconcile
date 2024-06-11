@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 
 from reconcile.aus.aus_label_source import (

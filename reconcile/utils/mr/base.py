@@ -4,9 +4,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from typing import (
-    Any,
-)
+from typing import Any
 from uuid import uuid4
 
 from gitlab.exceptions import GitlabError

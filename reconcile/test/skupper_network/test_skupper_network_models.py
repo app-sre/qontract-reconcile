@@ -2,10 +2,7 @@ from collections.abc import (
     Callable,
     MutableMapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import pytest
 

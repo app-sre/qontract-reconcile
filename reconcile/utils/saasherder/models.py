@@ -2,9 +2,7 @@ import base64
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import (
-    Any,
-)
+from typing import Any
 
 from github import Github
 from pydantic import (

@@ -6,9 +6,7 @@ from collections.abc import (
 from types import TracebackType
 from typing import (
     Any,
-    Optional,
     Protocol,
-    Type,
 )
 
 from pydantic import BaseModel

@@ -5,10 +5,7 @@ import shlex
 from collections.abc import Mapping
 from dataclasses import dataclass
 from textwrap import indent
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from jinja2 import Template
 

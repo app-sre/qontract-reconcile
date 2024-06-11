@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional, Protocol
+from typing import NamedTuple, Protocol
 
 import requests
 from pydantic import BaseModel, Field

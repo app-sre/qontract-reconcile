@@ -4,7 +4,6 @@ from functools import (
     reduce,
 )
 from itertools import zip_longest
-from typing import Optional
 
 import jsonpath_ng
 import jsonpath_ng.ext.filter

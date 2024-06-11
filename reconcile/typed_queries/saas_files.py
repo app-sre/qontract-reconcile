@@ -2,11 +2,7 @@ import hashlib
 import json
 from collections.abc import Callable
 from threading import Lock
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 from jsonpath_ng.exceptions import JsonPathParserError
 from pydantic import (
@@ -64,10 +60,10 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
         ..., alias="promotion"
     )
     parameters: Json | None = Field(..., alias="parameters")
-    secret_parameters: list[SaasResourceTemplateTargetV2_SaasSecretParametersV1] | None = Field(..., alias="secretParameters")
-    upstream: SaasResourceTemplateTargetUpstreamV1 | None = Field(
-        ..., alias="upstream"
-    )
+    secret_parameters: (
+        list[SaasResourceTemplateTargetV2_SaasSecretParametersV1] | None
+    ) = Field(..., alias="secretParameters")
+    upstream: SaasResourceTemplateTargetUpstreamV1 | None = Field(..., alias="upstream")
     image: SaasResourceTemplateTargetImageV1 | None = Field(..., alias="image")
     disable: bool | None = Field(..., alias="disable")
     delete: bool | None = Field(..., alias="delete")
@@ -123,12 +119,8 @@ class SaasFile(ConfiguredBaseModel):
     allowed_secret_parameter_paths: list[str] | None = Field(
         ..., alias="allowedSecretParameterPaths"
     )
-    use_channel_in_image_tag: bool | None = Field(
-        ..., alias="use_channel_in_image_tag"
-    )
-    authentication: SaasFileAuthenticationV1 | None = Field(
-        ..., alias="authentication"
-    )
+    use_channel_in_image_tag: bool | None = Field(..., alias="use_channel_in_image_tag")
+    authentication: SaasFileAuthenticationV1 | None = Field(..., alias="authentication")
     parameters: Json | None = Field(..., alias="parameters")
     secret_parameters: list[SaasSecretParametersV1] | None = Field(
         ..., alias="secretParameters"

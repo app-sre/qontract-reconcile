@@ -3,7 +3,6 @@ from abc import (
     abstractmethod,
 )
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)

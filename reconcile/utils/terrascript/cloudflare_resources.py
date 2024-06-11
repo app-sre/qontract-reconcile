@@ -2,10 +2,7 @@ from collections.abc import (
     Iterable,
     MutableMapping,
 )
-from typing import (
-    Any,
-    Union,
-)
+from typing import Any
 
 from terrascript import (
     Data,

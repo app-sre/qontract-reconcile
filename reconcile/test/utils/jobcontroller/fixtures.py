@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from kubernetes.client import (  # type: ignore[attr-defined]
     ApiClient,

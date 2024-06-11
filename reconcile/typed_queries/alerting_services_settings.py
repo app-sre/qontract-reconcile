@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from reconcile.gql_definitions.common.alerting_services_settings import query
 from reconcile.utils import gql

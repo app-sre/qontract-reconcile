@@ -4,10 +4,7 @@ from collections.abc import (
     Sequence,
 )
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import requests
 from requests import Response

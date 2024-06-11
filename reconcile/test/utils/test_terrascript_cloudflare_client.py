@@ -3,7 +3,6 @@ from dataclasses import (
     asdict,
     dataclass,
 )
-from typing import Optional
 from unittest.mock import (
     create_autospec,
     mock_open,

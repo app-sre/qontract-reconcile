@@ -1,6 +1,5 @@
 from collections import defaultdict
 from collections.abc import Iterable
-from typing import Optional
 
 from ldap3 import (
     ALL,

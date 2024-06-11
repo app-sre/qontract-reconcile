@@ -1,15 +1,11 @@
 import logging
 from collections.abc import Callable
 from datetime import (
+    UTC,
     datetime,
     timedelta,
-    timezone,
-UTC,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from dateutil import parser
 

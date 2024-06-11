@@ -1,8 +1,5 @@
-from typing import (
-    Any,
-    Optional,
-)
 from collections.abc import Iterable, Sequence
+from typing import Any
 
 import requests
 from pydantic import BaseModel

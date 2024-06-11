@@ -2,9 +2,8 @@ import logging
 import os
 import textwrap
 from datetime import (
+    UTC,
     datetime,
-    timezone,
-UTC,
 )
 
 import click

@@ -1,12 +1,9 @@
 import base64
 import logging
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import timedelta
-from typing import (
-    Any,
-)
-from collections.abc import Mapping
+from typing import Any
 
 from dynatrace import Dynatrace
 from dynatrace.environment_v2.tokens_api import ApiTokenCreated

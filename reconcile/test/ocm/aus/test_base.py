@@ -1,11 +1,9 @@
+from collections.abc import Callable
 from datetime import (
     datetime,
     timedelta,
 )
-from typing import (
-    Any,
-)
-from collections.abc import Callable
+from typing import Any
 from unittest.mock import ANY
 
 import pytest

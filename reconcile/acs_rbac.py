@@ -2,7 +2,6 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable
 from typing import (
-    Optional,
     Self,
 )
 

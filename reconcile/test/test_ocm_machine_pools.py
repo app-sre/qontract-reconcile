@@ -1,11 +1,8 @@
 from collections.abc import (
     Callable,
     Iterable,
+    Mapping,
 )
-from typing import (
-    Optional,
-)
-from collections.abc import Mapping
 from unittest.mock import create_autospec
 
 import pytest

@@ -3,10 +3,7 @@ from collections.abc import (
     Iterable,
     Sequence,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.glitchtip.reconciler import GlitchtipReconciler
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (

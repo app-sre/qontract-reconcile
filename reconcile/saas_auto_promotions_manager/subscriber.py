@@ -2,8 +2,7 @@ import hashlib
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone, UTC
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,

@@ -6,12 +6,9 @@ import os
 import re
 import sys
 import traceback
+from collections.abc import Iterable
 from signal import SIGUSR1
 from types import ModuleType
-from typing import (
-    Optional,
-)
-from collections.abc import Iterable
 
 import click
 import sentry_sdk

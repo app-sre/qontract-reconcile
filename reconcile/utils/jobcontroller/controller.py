@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Optional, Protocol, TextIO
+from typing import Protocol, TextIO
 
 from kubernetes.client import (  # type: ignore[attr-defined]
     ApiClient,

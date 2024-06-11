@@ -1,6 +1,6 @@
 import logging
 import sys
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import UTC, datetime, timedelta
 
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.statuspage.atlassian import AtlassianStatusPageProvider

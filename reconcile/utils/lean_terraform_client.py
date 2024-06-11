@@ -3,11 +3,7 @@ import logging
 import os
 import subprocess
 from collections.abc import Mapping
-from typing import (
-    Any,
-    Optional,
-    Tuple,
-)
+from typing import Any
 
 
 def state_rm_access_key(working_dirs, account, user):

@@ -1,10 +1,7 @@
 import logging
 from collections.abc import Callable
 from threading import Lock
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from sretoolbox.utils import threaded
 

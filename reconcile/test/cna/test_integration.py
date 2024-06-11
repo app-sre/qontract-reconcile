@@ -2,10 +2,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from unittest.mock import create_autospec
 
 import pytest

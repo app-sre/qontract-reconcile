@@ -1,7 +1,6 @@
 import logging
-from difflib import context_diff
-from typing import Optional
 from collections.abc import Callable
+from difflib import context_diff
 
 from pydantic import BaseModel
 from ruamel import yaml

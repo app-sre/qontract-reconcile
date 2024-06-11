@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from reconcile.utils.promotion_state import PromotionState
 from reconcile.utils.secret_reader import HasSecret

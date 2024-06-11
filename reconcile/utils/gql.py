@@ -2,16 +2,10 @@ import logging
 import textwrap
 import threading
 from datetime import (
+    UTC,
     datetime,
-    timezone,
-UTC,
 )
-from typing import (
-    Any,
-    Dict,
-    Optional,
-    Union,
-)
+from typing import Any
 from urllib.parse import urlparse
 
 import requests
@@ -84,9 +78,7 @@ class GqlApiErrorForbiddenSchema(Exception):
 
 class GqlGetResourceError(Exception):
     def __init__(self, path, msg):
-        super().__init__(
-            f"Error getting resource from path {path}: {str(msg)}"
-        )
+        super().__init__(f"Error getting resource from path {path}: {str(msg)}")
 
 
 class GqlApi:
@@ -250,9 +242,7 @@ class GqlApi:
     @property
     def commit_timestamp_utc(self) -> str | None:
         if self.commit_timestamp:
-            return datetime.fromtimestamp(
-                int(self.commit_timestamp), UTC
-            ).isoformat()
+            return datetime.fromtimestamp(int(self.commit_timestamp), UTC).isoformat()
         return None
 
 

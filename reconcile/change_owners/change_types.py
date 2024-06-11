@@ -16,7 +16,6 @@ from enum import Enum
 from typing import (
     Any,
     Optional,
-    Tuple,
 )
 
 import jinja2

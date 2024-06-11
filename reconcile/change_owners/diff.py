@@ -3,11 +3,7 @@ import json
 from dataclasses import dataclass
 from enum import Enum
 from functools import reduce
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 import jsonpath_ng
 from deepdiff import DeepDiff

@@ -1,7 +1,6 @@
 from datetime import (
+    UTC,
     datetime,
-    timezone,
-UTC,
 )
 
 import pytest

@@ -1,5 +1,3 @@
-from typing import Optional
-
 from reconcile.gql_definitions.common.reserved_networks import (
     NetworkV1,
     query,

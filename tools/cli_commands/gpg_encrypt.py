@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
-from typing import (
-    Optional,
-)
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 from reconcile import queries
 from reconcile.utils import (

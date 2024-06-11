@@ -4,7 +4,6 @@ from collections.abc import (
     Iterable,
 )
 from datetime import datetime
-from typing import Optional
 
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import ClusterV1
@@ -58,9 +57,7 @@ def handle_slack_notification(
     state.add(state_key, state_value, force=True)
 
 
-def _get_start_osd(
-    oc_map: OCMap, cluster_name: str
-) -> tuple[str | None, str | None]:
+def _get_start_osd(oc_map: OCMap, cluster_name: str) -> tuple[str | None, str | None]:
     oc = oc_map.get(cluster_name)
     if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)

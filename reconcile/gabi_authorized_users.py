@@ -10,10 +10,7 @@ from datetime import (
     date,
     datetime,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import reconcile.openshift_base as ob
 from reconcile import queries

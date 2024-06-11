@@ -18,10 +18,7 @@ from functools import (
 )
 from http import HTTPStatus
 from pathlib import Path
-from typing import (
-    Any,
-    Union,
-)
+from typing import Any
 
 import requests
 from jinja2 import Template

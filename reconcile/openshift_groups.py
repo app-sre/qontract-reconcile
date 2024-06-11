@@ -5,10 +5,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from sretoolbox.utils import threaded
 
@@ -53,7 +50,7 @@ def get_cluster_state(
     try:
         group = oc.get_group_if_exists(group_name)
     except Exception as e:
-        msg = (f"could not get group state for cluster/group combination: {cluster}/{group_name}")
+        msg = f"could not get group state for cluster/group combination: {cluster}/{group_name}"
         logging.error(msg)
         raise e
     if group is None:

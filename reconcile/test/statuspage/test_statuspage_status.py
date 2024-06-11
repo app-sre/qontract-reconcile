@@ -1,8 +1,7 @@
 from datetime import (
+    UTC,
     datetime,
     timedelta,
-    timezone,
-UTC,
 )
 
 from reconcile.gql_definitions.statuspage.statuspages import (

@@ -9,11 +9,7 @@ from datetime import (
     timedelta,
 )
 from operator import itemgetter
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 import gitlab
 from gitlab.v4.objects import (

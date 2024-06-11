@@ -94,7 +94,7 @@ def fetch_desired_state(namespaces, ri, oc_map):
             source_cluster = source_namespace_info["cluster"]["name"]
             if cluster != source_cluster:
                 ri.register_error()
-                msg = (f"[{cluster}/{namespace}] Network Policy from cluster '{source_cluster}' not allowed.")
+                msg = f"[{cluster}/{namespace}] Network Policy from cluster '{source_cluster}' not allowed."
                 logging.error(msg)
                 continue
             resource_name = f"allow-from-{source_namespace}-namespace"

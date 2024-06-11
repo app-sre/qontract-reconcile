@@ -1,7 +1,4 @@
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.utils.filtering import remove_none_values_from_dict
 

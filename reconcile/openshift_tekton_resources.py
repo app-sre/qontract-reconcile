@@ -2,11 +2,7 @@ import json
 import logging
 import sys
 from collections.abc import Mapping
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 import jinja2
 import yaml

@@ -1,10 +1,7 @@
 import enum
 import logging
 from collections.abc import Callable
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from pydantic import BaseModel
 

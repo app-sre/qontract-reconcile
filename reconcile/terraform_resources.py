@@ -1,17 +1,17 @@
 import logging
 from collections.abc import (
     Callable,
+    Collection,
     Iterable,
     Mapping,
+    Sequence,
 )
 from dataclasses import asdict
 from typing import (
     Any,
-    Optional,
     TypedDict,
     cast,
 )
-from collections.abc import Collection, Sequence
 
 from deepdiff import DeepHash
 from sretoolbox.utils import (

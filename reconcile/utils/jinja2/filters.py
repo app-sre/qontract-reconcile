@@ -2,7 +2,7 @@ import hashlib
 import json
 import re
 from collections.abc import Iterable
-from typing import Any, Optional
+from typing import Any
 from urllib import parse
 
 import jinja2

@@ -81,9 +81,7 @@ class RawGithubApi:
         ]
 
     def team_invitations(self, org_id, team_id):
-        invitations = self.query(
-            f"/organizations/{org_id}/team/{team_id}/invitations"
-        )
+        invitations = self.query(f"/organizations/{org_id}/team/{team_id}/invitations")
 
         return [
             login

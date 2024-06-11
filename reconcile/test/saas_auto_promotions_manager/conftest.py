@@ -5,7 +5,7 @@ from collections.abc import (
     Mapping,
     MutableMapping,
 )
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import (
     MagicMock,

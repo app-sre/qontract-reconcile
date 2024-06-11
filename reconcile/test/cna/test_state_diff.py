@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 
 from reconcile.cna.assets.asset import (

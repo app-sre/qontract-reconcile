@@ -1,5 +1,5 @@
 from functools import cache
-from typing import Any, Optional
+from typing import Any
 
 import jinja2
 from jinja2.sandbox import SandboxedEnvironment

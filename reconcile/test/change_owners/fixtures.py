@@ -1,11 +1,7 @@
 import copy
 import hashlib
 import json
-from typing import (
-    Any,
-    Optional,
-    Tuple,
-)
+from typing import Any
 
 import jsonpath_ng
 import jsonpath_ng.ext
@@ -390,7 +386,8 @@ class MockFileDiffResolver:
     def __init__(
         self,
         fail_on_unknown_path: bool | None = True,
-        file_diffs: dict[str, tuple[dict[str, Any] | None, dict[str, Any] | None]] | None = None,
+        file_diffs: dict[str, tuple[dict[str, Any] | None, dict[str, Any] | None]]
+        | None = None,
     ):
         self.file_diffs = file_diffs or {}
         self.fail_on_unknown_path = fail_on_unknown_path

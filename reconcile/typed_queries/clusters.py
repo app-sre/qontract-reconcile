@@ -1,5 +1,3 @@
-from typing import Optional
-
 from reconcile.gql_definitions.common.clusters import (
     ClusterV1,
     query,

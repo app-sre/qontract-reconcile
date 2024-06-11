@@ -5,7 +5,7 @@ import tempfile
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Optional, Self
+from typing import Any, Self
 
 from deepdiff import DeepHash
 from ruamel import yaml

@@ -3,12 +3,9 @@ import sys
 from collections.abc import (
     Callable,
     Mapping,
+    Sequence,
 )
-from typing import (
-    Any,
-    Optional,
-)
-from collections.abc import Sequence
+from typing import Any
 
 from deepdiff import DeepHash
 

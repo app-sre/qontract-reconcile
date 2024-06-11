@@ -6,10 +6,6 @@ import json
 import re
 from collections.abc import Mapping
 from threading import Lock
-from typing import (
-    Optional,
-    Union,
-)
 
 import semver
 from pydantic import BaseModel

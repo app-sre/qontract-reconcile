@@ -20,9 +20,7 @@ from textwrap import indent
 from threading import Lock
 from typing import (
     Any,
-    Optional,
     Protocol,
-    Tuple,
 )
 from unittest.mock import DEFAULT, patch
 
@@ -708,7 +706,7 @@ def fetch_desired_state(
         # a desired resource with the same name and
         # the same type was already added previously
         ri.register_error()
-        msg = (f"[{cluster}/{namespace}] desired item already exists: {openshift_resource.kind}/{openshift_resource.name}.")
+        msg = f"[{cluster}/{namespace}] desired item already exists: {openshift_resource.kind}/{openshift_resource.name}."
         _locked_error_log(msg)
         return
     except ResourceNotManagedError:

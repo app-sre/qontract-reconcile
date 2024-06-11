@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.fragments.membership_source import (

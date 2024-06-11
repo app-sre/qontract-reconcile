@@ -5,17 +5,15 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from collections.abc import Callable, Sequence
 from datetime import (
     datetime,
     timedelta,
-    timezone,
 )
 from typing import (
-    Optional,
     Protocol,
     cast,
 )
-from collections.abc import Callable, Sequence
 
 from croniter import croniter
 from pydantic import BaseModel, Extra

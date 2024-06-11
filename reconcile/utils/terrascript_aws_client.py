@@ -21,7 +21,6 @@ from json import JSONDecodeError
 from threading import Lock
 from typing import (
     Any,
-    Optional,
     cast,
 )
 
@@ -844,7 +843,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     # we want the outputs to be formed into a mail invitation
                     # for each new user. we form an output of the form
                     # 'qrtf.enc-passwords[user_name] = <encrypted password>
-                    output_name = f"{self.integration_prefix}_enc-passwords__{user_name}"
+                    output_name = (
+                        f"{self.integration_prefix}_enc-passwords__{user_name}"
+                    )
                     output_value = (
                         "${" + tf_iam_user_login_profile.encrypted_password + "}"
                     )
@@ -2954,8 +2955,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "Effect": "Allow",
                     "Action": ["dynamodb:*"],
                     "Resource": [
-                        f"arn:aws:dynamodb:{region}:{uid}:table/{t}"
-                        for t in all_tables
+                        f"arn:aws:dynamodb:{region}:{uid}:table/{t}" for t in all_tables
                     ],
                 }
             ],

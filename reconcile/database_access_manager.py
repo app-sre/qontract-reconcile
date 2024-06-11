@@ -1,5 +1,6 @@
 import base64
 import logging
+from collections.abc import Callable
 from random import choices
 from string import (
     ascii_letters,
@@ -7,11 +8,9 @@ from string import (
 )
 from typing import (
     Any,
-    Optional,
     TypedDict,
     cast,
 )
-from collections.abc import Callable
 
 from pydantic import BaseModel
 

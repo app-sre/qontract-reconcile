@@ -6,10 +6,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import yaml
 from deepdiff import DeepHash

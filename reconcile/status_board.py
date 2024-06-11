@@ -3,11 +3,11 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from collections.abc import Iterable, Mapping
 from typing import (
     Any,
     Optional,
 )
-from collections.abc import Iterable, Mapping
 
 from pydantic import BaseModel
 

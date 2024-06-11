@@ -5,7 +5,6 @@ import threading
 import time
 from collections.abc import Mapping
 from functools import lru_cache
-from typing import Optional
 
 import hvac
 import requests
@@ -215,9 +214,7 @@ class _VaultClient:
 
         return version
 
-    def __read_all_v2(
-        self, path: str, version: str | None
-    ) -> tuple[dict, str | None]:
+    def __read_all_v2(self, path: str, version: str | None) -> tuple[dict, str | None]:
         path_split = path.split("/")
         mount_point = path_split[0]
         read_path = "/".join(path_split[1:])

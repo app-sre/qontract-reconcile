@@ -1,5 +1,3 @@
-from typing import Type
-
 from reconcile.aus.version_gates import (
     ingress_gate_handler,
     ocp_gate_handler,

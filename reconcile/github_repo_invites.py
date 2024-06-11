@@ -5,10 +5,7 @@ from collections.abc import (
     Mapping,
 )
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile import queries
 from reconcile.utils import (

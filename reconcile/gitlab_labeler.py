@@ -4,7 +4,6 @@ from collections.abc import (
     Iterable,
     Set,
 )
-from typing import Optional
 
 from reconcile import queries
 from reconcile.gitlab_housekeeping import (

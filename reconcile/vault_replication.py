@@ -2,8 +2,6 @@ import logging
 import re
 from collections.abc import Iterable
 from typing import (
-    Optional,
-    Union,
     cast,
 )
 
@@ -283,7 +281,8 @@ def get_jenkins_secret_list(
 
 
 def get_vault_credentials(
-    vault_auth: VaultReplicationConfigV1_VaultInstanceAuthV1 | VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
+    vault_auth: VaultReplicationConfigV1_VaultInstanceAuthV1
+    | VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
     vault_address: str,
 ) -> dict[str, str | None]:
     """Returns a dictionary with the credentials used to authenticate with Vault,

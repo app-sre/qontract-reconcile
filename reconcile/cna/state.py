@@ -4,10 +4,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.cna.assets.asset import (
     Asset,

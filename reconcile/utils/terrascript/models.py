@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from reconcile.utils.secret_reader import HasSecret
 

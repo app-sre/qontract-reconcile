@@ -20,7 +20,6 @@ from threading import Lock
 from typing import (
     IO,
     Any,
-    Optional,
     cast,
 )
 

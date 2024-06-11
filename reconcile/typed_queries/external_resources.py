@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from reconcile.gql_definitions.external_resources.external_resources_modules import (
     ExternalResourcesModuleV1,

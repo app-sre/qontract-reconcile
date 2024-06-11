@@ -4,7 +4,6 @@ from abc import (
     abstractmethod,
 )
 from collections import defaultdict
-from typing import Optional
 
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,

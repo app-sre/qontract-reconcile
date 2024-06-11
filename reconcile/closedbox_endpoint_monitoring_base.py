@@ -3,10 +3,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import field
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from urllib.parse import urlparse
 
 from pydantic.dataclasses import dataclass

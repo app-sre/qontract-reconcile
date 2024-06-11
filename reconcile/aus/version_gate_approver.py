@@ -1,7 +1,4 @@
 import logging
-from typing import (
-    Optional,
-)
 from collections.abc import Callable, Iterable
 
 from reconcile.aus.advanced_upgrade_service import aus_label_key

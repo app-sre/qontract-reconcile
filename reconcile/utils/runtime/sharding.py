@@ -2,9 +2,7 @@ import copy
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import (
-    Optional,
     Protocol,
-    Union,
 )
 
 from pydantic import BaseModel
@@ -48,7 +46,13 @@ class ShardSpec(BaseModel):
     # Base Sharding
     shards: str | None = ""
     shard_id: str | None = ""
-    shard_spec_overrides: AWSAccountShardSpecOverrideV1 | OpenshiftClusterShardSpecOverrideV1 | CloudflareDNSZoneShardSpecOverrideV1 | OCMOrganizationShardSpecOverrideV1 | None = None
+    shard_spec_overrides: (
+        AWSAccountShardSpecOverrideV1
+        | OpenshiftClusterShardSpecOverrideV1
+        | CloudflareDNSZoneShardSpecOverrideV1
+        | OCMOrganizationShardSpecOverrideV1
+        | None
+    ) = None
 
     # Key sharding
     shard_key: str = ""
@@ -367,9 +371,7 @@ class CloudflareDnsZoneShardingStrategy:
 
     IDENTIFIER = "per-cloudflare-dns-zone"
 
-    def __init__(
-        self, cloudflare_zones: Iterable[CloudflareDnsZoneV1] | None = None
-    ):
+    def __init__(self, cloudflare_zones: Iterable[CloudflareDnsZoneV1] | None = None):
         if not cloudflare_zones:
             self.cloudflare_zones = (
                 terraform_cloudflare_zones.query(query_func=gql.get_api().query).zones

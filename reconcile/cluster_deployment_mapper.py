@@ -1,9 +1,6 @@
 import logging
 import sys
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
