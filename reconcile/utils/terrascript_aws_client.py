@@ -509,7 +509,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         # defaults from account
         bucket_backend_value = config.get("bucket")
-        key_backend_value = config.get("{}_key".format(integration))
+        key_backend_value = config.get(f"{integration}_key")
         region_backend_value = config.get("region")
         terraform_state = config["terraformState"]
         if terraform_state:
@@ -785,9 +785,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
                 # we want to include the console url in the outputs
                 # to be used later to generate the email invitations
-                output_name = "{}_console-urls__{}".format(
-                    self.integration_prefix, account_name
-                )
+                output_name = f"{self.integration_prefix}_console-urls__{account_name}"
                 output_value = account_console_url
                 tf_output = Output(output_name, value=output_value)
                 self.add_resource(account_name, tf_output)
@@ -846,9 +844,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     # we want the outputs to be formed into a mail invitation
                     # for each new user. we form an output of the form
                     # 'qrtf.enc-passwords[user_name] = <encrypted password>
-                    output_name = "{}_enc-passwords__{}".format(
-                        self.integration_prefix, user_name
-                    )
+                    output_name = f"{self.integration_prefix}_enc-passwords__{user_name}"
                     output_value = (
                         "${" + tf_iam_user_login_profile.encrypted_password + "}"
                     )
@@ -2168,7 +2164,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(Output(output_name, value=output_value))
         output_name = output_prefix + "__aws_region"
         tf_resources.append(Output(output_name, value=region))
-        endpoint = "s3.{}.amazonaws.com".format(region)
+        endpoint = f"s3.{region}.amazonaws.com"
         output_name = output_prefix + "__endpoint"
         tf_resources.append(Output(output_name, value=endpoint))
 
@@ -2480,7 +2476,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 for k, v in data.items():
                     to_replace = "${" + k + "}"
                     user_policy = user_policy.replace(to_replace, v)
-                    output_name = output_prefix + "__{}".format(k)
+                    output_name = output_prefix + f"__{k}"
                     tf_resources.append(Output(output_name, value=v))
 
             tf_aws_iam_policy = aws_iam_policy(
@@ -2769,10 +2765,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 tf_resources.append(queue_tf_resource)
                 output_name = output_prefix + "__aws_region"
                 tf_resources.append(Output(output_name, value=region))
-                output_name = "{}__{}".format(output_prefix, queue_key)
-                output_value = "https://sqs.{}.amazonaws.com/{}/{}".format(
-                    region, uid, queue_name
-                )
+                output_name = f"{output_prefix}__{queue_key}"
+                output_value = f"https://sqs.{region}.amazonaws.com/{uid}/{queue_name}"
                 tf_resources.append(Output(output_name, value=output_value))
             all_queues_per_spec.append(all_queues)
 
@@ -2925,7 +2919,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     values["provider"] = "aws." + region
                 table_tf_resource = aws_dynamodb_table(table, **values)
                 tf_resources.append(table_tf_resource)
-                output_name = "{}__{}".format(output_prefix, table_key)
+                output_name = f"{output_prefix}__{table_key}"
                 tf_resources.append(Output(output_name, value=table))
 
         output_name = output_prefix + "__aws_region"
@@ -2960,7 +2954,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "Effect": "Allow",
                     "Action": ["dynamodb:*"],
                     "Resource": [
-                        "arn:aws:dynamodb:{}:{}:table/{}".format(region, uid, t)
+                        f"arn:aws:dynamodb:{region}:{uid}:table/{t}"
                         for t in all_tables
                     ],
                 }
@@ -3420,10 +3414,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(user_policy_attachment_tf_resource)
 
         # outputs
-        output_name = "{}__{}".format(output_prefix, sqs_identifier)
-        output_value = "https://sqs.{}.amazonaws.com/{}/{}".format(
-            region, uid, sqs_identifier
-        )
+        output_name = f"{output_prefix}__{sqs_identifier}"
+        output_value = f"https://sqs.{region}.amazonaws.com/{uid}/{sqs_identifier}"
         tf_resources.append(Output(output_name, value=output_value))
 
         self.add_resources(account, tf_resources)
@@ -4042,8 +4034,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def add_resource(self, account, tf_resource):
         if account not in self.locks:
             logging.debug(
-                "integration {} is disabled for account {}. "
-                "can not add resource".format(self.integration, account)
+                f"integration {self.integration} is disabled for account {account}. "
+                "can not add resource"
             )
             return
         with self.locks[account]:

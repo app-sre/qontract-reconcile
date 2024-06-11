@@ -66,7 +66,7 @@ def validate_repos_and_admins(jjb: JJB):
     )
     unknown_admins = [a for a in jjb_admins if a not in github_usernames]
     for a in unknown_admins:
-        logging.warning("admin is missing from users: {}".format(a))
+        logging.warning(f"admin is missing from users: {a}")
     if missing_repos:
         sys.exit(1)
 

@@ -72,7 +72,7 @@ class RawGithubApi:
         return result
 
     def org_invitations(self, org):
-        invitations = self.query("/orgs/{}/invitations".format(org))
+        invitations = self.query(f"/orgs/{org}/invitations")
 
         return [
             login
@@ -82,7 +82,7 @@ class RawGithubApi:
 
     def team_invitations(self, org_id, team_id):
         invitations = self.query(
-            "/organizations/{}/team/{}/invitations".format(org_id, team_id)
+            f"/organizations/{org_id}/team/{team_id}/invitations"
         )
 
         return [
@@ -95,6 +95,6 @@ class RawGithubApi:
         return self.query("/user/repository_invitations")
 
     def accept_repo_invitation(self, invitation_id):
-        url = self.BASE_URL + "/user/repository_invitations/{}".format(invitation_id)
+        url = self.BASE_URL + f"/user/repository_invitations/{invitation_id}"
         res = self.patch(url)
         res.raise_for_status()

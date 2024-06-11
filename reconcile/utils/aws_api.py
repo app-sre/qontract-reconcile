@@ -491,7 +491,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def resource_has_special_name(account, type, resource):
-        skip_msg = "[{}] skipping {} ".format(account, type) + "({} related) {}"
+        skip_msg = f"[{account}] skipping {type} " + "({} related) {}"
 
         ignore_names = {
             "production": ["prod"],
@@ -508,7 +508,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return False
 
     def resource_has_special_tags(self, account, type, resource, tags):
-        skip_msg = "[{}] skipping {} ".format(account, type) + "({}={}) {}"
+        skip_msg = f"[{account}] skipping {type} " + "({}={}) {}"
 
         ignore_tags = {
             "ENV": ["prod", "stage", "staging"],
@@ -614,9 +614,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         if managed_by_integration_tag[0] == "terraform_resources":
             return "service_account"
 
-        huh = "unrecognized managed_by_integration tag: {}".format(
-            managed_by_integration_tag[0]
-        )
+        huh = f"unrecognized managed_by_integration tag: {managed_by_integration_tag[0]}"
         raise InvalidResourceTypeError(huh)
 
     def delete_keys(
@@ -821,7 +819,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         ok = all(elem in account.keys() for elem in required_keys)
         if not ok:
             account_name = account.get("name")
-            raise KeyError("[{}] account is missing required keys".format(account_name))
+            raise KeyError(f"[{account_name}] account is missing required keys")
         return (account["name"], account.get("assume_role"), account["assume_region"])
 
     @staticmethod

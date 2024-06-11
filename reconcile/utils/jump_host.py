@@ -102,7 +102,7 @@ class JumpHostSSH(JumpHostBase):
         self.known_hosts_file = known_hosts_file
 
     def get_ssh_base_cmd(self) -> list[str]:
-        user_host = "{}@{}".format(self._user, self._hostname)
+        user_host = f"{self._user}@{self._hostname}"
 
         return [
             "ssh",
@@ -115,7 +115,7 @@ class JumpHostSSH(JumpHostBase):
             "-o",
             "StrictHostKeyChecking=yes",
             "-o",
-            "UserKnownHostsFile={}".format(self.known_hosts_file),
+            f"UserKnownHostsFile={self.known_hosts_file}",
             "-i",
             self._identity_file,
             "-p",

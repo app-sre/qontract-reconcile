@@ -34,8 +34,8 @@ def format_message(server, key, data, event, previous_state=None, current_state=
         if previous_state and current_state
         else ""
     )
-    url = "{}/browse/{}".format(server, key)
-    return "{} ({}) {}{}".format(url, summary, event, info)
+    url = f"{server}/browse/{key}"
+    return f"{url} ({summary}) {event}{info}"
 
 
 def calculate_diff(server, current_state, previous_state):

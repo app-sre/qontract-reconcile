@@ -63,7 +63,7 @@ class JJB:  # pylint: disable=too-many-public-methods
                 ini = self.secret_reader.read(token)
                 ini = ini.replace('"', "")
                 ini = ini.replace("false", "False")
-            ini_file_path = "{}/{}.ini".format(wd, name)
+            ini_file_path = f"{wd}/{name}.ini"
             with open(ini_file_path, "w", encoding="locale") as f:
                 f.write(ini)
                 f.write("\n")
@@ -75,7 +75,7 @@ class JJB:  # pylint: disable=too-many-public-methods
         for c in configs:
             instance_name = c["instance"]["name"]
             config = c["config"]
-            config_file_path = "{}/config.yaml".format(working_dirs[instance_name])
+            config_file_path = f"{working_dirs[instance_name]}/config.yaml"
             if config:
                 content = yaml.load(config, Loader=yaml.FullLoader)
                 if c["type"] == "jobs":
@@ -99,7 +99,7 @@ class JJB:  # pylint: disable=too-many-public-methods
         config files in the working directories with
         the supplied configs"""
         for name, wd in self.working_dirs.items():
-            config_path = "{}/config.yaml".format(wd)
+            config_path = f"{wd}/config.yaml"
             with open(config_path, "w", encoding="locale") as f:
                 f.write(configs[name])
 
@@ -135,7 +135,7 @@ class JJB:  # pylint: disable=too-many-public-methods
         working directories"""
         configs = {}
         for name, wd in self.working_dirs.items():
-            config_path = "{}/config.yaml".format(wd)
+            config_path = f"{wd}/config.yaml"
             with open(config_path, encoding="locale") as f:
                 configs[name] = f.read()
 
@@ -149,8 +149,8 @@ class JJB:  # pylint: disable=too-many-public-methods
         :param fetch_state: subdirectory to use ('desired' or 'current')
         """
         for name, wd in self.working_dirs.items():
-            ini_path = "{}/{}.ini".format(wd, name)
-            config_path = "{}/config.yaml".format(wd)
+            ini_path = f"{wd}/{name}.ini"
+            config_path = f"{wd}/config.yaml"
 
             output_dir = path.join(io_dir, "jjb", fetch_state, name)
             args = [
@@ -227,8 +227,8 @@ class JJB:  # pylint: disable=too-many-public-methods
 
     def update(self) -> None:
         for name, wd in self.working_dirs.items():
-            ini_path = "{}/{}.ini".format(wd, name)
-            config_path = "{}/config.yaml".format(wd)
+            ini_path = f"{wd}/{name}.ini"
+            config_path = f"{wd}/config.yaml"
 
             os.environ["PYTHONHTTPSVERIFY"] = self.python_https_verify
             cmd = ["jenkins-jobs", "--conf", ini_path, "update", config_path]
@@ -268,8 +268,8 @@ class JJB:  # pylint: disable=too-many-public-methods
 
     @retry(exceptions=(JenkinsJobsException))
     def get_jobs(self, wd, name):
-        ini_path = "{}/{}.ini".format(wd, name)
-        config_path = "{}/config.yaml".format(wd)
+        ini_path = f"{wd}/{name}.ini"
+        config_path = f"{wd}/config.yaml"
 
         args = ["--conf", ini_path, "test", config_path]
         jjb = self.get_jjb(args)
@@ -321,7 +321,7 @@ class JJB:  # pylint: disable=too-many-public-methods
                 try:
                     repos.add(self.get_repo_url(job))
                 except KeyError:
-                    logging.debug("missing github url: {}".format(job_name))
+                    logging.debug(f"missing github url: {job_name}")
         return repos
 
     def get_admins(self):

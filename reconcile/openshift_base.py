@@ -885,7 +885,7 @@ def delete_action(
         )
     except StatusCodeError as e:
         ri.register_error()
-        msg = "[{}/{}] {}".format(cluster, namespace, str(e))
+        msg = f"[{cluster}/{namespace}] {str(e)}"
         logging.error(msg)
 
 
@@ -930,7 +930,7 @@ def _realize_resource_data_3way_diff(
     actions: list[dict] = []
 
     if ri.has_error_registered(cluster=cluster):
-        msg = ("[{}] skipping realize_data for " "cluster with errors").format(cluster)
+        msg = (f"[{cluster}] skipping realize_data for " "cluster with errors")
         logging.error(msg)
         return actions
 

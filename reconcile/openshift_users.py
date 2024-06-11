@@ -163,7 +163,7 @@ def act(diff: Mapping[str, Any], oc_map: OCMap) -> None:
             raise Exception("No proper Openshift Client for del_user operation")
         oc.delete_user(user)
     else:
-        raise Exception("invalid action: {}".format(action))
+        raise Exception(f"invalid action: {action}")
 
 
 @defer

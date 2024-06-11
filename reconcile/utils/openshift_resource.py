@@ -247,9 +247,7 @@ class OpenshiftResource:
             self.name  # pylint: disable=pointless-statement
             self.kind  # pylint: disable=pointless-statement
         except (KeyError, TypeError) as e:
-            msg = "resource invalid data ({}). details: {}".format(
-                e.__class__.__name__, self.error_details
-            )
+            msg = f"resource invalid data ({e.__class__.__name__}). details: {self.error_details}"
             raise ConstructResourceError(msg)
 
         if self.kind not in {

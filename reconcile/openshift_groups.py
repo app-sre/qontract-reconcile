@@ -53,9 +53,7 @@ def get_cluster_state(
     try:
         group = oc.get_group_if_exists(group_name)
     except Exception as e:
-        msg = ("could not get group state for cluster/group combination: {}/{}").format(
-            cluster, group_name
-        )
+        msg = (f"could not get group state for cluster/group combination: {cluster}/{group_name}")
         logging.error(msg)
         raise e
     if group is None:
@@ -257,7 +255,7 @@ def act(diff: Mapping[str, str | None], oc_map: ClusterMap) -> None:
     elif action == "delete_group":
         logging.debug("skipping group deletion")
     else:
-        raise Exception("invalid action: {}".format(action))
+        raise Exception(f"invalid action: {action}")
 
 
 @defer

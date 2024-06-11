@@ -135,7 +135,7 @@ class JiraClient:
         block_num = 0
 
         all_issues: list[Issue] = []
-        jql = "project={}".format(self.project)
+        jql = f"project={self.project}"
         kwargs: dict[str, Any] = {}
         if fields:
             kwargs["fields"] = ",".join(fields)

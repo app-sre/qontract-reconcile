@@ -15,7 +15,7 @@ def state_rm_access_key(working_dirs, account, user):
     init_result = subprocess.run(["terraform", "init"], check=False, cwd=wd)
     if init_result.returncode != 0:
         return False
-    resource = "aws_iam_access_key.{}".format(user)
+    resource = f"aws_iam_access_key.{user}"
     result = subprocess.run(["terraform", "state", "rm", resource], check=False, cwd=wd)
     return result.returncode == 0
 

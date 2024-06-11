@@ -438,9 +438,7 @@ def run(dry_run):
 
     assert (
         current_orgs == desired_orgs
-    ), "Current orgs ({}) don't match desired orgs ({})".format(
-        current_orgs, desired_orgs
-    )
+    ), f"Current orgs ({current_orgs}) don't match desired orgs ({desired_orgs})"
 
     # Calculate diff
     diff = current_state.diff(desired_state)

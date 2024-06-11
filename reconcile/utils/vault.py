@@ -306,7 +306,7 @@ class _VaultClient:
         try:
             secret_field = data[field]
         except KeyError:
-            raise SecretFieldNotFound("{}/{}".format(path, field))
+            raise SecretFieldNotFound(f"{path}/{field}")
         return secret_field
 
     @retry()

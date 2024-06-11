@@ -472,12 +472,8 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         if output is None:
             return data
 
-        enc_pass_pfx = "{}_{}".format(
-            self.integration_prefix, self.OUTPUT_TYPE_PASSWORDS
-        )
-        console_urls_pfx = "{}_{}".format(
-            self.integration_prefix, self.OUTPUT_TYPE_CONSOLEURLS
-        )
+        enc_pass_pfx = f"{self.integration_prefix}_{self.OUTPUT_TYPE_PASSWORDS}"
+        console_urls_pfx = f"{self.integration_prefix}_{self.OUTPUT_TYPE_CONSOLEURLS}"
         for k, v in output.items():
             # the integration creates outputs of the form
             # 0.11: output_secret_name[secret_key] = secret_value

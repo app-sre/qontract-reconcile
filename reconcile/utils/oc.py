@@ -255,7 +255,7 @@ class OCCliApiResource:
     @property
     def group_version(self):
         if self.group:
-            return "{}/{}".format(self.group, self.api_version)
+            return f"{self.group}/{self.api_version}"
         return self.api_version
 
 
@@ -479,7 +479,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
 
         if "labels" in kwargs:
             labels_list = [
-                "{}={}".format(k, v) for k, v in kwargs.get("labels").items()
+                f"{k}={v}" for k, v in kwargs.get("labels").items()
             ]
 
             cmd.append("-l")
@@ -785,7 +785,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
     def get_service_account_username(user):
         namespace = user.split("/")[0]
         name = user.split("/")[1]
-        return "system:serviceaccount:{}:{}".format(namespace, name)
+        return f"system:serviceaccount:{namespace}:{name}"
 
     def get_owned_pods(self, namespace, resource):
         pods = self.get(namespace, "Pod")["items"]
@@ -1336,7 +1336,7 @@ class OCNative(OCCli):
         labels = ""
         if "labels" in kwargs:
             labels_list = [
-                "{}={}".format(k, v) for k, v in kwargs.get("labels").items()
+                f"{k}={v}" for k, v in kwargs.get("labels").items()
             ]
 
             labels = ",".join(labels_list)
@@ -1865,7 +1865,7 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
         if len(results) == 1:
             return results[0]
         if not results:
-            raise ResourceNotFoundError("No matches found for {}".format(kwargs))
+            raise ResourceNotFoundError(f"No matches found for {kwargs}")
         raise ResourceNotUniqueError(
-            "Multiple matches found for {}: {}".format(kwargs, results)
+            f"Multiple matches found for {kwargs}: {results}"
         )

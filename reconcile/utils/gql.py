@@ -85,7 +85,7 @@ class GqlApiErrorForbiddenSchema(Exception):
 class GqlGetResourceError(Exception):
     def __init__(self, path, msg):
         super().__init__(
-            "Error getting resource from path {}: {}".format(path, str(msg))
+            f"Error getting resource from path {path}: {str(msg)}"
         )
 
 
@@ -150,9 +150,9 @@ class GqlApi:
                 gql(query), variables, get_execution_result=True
             ).formatted
         except requests.exceptions.ConnectionError as e:
-            raise GqlApiError("Could not connect to GraphQL server ({})".format(e))
+            raise GqlApiError(f"Could not connect to GraphQL server ({e})")
         except TransportQueryError as e:
-            raise GqlApiError("`error` returned with GraphQL response {}".format(e))
+            raise GqlApiError(f"`error` returned with GraphQL response {e}")
         except AssertionError:
             raise GqlApiError("`data` field missing from GraphQL response payload")
         except Exception as e:

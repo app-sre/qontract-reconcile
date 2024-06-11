@@ -434,9 +434,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 self.valid = False
                 # This should never be possible theoretically ...
                 logging.error(
-                    "Non-unique resource template reference {} in " "channel {}".format(
-                        rt_ref, channel
-                    )
+                    f"Non-unique resource template reference {rt_ref} in " f"channel {channel}"
                 )
                 continue
             publications[channel].add(rt_ref)
@@ -461,9 +459,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     self.valid = False
                     logging.error(
                         "Channel is not published by any target\n"
-                        "subscriber_saas: {}\n"
-                        "subscriber_rt: {}\n"
-                        "channel: {}".format(sub_saas, sub_rt_name, sub_channel)
+                        f"subscriber_saas: {sub_saas}\n"
+                        f"subscriber_rt: {sub_rt_name}\n"
+                        f"channel: {sub_channel}"
                     )
                 for pub_ref in pub_channel_refs:
                     (pub_saas, pub_rt_name, pub_rt_url, _) = pub_ref
@@ -472,19 +470,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         logging.error(
                             "Subscriber and Publisher targets have different "
                             "source repositories\n"
-                            "publisher_saas: {}\n"
-                            "publisher_rt: {}\n"
-                            "publisher_repo: {}\n"
-                            "subscriber_saas: {}\n"
-                            "subscriber_rt: {}\n"
-                            "subscriber_repo: {}\n".format(
-                                pub_saas,
-                                pub_rt_name,
-                                pub_rt_url,
-                                sub_saas,
-                                sub_rt_name,
-                                sub_rt_url,
-                            )
+                            f"publisher_saas: {pub_saas}\n"
+                            f"publisher_rt: {pub_rt_name}\n"
+                            f"publisher_repo: {pub_rt_url}\n"
+                            f"subscriber_saas: {sub_saas}\n"
+                            f"subscriber_rt: {sub_rt_name}\n"
+                            f"subscriber_repo: {sub_rt_url}\n"
                         )
 
     @staticmethod

@@ -47,7 +47,7 @@ class SQSGateway:
         ]
         if len(queue_account_name) != 1:
             raise SQSGatewayInitError(
-                "account uid not found: {}".format(queue_account_uid)
+                f"account uid not found: {queue_account_uid}"
             )
         return queue_account_name[0]
 

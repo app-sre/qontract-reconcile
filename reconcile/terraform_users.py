@@ -173,7 +173,7 @@ Encrypted password: {}
         if account not in skip_reencrypt_accounts:
             continue
         to = user_name
-        subject = "Invitation to join the {} AWS account".format(account)
+        subject = f"Invitation to join the {account} AWS account"
         body = msg_template.format(account, console_url, user_name, enc_password)
         mails.append((to, subject, body))
 

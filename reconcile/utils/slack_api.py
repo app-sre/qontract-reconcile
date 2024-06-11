@@ -459,7 +459,7 @@ class SlackApi:
             slack_request.labels(f"{api_key}.list", "GET").inc()
 
             result = self._sc.api_call(
-                "{}.list".format(api_key), http_verb="GET", params=additional_kwargs
+                f"{api_key}.list", http_verb="GET", params=additional_kwargs
             )
 
             for r in result[result_key]:
