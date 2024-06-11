@@ -9,8 +9,8 @@ from reconcile.utils import gql
 
 def get_app_interface_custom_message(
     desired_id: str,
-    query_func: Optional[Callable] = None,
-) -> Optional[str]:
+    query_func: Callable | None = None,
+) -> str | None:
     """Returns App Interface Custom Message by ID or None if not found"""
     if not query_func:
         query_func = gql.get_api().query

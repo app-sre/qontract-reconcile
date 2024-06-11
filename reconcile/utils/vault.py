@@ -60,11 +60,11 @@ class _VaultClient:
 
     def __init__(
         self,
-        server: Optional[str] = None,
-        role_id: Optional[str] = None,
-        secret_id: Optional[str] = None,
-        kube_auth_role: Optional[str] = None,
-        kube_auth_mount: Optional[str] = None,
+        server: str | None = None,
+        role_id: str | None = None,
+        secret_id: str | None = None,
+        kube_auth_role: str | None = None,
+        kube_auth_mount: str | None = None,
         auto_refresh: bool = True,
     ):
         config = get_config()
@@ -164,7 +164,7 @@ class _VaultClient:
             self._client.auth_approle(self.role_id, self.secret_id)
 
     @retry()
-    def read_all_with_version(self, secret: Mapping) -> tuple[Mapping, Optional[str]]:
+    def read_all_with_version(self, secret: Mapping) -> tuple[Mapping, str | None]:
         """Returns a dictionary of keys and values in a Vault secret and the
         version of the secret, for V1 secrets, version will be None.
 
@@ -216,8 +216,8 @@ class _VaultClient:
         return version
 
     def __read_all_v2(
-        self, path: str, version: Optional[str]
-    ) -> tuple[dict, Optional[str]]:
+        self, path: str, version: str | None
+    ) -> tuple[dict, str | None]:
         path_split = path.split("/")
         mount_point = path_split[0]
         read_path = "/".join(path_split[1:])

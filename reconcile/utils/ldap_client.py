@@ -66,7 +66,7 @@ class LdapClient:
 
     @classmethod
     def from_params(
-        cls, server_url: str, user: Optional[str], password: Optional[str], base_dn: str
+        cls, server_url: str, user: str | None, password: str | None, base_dn: str
     ) -> "LdapClient":
         connection = Connection(
             Server(server_url, get_info=ALL),

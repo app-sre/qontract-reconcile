@@ -20,7 +20,7 @@ GENERATE_TYPE = ["jobs", "views"]
 
 
 def collect_configs(
-    instance_name: Optional[str], config_name: Optional[str]
+    instance_name: str | None, config_name: str | None
 ) -> list[dict[str, Any]]:
     configs = queries.get_jenkins_configs()
     if instance_name is not None:
@@ -41,8 +41,8 @@ def collect_configs(
 
 def init_jjb(
     secret_reader: SecretReaderBase,
-    instance_name: Optional[str] = None,
-    config_name: Optional[str] = None,
+    instance_name: str | None = None,
+    config_name: str | None = None,
     print_only: bool = False,
 ) -> JJB:
     configs = collect_configs(instance_name, config_name)
@@ -76,10 +76,10 @@ def run(
     dry_run: bool,
     io_dir: str = "throughput/",
     print_only: bool = False,
-    config_name: Optional[str] = None,
-    job_name: Optional[str] = None,
-    instance_name: Optional[str] = None,
-    defer: Optional[Callable] = None,
+    config_name: str | None = None,
+    job_name: str | None = None,
+    instance_name: str | None = None,
+    defer: Callable | None = None,
 ) -> None:
     if not print_only and config_name is not None:
         raise Exception("--config-name must works with --print-only mode")

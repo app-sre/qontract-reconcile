@@ -54,7 +54,7 @@ class SmtpClient:
         self.passwd = server.password
         self.mail_address = mail_address
         self.timeout = timeout
-        self._client: Optional[smtplib.SMTP] = None
+        self._client: smtplib.SMTP | None = None
 
     @property
     def client(self) -> smtplib.SMTP:

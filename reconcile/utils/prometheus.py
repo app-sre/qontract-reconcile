@@ -41,7 +41,7 @@ class PrometheusVector(BaseModel):
     def mandatory_label(self, label_name: str) -> str:
         return self.metric[label_name]
 
-    def label(self, label_name: str, default: Optional[str] = None) -> Optional[str]:
+    def label(self, label_name: str, default: str | None = None) -> str | None:
         return self.metric.get(label_name, default)
 
 

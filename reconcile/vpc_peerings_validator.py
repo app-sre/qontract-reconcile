@@ -107,10 +107,7 @@ def validate_no_internal_to_public_peerings(
             }:
                 continue
             connection = cast(
-                Union[
-                    ClusterPeeringConnectionClusterAccepterV1,
-                    ClusterPeeringConnectionClusterRequesterV1,
-                ],
+                ClusterPeeringConnectionClusterAccepterV1 | ClusterPeeringConnectionClusterRequesterV1,
                 connection,
             )
             peer = connection.cluster
@@ -150,10 +147,7 @@ def validate_no_public_to_public_peerings(
             }:
                 continue
             connection = cast(
-                Union[
-                    ClusterPeeringConnectionClusterAccepterV1,
-                    ClusterPeeringConnectionClusterRequesterV1,
-                ],
+                ClusterPeeringConnectionClusterAccepterV1 | ClusterPeeringConnectionClusterRequesterV1,
                 connection,
             )
             peer = connection.cluster

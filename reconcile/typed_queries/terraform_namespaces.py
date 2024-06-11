@@ -8,7 +8,7 @@ from reconcile.gql_definitions.terraform_resources.terraform_resources_namespace
 from reconcile.utils import gql
 
 
-def get_namespaces(query_func: Optional[Callable] = None) -> list[NamespaceV1]:
+def get_namespaces(query_func: Callable | None = None) -> list[NamespaceV1]:
     if not query_func:
         query_func = gql.get_api().query
     data = query(query_func=query_func)

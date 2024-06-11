@@ -33,7 +33,7 @@ class GithubRepositoryApi:
         repo_url: str,
         token: str,
         timeout: int = 30,
-        github: Optional[Github] = None,
+        github: Github | None = None,
     ):
         parsed_repo_url = urlparse(repo_url)
         repo = parsed_repo_url.path.strip("/")
@@ -48,9 +48,9 @@ class GithubRepositoryApi:
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         self.cleanup()
 
@@ -67,7 +67,7 @@ class GithubRepositoryApi:
         return tree_items
 
     @retry()
-    def get_file(self, path: str, ref: str = "master") -> Optional[bytes]:
+    def get_file(self, path: str, ref: str = "master") -> bytes | None:
         try:
             content = self._repo.get_contents(path=path, ref=ref)
             if isinstance(content, list):

@@ -125,7 +125,7 @@ class MockApproverResolver:
     def __init__(self, approvers: dict[str, Approver]):
         self.approvers = approvers
 
-    def lookup_approver_by_path(self, path: str) -> Optional[Approver]:
+    def lookup_approver_by_path(self, path: str) -> Approver | None:
         return self.approvers.get(path)
 
 

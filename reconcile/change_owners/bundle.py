@@ -33,7 +33,7 @@ class FileRef:
 
     file_type: BundleFileType
     path: str
-    schema: Optional[str]
+    schema: str | None
 
     def __str__(self) -> str:
         return f"{self.file_type.value}:{self.path}"
@@ -63,35 +63,35 @@ class QontractServerDatafileDiff(BaseModel):
 
     datafilepath: str
     datafileschema: str
-    old: Optional[dict[str, Any]]
-    new: Optional[dict[str, Any]]
+    old: dict[str, Any] | None
+    new: dict[str, Any] | None
 
     @property
-    def old_datafilepath(self) -> Optional[str]:
+    def old_datafilepath(self) -> str | None:
         return self.old.get(DATAFILE_PATH_FIELD_NAME) if self.old else None
 
     @property
-    def new_datafilepath(self) -> Optional[str]:
+    def new_datafilepath(self) -> str | None:
         return self.new.get(DATAFILE_PATH_FIELD_NAME) if self.new else None
 
     @property
-    def old_data_sha(self) -> Optional[str]:
+    def old_data_sha(self) -> str | None:
         return self.old.get(DATAFILE_SHA256SUM_FIELD_NAME) if self.old else None
 
     @property
-    def new_data_sha(self) -> Optional[str]:
+    def new_data_sha(self) -> str | None:
         return self.new.get(DATAFILE_SHA256SUM_FIELD_NAME) if self.new else None
 
     @property
-    def cleaned_old_data(self) -> Optional[dict[str, Any]]:
+    def cleaned_old_data(self) -> dict[str, Any] | None:
         return _clean_datafile_content(self.old)
 
     @property
-    def cleaned_new_data(self) -> Optional[dict[str, Any]]:
+    def cleaned_new_data(self) -> dict[str, Any] | None:
         return _clean_datafile_content(self.new)
 
 
-def _clean_datafile_content(data: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+def _clean_datafile_content(data: dict[str, Any] | None) -> dict[str, Any] | None:
     """
     Sadly, datafiles mix and match data and metadata in the same file. This
     function removes some metadata that is otherwise annoying to deal with.
@@ -117,9 +117,9 @@ class QontractServerResourcefileDiffState(BaseModel):
 
     path: str
     content: str
-    resourcefileschema: Optional[str] = Field(..., alias="$schema")
+    resourcefileschema: str | None = Field(..., alias="$schema")
     sha256sum: str
-    backrefs: Optional[list[QontractServerResourcefileBackref]]
+    backrefs: list[QontractServerResourcefileBackref] | None
 
 
 class QontractServerResourcefileDiff(BaseModel):
@@ -128,11 +128,11 @@ class QontractServerResourcefileDiff(BaseModel):
     """
 
     resourcepath: str
-    old: Optional[QontractServerResourcefileDiffState] = None
-    new: Optional[QontractServerResourcefileDiffState] = None
+    old: QontractServerResourcefileDiffState | None = None
+    new: QontractServerResourcefileDiffState | None = None
 
     @property
-    def resourcefileschema(self) -> Optional[str]:
+    def resourcefileschema(self) -> str | None:
         old_schema = self.old.resourcefileschema if self.old else None
         new_schema = self.new.resourcefileschema if self.new else None
         return new_schema or old_schema
@@ -160,7 +160,7 @@ class FileDiffResolver(Protocol):
     @abstractmethod
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]: ...
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]: ...
 
 
 @dataclass
@@ -174,7 +174,7 @@ class QontractServerFileDiffResolver:
 
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
         data = get_diff(
             old_sha=self.comparison_sha,
             file_type=file_ref.file_type.value,
@@ -191,7 +191,7 @@ class NoOpFileDiffResolver:
 
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
         raise Exception(
             "NoOpFileDiffResolver is not supposed to be used in "
             "runtime contexts where lookups are needed"

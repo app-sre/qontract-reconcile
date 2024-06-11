@@ -41,15 +41,15 @@ class OCMap:
         self,
         connection_parameters: Iterable[OCConnectionParameters],
         integration: str = "",
-        internal: Optional[bool] = None,
+        internal: bool | None = None,
         use_jump_host: bool = True,
         thread_pool_size: int = 1,
         init_projects: bool = False,
         init_api_resources: bool = False,
-        oc_cls: Optional[type[OC]] = None,
+        oc_cls: type[OC] | None = None,
     ):
-        self._oc_map: dict[str, Union[OCCli, OCLogMsg]] = {}
-        self._privileged_oc_map: dict[str, Union[OCCli, OCLogMsg]] = {}
+        self._oc_map: dict[str, OCCli | OCLogMsg] = {}
+        self._privileged_oc_map: dict[str, OCCli | OCLogMsg] = {}
         self._calling_integration = integration
         self._internal = internal
         self._use_jump_host = use_jump_host
@@ -126,7 +126,7 @@ class OCMap:
                     connection_parameters=connection_parameters
                 )
             try:
-                oc_client: Union[OCCli, OCLogMsg] = self._oc_cls(
+                oc_client: OCCli | OCLogMsg = self._oc_cls(
                     connection_parameters=connection_parameters,
                     init_projects=self._init_projects,
                     init_api_resources=self._init_api_resources,
@@ -143,7 +143,7 @@ class OCMap:
                 )
 
     def _set_oc(
-        self, cluster: str, value: Union[OCCli, OCLogMsg], privileged: bool
+        self, cluster: str, value: OCCli | OCLogMsg, privileged: bool
     ) -> None:
         with self._lock:
             if privileged:
@@ -160,7 +160,7 @@ class OCMap:
             pass
         return False
 
-    def get(self, cluster: str, privileged: bool = False) -> Union[OCCli, OCLogMsg]:
+    def get(self, cluster: str, privileged: bool = False) -> OCCli | OCLogMsg:
         cluster_map = self._privileged_oc_map if privileged else self._oc_map
         return cluster_map.get(
             cluster,
@@ -200,7 +200,7 @@ def init_oc_map_from_clusters(
     clusters: Iterable[Cluster],
     secret_reader: SecretReaderBase,
     integration: str = "",
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
     thread_pool_size: int = 1,
     init_projects: bool = False,
@@ -231,7 +231,7 @@ def init_oc_map_from_namespaces(
     namespaces: Iterable[Namespace],
     secret_reader: SecretReaderBase,
     integration: str = "",
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
     thread_pool_size: int = 1,
     init_projects: bool = False,

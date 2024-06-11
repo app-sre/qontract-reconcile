@@ -17,7 +17,7 @@ from reconcile.cna.state import (
 )
 
 
-def null_asset(name: str, addr_block: Optional[str] = None) -> NullAsset:
+def null_asset(name: str, addr_block: str | None = None) -> NullAsset:
     return NullAsset(
         uuid=None,
         href=None,

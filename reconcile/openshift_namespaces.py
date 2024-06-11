@@ -145,11 +145,11 @@ def check_results(
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    cluster_name: Optional[Sequence[str]] = None,
-    namespace_name: Optional[Sequence[str]] = None,
-    defer: Optional[Callable] = None,
+    cluster_name: Sequence[str] | None = None,
+    namespace_name: Sequence[str] | None = None,
+    defer: Callable | None = None,
 ) -> None:
     all_namespaces = get_namespaces_minimal()
     shard_namespaces, duplicates = get_shard_namespaces(all_namespaces)

@@ -22,7 +22,7 @@ QONTRACT_INTEGRATION = "template-validator"
 
 
 def get_templates(
-    query_func: Optional[Callable] = None,
+    query_func: Callable | None = None,
 ) -> list[TemplateV1]:
     if not query_func:
         query_func = gql.get_api().query
@@ -41,7 +41,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         template: TemplateV1,
         template_test: TemplateTestV1,
         ruaml_instance: yaml.YAML,
-        secret_reader: Optional[SecretReaderBase] = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> Renderer:
         return create_renderer(
             template,
@@ -57,7 +57,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         template: TemplateV1,
         template_test: TemplateTestV1,
         ruaml_instance: yaml.YAML,
-        secret_reader: Optional[SecretReaderBase] = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> list[TemplateDiff]:
         diffs: list[TemplateDiff] = []
 

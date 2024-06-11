@@ -203,7 +203,7 @@ def get_gitlab_instance(query_func: Callable) -> GitlabInstanceV1:
 @defer
 def run(
     dry_run: bool,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> None:
     gqlapi = gql.get_api()
     # queries

@@ -9,7 +9,7 @@ from reconcile.utils import gql
 
 
 def get_pagerduty_instances(
-    query_func: Optional[Callable],
+    query_func: Callable | None,
 ) -> list[PagerDutyInstanceV1]:
     """Return all pagerduty instances from app-interface."""
     if not query_func:

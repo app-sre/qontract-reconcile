@@ -11,7 +11,7 @@ class Scope(BaseModel):
     """
 
     cluster: str
-    namespace: Optional[str]
+    namespace: str | None
 
 
 class PolicyCondition(BaseModel):
@@ -23,7 +23,7 @@ class PolicyCondition(BaseModel):
     """
 
     field_name: str
-    negate: Optional[bool]
+    negate: bool | None
     values: list[str]
 
 

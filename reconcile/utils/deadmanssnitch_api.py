@@ -27,7 +27,7 @@ class Snitch(BaseModel):
     interval: str
     alert_type: str
     alert_email: list[str]
-    vault_data: Optional[str]
+    vault_data: str | None
 
     def needs_vault_update(self) -> bool:
         return self.vault_data is not None and self.check_in_url != self.vault_data

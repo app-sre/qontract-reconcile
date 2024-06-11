@@ -17,7 +17,7 @@ from functools import wraps
 from io import TextIOWrapper
 from subprocess import Popen
 from threading import Lock
-from typing import Any, Optional, Union
+from typing import Any
 
 import urllib3
 from kubernetes.client import (  # type: ignore[attr-defined]
@@ -211,7 +211,7 @@ class OCProcessReconcileTimeDecoratorMsg:
         self,
         namespace: str,
         resource: OR,
-        server: Optional[str],
+        server: str | None,
         slow_oc_reconcile_threshold: float,
         is_log_slow_oc_reconcile: bool,
     ):
@@ -262,16 +262,16 @@ class OCCliApiResource:
 class OCCli:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
-        cluster_name: Optional[str],
-        server: Optional[str],
-        token: Optional[str],
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        cluster_name: str | None,
+        server: str | None,
+        token: str | None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
-        connection_parameters: Optional[OCConnectionParameters] = None,
+        connection_parameters: OCConnectionParameters | None = None,
     ):
         """
         As of now we have to conform with 2 ways to initialize this client:
@@ -310,10 +310,10 @@ class OCCli:  # pylint: disable=too-many-public-methods
     def _init_old_without_types(
         self,
         cluster_name: str,
-        server: Optional[str],
-        token: Optional[str],
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        server: str | None,
+        token: str | None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
@@ -1222,15 +1222,15 @@ REQUEST_TIMEOUT = 60
 class OCNative(OCCli):
     def __init__(
         self,
-        cluster_name: Optional[str],
-        server: Optional[str],
-        token: Optional[str],
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        cluster_name: str | None,
+        server: str | None,
+        token: str | None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
-        connection_parameters: Optional[OCConnectionParameters] = None,
+        connection_parameters: OCConnectionParameters | None = None,
     ):
         super().__init__(
             cluster_name,
@@ -1395,7 +1395,7 @@ class OCNative(OCCli):
             raise StatusCodeError(f"[{self.server}]: {e}")
 
 
-OCClient = Union[OCNative, OCCli]
+OCClient = OCNative | OCCli
 
 
 class OCLocal(OCCli):
@@ -1423,16 +1423,16 @@ class OC:
 
     def __new__(
         cls,
-        cluster_name: Optional[str] = None,
-        server: Optional[str] = None,
-        token: Optional[str] = None,
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        cluster_name: str | None = None,
+        server: str | None = None,
+        token: str | None = None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
-        connection_parameters: Optional[OCConnectionParameters] = None,
+        connection_parameters: OCConnectionParameters | None = None,
     ):
         use_native_env = os.environ.get("USE_NATIVE_CLIENT", "")
         use_native = True

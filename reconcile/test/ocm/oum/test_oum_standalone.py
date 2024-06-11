@@ -30,8 +30,8 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 
 def build_provider_authz_labels(
     provider: str,
-    dedicated_admins_groups: Optional[set[str]] = None,
-    cluster_admins_groups: Optional[set[str]] = None,
+    dedicated_admins_groups: set[str] | None = None,
+    cluster_admins_groups: set[str] | None = None,
 ) -> LabelContainer:
     labels = []
     if dedicated_admins_groups:
@@ -52,8 +52,8 @@ def build_provider_authz_labels(
 
 
 def build_authz_labels(
-    dedicated_admins_groups: Optional[set[str]] = None,
-    cluster_admins_groups: Optional[set[str]] = None,
+    dedicated_admins_groups: set[str] | None = None,
+    cluster_admins_groups: set[str] | None = None,
 ) -> LabelContainer:
     provider = "provider"
     label_container = build_provider_authz_labels(
@@ -184,7 +184,7 @@ def test_build_user_management_configurations_no_authz_labels() -> None:
     ],
 )
 def test_discover_clusters(
-    org_id_filter: Optional[set[str]],
+    org_id_filter: set[str] | None,
     expected_cluster_names: dict[str, set[str]],
     ocm_api: OCMBaseClient,
     mocker: MockerFixture,

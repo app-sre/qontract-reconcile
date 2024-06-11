@@ -223,7 +223,7 @@ class FilesystemFileDiffResolver:
 
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
         file = self.app_interface_repo.bundle_file_for_path(
             file_type=file_ref.file_type, path=file_ref.path
         )
@@ -232,7 +232,7 @@ class FilesystemFileDiffResolver:
 
 def get_changetype_processor_by_name(
     change_type_name: str, app_interface_repo: AppInterfaceRepo
-) -> Optional[ChangeTypeProcessor]:
+) -> ChangeTypeProcessor | None:
     processors = fetch_change_type_processors(
         gql.get_api(), FilesystemFileDiffResolver(app_interface_repo)
     )
@@ -241,7 +241,7 @@ def get_changetype_processor_by_name(
 
 def get_self_service_role_by_name(
     role_name: str,
-) -> Optional[RoleV1]:
+) -> RoleV1 | None:
     result = self_service_roles.query(
         gql.get_api().query, variables={"name": role_name}
     ).roles

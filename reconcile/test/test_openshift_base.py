@@ -754,7 +754,7 @@ def build_openshift_resource(
     kind: str,
     api_version: str,
     name: str,
-    extra_body: Optional[dict[str, Any]],
+    extra_body: dict[str, Any] | None,
     integration: str = "",
     integration_version: str = "",
     error_details: str = "",

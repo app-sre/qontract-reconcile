@@ -58,8 +58,8 @@ class Test(BaseModel):
     rule_path: str
     rule: dict
     rule_length: int
-    tests: Optional[list[TestContent]]
-    result: Optional[CommandExecutionResult] = None
+    tests: list[TestContent] | None
+    result: CommandExecutionResult | None = None
 
 
 class RuleToFetch(BaseModel):
@@ -122,7 +122,7 @@ def fetch_rule_and_tests(
 def get_rules_and_tests(
     vault_settings: AppInterfaceSettingsV1,
     thread_pool_size: int,
-    cluster_names: Optional[Iterable[str]] = None,
+    cluster_names: Iterable[str] | None = None,
 ) -> list[Test]:
     """Iterates through all namespaces and returns a list of tests to run"""
     namespace_with_prom_rules, _ = orb.get_namespaces(
@@ -225,7 +225,7 @@ def check_rules_and_tests(
     vault_settings: AppInterfaceSettingsV1,
     alerting_services: Iterable[str],
     thread_pool_size: int,
-    cluster_names: Optional[Iterable[str]] = None,
+    cluster_names: Iterable[str] | None = None,
 ) -> list[Test]:
     """Fetch rules and associated tests, run checks on rules and tests if they exist
     and return a list of failed checks/tests"""
@@ -247,7 +247,7 @@ def check_rules_and_tests(
 
 
 def run(
-    dry_run: bool, thread_pool_size: int, cluster_names: Optional[Iterable[str]] = None
+    dry_run: bool, thread_pool_size: int, cluster_names: Iterable[str] | None = None
 ) -> None:
     """Check prometheus rules syntax and run the tests associated to them"""
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION

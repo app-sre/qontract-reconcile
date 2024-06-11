@@ -22,11 +22,11 @@ class SSHHostKeyVerificationStrategy(Enum):
 
 class SSHConnector(BaseModel):
     credentials_id: str = Field(..., alias="credentialsId")
-    launch_timeout_seconds: Optional[int] = Field(None, alias="launchTimeoutSeconds")
-    max_num_retries: Optional[int] = Field(None, alias="maxNumRetries")
-    retry_wait_time: Optional[int] = Field(None, alias="retryWaitTime")
-    port: Optional[int] = 22
-    jvm_options: Optional[str] = Field(None, alias="jvmOptions")
+    launch_timeout_seconds: int | None = Field(None, alias="launchTimeoutSeconds")
+    max_num_retries: int | None = Field(None, alias="maxNumRetries")
+    retry_wait_time: int | None = Field(None, alias="retryWaitTime")
+    port: int | None = 22
+    jvm_options: str | None = Field(None, alias="jvmOptions")
     ssh_host_key_verification_strategy: SSHHostKeyVerificationStrategy = Field(
         SSHHostKeyVerificationStrategy.NON_VERIFYING_KEY_VERIFICATION_STRATEGY,
         alias="sshHostKeyVerificationStrategy",

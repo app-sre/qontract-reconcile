@@ -162,7 +162,7 @@ spec:
 
 def get_tf_resource_info(
     terrascript: Terrascript, namespace: Mapping[str, Any], identifier: str
-) -> Union[dict[str, str], None]:
+) -> dict[str, str] | None:
     """
     Extracting the external resources information from the namespace
     for a given identifier
@@ -191,7 +191,7 @@ def get_tf_resource_info(
 
 
 def collect_queries(
-    settings: dict[str, Any], smtp_client: SmtpClient, query_name: Optional[str] = None
+    settings: dict[str, Any], smtp_client: SmtpClient, query_name: str | None = None
 ) -> list[dict[str, Any]]:
     """
     Consults the app-interface and constructs the list of queries
@@ -835,7 +835,7 @@ def _process_new_query(
 def run(
     dry_run: bool,
     enable_deletion: bool = False,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> None:
     settings = queries.get_app_interface_settings()
     state = init_state(integration=QONTRACT_INTEGRATION)

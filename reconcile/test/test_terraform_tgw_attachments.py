@@ -162,10 +162,10 @@ def peering_connection_builder(
         name: str,
         provider: str,
         manage_routes: bool = False,
-        account: Optional[ClusterPeeringConnectionAccountTGWV1_AWSAccountV1] = None,
-        assume_role: Optional[str] = None,
-        cidr_block: Optional[str] = None,
-        delete: Optional[bool] = None,
+        account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1 | None = None,
+        assume_role: str | None = None,
+        cidr_block: str | None = None,
+        delete: bool | None = None,
     ) -> ClusterPeeringConnectionAccountTGWV1:
         return gql_class_factory(
             ClusterPeeringConnectionAccountTGWV1,
@@ -260,13 +260,7 @@ def peering_builder(
 ) -> Callable[..., ClusterPeeringV1]:
     def builder(
         connections: list[
-            Union[
-                ClusterPeeringConnectionAccountTGWV1,
-                ClusterPeeringConnectionAccountV1,
-                ClusterPeeringConnectionAccountVPCMeshV1,
-                ClusterPeeringConnectionClusterRequesterV1,
-                ClusterPeeringConnectionV1,
-            ]
+            ClusterPeeringConnectionAccountTGWV1 | ClusterPeeringConnectionAccountV1 | ClusterPeeringConnectionAccountVPCMeshV1 | ClusterPeeringConnectionClusterRequesterV1 | ClusterPeeringConnectionV1
         ],
     ) -> ClusterPeeringV1:
         return gql_class_factory(
@@ -504,11 +498,11 @@ def build_expected_desired_state_item(
 def _setup_mocks(
     mocker: MockerFixture,
     vault_settings: AppInterfaceSettingsV1,
-    clusters: Optional[Iterable[ClusterV1]] = None,
-    accounts: Optional[Iterable[AWSAccountV1]] = None,
-    vpc_details: Optional[Mapping] = None,
-    tgws: Optional[Iterable] = None,
-    assume_role: Optional[str] = None,
+    clusters: Iterable[ClusterV1] | None = None,
+    accounts: Iterable[AWSAccountV1] | None = None,
+    vpc_details: Mapping | None = None,
+    tgws: Iterable | None = None,
+    assume_role: str | None = None,
     feature_toggle_state: bool = True,
 ) -> dict:
     mocked_gql_api = create_autospec(GqlApi)

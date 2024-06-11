@@ -172,8 +172,8 @@ def test_custom_token_field():
 @dataclass
 class ExpectedConnection:
     cluster_name: str
-    automation_token: Optional[str]
-    cluster_admin_automation_token: Optional[str]
+    automation_token: str | None
+    cluster_admin_automation_token: str | None
     is_cluster_admin: bool
 
     def to_parameters(self) -> OCConnectionParameters:

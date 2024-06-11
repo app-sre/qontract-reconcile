@@ -9,7 +9,7 @@ from reconcile.utils.gql import GqlApi
 
 
 def get_clusters_minimal(
-    gql_api: Optional[GqlApi] = None, name: Optional[str] = None
+    gql_api: GqlApi | None = None, name: str | None = None
 ) -> list[ClusterV1]:
     variables = {}
     if name:

@@ -32,8 +32,8 @@ class Diff:
 
     path: jsonpath_ng.JSONPath
     diff_type: DiffType
-    old: Optional[Any]
-    new: Optional[Any]
+    old: Any | None
+    new: Any | None
 
     def create_subdiff(self, sub_path: jsonpath_ng.JSONPath) -> "Diff":
         if sub_path == self.path:
@@ -60,7 +60,7 @@ class Diff:
             new=sub_new[0].value if len(sub_new) > 0 else None,
         )
 
-    def get_context_data_copy(self) -> Optional[Any]:
+    def get_context_data_copy(self) -> Any | None:
         if self.diff_type in {DiffType.ADDED, DiffType.CHANGED}:
             return copy.deepcopy(self.new)
         if self.diff_type == DiffType.REMOVED:
@@ -70,13 +70,13 @@ class Diff:
     def path_str(self) -> str:
         return str(self.path)
 
-    def old_value_repr(self) -> Optional[str]:
+    def old_value_repr(self) -> str | None:
         return self._value_repr(self.old)
 
-    def new_value_repr(self) -> Optional[str]:
+    def new_value_repr(self) -> str | None:
         return self._value_repr(self.new)
 
-    def _value_repr(self, value: Optional[Any]) -> Optional[str]:
+    def _value_repr(self, value: Any | None) -> str | None:
         if value:
             if isinstance(value, (dict, list)):
                 return json.dumps(value, indent=2)
@@ -88,7 +88,7 @@ IDENTIFIER_FIELD_NAME = "__identifier"
 REF_FIELD_NAME = "$ref"
 
 
-def _extract_identifier_from_object(obj: Any) -> Optional[str]:
+def _extract_identifier_from_object(obj: Any) -> str | None:
     if isinstance(obj, dict):
         if IDENTIFIER_FIELD_NAME in obj:
             return obj.get(IDENTIFIER_FIELD_NAME)
@@ -98,7 +98,7 @@ def _extract_identifier_from_object(obj: Any) -> Optional[str]:
 
 
 def compare_object_ctx_identifier(
-    x: Any, y: Any, level: Optional[DiffLevel] = None
+    x: Any, y: Any, level: DiffLevel | None = None
 ) -> bool:
     """
     this function helps the deepdiff library to decide if two objects are
@@ -250,7 +250,7 @@ def deepdiff_path_to_jsonpath(deep_diff_path: str) -> jsonpath_ng.JSONPath:
     if not deep_diff_path.startswith("root"):
         raise ValueError("a deepdiff path must start with 'root'")
 
-    def build_jsonpath_part(element: Union[str, int]) -> jsonpath_ng.JSONPath:
+    def build_jsonpath_part(element: str | int) -> jsonpath_ng.JSONPath:
         match element:
             case int():
                 return jsonpath_ng.Index(element)

@@ -15,7 +15,7 @@ from reconcile.utils.ocm.labels import build_container_for_prefix
 
 
 def sre_capability_label_key(
-    sre_capability: str, config_atom: Optional[str] = None
+    sre_capability: str, config_atom: str | None = None
 ) -> str:
     """
     Generates label keys compliant with the naming schema defined in
@@ -46,7 +46,7 @@ def build_labelset(
     return dataclass(**raw_data)
 
 
-def _labelset_field_value(labels: LabelContainer, field: ModelField) -> Optional[Any]:
+def _labelset_field_value(labels: LabelContainer, field: ModelField) -> Any | None:
     key_prefix = field.field_info.extra.get("group_by_prefix")
     if key_prefix:
         return build_container_for_prefix(

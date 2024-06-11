@@ -13,27 +13,27 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 class TemplateData(BaseModel):
     variables: dict[str, Any]
-    current: Optional[dict[str, Any]]
-    current_with_explicit_start: Optional[bool] = False
+    current: dict[str, Any] | None
+    current_with_explicit_start: bool | None = False
 
 
 class TemplatePatch(Protocol):
     path: str
-    identifier: Optional[str]
+    identifier: str | None
 
     def dict(self) -> dict[str, str]: ...
 
 
 class Template(Protocol):
     name: str
-    condition: Optional[str]
+    condition: str | None
     target_path: str
     template: str
 
     def dict(self) -> dict[str, str]: ...
 
     @property
-    def patch(self) -> Optional[TemplatePatch]:
+    def patch(self) -> TemplatePatch | None:
         pass
 
 
@@ -42,7 +42,7 @@ class Renderer(ABC):
         self,
         template: Template,
         data: TemplateData,
-        secret_reader: Optional[SecretReaderBase] = None,
+        secret_reader: SecretReaderBase | None = None,
     ):
         self.template = template
         self.data = data
@@ -149,7 +149,7 @@ class PatchRenderer(Renderer):
 def create_renderer(
     template: Template,
     data: TemplateData,
-    secret_reader: Optional[SecretReaderBase] = None,
+    secret_reader: SecretReaderBase | None = None,
 ) -> Renderer:
     if template.patch:
         return PatchRenderer(template=template, data=data, secret_reader=secret_reader)

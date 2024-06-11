@@ -121,7 +121,7 @@ def file_ticket(
 def report_invalid_metadata(
     app: Mapping[str, Any],
     path: str,
-    board: Mapping[str, Union[str, Mapping]],
+    board: Mapping[str, str | Mapping],
     settings: Mapping[str, Any],
     parent: str,
     dry_run: bool = False,

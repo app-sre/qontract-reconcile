@@ -31,9 +31,9 @@ class AssetStatus(Enum):
 
 @dataclass(frozen=True)
 class Asset(ABC):
-    uuid: Optional[str] = field(compare=False, hash=True)
-    href: Optional[str] = field(compare=False, hash=True)
-    status: Optional[AssetStatus] = field(compare=False, hash=True)
+    uuid: str | None = field(compare=False, hash=True)
+    href: str | None = field(compare=False, hash=True)
+    status: AssetStatus | None = field(compare=False, hash=True)
     name: str
     kind: AssetType
 

@@ -236,7 +236,7 @@ class MetricsContainer:
 
     T = TypeVar("T", bound=BaseMetric)
 
-    def get_metric_value(self, metric_class: type[T], **kwargs: Any) -> Optional[float]:
+    def get_metric_value(self, metric_class: type[T], **kwargs: Any) -> float | None:
         """
         Finds a unique match for the metrics class and labels, and returns its value.
         If more than one match is found, a ValueError is raised.
@@ -383,7 +383,7 @@ class _MetricsContext:
 
     def __init__(
         self,
-        scope: Optional[Hashable],
+        scope: Hashable | None,
         parent: MetricsContainer,
         aggregate_counters: bool,
     ):
@@ -408,9 +408,9 @@ class _MetricsContext:
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         if self.scope:
             self.parent._scopes[self.scope] = self.container
@@ -420,8 +420,8 @@ class _MetricsContext:
 
 
 def transactional_metrics(
-    scope: Optional[Hashable] = None,
-    parent_container: Optional[MetricsContainer] = None,
+    scope: Hashable | None = None,
+    parent_container: MetricsContainer | None = None,
     aggregate_counters: bool = True,
 ) -> _MetricsContext:
     """
@@ -562,9 +562,9 @@ class ErrorRateMetricSet:
 
     def __exit__(
         self: ERMS,
-        exc_type: Optional[type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         if exc_value:
             self.fail(exc_value)

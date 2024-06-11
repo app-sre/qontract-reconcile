@@ -117,7 +117,7 @@ def build_cluster_details() -> Callable:
     def _(
         name: str = "cluster_name",
         org_id: str = "org_id",
-        subs_labels: Optional[list[tuple[str, str]]] = None,
+        subs_labels: list[tuple[str, str]] | None = None,
     ) -> ClusterDetails:
         ocm_cluster = build_ocm_cluster(name, subs_id=f"{name}-sub-id")
         return ClusterDetails(

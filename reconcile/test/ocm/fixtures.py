@@ -45,13 +45,13 @@ class OcmRawResponse(OcmResponse):
 
 
 class OcmUrl(BaseModel):
-    name: Optional[str]
+    name: str | None
     uri: str
     method: str = "POST"
     responses: list[Any] = Field(default_factory=list)
 
     def add_list_response(
-        self, items: list[Any], kind: Optional[str] = None
+        self, items: list[Any], kind: str | None = None
     ) -> "OcmUrl":
         self.responses.append({
             "kind": f"{kind}List" if kind else "List",
@@ -66,7 +66,7 @@ class OcmUrl(BaseModel):
         self,
         id: str,
         resources: list[Any],
-        kind: Optional[str] = None,
+        kind: str | None = None,
     ) -> "OcmUrl":
         self.responses.append({
             "kind": f"{kind}",
@@ -109,8 +109,8 @@ def build_ocm_cluster(
     aws_cluster: bool = True,
     sts_cluster: bool = False,
     version: str = "4.13.0",
-    channel_group: Optional[str] = None,
-    available_upgrades: Optional[list[str]] = None,
+    channel_group: str | None = None,
+    available_upgrades: list[str] | None = None,
     cluster_product: str = PRODUCT_ID_ROSA,
     hypershift: bool = False,
 ) -> OCMCluster:
@@ -145,14 +145,14 @@ def build_ocm_cluster(
 
 def build_cluster_details(
     cluster_name: str,
-    subscription_labels: Optional[LabelContainer] = None,
-    organization_labels: Optional[LabelContainer] = None,
+    subscription_labels: LabelContainer | None = None,
+    organization_labels: LabelContainer | None = None,
     org_id: str = "org-id",
     aws_cluster: bool = True,
     sts_cluster: bool = False,
     cluster_product: str = PRODUCT_ID_ROSA,
     hypershift: bool = False,
-    capabilitites: Optional[dict[str, str]] = None,
+    capabilitites: dict[str, str] | None = None,
 ) -> ClusterDetails:
     return ClusterDetails(
         ocm_cluster=build_ocm_cluster(
@@ -181,9 +181,9 @@ def build_ocm_info(
     org_id: str,
     ocm_url: str,
     access_token_url: str,
-    ocm_env_name: Optional[str] = None,
-    sectors: Optional[list[dict[str, Any]]] = None,
-    inherit_version_data: Optional[list[dict[str, Any]]] = None,
+    ocm_env_name: str | None = None,
+    sectors: list[dict[str, Any]] | None = None,
+    inherit_version_data: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     return {
         "name": org_name,

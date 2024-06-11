@@ -56,8 +56,8 @@ from reconcile.utils.runtime.integration import (
 
 
 class OCMUserManagementIntegrationParams(PydanticRunParams):
-    ocm_environment: Optional[str] = None
-    ocm_organization_ids: Optional[set[str]] = None
+    ocm_environment: str | None = None
+    ocm_organization_ids: set[str] | None = None
     group_provider_specs: list[str]
 
 
@@ -88,7 +88,7 @@ class OCMUserManagementIntegration(
 
     @abstractmethod
     def get_user_mgmt_config_for_ocm_env(
-        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
+        self, ocm_env: OCMEnvironment, org_ids: set[str] | None
     ) -> dict[str, OrganizationUserManagementConfiguration]:
         """
         Discover cluster user mgmt configurations in the given OCM environment.

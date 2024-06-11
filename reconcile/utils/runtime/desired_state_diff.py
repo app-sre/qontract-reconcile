@@ -177,7 +177,7 @@ def extract_diffs_with_timeout(
 
 
 def build_desired_state_diff(
-    sharding_config: Optional[DesiredStateShardConfig],
+    sharding_config: DesiredStateShardConfig | None,
     previous_desired_state: Mapping[str, Any],
     current_desired_state: Mapping[str, Any],
 ) -> DesiredStateDiff:

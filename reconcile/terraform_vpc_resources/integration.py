@@ -41,8 +41,8 @@ AWS_PROVIDER_VERSION = "5.7.1"
 
 
 class TerraformVpcResourcesParams(PydanticRunParams):
-    account_name: Optional[str]
-    print_to_file: Optional[str]
+    account_name: str | None
+    print_to_file: str | None
     thread_pool_size: int
     enable_deletion: bool = False
 
@@ -53,7 +53,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         return QONTRACT_INTEGRATION.replace("_", "-")
 
     def _filter_accounts(
-        self, data: Iterable[VPCRequest], account_name: Optional[str]
+        self, data: Iterable[VPCRequest], account_name: str | None
     ) -> list[AWSAccountV1]:
         """Return a list of accounts extracted from the provided VPCRequests.
         If account_name is given returns the account object with that name."""

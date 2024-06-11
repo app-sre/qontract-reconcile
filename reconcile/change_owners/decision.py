@@ -70,7 +70,7 @@ def get_approver_decisions_from_mr_comments(
 class ChangeResponsibles:
     context: str
     approvers: list[Approver]
-    approver_reachability: Optional[list[ApproverReachability]] = None
+    approver_reachability: list[ApproverReachability] | None = None
 
 
 @dataclass

@@ -39,10 +39,10 @@ class AbstractStatusBoard(ABC, BaseModel):
     """Abstract class for upgrade policies
     Used to create and delete upgrade policies in OCM."""
 
-    id: Optional[str]
+    id: str | None
     name: str
     fullname: str
-    metadata: Optional[dict[str, Any]]
+    metadata: dict[str, Any] | None
 
     @abstractmethod
     def create(self, ocm: OCMBaseClient) -> None:
@@ -63,7 +63,7 @@ class AbstractStatusBoard(ABC, BaseModel):
 
 
 class Product(AbstractStatusBoard):
-    applications: Optional[list["Application"]]
+    applications: list["Application"] | None
 
     def create(self, ocm: OCMBaseClient) -> None:
         spec = self.dict(by_alias=True)

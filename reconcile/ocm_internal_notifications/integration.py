@@ -48,7 +48,7 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
     @lru_cache
     def slack_get_user_id_by_name(
         self, user_name: str, mail_address: str
-    ) -> Optional[str]:
+    ) -> str | None:
         try:
             return self.slack.get_user_id_by_name(
                 user_name=user_name, mail_address=mail_address

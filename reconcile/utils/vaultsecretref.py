@@ -16,8 +16,8 @@ class VaultSecretRef:
 
     path: str
     field: str
-    format: Optional[str] = None
-    version: Optional[int] = None
+    format: str | None = None
+    version: int | None = None
 
     def get(self, field=None, default=None):
         secret_content = self._resolve_secret()

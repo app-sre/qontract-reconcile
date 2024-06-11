@@ -15,9 +15,9 @@ from reconcile.cna.state import (
 
 def null_asset(
     name: str,
-    status: Optional[AssetStatus] = None,
-    addr_block: Optional[str] = None,
-    uuid: Optional[str] = None,
+    status: AssetStatus | None = None,
+    addr_block: str | None = None,
+    uuid: str | None = None,
 ) -> NullAsset:
     return NullAsset(
         uuid=uuid,

@@ -153,7 +153,7 @@ class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
 
     def __init__(self, params: RunParamsTypeVar) -> None:
         self.params: RunParamsTypeVar = params
-        self._secret_reader: Optional[SecretReaderBase] = None
+        self._secret_reader: SecretReaderBase | None = None
 
     @property
     @abstractmethod
@@ -169,7 +169,7 @@ class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
             self._secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         return self._secret_reader
 
-    def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
+    def get_early_exit_desired_state(self) -> dict[str, Any] | None:
         """
         An integration that wants to support early exit on its desired state
         must implement this method and return the desired state as a dictionary.
@@ -299,7 +299,7 @@ class ModuleBasedQontractReconcileIntegration(
             return self.params.module.QONTRACT_INTEGRATION.replace("_", "-")
         raise NotImplementedError("Integration missing QONTRACT_INTEGRATION.")
 
-    def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
+    def get_early_exit_desired_state(self) -> dict[str, Any] | None:
         if self._integration_supports(EARLY_EXIT_DESIRED_STATE_FUNCTION):
             return self.params.module.early_exit_desired_state(
                 *self.params.args, **self.params.kwargs

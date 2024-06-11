@@ -13,7 +13,7 @@ from reconcile.utils.gql import GqlApi
 
 
 def test_no_clusters(
-    gql_api_builder: Callable[[Optional[Mapping]], GqlApi],
+    gql_api_builder: Callable[[Mapping | None], GqlApi],
     gql_class_factory: Callable[..., ClustersQueryData],
 ) -> None:
     data = gql_class_factory(ClustersQueryData, {})
@@ -24,7 +24,7 @@ def test_no_clusters(
 
 
 def test_get_clusters(
-    gql_api_builder: Callable[[Optional[Mapping]], GqlApi],
+    gql_api_builder: Callable[[Mapping | None], GqlApi],
     gql_class_factory: Callable[..., ClustersQueryData],
 ) -> None:
     data = gql_class_factory(
@@ -38,7 +38,7 @@ def test_get_clusters(
 
 
 def test_get_clusters_with_name(
-    gql_api_builder: Callable[[Optional[Mapping]], GqlApi],
+    gql_api_builder: Callable[[Mapping | None], GqlApi],
     gql_class_factory: Callable[..., ClustersQueryData],
 ) -> None:
     data = gql_class_factory(

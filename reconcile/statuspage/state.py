@@ -13,9 +13,9 @@ from reconcile.utils.state import State
 
 
 class ComponentBindingState(Protocol):
-    def get_id_for_component_name(self, component_name: str) -> Optional[str]: ...
+    def get_id_for_component_name(self, component_name: str) -> str | None: ...
 
-    def get_name_for_component_id(self, component_id: str) -> Optional[str]: ...
+    def get_name_for_component_id(self, component_id: str) -> str | None: ...
 
     def bind_component(self, component_name: str, component_id: str) -> None: ...
 
@@ -33,10 +33,10 @@ class S3ComponentBindingState(ComponentBindingState):
             v: k for k, v in self.name_to_id_cache.items()
         }
 
-    def get_id_for_component_name(self, component_name: str) -> Optional[str]:
+    def get_id_for_component_name(self, component_name: str) -> str | None:
         return self.name_to_id_cache.get(component_name)
 
-    def get_name_for_component_id(self, component_id: str) -> Optional[str]:
+    def get_name_for_component_id(self, component_id: str) -> str | None:
         return self.id_to_name_cache.get(component_id)
 
     def bind_component(self, component_name: str, component_id: str) -> None:

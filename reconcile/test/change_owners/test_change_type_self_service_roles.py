@@ -263,5 +263,5 @@ def test_self_service_role_empty_change_owner_labels() -> None:
         ),
     ],
 )
-def test_build_approver(member: RoleMember, approver: Optional[Approver]) -> None:
+def test_build_approver(member: RoleMember, approver: Approver | None) -> None:
     assert build_approver(member) == approver

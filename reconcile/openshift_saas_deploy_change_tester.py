@@ -37,7 +37,7 @@ class Definition(BaseModel):
 class State(BaseModel):
     saas_file_path: str
     saas_file_name: str
-    saas_file_deploy_resources: Optional[DeployResourcesV1]
+    saas_file_deploy_resources: DeployResourcesV1 | None
     resource_template_name: str
     cluster: str
     namespace: str
@@ -47,10 +47,10 @@ class State(BaseModel):
     parameters: dict[str, Any]
     secret_parameters: dict[str, VaultSecret]
     saas_file_definitions: Definition
-    upstream: Optional[SaasResourceTemplateTargetUpstreamV1]
-    disable: Optional[bool]
-    delete: Optional[bool]
-    target_path: Optional[str]
+    upstream: SaasResourceTemplateTargetUpstreamV1 | None
+    disable: bool | None
+    delete: bool | None
+    target_path: str | None
 
 
 def osd_run_wrapper(
@@ -58,7 +58,7 @@ def osd_run_wrapper(
     dry_run: bool,
     available_thread_pool_size: int,
     use_jump_host: bool,
-    saas_file_list: Optional[SaasFileList],
+    saas_file_list: SaasFileList | None,
 ) -> int:
     saas_file_name, env_name = spec
     exit_code = 0

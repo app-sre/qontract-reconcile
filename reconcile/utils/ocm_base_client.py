@@ -40,7 +40,7 @@ class OCMBaseClient:
         access_token_client_secret: str,
         access_token_url: str,
         access_token_client_id: str,
-        session: Optional[Session] = None,
+        session: Session | None = None,
     ):
         self._access_token_client_secret = access_token_client_secret
         self._access_token_client_id = access_token_client_id
@@ -69,7 +69,7 @@ class OCMBaseClient:
             "accept": "application/json",
         })
 
-    def get(self, api_path: str, params: Optional[Mapping[str, str]] = None) -> Any:
+    def get(self, api_path: str, params: Mapping[str, str] | None = None) -> Any:
         ocm_request.labels(verb="GET", client_id=self._access_token_client_id).inc()
         r = self._session.get(
             f"{self._url}{api_path}",
@@ -82,9 +82,9 @@ class OCMBaseClient:
     def get_paginated(
         self,
         api_path: str,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
         max_page_size: int = 100,
-        max_pages: Optional[int] = None,
+        max_pages: int | None = None,
     ) -> Generator[dict[str, Any], None, None]:
         if not params:
             params_copy = {}
@@ -107,8 +107,8 @@ class OCMBaseClient:
     def post(
         self,
         api_path: str,
-        data: Optional[Mapping[str, Any]] = None,
-        params: Optional[Mapping[str, str]] = None,
+        data: Mapping[str, Any] | None = None,
+        params: Mapping[str, str] | None = None,
     ) -> Any:
         ocm_request.labels(verb="POST", client_id=self._access_token_client_id).inc()
         r = self._session.post(
@@ -130,7 +130,7 @@ class OCMBaseClient:
         self,
         api_path: str,
         data: Mapping[str, Any],
-        params: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, str] | None = None,
     ):
         ocm_request.labels(verb="PATCH", client_id=self._access_token_client_id).inc()
         r = self._session.patch(
@@ -158,9 +158,9 @@ class OCMBaseClient:
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         self.close()
 
@@ -184,7 +184,7 @@ class OCMAPIClientConfiguration(BaseModel, arbitrary_types_allowed=True):
 def init_ocm_base_client_for_org(
     org: AUSOCMOrganization,
     secret_reader: SecretReaderBase,
-    session: Optional[Session] = None,
+    session: Session | None = None,
 ) -> OCMBaseClient:
     if org.access_token_client_id:
         return init_ocm_base_client(
@@ -204,7 +204,7 @@ def init_ocm_base_client_for_org(
 def init_ocm_base_client(
     cfg: OCMAPIClientConfigurationProtocol,
     secret_reader: SecretReaderBase,
-    session: Optional[Session] = None,
+    session: Session | None = None,
 ) -> OCMBaseClient:
     """
     Initiate an API client towards an OCM instance.

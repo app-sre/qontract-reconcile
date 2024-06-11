@@ -153,7 +153,7 @@ def get_region(
 
 
 def get_app_interface_amis(
-    namespaces: Optional[list[NamespaceV1]], ts: Terrascript
+    namespaces: list[NamespaceV1] | None, ts: Terrascript
 ) -> list[AIAmi]:
     """Returns all the ami referenced in ASGs in app-interface."""
     app_interface_amis = []
@@ -185,7 +185,7 @@ def get_app_interface_amis(
 
 def check_aws_ami_in_use(
     aws_ami: AWSAmi, app_interface_amis: list[AIAmi]
-) -> Optional[str]:
+) -> str | None:
     """Verifies if the given AWS ami is in use in a defined app-interface ASG."""
     for ai_ami in app_interface_amis:
         # This can happen if the ASG init template has changed over the time. We don't have a way
@@ -203,7 +203,7 @@ def check_aws_ami_in_use(
 
 
 @defer
-def run(dry_run: bool, thread_pool_size: int, defer: Optional[Callable] = None) -> None:
+def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> None:
     exit_code = ExitCodes.SUCCESS
 
     # We still use here a non-typed query; accounts is passed to AWSApi and Terrascript classes

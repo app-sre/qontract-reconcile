@@ -84,7 +84,7 @@ def create_groups_list(
 
 
 def fetch_current_state(
-    thread_pool_size: int, internal: Optional[bool], use_jump_host: bool
+    thread_pool_size: int, internal: bool | None, use_jump_host: bool
 ) -> tuple[OCMap, list[dict[str, str]], list[str], list[dict[str, str]]]:
     clusters = [c for c in get_clusters() if is_in_shard(c.name)]
     ocm_clusters = [c.name for c in clusters if c.ocm is not None]
@@ -110,7 +110,7 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    clusters: list[str], enforced_user_keys: Optional[list[str]] = None
+    clusters: list[str], enforced_user_keys: list[str] | None = None
 ) -> list[dict[str, str]]:
     gqlapi = gql.get_api()
     roles = expiration.filter(query_managed_roles(query_func=gqlapi.query).roles or [])
@@ -145,8 +145,8 @@ def fetch_desired_state(
 def calculate_diff(
     current_state: Iterable[Mapping[str, str]],
     desired_state: Iterable[Mapping[str, str]],
-) -> list[dict[str, Optional[str]]]:
-    diff: list[dict[str, Optional[str]]] = []
+) -> list[dict[str, str | None]]:
+    diff: list[dict[str, str | None]] = []
     users_to_add = subtract_states(
         desired_state, current_state, "add_user_to_group", "create_group"
     )
@@ -164,8 +164,8 @@ def subtract_states(
     subtract_state: Iterable[Mapping[str, str]],
     user_action: str,
     group_action: str,
-) -> list[dict[str, Optional[str]]]:
-    result: list[dict[str, Optional[str]]] = []
+) -> list[dict[str, str | None]]:
+    result: list[dict[str, str | None]] = []
 
     for f_user in from_state:
         found = False
@@ -199,14 +199,14 @@ def subtract_states(
     return result
 
 
-def validate_diffs(diffs: Iterable[Mapping[str, Optional[str]]]) -> None:
+def validate_diffs(diffs: Iterable[Mapping[str, str | None]]) -> None:
     gqlapi = gql.get_api()
     clusters_query = query_managed_groups(query_func=gqlapi.query).clusters or []
 
     desired_combos = [
         {"cluster": diff["cluster"], "group": diff["group"]} for diff in diffs
     ]
-    desired_combos_unique: list[dict[str, Optional[str]]] = []
+    desired_combos_unique: list[dict[str, str | None]] = []
     for combo in desired_combos:
         if combo in desired_combos_unique:
             continue
@@ -232,13 +232,13 @@ def validate_diffs(diffs: Iterable[Mapping[str, Optional[str]]]) -> None:
         raise RuntimeError(msg)
 
 
-def sort_diffs(diff: Mapping[str, Optional[str]]) -> int:
+def sort_diffs(diff: Mapping[str, str | None]) -> int:
     if diff["action"] in {"create_group", "del_user_from_group"}:
         return 1
     return 2
 
 
-def act(diff: Mapping[str, Optional[str]], oc_map: ClusterMap) -> None:
+def act(diff: Mapping[str, str | None], oc_map: ClusterMap) -> None:
     cluster = diff.get("cluster") or ""
     group = diff["group"]
     user = diff["user"]
@@ -264,9 +264,9 @@ def act(diff: Mapping[str, Optional[str]], oc_map: ClusterMap) -> None:
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> None:
     oc_map, current_state, ocm_clusters, groups_list = fetch_current_state(
         thread_pool_size, internal, use_jump_host

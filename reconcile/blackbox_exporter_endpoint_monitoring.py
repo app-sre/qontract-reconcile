@@ -69,7 +69,7 @@ def get_blackbox_providers() -> list[EndpointMonitoringProvider]:
 
 def build_probe(
     provider: EndpointMonitoringProvider, endpoints: list[Endpoint]
-) -> Optional[OpenshiftResource]:
+) -> OpenshiftResource | None:
     blackbox_exporter = provider.blackboxExporter
     if blackbox_exporter:
         prober_url = parse_prober_url(blackbox_exporter.exporterUrl)

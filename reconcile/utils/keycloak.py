@@ -31,7 +31,7 @@ class SSOClient(BaseModel):
 
 class KeycloakInstance(BaseModel):
     url: str
-    initial_access_token: Optional[str] = None
+    initial_access_token: str | None = None
 
 
 class KeycloakAPI:

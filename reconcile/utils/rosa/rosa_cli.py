@@ -67,7 +67,7 @@ class RosaCliResult:
         self,
         status: JobStatus,
         command: str,
-        log_handle: Optional[LogHandle] = None,
+        log_handle: LogHandle | None = None,
     ) -> None:
         self.status = status
         self.command = command
@@ -100,7 +100,7 @@ class RosaCliException(Exception, RosaCliResult):
         self,
         status: JobStatus,
         command: str,
-        log_handle: Optional[LogHandle] = None,
+        log_handle: LogHandle | None = None,
     ) -> None:
         Exception.__init__(
             self, f"ROSA CLI execution failed with status: {status}, cmd: {command}"

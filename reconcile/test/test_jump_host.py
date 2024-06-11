@@ -99,8 +99,8 @@ def test_base_jumphost(fs: Any, parameters: JumphostParameters, expected_port: i
 def test_ssh_jumphost(
     fs: Any,
     parameters: JumphostParameters,
-    local_port: Optional[int],
-    remote_port: Optional[int],
+    local_port: int | None,
+    remote_port: int | None,
 ):
     gql_mock = create_autospec(spec=gql.GqlApi)
     gql_mock.get_resource.side_effect = [{"content": EXPECTED_KNOWN_HOSTS_CONTENT}]

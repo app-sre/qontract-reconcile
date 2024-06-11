@@ -124,7 +124,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
             init_aus_cluster_label_source(query_func),
         ]
 
-    def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
+    def get_early_exit_desired_state(self) -> dict[str, Any] | None:
         gqlapi = gql.get_api()
         desired = {
             "org_labels": self.fetch_desired_state(

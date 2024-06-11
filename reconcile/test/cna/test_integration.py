@@ -50,7 +50,7 @@ def namespace(assets: list[CNANullAssetV1]) -> NamespaceV1:
     )
 
 
-def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
+def null_asset(name: str, addr_block: str | None) -> NullAsset:
     return NullAsset(
         uuid=None,
         href=None,

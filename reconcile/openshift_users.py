@@ -72,7 +72,7 @@ def get_cluster_users(
 
 def fetch_current_state(
     thread_pool_size: int,
-    internal: Optional[bool],
+    internal: bool | None,
     use_jump_host: bool,
 ) -> tuple[OCMap, list[Any]]:
     vault_settings = get_app_interface_vault_settings()
@@ -99,7 +99,7 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    oc_map: Optional[OCMap], enforced_user_keys: Any = None
+    oc_map: OCMap | None, enforced_user_keys: Any = None
 ) -> list[Any]:
     desired_state = []
 
@@ -170,9 +170,9 @@ def act(diff: Mapping[str, Any], oc_map: OCMap) -> None:
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> None:
     oc_map, current_state = fetch_current_state(
         thread_pool_size, internal, use_jump_host

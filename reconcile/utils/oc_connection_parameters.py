@@ -23,13 +23,13 @@ class OCConnectionError(Exception):
 
 
 class Disable(Protocol):
-    integrations: Optional[list[str]]
+    integrations: list[str] | None
 
 
 class Jumphost(Protocol):
     hostname: str
-    port: Optional[int]
-    remote_port: Optional[int]
+    port: int | None
+    remote_port: int | None
     known_hosts: str
     user: str
 
@@ -41,24 +41,24 @@ class Jumphost(Protocol):
 class Cluster(Protocol):
     name: str
     server_url: str
-    internal: Optional[bool]
-    insecure_skip_tls_verify: Optional[bool]
+    internal: bool | None
+    insecure_skip_tls_verify: bool | None
 
     @property
-    def jump_host(self) -> Optional[Jumphost]: ...
+    def jump_host(self) -> Jumphost | None: ...
 
     @property
-    def automation_token(self) -> Optional[HasSecret]: ...
+    def automation_token(self) -> HasSecret | None: ...
 
     @property
-    def cluster_admin_automation_token(self) -> Optional[HasSecret]: ...
+    def cluster_admin_automation_token(self) -> HasSecret | None: ...
 
     @property
-    def disable(self) -> Optional[Disable]: ...
+    def disable(self) -> Disable | None: ...
 
 
 class Namespace(Protocol):
-    cluster_admin: Optional[bool]
+    cluster_admin: bool | None
 
     @property
     def cluster(self) -> Cluster: ...
@@ -82,20 +82,20 @@ class OCConnectionParameters:
 
     cluster_name: str
     server_url: str
-    is_internal: Optional[bool]
+    is_internal: bool | None
     is_cluster_admin: bool
-    skip_tls_verify: Optional[bool]
-    automation_token: Optional[str]
-    cluster_admin_automation_token: Optional[str]
+    skip_tls_verify: bool | None
+    automation_token: str | None
+    cluster_admin_automation_token: str | None
     disabled_integrations: list[str]
-    jumphost_hostname: Optional[str]
-    jumphost_known_hosts: Optional[str]
-    jumphost_user: Optional[str]
-    jumphost_port: Optional[int]
-    jumphost_key: Optional[str]
-    jumphost_remote_port: Optional[int]
+    jumphost_hostname: str | None
+    jumphost_known_hosts: str | None
+    jumphost_user: str | None
+    jumphost_port: int | None
+    jumphost_key: str | None
+    jumphost_remote_port: int | None
     # The local port is currently calculated and set outside of this class
-    jumphost_local_port: Optional[int]
+    jumphost_local_port: int | None
 
     @staticmethod
     def _get_token_verify_server_url(secret: ClusterSecret, cluster: Cluster) -> str:
@@ -112,7 +112,7 @@ class OCConnectionParameters:
     @staticmethod
     def _get_automation_token(
         secret_reader: SecretReaderBase, secret: HasSecret, cluster: Cluster
-    ) -> Optional[str]:
+    ) -> str | None:
         secret_raw = secret_reader.read_all_secret(secret)
         return OCConnectionParameters._get_token_verify_server_url(
             ClusterSecret(
@@ -130,8 +130,8 @@ class OCConnectionParameters:
         cluster_admin: bool,
         use_jump_host: bool = True,
     ) -> OCConnectionParameters:
-        automation_token: Optional[str] = None
-        cluster_admin_automation_token: Optional[str] = None
+        automation_token: str | None = None
+        cluster_admin_automation_token: str | None = None
 
         if cluster_admin:
             if cluster.cluster_admin_automation_token:

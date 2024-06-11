@@ -29,12 +29,12 @@ class AtlassianRawComponent(BaseModel):
 
     id: str
     name: str
-    description: Optional[str]
+    description: str | None
     position: int
     status: str
-    automation_email: Optional[str]
-    group_id: Optional[str]
-    group: Optional[bool]
+    automation_email: str | None
+    group_id: str | None
+    group: bool | None
 
 
 class AtlassianRawMaintenanceUpdate(BaseModel):
@@ -56,9 +56,9 @@ class AtlassianRawMaintenance(BaseModel):
     scheduled_until: str
     incident_updates: list[AtlassianRawMaintenanceUpdate]
     components: list[AtlassianRawComponent]
-    auto_transition_deliver_notifications_at_end: Optional[bool]
-    auto_transition_deliver_notifications_at_start: Optional[bool]
-    scheduled_remind_prior: Optional[bool]
+    auto_transition_deliver_notifications_at_end: bool | None
+    auto_transition_deliver_notifications_at_start: bool | None
+    scheduled_remind_prior: bool | None
 
 
 class AtlassianAPI:
@@ -177,13 +177,13 @@ class AtlassianStatusPageProvider:
         self._group_name_to_id = {g.name: g.id for g in self._components if g.group}
         self._group_id_to_name = {g.id: g.name for g in self._components if g.group}
 
-    def get_component_by_id(self, id: str) -> Optional[StatusComponent]:
+    def get_component_by_id(self, id: str) -> StatusComponent | None:
         raw = self.get_raw_component_by_id(id)
         if raw:
             return self._bound_raw_component_to_status_component(raw)
         return None
 
-    def get_raw_component_by_id(self, id: str) -> Optional[AtlassianRawComponent]:
+    def get_raw_component_by_id(self, id: str) -> AtlassianRawComponent | None:
         return self._components_by_id.get(id)
 
     def get_current_page(self) -> StatusPage:
@@ -201,7 +201,7 @@ class AtlassianStatusPageProvider:
         )
 
     def _raw_component_to_status_component(
-        self, raw_component: AtlassianRawComponent, name_override: Optional[str] = None
+        self, raw_component: AtlassianRawComponent, name_override: str | None = None
     ) -> StatusComponent:
         group_name = (
             self._group_id_to_name.get(raw_component.group_id)
@@ -222,7 +222,7 @@ class AtlassianStatusPageProvider:
 
     def _bound_raw_component_to_status_component(
         self, raw_component: AtlassianRawComponent
-    ) -> Optional[StatusComponent]:
+    ) -> StatusComponent | None:
         bound_component_name = self._binding_state.get_name_for_component_id(
             raw_component.id
         )
@@ -234,7 +234,7 @@ class AtlassianStatusPageProvider:
 
     def lookup_component(
         self, desired_component: StatusComponent
-    ) -> tuple[Optional[AtlassianRawComponent], bool]:
+    ) -> tuple[AtlassianRawComponent | None, bool]:
         """
         Finds the component on the page that matches the desired component. This
         is either done explicitely by using binding information if available or
@@ -268,7 +268,7 @@ class AtlassianStatusPageProvider:
         return component, bound
 
     def should_apply(
-        self, desired: StatusComponent, current: Optional[AtlassianRawComponent]
+        self, desired: StatusComponent, current: AtlassianRawComponent | None
     ) -> bool:
         """
         Verifies if the desired component should be applied to the status page
@@ -410,7 +410,7 @@ class AtlassianStatusPageProvider:
     def _raw_maintenance_to_status_maintenance(
         self,
         raw_maintenance: AtlassianRawMaintenance,
-        name_override: Optional[str] = None,
+        name_override: str | None = None,
     ) -> StatusMaintenance:
         return StatusMaintenance(
             name=name_override or raw_maintenance.name,

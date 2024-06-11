@@ -112,9 +112,9 @@ MIN_DELTA_MINUTES = 6
 
 
 class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
-    ocm_environment: Optional[str] = None
-    ocm_organization_ids: Optional[set[str]] = None
-    excluded_ocm_organization_ids: Optional[set[str]] = None
+    ocm_environment: str | None = None
+    ocm_organization_ids: set[str] | None = None
+    excluded_ocm_organization_ids: set[str] | None = None
     ignore_sts_clusters: bool = False
 
 
@@ -342,7 +342,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
     def _build_telemeter_health_check_provider_for_env(
         self,
         ocm_env_name: str,
-    ) -> Optional[TelemeterClusterHealthProvider]:
+    ) -> TelemeterClusterHealthProvider | None:
         ocm_env = next(
             iter(
                 ocm_env_telemeter_query(
@@ -403,12 +403,12 @@ class AbstractUpgradePolicy(ABC, BaseModel):
 
     cluster: OCMCluster
 
-    id: Optional[str]
-    next_run: Optional[str]
-    schedule: Optional[str]
+    id: str | None
+    next_run: str | None
+    schedule: str | None
     schedule_type: str
     version: str
-    state: Optional[str]
+    state: str | None
 
     @abstractmethod
     def create(self, ocm_api: OCMBaseClient) -> None:
@@ -683,7 +683,7 @@ def update_history(
     version_data.check_in = now
 
 
-def version_data_state_key(ocm_env: str, org_id: str, addon_id: Optional[str]) -> str:
+def version_data_state_key(ocm_env: str, org_id: str, addon_id: str | None) -> str:
     return f"{ocm_env}/{org_id}/{addon_id}" if addon_id else f"{ocm_env}/{org_id}"
 
 
@@ -694,7 +694,7 @@ def get_version_data_map(
     integration: str,
     addon_id: str = "",
     inherit_version_data: bool = True,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> VersionDataMap:
     """Get a summary of versions history per OCM instance
 
@@ -788,7 +788,7 @@ def version_conditions_met(
     version: str,
     version_data: VersionData,
     upgrade_policy: ClusterUpgradePolicyV1,
-    sector: Optional[Sector],
+    sector: Sector | None,
 ) -> bool:
     """Check that upgrade conditions are met for a version
 
@@ -887,8 +887,8 @@ def gates_to_agree(
 def upgradeable_version(
     spec: ClusterUpgradeSpec,
     version_data: VersionData,
-    sector: Optional[Sector],
-) -> Optional[str]:
+    sector: Sector | None,
+) -> str | None:
     """Get the highest next version we can upgrade to, fulfilling all conditions"""
     for version in reversed(sort_versions(spec.get_available_upgrades())):
         if spec.version_blocked(version):
@@ -908,7 +908,7 @@ def verify_current_should_skip(
     desired: ClusterUpgradeSpec,
     now: datetime,
     addon_id: str = "",
-) -> tuple[bool, Optional[UpgradePolicyHandler]]:
+) -> tuple[bool, UpgradePolicyHandler | None]:
     current_policies = [c for c in current_state if c.cluster.id == desired.cluster.id]
     if not current_policies:
         return False, None
@@ -944,7 +944,7 @@ def verify_schedule_should_skip(
     desired: ClusterUpgradeSpec,
     now: datetime,
     addon_id: str = "",
-) -> Optional[str]:
+) -> str | None:
     schedule = desired.upgrade_policy.schedule
     iter = croniter(schedule)
     # ClusterService refuses scheduling upgrades less than 5m in advance
@@ -1006,7 +1006,7 @@ def _create_upgrade_policy(
 
 def _calculate_node_pool_diffs(
     ocm_api: OCMBaseClient, spec: ClusterUpgradeSpec, now: datetime
-) -> Optional[UpgradePolicyHandler]:
+) -> UpgradePolicyHandler | None:
     node_pools = get_node_pools(ocm_api, spec.cluster.id)
     if node_pools:
         for pool in node_pools:
@@ -1051,7 +1051,7 @@ def calculate_diff(
     """
 
     def set_mutex(
-        locked: dict[str, str], cluster_id: str, mutexes: Optional[set[str]] = None
+        locked: dict[str, str], cluster_id: str, mutexes: set[str] | None = None
     ) -> None:
         for mutex in mutexes or set():
             locked[mutex] = cluster_id
@@ -1174,7 +1174,7 @@ def act(
     dry_run: bool,
     diffs: list[UpgradePolicyHandler],
     ocm_api: OCMBaseClient,
-    addon_id: Optional[str] = None,
+    addon_id: str | None = None,
 ) -> None:
     diffs.sort(key=sort_diffs)
     for diff in diffs:
@@ -1207,8 +1207,8 @@ def get_orgs_for_environment(
     integration: str,
     ocm_env_name: str,
     query_func: Callable,
-    ocm_organization_ids: Optional[set[str]] = None,
-    excluded_ocm_organization_ids: Optional[set[str]] = None,
+    ocm_organization_ids: set[str] | None = None,
+    excluded_ocm_organization_ids: set[str] | None = None,
     only_addon_managed_upgrades: bool = False,
 ) -> list[AUSOCMOrganization]:
     """
@@ -1243,7 +1243,7 @@ def get_orgs_for_environment(
 def remaining_soak_day_metric_values_for_cluster(
     spec: ClusterUpgradeSpec,
     soaked_versions: dict[str, float],
-    current_upgrade: Optional[AbstractUpgradePolicy],
+    current_upgrade: AbstractUpgradePolicy | None,
 ) -> dict[str, float]:
     """
     Calculate what versions and metric values to report for `AUS*VersionRemainingSoakDaysGauge` metrics.

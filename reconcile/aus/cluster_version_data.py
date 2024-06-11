@@ -93,9 +93,9 @@ class VersionData(BaseModel):
     upgrade policies.
     """
 
-    check_in: Optional[datetime]
+    check_in: datetime | None
     versions: dict[str, VersionHistory] = Field(default_factory=dict)
-    stats: Optional[Stats]
+    stats: Stats | None
 
     def jsondict(self) -> dict[str, Any]:
         return json.loads(self.json(exclude_none=True))
@@ -104,7 +104,7 @@ class VersionData(BaseModel):
         state.add(ocm_name, self.jsondict(), force=True)
 
     def workload_history(
-        self, version: str, workload: str, default: Optional[WorkloadHistory] = None
+        self, version: str, workload: str, default: WorkloadHistory | None = None
     ) -> WorkloadHistory:
         if not default:
             vh = self.versions.get(version, VersionHistory())

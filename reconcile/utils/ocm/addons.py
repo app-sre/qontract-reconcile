@@ -26,7 +26,7 @@ class AddonService:
         ocm_api: OCMBaseClient,
         cluster_id: str,
         addon_latest_versions: dict[str, str],
-        required_state: Optional[str],
+        required_state: str | None,
     ) -> list[OCMAddonInstallation]:
         """
         Returns a list of Addons installed on a cluster
@@ -37,7 +37,7 @@ class AddonService:
         :param required_state: only return addons with this state
         """
 
-        params: Optional[dict[str, Any]] = None
+        params: dict[str, Any] | None = None
         if required_state:
             params = {"search": f"state='{required_state}'"}
 
@@ -58,7 +58,7 @@ class AddonService:
         raise NotImplementedError()
 
     def get_addon_upgrade_policies(
-        self, ocm_api: OCMBaseClient, cluster_id: str, addon_id: Optional[str] = None
+        self, ocm_api: OCMBaseClient, cluster_id: str, addon_id: str | None = None
     ) -> list[OCMAddonUpgradePolicy]:
         raise NotImplementedError()
 
@@ -88,7 +88,7 @@ class AddonServiceV1(AddonService):
         return "/api/clusters_mgmt/v1"
 
     def get_addon_upgrade_policies(
-        self, ocm_api: OCMBaseClient, cluster_id: str, addon_id: Optional[str] = None
+        self, ocm_api: OCMBaseClient, cluster_id: str, addon_id: str | None = None
     ) -> list[OCMAddonUpgradePolicy]:
         results: list[OCMAddonUpgradePolicy] = []
 
@@ -118,7 +118,7 @@ class AddonServiceV1(AddonService):
 
     def _get_addon_upgrade_policy_state(
         self, ocm_api: OCMBaseClient, cluster_id: str, addon_upgrade_policy_id: str
-    ) -> Optional[str]:
+    ) -> str | None:
         try:
             state_data = ocm_api.get(
                 f"{self.addon_base_api_path()}/clusters/{cluster_id}/addon_upgrade_policies/{addon_upgrade_policy_id}/state"
@@ -171,7 +171,7 @@ class AddonServiceV2(AddonService):
         return "/api/addons_mgmt/v1"
 
     def get_addon_upgrade_policies(
-        self, ocm_api: OCMBaseClient, cluster_id: str, addon_id: Optional[str] = None
+        self, ocm_api: OCMBaseClient, cluster_id: str, addon_id: str | None = None
     ) -> list[OCMAddonUpgradePolicy]:
         results: list[OCMAddonUpgradePolicy] = []
 

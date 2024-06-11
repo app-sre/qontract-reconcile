@@ -9,7 +9,7 @@ from reconcile.utils.gql import GqlApi
 
 def get_aws_accounts(
     gql_api: GqlApi,
-    name: Optional[str] = None,
+    name: str | None = None,
 ) -> list[AWSAccountV1]:
     variables = {
         "name": name,

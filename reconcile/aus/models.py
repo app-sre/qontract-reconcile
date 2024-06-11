@@ -7,7 +7,6 @@ from collections.abc import (
     Mapping,
     Sequence,
 )
-from typing import Optional
 
 from pydantic import (
     BaseModel,
@@ -108,7 +107,7 @@ class OrganizationUpgradeSpec(BaseModel):
     def __init__(
         self,
         org: AUSOCMOrganization,
-        specs: Optional[Iterable[ClusterUpgradeSpec]] = None,
+        specs: Iterable[ClusterUpgradeSpec] | None = None,
     ) -> None:
         super().__init__(org=org)
 

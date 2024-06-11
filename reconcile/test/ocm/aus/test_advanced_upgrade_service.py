@@ -46,7 +46,7 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 
 def build_org_config_labels(
     with_blocked_versions: bool = False,
-    sector_deps: Optional[dict[str, list[str]]] = None,
+    sector_deps: dict[str, list[str]] | None = None,
 ) -> LabelContainer:
     labels = []
     if with_blocked_versions:
@@ -97,10 +97,10 @@ def test_organization_label_set_sector_dependencies_transformation() -> None:
 
 def build_cluster_upgrade_policy_labels(
     soak_days: int = 0,
-    workloads: Optional[list[str]] = None,
-    schedule: Optional[str] = None,
-    mutexes: Optional[list[str]] = None,
-    sector: Optional[str] = None,
+    workloads: list[str] | None = None,
+    schedule: str | None = None,
+    mutexes: list[str] | None = None,
+    sector: str | None = None,
 ) -> LabelContainer:
     labels = [
         build_label(aus_label_key("soak-days"), str(soak_days)),

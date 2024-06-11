@@ -19,9 +19,9 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 
 
 class StatusBoardStub(AbstractStatusBoard):
-    created: Optional[bool] = False
-    deleted: Optional[bool] = False
-    summarized: Optional[bool] = False
+    created: bool | None = False
+    deleted: bool | None = False
+    summarized: bool | None = False
 
     def create(self, ocm: OCMBaseClient) -> None:
         self.created = True

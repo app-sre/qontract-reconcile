@@ -32,7 +32,7 @@ from reconcile.utils.state import (
 QONTRACT_INTEGRATION = "openshift-upgrade-watcher"
 
 
-def cluster_slack_handle(cluster: str, slack: Optional[SlackApi]) -> str:
+def cluster_slack_handle(cluster: str, slack: SlackApi | None) -> str:
     usergroup = f"{cluster}-cluster"
     usergroup_id = f"@{usergroup}"
     if slack:
@@ -42,10 +42,10 @@ def cluster_slack_handle(cluster: str, slack: Optional[SlackApi]) -> str:
 
 def handle_slack_notification(
     msg: str,
-    slack: Optional[SlackApi],
+    slack: SlackApi | None,
     state: State,
     state_key: str,
-    state_value: Optional[str],
+    state_value: str | None,
 ) -> None:
     """Check notification status, notify if needed and update the notification status"""
     if state.exists(state_key) and state.get(state_key) == state_value:
@@ -60,7 +60,7 @@ def handle_slack_notification(
 
 def _get_start_osd(
     oc_map: OCMap, cluster_name: str
-) -> tuple[Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None]:
     oc = oc_map.get(cluster_name)
     if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
@@ -84,7 +84,7 @@ def _get_start_osd(
 
 def _get_start_hypershift(
     ocm_api: OCMBaseClient, cluster_id: str
-) -> tuple[Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None]:
     schedules = get_control_plane_upgrade_policies(ocm_api, cluster_id)
     schedule = [s for s in schedules if s["state"] == "started"]
     if not schedule:
@@ -101,7 +101,7 @@ def notify_upgrades_start(
     oc_map: OCMap,
     ocm_map: OCMMap,
     state: State,
-    slack: Optional[SlackApi],
+    slack: SlackApi | None,
 ) -> None:
     now = datetime.utcnow()
     for cluster in clusters:
@@ -135,7 +135,7 @@ def notify_upgrades_start(
 
 
 def notify_cluster_new_version(
-    clusters: Iterable[ClusterV1], state: State, slack: Optional[SlackApi]
+    clusters: Iterable[ClusterV1], state: State, slack: SlackApi | None
 ) -> None:
     # Send a notification, if a cluster runs a version it was not running in the past
     # This does not check if an upgrade was successful or not
@@ -159,11 +159,11 @@ def notify_cluster_new_version(
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> None:
-    slack: Optional[SlackApi] = None
+    slack: SlackApi | None = None
     if not dry_run:
         slack = slackapi_from_queries(QONTRACT_INTEGRATION)
 

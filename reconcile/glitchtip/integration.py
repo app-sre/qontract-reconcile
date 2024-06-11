@@ -172,7 +172,7 @@ def get_internal_groups_client(
 
 @defer
 def run(
-    dry_run: bool, instance: Optional[str] = None, defer: Optional[Callable] = None
+    dry_run: bool, instance: str | None = None, defer: Callable | None = None
 ) -> None:
     gqlapi = gql.get_api()
     vault_settings = get_app_interface_vault_settings()

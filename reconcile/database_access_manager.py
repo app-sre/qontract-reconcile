@@ -57,7 +57,7 @@ JOB_PSQL_ENGINE_VERSION = "15.4-alpine"
 
 
 def get_database_access_namespaces(
-    query_func: Optional[Callable] = None,
+    query_func: Callable | None = None,
 ) -> list[NamespaceV1]:
     if not query_func:
         query_func = gql.get_api().query
@@ -74,7 +74,7 @@ class DatabaseConnectionParameters(BaseModel):
 
 class PSQLScriptGenerator(BaseModel):
     db_access: DatabaseAccessV1
-    current_db_access: Optional[DatabaseAccessV1]
+    current_db_access: DatabaseAccessV1 | None
     connection_parameter: DatabaseConnectionParameters
     admin_connection_parameter: DatabaseConnectionParameters
     engine: str
@@ -426,7 +426,7 @@ def _populate_resources(
     settings: dict[Any, Any],
     user_connection: DatabaseConnectionParameters,
     admin_connection: DatabaseConnectionParameters,
-    current_db_access: Optional[DatabaseAccessV1] = None,
+    current_db_access: DatabaseAccessV1 | None = None,
 ) -> list[DBAMResource]:
     if user_connection.database == admin_connection.database:
         raise ValueError(f"Can not use default database {admin_connection.database}")
@@ -594,7 +594,7 @@ def _process_db_access(
     if not _db_access_acccess_is_valid(db_access):
         raise ValueError("Duplicate schema in access list.")
 
-    current_db_access: Optional[DatabaseAccessV1] = None
+    current_db_access: DatabaseAccessV1 | None = None
     if state.exists(db_access.name):
         current_state = state.get(db_access.name)
         if current_state == db_access.dict(by_alias=True):

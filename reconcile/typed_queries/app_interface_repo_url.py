@@ -6,7 +6,7 @@ from reconcile.utils import gql
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 
 
-def get_app_interface_repo_url(query_func: Optional[Callable] = None) -> str:
+def get_app_interface_repo_url(query_func: Callable | None = None) -> str:
     if not query_func:
         gqlapi = gql.get_api()
         query_func = gqlapi.query

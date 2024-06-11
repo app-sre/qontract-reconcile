@@ -57,10 +57,10 @@ class VCS:
         dry_run: bool,
         allow_deleting_mrs: bool = False,
         allow_opening_mrs: bool = False,
-        gitlab_instance: Optional[GitLabApi] = None,
-        default_gh_token: Optional[str] = None,
-        app_interface_api: Optional[GitLabApi] = None,
-        github_api_per_repo_url: Optional[dict[str, GithubRepositoryApi]] = None,
+        gitlab_instance: GitLabApi | None = None,
+        default_gh_token: str | None = None,
+        app_interface_api: GitLabApi | None = None,
+        github_api_per_repo_url: dict[str, GithubRepositoryApi] | None = None,
     ):
         self._dry_run = dry_run
         self._allow_deleting_mrs = allow_deleting_mrs
@@ -106,7 +106,7 @@ class VCS:
         return defaults[0]
 
     def _init_github(
-        self, repo_url: str, auth_code: Optional[HasSecret]
+        self, repo_url: str, auth_code: HasSecret | None
     ) -> GithubRepositoryApi:
         if repo_url not in self._gh_per_repo_url:
             if auth_code:
@@ -159,7 +159,7 @@ class VCS:
                 return MRCheckStatus.NONE
 
     def get_commit_sha(
-        self, repo_url: str, ref: str, auth_code: Optional[HasSecret]
+        self, repo_url: str, ref: str, auth_code: HasSecret | None
     ) -> str:
         if bool(self._is_commit_sha_regex.search(ref)):
             return ref
@@ -174,7 +174,7 @@ class VCS:
         repo_url: str,
         commit_from: str,
         commit_to: str,
-        auth_code: Optional[HasSecret],
+        auth_code: HasSecret | None,
     ) -> list[Commit]:
         """
         Return a list of commits between two commits.

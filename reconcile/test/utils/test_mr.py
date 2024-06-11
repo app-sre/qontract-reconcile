@@ -18,7 +18,7 @@ from reconcile.utils.mr.base import (
 
 
 class DummyMergeRequest(MergeRequestBase):
-    def __init__(self, process_error: Optional[Exception] = None):
+    def __init__(self, process_error: Exception | None = None):
         super().__init__()
         self.process_error = process_error
 
@@ -37,8 +37,8 @@ class DummyMergeRequest(MergeRequestBase):
 
 def build_gitlab_cli_mock(
     mr_exists: bool = False,
-    diffs: Optional[list] = None,
-    create_branch_error: Optional[Exception] = None,
+    diffs: list | None = None,
+    create_branch_error: Exception | None = None,
 ) -> GitLabApi:
     cli = MagicMock(spec=GitLabApi)
     cli.mr_exists.return_value = mr_exists

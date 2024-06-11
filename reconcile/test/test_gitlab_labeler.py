@@ -50,7 +50,7 @@ class TestOnboardingGuesser:
         self.gql.return_value = gqlapi_mock
         gqlapi_mock.query.side_effect = self.mock_gql_query
 
-    def mock_gql_query(self, query: str) -> Optional[dict[str, Any]]:
+    def mock_gql_query(self, query: str) -> dict[str, Any] | None:
         """Mock for GqlApi.query using test_data set in setUp"""
         if query == APPS_QUERY:
             return {"apps": self.test_data.apps}

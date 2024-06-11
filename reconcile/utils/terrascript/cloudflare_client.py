@@ -175,7 +175,7 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
             resources_to_add = create_cloudflare_terrascript_resource(spec)
             self._add_resources(resources_to_add)
 
-    def dump(self, existing_dir: Optional[str] = None) -> str:
+    def dump(self, existing_dir: str | None = None) -> str:
         """Write the Terraform JSON representation of the resources to disk"""
         if existing_dir is None:
             working_dir = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
@@ -193,7 +193,7 @@ class TerrascriptCloudflareClient(TerraformConfigClient):
         return str(self._terrascript)
 
     def _add_resources(
-        self, tf_resources: Iterable[Union[Resource, Output, Data]]
+        self, tf_resources: Iterable[Resource | Output | Data]
     ) -> None:
         for resource in tf_resources:
             self._terrascript.add(resource)
@@ -277,7 +277,7 @@ class TerrascriptCloudflareClientFactory:
         cls,
         tf_state_s3: TerraformStateS3,
         cf_acct: CloudflareAccount,
-        sharding_strategy: Optional[TerraformS3StateNamingStrategy],
+        sharding_strategy: TerraformS3StateNamingStrategy | None,
         secret_reader: SecretReaderBase,
         is_managed_account: bool,
         provider_rps: int = DEFAULT_PROVIDER_RPS,
@@ -300,7 +300,7 @@ class TerrascriptCloudflareClientFactory:
 
 def _get_terraform_s3_state_key_name(
     integration: Integration,
-    sharding_strategy: Optional[TerraformS3StateNamingStrategy],
+    sharding_strategy: TerraformS3StateNamingStrategy | None,
 ) -> str:
     if sharding_strategy is None:
         sharding_strategy = Default()

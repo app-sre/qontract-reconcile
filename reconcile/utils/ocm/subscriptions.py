@@ -38,7 +38,7 @@ def get_subscriptions(
 
 
 def build_subscription_filter(
-    states: Optional[set[str]] = None, managed: bool = True
+    states: set[str] | None = None, managed: bool = True
 ) -> Filter:
     """
     Helper function to create a subscription search filer for two very common

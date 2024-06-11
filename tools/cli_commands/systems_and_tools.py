@@ -145,7 +145,7 @@ class SystemTool(BaseModel):
 
     @classmethod
     def init_from_model(
-        cls, model: Any, enumeration: Any, parent: Optional[str] = None
+        cls, model: Any, enumeration: Any, parent: str | None = None
     ) -> Self:
         match model:
             case GitlabInstanceV1():
@@ -284,7 +284,7 @@ class SystemTool(BaseModel):
         cls,
         c: OpenShiftClusterManagerUpgradePolicyClusterV1,
         enumeration: Any,
-        parent: Optional[str] = None,
+        parent: str | None = None,
     ) -> Self:
         return cls(
             system_type="openshift",
@@ -395,14 +395,14 @@ class SystemToolInventory:
         self.systems_and_tools: list[SystemTool] = []
 
     def append(
-        self, model: Any, enumeration: Any, parent: Optional[str] = None
+        self, model: Any, enumeration: Any, parent: str | None = None
     ) -> None:
         self.systems_and_tools.append(
             SystemTool.init_from_model(model, enumeration, parent=parent)
         )
 
     def update(
-        self, models: list[Any], enumeration: Any, parent: Optional[str] = None
+        self, models: list[Any], enumeration: Any, parent: str | None = None
     ) -> None:
         for m in models:
             self.append(m, enumeration, parent=parent)

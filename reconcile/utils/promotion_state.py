@@ -20,9 +20,9 @@ class PromotionData(BaseModel):
     """
 
     success: bool
-    target_config_hash: Optional[str]
-    saas_file: Optional[str]
-    check_in: Optional[str]
+    target_config_hash: str | None
+    saas_file: str | None
+    check_in: str | None
 
     class Config:
         smart_union = True
@@ -71,7 +71,7 @@ class PromotionState:
         target_uid: str = "",
         pre_check_sha_exists: bool = True,
         use_cache: bool = False,
-    ) -> Optional[PromotionData]:
+    ) -> PromotionData | None:
         """
         Fetch promotion data from S3.
 

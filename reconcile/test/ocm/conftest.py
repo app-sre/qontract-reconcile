@@ -110,7 +110,7 @@ def register_ocm_url_callback(
 
 
 def _request_matches(
-    req: Request, method: str, base_url: str, path: Optional[str] = None
+    req: Request, method: str, base_url: str, path: str | None = None
 ) -> bool:
     if req.method != method:
         return False
@@ -128,8 +128,8 @@ def _request_matches(
 @pytest.fixture
 def find_ocm_http_request(
     ocm_url: str, httpserver: HTTPServer, access_token_url: str
-) -> Callable[[str, str], Optional[Request]]:
-    def find_request(method: str, path: str) -> Optional[Request]:
+) -> Callable[[str, str], Request | None]:
+    def find_request(method: str, path: str) -> Request | None:
         for req, _ in httpserver.log:
             if req.url == access_token_url:
                 # ignore the access token request
@@ -146,7 +146,7 @@ def find_ocm_http_request(
 def find_all_ocm_http_requests(
     ocm_url: str, httpserver: HTTPServer, access_token_url: str
 ) -> Callable[[str, str], list[Request]]:
-    def find_request(method: str, path: Optional[str] = None) -> list[Request]:
+    def find_request(method: str, path: str | None = None) -> list[Request]:
         matching_requests = []
 
         for req, _ in httpserver.log:

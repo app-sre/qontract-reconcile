@@ -67,9 +67,9 @@ def get_pipeline_runs_to_delete(
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> None:
     now_date = datetime.now(timezone.utc)
     vault_settings = get_app_interface_vault_settings()

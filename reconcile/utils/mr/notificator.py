@@ -32,7 +32,7 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
     def __init__(
         self,
         notification: Notification,
-        labels: Optional[list[str]] = None,
+        labels: list[str] | None = None,
         email_base_path: Path = Path("data") / "app-interface" / "emails",
         dry_run: bool = False,
     ):

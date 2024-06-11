@@ -43,7 +43,7 @@ def run(
 
 def build_probe(
     provider: EndpointMonitoringProvider, endpoints: list[Endpoint]
-) -> Optional[OpenshiftResource]:
+) -> OpenshiftResource | None:
     signalfx = provider.signalFx
     if not signalfx:
         return None

@@ -15,8 +15,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
-    Optional,
-    Union,
 )
 
 import botocore
@@ -83,7 +81,7 @@ class MissingARNError(Exception):
     pass
 
 
-KeyStatus = Union[Literal["Active"], Literal["Inactive"]]
+KeyStatus = Literal["Active"] | Literal["Inactive"]
 
 GOVCLOUD_PARTITION = "aws-us-gov"
 
@@ -191,7 +189,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self,
         session: Session,
         service_name,
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
     ):
         region = region_name if region_name else session.region_name
         client = session.client(
@@ -205,49 +203,49 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     @staticmethod
     # pylint: disable=method-hidden
     def _get_session_resource(
-        session: Session, service_name, region_name: Optional[str] = None
+        session: Session, service_name, region_name: str | None = None
     ):
         region = region_name if region_name else session.region_name
         return session.resource(service_name, region_name=region)
 
     def _account_ec2_client(
-        self, account_name: str, region_name: Optional[str] = None
+        self, account_name: str, region_name: str | None = None
     ) -> EC2Client:
         session = self.get_session(account_name)
         return self.get_session_client(session, "ec2", region_name)
 
     def _account_ec2_resource(
-        self, account_name: str, region_name: Optional[str] = None
+        self, account_name: str, region_name: str | None = None
     ) -> EC2ServiceResource:
         session = self.get_session(account_name)
         return self._get_session_resource(session, "ec2", region_name)
 
     def _account_route53_client(
-        self, account_name: str, region_name: Optional[str] = None
+        self, account_name: str, region_name: str | None = None
     ) -> Route53Client:
         session = self.get_session(account_name)
         return self.get_session_client(session, "route53", region_name)
 
     def _account_rds_client(
-        self, account_name: str, region_name: Optional[str] = None
+        self, account_name: str, region_name: str | None = None
     ) -> RDSClient:
         session = self.get_session(account_name)
         return self.get_session_client(session, "rds", region_name)
 
     def _account_cloudwatch_client(
-        self, account_name: str, region_name: Optional[str] = None
+        self, account_name: str, region_name: str | None = None
     ):
         session = self.get_session(account_name)
         return self.get_session_client(session, "logs", region_name)
 
     def _account_organizations_client(
-        self, account_name: str, region_name: Optional[str] = None
+        self, account_name: str, region_name: str | None = None
     ) -> OrganizationsClient:
         session = self.get_session(account_name)
         return self.get_session_client(session, "organizations", region_name)
 
     def _account_s3_client(
-        self, account_name: str, region_name: Optional[str] = None
+        self, account_name: str, region_name: str | None = None
     ) -> S3Client:
         session = self.get_session(account_name)
         return self.get_session_client(session, "s3", region_name)
@@ -813,7 +811,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     @staticmethod
     def _get_account_assume_data(
         account: awsh.Account,
-    ) -> tuple[str, Optional[str], str]:
+    ) -> tuple[str, str | None, str]:
         """
         returns mandatory data to be able to assume a role with this account:
         (account_name, assume_role, assume_region)
@@ -863,7 +861,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def _get_assumed_role_client(
         self,
         account_name: str,
-        assume_role: Optional[str],
+        assume_role: str | None,
         assume_region: str,
         client_type="ec2",
     ) -> EC2Client:
@@ -893,7 +891,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     # filters a list of aws resources according to tags
     @staticmethod
     def filter_on_tags(
-        items: Iterable[Any], tags: Optional[Mapping[str, str]] = None
+        items: Iterable[Any], tags: Mapping[str, str] | None = None
     ) -> list[Any]:
         if tags is None:
             tags = {}
@@ -1054,7 +1052,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         account: Mapping[str, Any],
         owner_account: Mapping[str, Any],
         regex: str,
-        region: Optional[str] = None,
+        region: str | None = None,
     ) -> list[dict[str, Any]]:
         ec2 = self._account_ec2_client(account["name"], region_name=region)
         images = self.get_account_amis(ec2, owner=owner_account["uid"])
@@ -1065,7 +1063,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         account: Mapping[str, Any],
         share_account_uid: str,
         image_id: str,
-        region: Optional[str] = None,
+        region: str | None = None,
     ):
         ec2 = self._account_ec2_resource(account["name"], region)
         image = ec2.Image(image_id)
@@ -1175,7 +1173,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     # pylint: disable=method-hidden
-    def get_vpc_default_sg_id(vpc_id: str, ec2: EC2Client) -> Optional[str]:
+    def get_vpc_default_sg_id(vpc_id: str, ec2: EC2Client) -> str | None:
         vpc_security_groups = ec2.describe_security_groups(
             Filters=[
                 {"Name": "vpc-id", "Values": [vpc_id]},
@@ -1196,7 +1194,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def get_tgw_default_route_table_id(
         self, ec2: EC2Client, tgw_id: str, tags: Mapping[str, str]
-    ) -> Optional[str]:
+    ) -> str | None:
         tgws = self.get_transit_gateways(ec2)
         tgws = self.filter_on_tags(tgws, tags)
         # we know the party TGW exists, so we can be
@@ -1555,7 +1553,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def get_image_id(
         self, account_name: str, region_name: str, tags: Iterable[AmiTag]
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Get AMI ID matching the specified criteria.
 
@@ -1584,7 +1582,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self,
         account_name: str,
         db_instance_name: str,
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
     ) -> DBInstanceMessageTypeDef:
         """
         Describe a single RDS instance.
@@ -1606,7 +1604,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         account_name: str,
         engine: str,
         engine_version: str,
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
     ) -> list[UpgradeTargetTypeDef]:
         """
         Get a list version of the database engine that a DB instance can be upgraded to.
@@ -1640,7 +1638,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         account_name: str,
         bucket_name: str,
         path: str,
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
     ) -> str:
         s3 = self._account_s3_client(account_name, region_name=region_name)
         return (
@@ -1648,7 +1646,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         )
 
 
-def aws_config_file_path() -> Optional[str]:
+def aws_config_file_path() -> str | None:
     config_file_path = os.path.expanduser(
         os.environ.get("AWS_CONFIG_FILE", "~/.aws/config")
     )

@@ -27,9 +27,9 @@ class JumphostParameters:
     hostname: str
     known_hosts: str
     user: str
-    port: Optional[int]
-    remote_port: Optional[int]
-    local_port: Optional[int]
+    port: int | None
+    remote_port: int | None
+    local_port: int | None
     key: str
 
 
@@ -60,7 +60,7 @@ class JumpHostSSH(JumpHostBase):
     tunnel_lock = threading.Lock()
 
     def __init__(
-        self, parameters: JumphostParameters, gql_api: Optional[gql.GqlApi] = None
+        self, parameters: JumphostParameters, gql_api: gql.GqlApi | None = None
     ):
         JumpHostBase.__init__(self, parameters=parameters)
 
@@ -75,7 +75,7 @@ class JumpHostSSH(JumpHostBase):
         self._remote_port = parameters.remote_port
 
     @property
-    def local_port(self) -> Optional[int]:
+    def local_port(self) -> int | None:
         return self._local_port
 
     @staticmethod

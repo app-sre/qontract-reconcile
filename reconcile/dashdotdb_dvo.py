@@ -67,7 +67,7 @@ class DashdotdbDVO(DashdotdbBase):
         for i in range(0, len(data), int(size)):
             yield data[i : i + int(size)]
 
-    def _post(self, deploymentvalidation: DVOPayload) -> Optional[Response]:
+    def _post(self, deploymentvalidation: DVOPayload) -> Response | None:
         if deploymentvalidation is None:
             return
         cluster_name = deploymentvalidation.cluster_name
@@ -130,7 +130,7 @@ class DashdotdbDVO(DashdotdbBase):
 
     def _get_deploymentvalidation(
         self, metrics: list[str], cluster: ClusterV1
-    ) -> Optional[DVOPayload]:
+    ) -> DVOPayload | None:
         prom_info = self._get_prometheus_info(cluster)
         if not prom_info:
             return None
@@ -162,8 +162,8 @@ class DashdotdbDVO(DashdotdbBase):
     # via startswith and return only those that match.
     # Returns a map of {cluster: cluster_name, data: [metric_names]}
     def _get_validation_names(
-        self, cluster: ClusterV1, filter: Optional[str] = None
-    ) -> Optional[ClusterValidationMetrics]:
+        self, cluster: ClusterV1, filter: str | None = None
+    ) -> ClusterValidationMetrics | None:
         prom_info = self._get_prometheus_info(cluster)
         if not prom_info:
             return None
@@ -202,7 +202,7 @@ class DashdotdbDVO(DashdotdbBase):
             metrics=deploymentvalidation["data"],
         )
 
-    def _get_prometheus_info(self, cluster: ClusterV1) -> Optional[PrometheusInfo]:
+    def _get_prometheus_info(self, cluster: ClusterV1) -> PrometheusInfo | None:
         if not cluster.automation_token:
             LOG.error(
                 "%s cluster %s does not have an automation token",
@@ -217,14 +217,14 @@ class DashdotdbDVO(DashdotdbBase):
         )
 
     @staticmethod
-    def _get_clusters(name: Optional[str] = None) -> list[ClusterV1]:
+    def _get_clusters(name: str | None = None) -> list[ClusterV1]:
         return [
             c for c in get_clusters_minimal(name=name) if c.ocm and c.prometheus_url
         ]
 
-    def run(self, cname: Optional[str] = None) -> None:
+    def run(self, cname: str | None = None) -> None:
         clusters = self._get_clusters(name=cname)
-        validation_list: list[Optional[ClusterValidationMetrics]] = threaded.run(
+        validation_list: list[ClusterValidationMetrics | None] = threaded.run(
             func=self._get_validation_names,
             iterable=clusters,
             thread_pool_size=self.thread_pool_size,
@@ -258,7 +258,7 @@ class DashdotdbDVO(DashdotdbBase):
 def run(
     dry_run: bool = False,
     thread_pool_size: int = 10,
-    cluster_name: Optional[str] = None,
+    cluster_name: str | None = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)

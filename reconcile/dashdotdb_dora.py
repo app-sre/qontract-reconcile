@@ -44,8 +44,8 @@ QONTRACT_INTEGRATION = "dashdotdb-dora"
 class DeploymentDBSecret:
     path: str
     field: str
-    q_format: Optional[str]
-    version: Optional[int]
+    q_format: str | None
+    version: int | None
 
 
 @dataclass(eq=True, frozen=True)
@@ -76,9 +76,9 @@ class SaasTarget:
 
 @dataclass(eq=True, frozen=True)
 class RepoChanges:
-    repo_url: Optional[str]
-    ref_from: Optional[str]
-    ref_to: Optional[str]
+    repo_url: str | None
+    ref_from: str | None
+    ref_to: str | None
 
 
 @dataclass(eq=True, frozen=True)
@@ -397,7 +397,7 @@ class DashdotdbDORA(DashdotdbBase):
 
     def get_repo_ref_for_sha(
         self, saastarget: SaasTarget, sha: str
-    ) -> tuple[Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None]:
         try:
             saas_file_yaml = self.gl_app_interface_get_file(
                 saastarget.path, ref=sha

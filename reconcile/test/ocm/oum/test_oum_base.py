@@ -397,7 +397,7 @@ def test_build_spec_from_config_cluster_admin_with_capability(
 
 class MockOCMUserManagementIntegration(OCMUserManagementIntegration):
     def get_user_mgmt_config_for_ocm_env(
-        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
+        self, ocm_env: OCMEnvironment, org_ids: set[str] | None
     ) -> dict[str, OrganizationUserManagementConfiguration]:
         return {}
 

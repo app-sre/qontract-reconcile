@@ -45,8 +45,8 @@ class CNAIntegration:
         self,
         cna_clients: Mapping[str, CNAClient],
         namespaces: Iterable[NamespaceV1],
-        desired_states: Optional[Mapping[str, State]] = None,
-        current_states: Optional[Mapping[str, State]] = None,
+        desired_states: Mapping[str, State] | None = None,
+        current_states: Mapping[str, State] | None = None,
     ):
         self._cna_clients = cna_clients
         self._namespaces = namespaces

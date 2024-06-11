@@ -352,8 +352,8 @@ def get_upgrade_policies_data(
 
     def soaking_str(
         soaking: dict[str, Any],
-        upgrade_policy: Optional[AbstractUpgradePolicy],
-        upgradeable_version: Optional[str],
+        upgrade_policy: AbstractUpgradePolicy | None,
+        upgradeable_version: str | None,
     ) -> str:
         if upgrade_policy:
             upgrade_version = upgrade_policy.version
@@ -764,9 +764,9 @@ def ocm_addon_upgrade_policies(ctx: click.core.Context) -> None:
 @click.pass_context
 def sd_app_sre_alert_report(
     ctx: click.core.Context,
-    days: Optional[int],
-    from_timestamp: Optional[int],
-    to_timestamp: Optional[int],
+    days: int | None,
+    from_timestamp: int | None,
+    to_timestamp: int | None,
 ) -> None:
     import tools.sd_app_sre_alert_report as report
 
@@ -1408,7 +1408,7 @@ def rosa_create_cluster_command(ctx, cluster_name):
 @click.argument("cluster_name", required=False)
 @click.pass_context
 def sshuttle_command(
-    ctx, jumphost_hostname: Optional[str], cluster_name: Optional[str]
+    ctx, jumphost_hostname: str | None, cluster_name: str | None
 ):
     jumphosts_query_data = queries.get_jumphosts(hostname=jumphost_hostname)
     jumphosts = jumphosts_query_data.jumphosts or []
@@ -3474,7 +3474,7 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None) -> None:
 @click.option("--app-name", default=None, help="app to act on.")
 @click.pass_context
 def saas_targets(
-    ctx, saas_file_name: Optional[str] = None, app_name: Optional[str] = None
+    ctx, saas_file_name: str | None = None, app_name: str | None = None
 ) -> None:
     """Resolve namespaceSelectors and print all resulting targets of a saas file."""
     console = Console()

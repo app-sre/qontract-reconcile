@@ -64,7 +64,7 @@ class ClusterRoleReconcileResult(BaseModel):
 
     users_added: int = 0
     users_removed: int = 0
-    error: Optional[Exception] = None
+    error: Exception | None = None
 
     class Config:
         arbitrary_types_allowed = True

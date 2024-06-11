@@ -69,8 +69,8 @@ class CloudflareUser:
 
 
 class TerraformCloudflareUsersParams(PydanticRunParams):
-    print_to_file: Optional[str]
-    account_name: Optional[str]
+    print_to_file: str | None
+    account_name: str | None
     thread_pool_size: int
     enable_deletion: bool
 
@@ -84,7 +84,7 @@ class TerraformCloudflareUsers(
 
     def get_early_exit_desired_state(
         self, *args: Any, **kwargs: Any
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         cloudflare_roles, settings = self._get_desired_state()
 
         if not settings.settings:
@@ -211,7 +211,7 @@ class TerraformCloudflareUsers(
         self,
         query_data: CloudflareAccountRoleQueryData,
         secret_reader: SecretReaderBase,
-        account_name: Optional[str],
+        account_name: str | None,
     ) -> TerraformConfigClientCollection:
         cf_clients = TerraformConfigClientCollection()
         for role in query_data.cloudflare_account_roles or []:
@@ -276,9 +276,9 @@ class TerraformCloudflareUsers(
 
 
 def get_cloudflare_users(
-    cloudflare_roles: Optional[Iterable[CloudflareAccountRoleV1]],
-    account_name: Optional[str],
-    email_domain_allow_list: Optional[Iterable[str]],
+    cloudflare_roles: Iterable[CloudflareAccountRoleV1] | None,
+    account_name: str | None,
+    email_domain_allow_list: Iterable[str] | None,
 ) -> dict[str, dict[str, CloudflareUser]]:
     """
     Returns a two-level dictionary of users with 1st level keys mapping to Cloudflare account names

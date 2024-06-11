@@ -49,7 +49,7 @@ class PoolStub(AbstractPool):
     def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
         return True
 
-    def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
+    def invalid_diff(self, pool: ClusterMachinePoolV1) -> str | None:
         return None
 
     def deletable(self) -> bool:

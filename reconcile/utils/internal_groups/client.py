@@ -61,7 +61,7 @@ class InternalGroupsApi:
 
     @retry(exceptions=(TokenExpiredError,), max_attempts=2)
     def _request(
-        self, method: str, url: str, json: Optional[dict[Any, Any]] = None
+        self, method: str, url: str, json: dict[Any, Any] | None = None
     ) -> Response:
         try:
             return self._client.request(

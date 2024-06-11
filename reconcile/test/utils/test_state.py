@@ -88,12 +88,12 @@ def all_state(s3_client: S3Client) -> State:
 
 class MockAWSCredsSecretReader(SecretReaderBase):
     def _read(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> str:
         return "secret"
 
     def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, str]:
         return {
             "aws_access_key_id": AWS_ACCESS_KEY_ID,

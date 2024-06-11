@@ -10,7 +10,7 @@ from reconcile.utils.exceptions import AppInterfaceSettingsError
 
 
 def get_app_interface_vault_settings(
-    query_func: Optional[Callable] = None,
+    query_func: Callable | None = None,
 ) -> AppInterfaceSettingsV1:
     """Returns App Interface Settings and raises err if none are found"""
     if not query_func:

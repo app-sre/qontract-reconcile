@@ -34,7 +34,7 @@ class TerraformConfigClient(ABC):
     @abstractmethod
     def dump(
         self,
-        existing_dir: Optional[str] = None,
+        existing_dir: str | None = None,
     ) -> str:
         """Dump the Terraform JSON configuration to the filesystem."""
 
@@ -65,7 +65,7 @@ class TerraformConfigClientCollection:
     def add_specs(
         self,
         specs: Iterable[ExternalResourceSpec],
-        account_filter: Optional[str] = None,
+        account_filter: str | None = None,
     ) -> None:
         """
         Add external resource specs
@@ -94,8 +94,8 @@ class TerraformConfigClientCollection:
 
     def dump(
         self,
-        print_to_file: Optional[str] = None,
-        existing_dirs: Optional[dict[str, str]] = None,
+        print_to_file: str | None = None,
+        existing_dirs: dict[str, str] | None = None,
     ) -> dict[str, str]:
         """
         Dump the Terraform JSON config to the filesystem.

@@ -46,7 +46,7 @@ ProjectStates = dict[str, Project]
 
 
 class GlitchtipProjectAlertsIntegrationParams(PydanticRunParams):
-    instance: Optional[str] = None
+    instance: str | None = None
 
 
 def webhook_urls_are_unique(alerts: Iterable[ProjectAlert]) -> bool:
@@ -70,7 +70,7 @@ class GlitchtipProjectAlertsIntegration(
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
-    def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
+    def get_early_exit_desired_state(self) -> dict[str, Any] | None:
         return {"projects": [c.dict() for c in self.get_projects(gql.get_api().query)]}
 
     def get_projects(self, query_func: Callable) -> list[GlitchtipProjectV1]:

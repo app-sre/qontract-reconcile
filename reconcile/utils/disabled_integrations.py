@@ -9,18 +9,18 @@ from typing import (
 
 
 class HasIntegrations(Protocol):
-    integrations: Optional[list[str]]
+    integrations: list[str] | None
 
 
 @runtime_checkable
 class HasDisableIntegrations(Protocol):
     @property
-    def disable(self) -> Optional[HasIntegrations]:
+    def disable(self) -> HasIntegrations | None:
         pass
 
 
 def disabled_integrations(
-    disable_obj: Optional[Union[Mapping[str, Any], HasDisableIntegrations]],
+    disable_obj: Mapping[str, Any] | HasDisableIntegrations | None,
 ) -> list[str]:
     """Returns all disabled integrations"""
     if not disable_obj:
@@ -38,7 +38,7 @@ def disabled_integrations(
 
 def integration_is_enabled(
     integration: str,
-    disable_obj: Optional[Union[Mapping[str, Any], HasDisableIntegrations]],
+    disable_obj: Mapping[str, Any] | HasDisableIntegrations | None,
 ) -> bool:
     """A convenient method to check whether an integration is enabled or not."""
     return integration not in disabled_integrations(disable_obj)

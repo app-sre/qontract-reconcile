@@ -55,7 +55,7 @@ class AcsBaseApi(BaseModel):
                 )
 
     def generic_request(
-        self, path: str, verb: str, json: Optional[Any] = None
+        self, path: str, verb: str, json: Any | None = None
     ) -> requests.Response:
         url = f"{self.url}{path}"
         headers = {
@@ -77,6 +77,6 @@ class AcsBaseApi(BaseModel):
         return response
 
     def generic_request_json(
-        self, path: str, verb: str, json: Optional[Any] = None
+        self, path: str, verb: str, json: Any | None = None
     ) -> Any:
         return self.generic_request(path, verb, json=json).json()

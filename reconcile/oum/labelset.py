@@ -23,7 +23,7 @@ class _GroupMappingLabelset(BaseModel):
     the sre-capabilities.user-mgmt.$provider prefix.
     """
 
-    authz_roles: Optional[dict[str, CSV]] = sre_capability_labels.labelset_groupfield(
+    authz_roles: dict[str, CSV] | None = sre_capability_labels.labelset_groupfield(
         group_prefix="authz."
     )
 

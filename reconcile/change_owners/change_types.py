@@ -59,7 +59,7 @@ class ChangeTypePriority(Enum):
     LOW = "low"
 
 
-def parent_of_jsonpath(path: jsonpath_ng.JSONPath) -> Optional[jsonpath_ng.JSONPath]:
+def parent_of_jsonpath(path: jsonpath_ng.JSONPath) -> jsonpath_ng.JSONPath | None:
     # todo - figure out if this is enough of if we have other
     # structures where a parent can be extracted
     if isinstance(path, jsonpath_ng.Child):
@@ -267,8 +267,8 @@ class PathExpression:
 @dataclass
 class FileChange:
     file_ref: FileRef
-    old: Optional[dict[str, Any]]
-    new: Optional[dict[str, Any]]
+    old: dict[str, Any] | None
+    new: dict[str, Any] | None
     old_backrefs: set[FileRef] = field(default_factory=set)
     new_backrefs: set[FileRef] = field(default_factory=set)
 
@@ -277,7 +277,7 @@ class OwnershipContext(ABC):
     @abstractmethod
     def find_ownership_context(
         self,
-        context_schema: Optional[str],
+        context_schema: str | None,
         change: FileChange,
     ) -> list[FileRef]: ...
 
@@ -285,11 +285,11 @@ class OwnershipContext(ABC):
 @dataclass
 class ForwardrefOwnershipContext(OwnershipContext):
     selector: jsonpath_ng.JSONPath
-    when: Optional[str] = None
+    when: str | None = None
 
     def find_ownership_context(
         self,
-        context_schema: Optional[str],
+        context_schema: str | None,
         change: FileChange,
     ) -> list[FileRef]:
         old_contexts = {e.value for e in self.selector.find(change.old)}
@@ -319,11 +319,11 @@ class ForwardrefOwnershipContext(OwnershipContext):
 class BackrefOwnershipContext(OwnershipContext):
     selector: jsonpath_ng.JSONPath
     file_diff_resolver: FileDiffResolver
-    when: Optional[str] = None
+    when: str | None = None
 
     def find_ownership_context(
         self,
-        context_schema: Optional[str],
+        context_schema: str | None,
         change: FileChange,
     ) -> list[FileRef]:
         # get backref datafile content
@@ -429,9 +429,9 @@ class ChangeDetector(ABC):
     Represents an item from a change-types `change` list.
     """
 
-    context_schema: Optional[str]
-    change_schema: Optional[str]
-    context: Optional[OwnershipContext]
+    context_schema: str | None
+    change_schema: str | None
+    context: OwnershipContext | None
 
     @abstractmethod
     def find_context_file_refs(
@@ -478,14 +478,14 @@ class ChangeTypeProcessor:
     description: str
     priority: ChangeTypePriority
     context_type: BundleFileType
-    context_schema: Optional[str]
+    context_schema: str | None
     disabled: bool
     implicit_ownership: list[ChangeTypeImplicitOwnershipV1]
-    restrictive: Optional[bool] = False
+    restrictive: bool | None = False
 
     def __post_init__(self) -> None:
         self._expressions_by_file_type_schema: dict[
-            tuple[BundleFileType, Optional[str]], list[PathExpression]
+            tuple[BundleFileType, str | None], list[PathExpression]
         ] = defaultdict(list)
         self._change_detectors: list[ChangeDetector] = []
         self._context_expansions: list[ContextExpansion] = []
@@ -638,7 +638,7 @@ class ChangeTypeProcessor:
     def _allowed_changed_paths_for_file_type_and_schema(
         self,
         file_type: BundleFileType,
-        file_schema: Optional[str],
+        file_schema: str | None,
         file_content: Any,
         ctx: "ChangeTypeContext",
     ) -> list[jsonpath_ng.JSONPath]:
@@ -692,8 +692,8 @@ class ChangeTypeProcessor:
 def build_ownership_context(
     file_diff_resolver: FileDiffResolver,
     selector: jsonpath_ng.JSONPath,
-    when: Optional[str] = None,
-    where: Optional[str] = None,
+    when: str | None = None,
+    where: str | None = None,
 ) -> OwnershipContext:
     """
     create an OwnershipContext object based on the provided parameters
@@ -840,8 +840,8 @@ class ChangeTypeContext:
     origin: str
     context_file: FileRef
     approvers: list[Approver]
-    approver_reachability: Optional[list[ApproverReachability]] = None
-    change_owner_labels: Optional[set[str]] = None
+    approver_reachability: list[ApproverReachability] | None = None
+    change_owner_labels: set[str] | None = None
 
     @property
     def disabled(self) -> bool:

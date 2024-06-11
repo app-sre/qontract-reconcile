@@ -178,7 +178,7 @@ def close_item(
     gl: GitLabApi,
     enable_closing: bool,
     item_type: str,
-    item: Union[ProjectIssue, ProjectMergeRequest],
+    item: ProjectIssue | ProjectMergeRequest,
 ):
     if enable_closing:
         logging.info([
@@ -280,7 +280,7 @@ def is_rebased(mr, gl: GitLabApi) -> bool:
 def get_merge_requests(
     dry_run: bool,
     gl: GitLabApi,
-    users_allowed_to_label: Optional[Iterable[str]] = None,
+    users_allowed_to_label: Iterable[str] | None = None,
 ) -> list[dict[str, Any]]:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     return preprocess_merge_requests(
@@ -295,7 +295,7 @@ def preprocess_merge_requests(
     dry_run: bool,
     gl: GitLabApi,
     project_merge_requests: list[ProjectMergeRequest],
-    users_allowed_to_label: Optional[Iterable[str]] = None,
+    users_allowed_to_label: Iterable[str] | None = None,
 ) -> list[dict[str, Any]]:
     results = []
     for mr in project_merge_requests:

@@ -54,7 +54,7 @@ class VersionGateApproverParams(PydanticRunParams):
     job_controller_namespace: str
     rosa_job_service_account: str
     rosa_role: str
-    rosa_job_image: Optional[str] = None
+    rosa_job_image: str | None = None
 
 
 class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams]):

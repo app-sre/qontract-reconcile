@@ -120,7 +120,7 @@ def create_backend_config(
 def build_clients(
     secret_reader: SecretReaderBase,
     query_accounts: TerraformCloudflareAccountsQueryData,
-    selected_account: Optional[str] = None,
+    selected_account: str | None = None,
 ) -> list[tuple[str, TerrascriptCloudflareClient]]:
     clients = []
     for cf_acct in query_accounts.accounts or []:
@@ -158,8 +158,8 @@ def _build_oc_resources(
     secret_reader: SecretReaderBase,
     use_jump_host: bool,
     thread_pool_size: int,
-    internal: Optional[bool] = None,
-    account_names: Optional[Iterable[str]] = None,
+    internal: bool | None = None,
+    account_names: Iterable[str] | None = None,
 ) -> tuple[ResourceInventory, OCMap]:
     ri = ResourceInventory()
 
@@ -194,7 +194,7 @@ def _build_oc_resources(
 def _populate_oc_resources(
     spec: CurrentStateSpec,
     ri: ResourceInventory,
-    account_names: Optional[Iterable[str]],
+    account_names: Iterable[str] | None,
 ):
     """
     This was taken from terraform_resources and might be a later candidate for DRY.
@@ -310,12 +310,12 @@ def _filter_cloudflare_namespaces(
 @defer
 def run(
     dry_run: bool,
-    print_to_file: Optional[str],
+    print_to_file: str | None,
     enable_deletion: bool,
     thread_pool_size: int,
-    selected_account: Optional[str] = None,
+    selected_account: str | None = None,
     vault_output_path: str = "",
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
     defer=None,
 ) -> None:

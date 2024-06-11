@@ -21,7 +21,7 @@ QONTRACT_INTEGRATION = "aws-iam-password-reset"
 
 def get_roles(
     roles: Iterable[Mapping[str, Any]], org_username: str
-) -> Optional[Mapping[str, Any]]:
+) -> Mapping[str, Any] | None:
     for d in roles:
         if d["org_username"] == org_username:
             return d

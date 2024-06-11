@@ -34,8 +34,8 @@ def filter_namespaces_by_name(
 
 def filter_namespaces_by_cluster_and_namespace(
     namespaces: Iterable[NS],
-    cluster_names: Optional[Iterable[str]],
-    namespace_names: Optional[Iterable[str]],
+    cluster_names: Iterable[str] | None,
+    namespace_names: Iterable[str] | None,
 ) -> list[NS]:
     """
     Filter namespaces by cluster and namespace name.

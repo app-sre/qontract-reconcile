@@ -23,9 +23,9 @@ QONTRACT_INTEGRATION = "resource-scraper"
 
 def run(
     dry_run: bool,
-    namespace_name: Optional[str],
-    resource_kind: Optional[str],
-    vault_output_path: Optional[str],
+    namespace_name: str | None,
+    resource_kind: str | None,
+    vault_output_path: str | None,
 ) -> None:
     """Get resources from clusters and store in Vault."""
     if not namespace_name:

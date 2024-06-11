@@ -96,7 +96,7 @@ def discover_clusters_by_labels(
 def discover_clusters_for_subscriptions(
     ocm_api: OCMBaseClient,
     subscription_ids: list[str],
-    cluster_filter: Optional[Filter] = None,
+    cluster_filter: Filter | None = None,
 ) -> list[ClusterDetails]:
     """
     Discover clusters by filtering on their subscription IDs.
@@ -118,7 +118,7 @@ def discover_clusters_for_subscriptions(
 def discover_clusters_for_organizations(
     ocm_api: OCMBaseClient,
     organization_ids: Iterable[str],
-    cluster_filter: Optional[Filter] = None,
+    cluster_filter: Filter | None = None,
 ) -> list[ClusterDetails]:
     """
     Discover clusters by filtering on their organization IDs.
@@ -151,8 +151,8 @@ def get_ocm_clusters(
 
 def get_cluster_details_for_subscriptions(
     ocm_api: OCMBaseClient,
-    subscription_filter: Optional[Filter] = None,
-    cluster_filter: Optional[Filter] = None,
+    subscription_filter: Filter | None = None,
+    cluster_filter: Filter | None = None,
     init_labels: bool = False,
 ) -> Generator[ClusterDetails, None, None]:
     """

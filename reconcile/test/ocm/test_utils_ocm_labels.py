@@ -304,7 +304,7 @@ def test_build_label_container_for_prefix_strip_prefix(
 def build_cluster_details(
     name: str = "cluster_name",
     org_id: str = "org_id",
-    subs_labels: Optional[list[tuple[str, str]]] = None,
+    subs_labels: list[tuple[str, str]] | None = None,
 ) -> ClusterDetails:
     ocm_cluster = build_ocm_cluster(name)
     return ClusterDetails(

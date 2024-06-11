@@ -1000,7 +1000,7 @@ class CheckClusterScopedResourceNames:
 @dataclass
 class CheckClusterScopedResourceDuplicates:
     oc_map: OC_Map
-    all_namespaces: Optional[Iterable[Mapping]] = None
+    all_namespaces: Iterable[Mapping] | None = None
 
     def check(self) -> list[Exception]:
         errors: list[Exception] = []
@@ -1048,7 +1048,7 @@ def check_cluster_scoped_resources(
     oc_map: OC_Map,
     ri: ResourceInventory,
     namespaces: Iterable[Mapping[str, Any]],
-    all_namespaces: Optional[Iterable[Mapping[str, Any]]] = None,
+    all_namespaces: Iterable[Mapping[str, Any]] | None = None,
 ) -> bool:
     checks = [
         CheckClusterScopedResourceNames(oc_map, ri, namespaces),
@@ -1069,7 +1069,7 @@ def check_cluster_scoped_resources(
 def get_cluster_scoped_resources(
     oc_map: OC_Map,
     clusters: Iterable[str],
-    namespaces: Optional[Iterable[Mapping[str, Any]]] = None,
+    namespaces: Iterable[Mapping[str, Any]] | None = None,
     thread_pool_size: int = 10,
 ) -> dict[str, dict[str, dict[str, list[str]]]]:
     """Returns cluster scoped resources for a list of clusters
@@ -1125,7 +1125,7 @@ def _get_namespace_cluster_scoped_resources(
 
 
 def early_exit_desired_state(
-    providers: list[str], resource_schema_filter: Optional[str] = None
+    providers: list[str], resource_schema_filter: str | None = None
 ) -> dict[str, Any]:
     settings = queries.get_secret_reader_settings()
     namespaces, _ = get_namespaces(

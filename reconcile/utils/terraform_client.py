@@ -81,7 +81,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         accounts: Iterable[Mapping[str, Any]],
         working_dirs: Mapping[str, str],
         thread_pool_size: int,
-        aws_api: Optional[AWSApi] = None,
+        aws_api: AWSApi | None = None,
         init_users=False,
     ):
         self.integration = integration

@@ -393,7 +393,7 @@ class JJB:  # pylint: disable=too-many-public-methods
         raise ValueError(f"job with {job_type=} and {repo_url=} not found")
 
     @staticmethod
-    def get_trigger_phrases_regex(job: dict) -> Optional[str]:
+    def get_trigger_phrases_regex(job: dict) -> str | None:
         for trigger in job["triggers"]:
             if "gitlab" in trigger:
                 return trigger["gitlab"].get("note-regex")

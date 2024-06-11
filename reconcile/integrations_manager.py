@@ -76,7 +76,7 @@ def collect_parameters(
     environment: EnvironmentV1,
     upstream: str,
     image: str,
-    image_tag_from_ref: Optional[Mapping[str, str]],
+    image_tag_from_ref: Mapping[str, str] | None,
 ) -> dict[str, Any]:
     parameters: dict[str, Any] = {}
     if environment.parameters:
@@ -180,7 +180,7 @@ def construct_oc_resources(
     integrations_environment: IntegrationsEnvironment,
     upstream: str,
     image: str,
-    image_tag_from_ref: Optional[Mapping[str, str]],
+    image_tag_from_ref: Mapping[str, str] | None,
 ) -> list[OpenshiftResource]:
     # Generate the openshift template with the helm chart. The resulting template
     # contains all the integrations in the environment
@@ -213,7 +213,7 @@ def fetch_desired_state(
     ri: ResourceInventory,
     upstream: str,
     image: str,
-    image_tag_from_ref: Optional[Mapping[str, str]],
+    image_tag_from_ref: Mapping[str, str] | None,
 ):
     for ie in integrations_environments:
         oc_resources = construct_oc_resources(ie, upstream, image, image_tag_from_ref)
@@ -224,7 +224,7 @@ def fetch_desired_state(
 
 
 def filter_integrations(
-    integrations: Iterable[IntegrationV1], upstream: Optional[str] = None
+    integrations: Iterable[IntegrationV1], upstream: str | None = None
 ) -> list[IntegrationV1]:
     if upstream is None:
         return list(integrations)

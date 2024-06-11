@@ -12,7 +12,7 @@ from reconcile.utils.runtime.integration import (
 
 class SimpleTestIntegrationParams(PydanticRunParams):
     int_arg: int
-    opt_str_arg: Optional[str] = None
+    opt_str_arg: str | None = None
 
 
 class SimpleTestIntegration(QontractReconcileIntegration[SimpleTestIntegrationParams]):
@@ -27,7 +27,7 @@ class SimpleTestIntegration(QontractReconcileIntegration[SimpleTestIntegrationPa
     def get_early_exit_desired_state(self) -> dict[str, Any]:
         return self.desired_state_data
 
-    def get_desired_state_shard_config(self) -> Optional[DesiredStateShardConfig]:
+    def get_desired_state_shard_config(self) -> DesiredStateShardConfig | None:
         return None
 
     def run(self, dry_run: bool) -> None:
@@ -35,7 +35,7 @@ class SimpleTestIntegration(QontractReconcileIntegration[SimpleTestIntegrationPa
 
 
 class ShardableTestIntegrationParams(PydanticRunParams):
-    shard: Optional[str] = None
+    shard: str | None = None
 
 
 class ShardableTestIntegration(
@@ -52,7 +52,7 @@ class ShardableTestIntegration(
     def get_early_exit_desired_state(self) -> dict[str, Any]:
         return self.desired_state_data
 
-    def get_desired_state_shard_config(self) -> Optional[DesiredStateShardConfig]:
+    def get_desired_state_shard_config(self) -> DesiredStateShardConfig | None:
         return DesiredStateShardConfig(
             shard_arg_name="shard",
             shard_path_selectors={"shards[*].shard"},

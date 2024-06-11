@@ -66,9 +66,9 @@ def lookup_github_file_content(
     repo: str,
     path: str,
     ref: str,
-    tvars: Optional[dict[str, Any]] = None,
-    settings: Optional[dict[str, Any]] = None,
-    secret_reader: Optional[SecretReaderBase] = None,
+    tvars: dict[str, Any] | None = None,
+    settings: dict[str, Any] | None = None,
+    secret_reader: SecretReaderBase | None = None,
 ) -> str:
     if tvars is not None:
         repo = process_jinja2_template(
@@ -98,7 +98,7 @@ def lookup_s3_object(
     account_name: str,
     bucket_name: str,
     path: str,
-    region_name: Optional[str] = None,
+    region_name: str | None = None,
 ) -> str:
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts(name=account_name)
@@ -118,12 +118,12 @@ def lookup_s3_object(
 def lookup_secret(
     path: str,
     key: str,
-    version: Optional[str] = None,
-    tvars: Optional[dict[str, Any]] = None,
+    version: str | None = None,
+    tvars: dict[str, Any] | None = None,
     allow_not_found: bool = False,
-    settings: Optional[dict[str, Any]] = None,
-    secret_reader: Optional[SecretReaderBase] = None,
-) -> Optional[str]:
+    settings: dict[str, Any] | None = None,
+    secret_reader: SecretReaderBase | None = None,
+) -> str | None:
     if tvars is not None:
         path = process_jinja2_template(
             body=path, vars=tvars, settings=settings, secret_reader=secret_reader
@@ -150,10 +150,10 @@ def lookup_secret(
 
 def process_jinja2_template(
     body: str,
-    vars: Optional[dict[str, Any]] = None,
+    vars: dict[str, Any] | None = None,
     extra_curly: bool = False,
-    settings: Optional[dict[str, Any]] = None,
-    secret_reader: Optional[SecretReaderBase] = None,
+    settings: dict[str, Any] | None = None,
+    secret_reader: SecretReaderBase | None = None,
 ) -> Any:
     if vars is None:
         vars = {}
@@ -196,10 +196,10 @@ def process_jinja2_template(
 
 def process_extracurlyjinja2_template(
     body: str,
-    vars: Optional[dict[str, Any]] = None,
+    vars: dict[str, Any] | None = None,
     extra_curly: bool = True,
-    settings: Optional[dict[str, Any]] = None,
-    secret_reader: Optional[SecretReaderBase] = None,
+    settings: dict[str, Any] | None = None,
+    secret_reader: SecretReaderBase | None = None,
 ) -> Any:
     if vars is None:
         vars = {}

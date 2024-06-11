@@ -60,7 +60,7 @@ class GlitchtipClient(ApiBase):
         ]
 
     def create_project(
-        self, organization_slug: str, team_slug: str, name: str, platform: Optional[str]
+        self, organization_slug: str, team_slug: str, name: str, platform: str | None
     ) -> Project:
         """Create a project."""
         return Project(
@@ -75,7 +75,7 @@ class GlitchtipClient(ApiBase):
         organization_slug: str,
         slug: str,
         name: str,
-        platform: Optional[str],
+        platform: str | None,
         event_throttle_rate: int,
     ) -> Project:
         """Update a project."""

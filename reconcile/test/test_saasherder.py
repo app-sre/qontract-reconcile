@@ -70,12 +70,12 @@ class MockSecretReader(SecretReaderBase):
     """
 
     def _read(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> str:
         return "secret"
 
     def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, str]:
         return {"param": "secret"}
 
@@ -88,7 +88,7 @@ def inject_gql_class_factory(
     def _gql_class_factory(
         self: Any,
         klass: type[BaseModel],
-        data: Optional[MutableMapping[str, Any]] = None,
+        data: MutableMapping[str, Any] | None = None,
     ) -> BaseModel:
         return gql_class_factory(klass, data)
 

@@ -17,7 +17,7 @@ CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT = "/api/service_logs/v1/cluster_logs"
 
 
 def get_service_logs_for_cluster_uuid(
-    ocm_api: OCMBaseClient, cluster_uuid: str, filter: Optional[Filter] = None
+    ocm_api: OCMBaseClient, cluster_uuid: str, filter: Filter | None = None
 ) -> Generator[OCMClusterServiceLog, None, None]:
     """
     Returns a list of service logs for a cluster, matching the optional filter.
@@ -36,7 +36,7 @@ def get_service_logs_for_cluster_uuid(
 def create_service_log(
     ocm_api: OCMBaseClient,
     service_log: OCMClusterServiceLogCreateModel,
-    dedup_interval: Optional[timedelta] = None,
+    dedup_interval: timedelta | None = None,
 ) -> OCMClusterServiceLog:
     if dedup_interval:
         previous_log = next(

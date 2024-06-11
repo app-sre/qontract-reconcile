@@ -13,8 +13,8 @@ from reconcile.utils.jobcontroller.models import K8sJob
 class SomeJob(K8sJob, BaseModel):
     identifying_attribute: str
     backoff_limit: int = 0
-    credentials: Optional[dict[str, str]] = None
-    script: Optional[str] = None
+    credentials: dict[str, str] | None = None
+    script: str | None = None
 
     def name_prefix(self) -> str:
         return "some-job"
@@ -44,7 +44,7 @@ class SomeJob(K8sJob, BaseModel):
 
 class SomeJobV2(K8sJob, BaseModel):
     identifying_attribute: str
-    credentials: Optional[dict[str, str]] = None
+    credentials: dict[str, str] | None = None
 
     def name_prefix(self) -> str:
         return "some-job"
@@ -71,7 +71,7 @@ def build_job_status(
 
 
 def build_job_resource(
-    job: SomeJob, status: Optional[dict[str, Any]] = None
+    job: SomeJob, status: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     job_resource = ApiClient().sanitize_for_serialization(job.build_job())
     if status:

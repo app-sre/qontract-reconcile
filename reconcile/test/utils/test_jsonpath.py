@@ -263,7 +263,7 @@ def test_sortable_jsonpath_string_repr(jsonpath: str, sortable_jsonpath: str):
         ("$", "$", None),
     ],
 )
-def test_remove_prefix_from_path(path: str, prefix: str, expected: Optional[str]):
+def test_remove_prefix_from_path(path: str, prefix: str, expected: str | None):
     expected_path = parse(expected) if expected else None
     assert remove_prefix_from_path(parse(path), parse(prefix)) == expected_path
 

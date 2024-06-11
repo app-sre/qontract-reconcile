@@ -80,7 +80,7 @@ class Subscriber:
 
     def _validate_deployment(
         self, publisher: Publisher, channel: Channel
-    ) -> Optional[DeploymentInfo]:
+    ) -> DeploymentInfo | None:
         deployment_info = publisher.deployment_info_by_channel.get(channel.name)
         if not deployment_info:
             logging.info(

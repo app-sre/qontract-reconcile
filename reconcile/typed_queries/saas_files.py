@@ -55,24 +55,22 @@ from reconcile.utils.jsonpath import parse_jsonpath
 
 
 class SaasResourceTemplateTarget(ConfiguredBaseModel):
-    path: Optional[str] = Field(..., alias="path")
-    name: Optional[str] = Field(..., alias="name")
+    path: str | None = Field(..., alias="path")
+    name: str | None = Field(..., alias="name")
     # the namespace must be required to fulfill the saas file schema (utils.saasherder.interface.SaasFile)
     namespace: SaasTargetNamespace = Field(..., alias="namespace")
     ref: str = Field(..., alias="ref")
-    promotion: Optional[SaasResourceTemplateTargetPromotionV1] = Field(
+    promotion: SaasResourceTemplateTargetPromotionV1 | None = Field(
         ..., alias="promotion"
     )
-    parameters: Optional[Json] = Field(..., alias="parameters")
-    secret_parameters: Optional[
-        list[SaasResourceTemplateTargetV2_SaasSecretParametersV1]
-    ] = Field(..., alias="secretParameters")
-    upstream: Optional[SaasResourceTemplateTargetUpstreamV1] = Field(
+    parameters: Json | None = Field(..., alias="parameters")
+    secret_parameters: list[SaasResourceTemplateTargetV2_SaasSecretParametersV1] | None = Field(..., alias="secretParameters")
+    upstream: SaasResourceTemplateTargetUpstreamV1 | None = Field(
         ..., alias="upstream"
     )
-    image: Optional[SaasResourceTemplateTargetImageV1] = Field(..., alias="image")
-    disable: Optional[bool] = Field(..., alias="disable")
-    delete: Optional[bool] = Field(..., alias="delete")
+    image: SaasResourceTemplateTargetImageV1 | None = Field(..., alias="image")
+    disable: bool | None = Field(..., alias="disable")
+    delete: bool | None = Field(..., alias="delete")
 
     def uid(
         self, parent_saas_file_name: str, parent_resource_template_name: str
@@ -92,10 +90,10 @@ class SaasResourceTemplate(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     url: str = Field(..., alias="url")
     path: str = Field(..., alias="path")
-    provider: Optional[str] = Field(..., alias="provider")
-    hash_length: Optional[int] = Field(..., alias="hash_length")
-    parameters: Optional[Json] = Field(..., alias="parameters")
-    secret_parameters: Optional[list[SaasResourceTemplateV2_SaasSecretParametersV1]] = (
+    provider: str | None = Field(..., alias="provider")
+    hash_length: int | None = Field(..., alias="hash_length")
+    parameters: Json | None = Field(..., alias="parameters")
+    secret_parameters: list[SaasResourceTemplateV2_SaasSecretParametersV1] | None = (
         Field(..., alias="secretParameters")
     )
     targets: list[SaasResourceTemplateTarget] = Field(..., alias="targets")
@@ -104,53 +102,53 @@ class SaasResourceTemplate(ConfiguredBaseModel):
 class SaasFile(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
-    labels: Optional[Json] = Field(..., alias="labels")
+    labels: Json | None = Field(..., alias="labels")
     app: AppV1 = Field(..., alias="app")
-    pipelines_provider: Union[PipelinesProviderTektonV1, PipelinesProviderV1] = Field(
+    pipelines_provider: PipelinesProviderTektonV1 | PipelinesProviderV1 = Field(
         ..., alias="pipelinesProvider"
     )
-    deploy_resources: Optional[DeployResourcesV1] = Field(..., alias="deployResources")
-    slack: Optional[SlackOutputV1] = Field(..., alias="slack")
+    deploy_resources: DeployResourcesV1 | None = Field(..., alias="deployResources")
+    slack: SlackOutputV1 | None = Field(..., alias="slack")
     managed_resource_types: list[str] = Field(..., alias="managedResourceTypes")
-    takeover: Optional[bool] = Field(..., alias="takeover")
-    deprecated: Optional[bool] = Field(..., alias="deprecated")
-    compare: Optional[bool] = Field(..., alias="compare")
-    timeout: Optional[str] = Field(..., alias="timeout")
-    skip_successful_deploy_notifications: Optional[bool] = Field(
+    takeover: bool | None = Field(..., alias="takeover")
+    deprecated: bool | None = Field(..., alias="deprecated")
+    compare: bool | None = Field(..., alias="compare")
+    timeout: str | None = Field(..., alias="timeout")
+    skip_successful_deploy_notifications: bool | None = Field(
         ..., alias="skipSuccessfulDeployNotifications"
     )
-    publish_job_logs: Optional[bool] = Field(..., alias="publishJobLogs")
-    cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
+    publish_job_logs: bool | None = Field(..., alias="publishJobLogs")
+    cluster_admin: bool | None = Field(..., alias="clusterAdmin")
     image_patterns: list[str] = Field(..., alias="imagePatterns")
-    allowed_secret_parameter_paths: Optional[list[str]] = Field(
+    allowed_secret_parameter_paths: list[str] | None = Field(
         ..., alias="allowedSecretParameterPaths"
     )
-    use_channel_in_image_tag: Optional[bool] = Field(
+    use_channel_in_image_tag: bool | None = Field(
         ..., alias="use_channel_in_image_tag"
     )
-    authentication: Optional[SaasFileAuthenticationV1] = Field(
+    authentication: SaasFileAuthenticationV1 | None = Field(
         ..., alias="authentication"
     )
-    parameters: Optional[Json] = Field(..., alias="parameters")
-    secret_parameters: Optional[list[SaasSecretParametersV1]] = Field(
+    parameters: Json | None = Field(..., alias="parameters")
+    secret_parameters: list[SaasSecretParametersV1] | None = Field(
         ..., alias="secretParameters"
     )
-    validate_targets_in_app: Optional[bool] = Field(..., alias="validateTargetsInApp")
-    managed_resource_names: Optional[list[ManagedResourceNamesV1]] = Field(
+    validate_targets_in_app: bool | None = Field(..., alias="validateTargetsInApp")
+    managed_resource_names: list[ManagedResourceNamesV1] | None = Field(
         ..., alias="managedResourceNames"
     )
     resource_templates: list[SaasResourceTemplate] = Field(
         ..., alias="resourceTemplates"
     )
-    self_service_roles: Optional[list[RoleV1]] = Field(..., alias="selfServiceRoles")
+    self_service_roles: list[RoleV1] | None = Field(..., alias="selfServiceRoles")
 
 
 class SaasFileList:
     def __init__(
         self,
-        name: Optional[str] = None,
-        query_func: Optional[Callable] = None,
-        namespaces: Optional[list[SaasTargetNamespace]] = None,
+        name: str | None = None,
+        query_func: Callable | None = None,
+        namespaces: list[SaasTargetNamespace] | None = None,
     ) -> None:
         # query_func and namespaces are optional args mostly used in tests
         if not query_func:
@@ -170,7 +168,7 @@ class SaasFileList:
         self.saas_files = self._resolve_namespace_selectors()
 
     def _init_caches(self) -> None:
-        self._namespaces_as_dict_cache: Optional[dict[str, list[Any]]] = None
+        self._namespaces_as_dict_cache: dict[str, list[Any]] | None = None
         self._namespaces_as_dict_lock = Lock()
         self._matching_namespaces_cache: dict[str, Any] = {}
         self._matching_namespaces_lock = Lock()
@@ -272,9 +270,9 @@ class SaasFileList:
 
     def where(
         self,
-        name: Optional[str] = None,
-        env_name: Optional[str] = None,
-        app_name: Optional[str] = None,
+        name: str | None = None,
+        env_name: str | None = None,
+        app_name: str | None = None,
     ) -> list[SaasFile]:
         if name is None and env_name is None and app_name is None:
             return self.saas_files
@@ -325,12 +323,12 @@ def export_model(model: BaseModel) -> dict[str, Any]:
 
 
 def get_saas_files(
-    name: Optional[str] = None,
-    env_name: Optional[str] = None,
-    app_name: Optional[str] = None,
-    query_func: Optional[Callable] = None,
-    namespaces: Optional[list[SaasTargetNamespace]] = None,
-    saas_file_list: Optional[SaasFileList] = None,
+    name: str | None = None,
+    env_name: str | None = None,
+    app_name: str | None = None,
+    query_func: Callable | None = None,
+    namespaces: list[SaasTargetNamespace] | None = None,
+    saas_file_list: SaasFileList | None = None,
 ) -> list[SaasFile]:
     if not saas_file_list:
         saas_file_list = SaasFileList(
@@ -340,7 +338,7 @@ def get_saas_files(
 
 
 def get_saasherder_settings(
-    query_func: Optional[Callable] = None,
+    query_func: Callable | None = None,
 ) -> AppInterfaceSettingsV1:
     if not query_func:
         query_func = gql.get_api().query

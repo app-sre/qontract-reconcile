@@ -17,25 +17,25 @@ class Approver:
     """
 
     org_username: str
-    tag_on_merge_requests: Optional[bool] = False
+    tag_on_merge_requests: bool | None = False
 
 
 class ApproverResolver(Protocol):
-    def lookup_approver_by_path(self, path: str) -> Optional[Approver]: ...
+    def lookup_approver_by_path(self, path: str) -> Approver | None: ...
 
 
 class GqlApproverResolver:
     def __init__(self, gqlapis: list[GqlApi]):
         self.gqlapis = gqlapis
 
-    def lookup_approver_by_path(self, path: str) -> Optional[Approver]:
+    def lookup_approver_by_path(self, path: str) -> Approver | None:
         for gqlapi in self.gqlapis:
             approver = self._lookup_approver_by_path(gqlapi, path)
             if approver:
                 return approver
         return None
 
-    def _lookup_approver_by_path(self, gqlapi: GqlApi, path: str) -> Optional[Approver]:
+    def _lookup_approver_by_path(self, gqlapi: GqlApi, path: str) -> Approver | None:
         approvers = gqlapi.query(
             """
             query Approvers($path: String) {

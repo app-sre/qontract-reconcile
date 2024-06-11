@@ -90,7 +90,7 @@ class cloudflare_account_roles(Data):
 # TODO: rename to include object?
 def create_cloudflare_terrascript_resource(
     spec: ExternalResourceSpec,
-) -> list[Union[Resource, Output, Data]]:
+) -> list[Resource | Output | Data]:
     """
     Create the required Cloudflare Terrascript resources as defined by the external
     resources spec.
@@ -117,7 +117,7 @@ def create_cloudflare_terrascript_resource(
 class CloudflareWorkerScriptTerrascriptResource(TerrascriptResource):
     """Generate a cloudflare_worker_script resource"""
 
-    def populate(self) -> list[Union[Resource, Output]]:
+    def populate(self) -> list[Resource | Output]:
         values = ResourceValueResolver(self._spec).resolve()
 
         gh_repo = values["content_from_github"]["repo"]
@@ -164,7 +164,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
 
     def _create_cloudflare_certificate_pack(
         self, zone: Resource, zone_certs: Iterable[MutableMapping[str, Any]]
-    ) -> list[Union[Resource, Output]]:
+    ) -> list[Resource | Output]:
         resources = []
         for cert_values in zone_certs:
             identifier = safe_resource_id(cert_values.pop("identifier"))
@@ -192,7 +192,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
         self,
         zone: Resource,
         zone_custom_ssl: Iterable[MutableMapping[str, Any]],
-    ) -> list[Union[Resource, Output]]:
+    ) -> list[Resource | Output]:
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
@@ -221,7 +221,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
             resources.append(custom_ssl)
         return resources
 
-    def populate(self) -> list[Union[Resource, Output]]:
+    def populate(self) -> list[Resource | Output]:
         resources = []
 
         values = ResourceValueResolver(self._spec).resolve()
@@ -313,7 +313,7 @@ class CloudflareZoneTerrascriptResource(TerrascriptResource):
 
 
 class CloudflareAccountMemberTerrascriptResource(TerrascriptResource):
-    def populate(self) -> list[Union[Resource, Output]]:
+    def populate(self) -> list[Resource | Output]:
         resources = []
         values = ResourceValueResolver(self._spec).resolve()
         data_source_cloudflare_account_roles = values.pop("cloudflare_account_roles")
@@ -340,7 +340,7 @@ class CloudflareLogpushJob(TerrascriptResource):
         we are defining this as inner class.
         """
 
-    def populate(self) -> list[Union[Resource, Output, Data]]:
+    def populate(self) -> list[Resource | Output | Data]:
         resources = []
         values = ResourceValueResolver(self._spec).resolve()
         zone = values.pop("zone_name", None)
@@ -373,7 +373,7 @@ class CloudflareLogpushOwnershipChallengeResource(TerrascriptResource):
         we are defining this as inner class.
         """
 
-    def populate(self) -> list[Union[Resource, Output, Data]]:
+    def populate(self) -> list[Resource | Output | Data]:
         resources = []
         values = ResourceValueResolver(self._spec).resolve()
         destination_conf = values.get("destination_conf")
@@ -412,7 +412,7 @@ class CloudflareLogpullRetention(TerrascriptResource):
         we are defining this as inner class.
         """
 
-    def populate(self) -> list[Union[Resource, Output, Data]]:
+    def populate(self) -> list[Resource | Output | Data]:
         resources = []
         values = ResourceValueResolver(self._spec).resolve()
 

@@ -45,8 +45,8 @@ class VaultSecret(BaseModel):
 
     path: str
     field: str
-    version: Optional[int]
-    q_format: Optional[str]
+    version: int | None
+    q_format: str | None
 
 
 class SecretHelper:

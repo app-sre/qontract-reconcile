@@ -48,7 +48,7 @@ def get_parents_list() -> set[str]:
 
 def guess_onboarding_status(
     changed_paths: Iterable[str], apps: dict[str, dict], parent_apps: set[str]
-) -> Optional[str]:
+) -> str | None:
     """
     Guess the service name of a given MR from the changed paths of the
     MR. This will allow to add the onboarding status to the MR's as label

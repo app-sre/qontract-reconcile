@@ -9,7 +9,7 @@ from reconcile.utils.gql import GqlApi
 
 
 def get_clusters_with_dms(
-    gql_api: Optional[GqlApi] = None,
+    gql_api: GqlApi | None = None,
 ) -> list[ClusterV1]:
     # get the clusters containing the filed enableDeadMansSnitch
     variable = {"filter": {"enableDeadMansSnitch": {"ne": None}}}

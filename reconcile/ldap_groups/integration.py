@@ -62,7 +62,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         return {"roles": [c.dict() for c in self.get_roles(query_func)]}
 
     @defer
-    def run(self, dry_run: bool, defer: Optional[Callable] = None) -> None:
+    def run(self, dry_run: bool, defer: Callable | None = None) -> None:
         """Run the integration."""
         gql_api = gql.get_api()
         roles = self.get_roles(gql_api.query)

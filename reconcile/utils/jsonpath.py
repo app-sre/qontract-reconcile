@@ -119,7 +119,7 @@ def apply_constraint_to_path(
     path: jsonpath_ng.JSONPath,
     path_constraint: jsonpath_ng.JSONPath,
     min_common_prefix_length: int = 1,
-) -> Optional[jsonpath_ng.JSONPath]:
+) -> jsonpath_ng.JSONPath | None:
     """
     Narrow the `path` with a more specific `path_constraint`.
     e.g. if the path constraints a slice `[*]` and the constraints a
@@ -148,7 +148,7 @@ def apply_constraint_to_path(
 
 def remove_prefix_from_path(
     path: jsonpath_ng.JSONPath, prefix: jsonpath_ng.JSONPath
-) -> Optional[jsonpath_ng.JSONPath]:
+) -> jsonpath_ng.JSONPath | None:
     path_parts = jsonpath_parts(path, ignore_root=True)
     prefix_parts = jsonpath_parts(prefix, ignore_root=True)
 

@@ -40,5 +40,5 @@ class TerrascriptResource(ABC):
         ]
 
     @abstractmethod
-    def populate(self) -> list[Union[Resource, Output, Data]]:
+    def populate(self) -> list[Resource | Output | Data]:
         """Calling this method should return the Terrascript resources to be created."""

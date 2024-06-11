@@ -15,7 +15,7 @@ from reconcile.utils.gql import GqlApi
 
 
 def test_no_settings(
-    gql_api_builder: Callable[[Optional[Mapping]], GqlApi],
+    gql_api_builder: Callable[[Mapping | None], GqlApi],
     gql_class_factory: Callable[..., JiraSettingsQueryData],
 ) -> None:
     data = gql_class_factory(JiraSettingsQueryData, {})
@@ -25,7 +25,7 @@ def test_no_settings(
 
 
 def test_multiple_settings(
-    gql_api_builder: Callable[[Optional[Mapping]], GqlApi],
+    gql_api_builder: Callable[[Mapping | None], GqlApi],
     gql_class_factory: Callable[..., JiraSettingsQueryData],
 ) -> None:
     data = gql_class_factory(JiraSettingsQueryData, {"jira_settings": [{}, {}]})
@@ -35,7 +35,7 @@ def test_multiple_settings(
 
 
 def test_exactly_one_setting(
-    gql_api_builder: Callable[[Optional[Mapping]], GqlApi],
+    gql_api_builder: Callable[[Mapping | None], GqlApi],
     gql_class_factory: Callable[..., JiraSettingsQueryData],
 ) -> None:
     data = gql_class_factory(

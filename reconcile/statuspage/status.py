@@ -28,7 +28,7 @@ class StatusProvider(ABC):
     """
 
     @abstractmethod
-    def get_status(self) -> Optional[str]: ...
+    def get_status(self) -> str | None: ...
 
 
 class ManualStatusProvider(StatusProvider, BaseModel):
@@ -38,13 +38,13 @@ class ManualStatusProvider(StatusProvider, BaseModel):
     the component.
     """
 
-    start: Optional[datetime] = None
+    start: datetime | None = None
     """
     The optional start time of the time window in which the manually
     defined status is active.
     """
 
-    end: Optional[datetime] = None
+    end: datetime | None = None
     """
     The optional end time of the time window in which the manually
     defined status is active.
@@ -56,7 +56,7 @@ class ManualStatusProvider(StatusProvider, BaseModel):
     time window is active or if no time window is defined.
     """
 
-    def get_status(self) -> Optional[str]:
+    def get_status(self) -> str | None:
         if self._is_active():
             return self.component_status
         return None
@@ -81,7 +81,7 @@ class ManualStatusProvider(StatusProvider, BaseModel):
 
 def build_status_provider_config(
     cfg: StatusProviderV1,
-) -> Optional[StatusProvider]:
+) -> StatusProvider | None:
     """
     Translates a status provider config from the desired state into
     provider specific implementation that provides the status resolution logic.

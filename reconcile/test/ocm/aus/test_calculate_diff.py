@@ -102,7 +102,7 @@ def build_version_data(
     version: str,
     workload: str,
     soak_days: int,
-    reporting_clusters: Optional[list[str]] = None,
+    reporting_clusters: list[str] | None = None,
 ) -> VersionData:
     return VersionData(
         check_in=check_in,

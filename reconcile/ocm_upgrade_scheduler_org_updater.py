@@ -25,7 +25,7 @@ def render_policy(
     template: dict[str, Any],
     cluster_spec: OCMSpec,
     labels: dict[str, str],
-    settings: Optional[dict[str, Any]] = None,
+    settings: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     body = template["path"]["content"]
     type = template.get("type") or "jinja2"

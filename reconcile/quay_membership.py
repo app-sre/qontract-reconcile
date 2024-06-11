@@ -81,7 +81,7 @@ def fetch_current_state(quay_api_store):
     return state
 
 
-def get_usernames(users: Sequence[Union[UserV1, BotV1]]) -> list[str]:
+def get_usernames(users: Sequence[UserV1 | BotV1]) -> list[str]:
     return [u.quay_username for u in users if u.quay_username]
 
 

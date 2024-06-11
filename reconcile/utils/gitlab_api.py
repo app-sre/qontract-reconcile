@@ -798,7 +798,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         author, assignee = last_assignment[0], last_assignment[1]
         return author in team_usernames and mr.assignee["username"] == assignee
 
-    def last_assignment(self, mr: ProjectMergeRequest) -> Optional[tuple[str, str]]:
+    def last_assignment(self, mr: ProjectMergeRequest) -> tuple[str, str] | None:
         body_format = "assigned to @"
         notes = self.get_items(mr.notes.list)
 
@@ -817,7 +817,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def last_comment(
         self, mr: ProjectMergeRequest, exclude_bot=True
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         comments = self.get_merge_request_comments(mr)
         comments.sort(key=itemgetter("created_at"), reverse=True)
         for comment in comments:

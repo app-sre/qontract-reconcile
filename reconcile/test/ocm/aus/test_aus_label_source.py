@@ -21,11 +21,11 @@ def build_cluster(
     name: str,
     org: AUSOCMOrganization,
     soak_days: int = 0,
-    workloads: Optional[list[str]] = None,
-    schedule: Optional[str] = None,
-    sector: Optional[str] = None,
-    mutexes: Optional[list[str]] = None,
-    blocked_versions: Optional[list[str]] = None,
+    workloads: list[str] | None = None,
+    schedule: str | None = None,
+    sector: str | None = None,
+    mutexes: list[str] | None = None,
+    blocked_versions: list[str] | None = None,
 ) -> ClusterV1:
     return ClusterV1(
         name=name,

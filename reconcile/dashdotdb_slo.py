@@ -72,7 +72,7 @@ class DashdotdbSLO(DashdotdbBase):
             secret_reader=secret_reader,
         )
 
-    def _post(self, service_slos: Iterable[ServiceSLO]) -> Optional[Response]:
+    def _post(self, service_slos: Iterable[ServiceSLO]) -> Response | None:
         for item in service_slos:
             LOG.debug(f"About to POST SLO JSON item to dashdotDB:\n{item}\n")
 
@@ -106,9 +106,9 @@ class DashdotdbSLO(DashdotdbBase):
                 continue
 
             ns = namespace_access.namespace
-            promtoken: Optional[str] = None
-            username: Optional[str] = None
-            password: Optional[str] = None
+            promtoken: str | None = None
+            username: str | None = None
+            password: str | None = None
             if namespace_access.prometheus_access:
                 promurl = namespace_access.prometheus_access.url
                 username = self.secret_reader.read_secret(

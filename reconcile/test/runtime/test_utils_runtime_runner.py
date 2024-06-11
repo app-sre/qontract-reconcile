@@ -38,11 +38,11 @@ class MockIntegrationRunConfiguration(IntegrationRunConfiguration):
     def comparison_bundle_desired_state(self) -> dict[str, Any]:
         return self.comparison_data
 
-    def switch_to_main_bundle(self, validate_schemas: Optional[bool] = None) -> None:
+    def switch_to_main_bundle(self, validate_schemas: bool | None = None) -> None:
         pass
 
     def switch_to_comparison_bundle(
-        self, validate_schemas: Optional[bool] = None
+        self, validate_schemas: bool | None = None
     ) -> None:
         pass
 
@@ -164,7 +164,7 @@ def test_run_configuration_switch_to_comparison_bundle(
 )
 def test_get_desired_state_diff(
     check_only_affected_shards: bool,
-    early_exit_sha: Optional[str],
+    early_exit_sha: str | None,
     previous_data: dict[str, Any],
     current_data: dict[str, Any],
     desired_state_diff_found: bool,
