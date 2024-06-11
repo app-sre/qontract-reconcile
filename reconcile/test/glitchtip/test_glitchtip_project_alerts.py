@@ -350,7 +350,7 @@ def test_glitchtip_project_alerts_fetch_desire_state(
                 ProjectAlertRecipient(
                     pk=None,
                     recipient_type=RecipientType.WEBHOOK,
-                    url="http://gjb.com/JIRA-VIA-BOARD?token=secret&labels=example-label-1&labels=example-label-2&labels=escalation-label-1&labels=escalation-label-2&components=jira-component&issue_type=CustomIssueType",
+                    url="http://gjb.com/JIRA-VIA-BOARD?labels=example-label-1&labels=example-label-2&labels=escalation-label-1&labels=escalation-label-2&components=jira-component&token=secret&issue_type=CustomIssueType",
                 )
             ],
         ),
@@ -366,7 +366,7 @@ def test_glitchtip_project_alerts_fetch_desire_state(
                 ProjectAlertRecipient(
                     pk=None,
                     recipient_type=RecipientType.WEBHOOK,
-                    url="http://gjb.com/JIRA-VIA-PROJECT?token=secret&components=jira-component-1&components=jira-component-2&labels=example-label-1&labels=example-label-2",
+                    url="http://gjb.com/JIRA-VIA-PROJECT?labels=example-label-1&labels=example-label-2&components=jira-component-1&components=jira-component-2&token=secret",
                 )
             ],
         )

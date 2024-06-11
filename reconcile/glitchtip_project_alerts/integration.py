@@ -124,13 +124,14 @@ class GlitchtipProjectAlertsIntegration(
                 )
             if glitchtip_project.jira and gjb_alert_url:
                 params: dict[str, str | list[str]] = {}
-                if gjb_token:
-                    params["token"] = gjb_token
+                token_params = {"token": gjb_token} if gjb_token else {}
                 alert_labels = glitchtip_project.jira.labels or []
 
                 if glitchtip_project.jira.project:
-                    params["components"] = glitchtip_project.jira.components or []
-                    params["labels"] = alert_labels
+                    params = {
+                        "labels": alert_labels,
+                        "components": glitchtip_project.jira.components or [],
+                    } | token_params
                     url = f"{gjb_alert_url}/{glitchtip_project.jira.project}?{urlencode(params, True)}"
                     alerts.append(
                         ProjectAlert(
@@ -159,11 +160,14 @@ class GlitchtipProjectAlertsIntegration(
                             jira_permissions_validator.QONTRACT_INTEGRATION, board
                         ):
                             continue
-                        params["labels"] = alert_labels + (channels.jira_labels or [])
-                        params["components"] = (
-                            [channels.jira_component] if channels.jira_component else []
-                        )
-                        params["issue_type"] = board.issue_type or "Bug"
+                        params = {
+                            "labels": alert_labels + (channels.jira_labels or []),
+                            "components": [channels.jira_component]
+                            if channels.jira_component
+                            else [],
+                        } | token_params
+                        if board.issue_type:
+                            params["issue_type"] = board.issue_type
                         url = f"{gjb_alert_url}/{board.name}?{urlencode(params, True)}"
                         alerts.append(
                             ProjectAlert(
