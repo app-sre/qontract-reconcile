@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import (
     Optional,
     TypeVar,
@@ -370,7 +370,7 @@ class LabelContainer(BaseModel):
         return {label.key: label.value for label in self.labels.values()}
 
 
-class OCMServiceLogSeverity(str, Enum):
+class OCMServiceLogSeverity(StrEnum):
     """
     Represents the severity of a service log.
     """
@@ -509,7 +509,7 @@ class ClusterDetails(BaseModel):
         return capa is not None and capa.value == value
 
 
-class OCMOIdentityProviderMappingMethod(str, Enum):
+class OCMOIdentityProviderMappingMethod(StrEnum):
     ADD = "add"
     CLAIM = "claim"
     LOOKUP = "lookup"

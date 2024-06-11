@@ -3,7 +3,7 @@ from collections.abc import (
     Iterable,
     MutableMapping,
 )
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 from urllib.parse import urlparse
 
@@ -44,7 +44,7 @@ ISSUER_LABEL_KEY = sre_capability_label_key("rhidp", "issuer")
 AUTH_NAME_LABEL_KEY = sre_capability_label_key("rhidp", "name")
 
 
-class StatusValue(str, Enum):
+class StatusValue(StrEnum):
     # rhidp and oidc are enabled
     ENABLED = "enabled"
     # rhidp and oidc are disabled

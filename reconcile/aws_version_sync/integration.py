@@ -3,7 +3,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 import semver
@@ -69,7 +69,7 @@ class ExternalResourceProvisioner(BaseModel):
     path: str | None = None
 
 
-class VersionFormat(str, Enum):
+class VersionFormat(StrEnum):
     MAJOR = "major"
     MAJOR_MINOR = "major_minor"
     MAJOR_MINOR_PATCH = "major_minor_patch"

@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import (
     Any,
     Protocol,
@@ -18,7 +18,7 @@ DATAFILE_SHA256SUM_FIELD_NAME = "$file_sha256sum"
 DATAFILE_SCHEMA_FIELD_NAME = "$schema"
 
 
-class BundleFileType(str, Enum):
+class BundleFileType(StrEnum):
     DATAFILE = "datafile"
     RESOURCEFILE = "resourcefile"
 

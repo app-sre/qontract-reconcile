@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Optional
 
 from pydantic import (
@@ -9,7 +9,7 @@ from pydantic import (
 )
 
 
-class EntityType(str, Enum):
+class EntityType(StrEnum):
     USER = "user"
     SERVICE_ACCOUNT = "serviceaccount"
     DELETED_USER = "deleteduser"

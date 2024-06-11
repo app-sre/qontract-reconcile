@@ -2,7 +2,7 @@ import json
 import logging
 from collections.abc import Iterable
 from datetime import datetime, timezone, UTC
-from enum import Enum
+from enum import Enum, StrEnum
 
 from sretoolbox.utils import threaded
 
@@ -73,7 +73,7 @@ def setup_factories(
     return of
 
 
-class ReconcileAction(str, Enum):
+class ReconcileAction(StrEnum):
     NOOP = "NOOP"
     APPLY_NOT_EXISTS = "Resource does not exist"
     APPLY_ERROR = "Resource status in ERROR state"

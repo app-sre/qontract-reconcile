@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Mapping
 from datetime import datetime, timezone, UTC
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 from pydantic import BaseModel
@@ -20,14 +20,14 @@ class StateNotFoundError(Exception):
     pass
 
 
-class ReconcileStatus(str, Enum):
+class ReconcileStatus(StrEnum):
     SUCCESS: str = "SUCCESS"
     ERROR: str = "ERROR"
     IN_PROGRESS: str = "IN_PROGRESS"
     NOT_EXISTS: str = "NOT_EXISTS"
 
 
-class ResourceStatus(str, Enum):
+class ResourceStatus(StrEnum):
     CREATED: str = "CREATED"
     DELETED: str = "DELETED"
     ABANDONED: str = "ABANDONED"

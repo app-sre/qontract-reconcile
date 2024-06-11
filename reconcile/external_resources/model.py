@@ -9,7 +9,7 @@ from collections.abc import (
     Iterator,
     MutableMapping,
 )
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 from pydantic import BaseModel
@@ -123,7 +123,7 @@ class ExternalResourcesInventory(MutableMapping):
             raise FetchResourceError(msg)
 
 
-class Action(str, Enum):
+class Action(StrEnum):
     DESTROY: str = "Destroy"
     APPLY: str = "Apply"
 
