@@ -391,7 +391,7 @@ class MockFileDiffResolver:
         self,
         fail_on_unknown_path: Optional[bool] = True,
         file_diffs: Optional[
-            dict[str, Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]]
+            dict[str, tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]]
         ] = None,
     ):
         self.file_diffs = file_diffs or {}
@@ -413,7 +413,7 @@ class MockFileDiffResolver:
 
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
         if file_ref.path not in self.file_diffs and self.fail_on_unknown_path:
             raise Exception(f"no diff registered for {file_ref.path}")
         return self.file_diffs.get(file_ref.path, (None, None))

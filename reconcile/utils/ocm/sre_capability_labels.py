@@ -34,7 +34,7 @@ def labelset_groupfield(group_prefix: str) -> Any:
 
 
 def build_labelset(
-    labels: LabelContainer, dataclass: Type[LabelSetTypeVar]
+    labels: LabelContainer, dataclass: type[LabelSetTypeVar]
 ) -> LabelSetTypeVar:
     """
     Instantiates a dataclass from a set of labels.

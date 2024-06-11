@@ -171,7 +171,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:
@@ -491,7 +491,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     def build_saas_file_env_combo(
         saas_file_name: str,
         env_name: str,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Build a tuple of short and long names for a saas file and environment combo,
         max tekton pipelinerun name length can be 63,

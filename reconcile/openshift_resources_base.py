@@ -1022,13 +1022,13 @@ class CheckClusterScopedResourceDuplicates:
 
     def _find_resource_duplicates(
         self, cluster_cs_resources: dict[str, dict[str, dict[str, list[str]]]]
-    ) -> list[Tuple[str, str, str, list[str]]]:
+    ) -> list[tuple[str, str, str, list[str]]]:
         # ) -> dict[Tuple[str, str, str], list[str]]:
         """Finds cluster resource duplicates by kind/name.
         :param cluster_cs_resources
         :return: duplicates as [(cluster, kind, name, [namespaces])]
         """
-        duplicates: list[Tuple[str, str, str, list[str]]] = []
+        duplicates: list[tuple[str, str, str, list[str]]] = []
 
         for cluster, cluster_resources in cluster_cs_resources.items():
             _kind_name: dict[str, dict[str, list[str]]] = {}
@@ -1106,7 +1106,7 @@ def get_cluster_scoped_resources(
 def _get_namespace_cluster_scoped_resources(
     namespace: Mapping,
     oc_map: OC_Map,
-) -> Tuple[str, str, dict[str, dict[str, Any]]]:
+) -> tuple[str, str, dict[str, dict[str, Any]]]:
     """Returns all non-namespaced resources defined in a namespace manifest.
 
     :param namespace: the namespace dict

@@ -31,7 +31,7 @@ def _terraform_command(
     args: list[str],
     working_dir: str,
     env: Optional[Mapping[str, str]] = None,
-) -> Tuple[int, str, str]:
+) -> tuple[int, str, str]:
     result = subprocess.run(
         args,
         capture_output=True,
@@ -67,7 +67,7 @@ def show_json(working_dir: str, path: str) -> dict[str, Any]:
 def init(
     working_dir: str,
     env: Optional[Mapping[str, str]] = None,
-) -> Tuple[int, str, str]:
+) -> tuple[int, str, str]:
     """
     Run terraform init -input=false -no-color.
 
@@ -85,7 +85,7 @@ def init(
 def output(
     working_dir: str,
     env: Optional[Mapping[str, str]] = None,
-) -> Tuple[int, str, str]:
+) -> tuple[int, str, str]:
     """
     Run terraform output -json.
 
@@ -104,7 +104,7 @@ def plan(
     working_dir: str,
     out: str,
     env: Optional[Mapping[str, str]] = None,
-) -> Tuple[int, str, str]:
+) -> tuple[int, str, str]:
     """
     Run terraform plan -out=<out> -input=false -no-color.
 
@@ -124,7 +124,7 @@ def apply(
     working_dir: str,
     dir_or_plan: str,
     env: Optional[Mapping[str, str]] = None,
-) -> Tuple[int, str, str]:
+) -> tuple[int, str, str]:
     """
     Run terraform apply -input=false -no-color <dir_or_plan>.
 

@@ -190,10 +190,10 @@ class MetricsContainer:
     def __init__(
         self,
     ) -> None:
-        self._gauges: dict[Type[GaugeMetric], dict[Sequence[str], float]] = defaultdict(
+        self._gauges: dict[type[GaugeMetric], dict[Sequence[str], float]] = defaultdict(
             dict
         )
-        self._counters: dict[Type[CounterMetric], dict[Sequence[str], float]] = (
+        self._counters: dict[type[CounterMetric], dict[Sequence[str], float]] = (
             defaultdict(dict)
         )
 
@@ -236,7 +236,7 @@ class MetricsContainer:
 
     T = TypeVar("T", bound=BaseMetric)
 
-    def get_metric_value(self, metric_class: Type[T], **kwargs: Any) -> Optional[float]:
+    def get_metric_value(self, metric_class: type[T], **kwargs: Any) -> Optional[float]:
         """
         Finds a unique match for the metrics class and labels, and returns its value.
         If more than one match is found, a ValueError is raised.
@@ -252,7 +252,7 @@ class MetricsContainer:
         return None
 
     def get_metrics(
-        self, metric_class: Type[T], **kwargs: Any
+        self, metric_class: type[T], **kwargs: Any
     ) -> list[tuple[T, float]]:
         """
         Returns all metrics of the given class from this container and all its scopes,
@@ -408,7 +408,7 @@ class _MetricsContext:
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:
@@ -562,7 +562,7 @@ class ErrorRateMetricSet:
 
     def __exit__(
         self: ERMS,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:

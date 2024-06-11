@@ -369,7 +369,7 @@ class ContextExpansion:
     def expand_from_file_ref(
         self,
         file_ref: FileRef,
-        expansion_trail: Set[Tuple[str, FileRef]],
+        expansion_trail: Set[tuple[str, FileRef]],
     ) -> list["ResolvedContext"]:
         old_data, new_data = self.file_diff_resolver.lookup_file_diff(file_ref)
         return self.expand(
@@ -384,7 +384,7 @@ class ContextExpansion:
     def expand(
         self,
         change: FileChange,
-        expansion_trail: Set[Tuple[str, FileRef]],
+        expansion_trail: Set[tuple[str, FileRef]],
     ) -> list["ResolvedContext"]:
         """
         Find context based on the `self.context`, lookup the file diff for
@@ -498,7 +498,7 @@ class ChangeTypeProcessor:
     def find_context_file_refs(
         self,
         change: FileChange,
-        expansion_trail: Set[Tuple[str, FileRef]],
+        expansion_trail: Set[tuple[str, FileRef]],
     ) -> list[ResolvedContext]:
         """
         ChangeTypeV1 are attached to bundle files, react to changes within

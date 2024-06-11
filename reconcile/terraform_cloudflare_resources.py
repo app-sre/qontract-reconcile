@@ -431,7 +431,7 @@ def run(
 
 
 def _get_cloudflare_desired_state() -> (
-    Tuple[
+    tuple[
         TerraformCloudflareAccountsQueryData,
         TerraformCloudflareResourcesQueryData,
     ]

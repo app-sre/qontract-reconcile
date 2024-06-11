@@ -160,7 +160,7 @@ class FileDiffResolver(Protocol):
     @abstractmethod
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]: ...
+    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]: ...
 
 
 @dataclass
@@ -174,7 +174,7 @@ class QontractServerFileDiffResolver:
 
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
         data = get_diff(
             old_sha=self.comparison_sha,
             file_type=file_ref.file_type.value,
@@ -191,7 +191,7 @@ class NoOpFileDiffResolver:
 
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
         raise Exception(
             "NoOpFileDiffResolver is not supposed to be used in "
             "runtime contexts where lookups are needed"

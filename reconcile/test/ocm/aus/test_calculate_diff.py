@@ -473,7 +473,7 @@ def test__calculate_node_pool_diffs(
     ocm_api: OCMBaseClient,
     cluster: OCMCluster,
     now: datetime,
-    node_pool_mocks: Tuple[Mock, Mock, Mock],
+    node_pool_mocks: tuple[Mock, Mock, Mock],
 ) -> None:
     node_pool_mocks[0].return_value = [
         {"id": "foo", "version": {"raw_id": "openshift-v4.12.19"}}
@@ -494,7 +494,7 @@ def test__calculate_node_pool_diffs_multiple(
     ocm_api: OCMBaseClient,
     cluster: OCMCluster,
     now: datetime,
-    node_pool_mocks: Tuple[Mock, Mock, Mock],
+    node_pool_mocks: tuple[Mock, Mock, Mock],
 ) -> None:
     node_pool_mocks[0].return_value = [
         {"id": "oof", "version": {"raw_id": "openshift-v4.12.19"}},
