@@ -15,7 +15,6 @@ from reconcile.gql_definitions.fragments.aws_vpc_request import (
 )
 from reconcile.status import ExitCodes
 from reconcile.terraform_vpc_resources.integration import (
-    PlanStepError,
     TerraformVpcResources,
     TerraformVpcResourcesParams,
 )
@@ -92,7 +91,7 @@ def mock_terraform_client(mocker: MockerFixture) -> MockerFixture:
     mocked_tf_client = mocker.patch(
         "reconcile.terraform_vpc_resources.integration.TerraformClient", autospec=True
     )
-    mocked_tf_client.return_value.plan.return_value = False, None
+    mocked_tf_client.return_value.safe_plan.return_value = None
     return mocked_tf_client
 
 
@@ -146,38 +145,6 @@ def test_log_message_for_accounts_having_vpc_requests(
     )
     assert sample.value.code == ExitCodes.SUCCESS
     assert [error_msg] == [rec.message for rec in caplog.records]
-
-
-def test_plan_step_error_exception(
-    mocker: MockerFixture,
-    mock_gql: pytest.LogCaptureFixture,
-    gql_class_factory: Callable,
-    mock_app_interface_vault_settings: MockerFixture,
-    mock_create_secret_reader: MockerFixture,
-    mock_terraform_client: MockerFixture,
-) -> None:
-    mocked_query = mocker.patch(
-        "reconcile.terraform_vpc_resources.integration.get_aws_vpc_requests",
-        autospec=True,
-    )
-    mocked_query.return_value = [gql_class_factory(VPCRequest, vpc_request_dict())]
-
-    secret_reader = mocker.Mock(SecretReaderBase)
-    secret_reader.read_all.side_effect = secret_reader_side_effect
-
-    mock_create_secret_reader.return_value = secret_reader
-
-    # Silumating errors in the plan step, first return value is detection of deletions,
-    # second return value is detection of errors
-    mock_terraform_client.return_value.plan.return_value = True, True
-
-    params = TerraformVpcResourcesParams(
-        account_name=None, print_to_file=None, thread_pool_size=1
-    )
-
-    with pytest.raises(PlanStepError) as exeption:
-        TerraformVpcResources(params).run(dry_run=True)
-    assert str(exeption.value) == "Errors in terraform plan step, please verify output."
 
 
 def test_dry_run(
