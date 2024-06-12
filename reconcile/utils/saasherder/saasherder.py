@@ -1029,7 +1029,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             except Exception as e:
                 logging.error(
                     f"[{url}/tree/{target.ref}{path}] "
-                    + f"error fetching directory: {str(e)}"
+                    + f"error fetching directory: {str(e)} "
+                    + "(We do not support nested directories. Do you by chance have subdirectories?)"
                 )
                 raise
 
