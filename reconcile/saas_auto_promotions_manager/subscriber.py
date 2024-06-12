@@ -146,7 +146,14 @@ class Subscriber:
         # By default we keep current state
         self.desired_ref = self.ref
 
-        if len(publisher_refs) > 1:
+        if any_bad_deployment:
+            logging.info(
+                "Subscriber at path %s promotion stopped because of bad publisher deployment",
+                self.target_file_path,
+            )
+            return
+
+        if len(publisher_refs) != 1:
             logging.info(
                 "Publishers for subscriber at path %s have mismatching refs: %s",
                 self.target_file_path,
@@ -157,13 +164,6 @@ class Subscriber:
         if not self._passed_accumulated_soak_days():
             logging.debug(
                 "Subscriber at path %s promotion stopped because of soak days",
-                self.target_file_path,
-            )
-            return
-
-        if any_bad_deployment:
-            logging.info(
-                "Subscriber at path %s promotion stopped because of bad publisher deployment",
                 self.target_file_path,
             )
             return
