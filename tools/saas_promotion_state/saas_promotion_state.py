@@ -9,7 +9,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.saas_files import SaasFile, get_saas_files
-from reconcile.utils.promotion_state import PromotionState
+from reconcile.utils.promotion_state import PromotionData, PromotionState
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.state import init_state
 
@@ -40,28 +40,19 @@ class SaasPromotionState:
                             )
         return publisher_uids
 
-    def get(self, channel: str, sha: str) -> None:
-        publisher_ids = self._publisher_ids_for_channel(
-            channel=channel, saas_files=self._saas_files
-        )
-        if not publisher_ids:
-            print(f"No publishers found for channel {channel}")
-            return
-        for publisher_id in publisher_ids:
-            print()
-            print(f"Last state for publisher with ID {publisher_id}:")
-            data = self._promotion_state.get_promotion_data(
+    def get(self, channel: str, sha: str) -> dict[str, PromotionData | None]:
+        return {
+            publisher_id: self._promotion_state.get_promotion_data(
                 sha=sha,
                 channel=channel,
                 use_cache=False,
                 target_uid=publisher_id,
                 pre_check_sha_exists=False,
             )
-            if not data:
-                print(f"No data found for publisher {publisher_id}")
-                continue
-            else:
-                print(data)
+            for publisher_id in self._publisher_ids_for_channel(
+                channel=channel, saas_files=self._saas_files
+            )
+        }
 
     @staticmethod
     def create(

@@ -3668,7 +3668,13 @@ def get_promotion_state(channel: str, sha: str):
     )
 
     promotion_state = SaasPromotionState.create(promotion_state=None, saas_files=None)
-    promotion_state.get(channel=channel, sha=sha)
+    for publisher_id, state in promotion_state.get(channel=channel, sha=sha).items():
+        print()
+        if not state:
+            print(f"No state found for {publisher_id=}")
+        else:
+            print(f"State for {publisher_id=}:")
+            print(state)
 
 
 @root.command()
