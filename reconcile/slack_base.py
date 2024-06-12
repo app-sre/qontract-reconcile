@@ -1,8 +1,5 @@
 from collections.abc import Mapping
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile import queries
 from reconcile.utils.secret_reader import (
@@ -31,7 +28,7 @@ def slackapi_from_slack_workspace(
     secret_reader: SecretReaderBase,
     integration_name: str,
     init_usergroups: bool = True,
-    channel: Optional[str] = None,
+    channel: str | None = None,
 ) -> SlackApi:
     if "workspace" not in slack_workspace:
         raise ValueError('Slack workspace not containing keyword "workspace"')
@@ -104,9 +101,9 @@ def slackapi_from_permissions(
 def get_slackapi(
     workspace_name: str,
     token: str,
-    client_config: Optional[HasClientConfig] = None,
+    client_config: HasClientConfig | None = None,
     init_usergroups: bool = True,
-    channel: Optional[str] = None,
+    channel: str | None = None,
 ) -> SlackApi:
     """Initiate a SlackApi instance."""
     if client_config:

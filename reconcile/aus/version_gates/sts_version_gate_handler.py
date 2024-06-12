@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.utils.jobcontroller.controller import K8sJobController
@@ -16,8 +15,8 @@ class STSGateHandler(GateHandler):
         self,
         job_controller: K8sJobController,
         aws_iam_role: str,
-        rosa_job_service_account: Optional[str] = None,
-        rosa_job_image: Optional[str] = None,
+        rosa_job_service_account: str | None = None,
+        rosa_job_image: str | None = None,
     ) -> None:
         self.job_controller = job_controller
         self.aws_iam_role = aws_iam_role

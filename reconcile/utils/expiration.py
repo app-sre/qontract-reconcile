@@ -1,10 +1,8 @@
 import datetime
 from collections.abc import Iterable
 from typing import (
-    Optional,
     Protocol,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -12,12 +10,10 @@ DATE_FORMAT = "%Y-%m-%d"
 
 
 class FilterableRole(Protocol):
-    expiration_date: Optional[str]
+    expiration_date: str | None
 
 
-DictsOrRoles = TypeVar(
-    "DictsOrRoles", bound=Union[Iterable[FilterableRole], Iterable[dict]]
-)
+DictsOrRoles = TypeVar("DictsOrRoles", bound=Iterable[FilterableRole] | Iterable[dict])
 
 
 def date_expired(date: str) -> bool:
@@ -26,7 +22,7 @@ def date_expired(date: str) -> bool:
     return current_date >= exp_date
 
 
-def filter(roles: Optional[DictsOrRoles]) -> DictsOrRoles:
+def filter(roles: DictsOrRoles | None) -> DictsOrRoles:
     """Filters roles and returns the ones which are not yet expired."""
     filtered = []
     for r in roles or []:

@@ -1,5 +1,5 @@
 import copy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pytest import fixture
 
@@ -63,7 +63,7 @@ def test_update_at_doesnot_triggers_update(
     current: OpenshiftResource,
     desired: OpenshiftResource,
 ) -> None:
-    desired.annotations[SECRET_UPDATED_AT] = datetime.now(timezone.utc).strftime(
+    desired.annotations[SECRET_UPDATED_AT] = datetime.now(UTC).strftime(
         SECRET_UPDATED_AT_TIMEFORMAT
     )
     assert SecretHelper.compare(current, desired) is True
@@ -73,7 +73,7 @@ def test_new_data_triggers_update(
     current: OpenshiftResource,
     desired: OpenshiftResource,
 ) -> None:
-    desired.annotations[SECRET_UPDATED_AT] = datetime.now(timezone.utc).strftime(
+    desired.annotations[SECRET_UPDATED_AT] = datetime.now(UTC).strftime(
         SECRET_UPDATED_AT_TIMEFORMAT
     )
     desired.body["data"]["new_key"] = "new_value"

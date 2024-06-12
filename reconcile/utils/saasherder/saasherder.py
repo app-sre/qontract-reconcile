@@ -10,22 +10,16 @@ from collections import (
     defaultdict,
 )
 from collections.abc import (
+    Generator,
     Iterable,
     Mapping,
     MutableMapping,
     Sequence,
 )
 from contextlib import suppress
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import TracebackType
-from typing import (
-    Any,
-    Generator,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any
 from urllib.parse import urlparse
 
 import yaml
@@ -121,12 +115,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         secret_reader: SecretReaderBase,
         hash_length: int,
         repo_url: str,
-        gitlab: Optional[GitLabApi] = None,
-        jenkins_map: Optional[dict[str, JenkinsApi]] = None,
-        state: Optional[State] = None,
+        gitlab: GitLabApi | None = None,
+        jenkins_map: dict[str, JenkinsApi] | None = None,
+        state: State | None = None,
         validate: bool = False,
         include_trigger_trace: bool = False,
-        all_saas_files: Optional[Iterable[SaasFile]] = None,
+        all_saas_files: Iterable[SaasFile] | None = None,
     ):
         self.error_registered = False
         self.saas_files = saas_files
@@ -171,9 +165,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         self.cleanup()
 
@@ -203,8 +197,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     yield (saas_file, resource_template, target)
 
     def _get_saas_file_feature_enabled(
-        self, name: str, default: Optional[bool] = None
-    ) -> Optional[bool]:
+        self, name: str, default: bool | None = None
+    ) -> bool | None:
         """Returns a bool indicating if a feature is enabled in a saas file,
         or a supplied default. Returns False if there are multiple
         saas files in the process.
@@ -434,9 +428,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 self.valid = False
                 # This should never be possible theoretically ...
                 logging.error(
-                    "Non-unique resource template reference {} in " "channel {}".format(
-                        rt_ref, channel
-                    )
+                    f"Non-unique resource template reference {rt_ref} in "
+                    f"channel {channel}"
                 )
                 continue
             publications[channel].add(rt_ref)
@@ -461,9 +454,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     self.valid = False
                     logging.error(
                         "Channel is not published by any target\n"
-                        "subscriber_saas: {}\n"
-                        "subscriber_rt: {}\n"
-                        "channel: {}".format(sub_saas, sub_rt_name, sub_channel)
+                        f"subscriber_saas: {sub_saas}\n"
+                        f"subscriber_rt: {sub_rt_name}\n"
+                        f"channel: {sub_channel}"
                     )
                 for pub_ref in pub_channel_refs:
                     (pub_saas, pub_rt_name, pub_rt_url, _) = pub_ref
@@ -472,26 +465,19 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         logging.error(
                             "Subscriber and Publisher targets have different "
                             "source repositories\n"
-                            "publisher_saas: {}\n"
-                            "publisher_rt: {}\n"
-                            "publisher_repo: {}\n"
-                            "subscriber_saas: {}\n"
-                            "subscriber_rt: {}\n"
-                            "subscriber_repo: {}\n".format(
-                                pub_saas,
-                                pub_rt_name,
-                                pub_rt_url,
-                                sub_saas,
-                                sub_rt_name,
-                                sub_rt_url,
-                            )
+                            f"publisher_saas: {pub_saas}\n"
+                            f"publisher_rt: {pub_rt_name}\n"
+                            f"publisher_repo: {pub_rt_url}\n"
+                            f"subscriber_saas: {sub_saas}\n"
+                            f"subscriber_rt: {sub_rt_name}\n"
+                            f"subscriber_repo: {sub_rt_url}\n"
                         )
 
     @staticmethod
     def build_saas_file_env_combo(
         saas_file_name: str,
         env_name: str,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Build a tuple of short and long names for a saas file and environment combo,
         max tekton pipelinerun name length can be 63,
@@ -903,7 +889,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     def _process_template(
         self, spec: TargetSpec
-    ) -> tuple[list[Any], str, Optional[Promotion]]:
+    ) -> tuple[list[Any], str, Promotion | None]:
         saas_file_name = spec.saas_file_name
         resource_template_name = spec.resource_template_name
         image_auth = spec.image_auth
@@ -1076,7 +1062,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return resources, html_url, target_promotion
 
     def _assemble_channels(
-        self, saas_files: Optional[Iterable[SaasFile]]
+        self, saas_files: Iterable[SaasFile] | None
     ) -> dict[str, Channel]:
         """
         We need to assemble all publisher_uids that are publishing to a channel.
@@ -1157,7 +1143,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         image_patterns: Iterable[str],
         image_auth: ImageAuth,
         error_prefix: str,
-    ) -> Optional[Image]:
+    ) -> Image | None:
         if not image_patterns:
             logging.error(
                 f"{error_prefix} imagePatterns is empty (does not contain {image})"
@@ -1230,7 +1216,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return None in images
 
     def _initiate_github(
-        self, saas_file: SaasFile, base_url: Optional[str] = None
+        self, saas_file: SaasFile, base_url: str | None = None
     ) -> Github:
         token = (
             self.secret_reader.read_secret(saas_file.authentication.code)
@@ -1293,7 +1279,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             self.thread_pool_size,
             ri=ri,
         )
-        self.promotions: list[Optional[Promotion]] = promotions
+        self.promotions: list[Promotion | None] = promotions
 
     def _init_populate_desired_state_specs(
         self, saas_file: SaasFile
@@ -1368,7 +1354,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     def populate_desired_state_saas_file(
         self, spec: TargetSpec, ri: ResourceInventory
-    ) -> Optional[Promotion]:
+    ) -> Promotion | None:
         if spec.delete:
             # to delete resources, we avoid adding them to the desired state
             return None
@@ -1460,12 +1446,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     def get_diff(
         self, trigger_type: TriggerTypes, dry_run: bool
     ) -> tuple[
-        Union[
-            list[TriggerSpecConfig],
-            list[TriggerSpecMovingCommit],
-            list[TriggerSpecUpstreamJob],
-            list[TriggerSpecContainerImage],
-        ],
+        list[TriggerSpecConfig]
+        | list[TriggerSpecMovingCommit]
+        | list[TriggerSpecUpstreamJob]
+        | list[TriggerSpecContainerImage],
         bool,
     ]:
         if trigger_type == TriggerTypes.MOVING_COMMITS:
@@ -1759,7 +1743,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return list(itertools.chain.from_iterable(results))
 
     @staticmethod
-    def remove_none_values(d: Optional[dict[Any, Any]]) -> dict[Any, Any]:
+    def remove_none_values(d: dict[Any, Any] | None) -> dict[Any, Any]:
         if d is None:
             return {}
         new = {}
@@ -1916,7 +1900,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if promotion.commit_sha in self.hotfix_versions.get(promotion.url, set()):
             return True
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         passed_soak_days = timedelta(days=0)
 
         for channel in promotion.subscribe:
@@ -2016,7 +2000,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for promotion in self.promotions:
             if promotion is None:
                 continue

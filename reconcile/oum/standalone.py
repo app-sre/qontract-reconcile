@@ -1,7 +1,6 @@
 import logging
 from collections import defaultdict
 from datetime import timedelta
-from typing import Optional
 
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.oum.base import OCMUserManagementIntegration
@@ -36,7 +35,7 @@ class OCMStandaloneUserManagementIntegration(OCMUserManagementIntegration):
         return "ocm-standalone-user-management"
 
     def get_user_mgmt_config_for_ocm_env(
-        self, ocm_env: OCMEnvironment, org_ids: Optional[set[str]]
+        self, ocm_env: OCMEnvironment, org_ids: set[str] | None
     ) -> dict[str, OrganizationUserManagementConfiguration]:
         ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
         clusters_by_org = discover_clusters(
@@ -139,7 +138,7 @@ def user_mgmt_label_key(config_atom: str) -> str:
 
 def discover_clusters(
     ocm_api: OCMBaseClient,
-    org_ids: Optional[set[str]] = None,
+    org_ids: set[str] | None = None,
 ) -> dict[str, list[ClusterDetails]]:
     """
     Discover all clusters with user management enabled on their subscription

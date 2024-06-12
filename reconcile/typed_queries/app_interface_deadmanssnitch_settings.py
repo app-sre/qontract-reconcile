@@ -1,5 +1,3 @@
-from typing import Optional
-
 from reconcile.gql_definitions.common.app_interface_dms_settings import (
     DeadMansSnitchSettingsV1,
     query,
@@ -10,7 +8,7 @@ from reconcile.utils.gql import GqlApi
 
 
 def get_deadmanssnitch_settings(
-    gql_api: Optional[GqlApi] = None,
+    gql_api: GqlApi | None = None,
 ) -> DeadMansSnitchSettingsV1:
     api = gql_api if gql_api else gql.get_api()
     data = query(query_func=api.query)

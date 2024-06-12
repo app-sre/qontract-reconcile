@@ -4,7 +4,6 @@ import shutil
 import tempfile
 import threading
 from dataclasses import dataclass
-from typing import Optional
 
 from sshtunnel import SSHTunnelForwarder
 
@@ -27,9 +26,9 @@ class JumphostParameters:
     hostname: str
     known_hosts: str
     user: str
-    port: Optional[int]
-    remote_port: Optional[int]
-    local_port: Optional[int]
+    port: int | None
+    remote_port: int | None
+    local_port: int | None
     key: str
 
 
@@ -60,7 +59,7 @@ class JumpHostSSH(JumpHostBase):
     tunnel_lock = threading.Lock()
 
     def __init__(
-        self, parameters: JumphostParameters, gql_api: Optional[gql.GqlApi] = None
+        self, parameters: JumphostParameters, gql_api: gql.GqlApi | None = None
     ):
         JumpHostBase.__init__(self, parameters=parameters)
 
@@ -75,7 +74,7 @@ class JumpHostSSH(JumpHostBase):
         self._remote_port = parameters.remote_port
 
     @property
-    def local_port(self) -> Optional[int]:
+    def local_port(self) -> int | None:
         return self._local_port
 
     @staticmethod
@@ -102,7 +101,7 @@ class JumpHostSSH(JumpHostBase):
         self.known_hosts_file = known_hosts_file
 
     def get_ssh_base_cmd(self) -> list[str]:
-        user_host = "{}@{}".format(self._user, self._hostname)
+        user_host = f"{self._user}@{self._hostname}"
 
         return [
             "ssh",
@@ -115,7 +114,7 @@ class JumpHostSSH(JumpHostBase):
             "-o",
             "StrictHostKeyChecking=yes",
             "-o",
-            "UserKnownHostsFile={}".format(self.known_hosts_file),
+            f"UserKnownHostsFile={self.known_hosts_file}",
             "-i",
             self._identity_file,
             "-p",

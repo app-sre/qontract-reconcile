@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 from unittest import TestCase
 from unittest.mock import (
     Mock,
@@ -37,8 +36,8 @@ class NS:
 
     cluster: str
     name: str
-    current: Optional[dict[str, str]]
-    managed: Optional[list[str]]
+    current: dict[str, str] | None
+    managed: list[str] | None
     desired: dict[str, str]
     exists: bool = True
 

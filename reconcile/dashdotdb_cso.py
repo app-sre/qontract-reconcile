@@ -1,7 +1,4 @@
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import requests
 from sretoolbox.utils import threaded
@@ -44,7 +41,7 @@ class DashdotdbCSO(DashdotdbBase):
             secret_reader=secret_reader,
         )
 
-    def _post(self, manifest: dict[Any, Any]) -> Optional[requests.Response]:
+    def _post(self, manifest: dict[Any, Any]) -> requests.Response | None:
         if manifest is None:
             return None
 
@@ -70,7 +67,7 @@ class DashdotdbCSO(DashdotdbBase):
         return response
 
     @staticmethod
-    def _get_imagemanifestvuln(cluster: str, oc_map: OCMap) -> Optional[dict[str, Any]]:
+    def _get_imagemanifestvuln(cluster: str, oc_map: OCMap) -> dict[str, Any] | None:
         LOG.info("%s processing %s", LOGMARKER, cluster)
         oc = oc_map.get(cluster)
         if isinstance(oc, OCLogMsg):

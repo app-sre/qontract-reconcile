@@ -4,10 +4,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.cna.assets.asset import (
     Asset,
@@ -29,7 +26,7 @@ class State:
     deletions and updates to reach another state.
     """
 
-    def __init__(self, assets: Optional[dict[AssetType, dict[str, Asset]]] = None):
+    def __init__(self, assets: dict[AssetType, dict[str, Asset]] | None = None):
         self._assets: dict[AssetType, dict[str, Asset]] = {}
         for kind in AssetType:
             self._assets[kind] = {}

@@ -4,10 +4,7 @@ from collections.abc import (
     Iterable,
 )
 from functools import lru_cache
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.utils.ocm.base import (
     ACTIVE_SUBSCRIPTION_STATES,
@@ -96,7 +93,7 @@ def discover_clusters_by_labels(
 def discover_clusters_for_subscriptions(
     ocm_api: OCMBaseClient,
     subscription_ids: list[str],
-    cluster_filter: Optional[Filter] = None,
+    cluster_filter: Filter | None = None,
 ) -> list[ClusterDetails]:
     """
     Discover clusters by filtering on their subscription IDs.
@@ -118,7 +115,7 @@ def discover_clusters_for_subscriptions(
 def discover_clusters_for_organizations(
     ocm_api: OCMBaseClient,
     organization_ids: Iterable[str],
-    cluster_filter: Optional[Filter] = None,
+    cluster_filter: Filter | None = None,
 ) -> list[ClusterDetails]:
     """
     Discover clusters by filtering on their organization IDs.
@@ -151,8 +148,8 @@ def get_ocm_clusters(
 
 def get_cluster_details_for_subscriptions(
     ocm_api: OCMBaseClient,
-    subscription_filter: Optional[Filter] = None,
-    cluster_filter: Optional[Filter] = None,
+    subscription_filter: Filter | None = None,
+    cluster_filter: Filter | None = None,
     init_labels: bool = False,
 ) -> Generator[ClusterDetails, None, None]:
     """
@@ -227,7 +224,7 @@ def get_node_pools(ocm_api: OCMBaseClient, cluster_id: str) -> list[dict[str, An
     return results
 
 
-@lru_cache()
+@lru_cache
 def get_version(ocm_api: OCMBaseClient, version: str) -> dict[str, Any]:
     api = f"/api/clusters_mgmt/v1/versions/{version}"
 

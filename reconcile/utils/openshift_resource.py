@@ -6,10 +6,6 @@ import json
 import re
 from collections.abc import Mapping
 from threading import Lock
-from typing import (
-    Optional,
-    Union,
-)
 
 import semver
 from pydantic import BaseModel
@@ -48,7 +44,7 @@ IGNORABLE_DATA_FIELDS = ["service-ca.crt"]
 # these labels existance and/or value is determined by a controller running
 # on the cluster. we need to ignore their existance in the current state,
 # otherwise we will deal with constant reconciliation
-CONTROLLER_MANAGED_LABELS: dict[str, set[Union[str, re.Pattern]]] = {
+CONTROLLER_MANAGED_LABELS: dict[str, set[str | re.Pattern]] = {
     "ManagedCluster": {
         "clusterID",
         "managed-by",
@@ -247,9 +243,7 @@ class OpenshiftResource:
             self.name  # pylint: disable=pointless-statement
             self.kind  # pylint: disable=pointless-statement
         except (KeyError, TypeError) as e:
-            msg = "resource invalid data ({}). details: {}".format(
-                e.__class__.__name__, self.error_details
-            )
+            msg = f"resource invalid data ({e.__class__.__name__}). details: {self.error_details}"
             raise ConstructResourceError(msg)
 
         if self.kind not in {
@@ -581,7 +575,7 @@ class ResourceInventory:
         cluster,
         namespace,
         resource_type,
-        managed_names: Optional[list[str]] = None,
+        managed_names: list[str] | None = None,
     ):
         self._clusters.setdefault(cluster, {})
         self._clusters[cluster].setdefault(namespace, {})
@@ -690,8 +684,8 @@ def build_secret(
     integration_version: str,
     unencoded_data: Mapping[str, str],
     error_details: str = "",
-    caller_name: Optional[str] = None,
-    annotations: Optional[Mapping[str, str]] = None,
+    caller_name: str | None = None,
+    annotations: Mapping[str, str] | None = None,
 ) -> OpenshiftResource:
     encoded_data = {
         k: base64_encode_secret_field_value(v) for k, v in unencoded_data.items()

@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 
 from reconcile.test.utils.rosa.conftest import ROSA_CLI_IMAGE
@@ -39,7 +37,7 @@ def test_rosa_session_cli_execute_fail(
     [(None, ROSA_CLI_IMAGE), ("my_image:latest", "my_image:latest")],
 )
 def test_assemble_job_image_override(
-    image_overwrite: Optional[str],
+    image_overwrite: str | None,
     expected_image: str,
     rosa_session: RosaSession,
 ) -> None:

@@ -5,7 +5,7 @@ import tempfile
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Optional, Self
+from typing import Any, Self
 
 from deepdiff import DeepHash
 from ruamel import yaml
@@ -46,7 +46,7 @@ APP_INTERFACE_PATH_SEPERATOR = "/"
 
 
 def get_template_collections(
-    query_func: Optional[Callable] = None,
+    query_func: Callable | None = None,
 ) -> list[TemplateCollectionV1]:
     if not query_func:
         query_func = gql.get_api().query
@@ -59,15 +59,14 @@ class FilePersistence(ABC):
         pass
 
     @abstractmethod
-    def read(self, path: str) -> Optional[str]:
+    def read(self, path: str) -> str | None:
         pass
 
     @staticmethod
-    def _read_local_file(path: str) -> Optional[str]:
+    def _read_local_file(path: str) -> str | None:
         try:
             with open(
                 path,
-                "r",
                 encoding="utf-8",
             ) as f:
                 return f.read()
@@ -92,7 +91,7 @@ class LocalFilePersistence(FilePersistence):
             filepath.parent.mkdir(parents=True, exist_ok=True)
             filepath.write_text(output.content, encoding="utf-8")
 
-    def read(self, path: str) -> Optional[str]:
+    def read(self, path: str) -> str | None:
         return self._read_local_file(join_path(self.app_interface_data_path, path))
 
 
@@ -106,7 +105,7 @@ class PersistenceTransaction(FilePersistence):
     def __init__(self, persistence: FilePersistence, dry_run: bool) -> None:
         self.persistence = persistence
         self.dry_run = dry_run
-        self.content_cache: dict[str, Optional[str]] = {}
+        self.content_cache: dict[str, str | None] = {}
         self.output_cache: dict[str, TemplateOutput] = {}
 
     def write(self, outputs: list[TemplateOutput]) -> None:
@@ -114,7 +113,7 @@ class PersistenceTransaction(FilePersistence):
             self.content_cache[output.path] = output.content
             self.output_cache[output.path] = output
 
-    def read(self, path: str) -> Optional[str]:
+    def read(self, path: str) -> str | None:
         if path not in self.content_cache:
             self.content_cache[path] = self.persistence.read(path)
         return self.content_cache[path]
@@ -153,7 +152,7 @@ class ClonedRepoGitlabPersistence(FilePersistence):
 
         self.mr_manager.create_merge_request(MrData(data=outputs, auto_approved=False))
 
-    def read(self, path: str) -> Optional[str]:
+    def read(self, path: str) -> str | None:
         return self._read_local_file(join_path(self.local_path, path))
 
 
@@ -193,7 +192,7 @@ def calc_template_hash(c: TemplateCollectionV1, variables: dict[str, Any]) -> st
 
 class TemplateRendererIntegrationParams(PydanticRunParams):
     clone_repo: bool = False
-    app_interface_data_path: Optional[str]
+    app_interface_data_path: str | None
 
 
 def join_path(base: str, sub: str) -> str:
@@ -211,7 +210,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         persistence: FilePersistence,
         ruaml_instance: yaml.YAML,
         template_input: TemplateInput,
-    ) -> Optional[TemplateOutput]:
+    ) -> TemplateOutput | None:
         r = create_renderer(
             template,
             TemplateData(

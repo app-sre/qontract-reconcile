@@ -3,10 +3,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import field
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from urllib.parse import urlparse
 
 from pydantic.dataclasses import dataclass
@@ -49,14 +46,14 @@ class EndpointMonitoringProvider:
     name: str
     provider: str
     description: str
-    timeout: Optional[str] = None
-    checkInterval: Optional[str] = None
-    blackboxExporter: Optional[BlackboxMonitoringProvider] = None
-    signalFx: Optional[SignalfxMonitoringProvier] = None
-    metricLabels: Optional[str] = None
+    timeout: str | None = None
+    checkInterval: str | None = None
+    blackboxExporter: BlackboxMonitoringProvider | None = None
+    signalFx: SignalfxMonitoringProvier | None = None
+    metricLabels: str | None = None
 
     @property
-    def namespace(self) -> Optional[dict[str, Any]]:
+    def namespace(self) -> dict[str, Any] | None:
         if self.blackboxExporter:
             return self.blackboxExporter.namespace
 
@@ -131,7 +128,7 @@ def fill_desired_state(
 def run_for_provider(
     provider: str,
     probe_builder: Callable[
-        [EndpointMonitoringProvider, list[Endpoint]], Optional[OpenshiftResource]
+        [EndpointMonitoringProvider, list[Endpoint]], OpenshiftResource | None
     ],
     integration: str,
     integration_version: str,

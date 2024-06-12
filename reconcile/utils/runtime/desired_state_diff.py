@@ -1,13 +1,8 @@
 import logging
 import multiprocessing
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Callable,
-    Iterable,
-    Mapping,
-    Optional,
-)
+from typing import Any
 
 from deepdiff import DeepHash
 from jsonpath_ng.ext.parser import parse
@@ -177,7 +172,7 @@ def extract_diffs_with_timeout(
 
 
 def build_desired_state_diff(
-    sharding_config: Optional[DesiredStateShardConfig],
+    sharding_config: DesiredStateShardConfig | None,
     previous_desired_state: Mapping[str, Any],
     current_desired_state: Mapping[str, Any],
 ) -> DesiredStateDiff:

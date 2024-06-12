@@ -3,7 +3,6 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Optional
 
 from reconcile.cna.assets.asset_factory import asset_factory_from_schema
 from reconcile.cna.client import CNAClient
@@ -45,8 +44,8 @@ class CNAIntegration:
         self,
         cna_clients: Mapping[str, CNAClient],
         namespaces: Iterable[NamespaceV1],
-        desired_states: Optional[Mapping[str, State]] = None,
-        current_states: Optional[Mapping[str, State]] = None,
+        desired_states: Mapping[str, State] | None = None,
+        current_states: Mapping[str, State] | None = None,
     ):
         self._cna_clients = cna_clients
         self._namespaces = namespaces

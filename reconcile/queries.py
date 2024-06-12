@@ -5,10 +5,7 @@ import shlex
 from collections.abc import Mapping
 from dataclasses import dataclass
 from textwrap import indent
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from jinja2 import Template
 
@@ -25,7 +22,7 @@ SECRET_READER_SETTINGS = """
 """
 
 
-def get_secret_reader_settings() -> Optional[Mapping[str, Any]]:
+def get_secret_reader_settings() -> Mapping[str, Any] | None:
     """Returns SecretReader settings"""
     gqlapi = gql.get_api()
     settings = gqlapi.query(SECRET_READER_SETTINGS)["settings"]
@@ -598,7 +595,7 @@ def get_queue_aws_accounts():
     return get_aws_accounts(uid=uid)
 
 
-def get_jumphosts(hostname: Optional[str] = None) -> JumphostsQueryData:
+def get_jumphosts(hostname: str | None = None) -> JumphostsQueryData:
     """Returns all jumphosts"""
     variables = {}
     # The dictionary must be empty if no hostname is set.
@@ -2289,7 +2286,7 @@ JIRA_BOARDS_QUERY = """
 """
 
 
-def get_jira_boards(with_slack: Optional[bool] = True):
+def get_jira_boards(with_slack: bool | None = True):
     """Returns Jira boards resources defined in app-interface"""
     gqlapi = gql.get_api()
     query = Template(JIRA_BOARDS_QUERY).render(with_slack=with_slack)

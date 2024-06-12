@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from pydantic import BaseModel
 
 
 class ClusterHealth(BaseModel):
     source: str
-    errors: Optional[set[str]] = None
+    errors: set[str] | None = None
 
     def has_health_errors(self) -> bool:
         return bool(self.errors)

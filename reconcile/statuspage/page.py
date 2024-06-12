@@ -1,4 +1,4 @@
-from typing import Optional, Self, cast
+from typing import Self, cast
 
 from pydantic import BaseModel
 
@@ -25,8 +25,8 @@ class StatusComponent(BaseModel):
 
     name: str
     display_name: str
-    description: Optional[str]
-    group_name: Optional[str]
+    description: str | None
+    group_name: str | None
     status_provider_configs: list[StatusProvider]
     """
     Status provider configs hold different ways for a component to determine its status
@@ -39,7 +39,7 @@ class StatusComponent(BaseModel):
         """
         return bool(self.status_provider_configs)
 
-    def desired_component_status(self) -> Optional[str]:
+    def desired_component_status(self) -> str | None:
         if self.status_management_enabled():
             for provider in self.status_provider_configs:
                 status = provider.get_status()
@@ -53,7 +53,7 @@ class StatusComponent(BaseModel):
 
     @classmethod
     def init_from_page_component(
-        cls, component: StatusPageComponentV1, name_override: Optional[str] = None
+        cls, component: StatusPageComponentV1, name_override: str | None = None
     ) -> Self:
         status_configs = [
             build_status_provider_config(cfg) for cfg in component.status_config or []
@@ -106,9 +106,9 @@ class StatusMaintenanceAnnouncement(BaseModel):
     Represents the desired state of a status maintenance.
     """
 
-    remind_subscribers: Optional[bool] = None
-    notify_subscribers_on_start: Optional[bool] = None
-    notify_subscribers_on_completion: Optional[bool] = None
+    remind_subscribers: bool | None = None
+    notify_subscribers_on_start: bool | None = None
+    notify_subscribers_on_completion: bool | None = None
 
     @classmethod
     def init_from_announcement(

@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from reconcile.gql_definitions.common.pagerduty_instances import (
     PagerDutyInstanceV1,
@@ -9,7 +8,7 @@ from reconcile.utils import gql
 
 
 def get_pagerduty_instances(
-    query_func: Optional[Callable],
+    query_func: Callable | None,
 ) -> list[PagerDutyInstanceV1]:
     """Return all pagerduty instances from app-interface."""
     if not query_func:

@@ -2,8 +2,7 @@ import hashlib
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
@@ -80,7 +79,7 @@ class Subscriber:
 
     def _validate_deployment(
         self, publisher: Publisher, channel: Channel
-    ) -> Optional[DeploymentInfo]:
+    ) -> DeploymentInfo | None:
         deployment_info = publisher.deployment_info_by_channel.get(channel.name)
         if not deployment_info:
             logging.info(
@@ -103,7 +102,7 @@ class Subscriber:
         We accumulate the time a ref is running on all publishers for this subscriber.
         We compare that accumulated time with the soak_days setting of the subscriber.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         delta = timedelta(days=0)
         for channel in self.channels:
             for publisher in channel.publishers:

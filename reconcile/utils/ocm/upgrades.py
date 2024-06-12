@@ -1,8 +1,4 @@
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 from reconcile.utils.ocm.base import OCMVersionGate
 from reconcile.utils.ocm_base_client import OCMBaseClient
@@ -20,7 +16,7 @@ def build_cluster_url(cluster_id: str) -> str:
 
 
 def get_upgrade_policies(
-    ocm_api: OCMBaseClient, cluster_id: str, schedule_type: Optional[str] = None
+    ocm_api: OCMBaseClient, cluster_id: str, schedule_type: str | None = None
 ) -> list[dict[str, Any]]:
     """Returns a list of details of Upgrade Policies
 
@@ -48,7 +44,7 @@ def get_upgrade_policies(
 
 def get_upgrade_policy_state(
     ocm_api: OCMBaseClient, cluster_id: str, upgrade_policy_id: str
-) -> Optional[str]:
+) -> str | None:
     try:
         state_data = ocm_api.get(
             f"{build_cluster_url(cluster_id)}/upgrade_policies/{upgrade_policy_id}/state"
@@ -80,7 +76,7 @@ def delete_upgrade_policy(
 
 
 def get_control_plane_upgrade_policies(
-    ocm_api: OCMBaseClient, cluster_id: str, schedule_type: Optional[str] = None
+    ocm_api: OCMBaseClient, cluster_id: str, schedule_type: str | None = None
 ) -> list[dict[str, Any]]:
     """
     Returns a list of details of Upgrade Policies
@@ -160,7 +156,7 @@ def create_node_pool_upgrade_policy(
 
 def create_version_agreement(
     ocm_api: OCMBaseClient, gate_id: str, cluster_id: str
-) -> dict[str, Union[str, bool]]:
+) -> dict[str, str | bool]:
     return ocm_api.post(
         f"{build_cluster_url(cluster_id)}/gate_agreements",
         {"version_gate": {"id": gate_id}},

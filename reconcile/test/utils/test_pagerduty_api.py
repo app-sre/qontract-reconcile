@@ -1,5 +1,4 @@
 from datetime import datetime as dt
-from typing import Optional
 from unittest.mock import (
     Mock,
     create_autospec,
@@ -19,14 +18,14 @@ class PagerDutyInstance(BaseModel):
 
 class User(BaseModel):
     org_username: str
-    pagerduty_username: Optional[str]
+    pagerduty_username: str | None
 
 
 class PagerDutyTarget(BaseModel):
     name: str
     instance: PagerDutyInstance
-    schedule_id: Optional[str]
-    escalation_policy_id: Optional[str]
+    schedule_id: str | None
+    escalation_policy_id: str | None
 
 
 @pytest.fixture

@@ -3,9 +3,9 @@ import json
 import logging
 from abc import abstractmethod
 from collections.abc import Iterable, Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from hashlib import shake_128
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel
 from sretoolbox.utils import threaded
@@ -45,8 +45,8 @@ class VaultSecret(BaseModel):
 
     path: str
     field: str
-    version: Optional[int]
-    q_format: Optional[str]
+    version: int | None
+    q_format: str | None
 
 
 class SecretHelper:
@@ -324,7 +324,7 @@ class InClusterSecretsReconciler(SecretsReconciler):
                 else:
                     data[k] = decoded
 
-            spec.metadata[SECRET_UPDATED_AT] = datetime.now(timezone.utc).strftime(
+            spec.metadata[SECRET_UPDATED_AT] = datetime.now(UTC).strftime(
                 SECRET_UPDATED_AT_TIMEFORMAT
             )
             spec.secret = data

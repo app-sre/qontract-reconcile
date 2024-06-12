@@ -5,7 +5,7 @@ from collections.abc import (
     Mapping,
     MutableMapping,
 )
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import (
     MagicMock,
@@ -140,7 +140,7 @@ def subscriber_builder(
                     success=publisher_data.get("SUCCESSFUL_DEPLOYMENT", True),
                     target_config_hash=publisher_data.get("CONFIG_HASH", ""),
                     saas_file=publisher_name,
-                    check_in=publisher_data.get("CHECK_IN", datetime.now(timezone.utc)),
+                    check_in=publisher_data.get("CHECK_IN", datetime.now(UTC)),
                 )
                 channel.publishers.append(publisher)
             channels.append(channel)

@@ -7,7 +7,6 @@ from collections.abc import (
 from dataclasses import field
 from typing import (
     Any,
-    Optional,
     cast,
 )
 
@@ -52,7 +51,7 @@ class OutputFormatProcessor:
 
 @dataclass
 class GenericSecretOutputFormatConfig(OutputFormatProcessor):
-    data: Optional[str] = None
+    data: str | None = None
 
     def render(self, vars: Mapping[str, str]) -> dict[str, str]:
         if self.data:
@@ -68,7 +67,7 @@ class GenericSecretOutputFormatConfig(OutputFormatProcessor):
 @dataclass
 class OutputFormat:
     provider: str
-    data: Optional[str] = None
+    data: str | None = None
 
     @property
     def _formatter(self) -> OutputFormatProcessor:
@@ -144,7 +143,7 @@ class ExternalResourceSpec:
             "app": self.namespace["app"]["name"],
         }
 
-    def get_secret_field(self, field: str) -> Optional[str]:
+    def get_secret_field(self, field: str) -> str | None:
         return self.secret.get(field)
 
     def id_object(self) -> "ExternalResourceUniqueKey":

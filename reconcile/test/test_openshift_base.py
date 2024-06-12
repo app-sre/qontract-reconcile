@@ -1,9 +1,6 @@
 import logging
-from typing import (
-    Any,
-    Mapping,
-    Optional,
-)
+from collections.abc import Mapping
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -754,7 +751,7 @@ def build_openshift_resource(
     kind: str,
     api_version: str,
     name: str,
-    extra_body: Optional[dict[str, Any]],
+    extra_body: dict[str, Any] | None,
     integration: str = "",
     integration_version: str = "",
     error_details: str = "",

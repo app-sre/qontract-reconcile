@@ -6,12 +6,9 @@ import os
 import re
 import sys
 import traceback
+from collections.abc import Iterable
 from signal import SIGUSR1
 from types import ModuleType
-from typing import (
-    Iterable,
-    Optional,
-)
 
 import click
 import sentry_sdk
@@ -2530,13 +2527,13 @@ def ocm_groups(ctx, thread_pool_size):
 @click.pass_context
 def ocm_clusters(
     ctx,
-    gitlab_project_id: Optional[str],
+    gitlab_project_id: str | None,
     thread_pool_size: int,
-    job_controller_cluster: Optional[str],
-    job_controller_namespace: Optional[str],
-    rosa_job_service_account: Optional[str],
-    rosa_role: Optional[str],
-    rosa_job_image: Optional[str],
+    job_controller_cluster: str | None,
+    job_controller_namespace: str | None,
+    rosa_job_service_account: str | None,
+    rosa_role: str | None,
+    rosa_job_image: str | None,
 ):
     from reconcile.ocm_clusters import (
         OcmClusters,
@@ -2802,7 +2799,7 @@ def version_gate_approver(
     job_controller_namespace: str,
     rosa_job_service_account: str,
     rosa_role: str,
-    rosa_job_image: Optional[str],
+    rosa_job_image: str | None,
 ) -> None:
     from reconcile.aus.version_gate_approver import (
         VersionGateApprover,
@@ -3376,7 +3373,7 @@ def signalfx_prometheus_endpoint_monitoring(
     )
 
 
-def parse_image_tag_from_ref(ctx, param, value) -> Optional[dict[str, str]]:
+def parse_image_tag_from_ref(ctx, param, value) -> dict[str, str] | None:
     if value:
         result = {}
         for v in value:

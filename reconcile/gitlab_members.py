@@ -1,10 +1,7 @@
 import enum
 import logging
 from collections.abc import Callable
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -203,7 +200,7 @@ def get_gitlab_instance(query_func: Callable) -> GitlabInstanceV1:
 @defer
 def run(
     dry_run: bool,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> None:
     gqlapi = gql.get_api()
     # queries

@@ -1,5 +1,4 @@
 from typing import (
-    Optional,
     TypeVar,
 )
 
@@ -8,7 +7,7 @@ ValueType = TypeVar("ValueType")
 
 
 def remove_none_values_from_dict(
-    a_dict: dict[KeyType, Optional[ValueType]],
+    a_dict: dict[KeyType, ValueType | None],
 ) -> dict[KeyType, ValueType]:
     """
     Creates a new dictionary based on the input dictionary but skips items

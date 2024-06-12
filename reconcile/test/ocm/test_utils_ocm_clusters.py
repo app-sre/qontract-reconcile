@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from pytest_httpserver import HTTPServer
 from pytest_mock import (
@@ -44,8 +43,8 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 def build_cluster_details(
     ocm_cluster: OCMCluster,
     org_id: str = "org_id",
-    org_labels: Optional[list[tuple[str, str]]] = None,
-    subs_labels: Optional[list[tuple[str, str]]] = None,
+    org_labels: list[tuple[str, str]] | None = None,
+    subs_labels: list[tuple[str, str]] | None = None,
 ) -> ClusterDetails:
     return ClusterDetails(
         ocm_cluster=ocm_cluster,

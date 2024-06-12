@@ -6,7 +6,6 @@ from collections.abc import (
 from datetime import datetime as dt
 from datetime import timedelta
 from typing import (
-    Optional,
     Protocol,
 )
 
@@ -45,7 +44,7 @@ class PagerDutyUser(Protocol):
     which must be implemented by a class to be compatible."""
 
     org_username: str
-    pagerduty_username: Optional[str]
+    pagerduty_username: str | None
 
 
 class PagerDutyTarget(Protocol):
@@ -54,8 +53,8 @@ class PagerDutyTarget(Protocol):
 
     name: str
     instance: PagerDutyInstance
-    escalation_policy_id: Optional[str]
-    schedule_id: Optional[str]
+    escalation_policy_id: str | None
+    schedule_id: str | None
 
 
 class PagerDutyConfig(BaseModel):
@@ -166,7 +165,7 @@ class PagerDutyMap:
 
 def get_pagerduty_map(
     secret_reader: SecretReader,
-    pagerduty_instances: Optional[Iterable[PagerDutyInstance]],
+    pagerduty_instances: Iterable[PagerDutyInstance] | None,
     init_users: bool = True,
     pager_duty_api_class: type[PagerDutyApi] = PagerDutyApi,
 ) -> PagerDutyMap:

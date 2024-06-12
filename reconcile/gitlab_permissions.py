@@ -21,9 +21,7 @@ def get_members_to_add(repo, gl, app_sre):
     if maintainers is None:
         return []
     if gl.user.username not in maintainers:
-        logging.error(
-            "'{}' is not shared with {} as 'Maintainer'".format(repo, gl.user.username)
-        )
+        logging.error(f"'{repo}' is not shared with {gl.user.username} as 'Maintainer'")
         return []
     members_to_add = [
         {"user": u, "repo": repo} for u in app_sre if u.username not in maintainers

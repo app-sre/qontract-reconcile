@@ -9,9 +9,7 @@ from collections.abc import (
 )
 from typing import (
     Any,
-    Optional,
     Protocol,
-    Union,
 )
 
 from slack_sdk import WebClient
@@ -46,17 +44,17 @@ class ServerErrorRetryHandler(RetryHandler):
         *,
         state: RetryState,
         request: HttpRequest,
-        response: Optional[HttpResponse] = None,
-        error: Optional[Exception] = None,
+        response: HttpResponse | None = None,
+        error: Exception | None = None,
     ) -> bool:
         return response is not None and response.status_code >= 500
 
 
 class HasClientGlobalConfig(Protocol):
-    max_retries: Optional[int]
-    timeout: Optional[int]
+    max_retries: int | None
+    timeout: int | None
 
-    def dict(self) -> dict[str, Optional[int]]: ...
+    def dict(self) -> dict[str, int | None]: ...
 
 
 class HasClientMethodConfig(Protocol):
@@ -68,10 +66,10 @@ class HasClientMethodConfig(Protocol):
 
 class HasClientConfig(Protocol):
     @property
-    def q_global(self) -> Optional[HasClientGlobalConfig]: ...
+    def q_global(self) -> HasClientGlobalConfig | None: ...
 
     @property
-    def methods(self) -> Optional[Sequence[HasClientMethodConfig]]: ...
+    def methods(self) -> Sequence[HasClientMethodConfig] | None: ...
 
 
 class SlackApiConfig:
@@ -95,7 +93,7 @@ class SlackApiConfig:
         """
         self._methods[method_name] = method_config
 
-    def get_method_config(self, method_name: str) -> Optional[dict[str, Any]]:
+    def get_method_config(self, method_name: str) -> dict[str, Any] | None:
         """
         Get Slack method configuration.
         :param method_name: the name of a method (ex. users.list)
@@ -165,10 +163,10 @@ class SlackApi:
         self,
         workspace_name: str,
         token: str,
-        api_config: Optional[SlackApiConfig] = None,
+        api_config: SlackApiConfig | None = None,
         init_usergroups: bool = True,
-        channel: Optional[str] = None,
-        slack_url: Optional[str] = None,
+        channel: str | None = None,
+        slack_url: str | None = None,
         **chat_kwargs: Any,
     ) -> None:
         """
@@ -295,7 +293,7 @@ class SlackApi:
         if not info.data["channel"]["is_member"]:  # type: ignore[call-overload]
             self._sc.conversations_join(channel=channel_id)
 
-    def get_usergroup_id(self, handle: str) -> Optional[str]:
+    def get_usergroup_id(self, handle: str) -> str | None:
         try:
             return self.get_usergroup(handle)["id"]
         except UsergroupNotFoundException:
@@ -449,7 +447,7 @@ class SlackApi:
         result_key = "members" if resource == "users" else resource
         api_key = "conversations" if resource == "channels" else resource
         results = {}
-        additional_kwargs: dict[str, Union[str, int]] = {"cursor": ""}
+        additional_kwargs: dict[str, str | int] = {"cursor": ""}
 
         method_config = self.config.get_method_config(f"{api_key}.list")
         if method_config:
@@ -459,7 +457,7 @@ class SlackApi:
             slack_request.labels(f"{api_key}.list", "GET").inc()
 
             result = self._sc.api_call(
-                "{}.list".format(api_key), http_verb="GET", params=additional_kwargs
+                f"{api_key}.list", http_verb="GET", params=additional_kwargs
             )
 
             for r in result[result_key]:
@@ -487,7 +485,7 @@ class SlackApi:
         return self._enterprise_user_id_to_user_ids.get(user_id, user_id)
 
     def get_flat_conversation_history(
-        self, from_timestamp: int, to_timestamp: Optional[int]
+        self, from_timestamp: int, to_timestamp: int | None
     ) -> list[dict[str, Any]]:
         """Calls conversation_history method to get all messages in a channel between
         from_timestamp to to_timestamp ignoring threads"""

@@ -1,6 +1,5 @@
 import logging
 import tempfile
-from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel
@@ -53,8 +52,8 @@ class RosaSession:
         ocm_org_id: str,
         ocm_api: OCMBaseClient,
         job_controller: K8sJobController,
-        image: Optional[str] = None,
-        service_account: Optional[str] = None,
+        image: str | None = None,
+        service_account: str | None = None,
     ):
         self.aws_account_id = aws_account_id
         self.aws_region = aws_region
@@ -68,8 +67,8 @@ class RosaSession:
     def assemble_job(
         self,
         cmd: str,
-        annotations: Optional[dict[str, str]] = None,
-        image: Optional[str] = None,
+        annotations: dict[str, str] | None = None,
+        image: str | None = None,
     ) -> RosaJob:
         return RosaJob(
             aws_account_id=self.aws_account_id,
@@ -86,8 +85,8 @@ class RosaSession:
     def cli_execute(
         self,
         cmd: str,
-        annotations: Optional[dict[str, str]] = None,
-        image: Optional[str] = None,
+        annotations: dict[str, str] | None = None,
+        image: str | None = None,
         check_interval_seconds: int = 5,
         timeout_seconds: int = 60,
     ) -> RosaCliResult:

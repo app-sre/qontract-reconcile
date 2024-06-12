@@ -1,9 +1,5 @@
-from typing import (
-    Any,
-    Callable,
-    Iterable,
-    Optional,
-)
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from jsonpath_ng.ext import parser
 
@@ -16,7 +12,7 @@ from reconcile.utils import gql
 
 
 def get_status_board(
-    query_func: Optional[Callable] = None,
+    query_func: Callable | None = None,
 ) -> list[StatusBoardV1]:
     if not query_func:
         query_func = gql.get_api().query

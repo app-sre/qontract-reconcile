@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Mapping
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
@@ -20,14 +20,14 @@ class StateNotFoundError(Exception):
     pass
 
 
-class ReconcileStatus(str, Enum):
+class ReconcileStatus(StrEnum):
     SUCCESS: str = "SUCCESS"
     ERROR: str = "ERROR"
     IN_PROGRESS: str = "IN_PROGRESS"
     NOT_EXISTS: str = "NOT_EXISTS"
 
 
-class ResourceStatus(str, Enum):
+class ResourceStatus(StrEnum):
     CREATED: str = "CREATED"
     DELETED: str = "DELETED"
     ABANDONED: str = "ABANDONED"
@@ -198,7 +198,7 @@ class ExternalResourcesStateDynamoDB:
         else:
             return ExternalResourceState(
                 key=key,
-                ts=datetime.now(timezone.utc),
+                ts=datetime.now(UTC),
                 resource_status=ResourceStatus.NOT_EXISTS,
                 reconciliation=Reconciliation(key=key),
                 reconciliation_errors=0,

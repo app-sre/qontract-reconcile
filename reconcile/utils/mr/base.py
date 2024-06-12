@@ -4,11 +4,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 from uuid import uuid4
 
 from gitlab.exceptions import GitlabError
@@ -36,7 +32,7 @@ class MergeRequestProcessingError(Exception):
     """
 
 
-MRClient = Union[GitLabApi, SQSGateway]
+MRClient = GitLabApi | SQSGateway
 
 
 class MergeRequestBase(ABC):
@@ -211,7 +207,7 @@ class MergeRequestBase(ABC):
             from_=gitlab_cli.main_branch, to=self.branch
         )["diffs"]
 
-    def submit(self, cli: MRClient) -> Union[Any, None]:
+    def submit(self, cli: MRClient) -> Any | None:
         if isinstance(cli, GitLabApi):
             return self.submit_to_gitlab(gitlab_cli=cli)
 
@@ -226,10 +222,10 @@ def app_interface_email(
     name: str,
     subject: str,
     body: str,
-    users: Optional[list[str]] = None,
-    aliases: Optional[list[str]] = None,
-    aws_accounts: Optional[list[str]] = None,
-    apps: Optional[list[str]] = None,
+    users: list[str] | None = None,
+    aliases: list[str] | None = None,
+    aws_accounts: list[str] | None = None,
+    apps: list[str] | None = None,
 ) -> str:
     """Render app-interface-email template."""
     with open(EMAIL_TEMPLATE, encoding="locale") as file_obj:

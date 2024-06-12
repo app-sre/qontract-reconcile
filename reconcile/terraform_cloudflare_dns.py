@@ -3,12 +3,9 @@ import sys
 from collections.abc import (
     Callable,
     Mapping,
-)
-from typing import (
-    Any,
-    Optional,
     Sequence,
 )
+from typing import Any
 
 from deepdiff import DeepHash
 
@@ -74,9 +71,9 @@ DEFAULT_CLOUDFLARE_ZONE_RECORDS_MAX = 500
 class TerraformCloudflareDNSIntegrationParams(PydanticRunParams):
     enable_deletion: bool
     thread_pool_size: int
-    selected_account: Optional[str] = None
-    selected_zone: Optional[str] = None
-    print_to_file: Optional[str]
+    selected_account: str | None = None
+    selected_zone: str | None = None
+    print_to_file: str | None
 
 
 class TerraformCloudflareDNSIntegration(
@@ -93,7 +90,7 @@ class TerraformCloudflareDNSIntegration(
         return self.qontract_integration.replace("_", "-")
 
     @defer
-    def run(self, dry_run: bool, defer: Optional[Callable] = None) -> None:
+    def run(self, dry_run: bool, defer: Callable | None = None) -> None:
         settings = self._get_app_interface_settings()
 
         if not settings.settings:
@@ -258,7 +255,7 @@ def ensure_record_number_not_exceed_max(
 
 
 def get_cloudflare_provider_rps(
-    records: Optional[Sequence[CloudflareDnsRecordV1]],
+    records: Sequence[CloudflareDnsRecordV1] | None,
 ) -> int:
     """
     Setting Cloudlare Terraform provider's RPS based on the size of the zone to improve performance of MR checks.
@@ -277,8 +274,8 @@ def build_cloudflare_terraform_config_collection(
     secret_reader: SecretReaderBase,
     query_zones: CloudflareDnsZoneQueryData,
     qontract_integration: str,
-    selected_account: Optional[str],
-    selected_zone: Optional[str],
+    selected_account: str | None,
+    selected_zone: str | None,
 ) -> TerraformConfigClientCollection:
     cf_clients = TerraformConfigClientCollection()
     cf_accounts: dict[str, CloudflareAccount] = {}
@@ -356,7 +353,7 @@ def build_cloudflare_terraform_config_collection(
 
 
 def cloudflare_dns_zone_to_external_resource(
-    zones: Optional[list[CloudflareDnsZoneV1]],
+    zones: list[CloudflareDnsZoneV1] | None,
 ) -> list[ExternalResourceSpec]:
     """
     This is a method that massage a list of CloudflareDnsZoneV1 into ExternalResourceSpec

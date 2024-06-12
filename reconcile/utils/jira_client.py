@@ -8,7 +8,6 @@ from collections.abc import (
 )
 from typing import (
     Any,
-    Optional,
     Protocol,
 )
 
@@ -57,11 +56,11 @@ class JiraClient:
 
     def __init__(
         self,
-        jira_board: Optional[Mapping[str, Any]] = None,
-        settings: Optional[Mapping] = None,
-        jira_api: Optional[JIRA] = None,
-        project: Optional[str] = None,
-        server: Optional[str] = None,
+        jira_board: Mapping[str, Any] | None = None,
+        settings: Mapping | None = None,
+        jira_api: JIRA | None = None,
+        project: str | None = None,
+        server: str | None = None,
     ):
         """
         Note: jira_board and settings is to be deprecated. Use JiraClient.create() instead.
@@ -89,7 +88,7 @@ class JiraClient:
         self.my_permissions = functools.lru_cache(maxsize=None)(self._my_permissions)
 
     def _deprecated_init(
-        self, jira_board: Mapping[str, Any], settings: Optional[Mapping]
+        self, jira_board: Mapping[str, Any], settings: Mapping | None
     ) -> None:
         secret_reader = SecretReader(settings=settings)
         self.project = jira_board["name"]
@@ -114,7 +113,7 @@ class JiraClient:
         project_name: str,
         token: str,
         server_url: str,
-        jira_watcher_settings: Optional[JiraWatcherSettings] = None,
+        jira_watcher_settings: JiraWatcherSettings | None = None,
     ) -> JiraClient:
         read_timeout = JiraClient.DEFAULT_READ_TIMEOUT
         connect_timeout = JiraClient.DEFAULT_CONNECT_TIMEOUT
@@ -130,12 +129,12 @@ class JiraClient:
             server=server_url,
         )
 
-    def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:
+    def get_issues(self, fields: Mapping | None = None) -> list[Issue]:
         block_size = 100
         block_num = 0
 
         all_issues: list[Issue] = []
-        jql = "project={}".format(self.project)
+        jql = f"project={self.project}"
         kwargs: dict[str, Any] = {}
         if fields:
             kwargs["fields"] = ",".join(fields)
@@ -163,7 +162,7 @@ class JiraClient:
         self,
         summary: str,
         body: str,
-        labels: Optional[Iterable[str]] = None,
+        labels: Iterable[str] | None = None,
         links: Iterable[str] = (),
     ) -> Issue:
         """Create an issue in our project with the given labels."""

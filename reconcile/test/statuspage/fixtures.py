@@ -1,8 +1,5 @@
 from collections.abc import Iterable
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.statuspage.statuspages import (
@@ -21,14 +18,14 @@ from reconcile.statuspage.state import ComponentBindingState
 
 
 def describe_component_v1(
-    name: str, display_name: str, group: Optional[str], status: Optional[str]
-) -> tuple[str, str, Optional[str], Optional[str]]:
+    name: str, display_name: str, group: str | None, status: str | None
+) -> tuple[str, str, str | None, str | None]:
     return (name, display_name, group, status)
 
 
 def construct_status_page_v1(
     name: str,
-    component_repr: list[tuple[str, str, Optional[str], Optional[str]]],
+    component_repr: list[tuple[str, str, str | None, str | None]],
 ) -> StatusPageV1:
     components = [
         StatusPageComponentV1(
@@ -99,10 +96,10 @@ class DictComponentBindingState:
             v: k for k, v in self.name_to_id_cache.items()
         }
 
-    def get_id_for_component_name(self, component_name: str) -> Optional[str]:
+    def get_id_for_component_name(self, component_name: str) -> str | None:
         return self.name_to_id_cache.get(component_name)
 
-    def get_name_for_component_id(self, component_id: str) -> Optional[str]:
+    def get_name_for_component_id(self, component_id: str) -> str | None:
         return self.id_to_name_cache.get(component_id)
 
     def bind_component(self, component_name: str, component_id: str):
@@ -115,13 +112,13 @@ class DictComponentBindingState:
 
 
 def describe_atlassian_component(
-    id: str, name: str, group: Optional[str], status: str, binding: Optional[str]
-) -> tuple[str, str, Optional[str], str, Optional[str]]:
+    id: str, name: str, group: str | None, status: str, binding: str | None
+) -> tuple[str, str, str | None, str, str | None]:
     return (id, name, group, status, binding)
 
 
 def construct_binding_state(
-    component_repr: Iterable[tuple[str, str, Optional[str], str, Optional[str]]],
+    component_repr: Iterable[tuple[str, str, str | None, str, str | None]],
 ) -> ComponentBindingState:
     return DictComponentBindingState({
         bound_to_component: id
@@ -131,7 +128,7 @@ def construct_binding_state(
 
 
 def construct_atlassian_api(
-    component_repr: Iterable[tuple[str, str, Optional[str], str, Optional[str]]],
+    component_repr: Iterable[tuple[str, str, str | None, str, str | None]],
     group_names: Iterable[str],
 ) -> AtlassianAPI:
     components = [
@@ -167,7 +164,7 @@ def construct_atlassian_api(
 
 def construct_atlassian_page(
     page_name: str,
-    component_repr: Iterable[tuple[str, str, Optional[str], str, Optional[str]]],
+    component_repr: Iterable[tuple[str, str, str | None, str, str | None]],
     groups: Iterable[str],
 ) -> AtlassianStatusPageProvider:
     api = construct_atlassian_api(component_repr, groups)

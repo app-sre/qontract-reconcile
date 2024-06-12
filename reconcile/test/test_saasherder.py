@@ -3,11 +3,8 @@ from collections.abc import (
     Iterable,
     MutableMapping,
 )
-from datetime import datetime, timedelta, timezone
-from typing import (
-    Any,
-    Optional,
-)
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest import TestCase
 from unittest.mock import (
     MagicMock,
@@ -70,12 +67,12 @@ class MockSecretReader(SecretReaderBase):
     """
 
     def _read(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> str:
         return "secret"
 
     def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, str]:
         return {"param": "secret"}
 
@@ -88,7 +85,7 @@ def inject_gql_class_factory(
     def _gql_class_factory(
         self: Any,
         klass: type[BaseModel],
-        data: Optional[MutableMapping[str, Any]] = None,
+        data: MutableMapping[str, Any] | None = None,
     ) -> BaseModel:
         return gql_class_factory(klass, data)
 
@@ -1230,14 +1227,14 @@ class TestSoakDays(TestCase):
                 "saas_file": self.saas_file.name,
                 "target_config_hash": "ed2af38cf21f268c",
                 # the deployment happened 1 hour ago
-                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=1)),
+                "check_in": str(datetime.now(UTC) - timedelta(hours=1)),
             },
             {
                 "success": True,
                 "saas_file": self.saas_file.name,
                 "target_config_hash": "ed2af38cf21f268c",
                 # the deployment happened 47 hours ago
-                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=47)),
+                "check_in": str(datetime.now(UTC) - timedelta(hours=47)),
             },
         ]
         self.state_mock.get.side_effect = publisher_states
@@ -1254,14 +1251,14 @@ class TestSoakDays(TestCase):
                 "saas_file": self.saas_file.name,
                 "target_config_hash": "ed2af38cf21f268c",
                 # the deployment happened 12 hours ago
-                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=12)),
+                "check_in": str(datetime.now(UTC) - timedelta(hours=12)),
             },
             {
                 "success": True,
                 "saas_file": self.saas_file.name,
                 "target_config_hash": "ed2af38cf21f268c",
                 # the deployment happened 1 hour ago
-                "check_in": str(datetime.now(timezone.utc) - timedelta(hours=1)),
+                "check_in": str(datetime.now(UTC) - timedelta(hours=1)),
             },
         ]
         self.state_mock.get.side_effect = publisher_states

@@ -1,5 +1,4 @@
 from collections.abc import Iterable
-from typing import Optional
 from unittest.mock import (
     Mock,
     call,
@@ -358,11 +357,11 @@ def test_rhidp_common_build_cluster_objects() -> None:
 )
 def test_rhidp_common_cluster_vault_secret(
     vault_input_path: str,
-    org_id: Optional[str],
-    cluster_name: Optional[str],
-    auth_name: Optional[str],
-    issuer_url: Optional[str],
-    vault_secret_id: Optional[str],
+    org_id: str | None,
+    cluster_name: str | None,
+    auth_name: str | None,
+    issuer_url: str | None,
+    vault_secret_id: str | None,
     expected: str,
 ) -> None:
     assert (

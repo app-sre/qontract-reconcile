@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from reconcile.gql_definitions.common.pipeline_providers import (
     PipelinesProviderTektonV1,
@@ -9,7 +8,7 @@ from reconcile.utils import gql
 
 
 def get_tekton_pipeline_providers(
-    query_func: Optional[Callable] = None,
+    query_func: Callable | None = None,
 ) -> list[PipelinesProviderTektonV1]:
     if not query_func:
         query_func = gql.get_api().query

@@ -3,7 +3,6 @@ from dataclasses import (
     asdict,
     dataclass,
 )
-from typing import Optional
 from unittest.mock import (
     create_autospec,
     mock_open,
@@ -534,8 +533,8 @@ def secret_reader_side_effect(*args):
 class VaultSecret:
     path: str
     field: str
-    version: Optional[int]
-    q_format: Optional[str]
+    version: int | None
+    q_format: str | None
 
 
 @pytest.fixture

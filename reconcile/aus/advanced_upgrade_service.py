@@ -197,7 +197,7 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
 
 def discover_clusters(
     ocm_api: OCMBaseClient,
-    org_ids: Optional[set[str]] = None,
+    org_ids: set[str] | None = None,
     ignore_sts_clusters: bool = False,
 ) -> dict[str, list[ClusterDetails]]:
     """
@@ -222,7 +222,7 @@ def discover_clusters(
 
 
 def _get_org_labels(
-    ocm_api: OCMBaseClient, org_ids: Optional[set[str]]
+    ocm_api: OCMBaseClient, org_ids: set[str] | None
 ) -> dict[str, LabelContainer]:
     """
     Fetch all AUS OCM org labels from organizations. They hold config
@@ -263,7 +263,7 @@ def _build_org_upgrade_specs_for_ocm_env(
     }
 
 
-def aus_label_key(config_atom: Optional[str] = None) -> str:
+def aus_label_key(config_atom: str | None = None) -> str:
     """
     Generates label keys for aus, compliant with the naming schema defined in
     https://service.pages.redhat.com/dev-guidelines/docs/sre-capabilities/framework/ocm-labels/
@@ -276,7 +276,7 @@ class OrganizationLabelSet(BaseModel):
     Parses, represents and validates a set of organization labels for AUS.
     """
 
-    blocked_versions: Optional[CSV] = Field(alias=aus_label_key("blocked-versions"))
+    blocked_versions: CSV | None = Field(alias=aus_label_key("blocked-versions"))
 
     sector_deps: dict[str, CSV] = labelset_groupfield(
         group_prefix=aus_label_key("sector-deps.")
@@ -395,10 +395,10 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     soak_days: int = Field(alias=aus_label_key("soak-days"), ge=0)
     workloads: CSV = Field(alias=aus_label_key("workloads"), csv_min_items=1)
     schedule: str = Field(alias=aus_label_key("schedule"))
-    mutexes: Optional[CSV] = Field(alias=aus_label_key("mutexes"))
-    sector: Optional[str] = Field(alias=aus_label_key("sector"))
-    blocked_versions: Optional[CSV] = Field(alias=aus_label_key("blocked-versions"))
-    version_gate_approvals: Optional[CSV] = Field(
+    mutexes: CSV | None = Field(alias=aus_label_key("mutexes"))
+    sector: str | None = Field(alias=aus_label_key("sector"))
+    blocked_versions: CSV | None = Field(alias=aus_label_key("blocked-versions"))
+    version_gate_approvals: CSV | None = Field(
         alias=aus_label_key("version-gate-approvals")
     )
     _schedule_validator = validator("schedule", allow_reuse=True)(cron_validator)
@@ -422,10 +422,10 @@ def build_cluster_upgrade_policy_label_set(
     workloads: list[str],
     schedule: str,
     soak_days: int,
-    mutexes: Optional[list[str]] = None,
-    sector: Optional[str] = None,
-    blocked_versions: Optional[list[str]] = None,
-    version_gate_approvals: Optional[list[str]] = None,
+    mutexes: list[str] | None = None,
+    sector: str | None = None,
+    blocked_versions: list[str] | None = None,
+    version_gate_approvals: list[str] | None = None,
 ) -> ClusterUpgradePolicyLabelSet:
     return ClusterUpgradePolicyLabelSet(**{
         aus_label_key("workloads"): ",".join(workloads),
@@ -463,7 +463,7 @@ def _build_policy_from_labels(labels: LabelContainer) -> ClusterUpgradePolicyV1:
 
 
 class VersionDataInheritanceLabelSet(BaseModel):
-    inherit_version_data: Optional[CSV] = Field(
+    inherit_version_data: CSV | None = Field(
         alias=aus_label_key("version-data.inherit")
     )
     """
@@ -472,7 +472,7 @@ class VersionDataInheritanceLabelSet(BaseModel):
     Version data publishing/inheritance can also be defined between OCM environments.
     """
 
-    publish_version_data: Optional[CSV] = Field(
+    publish_version_data: CSV | None = Field(
         alias=aus_label_key("version-data.publish")
     )
     """

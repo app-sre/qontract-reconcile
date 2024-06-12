@@ -6,10 +6,7 @@ from collections.abc import (
     MutableMapping,
 )
 from pathlib import Path
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
@@ -96,14 +93,14 @@ def vault_secret():
 @pytest.fixture
 def data_factory() -> (
     Callable[
-        [type[BaseModel], Optional[MutableMapping[str, Any]]],
+        [type[BaseModel], MutableMapping[str, Any] | None],
         MutableMapping[str, Any],
     ]
 ):
     """Set default values to None."""
 
     def _data_factory(
-        klass: type[BaseModel], data: Optional[MutableMapping[str, Any]] = None
+        klass: type[BaseModel], data: MutableMapping[str, Any] | None = None
     ) -> MutableMapping[str, Any]:
         return data_default_none(klass, data or {})
 
@@ -117,14 +114,14 @@ class GQLClassFactoryError(Exception):
 @pytest.fixture
 def gql_class_factory() -> (
     Callable[
-        [type[BaseModel], Optional[MutableMapping[str, Any]]],
+        [type[BaseModel], MutableMapping[str, Any] | None],
         BaseModel,
     ]
 ):
     """Create a GQL class from a fixture and set default values to None."""
 
     def _gql_class_factory(
-        klass: type[BaseModel], data: Optional[MutableMapping[str, Any]] = None
+        klass: type[BaseModel], data: MutableMapping[str, Any] | None = None
     ) -> BaseModel:
         try:
             return klass(**data_default_none(klass, data or {}))
@@ -137,8 +134,8 @@ def gql_class_factory() -> (
 
 
 @pytest.fixture
-def gql_api_builder() -> Callable[[Optional[Mapping]], GqlApi]:
-    def builder(data: Optional[Mapping] = None) -> GqlApi:
+def gql_api_builder() -> Callable[[Mapping | None], GqlApi]:
+    def builder(data: Mapping | None = None) -> GqlApi:
         gql_api = create_autospec(GqlApi)
         gql_api.query.return_value = data
         return gql_api

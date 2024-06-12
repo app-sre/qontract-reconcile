@@ -9,16 +9,13 @@ import re
 import sys
 from collections import defaultdict
 from datetime import (
+    UTC,
     datetime,
     timedelta,
-    timezone,
 )
 from operator import itemgetter
 from statistics import median
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import boto3
 import click
@@ -352,8 +349,8 @@ def get_upgrade_policies_data(
 
     def soaking_str(
         soaking: dict[str, Any],
-        upgrade_policy: Optional[AbstractUpgradePolicy],
-        upgradeable_version: Optional[str],
+        upgrade_policy: AbstractUpgradePolicy | None,
+        upgradeable_version: str | None,
     ) -> str:
         if upgrade_policy:
             upgrade_version = upgrade_policy.version
@@ -764,9 +761,9 @@ def ocm_addon_upgrade_policies(ctx: click.core.Context) -> None:
 @click.pass_context
 def sd_app_sre_alert_report(
     ctx: click.core.Context,
-    days: Optional[int],
-    from_timestamp: Optional[int],
-    to_timestamp: Optional[int],
+    days: int | None,
+    from_timestamp: int | None,
+    to_timestamp: int | None,
 ) -> None:
     import tools.sd_app_sre_alert_report as report
 
@@ -1407,9 +1404,7 @@ def rosa_create_cluster_command(ctx, cluster_name):
 @click.argument("jumphost_hostname", required=False)
 @click.argument("cluster_name", required=False)
 @click.pass_context
-def sshuttle_command(
-    ctx, jumphost_hostname: Optional[str], cluster_name: Optional[str]
-):
+def sshuttle_command(ctx, jumphost_hostname: str | None, cluster_name: str | None):
     jumphosts_query_data = queries.get_jumphosts(hostname=jumphost_hostname)
     jumphosts = jumphosts_query_data.jumphosts or []
     for jh in jumphosts:
@@ -2358,7 +2353,7 @@ def ec2_jenkins_workers(ctx, aws_access_key_id, aws_secret_access_key, aws_regio
     client = boto3.client("autoscaling")
     ec2 = boto3.resource("ec2")
     results = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
     columns = [
         "type",
@@ -2511,7 +2506,7 @@ def alerts(ctx, file_path):
             case _:
                 return BIG_NUMBER
 
-    with open(file_path, "r", encoding="locale") as f:
+    with open(file_path, encoding="locale") as f:
         content = json.loads(f.read())
 
     columns = [
@@ -2605,7 +2600,7 @@ def osd_component_versions(ctx):
 @get.command()
 @click.pass_context
 def maintenances(ctx):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     maintenances = maintenances_gql.query(gql.get_api().query).maintenances or []
     data = [
         {
@@ -3474,7 +3469,7 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None) -> None:
 @click.option("--app-name", default=None, help="app to act on.")
 @click.pass_context
 def saas_targets(
-    ctx, saas_file_name: Optional[str] = None, app_name: Optional[str] = None
+    ctx, saas_file_name: str | None = None, app_name: str | None = None
 ) -> None:
     """Resolve namespaceSelectors and print all resulting targets of a saas file."""
     console = Console()

@@ -3,13 +3,12 @@ from abc import (
     abstractmethod,
 )
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
 class LabelOwnerRef(ABC):
     ocm_env: str
-    label_container_href: Optional[str]
+    label_container_href: str | None
 
     @abstractmethod
     def identity_labels(self) -> list[str]:

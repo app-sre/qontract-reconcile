@@ -2,7 +2,6 @@ from datetime import (
     datetime,
     timedelta,
 )
-from typing import Optional
 
 import pytest
 from pydantic import BaseModel
@@ -18,7 +17,7 @@ LAST_WEEK = TODAY - timedelta(days=7)
 
 class MyRole(BaseModel):
     just_another_attr: int = 0
-    expiration_date: Optional[str]
+    expiration_date: str | None
 
 
 @pytest.mark.parametrize(

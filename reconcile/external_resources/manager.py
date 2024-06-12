@@ -1,8 +1,8 @@
 import json
 import logging
 from collections.abc import Iterable
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from sretoolbox.utils import threaded
 
@@ -73,7 +73,7 @@ def setup_factories(
     return of
 
 
-class ReconcileAction(str, Enum):
+class ReconcileAction(StrEnum):
     NOOP = "NOOP"
     APPLY_NOT_EXISTS = "Resource does not exist"
     APPLY_ERROR = "Resource status in ERROR state"
@@ -260,7 +260,7 @@ class ExternalResourcesManager:
         return need_secret_sync
 
     def _update_state(self, r: Reconciliation, state: ExternalResourceState) -> None:
-        state.ts = datetime.now(timezone.utc)
+        state.ts = datetime.now(UTC)
         if r.action == Action.APPLY:
             state.resource_status = ResourceStatus.IN_PROGRESS
         elif r.action == Action.DESTROY:

@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Sequence
-from datetime import date, timezone
+from datetime import UTC, date
 from datetime import datetime as dt
 from pathlib import Path
 
@@ -60,7 +60,7 @@ class UpdateGlitchtipAccessReport(MergeRequestBase):
         self._glitchtip_access_revalidation_workbook = str(
             glitchtip_access_revalidation_workbook
         )
-        self._isodate = dt.now(tz=timezone.utc).isoformat()
+        self._isodate = dt.now(tz=UTC).isoformat()
         self._dry_run = dry_run
 
     @property

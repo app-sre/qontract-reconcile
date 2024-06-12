@@ -3,10 +3,7 @@ from __future__ import annotations
 import functools
 import re
 from collections.abc import Mapping
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from sretoolbox.utils import retry
 
@@ -96,8 +93,8 @@ class OCM:  # pylint: disable=too-many-public-methods
         init_addons=False,
         init_version_gates=False,
         blocked_versions=None,
-        inheritVersionData: Optional[list[dict[str, Any]]] = None,
-        product_portfolio: Optional[OCMProductPortfolio] = None,
+        inheritVersionData: list[dict[str, Any]] | None = None,
+        product_portfolio: OCMProductPortfolio | None = None,
     ):
         """Initiates access token and gets clusters information."""
         self.name = name
@@ -174,7 +171,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         return cluster in self.clusters
 
     def get_product_impl(
-        self, product: str, hypershift: Optional[bool] = False
+        self, product: str, hypershift: bool | None = False
     ) -> OCMProduct:
         return self.product_portfolio.get_product_impl(product, hypershift)
 
@@ -255,7 +252,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         )
         self._delete(api)
 
-    def get_cluster_aws_account_id(self, cluster: str) -> Optional[str]:
+    def get_cluster_aws_account_id(self, cluster: str) -> str | None:
         """Returns the AWS account id of the cluster.
         Since there is no direct API to get this information,
         we hack our way by relying on existing role grants
@@ -768,7 +765,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         self,
         cluster: str,
         with_version: bool = False,
-        required_state: Optional[str] = None,
+        required_state: str | None = None,
     ) -> list[dict[str, str]]:
         """Returns a list of Addons installed on a cluster
 
@@ -784,7 +781,7 @@ class OCM:  # pylint: disable=too-many-public-methods
             return results
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/addons"
 
-        p: Optional[dict[str, Any]] = None
+        p: dict[str, Any] | None = None
         if required_state:
             p = {"search": f"state='{required_state}'"}
 
@@ -845,7 +842,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         return rs["kind"].endswith("List")
 
     def _get_json(
-        self, api: str, params: Optional[dict[str, Any]] = None, page_size: int = 100
+        self, api: str, params: dict[str, Any] | None = None, page_size: int = 100
     ) -> dict[str, Any]:
         responses = []
         if not params:
@@ -933,7 +930,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         init_provision_shards=False,
         init_addons=False,
         init_version_gates=False,
-        product_portfolio: Optional[OCMProductPortfolio] = None,
+        product_portfolio: OCMProductPortfolio | None = None,
     ) -> None:
         """Initiates OCM instances for each OCM referenced in a cluster."""
         self.clusters_map: dict[str, str] = {}
@@ -984,7 +981,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         init_provision_shards,
         init_addons,
         init_version_gates,
-        product_portfolio: Optional[OCMProductPortfolio] = None,
+        product_portfolio: OCMProductPortfolio | None = None,
     ):
         if self.cluster_disabled(cluster_info):
             return
@@ -1009,7 +1006,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
         init_provision_shards,
         init_addons,
         init_version_gates,
-        product_portfolio: Optional[OCMProductPortfolio] = None,
+        product_portfolio: OCMProductPortfolio | None = None,
     ):
         """
         Initiate OCM client.

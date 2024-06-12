@@ -1,7 +1,4 @@
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.utils.filtering import remove_none_values_from_dict
 
@@ -11,7 +8,7 @@ def test_remove_none_values_from_dict_all_none() -> None:
 
 
 def test_remove_empty_values_from_dict_dont_remove_not_none() -> None:
-    a_dict: dict[str, Optional[Any]] = {
+    a_dict: dict[str, Any | None] = {
         "a": "",
         "b": [],
         "c": {},

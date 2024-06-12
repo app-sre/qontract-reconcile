@@ -1,12 +1,11 @@
 from collections.abc import Callable
-from typing import Optional
 
 from reconcile.gql_definitions.common.alerting_services_settings import query
 from reconcile.utils import gql
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 
 
-def get_alerting_services(query_func: Optional[Callable] = None) -> set[str]:
+def get_alerting_services(query_func: Callable | None = None) -> set[str]:
     """Get alertingServices from app-interface settings"""
 
     if not query_func:

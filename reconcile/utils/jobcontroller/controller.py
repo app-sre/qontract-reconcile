@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Optional, Protocol, TextIO
+from typing import Protocol, TextIO
 
 from kubernetes.client import (  # type: ignore[attr-defined]
     ApiClient,
@@ -85,7 +85,7 @@ class K8sJobController:
         self.oc = oc
         self.dry_run = dry_run
         self.time_module = time_module
-        self._cache: Optional[dict[str, OpenshiftResource]] = None
+        self._cache: dict[str, OpenshiftResource] | None = None
 
     @property
     def cache(self) -> dict[str, OpenshiftResource]:
@@ -111,7 +111,7 @@ class K8sJobController:
         self._cache = new_cache
         return self._cache
 
-    def get_job_generation(self, job_name: str) -> Optional[str]:
+    def get_job_generation(self, job_name: str) -> str | None:
         """
         Returns the generation annotation for a job.
         """
@@ -248,7 +248,7 @@ class K8sJobController:
             return True
         return False
 
-    def _lookup_job_uid(self, job_name: str) -> Optional[str]:
+    def _lookup_job_uid(self, job_name: str) -> str | None:
         job_resource = self.oc.get(
             self.namespace, "Job", job_name, allow_not_found=True
         )
@@ -256,7 +256,7 @@ class K8sJobController:
             return None
         return job_resource.get("metadata", {}).get("uid")
 
-    def build_secret(self, job: K8sJob) -> Optional[V1Secret]:
+    def build_secret(self, job: K8sJob) -> V1Secret | None:
         secret_data = job.secret_data()
         script_data = job.scripts()
         # fail if both dicts have overlapping keys

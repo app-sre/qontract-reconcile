@@ -1,7 +1,6 @@
 import logging
 import os
 import sys
-from typing import Optional
 
 from reconcile.utils import (
     config,
@@ -19,9 +18,7 @@ DRY_RUN_MAP = {
 }
 
 
-def log_fmt(
-    dry_run: Optional[bool] = None, dry_run_option: Optional[str] = None
-) -> str:
+def log_fmt(dry_run: bool | None = None, dry_run_option: str | None = None) -> str:
     if dry_run and dry_run_option:
         raise ValueError("Please set either dry_run or dry_run_option.")
 
@@ -46,9 +43,9 @@ def log_fmt(
 
 
 def init_env(
-    log_level: Optional[str] = None,
-    config_file: Optional[str] = None,
-    dry_run: Optional[bool] = None,
+    log_level: str | None = None,
+    config_file: str | None = None,
+    dry_run: bool | None = None,
     print_gql_url: bool = True,
 ) -> None:
     # store env configs in environment variables. this way child processes

@@ -5,10 +5,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from sretoolbox.utils import threaded
 
@@ -46,13 +43,13 @@ def get_cluster_users(
     users: list[str] = []
 
     # get cluster info for current cluster name from clusters list
-    cluster_info = next((cl for cl in clusters if cl.name == cluster))
+    cluster_info = next(cl for cl in clusters if cl.name == cluster)
 
     # backwarts compatibiltiy for clusters w/o auth
     identity_prefixes = ["github"]
 
     for auth in cluster_info.auth:
-        if isinstance(auth, (ClusterAuthOIDCV1, ClusterAuthRHIDPV1)):
+        if isinstance(auth, ClusterAuthOIDCV1 | ClusterAuthRHIDPV1):
             identity_prefixes.append(auth.name)
 
     for u in oc.get_users():
@@ -72,7 +69,7 @@ def get_cluster_users(
 
 def fetch_current_state(
     thread_pool_size: int,
-    internal: Optional[bool],
+    internal: bool | None,
     use_jump_host: bool,
 ) -> tuple[OCMap, list[Any]]:
     vault_settings = get_app_interface_vault_settings()
@@ -99,7 +96,7 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    oc_map: Optional[OCMap], enforced_user_keys: Any = None
+    oc_map: OCMap | None, enforced_user_keys: Any = None
 ) -> list[Any]:
     desired_state = []
 
@@ -163,16 +160,16 @@ def act(diff: Mapping[str, Any], oc_map: OCMap) -> None:
             raise Exception("No proper Openshift Client for del_user operation")
         oc.delete_user(user)
     else:
-        raise Exception("invalid action: {}".format(action))
+        raise Exception(f"invalid action: {action}")
 
 
 @defer
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> None:
     oc_map, current_state = fetch_current_state(
         thread_pool_size, internal, use_jump_host

@@ -1,10 +1,7 @@
 import logging
 from collections.abc import Callable
 from threading import Lock
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from sretoolbox.utils import threaded
 
@@ -63,7 +60,7 @@ def run(
     internal: bool,
     use_jump_host: bool,
     include_trigger_trace: bool,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> bool:
     """Run trigger integration
 
@@ -327,13 +324,13 @@ def _construct_tekton_trigger_resource(
     saas_file_name: str,
     env_name: str,
     tkn_pipeline_name: str,
-    timeout: Optional[str],
+    timeout: str | None,
     tkn_cluster_console_url: str,
     tkn_namespace_name: str,
     integration: str,
     integration_version: str,
     include_trigger_trace: bool,
-    reason: Optional[str],
+    reason: str | None,
 ) -> tuple[OR, str]:
     """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
 

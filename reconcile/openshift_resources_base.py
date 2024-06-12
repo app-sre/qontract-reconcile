@@ -20,9 +20,7 @@ from textwrap import indent
 from threading import Lock
 from typing import (
     Any,
-    Optional,
     Protocol,
-    Tuple,
 )
 from unittest.mock import DEFAULT, patch
 
@@ -479,9 +477,7 @@ def fetch_provider_route(
             tls[k] = v
             continue
 
-        msg = "Route secret '{}' key '{}' not in valid keys {}".format(
-            tls_path, k, valid_keys
-        )
+        msg = f"Route secret '{tls_path}' key '{k}' not in valid keys {valid_keys}"
         _locked_info_log(msg)
 
     host = openshift_resource.body["spec"].get("host")
@@ -504,7 +500,7 @@ def fetch_openshift_resource(
     provider = resource["provider"]
     if provider == "resource":
         path = resource["resource"]["path"]
-        _locked_debug_log("Processing {}: {}".format(provider, path))
+        _locked_debug_log(f"Processing {provider}: {path}")
         validate_json = resource.get("validate_json") or False
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
@@ -524,7 +520,7 @@ def fetch_openshift_resource(
         )
     elif provider == "resource-template":
         path = resource["resource"]["path"]
-        _locked_debug_log("Processing {}: {}".format(provider, path))
+        _locked_debug_log(f"Processing {provider}: {path}")
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
             resource.get("validate_alertmanager_config") or False
@@ -557,12 +553,12 @@ def fetch_openshift_resource(
                 settings=settings,
             )
         except Exception as e:
-            msg = "could not render template at path {}\n{}".format(path, e)
+            msg = f"could not render template at path {path}\n{e}"
             raise ResourceTemplateRenderError(msg)
     elif provider == "vault-secret":
         path = resource["path"]
         version = resource["version"]
-        _locked_debug_log("Processing {}: {} - {}".format(provider, path, version))
+        _locked_debug_log(f"Processing {provider}: {path} - {version}")
         rn = resource["name"]
         name = path.split("/")[-1] if rn is None else rn
         rl = resource["labels"]
@@ -595,7 +591,7 @@ def fetch_openshift_resource(
             raise FetchSecretError(e)
     elif provider == "route":
         path = resource["resource"]["path"]
-        _locked_debug_log("Processing {}: {}".format(provider, path))
+        _locked_debug_log(f"Processing {provider}: {path}")
         tls_path = resource["vault_tls_secret_path"]
         tls_version = resource["vault_tls_secret_version"]
         openshift_resource = fetch_provider_route(
@@ -603,7 +599,7 @@ def fetch_openshift_resource(
         )
     elif provider == "prometheus-rule":
         path = resource["resource"]["path"]
-        _locked_debug_log("Processing {}: {}".format(provider, path))
+        _locked_debug_log(f"Processing {provider}: {path}")
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         tv = {}
         if resource["variables"]:
@@ -631,7 +627,7 @@ def fetch_openshift_resource(
                 settings=settings,
             )
         except Exception as e:
-            msg = "could not render template at path {}\n{}".format(path, e)
+            msg = f"could not render template at path {path}\n{e}"
             raise ResourceTemplateRenderError(msg)
 
     else:
@@ -684,7 +680,7 @@ def fetch_desired_state(
         UnknownProviderError,
     ) as e:
         ri.register_error()
-        msg = "[{}/{}] {}".format(cluster, namespace, str(e))
+        msg = f"[{cluster}/{namespace}] {str(e)}"
         _locked_error_log(msg)
         return
 
@@ -702,9 +698,7 @@ def fetch_desired_state(
         # combination was not initialized, meaning that it shouldn't be
         # managed. But someone is trying to add it via app-interface
         ri.register_error()
-        msg = "[{}/{}] unknown kind: {}. hint: is it missing from managedResourceTypes?".format(
-            cluster, namespace, openshift_resource.kind
-        )
+        msg = f"[{cluster}/{namespace}] unknown kind: {openshift_resource.kind}. hint: is it missing from managedResourceTypes?"
         _locked_error_log(msg)
         return
     except ResourceKeyExistsError:
@@ -712,18 +706,14 @@ def fetch_desired_state(
         # a desired resource with the same name and
         # the same type was already added previously
         ri.register_error()
-        msg = ("[{}/{}] desired item already exists: {}/{}.").format(
-            cluster, namespace, openshift_resource.kind, openshift_resource.name
-        )
+        msg = f"[{cluster}/{namespace}] desired item already exists: {openshift_resource.kind}/{openshift_resource.name}."
         _locked_error_log(msg)
         return
     except ResourceNotManagedError:
         # This is failing because the resource name is
         # not in the list of resource names that are managed
         ri.register_error()
-        msg = "[{}/{}] desired item is not managed: {}/{}.".format(
-            cluster, namespace, openshift_resource.kind, openshift_resource.name
-        )
+        msg = f"[{cluster}/{namespace}] desired item is not managed: {openshift_resource.kind}/{openshift_resource.name}."
         _locked_error_log(msg)
         return
 
@@ -1000,7 +990,7 @@ class CheckClusterScopedResourceNames:
 @dataclass
 class CheckClusterScopedResourceDuplicates:
     oc_map: OC_Map
-    all_namespaces: Optional[Iterable[Mapping]] = None
+    all_namespaces: Iterable[Mapping] | None = None
 
     def check(self) -> list[Exception]:
         errors: list[Exception] = []
@@ -1022,13 +1012,13 @@ class CheckClusterScopedResourceDuplicates:
 
     def _find_resource_duplicates(
         self, cluster_cs_resources: dict[str, dict[str, dict[str, list[str]]]]
-    ) -> list[Tuple[str, str, str, list[str]]]:
+    ) -> list[tuple[str, str, str, list[str]]]:
         # ) -> dict[Tuple[str, str, str], list[str]]:
         """Finds cluster resource duplicates by kind/name.
         :param cluster_cs_resources
         :return: duplicates as [(cluster, kind, name, [namespaces])]
         """
-        duplicates: list[Tuple[str, str, str, list[str]]] = []
+        duplicates: list[tuple[str, str, str, list[str]]] = []
 
         for cluster, cluster_resources in cluster_cs_resources.items():
             _kind_name: dict[str, dict[str, list[str]]] = {}
@@ -1048,7 +1038,7 @@ def check_cluster_scoped_resources(
     oc_map: OC_Map,
     ri: ResourceInventory,
     namespaces: Iterable[Mapping[str, Any]],
-    all_namespaces: Optional[Iterable[Mapping[str, Any]]] = None,
+    all_namespaces: Iterable[Mapping[str, Any]] | None = None,
 ) -> bool:
     checks = [
         CheckClusterScopedResourceNames(oc_map, ri, namespaces),
@@ -1069,7 +1059,7 @@ def check_cluster_scoped_resources(
 def get_cluster_scoped_resources(
     oc_map: OC_Map,
     clusters: Iterable[str],
-    namespaces: Optional[Iterable[Mapping[str, Any]]] = None,
+    namespaces: Iterable[Mapping[str, Any]] | None = None,
     thread_pool_size: int = 10,
 ) -> dict[str, dict[str, dict[str, list[str]]]]:
     """Returns cluster scoped resources for a list of clusters
@@ -1106,7 +1096,7 @@ def get_cluster_scoped_resources(
 def _get_namespace_cluster_scoped_resources(
     namespace: Mapping,
     oc_map: OC_Map,
-) -> Tuple[str, str, dict[str, dict[str, Any]]]:
+) -> tuple[str, str, dict[str, dict[str, Any]]]:
     """Returns all non-namespaced resources defined in a namespace manifest.
 
     :param namespace: the namespace dict
@@ -1125,7 +1115,7 @@ def _get_namespace_cluster_scoped_resources(
 
 
 def early_exit_desired_state(
-    providers: list[str], resource_schema_filter: Optional[str] = None
+    providers: list[str], resource_schema_filter: str | None = None
 ) -> dict[str, Any]:
     settings = queries.get_secret_reader_settings()
     namespaces, _ = get_namespaces(

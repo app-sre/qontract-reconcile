@@ -2,10 +2,7 @@ from collections.abc import (
     Callable,
     MutableMapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import pytest
 from pydantic import BaseModel
@@ -21,14 +18,14 @@ class GQLClassFactoryError(Exception):
 @pytest.fixture
 def gql_class_factory() -> (
     Callable[
-        [type[BaseModel], Optional[MutableMapping[str, Any]]],
+        [type[BaseModel], MutableMapping[str, Any] | None],
         BaseModel,
     ]
 ):
     """Create a GQL class from a fixture and set default values to None."""
 
     def _gql_class_factory(
-        klass: type[BaseModel], data: Optional[MutableMapping[str, Any]] = None
+        klass: type[BaseModel], data: MutableMapping[str, Any] | None = None
     ) -> BaseModel:
         try:
             return klass(**data_default_none(klass, data or {}))

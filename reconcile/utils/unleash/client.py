@@ -2,10 +2,7 @@ import logging
 import os
 import threading
 from collections.abc import Mapping
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from UnleashClient import (
     BaseCache,
@@ -13,7 +10,7 @@ from UnleashClient import (
 )
 from UnleashClient.strategies import Strategy
 
-client: Optional[UnleashClient] = None
+client: UnleashClient | None = None
 client_lock = threading.Lock()
 
 
@@ -43,7 +40,7 @@ class ClusterStrategy(Strategy):
 
 
 class DisableClusterStrategy(ClusterStrategy):
-    def apply(self, context: Optional[dict] = None) -> bool:
+    def apply(self, context: dict | None = None) -> bool:
         enable = True
 
         if context and "cluster_name" in context.keys():
@@ -54,7 +51,7 @@ class DisableClusterStrategy(ClusterStrategy):
 
 
 class EnableClusterStrategy(ClusterStrategy):
-    def apply(self, context: Optional[dict] = None) -> bool:
+    def apply(self, context: dict | None = None) -> bool:
         enable = False
 
         if context and "cluster_name" in context.keys():

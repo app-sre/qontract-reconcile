@@ -4,7 +4,6 @@ from functools import (
     reduce,
 )
 from itertools import zip_longest
-from typing import Optional
 
 import jsonpath_ng
 import jsonpath_ng.ext.filter
@@ -54,11 +53,11 @@ def narrow_jsonpath_node(
         if path_2.fields == ("*",):
             return path_1
     elif isinstance(path_1, jsonpath_ng.Index) and isinstance(
-        path_2, (jsonpath_ng.Slice, jsonpath_ng.ext.filter.Filter)
+        path_2, jsonpath_ng.Slice | jsonpath_ng.ext.filter.Filter
     ):
         return path_1
     elif isinstance(
-        path_1, (jsonpath_ng.Slice, jsonpath_ng.ext.filter.Filter)
+        path_1, jsonpath_ng.Slice | jsonpath_ng.ext.filter.Filter
     ) and isinstance(path_2, jsonpath_ng.Index):
         return path_2
     elif isinstance(path_1, jsonpath_ng.ext.filter.Filter) and isinstance(
@@ -119,7 +118,7 @@ def apply_constraint_to_path(
     path: jsonpath_ng.JSONPath,
     path_constraint: jsonpath_ng.JSONPath,
     min_common_prefix_length: int = 1,
-) -> Optional[jsonpath_ng.JSONPath]:
+) -> jsonpath_ng.JSONPath | None:
     """
     Narrow the `path` with a more specific `path_constraint`.
     e.g. if the path constraints a slice `[*]` and the constraints a
@@ -148,7 +147,7 @@ def apply_constraint_to_path(
 
 def remove_prefix_from_path(
     path: jsonpath_ng.JSONPath, prefix: jsonpath_ng.JSONPath
-) -> Optional[jsonpath_ng.JSONPath]:
+) -> jsonpath_ng.JSONPath | None:
     path_parts = jsonpath_parts(path, ignore_root=True)
     prefix_parts = jsonpath_parts(prefix, ignore_root=True)
 

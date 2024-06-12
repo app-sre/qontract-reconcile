@@ -2,7 +2,6 @@ import re
 import tempfile
 from collections.abc import Mapping
 from subprocess import (
-    PIPE,
     CalledProcessError,
     run,
 )
@@ -62,7 +61,7 @@ def version() -> AmtoolResult:
 
 def _run_cmd(cmd: list[str]) -> AmtoolResult:
     try:
-        result = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
+        result = run(cmd, capture_output=True, check=True)
     except CalledProcessError as e:
         msg = f'Error running amtool command [{" ".join(cmd)}]'
         if e.stdout:

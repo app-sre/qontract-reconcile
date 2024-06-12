@@ -3,10 +3,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from sretoolbox.utils import threaded
 
@@ -169,10 +166,10 @@ def projects_query(query_func: Callable) -> list[GlitchtipProjectV1]:
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    instance: Optional[str] = None,
-    defer: Optional[Callable] = None,
+    instance: str | None = None,
+    defer: Callable | None = None,
 ) -> None:
     # settings
     vault_settings = get_app_interface_vault_settings()

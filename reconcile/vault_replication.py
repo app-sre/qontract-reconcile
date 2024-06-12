@@ -2,8 +2,6 @@ import logging
 import re
 from collections.abc import Iterable
 from typing import (
-    Optional,
-    Union,
     cast,
 )
 
@@ -179,7 +177,7 @@ def copy_vault_secret(
 
 def check_invalid_paths(
     path_list: Iterable[str],
-    policy_paths: Optional[Iterable[str]],
+    policy_paths: Iterable[str] | None,
 ) -> None:
     """Checks if the paths to be replicated are present in the policy used to limit the secrets
     that are going to be replicated."""
@@ -283,12 +281,10 @@ def get_jenkins_secret_list(
 
 
 def get_vault_credentials(
-    vault_auth: Union[
-        VaultReplicationConfigV1_VaultInstanceAuthV1,
-        VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
-    ],
+    vault_auth: VaultReplicationConfigV1_VaultInstanceAuthV1
+    | VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
     vault_address: str,
-) -> dict[str, Optional[str]]:
+) -> dict[str, str | None]:
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface and comming from Vault itself."""
     vault_creds = {}

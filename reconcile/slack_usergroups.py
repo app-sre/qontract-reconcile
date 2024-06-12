@@ -3,14 +3,12 @@ import sys
 from collections.abc import (
     Callable,
     Iterable,
+    Sequence,
 )
 from datetime import datetime
 from typing import (
     Any,
-    Optional,
-    Sequence,
     TypedDict,
-    Union,
 )
 from urllib.parse import urlparse
 
@@ -77,7 +75,7 @@ INTEGRATION_VERSION = "0.1.0"
 error_occurred = False
 
 
-def get_git_api(url: str) -> Union[GithubRepositoryApi, GitLabApi]:
+def get_git_api(url: str) -> GithubRepositoryApi | GitLabApi:
     """Return GitHub/GitLab API based on url."""
     parsed_url = urlparse(url)
 
@@ -147,7 +145,7 @@ def compute_cluster_user_group(name: str) -> str:
 def get_slack_map(
     secret_reader: SecretReader,
     permissions: Iterable[PermissionSlackUsergroupV1],
-    desired_workspace_name: Optional[str] = None,
+    desired_workspace_name: str | None = None,
 ) -> SlackMap:
     """Return SlackMap (API) per workspaces."""
     slack_map = {}
@@ -183,8 +181,8 @@ def get_slack_map(
 
 def get_current_state(
     slack_map: SlackMap,
-    desired_workspace_name: Optional[str],
-    desired_usergroup_name: Optional[str],
+    desired_workspace_name: str | None,
+    desired_usergroup_name: str | None,
     cluster_usergroups: list[str],
 ) -> SlackState:
     """
@@ -399,8 +397,8 @@ def get_desired_state(
     pagerduty_map: PagerDutyMap,
     permissions: Iterable[PermissionSlackUsergroupV1],
     users: Iterable[User],
-    desired_workspace_name: Optional[str],
-    desired_usergroup_name: Optional[str],
+    desired_workspace_name: str | None,
+    desired_usergroup_name: str | None,
 ) -> SlackState:
     """Get the desired state of Slack usergroups."""
     desired_state: SlackState = {}
@@ -461,8 +459,8 @@ def get_desired_state_cluster_usergroups(
     slack_map: SlackMap,
     clusters: Iterable[ClusterV1],
     users: Iterable[UserV1],
-    desired_workspace_name: Optional[str],
-    desired_usergroup_name: Optional[str],
+    desired_workspace_name: str | None,
+    desired_usergroup_name: str | None,
 ) -> SlackState:
     """Get the desired state of Slack usergroups."""
     desired_state: SlackState = {}
@@ -752,14 +750,14 @@ class RunnerParams(TypedDict):
     slack_map: SlackMap
     desired_state: SlackState
     clusters: list[ClusterV1]
-    workspace_name: Optional[str]
-    usergroup_name: Optional[str]
+    workspace_name: str | None
+    usergroup_name: str | None
 
 
 def run(
     dry_run: bool,
-    workspace_name: Optional[str] = None,
-    usergroup_name: Optional[str] = None,
+    workspace_name: str | None = None,
+    usergroup_name: str | None = None,
     enable_extended_early_exit: bool = False,
     extended_early_exit_cache_ttl_seconds: int = 3600,
     log_cached_log_output: bool = False,
@@ -841,8 +839,8 @@ def runner(
     slack_map: SlackMap,
     desired_state: SlackState,
     clusters: list[ClusterV1],
-    workspace_name: Optional[str] = None,
-    usergroup_name: Optional[str] = None,
+    workspace_name: str | None = None,
+    usergroup_name: str | None = None,
 ) -> ExtendedEarlyExitRunnerResult:
     current_state = get_current_state(
         slack_map=slack_map,

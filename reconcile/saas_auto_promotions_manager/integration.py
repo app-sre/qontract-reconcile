@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from sretoolbox.utils import threaded
 
@@ -95,8 +94,8 @@ class SaasAutoPromotionsManager:
 
 def init_external_dependencies(
     dry_run: bool,
-    env_name: Optional[str] = None,
-    app_name: Optional[str] = None,
+    env_name: str | None = None,
+    app_name: str | None = None,
 ) -> tuple[
     PromotionState,
     VCS,
@@ -169,9 +168,9 @@ def init_external_dependencies(
 def run(
     dry_run: bool,
     thread_pool_size: int,
-    env_name: Optional[str] = None,
-    app_name: Optional[str] = None,
-    defer: Optional[Callable] = None,
+    env_name: str | None = None,
+    app_name: str | None = None,
+    defer: Callable | None = None,
 ) -> None:
     (
         deployment_state,

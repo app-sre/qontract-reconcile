@@ -1,7 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_requests import (
     OpenBatcherMergeRequest,
@@ -145,7 +144,7 @@ class Batcher:
         if not unsubmitted_promotions:
             return
 
-        batch_with_capacity: Optional[OpenBatcherMergeRequest] = None
+        batch_with_capacity: OpenBatcherMergeRequest | None = None
         for mr in self._open_mrs:
             if mr.is_batchable and len(mr.content_hashes) < batch_limit:
                 batch_with_capacity = mr

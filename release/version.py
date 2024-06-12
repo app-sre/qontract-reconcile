@@ -5,7 +5,6 @@ import os
 import re
 import subprocess
 import sys
-from subprocess import PIPE
 from typing import Optional
 
 GIT_VERSION_FILE = "GIT_VERSION"
@@ -21,7 +20,7 @@ def git() -> str:
     """
     cmd = "git describe --tags --match=[0-9]*.[0-9]*.[0-9]*"
     try:
-        p = subprocess.run(cmd.split(" "), stdout=PIPE, stderr=PIPE, check=True)
+        p = subprocess.run(cmd.split(" "), capture_output=True, check=True)
         v = p.stdout.decode("utf-8").strip()
         # tox is running setup.py sdist from the git repo, and then runs again outside
         # of the git repo. At this second step, we cannot run git commands.
@@ -35,7 +34,7 @@ def git() -> str:
         # if we're not in a git repo, try reading out from the GIT_VERSION file
         if os.path.exists(GIT_VERSION_FILE):
             with open(
-                GIT_VERSION_FILE, "r", encoding=locale.getpreferredencoding(False)
+                GIT_VERSION_FILE, encoding=locale.getpreferredencoding(False)
             ) as f:
                 return f.read()
         print(e.stderr)
@@ -45,11 +44,11 @@ def git() -> str:
 def commit(length: int = 7) -> str:
     """get the current git commitid"""
     cmd = f"git rev-parse --short={length} HEAD"
-    p = subprocess.run(cmd.split(" "), stdout=PIPE, stderr=PIPE, check=True)
+    p = subprocess.run(cmd.split(" "), capture_output=True, check=True)
     return p.stdout.decode("utf-8").strip()
 
 
-def semver(git_version: Optional[str] = None) -> str:
+def semver(git_version: Optional[str] = None) -> str:  # noqa: UP007 - RHEL8 has python 3.8
     """get a semantic version out of the input git version (see git())
     - if a X.Y.Z tag is set on the current HEAD, we'll use this
     - else we'll use X.Y.<Z+1>-<count>+<commitid> to respect semver and version
@@ -72,7 +71,7 @@ def semver(git_version: Optional[str] = None) -> str:
     return str(v)
 
 
-def pip(git_version: Optional[str] = None) -> str:
+def pip(git_version: Optional[str] = None) -> str:  # noqa: UP007 - RHEL8 has python 3.8
     """get a pip version out of the input git version (see git()),
     according to https://peps.python.org/pep-0440/
     - if a X.Y.Z tag is set on the current HEAD, we'll use this
@@ -88,7 +87,7 @@ def pip(git_version: Optional[str] = None) -> str:
     # return str(v)
 
 
-def docker(git_version: Optional[str] = None) -> str:
+def docker(git_version: Optional[str] = None) -> str:  # noqa: UP007 - RHEL8 has python 3.8
     # docker tags don't like '+' characters, let's remove the buildinfo/commitid
     return pip(git_version)
 

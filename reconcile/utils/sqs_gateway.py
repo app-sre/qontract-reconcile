@@ -46,9 +46,7 @@ class SQSGateway:
             a["name"] for a in accounts if a["uid"] == queue_account_uid
         ]
         if len(queue_account_name) != 1:
-            raise SQSGatewayInitError(
-                "account uid not found: {}".format(queue_account_uid)
-            )
+            raise SQSGatewayInitError(f"account uid not found: {queue_account_uid}")
         return queue_account_name[0]
 
     def send_message(self, body):

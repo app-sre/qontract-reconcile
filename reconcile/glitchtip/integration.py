@@ -3,10 +3,7 @@ from collections.abc import (
     Iterable,
     Sequence,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.glitchtip.reconciler import GlitchtipReconciler
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
@@ -172,7 +169,7 @@ def get_internal_groups_client(
 
 @defer
 def run(
-    dry_run: bool, instance: Optional[str] = None, defer: Optional[Callable] = None
+    dry_run: bool, instance: str | None = None, defer: Callable | None = None
 ) -> None:
     gqlapi = gql.get_api()
     vault_settings = get_app_interface_vault_settings()

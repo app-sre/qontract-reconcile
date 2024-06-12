@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from reconcile.gql_definitions.common.app_code_component_repos import (
     AppCodeComponentsV1,
@@ -10,7 +9,7 @@ from reconcile.utils import gql
 
 def get_code_components(
     server: str = "",
-    query_func: Optional[Callable] = None,
+    query_func: Callable | None = None,
 ) -> list[AppCodeComponentsV1]:
     if not query_func:
         query_func = gql.get_api().query
@@ -24,7 +23,7 @@ def get_code_components(
 
 def get_repos(
     server: str = "",
-    query_func: Optional[Callable] = None,
+    query_func: Callable | None = None,
 ) -> list[str]:
     code_components = get_code_components(server=server, query_func=query_func)
     return [c.url for c in code_components]

@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
-    Optional,
     Self,
 )
 
@@ -46,7 +45,7 @@ class StateInaccessibleException(Exception):
 
 def init_state(
     integration: str,
-    secret_reader: Optional[SecretReaderBase] = None,
+    secret_reader: SecretReaderBase | None = None,
 ) -> "State":
     if not secret_reader:
         vault_settings = get_app_interface_vault_settings()

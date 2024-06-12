@@ -1,6 +1,5 @@
 from collections import defaultdict
 from collections.abc import Iterable
-from typing import Optional
 
 from ldap3 import (
     ALL,
@@ -30,7 +29,7 @@ class LdapClient:
         self.connection.unbind()
 
     def get_users(self, uids: Iterable[str]) -> set[str]:
-        user_filter = "".join((f"(uid={u})" for u in uids))
+        user_filter = "".join(f"(uid={u})" for u in uids)
         _, _, results, _ = self.connection.search(
             self.base_dn, f"(&(objectclass=person)(|{user_filter}))", attributes=["uid"]
         )
@@ -66,7 +65,7 @@ class LdapClient:
 
     @classmethod
     def from_params(
-        cls, server_url: str, user: Optional[str], password: Optional[str], base_dn: str
+        cls, server_url: str, user: str | None, password: str | None, base_dn: str
     ) -> "LdapClient":
         connection = Connection(
             Server(server_url, get_info=ALL),

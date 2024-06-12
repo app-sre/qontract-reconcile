@@ -1,5 +1,5 @@
 import json
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -35,9 +35,9 @@ class JiraNotifier(BaseModel):
     name: str
     board: str
     url: str
-    issue_type: Optional[str]
+    issue_type: str | None
     severity_priority_mappings: list[SeverityPriorityMapping]
-    custom_fields: Optional[dict[str, Any]]
+    custom_fields: dict[str, Any] | None
 
     @staticmethod
     def from_api(notifier: dict[str, Any]) -> "JiraNotifier":

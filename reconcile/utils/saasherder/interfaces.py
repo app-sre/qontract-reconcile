@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence, Set
 from typing import (
-    AbstractSet,
     Any,
-    Mapping,
-    Optional,
     Protocol,
-    Union,
     runtime_checkable,
 )
 
@@ -17,7 +13,7 @@ from reconcile.utils.secret_reader import HasSecret
 
 @runtime_checkable
 class HasParameters(Protocol):
-    parameters: Optional[dict[str, Any]]
+    parameters: dict[str, Any] | None
 
 
 class SaasFileSecretParameters(Protocol):
@@ -30,14 +26,14 @@ class SaasFileSecretParameters(Protocol):
         self,
         *,
         by_alias: bool = False,
-        include: Optional[Union[AbstractSetIntStr, MappingIntStrAny]] = None,
+        include: AbstractSetIntStr | MappingIntStrAny | None = None,
     ) -> dict[str, Any]: ...
 
 
-SaasSecretParameters = Optional[Sequence[SaasFileSecretParameters]]
+SaasSecretParameters = Sequence[SaasFileSecretParameters] | None
 # Taken from pydantic.typing
-AbstractSetIntStr = AbstractSet[Union[int, str]]
-MappingIntStrAny = Mapping[Union[int, str], Any]
+AbstractSetIntStr = Set[int | str]
+MappingIntStrAny = Mapping[int | str, Any]
 
 
 @runtime_checkable
@@ -55,16 +51,16 @@ class SaasApp(Protocol):
     name: str
 
     @property
-    def parent_app(self) -> Optional[SaasParentApp]: ...
+    def parent_app(self) -> SaasParentApp | None: ...
 
     @property
-    def self_service_roles(self) -> Optional[Sequence[SaasRole]]: ...
+    def self_service_roles(self) -> Sequence[SaasRole] | None: ...
 
     @property
-    def service_owners(self) -> Optional[Sequence[SaasServiceOwner]]: ...
+    def service_owners(self) -> Sequence[SaasServiceOwner] | None: ...
 
     @property
-    def code_components(self) -> Optional[Sequence[AppCodeComponent]]: ...
+    def code_components(self) -> Sequence[AppCodeComponent] | None: ...
 
 
 class SaasPipelinesProvider(Protocol):
@@ -126,7 +122,7 @@ class SaasPipelinesProviderTekton(Protocol):
     @property
     def pipeline_templates(
         self,
-    ) -> Optional[SaasPipelinesProviderTekton_PipelinesProviderPipelineTemplates]: ...
+    ) -> SaasPipelinesProviderTekton_PipelinesProviderPipelineTemplates | None: ...
 
 
 class SaasResourceRequestsRequirements(Protocol):
@@ -135,7 +131,7 @@ class SaasResourceRequestsRequirements(Protocol):
 
 
 class SaasResourceLimitsRequirements(Protocol):
-    cpu: Optional[str]
+    cpu: str | None
     memory: str
 
 
@@ -161,30 +157,30 @@ class SaasSlackWorkspace(Protocol):
     name: str
 
     @property
-    def integrations(self) -> Optional[Sequence[SaasSlackWorkspaceIntegration]]: ...
+    def integrations(self) -> Sequence[SaasSlackWorkspaceIntegration] | None: ...
 
 
 class SaasSlackOutputNotifications(Protocol):
-    start: Optional[bool]
+    start: bool | None
 
 
 class SaasSlackOutput(Protocol):
-    output: Optional[str]
-    channel: Optional[str]
+    output: str | None
+    channel: str | None
 
     @property
     def workspace(self) -> SaasSlackWorkspace: ...
 
     @property
-    def notifications(self) -> Optional[SaasSlackOutputNotifications]: ...
+    def notifications(self) -> SaasSlackOutputNotifications | None: ...
 
 
 class SaasFileAuthentication(Protocol):
     @property
-    def code(self) -> Optional[HasSecret]: ...
+    def code(self) -> HasSecret | None: ...
 
     @property
-    def image(self) -> Optional[HasSecret]: ...
+    def image(self) -> HasSecret | None: ...
 
 
 class SaasEnvironment_SaasSecretParameters(Protocol):
@@ -215,7 +211,7 @@ class SaasResourceTemplateTargetNamespace(Protocol):
         self,
         *,
         by_alias: bool = False,
-        include: Optional[Union[AbstractSetIntStr, MappingIntStrAny]] = None,
+        include: AbstractSetIntStr | MappingIntStrAny | None = None,
     ) -> dict[str, Any]: ...
 
 
@@ -226,29 +222,27 @@ class SaasPromotionChannelData(Protocol):
 @runtime_checkable
 class SaasParentSaasPromotion(Protocol):
     q_type: str
-    parent_saas: Optional[str]
-    target_config_hash: Optional[str]
+    parent_saas: str | None
+    target_config_hash: str | None
 
 
 class SaasPromotionData(Protocol):
-    channel: Optional[str]
+    channel: str | None
 
     @property
     def data(
         self,
-    ) -> Optional[
-        Sequence[Union[SaasParentSaasPromotion, SaasPromotionChannelData]]
-    ]: ...
+    ) -> Sequence[SaasParentSaasPromotion | SaasPromotionChannelData] | None: ...
 
 
 class SaasResourceTemplateTargetPromotion(Protocol):
-    auto: Optional[bool]
-    publish: Optional[list[str]]
-    subscribe: Optional[list[str]]
-    soak_days: Optional[int]
+    auto: bool | None
+    publish: list[str] | None
+    subscribe: list[str] | None
+    soak_days: int | None
 
     @property
-    def promotion_data(self) -> Optional[Sequence[SaasPromotionData]]: ...
+    def promotion_data(self) -> Sequence[SaasPromotionData] | None: ...
 
 
 class Channel(Protocol):
@@ -261,17 +255,17 @@ class SaasPromotion(Protocol):
     commit_sha: str
     saas_file: str
     target_config_hash: str
-    auto: Optional[bool] = None
-    publish: Optional[list[str]] = None
-    saas_file_paths: Optional[list[str]] = None
-    target_paths: Optional[list[str]] = None
-    soak_days: Optional[int] = None
+    auto: bool | None = None
+    publish: list[str] | None = None
+    saas_file_paths: list[str] | None = None
+    target_paths: list[str] | None = None
+    soak_days: int | None = None
 
     @property
-    def promotion_data(self) -> Optional[Sequence[SaasPromotionData]]: ...
+    def promotion_data(self) -> Sequence[SaasPromotionData] | None: ...
 
     @property
-    def subscribe(self) -> Optional[list[Channel]]: ...
+    def subscribe(self) -> list[Channel] | None: ...
 
     def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
@@ -314,23 +308,23 @@ class SaasResourceTemplateTargetImage(Protocol):
 
 
 class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
-    path: Optional[str]
-    name: Optional[str]
-    disable: Optional[bool]
-    delete: Optional[bool]
+    path: str | None
+    name: str | None
+    disable: bool | None
+    delete: bool | None
     ref: str
 
     @property
     def namespace(self) -> SaasResourceTemplateTargetNamespace: ...
 
     @property
-    def promotion(self) -> Optional[SaasResourceTemplateTargetPromotion]: ...
+    def promotion(self) -> SaasResourceTemplateTargetPromotion | None: ...
 
     @property
-    def upstream(self) -> Optional[SaasResourceTemplateTargetUpstream]: ...
+    def upstream(self) -> SaasResourceTemplateTargetUpstream | None: ...
 
     @property
-    def image(self) -> Optional[SaasResourceTemplateTargetImage]: ...
+    def image(self) -> SaasResourceTemplateTargetImage | None: ...
 
     def uid(
         self, parent_saas_file_name: str, parent_resource_template_name: str
@@ -343,8 +337,8 @@ class SaasResourceTemplate(HasParameters, HasSecretParameters, Protocol):
     name: str
     url: str
     path: str
-    provider: Optional[str]
-    hash_length: Optional[int]
+    provider: str | None
+    hash_length: int | None
 
     @property
     def targets(self) -> Sequence[SaasResourceTemplateTarget]: ...
@@ -361,11 +355,11 @@ class SaasServiceOwner(Protocol):
 
 class AppCodeComponent(Protocol):
     url: str
-    blocked_versions: Optional[list[str]]
-    hotfix_versions: Optional[list[str]]
+    blocked_versions: list[str] | None
+    hotfix_versions: list[str] | None
 
 
-SaasPipelinesProviders = Union[SaasPipelinesProviderTekton, SaasPipelinesProvider]
+SaasPipelinesProviders = SaasPipelinesProviderTekton | SaasPipelinesProvider
 
 
 @runtime_checkable
@@ -377,18 +371,18 @@ class ManagedResourceName(Protocol):
 class SaasFile(HasParameters, HasSecretParameters, Protocol):
     path: str
     name: str
-    labels: Optional[dict[str, Any]]
+    labels: dict[str, Any] | None
     managed_resource_types: list[str]
-    takeover: Optional[bool]
-    deprecated: Optional[bool]
-    compare: Optional[bool]
-    timeout: Optional[str]
-    publish_job_logs: Optional[bool]
-    cluster_admin: Optional[bool]
+    takeover: bool | None
+    deprecated: bool | None
+    compare: bool | None
+    timeout: str | None
+    publish_job_logs: bool | None
+    cluster_admin: bool | None
     image_patterns: list[str]
-    allowed_secret_parameter_paths: Optional[list[str]]
-    use_channel_in_image_tag: Optional[bool]
-    validate_targets_in_app: Optional[bool]
+    allowed_secret_parameter_paths: list[str] | None
+    use_channel_in_image_tag: bool | None
+    validate_targets_in_app: bool | None
 
     @property
     def app(self) -> SaasApp: ...
@@ -397,19 +391,19 @@ class SaasFile(HasParameters, HasSecretParameters, Protocol):
     def pipelines_provider(self) -> SaasPipelinesProviders: ...
 
     @property
-    def deploy_resources(self) -> Optional[SaasDeployResources]: ...
+    def deploy_resources(self) -> SaasDeployResources | None: ...
 
     @property
-    def slack(self) -> Optional[SaasSlackOutput]: ...
+    def slack(self) -> SaasSlackOutput | None: ...
 
     @property
-    def authentication(self) -> Optional[SaasFileAuthentication]: ...
+    def authentication(self) -> SaasFileAuthentication | None: ...
 
     @property
     def resource_templates(self) -> Sequence[SaasResourceTemplate]: ...
 
     @property
-    def self_service_roles(self) -> Optional[Sequence[SaasRole]]: ...
+    def self_service_roles(self) -> Sequence[SaasRole] | None: ...
 
     @property
-    def managed_resource_names(self) -> Optional[Sequence[ManagedResourceName]]: ...
+    def managed_resource_names(self) -> Sequence[ManagedResourceName] | None: ...

@@ -1,11 +1,8 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import (
     Any,
-    Callable,
-    Optional,
     Protocol,
     TypeVar,
-    Union,
 )
 
 from pydantic import (
@@ -34,7 +31,7 @@ class Bot(Protocol):
     def name(self) -> str: ...
 
     @property
-    def org_username(self) -> Optional[str]: ...
+    def org_username(self) -> str | None: ...
 
     def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
@@ -50,21 +47,21 @@ class RoleWithMemberships(Protocol):
     def bots(self) -> Sequence[Bot]: ...
 
     @property
-    def member_sources(self) -> Optional[Sequence[RoleMembershipSource]]: ...
+    def member_sources(self) -> Sequence[RoleMembershipSource] | None: ...
 
 
 class RoleUser(BaseModel):
     name: str
     org_username: str
-    github_username: Optional[str]
-    quay_username: Optional[str]
-    slack_username: Optional[str]
-    pagerduty_username: Optional[str]
-    aws_username: Optional[str]
-    cloudflare_user: Optional[str]
-    public_gpg_key: Optional[str]
-    tag_on_cluster_updates: Optional[bool] = False
-    tag_on_merge_requests: Optional[bool] = False
+    github_username: str | None
+    quay_username: str | None
+    slack_username: str | None
+    pagerduty_username: str | None
+    aws_username: str | None
+    cloudflare_user: str | None
+    public_gpg_key: str | None
+    tag_on_cluster_updates: bool | None = False
+    tag_on_merge_requests: bool | None = False
 
     class Config:
         extra = Extra.ignore
@@ -72,18 +69,18 @@ class RoleUser(BaseModel):
 
 class RoleBot(BaseModel):
     name: str
-    description: Optional[str]
-    org_username: Optional[str]
-    github_username: Optional[str]
-    gitlab_username: Optional[str]
-    openshift_serviceaccount: Optional[str]
-    quay_username: Optional[str]
+    description: str | None
+    org_username: str | None
+    github_username: str | None
+    gitlab_username: str | None
+    openshift_serviceaccount: str | None
+    quay_username: str | None
 
     class Config:
         extra = Extra.ignore
 
 
-RoleMember = Union[RoleUser, RoleBot]
+RoleMember = RoleUser | RoleBot
 
 ProviderGroup = tuple[str, str]
 

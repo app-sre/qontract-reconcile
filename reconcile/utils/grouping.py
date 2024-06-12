@@ -1,8 +1,6 @@
 from collections import defaultdict
+from collections.abc import Callable, Hashable, Iterable
 from typing import (
-    Callable,
-    Hashable,
-    Iterable,
     TypeVar,
 )
 

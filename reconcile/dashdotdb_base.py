@@ -3,10 +3,7 @@ import os
 from base64 import b64encode
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from urllib.parse import urljoin
 
 import requests
@@ -23,8 +20,8 @@ LOG = logging.getLogger(__name__)
 class DashdotDBSecret:
     path: str
     field: str
-    q_format: Optional[str]
-    version: Optional[int]
+    q_format: str | None
+    version: int | None
 
 
 DASHDOTDB_SECRET = DashdotDBSecret(
@@ -53,7 +50,7 @@ class DashdotdbBase:
         self.dashdotdb_pass = self.secret_content["password"]
         self.logmarker = marker
         self.scope = scope
-        self.dashdotdb_token = Optional[str]
+        self.dashdotdb_token: str | None
 
     def _get_token(self) -> None:
         if self.dry_run:
@@ -134,10 +131,10 @@ class DashdotdbBase:
     def _promget(
         self,
         url: str,
-        params: Optional[Mapping[Any, Any]],
-        token: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        params: Mapping[Any, Any] | None,
+        token: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
         ssl_verify: bool = True,
         uri: str = "api/v1/query",
     ) -> dict[Any, Any]:

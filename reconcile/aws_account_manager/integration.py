@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import jinja2
@@ -99,7 +99,7 @@ class AwsAccountMgmtIntegration(
             "accountRequest": account_request.dict(by_alias=True),
             "uid": uid,
             "settings": settings,
-            "timestamp": int(datetime.now(tz=timezone.utc).timestamp()),
+            "timestamp": int(datetime.now(tz=UTC).timestamp()),
         })
         return tmpl
 

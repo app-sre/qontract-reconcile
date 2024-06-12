@@ -1,5 +1,3 @@
-from typing import Optional
-
 from reconcile.gql_definitions.common.app_interface_state_settings import (
     AppInterfaceStateConfigurationV1,
     query,
@@ -7,7 +5,7 @@ from reconcile.gql_definitions.common.app_interface_state_settings import (
 from reconcile.utils import gql
 
 
-def get_app_interface_state_settings() -> Optional[AppInterfaceStateConfigurationV1]:
+def get_app_interface_state_settings() -> AppInterfaceStateConfigurationV1 | None:
     """Returns App Interface Settings"""
     gqlapi = gql.get_api()
     data = query(gqlapi.query)

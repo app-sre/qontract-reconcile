@@ -1,9 +1,6 @@
 from collections import defaultdict
 from collections.abc import Generator
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.utils.ocm.base import (
     LabelContainer,
@@ -171,7 +168,7 @@ def build_container_for_prefix(
     )
 
 
-def label_filter(key: str, value: Optional[str] = None) -> Filter:
+def label_filter(key: str, value: str | None = None) -> Filter:
     """
     Creates a filter that matches a label with the given key and
     optionally a value.
@@ -183,7 +180,7 @@ def label_filter(key: str, value: Optional[str] = None) -> Filter:
 
 
 def get_org_labels(
-    ocm_api: OCMBaseClient, org_ids: set[str], label_filter: Optional[Filter]
+    ocm_api: OCMBaseClient, org_ids: set[str], label_filter: Filter | None
 ) -> dict[str, LabelContainer]:
     """
     Fetch all labels from organizations. Optionally, label filtering can be

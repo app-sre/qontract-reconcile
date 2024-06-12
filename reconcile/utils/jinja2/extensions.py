@@ -1,6 +1,6 @@
 import base64
 import textwrap
-from typing import Callable
+from collections.abc import Callable
 
 from jinja2 import nodes
 from jinja2.exceptions import TemplateRuntimeError

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -15,7 +15,7 @@ fxt = Fixtures("openshift_saas_deploy_trigger_cleaner")
 
 @pytest.fixture
 def now() -> datetime:
-    return datetime(2024, 4, 4, 0, 0, 0, 0, tzinfo=timezone.utc)
+    return datetime(2024, 4, 4, 0, 0, 0, 0, tzinfo=UTC)
 
 
 # A fixture simulating the output of getting PipelineRuns from a namespace, simplified

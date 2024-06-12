@@ -7,10 +7,7 @@ from dataclasses import (
     dataclass,
     field,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import anymarkup
 
@@ -50,8 +47,8 @@ class BundleFileChange:
     """
 
     fileref: FileRef
-    old: Optional[dict[str, Any]]
-    new: Optional[dict[str, Any]]
+    old: dict[str, Any] | None
+    new: dict[str, Any] | None
     old_content_sha: str
     new_content_sha: str
     diffs: list[Diff]
@@ -81,16 +78,16 @@ class BundleFileChange:
         return self._diff_coverage[METADATA_CHANGE_PATH]
 
     @property
-    def old_content_with_metadata(self) -> Optional[dict[str, Any]]:
+    def old_content_with_metadata(self) -> dict[str, Any] | None:
         return self._content_with_metadata(self.old)
 
     @property
-    def new_content_with_metadata(self) -> Optional[dict[str, Any]]:
+    def new_content_with_metadata(self) -> dict[str, Any] | None:
         return self._content_with_metadata(self.new)
 
     def _content_with_metadata(
-        self, content: Optional[dict[str, Any]]
-    ) -> Optional[dict[str, Any]]:
+        self, content: dict[str, Any] | None
+    ) -> dict[str, Any] | None:
         if content and self.fileref.file_type == BundleFileType.DATAFILE:
             content_copy = copy.deepcopy(content)
             content_copy[DATAFILE_PATH_FIELD_NAME] = self.fileref.path
@@ -219,7 +216,7 @@ class BundleFileChange:
         return change_types
 
 
-def parse_resource_file_content(content: Optional[Any]) -> tuple[Any, Optional[str]]:
+def parse_resource_file_content(content: Any | None) -> tuple[Any, str | None]:
     if content:
         try:
             data = anymarkup.parse(content, force_types=None)
@@ -233,7 +230,7 @@ def parse_resource_file_content(content: Optional[Any]) -> tuple[Any, Optional[s
 
 def _create_bundle_file_change(
     path: str,
-    schema: Optional[str],
+    schema: str | None,
     file_type: BundleFileType,
     old_file_content: Any,
     new_file_content: Any,
@@ -241,9 +238,9 @@ def _create_bundle_file_change(
     new_content_sha: str,
     old_path: str,
     new_path: str,
-    old_backrefs: Optional[list[FileRef]] = None,
-    new_backrefs: Optional[list[FileRef]] = None,
-) -> Optional[BundleFileChange]:
+    old_backrefs: list[FileRef] | None = None,
+    new_backrefs: list[FileRef] | None = None,
+) -> BundleFileChange | None:
     """
     this is a factory method that creates a BundleFileChange object based
     on the old and new content of a file from app-interface. it detects differences
@@ -305,7 +302,7 @@ def _create_bundle_file_change(
 
 def get_priority_for_changes(
     bundle_file_changes: list[BundleFileChange],
-) -> Optional[ChangeTypePriority]:
+) -> ChangeTypePriority | None:
     """
     Finds the lowest priority of all change types involved in the provided bundle file changes.
     """

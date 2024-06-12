@@ -1,9 +1,5 @@
-from typing import (
-    Any,
-    Callable,
-    Mapping,
-    Optional,
-)
+from collections.abc import Callable, Mapping
+from typing import Any
 
 import pytest
 
@@ -590,9 +586,9 @@ def test_get_saas_files(
     gql_class_factory: Callable,
     query_func_from_fixture: Callable[..., Callable],
     namespaces: list[SaasTargetNamespace],
-    name: Optional[str],
-    env_name: Optional[str],
-    app_name: Optional[str],
+    name: str | None,
+    env_name: str | None,
+    app_name: str | None,
     fxt_file: str,
     expected_saas_files: list[dict[str, Any]],
 ) -> None:
