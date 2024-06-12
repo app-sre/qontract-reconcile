@@ -749,3 +749,60 @@ def test_get_resource_lifecycle_all(
         "ignore_changes": "all",
     }
     assert lifecycle == expected
+
+
+def test_output_resource_name_not_unique_raises_exception(ts):
+    external_resource_1 = {
+        "identifier": "a",
+        "provider": "rds",
+        "output_resource_name": "oa",
+    }
+    external_resource_2 = {
+        "identifier": "b",
+        "provider": "rds",
+        "output_resource_name": "oa",
+    }
+    namespace_1 = {
+        "name": "ns1",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": "aws",
+                "provisioner": {"name": "a"},
+                "resources": [external_resource_1, external_resource_2],
+            }
+        ],
+        "cluster": {"name": "test"},
+    }
+    namespaces = [namespace_1]
+
+    with pytest.raises(tsclient.OutputResourceNameNotUniqueException):
+        ts.init_populate_specs(namespaces, "account")
+
+
+def test_output_resource_name_unique_success(ts):
+    external_resource_1 = {
+        "identifier": "a",
+        "provider": "rds",
+        "output_resource_name": "oa",
+    }
+    external_resource_2 = {
+        "identifier": "b",
+        "provider": "rds",
+        "output_resource_name": "ob",
+    }
+    namespace_1 = {
+        "name": "ns1",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": "aws",
+                "provisioner": {"name": "a"},
+                "resources": [external_resource_1, external_resource_2],
+            }
+        ],
+        "cluster": {"name": "test"},
+    }
+    namespaces = [namespace_1]
+
+    ts.init_populate_specs(namespaces, "account")

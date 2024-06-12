@@ -7,6 +7,7 @@ import random
 import re
 import string
 import tempfile
+from collections import Counter
 from collections.abc import (
     Iterable,
     Mapping,
@@ -270,6 +271,18 @@ DEFAULT_TAGS = {
         "app": "app-sre-infra",
     },
 }
+
+
+class OutputResourceNameNotUniqueException(Exception):
+    def __init__(self, namespace, duplicates):
+        self.namespace, self.duplicates = namespace, duplicates
+        super().__init__(
+            str.format(
+                "Found duplicate values {} for 'output_resource_name' in namespace {}. Please ensure 'output_resource_name' is unique in a given namespace.",
+                self.duplicates,
+                self.namespace,
+            )
+        )
 
 
 class StateInaccessibleException(Exception):
@@ -1491,12 +1504,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             specs = get_external_resource_specs(
                 namespace_info, provision_provider=PROVIDER_AWS
             )
+            name_counter = Counter(spec.output_resource_name for spec in specs)
+            duplicates = [name for name, count in name_counter.items() if count > 1]
+            if duplicates:
+                raise OutputResourceNameNotUniqueException(
+                    namespace_info.get("name"), duplicates
+                )
             for spec in specs:
                 if account_names and spec.provisioner_name not in account_names:
                     continue
                 self.account_resource_specs.setdefault(
                     spec.provisioner_name, []
                 ).append(spec)
+
                 self.resource_spec_inventory[spec.id_object()] = spec
 
     def populate_tf_resources(self, spec, ocm_map=None):
