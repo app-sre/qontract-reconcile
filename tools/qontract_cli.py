@@ -3691,6 +3691,27 @@ def get_promotion_state(channel: str, sha: str):
 
 
 @root.command()
+@click.option("--channel", help="the channel that state is part of")
+@click.option("--sha", help="the commit sha we want state for")
+@click.option("--publisher-id", help="the publisher id we want state for")
+@environ(["APP_INTERFACE_STATE_BUCKET"])
+def mark_promotion_state_successful(channel: str, sha: str, publisher_id: str):
+    from tools.saas_promotion_state.saas_promotion_state import (
+        SaasPromotionState,
+    )
+
+    promotion_state = SaasPromotionState.create(promotion_state=None, saas_files=None)
+    print(f"Current states for {publisher_id=}")
+    print(promotion_state.get(channel=channel, sha=sha).get(publisher_id, None))
+    print()
+    print("Pushing new state ...")
+    promotion_state.set_successful(channel=channel, sha=sha, publisher_uid=publisher_id)
+    print()
+    print(f"New state for {publisher_id=}")
+    print(promotion_state.get(channel=channel, sha=sha).get(publisher_id, None))
+
+
+@root.command()
 @click.option("--change-type-name")
 @click.option("--role-name")
 @click.option(

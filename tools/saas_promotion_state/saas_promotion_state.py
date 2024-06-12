@@ -14,6 +14,14 @@ from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.state import init_state
 
 
+class SaasPromotionStateException(Exception):
+    pass
+
+
+class SaasPromotionStateMissingException(Exception):
+    pass
+
+
 class SaasPromotionState:
     def __init__(
         self, promotion_state: PromotionState, saas_files: Iterable[SaasFile]
@@ -53,6 +61,31 @@ class SaasPromotionState:
                 channel=channel, saas_files=self._saas_files
             )
         }
+
+    def set_successful(self, channel: str, sha: str, publisher_uid: str) -> None:
+        current_data = self._promotion_state.get_promotion_data(
+            sha=sha,
+            channel=channel,
+            target_uid=publisher_uid,
+            use_cache=False,
+            pre_check_sha_exists=False,
+        )
+
+        if not current_data:
+            raise SaasPromotionStateMissingException(
+                f"No promotion state in S3 for given {publisher_uid=} {sha=} {channel=}"
+            )
+
+        if current_data.success:
+            raise SaasPromotionStateException(
+                f"The current promotion state is already marked successful for given {publisher_uid=} {sha=} {channel=}",
+                current_data,
+            )
+
+        current_data.success = True
+        self._promotion_state.publish_promotion_data(
+            data=current_data, sha=sha, channel=channel, target_uid=publisher_uid
+        )
 
     @staticmethod
     def create(
