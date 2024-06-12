@@ -3659,6 +3659,25 @@ def gpg_encrypt(
 
 
 @root.command()
+@click.option("--channel", help="the channel that state is part of")
+@click.option("--sha", help="the commit sha we want state for")
+@environ(["APP_INTERFACE_STATE_BUCKET"])
+def get_promotion_state(channel: str, sha: str):
+    from tools.saas_promotion_state.saas_promotion_state import (
+        SaasPromotionState,
+    )
+
+    promotion_state = SaasPromotionState.create(promotion_state=None, saas_files=None)
+    for publisher_id, state in promotion_state.get(channel=channel, sha=sha).items():
+        print()
+        if not state:
+            print(f"No state found for {publisher_id=}")
+        else:
+            print(f"State for {publisher_id=}:")
+            print(state)
+
+
+@root.command()
 @click.option("--change-type-name")
 @click.option("--role-name")
 @click.option(
