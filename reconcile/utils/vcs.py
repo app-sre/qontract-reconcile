@@ -37,6 +37,10 @@ class Commit:
     date: datetime
 
 
+class VCSMissingSourceBranchError(Exception):
+    pass
+
+
 class VCS:
     """
     Abstraction layer for aggregating different Version Control Systems.
@@ -212,7 +216,13 @@ class VCS:
                 merge_request=mr,
                 body=comment,
             )
+            source_branch = mr.attributes.get("source_branch")
+            if not source_branch:
+                raise VCSMissingSourceBranchError(
+                    f"Source branch is missing for MR {mr.attributes.get('iid')}"
+                )
             self._app_interface_api.close(mr)
+            self._app_interface_api.delete_branch(source_branch)
 
     def get_file_content_from_app_interface_master(self, file_path: str) -> str:
         file_path = (
