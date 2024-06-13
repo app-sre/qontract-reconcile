@@ -3681,6 +3681,7 @@ def get_promotion_state(channel: str, sha: str):
     )
 
     bucket = os.environ.get("APP_INTERFACE_STATE_BUCKET")
+    region = os.environ.get("APP_INTERFACE_STATE_BUCKET_REGION", "us-east-1")
     promotion_state = SaasPromotionState.create(promotion_state=None, saas_files=None)
     for publisher_id, state in promotion_state.get(channel=channel, sha=sha).items():
         print()
@@ -3689,7 +3690,7 @@ def get_promotion_state(channel: str, sha: str):
         else:
             print(f"{publisher_id=}")
             print(
-                f"State link: https://us-east-1.console.aws.amazon.com/s3/object/{bucket}?region=us-east-1&bucketType=general&prefix=state/openshift-saas-deploy/promotions_v2/{channel}/{publisher_id}/{sha}"
+                f"State link: https://{region}.console.aws.amazon.com/s3/object/{bucket}?region=us-east-1&bucketType=general&prefix=state/openshift-saas-deploy/promotions_v2/{channel}/{publisher_id}/{sha}"
             )
             print(f"Content: {state}")
 
