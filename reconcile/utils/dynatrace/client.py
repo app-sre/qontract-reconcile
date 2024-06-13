@@ -27,6 +27,7 @@ class DynatraceClient:
     def create(
         environment_url: str, token: str | None, api: Dynatrace | None
     ) -> DynatraceClient:
+        # TODO: test this method
         if not api:
             api = Dynatrace(base_url=environment_url, token=token)
         return DynatraceClient(environment_url=environment_url, api=api)

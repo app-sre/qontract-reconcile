@@ -14,7 +14,7 @@ def test_dynatrace_create_token_success(
 ) -> None:
     api = dynatrace_api_builder({"CREATE_TOKEN_RESULT": "test-token"})
 
-    client = DynatraceClient.create(environment_url="test-env", token=None, api=api)
+    client = DynatraceClient(environment_url="test-env", api=api)
     token = client.create_api_token(name="test-token-name", scopes=["test-scope"])
 
     assert token == "test-token"
@@ -28,7 +28,7 @@ def test_dynatrace_create_token_error(
 ) -> None:
     api = dynatrace_api_builder({"CREATE_TOKEN_RESULT": Exception("test-error")})
 
-    client = DynatraceClient.create(environment_url="test-env", token=None, api=api)
+    client = DynatraceClient(environment_url="test-env", api=api)
 
     with raises(DynatraceTokenCreationError):
         client.create_api_token(name="test-token", scopes=["test-scope"])
