@@ -23,6 +23,8 @@ https://github.com/helm/helm/releases
 
 ### Integration spec configuration
 
+These parameters match the [/app-sre/integration-spec-1.yml](https://github.com/app-sre/qontract-schemas/blob/main/schemas/app-sre/integration-spec-1.yml) schema.
+
 | Parameter                 | Description                                                              | Default                                                                 |
 |---------------------------|--------------------------------------------------------------------------|-------------------------------------------------------------------------|
 | cache                     | integration requires cache                                               | false                                                                   |
