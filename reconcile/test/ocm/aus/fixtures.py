@@ -13,6 +13,8 @@ from reconcile.gql_definitions.fragments.aus_organization import (
     AUSOCMOrganization,
     OpenShiftClusterManagerSectorDependenciesV1,
     OpenShiftClusterManagerSectorV1,
+    OpenShiftClusterManagerUpgradePolicyClusterSpecV1,
+    OpenShiftClusterManagerUpgradePolicyClusterV1,
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1,
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1,
 )
@@ -55,6 +57,20 @@ def build_upgrade_policy(
             mutexes=mutexes,
             blockedVersions=blocked_versions,
         ),
+    )
+
+
+def build_upgrade_policy_cluster(
+    name: str = "name",
+    server_url: str = "https://server-url",
+    spec_id: str = "spec-id",
+    upgrade_policy: ClusterUpgradePolicyV1 | None = None,
+) -> OpenShiftClusterManagerUpgradePolicyClusterV1:
+    return OpenShiftClusterManagerUpgradePolicyClusterV1(
+        name=name,
+        serverUrl=server_url,
+        spec=OpenShiftClusterManagerUpgradePolicyClusterSpecV1(id=spec_id),
+        upgradePolicy=upgrade_policy or build_upgrade_policy(),
     )
 
 
