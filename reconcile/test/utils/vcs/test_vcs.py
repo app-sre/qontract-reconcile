@@ -97,8 +97,8 @@ def test_close_mr_success(vcs_builder: Callable[[Mapping], VCS]) -> None:
     mr = create_autospec(spec=ProjectMergeRequest)
     mr.attributes = {"source_branch": "test"}
     vcs.close_app_interface_mr(mr=mr, comment="test")
-    vcs._app_interface_api.close.assert_called_once_with(mr)
-    vcs._app_interface_api.delete_branch.assert_called_once_with("test")
+    vcs._app_interface_api.close.assert_called_once_with(mr)  # type: ignore[attr-defined]
+    vcs._app_interface_api.delete_branch.assert_called_once_with("test")  # type: ignore[attr-defined]
 
 
 def test_close_mr_error(vcs_builder: Callable[[Mapping], VCS]) -> None:
@@ -107,5 +107,5 @@ def test_close_mr_error(vcs_builder: Callable[[Mapping], VCS]) -> None:
     mr.attributes = {}
     with pytest.raises(VCSMissingSourceBranchError):
         vcs.close_app_interface_mr(mr=mr, comment="test")
-    vcs._app_interface_api.close.assert_not_called()
-    vcs._app_interface_api.delete_branch.assert_not_called()
+    vcs._app_interface_api.close.assert_not_called()  # type: ignore[attr-defined]
+    vcs._app_interface_api.delete_branch.assert_not_called()  # type: ignore[attr-defined]
