@@ -3690,7 +3690,7 @@ def get_promotion_state(channel: str, sha: str):
         else:
             print(f"{publisher_id=}")
             print(
-                f"State link: https://{region}.console.aws.amazon.com/s3/object/{bucket}?region=us-east-1&bucketType=general&prefix=state/openshift-saas-deploy/promotions_v2/{channel}/{publisher_id}/{sha}"
+                f"State link: https://{region}.console.aws.amazon.com/s3/object/{bucket}?region={region}&bucketType=general&prefix=state/openshift-saas-deploy/promotions_v2/{channel}/{publisher_id}/{sha}"
             )
             print(f"Content: {state}")
 
