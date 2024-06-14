@@ -159,7 +159,8 @@ class AwsAccountMgmtIntegration(
     ) -> None:
         """Create new AWS accounts."""
         for account_request in account_requests:
-            if not (
+            uid = account_request.uid
+            if not uid and not (
                 uid := reconciler.create_organization_account(
                     aws_api=aws_api,
                     name=account_request.name,

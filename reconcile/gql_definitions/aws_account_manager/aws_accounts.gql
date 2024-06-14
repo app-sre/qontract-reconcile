@@ -34,6 +34,7 @@ query AWSAccountManagerAccounts {
       }
       resourcesDefaultRegion
       supportedDeploymentRegions
+      uid
     }
     organization_accounts {
       ... AWSAccountManaged
