@@ -5,7 +5,7 @@ from unittest.mock import create_autospec
 import pytest
 from gitlab.v4.objects import ProjectMergeRequest
 
-from reconcile.utils.vcs import VCS, Commit, MRCheckStatus
+from reconcile.utils.vcs import VCS, Commit, MRCheckStatus, VCSMissingSourceBranchError
 
 
 # https://docs.gitlab.com/ee/api/pipelines.html
@@ -90,3 +90,22 @@ def test_commits_between_github(vcs_builder: Callable[[Mapping], VCS]) -> None:
         ),
     ])
     vcs._gitlab_instance.repository_compare.assert_not_called()  # type: ignore[attr-defined]
+
+
+def test_close_mr_success(vcs_builder: Callable[[Mapping], VCS]) -> None:
+    vcs = vcs_builder({})
+    mr = create_autospec(spec=ProjectMergeRequest)
+    mr.attributes = {"source_branch": "test"}
+    vcs.close_app_interface_mr(mr=mr, comment="test")
+    vcs._app_interface_api.close.assert_called_once_with(mr)  # type: ignore[attr-defined]
+    vcs._app_interface_api.delete_branch.assert_called_once_with("test")  # type: ignore[attr-defined]
+
+
+def test_close_mr_error(vcs_builder: Callable[[Mapping], VCS]) -> None:
+    vcs = vcs_builder({})
+    mr = create_autospec(spec=ProjectMergeRequest)
+    mr.attributes = {}
+    with pytest.raises(VCSMissingSourceBranchError):
+        vcs.close_app_interface_mr(mr=mr, comment="test")
+    vcs._app_interface_api.close.assert_not_called()  # type: ignore[attr-defined]
+    vcs._app_interface_api.delete_branch.assert_not_called()  # type: ignore[attr-defined]
