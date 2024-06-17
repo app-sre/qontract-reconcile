@@ -5,6 +5,7 @@ from reconcile.aus.healthchecks import AUSClusterHealth, AUSHealthError
 from reconcile.aus.models import (
     ClusterAddonUpgradeSpec,
     ClusterUpgradeSpec,
+    NodePoolSpec,
     OrganizationUpgradeSpec,
 )
 from reconcile.aus.version_gates.handler import GateHandler
@@ -169,7 +170,9 @@ def build_organization(
 
 
 def build_organization_upgrade_spec(
-    specs: list[tuple[OCMCluster, ClusterUpgradePolicyV1, AUSClusterHealth]],
+    specs: list[
+        tuple[OCMCluster, ClusterUpgradePolicyV1, AUSClusterHealth, list[NodePoolSpec]]
+    ],
     org: AUSOCMOrganization | None = None,
 ) -> OrganizationUpgradeSpec:
     org = org or build_organization()
@@ -181,8 +184,9 @@ def build_organization_upgrade_spec(
                 cluster=cluster,
                 upgradePolicy=upgrade_policy,
                 health=cluster_health,
+                nodePools=node_pools,
             )
-            for cluster, upgrade_policy, cluster_health in specs
+            for cluster, upgrade_policy, cluster_health, node_pools in specs
         ],
     )
 
@@ -197,6 +201,7 @@ def build_cluster_upgrade_spec(
     mutexes: list[str] | None = None,
     blocked_versions: list[str] | None = None,
     cluster_health: bool = True,
+    node_pools: list[NodePoolSpec] | None = None,
 ) -> ClusterUpgradeSpec:
     return ClusterUpgradeSpec(
         org=org or build_organization(),
@@ -212,6 +217,7 @@ def build_cluster_upgrade_spec(
         health=build_healthy_cluster_health()
         if cluster_health
         else build_unhealthy_cluster_health(),
+        nodePools=node_pools or [],
     )
 
 
