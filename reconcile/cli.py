@@ -2083,8 +2083,15 @@ def template_validator(ctx):
     help="Path to a folder app-interface repo should be cloned to. Use this for regular integration run.",
     default=False,
 )
+@click.option(
+    "--template-collection-name",
+    help="specific template collection name to render",
+    required=False,
+)
 @click.pass_context
-def template_renderer(ctx, app_interface_data_path, clone_repo):
+def template_renderer(
+    ctx, app_interface_data_path, clone_repo, template_collection_name
+):
     from reconcile.templating.renderer import (
         TemplateRendererIntegration,
         TemplateRendererIntegrationParams,
@@ -2095,6 +2102,7 @@ def template_renderer(ctx, app_interface_data_path, clone_repo):
             TemplateRendererIntegrationParams(
                 app_interface_data_path=app_interface_data_path,
                 clone_repo=clone_repo,
+                template_collection_name=template_collection_name,
             )
         ),
         ctx=ctx.obj,
