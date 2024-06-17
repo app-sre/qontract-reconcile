@@ -105,7 +105,10 @@ class JiraClient:
             raise RuntimeError("JiraClient.server is not set.")
 
         self.jira = JIRA(
-            self.server, token_auth=token_auth, timeout=(read_timeout, connect_timeout)
+            self.server,
+            token_auth=token_auth,
+            timeout=(read_timeout, connect_timeout),
+            logging=False,
         )
 
     @staticmethod
@@ -121,7 +124,10 @@ class JiraClient:
             read_timeout = jira_watcher_settings.read_timeout
             connect_timeout = jira_watcher_settings.connect_timeout
         jira_api = JIRA(
-            server=server_url, token_auth=token, timeout=(read_timeout, connect_timeout)
+            server=server_url,
+            token_auth=token,
+            timeout=(read_timeout, connect_timeout),
+            logging=False,
         )
         return JiraClient(
             jira_api=jira_api,
@@ -228,6 +234,7 @@ class JiraClient:
                 JiraClient.DEFAULT_READ_TIMEOUT,
                 JiraClient.DEFAULT_CONNECT_TIMEOUT,
             ),
+            logging=False,
         )
         return [project.key for project in jira_api_anon.projects()]
 
