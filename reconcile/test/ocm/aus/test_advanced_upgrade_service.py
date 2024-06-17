@@ -63,7 +63,8 @@ def setup_mocks(
     orgs: list[AUSOCMOrganization] | None = None,
     ocm_envs: list[OCMEnvironment] | None = None,
     clusters: list[ClusterDetails] | None = None,
-    node_pools: list[NodePoolSpec] | None = None,
+    node_pool_specs_by_org_cluster: dict[str, dict[str, list[NodePoolSpec]]]
+    | None = None,
 ) -> dict[str, Any]:
     return {
         "gql": mocker.patch("reconcile.aus.base.gql"),
@@ -92,9 +93,9 @@ def setup_mocks(
             "reconcile.aus.base.ocm_env_telemeter_query",
             return_value=OCMEnvTelemeterQueryData(ocm_envs=[]),
         ),
-        "get_node_pool_specs": mocker.patch(
-            "reconcile.aus.advanced_upgrade_service.get_node_pool_specs",
-            return_value=node_pools or [],
+        "get_node_pool_specs_by_org_cluster": mocker.patch(
+            "reconcile.aus.advanced_upgrade_service.get_node_pool_specs_by_org_cluster",
+            return_value=node_pool_specs_by_org_cluster or {},
         ),
     }
 
@@ -199,7 +200,7 @@ def test_advanced_upgrade_service_get_upgrade_specs_for_hypershift(
         orgs=[org],
         ocm_envs=[ocm_env],
         clusters=[cluster],
-        node_pools=[node_pool],
+        node_pool_specs_by_org_cluster={ORG_ID: {cluster.ocm_cluster.id: [node_pool]}},
     )
     expected_cluster_upgrade_spec = ClusterUpgradeSpec(
         org=org,
@@ -392,7 +393,7 @@ def test_build_org_upgrade_spec(
         cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
             name="empty", provider=EmptyClusterHealthProvider(), enforce=True
         ),
-        node_pool_specs_by_cluster={},
+        node_pool_specs_by_cluster_id={},
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -419,7 +420,7 @@ def test_build_org_upgrade_spec_with_cluster_error(
         cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
             name="empty", provider=EmptyClusterHealthProvider(), enforce=True
         ),
-        node_pool_specs_by_cluster={},
+        node_pool_specs_by_cluster_id={},
     )
     assert len(org_upgrade_spec.cluster_errors) == 1
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -450,7 +451,7 @@ def test_build_org_upgrade_spec_with_version_inheritance(
         cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
             name="empty", provider=EmptyClusterHealthProvider(), enforce=True
         ),
-        node_pool_specs_by_cluster={},
+        node_pool_specs_by_cluster_id={},
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -483,7 +484,7 @@ def test_build_org_upgrade_spec_with_version_inheritance_no_publish(
         cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
             name="empty", provider=EmptyClusterHealthProvider(), enforce=True
         ),
-        node_pool_specs_by_cluster={},
+        node_pool_specs_by_cluster_id={},
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 1
@@ -512,7 +513,7 @@ def test_build_org_upgrade_spec_missing_sector(
         cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
             name="empty", provider=EmptyClusterHealthProvider(), enforce=True
         ),
-        node_pool_specs_by_cluster={},
+        node_pool_specs_by_cluster_id={},
     )
     assert len(org_upgrade_spec.cluster_errors) == 1
     assert len(org_upgrade_spec.organization_errors) == 1
