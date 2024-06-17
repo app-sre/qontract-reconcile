@@ -294,7 +294,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                     org_id=cluster_upgrade_spec.org.org_id,
                     org_name=org_upgrade_spec.org.name,
                     channel=cluster_upgrade_spec.cluster.version.channel_group,
-                    current_version=cluster_upgrade_spec.current_version,
+                    current_version=cluster_upgrade_spec.oldest_current_version,
                     cluster_name=cluster_upgrade_spec.name,
                     schedule=cluster_upgrade_spec.upgrade_policy.schedule,
                     sector=cluster_upgrade_spec.upgrade_policy.conditions.sector or "",
