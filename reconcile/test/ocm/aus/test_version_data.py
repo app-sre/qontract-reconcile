@@ -54,6 +54,7 @@ def test_get_version_data_map(
                         soak_days=1,
                     ),
                     build_cluster_health(),
+                    [],
                 )
             ],
         ),
@@ -121,6 +122,7 @@ def test_get_version_data_map_with_inheritance(
                         soak_days=1,
                     ),
                     build_cluster_health(),
+                    [],
                 )
             ],
         ),
@@ -216,6 +218,7 @@ def test_update_history(
                 ),
                 build_upgrade_policy(workloads=["workload1"], soak_days=0),
                 cluster_health[0],
+                [],
             ),
             (
                 build_ocm_cluster(
@@ -225,6 +228,7 @@ def test_update_history(
                 ),
                 build_upgrade_policy(workloads=["workload1"], soak_days=0),
                 cluster_health[1],
+                [],
             ),
             (
                 build_ocm_cluster(
@@ -234,6 +238,7 @@ def test_update_history(
                 ),
                 build_upgrade_policy(workloads=["workload2"], soak_days=0),
                 cluster_health[2],
+                [],
             ),
         ],
     )

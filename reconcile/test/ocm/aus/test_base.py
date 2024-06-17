@@ -110,6 +110,7 @@ def test_calculate_diff_no_lock(
                     workloads=["workload1"], soak_days=0, mutexes=["mutex1"]
                 ),
                 build_cluster_health(),
+                [],
             ),
         ],
     )
@@ -150,8 +151,8 @@ def test_calculate_diff_locked_out(
     )
     org_upgrade_spec = build_organization_upgrade_spec(
         specs=[
-            (cluster_1, upgrade_policy_spec, build_cluster_health()),
-            (cluster_2, upgrade_policy_spec, build_cluster_health()),
+            (cluster_1, upgrade_policy_spec, build_cluster_health(), []),
+            (cluster_2, upgrade_policy_spec, build_cluster_health(), []),
         ],
     )
     diffs = base.calculate_diff(current_state, org_upgrade_spec, ocm_api, VersionData())
@@ -180,8 +181,8 @@ def test_calculate_diff_inter_lock(
     )
     org_upgrade_spec = build_organization_upgrade_spec(
         specs=[
-            (cluster_1, upgrade_policy_spec, build_cluster_health()),
-            (cluster_2, upgrade_policy_spec, build_cluster_health()),
+            (cluster_1, upgrade_policy_spec, build_cluster_health(), []),
+            (cluster_2, upgrade_policy_spec, build_cluster_health(), []),
         ],
     )
     diffs = base.calculate_diff([], org_upgrade_spec, ocm_api, VersionData())
