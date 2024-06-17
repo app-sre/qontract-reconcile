@@ -210,6 +210,27 @@ PRODUCT_ID_OSD = "osd"
 PRODUCT_ID_ROSA = "rosa"
 
 
+class ProvisionShard(BaseModel):
+    kind: str = "ProvisionShard"
+    id: str
+
+
+class ClusterManagementReference(BaseModel):
+    cluster_id: str
+    href: str
+
+
+class FleetManagerServiceCluster(BaseModel):
+    kind: str = "ServiceCluster"
+
+    """
+    Using OSDFleetManager API, which has different object ids.
+    https://api.openshift.com/?urls.primaryName=OSD%20Fleet%20Manager%20service
+    """
+    cluster_management_reference: ClusterManagementReference
+    provision_shard_reference: OCMModelLink
+
+
 class OCMCluster(BaseModel):
     kind: str = "Cluster"
     id: str
