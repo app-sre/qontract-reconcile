@@ -4,7 +4,11 @@ from pytest_mock import MockerFixture
 
 from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
 from reconcile.aus.healthchecks import AUSClusterHealth
-from reconcile.aus.models import ClusterUpgradeSpec, OrganizationUpgradeSpec
+from reconcile.aus.models import (
+    ClusterUpgradeSpec,
+    NodePoolSpec,
+    OrganizationUpgradeSpec,
+)
 from reconcile.aus.ocm_upgrade_scheduler_org import (
     OCMClusterUpgradeSchedulerOrgIntegration,
 )
@@ -27,6 +31,8 @@ def setup_mocks(
     mocker: MockerFixture,
     orgs: list[AUSOCMOrganization],
     clusters: list[ClusterDetails],
+    node_pool_specs_by_org_cluster: dict[str, dict[str, list[NodePoolSpec]]]
+    | None = None,
 ) -> dict[str, Any]:
     return {
         "gql": mocker.patch("reconcile.aus.base.gql"),
@@ -50,6 +56,10 @@ def setup_mocks(
         "ocm_env_telemeter_query": mocker.patch(
             "reconcile.aus.base.ocm_env_telemeter_query",
             return_value=OCMEnvTelemeterQueryData(ocm_envs=[]),
+        ),
+        "get_node_pool_specs_by_org_cluster": mocker.patch(
+            "reconcile.aus.ocm_upgrade_scheduler_org.get_node_pool_specs_by_org_cluster",
+            return_value=node_pool_specs_by_org_cluster or {},
         ),
     }
 
@@ -78,13 +88,22 @@ def test_get_ocm_env_upgrade_specs(
     org = build_organization(org_id=ORG_ID)
     upgrade_policy_cluster = build_upgrade_policy_cluster(name="cluster-1")
     org.upgrade_policy_clusters = [upgrade_policy_cluster]
-    cluster = build_cluster_details("cluster-1", org_id=ORG_ID)
-    setup_mocks(mocker, orgs=[org], clusters=[cluster])
+    cluster = build_cluster_details("cluster-1", org_id=ORG_ID, hypershift=True)
+    node_pool_spec = NodePoolSpec(id="np1", version="4.15.17")
+    setup_mocks(
+        mocker,
+        orgs=[org],
+        clusters=[cluster],
+        node_pool_specs_by_org_cluster={
+            ORG_ID: {cluster.ocm_cluster.id: [node_pool_spec]}
+        },
+    )
     expected_cluster_upgrade_spec = ClusterUpgradeSpec(
         org=org,
         upgradePolicy=upgrade_policy_cluster.upgrade_policy,
         cluster=cluster.ocm_cluster,
         health=AUSClusterHealth(state={}),
+        nodePools=[node_pool_spec],
     )
     expected_upgrade_specs = {
         org.name: OrganizationUpgradeSpec(
