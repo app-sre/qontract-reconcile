@@ -48,6 +48,7 @@ def test_create_with_jira_watcher_settings(
         expected_server_url,
         token_auth=expected_token,
         timeout=(expected_read_timeout, expected_connect_timeout),
+        logging=False,
     )
 
 
@@ -75,4 +76,5 @@ def test_create_with_defaults(
         expected_server_url,
         token_auth=expected_token,
         timeout=(expected_read_timeout, expected_connect_timeout),
+        logging=False,
     )

@@ -58,7 +58,7 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class TemplateCollectionForEachV1(ConfiguredBaseModel):
-    items: Optional[list[Json]] = Field(..., alias="items")
+    items: list[Json] = Field(..., alias="items")
 
 
 class TemplateCollectionVariablesQueriesV1(ConfiguredBaseModel):
