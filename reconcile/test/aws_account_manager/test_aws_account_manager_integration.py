@@ -174,6 +174,28 @@ def test_aws_account_manager_utils_integration_create_accounts_create_account_fi
     )
 
 
+def test_aws_account_manager_utils_integration_create_accounts_takeover(
+    aws_api: MagicMock,
+    reconciler: MagicMock,
+    merge_request_manager: MagicMock,
+    account_request: AWSAccountRequestV1,
+    intg: AwsAccountMgmtIntegration,
+) -> None:
+    reconciler.create_iam_user.return_value = None
+    # if account_request.uid is set, we assume it's a takeover
+    account_request.uid = "1111111111"
+    intg.create_accounts(
+        aws_api,
+        reconciler,
+        merge_request_manager,
+        "account-template - {{ uid }}",
+        [account_request],
+    )
+    reconciler.create_organization_account.assert_not_called()
+    reconciler.create_iam_user.assert_called_once()
+    merge_request_manager.create_account_file.assert_called_once()
+
+
 def test_aws_account_manager_utils_integration_reconcile_organization_accounts(
     aws_api: MagicMock,
     reconciler: MagicMock,
