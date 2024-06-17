@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -32,7 +31,7 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
     def __init__(
         self,
         notification: Notification,
-        labels: Optional[list[str]] = None,
+        labels: list[str] | None = None,
         email_base_path: Path = Path("data") / "app-interface" / "emails",
         dry_run: bool = False,
     ):

@@ -19,6 +19,10 @@ accounts:
       quotaCode: L-1194D53C
       value: 102
   resourcesDefaultRegion: us-east-1
+  securityContact:
+    name: security contact name
+    email: security@example.com
+    phoneNumber: "+1234567890"
   automationToken:
     path: vault-path
     field: all
@@ -38,6 +42,10 @@ accounts:
       quotaCode: L-1194D53C
       value: 102
   resourcesDefaultRegion: us-east-1
+  securityContact:
+    name: security contact name
+    email: security@example.com
+    phoneNumber: "+1234567890"
   automationToken:
     path: vault-path
     field: all
@@ -47,6 +55,10 @@ accounts:
   uid: '471112852898'
   premiumSupport: true
   resourcesDefaultRegion: us-east-1
+  securityContact:
+    name: security contact name
+    email: security@example.com
+    phoneNumber: "+1234567890"
   automationToken:
     path: vault-path
     field: all

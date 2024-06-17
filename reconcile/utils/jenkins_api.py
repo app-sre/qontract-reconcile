@@ -108,7 +108,7 @@ class JenkinsApi:
         res.raise_for_status()
 
     def get_all_roles(self):
-        url = "{}/role-strategy/strategy/getAllRoles".format(self.url)
+        url = f"{self.url}/role-strategy/strategy/getAllRoles"
         res = requests.get(
             url, verify=self.ssl_verify, auth=(self.user, self.password), timeout=60
         )
@@ -117,7 +117,7 @@ class JenkinsApi:
         return res.json()
 
     def assign_role_to_user(self, role, user):
-        url = "{}/role-strategy/strategy/assignRole".format(self.url)
+        url = f"{self.url}/role-strategy/strategy/assignRole"
         data = {"type": "globalRoles", "roleName": role, "sid": user}
         res = requests.post(
             url,
@@ -130,7 +130,7 @@ class JenkinsApi:
         res.raise_for_status()
 
     def unassign_role_from_user(self, role, user):
-        url = "{}/role-strategy/strategy/unassignRole".format(self.url)
+        url = f"{self.url}/role-strategy/strategy/unassignRole"
         data = {"type": "globalRoles", "roleName": role, "sid": user}
         res = requests.post(
             url,
@@ -143,7 +143,7 @@ class JenkinsApi:
         res.raise_for_status()
 
     def safe_restart(self, force_restart=False):
-        url = "{}/safeRestart".format(self.url)
+        url = f"{self.url}/safeRestart"
         if self.should_restart or force_restart:
             logging.debug(
                 "performing safe restart. "

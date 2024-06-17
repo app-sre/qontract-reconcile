@@ -1,9 +1,6 @@
 import logging
 from collections.abc import Callable
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import yaml
 from pydantic import (
@@ -44,10 +41,10 @@ class RepoOutput(BaseModel):
     project_path: str
     delete: bool
     aws_creds: VaultSecret
-    variables: Optional[TerraformRepoVariablesV1]
-    bucket: Optional[str]
-    region: Optional[str]
-    bucket_path: Optional[str]
+    variables: TerraformRepoVariablesV1 | None
+    bucket: str | None
+    region: str | None
+    bucket_path: str | None
     require_fips: bool
     tf_version: str
 
@@ -63,10 +60,10 @@ class OutputFile(BaseModel):
 
 
 class TerraformRepoIntegrationParams(PydanticRunParams):
-    output_file: Optional[str]
+    output_file: str | None
     validate_git: bool
-    gitlab_project_id: Optional[str]
-    gitlab_merge_request_id: Optional[int]
+    gitlab_project_id: str | None
+    gitlab_merge_request_id: int | None
 
 
 class TerraformRepoIntegration(
@@ -86,7 +83,7 @@ class TerraformRepoIntegration(
     def run(
         self,
         dry_run: bool,
-        defer: Optional[Callable] = None,
+        defer: Callable | None = None,
     ) -> None:
         gqlapi = gql.get_api()
 
@@ -304,9 +301,9 @@ class TerraformRepoIntegration(
         existing_state: list[TerraformRepoV1],
         desired_state: list[TerraformRepoV1],
         dry_run: bool,
-        state: Optional[State],
+        state: State | None,
         recreate_state: bool,
-    ) -> Optional[list[TerraformRepoV1]]:
+    ) -> list[TerraformRepoV1] | None:
         """Calculated the difference between existing and desired state
         to determine what actions the executor will need to take
 

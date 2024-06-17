@@ -3,10 +3,8 @@ from collections.abc import (
     Iterable,
     MutableMapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest import TestCase
 from unittest.mock import (
     MagicMock,
@@ -32,9 +30,12 @@ from reconcile.typed_queries.saas_files import (
 )
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.promotion_state import PromotionData
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.saasherder.interfaces import SaasFile as SaasFileInterface
 from reconcile.utils.saasherder.models import (
+    Channel,
+    Promotion,
     TriggerSpecContainerImage,
     TriggerSpecMovingCommit,
     TriggerSpecUpstreamJob,
@@ -66,12 +67,12 @@ class MockSecretReader(SecretReaderBase):
     """
 
     def _read(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> str:
         return "secret"
 
     def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, str]:
         return {"param": "secret"}
 
@@ -84,7 +85,7 @@ def inject_gql_class_factory(
     def _gql_class_factory(
         self: Any,
         klass: type[BaseModel],
-        data: Optional[MutableMapping[str, Any]] = None,
+        data: MutableMapping[str, Any] | None = None,
     ) -> BaseModel:
         return gql_class_factory(klass, data)
 
@@ -1026,7 +1027,7 @@ class TestConfigHashPromotionsValidation(TestCase):
 
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas-multi-channel.gql.yml")
         )
         self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
         self.state_mock = self.state_patcher.start().return_value
@@ -1095,12 +1096,24 @@ class TestConfigHashPromotionsValidation(TestCase):
         promotion_data. This could happen if the parent target has run again
         with the same ref before the subscriber target promotion MR is merged.
         """
-        publisher_state = {
-            "success": True,
-            "saas_file": self.saas_file.name,
-            "target_config_hash": "will_not_match",
-        }
-        self.state_mock.get.return_value = publisher_state
+        publisher_states = [
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+            },
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+            },
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "will_not_match",
+            },
+        ]
+        self.state_mock.get.side_effect = publisher_states
         result = self.saasherder.validate_promotions()
         self.assertFalse(result)
 
@@ -1126,14 +1139,131 @@ class TestConfigHashPromotionsValidation(TestCase):
             "target_config_hash": "whatever",
         }
 
-        self.assertEqual(len(self.saasherder.promotions), 2)
-        self.assertIsNotNone(self.saasherder.promotions[1])
+        self.assertEqual(len(self.saasherder.promotions), 4)
+        self.assertIsNotNone(self.saasherder.promotions[3])
         # Remove promotion_data on the promoted target
-        self.saasherder.promotions[1].promotion_data = None  # type: ignore
+        self.saasherder.promotions[3].promotion_data = None  # type: ignore
 
         self.state_mock.get.return_value = publisher_state
         result = self.saasherder.validate_promotions()
         self.assertTrue(result)
+
+
+@pytest.mark.usefixtures("inject_gql_class_factory")
+class TestSoakDays(TestCase):
+    """TestCase to test SaasHerder soakDays gate. SaasHerder is
+    initialized with ResourceInventory population. Like is done in
+    openshift-saas-deploy"""
+
+    cluster: str
+    namespace: str
+    fxt: Any
+    template: Any
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.fxt = Fixtures("saasherder")
+        cls.cluster = "test-cluster"
+        cls.template = cls.fxt.get_anymarkup("template_1.yml")
+
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas-soak-days.gql.yml")
+        )
+        self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
+        self.state_mock = self.state_patcher.start().return_value
+
+        self.ig_patcher = patch.object(SaasHerder, "_initiate_github", autospec=True)
+        self.ig_patcher.start()
+
+        self.image_auth_patcher = patch.object(SaasHerder, "_initiate_image_auth")
+        self.image_auth_patcher.start()
+
+        self.gfc_patcher = patch.object(SaasHerder, "_get_file_contents", autospec=True)
+        gfc_mock = self.gfc_patcher.start()
+        gfc_mock.return_value = (self.template, "url", "ahash")
+
+        self.deploy_current_state_fxt = self.fxt.get_anymarkup("saas_deploy.state.json")
+
+        self.post_deploy_current_state_fxt = self.fxt.get_anymarkup(
+            "saas_post_deploy.state.json"
+        )
+
+        self.saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            state=self.state_mock,
+            integration="",
+            integration_version="",
+            hash_length=24,
+            repo_url="https://repo-url.com",
+            all_saas_files=[self.saas_file],
+        )
+
+        # IMPORTANT: Populating desired state modify self.saas_files within
+        # saasherder object.
+        self.ri = ResourceInventory()
+        for ns in ["test-ns-publisher", "test-ns-subscriber"]:
+            for kind in ["Service", "Deployment"]:
+                self.ri.initialize_resource_type(self.cluster, ns, kind)
+
+        self.saasherder.populate_desired_state(self.ri)
+        if self.ri.has_error_registered():
+            raise Exception("Errors registered in Resourceinventory")
+
+    def tearDown(self) -> None:
+        self.state_patcher.stop()
+        self.ig_patcher.stop()
+        self.gfc_patcher.stop()
+
+    def test_soak_days_passed(self) -> None:
+        """A promotion is valid if the parent targets accumulated soak_days
+        passed. We have a soakDays setting of 2 days.
+        """
+        publisher_states = [
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+                # the deployment happened 1 hour ago
+                "check_in": str(datetime.now(UTC) - timedelta(hours=1)),
+            },
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+                # the deployment happened 47 hours ago
+                "check_in": str(datetime.now(UTC) - timedelta(hours=47)),
+            },
+        ]
+        self.state_mock.get.side_effect = publisher_states
+        result = self.saasherder.validate_promotions()
+        self.assertTrue(result)
+
+    def test_soak_days_not_passed(self) -> None:
+        """A promotion is valid if the parent target accumulated soak_days
+        passed. We have a soakDays setting of 2 days.
+        """
+        publisher_states = [
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+                # the deployment happened 12 hours ago
+                "check_in": str(datetime.now(UTC) - timedelta(hours=12)),
+            },
+            {
+                "success": True,
+                "saas_file": self.saas_file.name,
+                "target_config_hash": "ed2af38cf21f268c",
+                # the deployment happened 1 hour ago
+                "check_in": str(datetime.now(UTC) - timedelta(hours=1)),
+            },
+        ]
+        self.state_mock.get.side_effect = publisher_states
+        result = self.saasherder.validate_promotions()
+        self.assertFalse(result)
 
 
 @pytest.mark.usefixtures("inject_gql_class_factory")
@@ -1218,6 +1348,65 @@ class TestRemoveNoneAttributes(TestCase):
         expected: dict[Any, Any] = {}
         res = SaasHerder.remove_none_values(input)
         self.assertEqual(res, expected)
+
+
+@pytest.mark.usefixtures("inject_gql_class_factory")
+class TestPromotionBlockedHoxfixVersions(TestCase):
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFile,
+            Fixtures("saasherder").get_anymarkup("saas.gql.yml"),
+        )
+        self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
+        self.state_mock = self.state_patcher.start().return_value
+        self.saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            state=self.state_mock,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+        )
+        self.promotion_state_patcher = patch(
+            "reconcile.utils.promotion_state.PromotionState", autospec=True
+        )
+        self.promotion_state_mock = self.promotion_state_patcher.start().return_value
+        self.saasherder._promotion_state = self.promotion_state_mock
+
+    def tearDown(self) -> None:
+        self.state_patcher.stop()
+        self.promotion_state_patcher.stop()
+
+    def test_blocked_hotfix_version_promotion_validity(self) -> None:
+        code_component_url = "https://github.com/app-sre/test-saas-deployments"
+        hotfix_version = "1234567890123456789012345678901234567890"
+        # code_component = self.saas_file.app.code_components[0]
+        channel = Channel(
+            name="",
+            publisher_uids=[""],
+        )
+        promotion = Promotion(
+            url=code_component_url,
+            commit_sha=hotfix_version,
+            saas_file=self.saas_file.name,
+            target_config_hash="",
+            saas_target_uid="",
+            soak_days=0,
+            subscribe=[channel],
+        )
+        self.saasherder.promotions = [promotion]
+        self.promotion_state_mock.get_promotion_data.return_value = PromotionData(
+            success=False
+        )
+        self.assertFalse(self.saasherder.validate_promotions())
+
+        self.saasherder.hotfix_versions[code_component_url] = {hotfix_version}
+        self.assertTrue(self.saasherder.validate_promotions())
+
+        self.saasherder.blocked_versions[code_component_url] = {hotfix_version}
+        self.assertFalse(self.saasherder.validate_promotions())
 
 
 def test_render_templated_parameters(

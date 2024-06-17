@@ -20,6 +20,8 @@ NORMALIZE_COMPARE_EXCLUDED_ATTRS = {
     "managedFields",
     "namespace",
 }
+K8S_ANNOTATION_LAC = "kubectl.kubernetes.io/last-applied-configuration"
+NORMALIZE_IGNORE_ANNOTATIONS = QONTRACT_ANNOTATIONS | {K8S_ANNOTATION_LAC}
 
 
 def _normalize_secret(secret: OR) -> None:
@@ -59,9 +61,9 @@ def normalize_object(item: OR) -> OR:
         validate_k8s_object=False,
     )
 
-    annotations = n.body.get("annotations", {})
+    annotations = n.body.get("metadata").get("annotations") or {}
     metadata["annotations"] = {
-        k: v for k, v in annotations.items() if k not in QONTRACT_ANNOTATIONS
+        k: v for k, v in annotations.items() if k not in NORMALIZE_IGNORE_ANNOTATIONS
     }
 
     # Run normalizers on Kinds with special needs
@@ -127,6 +129,14 @@ def three_way_diff_using_hash(c_item: OR, d_item: OR) -> bool:
         c_item_sha256 = annotations["qontract.sha256sum"]
     except KeyError:
         logging.debug("Current object QR hash is missing -> Apply")
+        return False
+
+    if (
+        c_item_integration := annotations["qontract.integration"]
+    ) != d_item.integration:
+        logging.info(
+            f"resource switching integration from {c_item_integration} to {d_item.integration}"
+        )
         return False
 
     # Original object does not match Desired -> Apply

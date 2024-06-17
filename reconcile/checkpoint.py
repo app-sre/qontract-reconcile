@@ -18,10 +18,7 @@ from functools import (
 )
 from http import HTTPStatus
 from pathlib import Path
-from typing import (
-    Any,
-    Union,
-)
+from typing import Any
 
 import requests
 from jinja2 import Template
@@ -121,7 +118,7 @@ def file_ticket(
 def report_invalid_metadata(
     app: Mapping[str, Any],
     path: str,
-    board: Mapping[str, Union[str, Mapping]],
+    board: Mapping[str, str | Mapping],
     settings: Mapping[str, Any],
     parent: str,
     dry_run: bool = False,

@@ -2,11 +2,7 @@ import json
 import logging
 import sys
 from collections.abc import Mapping
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 import jinja2
 import yaml
@@ -77,7 +73,7 @@ class OpenshiftTektonResourcesBadConfigError(Exception):
     pass
 
 
-def fetch_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
+def fetch_saas_files(saas_file_name: str | None) -> list[dict[str, Any]]:
     """Fetch saas v2 files"""
     saas_files = gql.get_api().query(SAAS_FILES_QUERY)["saas_files"]
 
@@ -93,7 +89,7 @@ def fetch_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
     return saas_files
 
 
-def fetch_tkn_providers(saas_file_name: Optional[str]) -> dict[str, Any]:
+def fetch_tkn_providers(saas_file_name: str | None) -> dict[str, Any]:
     """Fetch tekton providers data for the saas files handled here"""
     saas_files = fetch_saas_files(saas_file_name)
     if not saas_files:
@@ -138,7 +134,7 @@ def fetch_tkn_providers(saas_file_name: Optional[str]) -> dict[str, Any]:
 
 def fetch_desired_resources(
     tkn_providers: dict[str, Any],
-) -> list[dict[str, Union[str, OR]]]:
+) -> list[dict[str, str | OR]]:
     """Create an array of dicts that will be used as args of ri.add_desired
     This will also add resourceNames inside tkn_providers['namespace']
     while we are migrating from the current system to this integration"""
@@ -344,7 +340,7 @@ def load_tkn_template(path: str, variables: dict[str, str]) -> dict[str, Any]:
 
 def build_desired_resource(
     tkn_object: dict[str, Any], path: str, cluster: str, namespace: str
-) -> dict[str, Union[str, OR]]:
+) -> dict[str, str | OR]:
     """Returns a dict with ResourceInventory.add_desired args"""
     openshift_resource = OR(
         tkn_object,
@@ -424,9 +420,9 @@ def build_one_per_saas_file_tkn_task_name(
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    saas_file_name: Optional[str] = None,
+    saas_file_name: str | None = None,
 ) -> None:
     tkn_providers = fetch_tkn_providers(saas_file_name)
 

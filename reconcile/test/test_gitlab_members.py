@@ -27,6 +27,8 @@ from reconcile.utils.pagerduty_api import PagerDutyMap
 @pytest.fixture()
 def instance(vault_secret: VaultSecret) -> GitlabInstanceV1:
     return GitlabInstanceV1(
+        name="gitlab",
+        description="gitlab",
         url="http://foobar.com",
         token=vault_secret,
         sslVerify=False,

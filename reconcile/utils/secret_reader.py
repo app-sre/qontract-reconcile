@@ -5,14 +5,11 @@ from abc import (
 from collections.abc import Mapping
 from typing import (
     Any,
-    Optional,
     Protocol,
-    Union,
     runtime_checkable,
 )
 
 from hvac.exceptions import Forbidden
-from sretoolbox.utils import retry
 
 from reconcile.utils import (
     config,
@@ -38,20 +35,20 @@ class HasSecret(Protocol):
 
     path: str
     field: str
-    version: Optional[int]
-    q_format: Optional[str]
+    version: int | None
+    q_format: str | None
 
 
 class SecretReaderBase(ABC):
     @abstractmethod
     def _read(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> str:
         raise NotImplementedError()
 
     @abstractmethod
     def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, str]:
         raise NotImplementedError()
 
@@ -98,7 +95,7 @@ class SecretReaderBase(ABC):
         )
 
     def read_with_parameters(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> str:
         return self._read(
             path=path,
@@ -108,7 +105,7 @@ class SecretReaderBase(ABC):
         )
 
     def read_all_with_parameters(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, str]:
         return self._read_all(
             path=path,
@@ -118,7 +115,7 @@ class SecretReaderBase(ABC):
         )
 
     def _parameters_to_dict(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, Any]:
         return {
             "path": path,
@@ -128,7 +125,7 @@ class SecretReaderBase(ABC):
         }
 
     @staticmethod
-    def to_dict(secret: HasSecret) -> dict[str, Union[str, int, None]]:
+    def to_dict(secret: HasSecret) -> dict[str, str | int | None]:
         """Convenient method to convert Secret class to dictionary."""
         return {
             "path": secret.path,
@@ -143,7 +140,7 @@ class VaultSecretReader(SecretReaderBase):
     Read secrets from vault via a vault_client
     """
 
-    def __init__(self, vault_client: Optional[VaultClient] = None):
+    def __init__(self, vault_client: VaultClient | None = None):
         self._vault_client = vault_client
 
     @property
@@ -152,9 +149,8 @@ class VaultSecretReader(SecretReaderBase):
             self._vault_client = VaultClient()
         return self._vault_client
 
-    @retry()
     def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, str]:
         try:
             data = self.vault_client.read_all(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
@@ -173,10 +169,9 @@ class VaultSecretReader(SecretReaderBase):
             raise SecretNotFound(*e.args) from e
         return data
 
-    @retry()
     def _read(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
-    ) -> dict[str, str]:
+        self, path: str, field: str, format: str | None, version: int | None
+    ) -> str:
         try:
             data = self.vault_client.read(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
                 self._parameters_to_dict(
@@ -197,7 +192,7 @@ class ConfigSecretReader(SecretReaderBase):
     """
 
     def _read(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> str:
         try:
             data = config.read(
@@ -213,7 +208,7 @@ class ConfigSecretReader(SecretReaderBase):
         return data
 
     def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, str]:
         try:
             data = config.read_all(
@@ -245,13 +240,13 @@ class SecretReader(SecretReaderBase):
     Consider using create_secret_reader() instead.
     """
 
-    def __init__(self, settings: Optional[Mapping] = None) -> None:
+    def __init__(self, settings: Mapping | None = None) -> None:
         """
         :param settings: app-interface-settings object. It is a dictionary
         containing `value: true` if Vault is to be used as the secret backend.
         """
         self.settings = settings
-        self._vault_client: Optional[VaultClient] = None
+        self._vault_client: VaultClient | None = None
 
     @property
     def vault_client(self) -> VaultClient:
@@ -259,9 +254,8 @@ class SecretReader(SecretReaderBase):
             self._vault_client = VaultClient()
         return self._vault_client
 
-    @retry()
     def _read(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> str:
         """Returns a value of a key from Vault secret or configuration file.
         The input secret is a dictionary which contains the following fields:
@@ -295,9 +289,8 @@ class SecretReader(SecretReaderBase):
 
         return data
 
-    @retry()
     def _read_all(
-        self, path: str, field: str, format: Optional[str], version: Optional[int]
+        self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, str]:
         """Returns a dictionary of keys and values
         from Vault secret or configuration file.

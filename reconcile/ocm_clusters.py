@@ -4,7 +4,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Any, Optional
+from typing import Any
 
 import reconcile.utils.mr.clusters_updates as cu
 import reconcile.utils.ocm as ocmmod
@@ -283,7 +283,7 @@ def get_cluster_ocm_update_spec(
 
 
 def _app_interface_updates_mr(
-    clusters_updates: Mapping[str, Any], gitlab_project_id: Optional[str], dry_run: bool
+    clusters_updates: Mapping[str, Any], gitlab_project_id: str | None, dry_run: bool
 ):
     """Creates an MR to app-interface with the necessary cluster manifest updates
 
@@ -318,15 +318,15 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
 
 
 class OcmClustersParams(PydanticRunParams):
-    gitlab_project_id: Optional[str] = None
+    gitlab_project_id: str | None = None
     thread_pool_size: int = 10
 
     # rosa job controller params
-    job_controller_cluster: Optional[str] = None
-    job_controller_namespace: Optional[str] = None
-    rosa_job_service_account: Optional[str] = None
-    rosa_role: Optional[str] = None
-    rosa_job_image: Optional[str] = None
+    job_controller_cluster: str | None = None
+    job_controller_namespace: str | None = None
+    rosa_job_service_account: str | None = None
+    rosa_role: str | None = None
+    rosa_job_image: str | None = None
 
 
 class OcmClusters(QontractReconcileIntegration[OcmClustersParams]):

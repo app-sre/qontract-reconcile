@@ -4,20 +4,19 @@ from collections.abc import (
     Iterable,
 )
 from functools import lru_cache
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.utils.ocm.base import (
     ACTIVE_SUBSCRIPTION_STATES,
     PRODUCT_ID_OSD,
     PRODUCT_ID_ROSA,
     ClusterDetails,
+    FleetManagerServiceCluster,
     OCMCluster,
     OCMClusterState,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
+    ProvisionShard,
     build_label_container,
 )
 from reconcile.utils.ocm.labels import (
@@ -96,7 +95,7 @@ def discover_clusters_by_labels(
 def discover_clusters_for_subscriptions(
     ocm_api: OCMBaseClient,
     subscription_ids: list[str],
-    cluster_filter: Optional[Filter] = None,
+    cluster_filter: Filter | None = None,
 ) -> list[ClusterDetails]:
     """
     Discover clusters by filtering on their subscription IDs.
@@ -118,7 +117,7 @@ def discover_clusters_for_subscriptions(
 def discover_clusters_for_organizations(
     ocm_api: OCMBaseClient,
     organization_ids: Iterable[str],
-    cluster_filter: Optional[Filter] = None,
+    cluster_filter: Filter | None = None,
 ) -> list[ClusterDetails]:
     """
     Discover clusters by filtering on their organization IDs.
@@ -149,10 +148,30 @@ def get_ocm_clusters(
         yield OCMCluster(**cluster_dict)
 
 
+def get_provision_shard_for_cluster_id(
+    ocm_api: OCMBaseClient,
+    id: str,
+) -> ProvisionShard:
+    data = ocm_api.get(api_path=f"/api/clusters_mgmt/v1/clusters/{id}/provision_shard")
+    return ProvisionShard(**data)
+
+
+def get_service_clusters(
+    ocm_api: OCMBaseClient,
+) -> Generator[FleetManagerServiceCluster, None, None]:
+    for cluster_dict in ocm_api.get_paginated(
+        api_path="/api/osd_fleet_mgmt/v1/service_clusters",
+        max_page_size=100,
+    ):
+        if not cluster_dict.get("provision_shard_reference"):
+            continue
+        yield FleetManagerServiceCluster(**cluster_dict)
+
+
 def get_cluster_details_for_subscriptions(
     ocm_api: OCMBaseClient,
-    subscription_filter: Optional[Filter] = None,
-    cluster_filter: Optional[Filter] = None,
+    subscription_filter: Filter | None = None,
+    cluster_filter: Filter | None = None,
     init_labels: bool = False,
 ) -> Generator[ClusterDetails, None, None]:
     """
@@ -227,7 +246,7 @@ def get_node_pools(ocm_api: OCMBaseClient, cluster_id: str) -> list[dict[str, An
     return results
 
 
-@lru_cache()
+@lru_cache
 def get_version(ocm_api: OCMBaseClient, version: str) -> dict[str, Any]:
     api = f"/api/clusters_mgmt/v1/versions/{version}"
 

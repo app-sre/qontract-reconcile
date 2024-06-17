@@ -52,17 +52,9 @@ def fetch_current_state(clusters):
     return ocm_map, current_state, current_failed, current_deleting
 
 
-def fetch_desired_state():
+def fetch_desired_state(clusters):
     desired_state = []
 
-    # get desired state defined in awsInfrastructureAccess
-    # or awsInfrastructureManagementAccounts
-    # sections of cluster files
-    clusters = [
-        c
-        for c in queries.get_clusters(aws_infrastructure_access=True)
-        if c.get("ocm") is not None and c["spec"]["product"] in SUPPORTED_OCM_PRODUCTS
-    ]
     for cluster_info in clusters:
         cluster = cluster_info["name"]
         aws_infra_access_items = cluster_info.get("awsInfrastructureAccess") or []
@@ -181,12 +173,16 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
     )
 
 
-def run(dry_run):
-    clusters = [
+def get_clusters():
+    return [
         c
         for c in queries.get_clusters(aws_infrastructure_access=True)
         if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
     ]
+
+
+def run(dry_run):
+    clusters = get_clusters()
     if not clusters:
         logging.debug(
             "No OCM Aws infrastructure access definitions found in app-interface"
@@ -196,11 +192,11 @@ def run(dry_run):
     ocm_map, current_state, current_failed, current_deleting = fetch_current_state(
         clusters
     )
-    desired_state = fetch_desired_state()
+    desired_state = fetch_desired_state(clusters)
     act(
         dry_run, ocm_map, current_state, current_failed, desired_state, current_deleting
     )
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    return {"state": fetch_desired_state()}
+    return {"state": fetch_desired_state(clusters=get_clusters())}

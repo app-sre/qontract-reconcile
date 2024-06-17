@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 88
 target-version = 'py311'
-required-version = "0.4.1"
+required-version = "0.4.8"
 
 src = ["reconcile", "tools", "release", "dockerfiles/hack", "setup.py"]
 extend-exclude = ["reconcile/gql_definitions"]
@@ -20,6 +20,8 @@ extend-select = [
     "I",
     # pylint
     "PL",
+    # pyupgrade
+    "UP",
 
 ]
 ignore = [
@@ -35,6 +37,7 @@ ignore = [
     "PLR6301", # Method XXX could be a function, class method, or static method
     "PLW1641", # Object does not implement `__hash__` method
     "PLW2901", # `for` loop variable `v` overwritten by assignment target
+    "UP031",   # Use format specifiers instead of percent format
 ]
 [tool.ruff.format]
 preview = true
@@ -116,8 +119,6 @@ module = [
     "reconcile.openshift_namespace_labels",
     "reconcile.openshift_network_policies",
     "reconcile.openshift_resourcequotas",
-    "reconcile.openshift_resources_base",
-    "reconcile.openshift_resources",
     "reconcile.openshift_rolebindings",
     "reconcile.openshift_routes",
     "reconcile.openshift_serviceaccount_tokens",
@@ -141,7 +142,6 @@ module = [
     "reconcile.terraform_aws_route53",
     "reconcile.terraform_cloudflare_resources",
     "reconcile.terraform_users",
-    "reconcile.terraform_vpc_peerings",
     "reconcile.utils.aggregated_list",
     "reconcile.utils.aws_api",
     "reconcile.utils.aws_helper",
@@ -192,7 +192,6 @@ module = [
     "reconcile.utils.terraform_client",
     "reconcile.utils.terrascript_aws_client",
     "reconcile.utils.throughput",
-    "reconcile.utils.unleash",
     "reconcile.utils.vault",
     "reconcile.utils.vaultsecretref",
     "reconcile.vpc_peerings_validator",
@@ -292,13 +291,10 @@ module = [
     "reconcile.test.test_terraform_repo",
     "reconcile.test.test_terraform_resources",
     "reconcile.test.test_terraform_users",
-    "reconcile.test.test_terraform_vpc_peerings_build_desired_state",
-    "reconcile.test.test_terraform_vpc_peerings",
     "reconcile.test.test_three_way_diff_strategy",
     "reconcile.test.test_typed_queries.conftest",
     "reconcile.test.test_typed_queries.test_clusters_with_peering",
     "reconcile.test.test_typed_queries.test_status_board",
-    "reconcile.test.test_unleash",
     "reconcile.test.test_vault_replication",
     "reconcile.test.test_vault_utils",
     "reconcile.test.test_version_bump",

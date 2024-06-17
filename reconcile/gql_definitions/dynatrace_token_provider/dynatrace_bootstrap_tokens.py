@@ -30,9 +30,12 @@ fragment VaultSecret on VaultSecret_v1 {
 
 query DynatraceEnvironment {
   environments: dynatrace_environment_v1 {
+    name
+    description
     bootstrapToken {
       ... VaultSecret
     }
+    environmentID
     environmentUrl
   }
 }
@@ -46,7 +49,10 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class DynatraceEnvironmentV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    description: str = Field(..., alias="description")
     bootstrap_token: VaultSecret = Field(..., alias="bootstrapToken")
+    environment_id: str = Field(..., alias="environmentID")
     environment_url: str = Field(..., alias="environmentUrl")
 
 

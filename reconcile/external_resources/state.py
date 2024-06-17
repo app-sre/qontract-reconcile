@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Mapping
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
@@ -20,14 +20,14 @@ class StateNotFoundError(Exception):
     pass
 
 
-class ReconcileStatus(str, Enum):
+class ReconcileStatus(StrEnum):
     SUCCESS: str = "SUCCESS"
     ERROR: str = "ERROR"
     IN_PROGRESS: str = "IN_PROGRESS"
     NOT_EXISTS: str = "NOT_EXISTS"
 
 
-class ResourceStatus(str, Enum):
+class ResourceStatus(StrEnum):
     CREATED: str = "CREATED"
     DELETED: str = "DELETED"
     ABANDONED: str = "ABANDONED"
@@ -35,6 +35,7 @@ class ResourceStatus(str, Enum):
     IN_PROGRESS: str = "IN_PROGRESS"
     DELETE_IN_PROGRESS: str = "DELETE_IN_PROGRESS"
     ERROR: str = "ERROR"
+    PENDING_SECRET_SYNC: str = "PENDING_SECRET_SYNC"
 
 
 class ExternalResourceState(BaseModel):
@@ -197,7 +198,7 @@ class ExternalResourcesStateDynamoDB:
         else:
             return ExternalResourceState(
                 key=key,
-                ts=datetime.now(timezone.utc),
+                ts=datetime.now(UTC),
                 resource_status=ResourceStatus.NOT_EXISTS,
                 reconciliation=Reconciliation(key=key),
                 reconciliation_errors=0,
@@ -235,6 +236,15 @@ class ExternalResourcesStateDynamoDB:
 
     def get_all_resource_keys(self) -> set[ExternalResourceKey]:
         return {k for k in self.partial_resources.keys()}
+
+    def get_keys_by_status(
+        self, resource_status: ResourceStatus
+    ) -> set[ExternalResourceKey]:
+        return {
+            k
+            for k, v in self.partial_resources.items()
+            if v.resource_status == resource_status
+        }
 
     def update_resource_status(
         self, key: ExternalResourceKey, status: ResourceStatus

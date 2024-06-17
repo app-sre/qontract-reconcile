@@ -1,9 +1,6 @@
 import logging
 import sys
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -18,7 +15,7 @@ from reconcile.utils.vault import VaultClient
 QONTRACT_INTEGRATION = "cluster-deployment-mapper"
 
 
-def run(dry_run: bool, vault_output_path: Optional[str]) -> None:
+def run(dry_run: bool, vault_output_path: str | None) -> None:
     """Get Hive ClusterDeployments from clusters and save mapping to Vault"""
     if not vault_output_path:
         logging.error("must supply vault output path")

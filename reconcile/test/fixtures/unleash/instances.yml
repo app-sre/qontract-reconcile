@@ -1,0 +1,38 @@
+instances:
+- name: unleash-instance
+  adminToken:
+    path: app-sre/creds/app-interface-stage-config
+    field: INIT_ADMIN_API_TOKENS
+  allowUnmanagedFeatureToggles: true
+  projects:
+  - name: default
+    feature_toggles:
+    - name: new-toggle
+      description: 'description'
+      provider: unleash
+      unleash:
+        type: null
+    - name: needs-update
+      description: 'I want a shiny new description'
+      provider: unleash
+      unleash:
+        type: null
+    - name: with-environments
+      description: 'description'
+      provider: unleash
+      unleash:
+        type: release
+        environments: '{"default": true, "development": true}'
+    - name: delete-test
+      description: 'description'
+      delete: true
+      provider: unleash
+      unleash:
+        type: null
+    - name: already-deleted
+      description: 'description'
+      delete: true
+      provider: unleash
+      unleash:
+        type: null
+

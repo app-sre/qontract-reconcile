@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 
 from reconcile.cna.assets.asset import (
@@ -12,10 +10,10 @@ from reconcile.cna.state import State
 
 def null_asset(
     name: str,
-    href: Optional[str] = None,
-    uuid: Optional[str] = None,
-    addr_block: Optional[str] = None,
-    status: Optional[AssetStatus] = None,
+    href: str | None = None,
+    uuid: str | None = None,
+    addr_block: str | None = None,
+    status: AssetStatus | None = None,
 ) -> NullAsset:
     return NullAsset(
         uuid=uuid,

@@ -2,6 +2,8 @@
 
 query GitlabInstance {
   instances: gitlabinstance_v1 {
+    name
+    description
     url
     token {
       ...VaultSecret

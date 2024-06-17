@@ -5,10 +5,7 @@ from collections.abc import (
 )
 from dataclasses import dataclass
 from enum import Enum
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.change_owners.approver import (
     Approver,
@@ -70,7 +67,7 @@ def get_approver_decisions_from_mr_comments(
 class ChangeResponsibles:
     context: str
     approvers: list[Approver]
-    approver_reachability: Optional[list[ApproverReachability]] = None
+    approver_reachability: list[ApproverReachability] | None = None
 
 
 @dataclass

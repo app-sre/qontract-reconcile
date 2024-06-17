@@ -4,10 +4,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from urllib.parse import urlencode
 
 from reconcile import jira_permissions_validator
@@ -18,7 +15,7 @@ from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import
     GlitchtipProjectAlertRecipientEmailV1,
     GlitchtipProjectAlertRecipientV1,
     GlitchtipProjectAlertRecipientWebhookV1,
-    GlitchtipProjectsV1,
+    GlitchtipProjectV1,
 )
 from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import (
     query as glitchtip_project_query,
@@ -46,7 +43,7 @@ ProjectStates = dict[str, Project]
 
 
 class GlitchtipProjectAlertsIntegrationParams(PydanticRunParams):
-    instance: Optional[str] = None
+    instance: str | None = None
 
 
 def webhook_urls_are_unique(alerts: Iterable[ProjectAlert]) -> bool:
@@ -70,10 +67,10 @@ class GlitchtipProjectAlertsIntegration(
     def name(self) -> str:
         return QONTRACT_INTEGRATION
 
-    def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
+    def get_early_exit_desired_state(self) -> dict[str, Any] | None:
         return {"projects": [c.dict() for c in self.get_projects(gql.get_api().query)]}
 
-    def get_projects(self, query_func: Callable) -> list[GlitchtipProjectsV1]:
+    def get_projects(self, query_func: Callable) -> list[GlitchtipProjectV1]:
         return glitchtip_project_query(query_func=query_func).glitchtip_projects or []
 
     def _build_project_alert_recipient(
@@ -95,7 +92,7 @@ class GlitchtipProjectAlertsIntegration(
 
     def fetch_desired_state(
         self,
-        glitchtip_projects: Iterable[GlitchtipProjectsV1],
+        glitchtip_projects: Iterable[GlitchtipProjectV1],
         gjb_alert_url: str | None,
         gjb_token: str | None,
     ) -> list[Organization]:
@@ -123,30 +120,16 @@ class GlitchtipProjectAlertsIntegration(
                     )
                 )
             if glitchtip_project.jira and gjb_alert_url:
-                jira_project_key = None
-                if glitchtip_project.jira.project:
-                    jira_project_key = glitchtip_project.jira.project
-                elif (
-                    glitchtip_project.jira.board
-                    and integration_is_enabled(
-                        QONTRACT_INTEGRATION, glitchtip_project.jira.board
-                    )
-                    and integration_is_enabled(
-                        jira_permissions_validator.QONTRACT_INTEGRATION,
-                        glitchtip_project.jira.board,
-                    )
-                ):
-                    jira_project_key = glitchtip_project.jira.board.name
+                params: dict[str, str | list[str]] = {}
+                token_params = {"token": gjb_token} if gjb_token else {}
+                alert_labels = glitchtip_project.jira.labels or []
 
-                if jira_project_key:
-                    params: dict[str, str | list] = {}
-                    if gjb_token:
-                        params["token"] = gjb_token
-                    if glitchtip_project.jira.labels:
-                        params["labels"] = glitchtip_project.jira.labels
-                    url = (
-                        f"{gjb_alert_url}/{jira_project_key}?{urlencode(params, True)}"
-                    )
+                if glitchtip_project.jira.project:
+                    params = {
+                        "labels": alert_labels,
+                        "components": glitchtip_project.jira.components or [],
+                    } | token_params
+                    url = f"{gjb_alert_url}/{glitchtip_project.jira.project}?{urlencode(params, True)}"
                     alerts.append(
                         ProjectAlert(
                             name=GJB_ALERT_NAME,
@@ -160,6 +143,47 @@ class GlitchtipProjectAlertsIntegration(
                             ],
                         )
                     )
+
+                elif (
+                    glitchtip_project.jira.escalation_policy
+                    and glitchtip_project.jira.escalation_policy.channels.jira_board
+                ):
+                    # definition via escalation policy
+                    channels = glitchtip_project.jira.escalation_policy.channels
+                    for board in channels.jira_board:
+                        if not integration_is_enabled(
+                            QONTRACT_INTEGRATION, board
+                        ) or not integration_is_enabled(
+                            jira_permissions_validator.QONTRACT_INTEGRATION, board
+                        ):
+                            continue
+                        params = {
+                            "labels": alert_labels + (channels.jira_labels or []),
+                            "components": [channels.jira_component]
+                            if channels.jira_component
+                            else [],
+                        } | token_params
+                        if board.issue_type:
+                            params["issue_type"] = board.issue_type
+                        url = f"{gjb_alert_url}/{board.name}?{urlencode(params, True)}"
+                        alerts.append(
+                            ProjectAlert(
+                                name=GJB_ALERT_NAME,
+                                timespan_minutes=1,
+                                quantity=1,
+                                recipients=[
+                                    ProjectAlertRecipient(
+                                        recipient_type=RecipientType.WEBHOOK,
+                                        url=url,
+                                    )
+                                ],
+                            )
+                        )
+                else:
+                    raise ValueError(
+                        "Jira integration requires either project or escalation policy to be set"
+                    )
+
             # check for duplicates
             if not webhook_urls_are_unique(alerts):
                 raise ValueError(
@@ -264,7 +288,7 @@ class GlitchtipProjectAlertsIntegration(
         glitchtip_instances = glitchtip_instance_query(
             query_func=gqlapi.query
         ).instances
-        glitchtip_projects_by_instance: dict[str, list[GlitchtipProjectsV1]] = (
+        glitchtip_projects_by_instance: dict[str, list[GlitchtipProjectV1]] = (
             defaultdict(list)
         )
         for glitchtip_project in self.get_projects(query_func=gqlapi.query):

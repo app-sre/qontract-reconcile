@@ -6,12 +6,9 @@ import os
 import re
 import sys
 import traceback
+from collections.abc import Iterable
 from signal import SIGUSR1
 from types import ModuleType
-from typing import (
-    Iterable,
-    Optional,
-)
 
 import click
 import sentry_sdk
@@ -737,6 +734,9 @@ def terraform_aws_route53(
     required=True,
     default="https://auth.redhat.com/auth/realms/EmployeeIDP/protocol/saml/descriptor",
 )
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
 def aws_saml_idp(
     ctx,
@@ -746,6 +746,9 @@ def aws_saml_idp(
     account_name,
     saml_idp_name,
     saml_metadata_url,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
 ):
     from reconcile.aws_saml_idp.integration import (
         AwsSamlIdpIntegration,
@@ -761,6 +764,9 @@ def aws_saml_idp(
                 saml_idp_name=saml_idp_name,
                 saml_metadata_url=saml_metadata_url,
                 account_name=account_name,
+                enable_extended_early_exit=enable_extended_early_exit,
+                extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+                log_cached_log_output=log_cached_log_output,
             )
         ),
         ctx=ctx.obj,
@@ -924,6 +930,9 @@ def openshift_serviceaccount_tokens(
     required=True,
     default=6,
 )
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
 def aws_saml_roles(
     ctx,
@@ -933,6 +942,9 @@ def aws_saml_roles(
     account_name,
     saml_idp_name,
     max_session_duration_hours,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
 ):
     from reconcile.aws_saml_roles.integration import (
         AwsSamlRolesIntegration,
@@ -948,6 +960,9 @@ def aws_saml_roles(
                 saml_idp_name=saml_idp_name,
                 max_session_duration_hours=max_session_duration_hours,
                 account_name=account_name,
+                enable_extended_early_exit=enable_extended_early_exit,
+                extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+                log_cached_log_output=log_cached_log_output,
             )
         ),
         ctx=ctx.obj,
@@ -1200,8 +1215,18 @@ def openshift_upgrade_watcher(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command(short_help="Manage Slack User Groups (channels and users).")
 @workspace_name
 @usergroup_name
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
-def slack_usergroups(ctx, workspace_name, usergroup_name):
+def slack_usergroups(
+    ctx,
+    workspace_name,
+    usergroup_name,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
+):
     import reconcile.slack_usergroups
 
     run_integration(
@@ -1209,6 +1234,9 @@ def slack_usergroups(ctx, workspace_name, usergroup_name):
         ctx.obj,
         workspace_name,
         usergroup_name,
+        enable_extended_early_exit,
+        extended_early_exit_cache_ttl_seconds,
+        log_cached_log_output,
     )
 
 
@@ -1736,6 +1764,31 @@ def openshift_routes(
 
     run_integration(
         reconcile.openshift_routes,
+        ctx.obj,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
+    )
+
+
+@integration.command(short_help="Manages OpenShift Prometheus Rules.")
+@threaded()
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@use_jump_host()
+@cluster_name
+@namespace_name
+@click.pass_context
+def openshift_prometheus_rules(
+    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
+):
+    import reconcile.openshift_prometheus_rules
+
+    run_integration(
+        reconcile.openshift_prometheus_rules,
         ctx.obj,
         thread_pool_size,
         internal,
@@ -2274,6 +2327,35 @@ def terraform_users(
     )
 
 
+@integration.command(short_help="Manage VPC creation")
+@binary(["terraform"])
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@account_name
+@print_to_file
+@threaded()
+@enable_deletion(default=False)
+@click.pass_context
+def terraform_vpc_resources(
+    ctx, account_name, print_to_file, thread_pool_size, enable_deletion
+):
+    from reconcile.terraform_vpc_resources.integration import (
+        TerraformVpcResources,
+        TerraformVpcResourcesParams,
+    )
+
+    run_class_integration(
+        TerraformVpcResources(
+            TerraformVpcResourcesParams(
+                account_name=account_name,
+                print_to_file=print_to_file,
+                thread_pool_size=thread_pool_size,
+                enable_deletion=enable_deletion,
+            )
+        ),
+        ctx.obj,
+    )
+
+
 @integration.command(
     short_help="Manage VPC peerings between OSD clusters and AWS accounts or other OSD clusters."
 )
@@ -2283,9 +2365,19 @@ def terraform_users(
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
 @account_name
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
 def terraform_vpc_peerings(
-    ctx, print_to_file, enable_deletion, thread_pool_size, account_name
+    ctx,
+    print_to_file,
+    enable_deletion,
+    thread_pool_size,
+    account_name,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
 ):
     import reconcile.terraform_vpc_peerings
 
@@ -2298,6 +2390,9 @@ def terraform_vpc_peerings(
         enable_deletion,
         thread_pool_size,
         account_name,
+        enable_extended_early_exit=enable_extended_early_exit,
+        extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+        log_cached_log_output=log_cached_log_output,
     )
 
 
@@ -2432,13 +2527,13 @@ def ocm_groups(ctx, thread_pool_size):
 @click.pass_context
 def ocm_clusters(
     ctx,
-    gitlab_project_id: Optional[str],
+    gitlab_project_id: str | None,
     thread_pool_size: int,
-    job_controller_cluster: Optional[str],
-    job_controller_namespace: Optional[str],
-    rosa_job_service_account: Optional[str],
-    rosa_role: Optional[str],
-    rosa_job_image: Optional[str],
+    job_controller_cluster: str | None,
+    job_controller_namespace: str | None,
+    rosa_job_service_account: str | None,
+    rosa_role: str | None,
+    rosa_job_image: str | None,
 ):
     from reconcile.ocm_clusters import (
         OcmClusters,
@@ -2704,7 +2799,7 @@ def version_gate_approver(
     job_controller_namespace: str,
     rosa_job_service_account: str,
     rosa_role: str,
-    rosa_job_image: Optional[str],
+    rosa_job_image: str | None,
 ) -> None:
     from reconcile.aus.version_gate_approver import (
         VersionGateApprover,
@@ -2940,20 +3035,37 @@ def cluster_auth_rhidp(ctx):
 )
 @click.option(
     "--ocm-org-ids",
-    help="A comma seperated list of OCM organization IDs DTP should operator on. If none is specified, all organizations are considered.",
+    help="A comma seperated list of OCM organization IDs DTP should operate on. If none is specified, all organizations are considered.",
     required=False,
     envvar="DTP_OCM_ORG_IDS",
 )
 @click.pass_context
 def dynatrace_token_provider(ctx, ocm_org_ids):
-    from reconcile import dynatrace_token_provider
-    from reconcile.dynatrace_token_provider import (
+    from reconcile.dynatrace_token_provider.integration import (
+        DynatraceTokenProviderIntegration,
         DynatraceTokenProviderIntegrationParams,
+    )
+    from reconcile.dynatrace_token_provider.integration_v2 import (
+        DynatraceTokenProviderIntegrationParamsV2,
+        DynatraceTokenProviderIntegrationV2,
     )
 
     parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
+
+    # We will remove V1 once migrations towards new token declaration is done
+    # Run V2
     run_class_integration(
-        integration=dynatrace_token_provider.DynatraceTokenProviderIntegration(
+        integration=DynatraceTokenProviderIntegrationV2(
+            DynatraceTokenProviderIntegrationParamsV2(
+                ocm_organization_ids=parsed_ocm_org_ids
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+    # Run V1
+    run_class_integration(
+        integration=DynatraceTokenProviderIntegration(
             DynatraceTokenProviderIntegrationParams(
                 ocm_organization_ids=parsed_ocm_org_ids
             )
@@ -3278,7 +3390,7 @@ def signalfx_prometheus_endpoint_monitoring(
     )
 
 
-def parse_image_tag_from_ref(ctx, param, value) -> Optional[dict[str, str]]:
+def parse_image_tag_from_ref(ctx, param, value) -> dict[str, str] | None:
     if value:
         result = {}
         for v in value:
@@ -3476,8 +3588,15 @@ def skupper_network(ctx, thread_pool_size, internal, use_jump_host):
     envvar="OL_MANAGED_LABEL_PREFIXES",
     default="sre-capabilities",
 )
+@click.option(
+    "--ignored-label-prefixes",
+    help="A comma list of label prefixes that must be ignored.",
+    required=True,
+    envvar="OL_IGNORED_LABEL_PREFIXES",
+    default="sre-capabilities.rhidp",
+)
 @click.pass_context
-def ocm_labels(ctx, managed_label_prefixes):
+def ocm_labels(ctx, managed_label_prefixes, ignored_label_prefixes):
     from reconcile.ocm_labels.integration import (
         OcmLabelsIntegration,
         OcmLabelsIntegrationParams,
@@ -3487,6 +3606,7 @@ def ocm_labels(ctx, managed_label_prefixes):
         integration=OcmLabelsIntegration(
             OcmLabelsIntegrationParams(
                 managed_label_prefixes=list(set(managed_label_prefixes.split(","))),
+                ignored_label_prefixes=list(set(ignored_label_prefixes.split(","))),
             )
         ),
         ctx=ctx.obj,
@@ -3541,6 +3661,23 @@ def acs_notifiers(ctx):
     )
 
 
+@integration.command(short_help="Manage Unleash feature toggles.")
+@click.option("--instance", help="Reconcile just this Unlash instance.", default=None)
+@click.pass_context
+def unleash_feature_toggles(ctx, instance):
+    from reconcile.unleash_feature_toggles.integration import (
+        UnleashTogglesIntegration,
+        UnleashTogglesIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=UnleashTogglesIntegration(
+            UnleashTogglesIntegrationParams(instance=instance)
+        ),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Automate Deadmanssnitch Creation/Deletion")
 @click.pass_context
 def deadmanssnitch(ctx):
@@ -3586,6 +3723,24 @@ def external_resources(
         thread_pool_size,
         workers_cluster,
         workers_namespace,
+    )
+
+
+@integration.command(
+    short_help="Syncs External Resources Secrets from Vault to Clusters"
+)
+@click.pass_context
+@threaded(default=5)
+def external_resources_secrets_sync(
+    ctx,
+    thread_pool_size: int,
+):
+    import reconcile.external_resources.integration_secrets_sync
+
+    run_integration(
+        reconcile.external_resources.integration_secrets_sync,
+        ctx.obj,
+        thread_pool_size,
     )
 
 

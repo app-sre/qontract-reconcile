@@ -3,10 +3,7 @@ from collections.abc import (
     Mapping,
     Sequence,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import pytest
 from pytest_mock import MockerFixture
@@ -117,7 +114,7 @@ def build_cluster_details() -> Callable:
     def _(
         name: str = "cluster_name",
         org_id: str = "org_id",
-        subs_labels: Optional[list[tuple[str, str]]] = None,
+        subs_labels: list[tuple[str, str]] | None = None,
     ) -> ClusterDetails:
         ocm_cluster = build_ocm_cluster(name, subs_id=f"{name}-sub-id")
         return ClusterDetails(
@@ -147,6 +144,7 @@ def ocm_clusters(build_cluster_details: Callable) -> list[ClusterDetails]:
             subs_labels=[
                 ("my-label-prefix.to-be-removed", "enabled"),
                 ("my-label-prefix.to-be-changed", "disabled"),
+                ("my-label-prefix.must-be-ignored.foobar", "enabled"),
                 ("do-not-touch", "enabled"),
             ],
         ),

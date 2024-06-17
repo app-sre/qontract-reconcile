@@ -12,13 +12,19 @@ from operator import (
 )
 from typing import (
     Any,
-    Optional,
     TypedDict,
 )
 from urllib.parse import urlparse
 
 import gitlab
 import urllib3
+from gitlab.const import (
+    DEVELOPER_ACCESS,
+    GUEST_ACCESS,
+    MAINTAINER_ACCESS,
+    OWNER_ACCESS,
+    REPORTER_ACCESS,
+)
 from gitlab.v4.objects import (
     CurrentUser,
     Group,
@@ -223,14 +229,19 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return any(mr.title == title for mr in mrs)
 
     @retry()
-    def get_project_maintainers(self, repo_url: str | None = None) -> list[str] | None:
+    def get_project_maintainers(
+        self, repo_url: str | None = None, query: dict | None = None
+    ) -> list[str] | None:
         if repo_url is None:
             project = self.project
         else:
             project = self.get_project(repo_url)
         if project is None:
             return None
-        members = self.get_items(project.members.all)
+        if query:
+            members = self.get_items(project.members.all, query_parameters=query)
+        else:
+            members = self.get_items(project.members.all)
         return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self):
@@ -244,6 +255,54 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return self.gl.groups.get(group_name)
         except gitlab.exceptions.GitlabGetError:
             return None
+
+    def share_project_with_group(
+        self,
+        repo_url: str,
+        group_id: int,
+        dry_run: bool,
+        access: str = "maintainer",
+        reshare: bool = False,
+    ) -> None:
+        project = self.get_project(repo_url)
+        if project is None:
+            return None
+        access_level = self.get_access_level(access)
+        # check if we have 'access_level' access so we can  add the group with same role.
+        members = self.get_items(
+            project.members.all, query_parameters={"user_ids": self.user.id}
+        )
+        if not any(
+            self.user.id == member.id and member.access_level >= access_level
+            for member in members
+        ):
+            logging.error(
+                "%s is not shared with %s as %s",
+                repo_url,
+                self.user.username,
+                access,
+            )
+            return None
+        logging.info(["add_group_as_maintainer", repo_url, group_id])
+        if not dry_run:
+            if reshare:
+                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+                project.unshare(group_id)
+            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+            project.share(group_id, access_level)
+
+    def get_group_id_and_shared_projects(
+        self, group_name: str
+    ) -> tuple[int, dict[str, Any]]:
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        group = self.gl.groups.get(group_name)
+        shared_projects = self.get_items(group.projects.list, all=True)
+        return group.id, {
+            project.web_url: shared_group
+            for project in shared_projects
+            for shared_group in project.shared_with_groups
+            if shared_group["group_id"] == group.id
+        }
 
     @staticmethod
     def _is_bot_username(username: str) -> bool:
@@ -326,30 +385,30 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def get_access_level_string(access_level):
-        if access_level == gitlab.OWNER_ACCESS:
+        if access_level == OWNER_ACCESS:
             return "owner"
-        if access_level == gitlab.MAINTAINER_ACCESS:
+        if access_level == MAINTAINER_ACCESS:
             return "maintainer"
-        if access_level == gitlab.DEVELOPER_ACCESS:
+        if access_level == DEVELOPER_ACCESS:
             return "developer"
-        if access_level == gitlab.REPORTER_ACCESS:
+        if access_level == REPORTER_ACCESS:
             return "reporter"
-        if access_level == gitlab.GUEST_ACCESS:
+        if access_level == GUEST_ACCESS:
             return "guest"
 
     @staticmethod
     def get_access_level(access):
         access = access.lower()
         if access == "owner":
-            return gitlab.OWNER_ACCESS
+            return OWNER_ACCESS
         if access == "maintainer":
-            return gitlab.MAINTAINER_ACCESS
+            return MAINTAINER_ACCESS
         if access == "developer":
-            return gitlab.DEVELOPER_ACCESS
+            return DEVELOPER_ACCESS
         if access == "reporter":
-            return gitlab.REPORTER_ACCESS
+            return REPORTER_ACCESS
         if access == "guest":
-            return gitlab.GUEST_ACCESS
+            return GUEST_ACCESS
 
     def get_group_id_and_projects(self, group_name: str) -> tuple[str, list[str]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
@@ -738,7 +797,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         author, assignee = last_assignment[0], last_assignment[1]
         return author in team_usernames and mr.assignee["username"] == assignee
 
-    def last_assignment(self, mr: ProjectMergeRequest) -> Optional[tuple[str, str]]:
+    def last_assignment(self, mr: ProjectMergeRequest) -> tuple[str, str] | None:
         body_format = "assigned to @"
         notes = self.get_items(mr.notes.list)
 
@@ -757,7 +816,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def last_comment(
         self, mr: ProjectMergeRequest, exclude_bot=True
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         comments = self.get_merge_request_comments(mr)
         comments.sort(key=itemgetter("created_at"), reverse=True)
         for comment in comments:

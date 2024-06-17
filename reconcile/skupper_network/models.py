@@ -77,10 +77,8 @@ class SkupperSite(BaseModel):
             if (
                 isinstance(
                     c,
-                    (
-                        ClusterPeeringConnectionClusterRequesterV1,
-                        ClusterPeeringConnectionClusterAccepterV1,
-                    ),
+                    ClusterPeeringConnectionClusterRequesterV1
+                    | ClusterPeeringConnectionClusterAccepterV1,
                 )
             ) and c.cluster.name == other.cluster.name:
                 return True
@@ -168,7 +166,7 @@ class SkupperSite(BaseModel):
 
     def unique_token_name(self, other: SkupperSite) -> str:
         """Generate a unique token name for a site connection."""
-        return hashlib.sha256(f"{other}-{self}".encode("UTF-8")).hexdigest()
+        return hashlib.sha256(f"{other}-{self}".encode()).hexdigest()
 
     def token_name(self, other: SkupperSite) -> str:
         """Get the token name for a site connection."""

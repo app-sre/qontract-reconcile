@@ -39,6 +39,12 @@ fragment AWSAccountManaged on AWSAccount_v1 {
       value
     }
   }
+  securityContact {
+    name
+    title
+    email
+    phoneNumber
+  }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
@@ -82,6 +88,7 @@ query AWSAccountManagerAccounts {
       }
       resourcesDefaultRegion
       supportedDeploymentRegions
+      uid
     }
     organization_accounts {
       ... AWSAccountManaged
@@ -133,6 +140,7 @@ class AWSAccountRequestV1(ConfiguredBaseModel):
     quota_limits: Optional[list[AWSQuotaLimitsV1]] = Field(..., alias="quotaLimits")
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
     supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
+    uid: Optional[str] = Field(..., alias="uid")
 
 
 class AWSAccountV1(AWSAccountManaged):

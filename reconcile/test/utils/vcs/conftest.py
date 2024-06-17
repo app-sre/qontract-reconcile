@@ -61,15 +61,15 @@ def vcs_builder(
         gitlab_api = gitlab_api_builder(data)
         github_api = github_api_builder(data)
         vcs = VCS(
-            allow_deleting_mrs=False,
-            allow_opening_mrs=False,
+            allow_deleting_mrs=True,
+            allow_opening_mrs=True,
             app_interface_api=gitlab_api,
             app_interface_repo_url="",
             default_gh_token="some-token",
             github_orgs=[],
             gitlab_instance=gitlab_api,
             secret_reader=secret_reader,
-            dry_run=True,
+            dry_run=False,
             gitlab_instances=[],
             github_api_per_repo_url={data.get("REPO", ""): github_api},
         )

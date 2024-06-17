@@ -12,9 +12,7 @@ from dataclasses import (
 )
 from typing import (
     Any,
-    Optional,
     Protocol,
-    Union,
     runtime_checkable,
 )
 
@@ -40,6 +38,7 @@ from reconcile.utils.oc import (
     OCClient,
     OCLogMsg,
     PrimaryClusterIPCanNotBeUnsetError,
+    RequestEntityTooLargeError,
     StatefulSetUpdateForbidden,
     StatusCodeError,
     UnsupportedMediaTypeError,
@@ -73,7 +72,7 @@ class BaseStateSpec:
 @dataclass
 class CurrentStateSpec(BaseStateSpec):
     kind: str
-    resource_names: Optional[Iterable[str]]
+    resource_names: Iterable[str] | None
 
 
 @dataclass
@@ -83,7 +82,7 @@ class DesiredStateSpec(BaseStateSpec):
     privileged: bool = False
 
 
-StateSpec = Union[CurrentStateSpec, DesiredStateSpec]
+StateSpec = CurrentStateSpec | DesiredStateSpec
 
 
 @runtime_checkable
@@ -113,7 +112,7 @@ class HasOrgAndGithubUsername(Protocol):
 class ClusterMap(Protocol):
     """An OCMap protocol."""
 
-    def get(self, cluster: str, privileged: bool = False) -> Union[OCCli, OCLogMsg]: ...
+    def get(self, cluster: str, privileged: bool = False) -> OCCli | OCLogMsg: ...
 
     def get_cluster(self, cluster: str, privileged: bool = False) -> OCCli: ...
 
@@ -125,9 +124,9 @@ class ClusterMap(Protocol):
 def init_specs_to_fetch(
     ri: ResourceInventory,
     oc_map: ClusterMap,
-    namespaces: Optional[Iterable[Mapping]] = None,
-    clusters: Optional[Iterable[Mapping]] = None,
-    override_managed_types: Optional[Iterable[str]] = None,
+    namespaces: Iterable[Mapping] | None = None,
+    clusters: Iterable[Mapping] | None = None,
+    override_managed_types: Iterable[str] | None = None,
     managed_types_key: str = "managedResourceTypes",
 ) -> list[StateSpec]:
     state_specs: list[StateSpec] = []
@@ -288,7 +287,7 @@ def populate_current_state(
     ri: ResourceInventory,
     integration: str,
     integration_version: str,
-    caller: Optional[str] = None,
+    caller: str | None = None,
 ):
     # if spec.oc is None: - oc can't be none because init_namespace_specs_to_fetch does not create specs if oc is none
     #    return
@@ -318,17 +317,17 @@ def populate_current_state(
 
 
 def fetch_current_state(
-    namespaces: Optional[Iterable[Mapping]] = None,
-    clusters: Optional[Iterable[Mapping]] = None,
-    thread_pool_size: Optional[int] = None,
-    integration: Optional[str] = None,
-    integration_version: Optional[str] = None,
-    override_managed_types: Optional[Iterable[str]] = None,
-    internal: Optional[bool] = None,
+    namespaces: Iterable[Mapping] | None = None,
+    clusters: Iterable[Mapping] | None = None,
+    thread_pool_size: int | None = None,
+    integration: str | None = None,
+    integration_version: str | None = None,
+    override_managed_types: Iterable[str] | None = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
     init_api_resources: bool = False,
     cluster_admin: bool = False,
-    caller: Optional[str] = None,
+    caller: str | None = None,
 ) -> tuple[ResourceInventory, OC_Map]:
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
@@ -402,7 +401,7 @@ def apply(
 
         try:
             oc.apply(namespace, annotated)
-        except InvalidValueApplyError:
+        except (InvalidValueApplyError, RequestEntityTooLargeError):
             oc.remove_last_applied_configuration(
                 namespace, resource_type, resource.name
             )
@@ -567,11 +566,11 @@ class ApplyOptions:
     wait_for_namespace: bool
     recycle_pods: bool
     take_over: bool
-    override_enable_deletion: Optional[bool]
-    caller: Optional[str]
-    all_callers: Optional[Sequence[str]]
-    privileged: Optional[bool]
-    enable_deletion: Optional[bool]
+    override_enable_deletion: bool | None
+    caller: str | None
+    all_callers: Sequence[str] | None
+    privileged: bool | None
+    enable_deletion: bool | None
 
 
 def should_apply(
@@ -886,7 +885,7 @@ def delete_action(
         )
     except StatusCodeError as e:
         ri.register_error()
-        msg = "[{}/{}] {}".format(cluster, namespace, str(e))
+        msg = f"[{cluster}/{namespace}] {str(e)}"
         logging.error(msg)
 
 
@@ -931,7 +930,7 @@ def _realize_resource_data_3way_diff(
     actions: list[dict] = []
 
     if ri.has_error_registered(cluster=cluster):
-        msg = ("[{}] skipping realize_data for " "cluster with errors").format(cluster)
+        msg = f"[{cluster}] skipping realize_data for " "cluster with errors"
         logging.error(msg)
         return actions
 
@@ -1305,8 +1304,8 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
 
 def determine_user_keys_for_access(
     cluster_name: str,
-    auth_list: Sequence[Union[dict[str, str], HasService]],
-    enforced_user_keys: Optional[list[str]] = None,
+    auth_list: Sequence[dict[str, str] | HasService],
+    enforced_user_keys: list[str] | None = None,
 ) -> list[str]:
     """Return user keys based on enabled cluster authentication methods."""
     AUTH_METHOD_USER_KEY = {
@@ -1352,7 +1351,7 @@ def user_has_cluster_access(
 ) -> bool:
     """Check user has access to cluster."""
     userkeys = determine_user_keys_for_access(cluster.name, cluster.auth)
-    return any((getattr(user, userkey) in cluster_users for userkey in userkeys))
+    return any(getattr(user, userkey) in cluster_users for userkey in userkeys)
 
 
 def get_namespace_type_overrides(namespace: Mapping) -> dict[str, str]:
@@ -1368,7 +1367,7 @@ def get_namespace_type_overrides(namespace: Mapping) -> dict[str, str]:
 
 
 def get_namespace_resource_types(
-    namespace: Mapping, type_overrides: Optional[dict[str, str]] = None
+    namespace: Mapping, type_overrides: dict[str, str] | None = None
 ) -> list[str]:
     """Returns a list with the namespace ResourceTypes, with the overrides in place
 
@@ -1385,7 +1384,7 @@ def get_namespace_resource_types(
 
 
 def get_namespace_resource_names(
-    namespace: Mapping, type_overrides: Optional[dict[str, str]] = None
+    namespace: Mapping, type_overrides: dict[str, str] | None = None
 ) -> dict[str, list[str]]:
     """Returns a list with the namespace ResourceTypeNames, with the overrides in place
 

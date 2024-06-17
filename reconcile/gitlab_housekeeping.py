@@ -9,11 +9,7 @@ from datetime import (
     timedelta,
 )
 from operator import itemgetter
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 import gitlab
 from gitlab.v4.objects import (
@@ -178,7 +174,7 @@ def close_item(
     gl: GitLabApi,
     enable_closing: bool,
     item_type: str,
-    item: Union[ProjectIssue, ProjectMergeRequest],
+    item: ProjectIssue | ProjectMergeRequest,
 ):
     if enable_closing:
         logging.info([
@@ -239,7 +235,7 @@ def handle_stale_items(
             cancel_notes = [
                 n
                 for n in item.notes.list()
-                if n.attributes.get("body") == "/{} cancel".format(LABEL)
+                if n.attributes.get("body") == f"/{LABEL} cancel"
             ]
             if not cancel_notes:
                 continue
@@ -280,7 +276,7 @@ def is_rebased(mr, gl: GitLabApi) -> bool:
 def get_merge_requests(
     dry_run: bool,
     gl: GitLabApi,
-    users_allowed_to_label: Optional[Iterable[str]] = None,
+    users_allowed_to_label: Iterable[str] | None = None,
 ) -> list[dict[str, Any]]:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     return preprocess_merge_requests(
@@ -295,7 +291,7 @@ def preprocess_merge_requests(
     dry_run: bool,
     gl: GitLabApi,
     project_merge_requests: list[ProjectMergeRequest],
-    users_allowed_to_label: Optional[Iterable[str]] = None,
+    users_allowed_to_label: Iterable[str] | None = None,
 ) -> list[dict[str, Any]]:
     results = []
     for mr in project_merge_requests:
@@ -434,7 +430,7 @@ def rebase_merge_requests(
                     rebases += 1
                     rebased_merge_requests.labels(mr.target_project_id).inc()
             except gitlab.exceptions.GitlabMRRebaseError as e:
-                logging.error("unable to rebase {}: {}".format(mr.iid, e))
+                logging.error(f"unable to rebase {mr.iid}: {e}")
         else:
             logging.info([
                 "rebase",
@@ -538,7 +534,7 @@ def merge_merge_requests(
                     return
                 merges += 1
             except gitlab.exceptions.GitlabMRClosedError as e:
-                logging.error("unable to merge {}: {}".format(mr.iid, e))
+                logging.error(f"unable to merge {mr.iid}: {e}")
 
 
 def get_app_sre_usernames(gl: GitLabApi) -> set[str]:

@@ -84,6 +84,7 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
 
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
     name
+    description
     labels
     url
     accessTokenClientId
@@ -104,6 +105,7 @@ query Clusters($name: String) {
   clusters: clusters_v1(name: $name) {
     path
     name
+    description
     serverUrl
     consoleUrl
     elbFQDN
@@ -613,6 +615,7 @@ class DisableClusterAutomationsV1(ConfiguredBaseModel):
 class ClusterV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
+    description: Optional[str] = Field(..., alias="description")
     server_url: str = Field(..., alias="serverUrl")
     console_url: str = Field(..., alias="consoleUrl")
     elb_fqdn: str = Field(..., alias="elbFQDN")

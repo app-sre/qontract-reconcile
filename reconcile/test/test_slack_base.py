@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 from pydantic import (
     BaseModel,
@@ -157,8 +155,8 @@ def test_permissions_workspace(
 
 
 class ClientGlobalConfig(BaseModel):
-    max_retries: Optional[int]
-    timeout: Optional[int]
+    max_retries: int | None
+    timeout: int | None
 
 
 class ClientMethodConfig(BaseModel):
@@ -167,8 +165,8 @@ class ClientMethodConfig(BaseModel):
 
 
 class ClientConfig(BaseModel):
-    q_global: Optional[ClientGlobalConfig]
-    methods: Optional[list[ClientMethodConfig]]
+    q_global: ClientGlobalConfig | None
+    methods: list[ClientMethodConfig] | None
 
 
 def test_get_slackapi():

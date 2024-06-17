@@ -3,10 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import MutableMapping
 from enum import Enum
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -26,7 +23,7 @@ def slugify(value: str) -> str:
 
 
 class User(BaseModel):
-    pk: Optional[int] = Field(None, alias="id")
+    pk: int | None = Field(None, alias="id")
     email: str
     role: str
     pending: bool = False
@@ -44,7 +41,7 @@ class User(BaseModel):
 
 
 class Team(BaseModel):
-    pk: Optional[int] = Field(None, alias="id")
+    pk: int | None = Field(None, alias="id")
     name: str = ""
     slug: str = ""
     users: list[User] = []
@@ -89,7 +86,7 @@ class RecipientType(Enum):
 
 
 class ProjectAlertRecipient(BaseModel):
-    pk: Optional[int]
+    pk: int | None
     recipient_type: RecipientType = Field(..., alias="recipientType")
     url: str = ""
 
@@ -118,7 +115,7 @@ class ProjectAlertRecipient(BaseModel):
 
 
 class ProjectAlert(BaseModel):
-    pk: Optional[int]
+    pk: int | None
     name: str
     timespan_minutes: int
     quantity: int
@@ -148,10 +145,10 @@ class ProjectAlert(BaseModel):
 
 
 class Project(BaseModel):
-    pk: Optional[int] = Field(None, alias="id")
+    pk: int | None = Field(None, alias="id")
     name: str
     slug: str = ""
-    platform: Optional[str]
+    platform: str | None
     teams: list[Team] = []
     alerts: list[ProjectAlert] = []
     event_throttle_rate: int = Field(0, alias="eventThrottleRate")
@@ -189,7 +186,7 @@ class Project(BaseModel):
 
 
 class Organization(BaseModel):
-    pk: Optional[int] = Field(None, alias="id")
+    pk: int | None = Field(None, alias="id")
     name: str
     slug: str = ""
     projects: list[Project] = []

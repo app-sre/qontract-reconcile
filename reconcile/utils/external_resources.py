@@ -4,10 +4,7 @@ from collections.abc import (
     Mapping,
     MutableMapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import anymarkup
 
@@ -27,7 +24,7 @@ PROVIDER_CLOUDFLARE = "cloudflare"
 
 
 def get_external_resource_specs(
-    namespace_info: Mapping[str, Any], provision_provider: Optional[str] = None
+    namespace_info: Mapping[str, Any], provision_provider: str | None = None
 ) -> list[ExternalResourceSpec]:
     specs: list[ExternalResourceSpec] = []
     if not managed_external_resources(namespace_info):
@@ -36,6 +33,8 @@ def get_external_resource_specs(
     external_resources = namespace_info.get("externalResources") or []
     for e in external_resources:
         for r in e.get("resources", []):
+            if "managed_by_erv2" in r and r["managed_by_erv2"]:
+                continue
             spec = ExternalResourceSpec(
                 provision_provider=e["provider"],
                 provisioner=e["provisioner"],
@@ -119,7 +118,7 @@ class ResourceValueResolver:
     def __init__(
         self,
         spec: ExternalResourceSpec,
-        integration_tag: Optional[str] = None,
+        integration_tag: str | None = None,
         identifier_as_value: bool = False,
     ):
         """
@@ -205,7 +204,7 @@ class ResourceValueResolver:
 
     @staticmethod
     def _override_values(
-        values: MutableMapping[str, Any], overrides: Optional[str]
+        values: MutableMapping[str, Any], overrides: str | None
     ) -> None:
         if overrides is None:
             return

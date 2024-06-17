@@ -1,7 +1,7 @@
 import hashlib
 import inspect
 from abc import ABC, abstractmethod
-from enum import Enum, IntFlag
+from enum import IntFlag, StrEnum
 from typing import Any
 
 from deepdiff import DeepHash
@@ -19,7 +19,7 @@ from kubernetes.client import (
 )
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     SUCCESS: str = "SUCCESS"
     ERROR: str = "ERROR"
     IN_PROGRESS: str = "IN_PROGRESS"

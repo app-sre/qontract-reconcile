@@ -1,9 +1,6 @@
 from collections import defaultdict
-from typing import (
-    Any,
-    Callable,
-    Optional,
-)
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -266,7 +263,7 @@ def test_generate_revoke_changed(
     db_connection_parameter: DatabaseConnectionParameters,
     db_admin_connection_parameter: DatabaseConnectionParameters,
     expected: str,
-    current: Optional[DatabaseAccessV1],
+    current: DatabaseAccessV1 | None,
 ):
     s = PSQLScriptGenerator(
         db_access=db_access_complete,

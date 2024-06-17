@@ -2,7 +2,6 @@ import logging
 import time
 from typing import (
     Any,
-    Optional,
     Self,
 )
 
@@ -15,6 +14,7 @@ from reconcile.gql_definitions.statuspage.statuspages import StatusPageV1
 from reconcile.statuspage.page import (
     StatusComponent,
     StatusMaintenance,
+    StatusMaintenanceAnnouncement,
     StatusPage,
 )
 from reconcile.statuspage.state import ComponentBindingState
@@ -28,12 +28,12 @@ class AtlassianRawComponent(BaseModel):
 
     id: str
     name: str
-    description: Optional[str]
+    description: str | None
     position: int
     status: str
-    automation_email: Optional[str]
-    group_id: Optional[str]
-    group: Optional[bool]
+    automation_email: str | None
+    group_id: str | None
+    group: bool | None
 
 
 class AtlassianRawMaintenanceUpdate(BaseModel):
@@ -54,6 +54,10 @@ class AtlassianRawMaintenance(BaseModel):
     scheduled_for: str
     scheduled_until: str
     incident_updates: list[AtlassianRawMaintenanceUpdate]
+    components: list[AtlassianRawComponent]
+    auto_transition_deliver_notifications_at_end: bool | None
+    auto_transition_deliver_notifications_at_start: bool | None
+    scheduled_remind_prior: bool | None
 
 
 class AtlassianAPI:
@@ -121,6 +125,11 @@ class AtlassianAPI:
         all_scheduled_incidents = self._list_items(url)
         return [AtlassianRawMaintenance(**i) for i in all_scheduled_incidents]
 
+    def list_active_maintenances(self) -> list[AtlassianRawMaintenance]:
+        url = f"{self.api_url}/v1/pages/{self.page_id}/incidents/active_maintenance"
+        all_active_incidents = self._list_items(url)
+        return [AtlassianRawMaintenance(**i) for i in all_active_incidents]
+
     def create_incident(self, data: dict[str, Any]) -> str:
         url = f"{self.api_url}/v1/pages/{self.page_id}/incidents"
         response = requests.post(
@@ -167,13 +176,13 @@ class AtlassianStatusPageProvider:
         self._group_name_to_id = {g.name: g.id for g in self._components if g.group}
         self._group_id_to_name = {g.id: g.name for g in self._components if g.group}
 
-    def get_component_by_id(self, id: str) -> Optional[StatusComponent]:
+    def get_component_by_id(self, id: str) -> StatusComponent | None:
         raw = self.get_raw_component_by_id(id)
         if raw:
             return self._bound_raw_component_to_status_component(raw)
         return None
 
-    def get_raw_component_by_id(self, id: str) -> Optional[AtlassianRawComponent]:
+    def get_raw_component_by_id(self, id: str) -> AtlassianRawComponent | None:
         return self._components_by_id.get(id)
 
     def get_current_page(self) -> StatusPage:
@@ -190,34 +199,41 @@ class AtlassianStatusPageProvider:
             components=[c for c in components if c is not None],
         )
 
+    def _raw_component_to_status_component(
+        self, raw_component: AtlassianRawComponent, name_override: str | None = None
+    ) -> StatusComponent:
+        group_name = (
+            self._group_id_to_name.get(raw_component.group_id)
+            if raw_component.group_id
+            else None
+        )
+        return StatusComponent(
+            name=name_override or raw_component.name,
+            display_name=raw_component.name,
+            description=raw_component.description,
+            group_name=group_name,
+            status_provider_configs=[
+                ManualStatusProvider(
+                    component_status=raw_component.status,
+                )
+            ],
+        )
+
     def _bound_raw_component_to_status_component(
         self, raw_component: AtlassianRawComponent
-    ) -> Optional[StatusComponent]:
+    ) -> StatusComponent | None:
         bound_component_name = self._binding_state.get_name_for_component_id(
             raw_component.id
         )
         if bound_component_name:
-            group_name = (
-                self._group_id_to_name.get(raw_component.group_id)
-                if raw_component.group_id
-                else None
-            )
-            return StatusComponent(
-                name=bound_component_name,
-                display_name=raw_component.name,
-                description=raw_component.description,
-                group_name=group_name,
-                status_provider_configs=[
-                    ManualStatusProvider(
-                        component_status=raw_component.status,
-                    )
-                ],
+            return self._raw_component_to_status_component(
+                raw_component, name_override=bound_component_name
             )
         return None
 
     def lookup_component(
         self, desired_component: StatusComponent
-    ) -> tuple[Optional[AtlassianRawComponent], bool]:
+    ) -> tuple[AtlassianRawComponent | None, bool]:
         """
         Finds the component on the page that matches the desired component. This
         is either done explicitely by using binding information if available or
@@ -251,7 +267,7 @@ class AtlassianStatusPageProvider:
         return component, bound
 
     def should_apply(
-        self, desired: StatusComponent, current: Optional[AtlassianRawComponent]
+        self, desired: StatusComponent, current: AtlassianRawComponent | None
     ) -> bool:
         """
         Verifies if the desired component should be applied to the status page
@@ -284,8 +300,15 @@ class AtlassianStatusPageProvider:
 
         # component status
         desired_component_status = desired.desired_component_status()
-        status_update_required = desired_component_status is not None and (
-            not current or desired_component_status != current.status
+        active_maintenance_affecting_component = [
+            m
+            for m in self.active_maintenances
+            if desired.display_name in [c.name for c in m.components]
+        ]
+        status_update_required = (
+            desired_component_status is not None
+            and (not current or desired_component_status != current.status)
+            and not active_maintenance_affecting_component
         )
 
         # shortcut execution if there is nothing to do
@@ -309,7 +332,7 @@ class AtlassianStatusPageProvider:
                 component_id=current_component.id,
             )
 
-        # validte the component and check if the current state needs to be updated
+        # validate the component and check if the current state needs to be updated
         needs_update = self.should_apply(desired, current_component)
         if not needs_update:
             return
@@ -332,7 +355,13 @@ class AtlassianStatusPageProvider:
         # resolve status
         desired_component_status = desired.desired_component_status()
         if desired_component_status:
-            component_update["status"] = desired_component_status
+            active_maintenance_affecting_component = [
+                m
+                for m in self.active_maintenances
+                if desired.display_name in [c.name for c in m.components]
+            ]
+            if not active_maintenance_affecting_component:
+                component_update["status"] = desired_component_status
 
         if current_component:
             logging.info(f"update component {desired.name}: {component_update}")
@@ -377,6 +406,27 @@ class AtlassianStatusPageProvider:
         if not dry_run:
             self._binding_state.bind_component(component_name, component_id)
 
+    def _raw_maintenance_to_status_maintenance(
+        self,
+        raw_maintenance: AtlassianRawMaintenance,
+        name_override: str | None = None,
+    ) -> StatusMaintenance:
+        return StatusMaintenance(
+            name=name_override or raw_maintenance.name,
+            message=raw_maintenance.incident_updates[0].body,
+            schedule_start=raw_maintenance.scheduled_for,
+            schedule_end=raw_maintenance.scheduled_until,
+            components=[
+                self._raw_component_to_status_component(c)
+                for c in raw_maintenance.components
+            ],
+            announcements=StatusMaintenanceAnnouncement(
+                remind_subscribers=raw_maintenance.scheduled_remind_prior,
+                notify_subscribers_on_start=raw_maintenance.auto_transition_deliver_notifications_at_start,
+                notify_subscribers_on_completion=raw_maintenance.auto_transition_deliver_notifications_at_end,
+            ),
+        )
+
     @classmethod
     def init_from_page(
         cls,
@@ -398,24 +448,40 @@ class AtlassianStatusPageProvider:
         )
 
     @property
-    def maintenances(self) -> list[StatusMaintenance]:
+    def scheduled_maintenances(self) -> list[StatusMaintenance]:
         return [
-            StatusMaintenance(
-                name=m.name,
-                message=m.incident_updates[0].body,
-                schedule_start=m.scheduled_for,
-                schedule_end=m.scheduled_until,
-            )
+            self._raw_maintenance_to_status_maintenance(m)
             for m in self._api.list_scheduled_maintenances()
         ]
 
+    @property
+    def active_maintenances(self) -> list[StatusMaintenance]:
+        return [
+            self._raw_maintenance_to_status_maintenance(m)
+            for m in self._api.list_active_maintenances()
+        ]
+
     def create_maintenance(self, maintenance: StatusMaintenance) -> None:
+        component_ids: list[str] = []
+        for sc in maintenance.components:
+            current_component, _ = self.lookup_component(sc)
+            if current_component:
+                component_ids.append(current_component.id)
         data = {
             "name": maintenance.name,
             "status": "scheduled",
             "scheduled_for": maintenance.schedule_start,
             "scheduled_until": maintenance.schedule_end,
             "body": maintenance.message,
+            "scheduled_remind_prior": maintenance.announcements.remind_subscribers,
+            "scheduled_auto_transition": True,
+            "scheduled_auto_in_progress": True,
+            "scheduled_auto_completed": True,
+            "component_ids": component_ids,
+            "auto_transition_to_maintenance_state": True,
+            "auto_transition_to_operational_state": True,
+            "auto_transition_deliver_notifications_at_start": maintenance.announcements.notify_subscribers_on_start,
+            "auto_transition_deliver_notifications_at_end": maintenance.announcements.notify_subscribers_on_completion,
         }
         incident_id = self._api.create_incident(data)
         self._bind_component(

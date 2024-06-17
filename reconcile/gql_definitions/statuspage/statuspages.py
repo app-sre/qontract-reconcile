@@ -31,7 +31,9 @@ fragment VaultSecret on VaultSecret_v1 {
 query StatusPages {
   status_pages: status_page_v1 {
     name
+    description
     pageId
+    url
     apiUrl
     credentials {
       ...VaultSecret
@@ -61,12 +63,18 @@ query StatusPages {
       message
       scheduledStart
       scheduledEnd
+      affectedServices {
+        name
+      }
       announcements {
         provider
         ... on MaintenanceStatuspageAnnouncement_v1 {
           page {
             name
           }
+          remindSubscribers
+          notifySubscribersOnStart
+          notifySubscribersOnCompletion
         }
       }
     }
@@ -109,6 +117,10 @@ class StatusPageComponentV1(ConfiguredBaseModel):
     status_config: Optional[list[Union[ManualStatusProviderV1, StatusProviderV1]]] = Field(..., alias="status_config")
 
 
+class MaintenanceV1_AppV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class MaintenanceAnnouncementV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
 
@@ -119,6 +131,9 @@ class MaintenanceStatuspageAnnouncementV1_StatusPageV1(ConfiguredBaseModel):
 
 class MaintenanceStatuspageAnnouncementV1(MaintenanceAnnouncementV1):
     page: MaintenanceStatuspageAnnouncementV1_StatusPageV1 = Field(..., alias="page")
+    remind_subscribers: Optional[bool] = Field(..., alias="remindSubscribers")
+    notify_subscribers_on_start: Optional[bool] = Field(..., alias="notifySubscribersOnStart")
+    notify_subscribers_on_completion: Optional[bool] = Field(..., alias="notifySubscribersOnCompletion")
 
 
 class MaintenanceV1(ConfiguredBaseModel):
@@ -126,12 +141,15 @@ class MaintenanceV1(ConfiguredBaseModel):
     message: str = Field(..., alias="message")
     scheduled_start: str = Field(..., alias="scheduledStart")
     scheduled_end: str = Field(..., alias="scheduledEnd")
+    affected_services: list[MaintenanceV1_AppV1] = Field(..., alias="affectedServices")
     announcements: Optional[list[Union[MaintenanceStatuspageAnnouncementV1, MaintenanceAnnouncementV1]]] = Field(..., alias="announcements")
 
 
 class StatusPageV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    description: str = Field(..., alias="description")
     page_id: str = Field(..., alias="pageId")
+    url: Optional[str] = Field(..., alias="url")
     api_url: str = Field(..., alias="apiUrl")
     credentials: VaultSecret = Field(..., alias="credentials")
     components: Optional[list[StatusPageComponentV1]] = Field(..., alias="components")

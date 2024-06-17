@@ -1,9 +1,6 @@
 import logging
 import sys
-from typing import (
-    Callable,
-    Optional,
-)
+from collections.abc import Callable
 
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.status import ExitCodes
@@ -26,7 +23,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 @defer
-def run(dry_run: bool, defer: Optional[Callable] = None) -> None:
+def run(dry_run: bool, defer: Callable | None = None) -> None:
     vault_settings = get_app_interface_vault_settings()
     saasherder_settings = get_saasherder_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)

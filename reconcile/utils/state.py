@@ -6,14 +6,19 @@ from abc import abstractmethod
 from collections.abc import Callable, Generator, Mapping
 from dataclasses import dataclass, field
 from typing import (
+    TYPE_CHECKING,
     Any,
-    Optional,
     Self,
 )
 
 import boto3
 from botocore.errorfactory import ClientError
-from mypy_boto3_s3 import S3Client
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+else:
+    S3Client = object
+
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.common.app_interface_state_settings import (
@@ -40,7 +45,7 @@ class StateInaccessibleException(Exception):
 
 def init_state(
     integration: str,
-    secret_reader: Optional[SecretReaderBase] = None,
+    secret_reader: SecretReaderBase | None = None,
 ) -> "State":
     if not secret_reader:
         vault_settings = get_app_interface_vault_settings()

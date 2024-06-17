@@ -34,7 +34,7 @@ objects:
           requests:
             storage: {{ default "1Gi" $integration.storage }}
     {{- end }}
-    revisionHistoryLimit: 50
+    revisionHistoryLimit: 5
     {{- if and ($shard.shard_spec_overrides) ($shard.shard_spec_overrides.disabled) }}
     replicas: 0
     {{- else }}
@@ -156,6 +156,16 @@ objects:
                 pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
+
+            {{- if $integration.unleashConnectionPool}}
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Max retries exceeded with url: \/api\/client\/features/
+              </exclude>
+            </filter>
+            {{- end}}
 
             <match integration>
               @type copy

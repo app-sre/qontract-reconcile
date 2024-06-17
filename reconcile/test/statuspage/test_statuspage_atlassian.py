@@ -128,7 +128,9 @@ def test_atlassian_provider_get_current_page(
 
 @pytest.mark.parametrize("dry_run", [True, False])
 def test_atlassian_page_bind_on_apply(
-    dry_run: bool, atlassian_page: AtlassianStatusPageProvider
+    dry_run: bool,
+    atlassian_page: AtlassianStatusPageProvider,
+    mocker: MockerFixture,
 ):
     """
     Tests that a component is bound to the page when it is applied.
@@ -142,6 +144,9 @@ def test_atlassian_page_bind_on_apply(
     )
 
     assert not atlassian_page.has_component_binding_for("ai-component-3")
+    mocker.patch.object(
+        atlassian_page._api, "list_active_maintenances"
+    ).return_value = []
     atlassian_page.apply_component(dry_run, desired_state_component)
     if dry_run:
         # if the apply is a dry-run, the binding should not be created
@@ -153,6 +158,7 @@ def test_atlassian_page_bind_on_apply(
 
 def test_atlassian_page_should_apply_on_status_update(
     atlassian_page: AtlassianStatusPageProvider,
+    mocker: MockerFixture,
 ):
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
@@ -160,6 +166,9 @@ def test_atlassian_page_should_apply_on_status_update(
     desired.status_provider_configs = [
         ManualStatusProvider(component_status="another-state")
     ]
+    mocker.patch.object(
+        atlassian_page._api, "list_active_maintenances"
+    ).return_value = []
 
     assert atlassian_page.should_apply(desired, current)
 
@@ -197,21 +206,29 @@ def test_atlassian_page_should_apply_on_moving_outside_group(
 
 def test_atlassian_page_should_apply_on_display_name_update(
     atlassian_page: AtlassianStatusPageProvider,
+    mocker: MockerFixture,
 ):
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
     desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
     desired.display_name = "some other display name"
+    mocker.patch.object(
+        atlassian_page._api, "list_active_maintenances"
+    ).return_value = []
 
     assert atlassian_page.should_apply(desired, current)
 
 
 def test_atlassian_page_should_apply_on_no_update(
     atlassian_page: AtlassianStatusPageProvider,
+    mocker: MockerFixture,
 ):
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
     desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
+    mocker.patch.object(
+        atlassian_page._api, "list_active_maintenances"
+    ).return_value = []
 
     assert not atlassian_page.should_apply(desired, current)
 
@@ -227,7 +244,9 @@ def test_atlassian_page_apply_component_update(
     desired.description = "some other description"
 
     update_component_mock = mocker.patch.object(atlassian_page._api, "update_component")
-
+    mocker.patch.object(
+        atlassian_page._api, "list_active_maintenances"
+    ).return_value = []
     atlassian_page.apply_component(dry_run, desired)
 
     if dry_run:
@@ -271,11 +290,14 @@ def test_atlassian_page_delete_component(
 
 def test_atlassian_page_dont_update_status_when_no_status_provider(
     atlassian_page: AtlassianStatusPageProvider,
+    mocker: MockerFixture,
 ):
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
     current.status = "some-status"
     desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
     desired.status_provider_configs = []
-
+    mocker.patch.object(
+        atlassian_page._api, "list_active_maintenances"
+    ).return_value = []
     assert not atlassian_page.should_apply(desired, current)

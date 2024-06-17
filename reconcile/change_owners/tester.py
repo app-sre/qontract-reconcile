@@ -2,10 +2,7 @@ import os
 import sys
 from collections.abc import Generator
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import jsonpath_ng
 import pygments
@@ -151,7 +148,7 @@ class AppInterfaceRepo:
             for file in files:
                 if file.endswith(".yml") or file.endswith(".yaml"):
                     filepath = os.path.join(root, file)
-                    with open(filepath, "r", encoding="locale") as f:
+                    with open(filepath, encoding="locale") as f:
                         parsed_yaml = yaml.safe_load(f)
                         if parsed_yaml.get("$schema") == schema:
                             relative_path = filepath[len(self.data_dir()) :]
@@ -166,7 +163,7 @@ class AppInterfaceRepo:
         self, file_type: BundleFileType, path: str
     ) -> BundleFileChange:
         if file_type == BundleFileType.DATAFILE:
-            with open(f"{self.data_dir()}{path}", "r", encoding="locale") as f:
+            with open(f"{self.data_dir()}{path}", encoding="locale") as f:
                 parsed_yaml = yaml.safe_load(f)
                 return BundleFileChange(
                     fileref=FileRef(
@@ -181,7 +178,7 @@ class AppInterfaceRepo:
                     diffs=[],
                 )
         elif file_type == BundleFileType.RESOURCEFILE:
-            with open(f"{self.resource_dir()}{path}", "r", encoding="locale") as f:
+            with open(f"{self.resource_dir()}{path}", encoding="locale") as f:
                 content = f.read()
                 parsed_content, schema = parse_resource_file_content(content)
                 return BundleFileChange(
@@ -223,7 +220,7 @@ class FilesystemFileDiffResolver:
 
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
         file = self.app_interface_repo.bundle_file_for_path(
             file_type=file_ref.file_type, path=file_ref.path
         )
@@ -232,7 +229,7 @@ class FilesystemFileDiffResolver:
 
 def get_changetype_processor_by_name(
     change_type_name: str, app_interface_repo: AppInterfaceRepo
-) -> Optional[ChangeTypeProcessor]:
+) -> ChangeTypeProcessor | None:
     processors = fetch_change_type_processors(
         gql.get_api(), FilesystemFileDiffResolver(app_interface_repo)
     )
@@ -241,7 +238,7 @@ def get_changetype_processor_by_name(
 
 def get_self_service_role_by_name(
     role_name: str,
-) -> Optional[RoleV1]:
+) -> RoleV1 | None:
     result = self_service_roles.query(
         gql.get_api().query, variables={"name": role_name}
     ).roles

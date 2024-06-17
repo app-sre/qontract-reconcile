@@ -3,6 +3,7 @@
 query TerraformCloudflareAccounts {
   accounts: cloudflare_accounts_v1 {
     name
+    description
     providerVersion
     apiCredentials {
       ... VaultSecret

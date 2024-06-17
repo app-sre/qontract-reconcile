@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import (
-    Optional,
     TypeVar,
 )
 
@@ -22,8 +21,8 @@ CAPABILITY_MANAGE_CLUSTER_ADMIN = "capability.cluster.manage_cluster_admin"
 
 
 class OCMCollectionLink(BaseModel):
-    kind: Optional[str] = None
-    href: Optional[str] = None
+    kind: str | None = None
+    href: str | None = None
 
 
 class OCMModelLink(OCMCollectionLink):
@@ -76,7 +75,7 @@ class OCMClusterUser(BaseModel):
     The id represents the user name.
     """
 
-    href: Optional[str] = None
+    href: str | None = None
     kind: str = "User"
 
 
@@ -86,7 +85,7 @@ class OCMClusterUserList(BaseModel):
     """
 
     kind: str = "UserList"
-    href: Optional[str] = None
+    href: str | None = None
     items: list[OCMClusterUser]
 
 
@@ -96,8 +95,8 @@ class OCMClusterGroup(BaseModel):
     """
 
     id: OCMClusterGroupId
-    href: Optional[str] = None
-    users: Optional[OCMClusterUserList] = None
+    href: str | None = None
+    users: OCMClusterUserList | None = None
 
     def user_ids(self) -> set[str]:
         """
@@ -135,16 +134,16 @@ class OCMClusterAWSOperatorRole(BaseModel):
 
 
 class OCMAWSSTS(OCMClusterFlag):
-    role_arn: Optional[str]
-    support_role_arn: Optional[str]
-    oidc_endpoint_url: Optional[str]
-    operator_iam_roles: Optional[list[OCMClusterAWSOperatorRole]]
-    instance_iam_roles: Optional[dict[str, str]]
-    operator_role_prefix: Optional[str]
+    role_arn: str | None
+    support_role_arn: str | None
+    oidc_endpoint_url: str | None
+    operator_iam_roles: list[OCMClusterAWSOperatorRole] | None
+    instance_iam_roles: dict[str, str] | None
+    operator_role_prefix: str | None
 
 
 class OCMClusterAWSSettings(BaseModel):
-    sts: Optional[OCMAWSSTS]
+    sts: OCMAWSSTS | None
 
     @property
     def sts_enabled(self) -> bool:
@@ -168,7 +167,7 @@ class OCMClusterAWSSettings(BaseModel):
         return roles
 
     @property
-    def account_role_prefix(self) -> Optional[str]:
+    def account_role_prefix(self) -> str | None:
         INSTALLER_ROLE_BASE_NAME = "-Installer-Role"
         installer_role_arn = self.sts.role_arn if self.sts else None
         if installer_role_arn and installer_role_arn.endswith(INSTALLER_ROLE_BASE_NAME):
@@ -211,6 +210,27 @@ PRODUCT_ID_OSD = "osd"
 PRODUCT_ID_ROSA = "rosa"
 
 
+class ProvisionShard(BaseModel):
+    kind: str = "ProvisionShard"
+    id: str
+
+
+class ClusterManagementReference(BaseModel):
+    cluster_id: str
+    href: str
+
+
+class FleetManagerServiceCluster(BaseModel):
+    kind: str = "ServiceCluster"
+
+    """
+    Using OSDFleetManager API, which has different object ids.
+    https://api.openshift.com/?urls.primaryName=OSD%20Fleet%20Manager%20service
+    """
+    cluster_management_reference: ClusterManagementReference
+    provision_shard_reference: OCMModelLink
+
+
 class OCMCluster(BaseModel):
     kind: str = "Cluster"
     id: str
@@ -231,19 +251,19 @@ class OCMCluster(BaseModel):
     product: OCMModelLink
     identity_providers: OCMCollectionLink
 
-    aws: Optional[OCMClusterAWSSettings]
+    aws: OCMClusterAWSSettings | None
 
     version: OCMClusterVersion
 
     hypershift: OCMClusterFlag
 
-    console: Optional[OCMClusterConsole]
+    console: OCMClusterConsole | None
 
-    api: Optional[OCMClusterAPI]
+    api: OCMClusterAPI | None
 
-    dns: Optional[OCMClusterDns]
+    dns: OCMClusterDns | None
 
-    external_configuration: Optional[OCMExternalConfiguration]
+    external_configuration: OCMExternalConfiguration | None
 
     def minor_version(self) -> str:
         version_info = parse_semver(self.version.raw_id)
@@ -275,15 +295,15 @@ class OCMCluster(BaseModel):
         )
 
     @property
-    def console_url(self) -> Optional[str]:
+    def console_url(self) -> str | None:
         return self.console.url if self.console else None
 
     @property
-    def api_url(self) -> Optional[str]:
+    def api_url(self) -> str | None:
         return self.api.url if self.api else None
 
     @property
-    def base_domain(self) -> Optional[str]:
+    def base_domain(self) -> str | None:
         return self.dns.base_domain if self.dns else None
 
 
@@ -348,7 +368,7 @@ class LabelContainer(BaseModel):
     def __bool__(self) -> bool:
         return len(self.labels) > 0
 
-    def get(self, name: str) -> Optional[OCMLabel]:
+    def get(self, name: str) -> OCMLabel | None:
         return self.labels.get(name)
 
     def __getitem__(self, name: str) -> OCMLabel:
@@ -360,7 +380,7 @@ class LabelContainer(BaseModel):
             raise ValueError(f"Required label '{name}' does not exist.")
         return label
 
-    def get_label_value(self, name: str) -> Optional[str]:
+    def get_label_value(self, name: str) -> str | None:
         label = self.get(name)
         if label:
             return label.value
@@ -370,7 +390,7 @@ class LabelContainer(BaseModel):
         return {label.key: label.value for label in self.labels.values()}
 
 
-class OCMServiceLogSeverity(str, Enum):
+class OCMServiceLogSeverity(StrEnum):
     """
     Represents the severity of a service log.
     """
@@ -462,8 +482,8 @@ class OCMSubscription(BaseModel):
 
     status: OCMSubscriptionStatus
 
-    labels: Optional[list[OCMSubscriptionLabel]] = None
-    capabilities: Optional[list[OCMCapability]] = None
+    labels: list[OCMSubscriptionLabel] | None = None
+    capabilities: list[OCMCapability] | None = None
     """
     Capabilities are a list of features/features flags that are enabled for a subscription.
     """
@@ -477,8 +497,8 @@ class OCMOrganization(BaseModel):
     id: str
     name: str
 
-    labels: Optional[list[OCMOrganizationLabel]] = None
-    capabilities: Optional[list[OCMCapability]] = None
+    labels: list[OCMOrganizationLabel] | None = None
+    capabilities: list[OCMCapability] | None = None
     """
     Capabilities are a list of features/features flags that are enabled for an organization.
     """
@@ -509,7 +529,7 @@ class ClusterDetails(BaseModel):
         return capa is not None and capa.value == value
 
 
-class OCMOIdentityProviderMappingMethod(str, Enum):
+class OCMOIdentityProviderMappingMethod(StrEnum):
     ADD = "add"
     CLAIM = "claim"
     LOOKUP = "lookup"
@@ -519,8 +539,8 @@ class OCMOIdentityProviderMappingMethod(str, Enum):
 class OCMOIdentityProvider(BaseModel):
     type: str
     name: str
-    id: Optional[str] = None
-    href: Optional[str] = None
+    id: str | None = None
+    href: str | None = None
 
 
 class OCMOIdentityProviderGithub(OCMOIdentityProvider):
@@ -543,7 +563,7 @@ class OCMOIdentityProviderOidcOpenIdClaims(BaseModel):
 
 class OCMOIdentityProviderOidcOpenId(BaseModel):
     client_id: str
-    client_secret: Optional[str] = None
+    client_secret: str | None = None
     issuer: str
     claims: OCMOIdentityProviderOidcOpenIdClaims = OCMOIdentityProviderOidcOpenIdClaims(
         email=["email"],
@@ -579,15 +599,15 @@ class OCMAddonUpgradePolicy(BaseModel):
     id: str
     addon_id: str
     cluster_id: str
-    next_run: Optional[str]
-    schedule: Optional[str]
+    next_run: str | None
+    schedule: str | None
     schedule_type: str
     version: str
-    state: Optional[str]
+    state: str | None
 
 
 def build_label_container(
-    *label_iterables: Optional[Iterable[OCMLabel]],
+    *label_iterables: Iterable[OCMLabel] | None,
 ) -> LabelContainer:
     """
     Builds a label container from a list of labels.

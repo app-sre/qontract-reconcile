@@ -11,9 +11,9 @@ from reconcile.utils import git
 
 @retry()
 def scan_history(repo_url, existing_keys):
-    logging.info("scanning {}".format(repo_url))
+    logging.info(f"scanning {repo_url}")
     if requests.get(repo_url, timeout=60).status_code == 404:
-        logging.info("not found {}".format(repo_url))
+        logging.info(f"not found {repo_url}")
         return []
 
     with tempfile.TemporaryDirectory() as wd:
@@ -27,11 +27,11 @@ def scan_history(repo_url, existing_keys):
         )
         if result.returncode == 0:
             return []
-        logging.info("found suspects in {}".format(repo_url))
+        logging.info(f"found suspects in {repo_url}")
         suspected_files = get_suspected_files(result.stderr.decode("utf-8"))
         leaked_keys = get_leaked_keys(wd, suspected_files, existing_keys)
         if leaked_keys:
-            logging.info("found suspected leaked keys: {}".format(leaked_keys))
+            logging.info(f"found suspected leaked keys: {leaked_keys}")
         return leaked_keys
 
 
@@ -55,7 +55,7 @@ def get_leaked_keys(repo_wd, suspected_files, existing_keys):
         commit, file_relative_path = s[0], s[1]
         git.checkout(commit, repo_wd)
         file_path = os.path.join(repo_wd, file_relative_path)
-        with open(file_path, "r", encoding="locale") as f:
+        with open(file_path, encoding="locale") as f:
             content = f.read()
         leaked_keys = [key for key in existing_keys if key in content]
         all_leaked_keys.extend(leaked_keys)

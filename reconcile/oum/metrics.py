@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
@@ -56,7 +56,7 @@ class OCMUserManagementOrganizationActionCounter(
 ):
     "Counter for the number of actions taken for an OCM organization"
 
-    class Action(str, Enum):
+    class Action(StrEnum):
         AddUser = "add-user"
         RemoveUser = "remove-user"
 

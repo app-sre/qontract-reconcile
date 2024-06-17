@@ -11,7 +11,6 @@ from collections import (
 from collections.abc import Iterable
 from typing import (
     Any,
-    Optional,
     Self,
 )
 
@@ -67,11 +66,11 @@ class QuayMirror:
     def __init__(
         self,
         dry_run: bool = False,
-        control_file_dir: Optional[str] = None,
-        compare_tags: Optional[bool] = None,
+        control_file_dir: str | None = None,
+        compare_tags: bool | None = None,
         compare_tags_interval: int = 86400,
-        repository_urls: Optional[Iterable[str]] = None,
-        exclude_repository_urls: Optional[Iterable[str]] = None,
+        repository_urls: Iterable[str] | None = None,
+        exclude_repository_urls: Iterable[str] | None = None,
     ) -> None:
         self.dry_run = dry_run
         self.gqlapi = gql.get_api()
@@ -113,7 +112,7 @@ class QuayMirror:
                 tempfile.gettempdir(), CONTROL_FILE_NAME
             )
 
-        self._has_enough_time_passed_since_last_compare_tags: Optional[bool] = None
+        self._has_enough_time_passed_since_last_compare_tags: bool | None = None
         self.session = requests.Session()
 
     def __enter__(self) -> Self:
@@ -142,8 +141,8 @@ class QuayMirror:
     @classmethod
     def process_repos_query(
         cls,
-        repository_urls: Optional[Iterable[str]] = None,
-        exclude_repository_urls: Optional[Iterable[str]] = None,
+        repository_urls: Iterable[str] | None = None,
+        exclude_repository_urls: Iterable[str] | None = None,
         session: requests.Session | None = None,
         timeout: int = REQUEST_TIMEOUT,
     ) -> defaultdict[OrgKey, list[dict[str, Any]]]:
@@ -370,7 +369,7 @@ class QuayMirror:
     @staticmethod
     def check_compare_tags_elapsed_time(path, interval) -> bool:
         try:
-            with open(path, "r", encoding="locale") as file_obj:
+            with open(path, encoding="locale") as file_obj:
                 last_compare_tags = float(file_obj.read())
         except FileNotFoundError:
             return True
@@ -406,11 +405,11 @@ class QuayMirror:
 
 def run(
     dry_run,
-    control_file_dir: Optional[str],
-    compare_tags: Optional[bool],
+    control_file_dir: str | None,
+    compare_tags: bool | None,
     compare_tags_interval: int,
-    repository_urls: Optional[Iterable[str]],
-    exclude_repository_urls: Optional[Iterable[str]],
+    repository_urls: Iterable[str] | None,
+    exclude_repository_urls: Iterable[str] | None,
 ):
     with QuayMirror(
         dry_run,

@@ -1,5 +1,5 @@
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from reconcile.external_resources.manager import (
     ExternalResourcesInventory,
@@ -124,7 +124,12 @@ def run(
                 dry_run_job_suffix=dry_run_job_suffix,
             ),
             secrets_reconciler=build_incluster_secrets_reconciler(
-                workers_cluster, workers_namespace, secret_reader, vault_path="app-sre"
+                workers_cluster,
+                workers_namespace,
+                secret_reader,
+                vault_path=er_settings.vault_secrets_path,
+                thread_pool_size=thread_pool_size,
+                dry_run=dry_run,
             ),
         )
 

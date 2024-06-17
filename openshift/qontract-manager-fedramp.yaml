@@ -17,7 +17,7 @@ objects:
       ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
     name: qontract-reconcile-integrations-manager
   spec:
-    revisionHistoryLimit: 50
+    revisionHistoryLimit: 5
     replicas: 1
     selector:
       matchLabels:
@@ -83,6 +83,13 @@ objects:
               <exclude>
                 key message
                 pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Max retries exceeded with url: \/api\/client\/features/
               </exclude>
             </filter>
 

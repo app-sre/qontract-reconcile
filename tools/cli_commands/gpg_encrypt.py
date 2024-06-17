@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import (
-    Mapping,
-    Optional,
-)
 
 from reconcile import queries
 from reconcile.utils import (
@@ -114,7 +111,7 @@ class GPGEncryptCommand:
             f"No argument given which defines how to fetch the secret {self._command_data}"
         )
 
-    def _get_gpg_key(self) -> Optional[str]:
+    def _get_gpg_key(self) -> str | None:
         target_user = self._command_data.target_user
         users = queries.get_users_by(
             refs=False,
@@ -156,7 +153,7 @@ class GPGEncryptCommand:
     def create(
         cls,
         command_data: GPGEncryptCommandData,
-        secret_reader: Optional[SecretReader] = None,
+        secret_reader: SecretReader | None = None,
     ) -> GPGEncryptCommand:
         cls_secret_reader = (
             secret_reader

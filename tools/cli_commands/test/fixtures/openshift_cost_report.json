@@ -1,0 +1,197 @@
+{
+  "meta": {
+    "count": 1,
+    "limit": 100,
+    "offset": 0,
+    "currency": "USD",
+    "delta": {
+      "value": 100,
+      "percent": 10
+    },
+    "filter": {
+      "resolution": "monthly",
+      "time_scope_value": "-2",
+      "time_scope_units": "month",
+      "project": [
+        "some-project"
+      ],
+      "cluster": [
+        "some-cluster-uuid"
+      ]
+    },
+    "group_by": {
+      "project": [
+        "some-project"
+      ]
+    },
+    "order_by": {},
+    "exclude": {},
+    "distributed_overhead": false,
+    "total": {
+      "infrastructure": {
+        "raw": {
+          "value": 1000,
+          "units": "USD"
+        },
+        "markup": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "usage": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "total": {
+          "value": 1000,
+          "units": "USD"
+        }
+      },
+      "supplementary": {
+        "raw": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "markup": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "usage": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "total": {
+          "value": 0.0,
+          "units": "USD"
+        }
+      },
+      "cost": {
+        "raw": {
+          "value": 1000,
+          "units": "USD"
+        },
+        "markup": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "usage": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "platform_distributed": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "worker_unallocated_distributed": {
+          "value": 0.0,
+          "units": "USD"
+        },
+        "distributed": {
+          "value": 1000,
+          "units": "USD"
+        },
+        "total": {
+          "value": 1000,
+          "units": "USD"
+        }
+      }
+    }
+  },
+  "links": {
+    "first": "/api/cost-management/v1/reports/openshift/costs/?delta=cost&filter%5Bcluster%5D=some-cluster-uuid&filter%5Bproject%5D=some-project&filter%5Bresolution%5D=monthly&filter%5Btime_scope_units%5D=month&filter%5Btime_scope_value%5D=-1&group_by%5Bproject%5D=%2A&limit=100&offset=0",
+    "next": null,
+    "previous": null,
+    "last": "/api/cost-management/v1/reports/openshift/costs/?delta=cost&filter%5Bcluster%5D=some-cluster-uuid&filter%5Bproject%5D=some-project&filter%5Bresolution%5D=monthly&filter%5Btime_scope_units%5D=month&filter%5Btime_scope_value%5D=-1&group_by%5Bproject%5D=%2A&limit=100&offset=0"
+  },
+  "data": [
+    {
+      "date": "2024-02",
+      "projects": [
+        {
+          "project": "some-project",
+          "values": [
+            {
+              "date": "2024-02",
+              "project": "some-project",
+              "clusters": [
+                "some-cluster"
+              ],
+              "source_uuid": [
+                "some-source-uuid"
+              ],
+              "cost_group": null,
+              "classification": "project",
+              "delta_value": 100,
+              "delta_percent": 10,
+              "infrastructure": {
+                "raw": {
+                  "value": 1000,
+                  "units": "USD"
+                },
+                "markup": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "usage": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "total": {
+                  "value": 1000,
+                  "units": "USD"
+                }
+              },
+              "supplementary": {
+                "raw": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "markup": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "usage": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "total": {
+                  "value": 0.0,
+                  "units": "USD"
+                }
+              },
+              "cost": {
+                "raw": {
+                  "value": 1000,
+                  "units": "USD"
+                },
+                "markup": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "usage": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "platform_distributed": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "worker_unallocated_distributed": {
+                  "value": 0.0,
+                  "units": "USD"
+                },
+                "distributed": {
+                  "value": 1000,
+                  "units": "USD"
+                },
+                "total": {
+                  "value": 1000,
+                  "units": "USD"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

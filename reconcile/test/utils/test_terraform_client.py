@@ -905,6 +905,29 @@ def test_terraform_plan_with_error(
     mocked_lean_tf.show_json.assert_not_called()
 
 
+def test_terraform_safe_plan_raises_errors(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_threaded_run = mocker.patch("reconcile.utils.terraform_client.threaded.run")
+    error_message = "exceeded available rate limit retries"
+    mocked_threaded_run.return_value = [(1, "", error_message)]
+    mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
+    with mocked_tempfile.NamedTemporaryFile.return_value as f:
+        f.name = "temp-name"
+        f.read.return_value.decode.return_value = ""
+    with pytest.raises(RuntimeError) as exception:
+        tf.safe_plan(enable_deletion=False)
+
+    assert str(exception.value) == "Terraform plan has errors"
+
+    mocked_threaded_run.return_value = [(1, "detected disable deletion", False)]
+    with pytest.raises(RuntimeError) as exception:
+        tf.safe_plan(enable_deletion=False)
+
+    assert str(exception.value) == "Terraform plan has disabled deletions detected"
+
+
 def test_terraform_apply(
     tf: tfclient.TerraformClient,
     mocker: MockerFixture,

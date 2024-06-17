@@ -1,0 +1,13 @@
+# qenerate: plugin=pydantic_v1
+
+query JenkinsInstances {
+  instances: jenkins_instances_v1 {
+    name
+    description
+    serverUrl
+    token {
+      ... VaultSecret
+    }
+    deleteMethod
+  }
+}

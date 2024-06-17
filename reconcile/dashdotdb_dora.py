@@ -1,17 +1,15 @@
 import functools
 import os
 from collections import defaultdict
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import (
+    UTC,
     datetime,
     timedelta,
-    timezone,
 )
 from typing import (
     Any,
-    Iterable,
-    Mapping,
-    Optional,
     Self,
 )
 
@@ -44,8 +42,8 @@ QONTRACT_INTEGRATION = "dashdotdb-dora"
 class DeploymentDBSecret:
     path: str
     field: str
-    q_format: Optional[str]
-    version: Optional[int]
+    q_format: str | None
+    version: int | None
 
 
 @dataclass(eq=True, frozen=True)
@@ -76,9 +74,9 @@ class SaasTarget:
 
 @dataclass(eq=True, frozen=True)
 class RepoChanges:
-    repo_url: Optional[str]
-    ref_from: Optional[str]
-    ref_to: Optional[str]
+    repo_url: str | None
+    ref_from: str | None
+    ref_to: str | None
 
 
 @dataclass(eq=True, frozen=True)
@@ -162,12 +160,10 @@ class Commit:
         finish_timestamp_tzaware = finish_timestamp
 
         if commit_date_tzaware.tzinfo is None:
-            commit_date_tzaware = commit_date_tzaware.replace(tzinfo=timezone.utc)
+            commit_date_tzaware = commit_date_tzaware.replace(tzinfo=UTC)
 
         if finish_timestamp_tzaware.tzinfo is None:
-            finish_timestamp_tzaware = finish_timestamp_tzaware.replace(
-                tzinfo=timezone.utc
-            )
+            finish_timestamp_tzaware = finish_timestamp_tzaware.replace(tzinfo=UTC)
 
         return int((finish_timestamp_tzaware - commit_date_tzaware).total_seconds())
 
@@ -397,7 +393,7 @@ class DashdotdbDORA(DashdotdbBase):
 
     def get_repo_ref_for_sha(
         self, saastarget: SaasTarget, sha: str
-    ) -> tuple[Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None]:
         try:
             saas_file_yaml = self.gl_app_interface_get_file(
                 saastarget.path, ref=sha

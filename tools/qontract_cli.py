@@ -9,16 +9,13 @@ import re
 import sys
 from collections import defaultdict
 from datetime import (
+    UTC,
     datetime,
     timedelta,
-    timezone,
 )
 from operator import itemgetter
 from statistics import median
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import boto3
 import click
@@ -59,6 +56,14 @@ from reconcile.cli import (
     config_file,
     use_jump_host,
 )
+from reconcile.external_resources.manager import (
+    FLAG_RESOURCE_MANAGED_BY_ERV2,
+    setup_factories,
+)
+from reconcile.external_resources.model import (
+    ExternalResourcesInventory,
+    load_module_inventory,
+)
 from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
     query as aus_clusters_query,
 )
@@ -75,6 +80,11 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.clusters import get_clusters
+from reconcile.typed_queries.external_resources import (
+    get_modules,
+    get_namespaces,
+    get_settings,
+)
 from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.typed_queries.status_board import get_status_board
@@ -136,11 +146,13 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
-from tools.cli_commands.cost_report.command import CostReportCommand
+from tools.cli_commands.cost_report.aws import AwsCostReportCommand
+from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
 )
+from tools.cli_commands.systems_and_tools import get_systems_and_tools_inventory
 from tools.sre_checkpoints import (
     full_name,
     get_latest_sre_checkpoints,
@@ -350,8 +362,8 @@ def get_upgrade_policies_data(
 
     def soaking_str(
         soaking: dict[str, Any],
-        upgrade_policy: Optional[AbstractUpgradePolicy],
-        upgradeable_version: Optional[str],
+        upgrade_policy: AbstractUpgradePolicy | None,
+        upgradeable_version: str | None,
     ) -> str:
         if upgrade_policy:
             upgrade_version = upgrade_policy.version
@@ -762,9 +774,9 @@ def ocm_addon_upgrade_policies(ctx: click.core.Context) -> None:
 @click.pass_context
 def sd_app_sre_alert_report(
     ctx: click.core.Context,
-    days: Optional[int],
-    from_timestamp: Optional[int],
-    to_timestamp: Optional[int],
+    days: int | None,
+    from_timestamp: int | None,
+    to_timestamp: int | None,
 ) -> None:
     import tools.sd_app_sre_alert_report as report
 
@@ -1263,8 +1275,9 @@ def aws_route53_zones(ctx):
 
 @get.command()
 @click.argument("cluster_name")
+@click.option("--cluster-admin/--no-cluster-admin", default=False)
 @click.pass_context
-def bot_login(ctx, cluster_name):
+def bot_login(ctx, cluster_name, cluster_admin):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     clusters = queries.get_clusters()
@@ -1275,7 +1288,10 @@ def bot_login(ctx, cluster_name):
 
     cluster = clusters[0]
     server = cluster["serverUrl"]
-    token = secret_reader.read(cluster["automationToken"])
+    automation_token_name = (
+        "clusterAdminAutomationToken" if cluster_admin else "automationToken"
+    )
+    token = secret_reader.read(cluster[automation_token_name])
     print(f"oc login --server {server} --token {token}")
 
 
@@ -1401,9 +1417,7 @@ def rosa_create_cluster_command(ctx, cluster_name):
 @click.argument("jumphost_hostname", required=False)
 @click.argument("cluster_name", required=False)
 @click.pass_context
-def sshuttle_command(
-    ctx, jumphost_hostname: Optional[str], cluster_name: Optional[str]
-):
+def sshuttle_command(ctx, jumphost_hostname: str | None, cluster_name: str | None):
     jumphosts_query_data = queries.get_jumphosts(hostname=jumphost_hostname)
     jumphosts = jumphosts_query_data.jumphosts or []
     for jh in jumphosts:
@@ -1578,6 +1592,10 @@ def rds(ctx):
                 "engine": rds_attr("engine", overrides, defaults),
                 "engine_version": rds_attr("engine_version", overrides, defaults),
                 "instance_class": rds_attr("instance_class", overrides, defaults),
+                "storage_type": rds_attr("storage_type", overrides, defaults),
+                "ca_cert_identifier": rds_attr(
+                    "ca_cert_identifier", overrides, defaults
+                ),
             }
             results.append(item)
 
@@ -1592,6 +1610,8 @@ def rds(ctx):
                 {"key": "engine", "sortable": True},
                 {"key": "engine_version", "sortable": True},
                 {"key": "instance_class", "sortable": True},
+                {"key": "storage_type", "sortable": True},
+                {"key": "ca_cert_identifier", "sortable": True},
             ],
             "items": results,
         }
@@ -1616,6 +1636,8 @@ You can view the source of this Markdown to extract the JSON data.
             "engine",
             "engine_version",
             "instance_class",
+            "storage_type",
+            "ca_cert_identifier",
         ]
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], results, columns)
@@ -2062,7 +2084,10 @@ def app_interface_review_queue(ctx) -> None:
 
     queue_data.sort(key=itemgetter("updated_at"))
     ctx.obj["options"]["sort"] = False  # do not sort
-    print_output(ctx.obj["options"], queue_data, columns)
+    text = print_output(ctx.obj["options"], queue_data, columns)
+    if text:
+        slack = slackapi_from_queries("app-interface-review-queue")
+        slack.chat_post_message("```\n" + text + "\n```")
 
 
 @get.command()
@@ -2341,7 +2366,7 @@ def ec2_jenkins_workers(ctx, aws_access_key_id, aws_secret_access_key, aws_regio
     client = boto3.client("autoscaling")
     ec2 = boto3.resource("ec2")
     results = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
     columns = [
         "type",
@@ -2494,7 +2519,7 @@ def alerts(ctx, file_path):
             case _:
                 return BIG_NUMBER
 
-    with open(file_path, "r", encoding="locale") as f:
+    with open(file_path, encoding="locale") as f:
         content = json.loads(f.read())
 
     columns = [
@@ -2538,7 +2563,14 @@ def alerts(ctx, file_path):
 @get.command()
 @click.pass_context
 def aws_cost_report(ctx):
-    command = CostReportCommand.create()
+    command = AwsCostReportCommand.create()
+    print(command.execute())
+
+
+@get.command()
+@click.pass_context
+def openshift_cost_report(ctx):
+    command = OpenShiftCostReportCommand.create()
     print(command.execute())
 
 
@@ -2581,7 +2613,7 @@ def osd_component_versions(ctx):
 @get.command()
 @click.pass_context
 def maintenances(ctx):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     maintenances = maintenances_gql.query(gql.get_api().query).maintenances or []
     data = [
         {
@@ -2589,7 +2621,7 @@ def maintenances(ctx):
             "services": ", ".join(a.name for a in m.affected_services),
         }
         for m in maintenances
-        if datetime.fromisoformat(m.scheduled_end) > now
+        if datetime.fromisoformat(m.scheduled_start) > now
     ]
     columns = [
         "name",
@@ -2598,6 +2630,164 @@ def maintenances(ctx):
         "services",
     ]
     print_output(ctx.obj["options"], data, columns)
+
+
+class MigrationStatusCount:
+    def __init__(self, app: str) -> None:
+        self.app = app
+        self._source = 0
+        self._target = 0
+
+    def inc(self, source_or_target: str) -> None:
+        match source_or_target:
+            case "source":
+                self._source += 1
+            case "target":
+                self._target += 1
+            case _:
+                raise ValueError("hcp migration label must be source or target")
+
+    @property
+    def classic(self) -> int:
+        return self._source
+
+    @property
+    def hcp(self) -> int:
+        return self._target
+
+    @property
+    def total(self) -> int:
+        return self.classic + self.hcp
+
+    @property
+    def progress(self) -> float:
+        return round(self.hcp / self.total * 100, 0)
+
+    @property
+    def item(self) -> dict[str, Any]:
+        return {
+            "app": self.app,
+            "classic": self.classic or "0",
+            "hcp": self.hcp or "0",
+            "progress": self.progress or "0",
+        }
+
+
+@get.command()
+@click.pass_context
+def hcp_migration_status(ctx):
+    counts: dict[str, MigrationStatusCount] = {}
+    total_count = MigrationStatusCount("total")
+    saas_files = get_saas_files()
+    for sf in saas_files:
+        if sf.publish_job_logs:
+            # ignore post deployment test saas files
+            continue
+        for rt in sf.resource_templates:
+            if rt.provider == "directory" or "dashboard" in rt.name:
+                # ignore grafana dashboards
+                continue
+            for t in rt.targets:
+                if t.namespace.name.startswith("openshift-"):
+                    # ignore openshift namespaces
+                    continue
+                if t.namespace.path.startswith("/openshift/"):
+                    # ignore per-cluster namespaces
+                    continue
+                if t.delete:
+                    continue
+                if hcp_migration := t.namespace.cluster.labels.get("hcp_migration"):
+                    app = sf.app.parent_app.name if sf.app.parent_app else sf.app.name
+                    counts.setdefault(app, MigrationStatusCount(app))
+                    counts[app].inc(hcp_migration)
+                    total_count.inc(hcp_migration)
+
+    data = [c.item for c in counts.values()]
+    print(
+        f"SUMMARY: {total_count.hcp} / {total_count.total} COMPLETED ({total_count.progress}%)"
+    )
+    columns = ["app", "classic", "hcp", "progress"]
+    print_output(ctx.obj["options"], data, columns)
+
+
+@get.command()
+@click.pass_context
+def systems_and_tools(ctx):
+    print(
+        f"This report is obtained from app-interface Graphql endpoint available at: {config.get_config()['graphql']['server']}"
+    )
+    inventory = get_systems_and_tools_inventory()
+    print_output(ctx.obj["options"], inventory.data, inventory.columns)
+
+
+@get.command
+@click.pass_context
+def jenkins_jobs(ctx):
+    jenkins_configs = queries.get_jenkins_configs()
+
+    # stats dicts
+    apps = {}
+    totals = {"rhel8": 0, "other": 0}
+
+    for jc in jenkins_configs:
+        app_name = jc["app"]["name"]
+
+        if app_name not in apps:
+            apps[app_name] = {"rhel8": 0, "other": 0}
+
+        config = json.loads(jc["config"]) if jc["config"] else []
+        for c in config:
+            if "project" not in c:
+                continue
+
+            project = c["project"]
+            root_node = project.get("node") or ""
+            if "jobs" not in project:
+                continue
+
+            for pj in project["jobs"]:
+                for job in pj.values():
+                    node = job["node"] if "node" in job else root_node
+                    if node == "rhel8":
+                        apps[app_name]["rhel8"] += 1
+                        totals["rhel8"] += 1
+                    else:
+                        apps[app_name]["other"] += 1
+                        totals["other"] += 1
+
+    results = [
+        {"app": app} | stats
+        for app, stats in sorted(apps.items(), key=lambda i: i[0].lower())
+        if not (stats["other"] == 0 and stats["rhel8"] == 0)
+    ]
+    results.append({"app": "TOTALS"} | totals)
+
+    if ctx.obj["options"]["output"] == "md":
+        json_table = {
+            "filter": True,
+            "fields": [
+                {"key": "app"},
+                {"key": "other"},
+                {"key": "rhel8"},
+            ],
+            "items": results,
+        }
+
+        print(
+            f"""
+You can view the source of this Markdown to extract the JSON data.
+
+{len(results)} apps with Jenkins jobs
+
+```json:table
+{json.dumps(json_table)}
+```
+            """
+        )
+    else:
+        columns = ["app", "other", "rhel8"]
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], results, columns)
 
 
 @root.group(name="set")
@@ -3292,7 +3482,7 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None) -> None:
 @click.option("--app-name", default=None, help="app to act on.")
 @click.pass_context
 def saas_targets(
-    ctx, saas_file_name: Optional[str] = None, app_name: Optional[str] = None
+    ctx, saas_file_name: str | None = None, app_name: str | None = None
 ) -> None:
     """Resolve namespaceSelectors and print all resulting targets of a saas file."""
     console = Console()
@@ -3482,6 +3672,51 @@ def gpg_encrypt(
 
 
 @root.command()
+@click.option("--channel", help="the channel that state is part of")
+@click.option("--sha", help="the commit sha we want state for")
+@environ(["APP_INTERFACE_STATE_BUCKET"])
+def get_promotion_state(channel: str, sha: str):
+    from tools.saas_promotion_state.saas_promotion_state import (
+        SaasPromotionState,
+    )
+
+    bucket = os.environ.get("APP_INTERFACE_STATE_BUCKET")
+    region = os.environ.get("APP_INTERFACE_STATE_BUCKET_REGION", "us-east-1")
+    promotion_state = SaasPromotionState.create(promotion_state=None, saas_files=None)
+    for publisher_id, state in promotion_state.get(channel=channel, sha=sha).items():
+        print()
+        if not state:
+            print(f"No state found for {publisher_id=}")
+        else:
+            print(f"{publisher_id=}")
+            print(
+                f"State link: https://{region}.console.aws.amazon.com/s3/object/{bucket}?region={region}&bucketType=general&prefix=state/openshift-saas-deploy/promotions_v2/{channel}/{publisher_id}/{sha}"
+            )
+            print(f"Content: {state}")
+
+
+@root.command()
+@click.option("--channel", help="the channel that state is part of")
+@click.option("--sha", help="the commit sha we want state for")
+@click.option("--publisher-id", help="the publisher id we want state for")
+@environ(["APP_INTERFACE_STATE_BUCKET"])
+def mark_promotion_state_successful(channel: str, sha: str, publisher_id: str):
+    from tools.saas_promotion_state.saas_promotion_state import (
+        SaasPromotionState,
+    )
+
+    promotion_state = SaasPromotionState.create(promotion_state=None, saas_files=None)
+    print(f"Current states for {publisher_id=}")
+    print(promotion_state.get(channel=channel, sha=sha).get(publisher_id, None))
+    print()
+    print("Pushing new state ...")
+    promotion_state.set_successful(channel=channel, sha=sha, publisher_uid=publisher_id)
+    print()
+    print(f"New state for {publisher_id=}")
+    print(promotion_state.get(channel=channel, sha=sha).get(publisher_id, None))
+
+
+@root.command()
 @click.option("--change-type-name")
 @click.option("--role-name")
 @click.option(
@@ -3586,6 +3821,46 @@ def remove(ctx, sso_client_vault_secret_path: str):
         bg="red",
         fg="white",
     )
+
+
+@root.group()
+@click.pass_context
+def external_resources(ctx):
+    """External resources commands"""
+
+
+@external_resources.command()
+@click.argument("provision-provider", required=True)
+@click.argument("provisioner", required=True)
+@click.argument("provider", required=True)
+@click.argument("identifier", required=True)
+@click.pass_context
+def get_input(
+    ctx, provision_provider: str, provisioner: str, provider: str, identifier: str
+):
+    """Gets the input data for an external resource asset. Input data is what is used
+    in the Reconciliation Job to manage the resource.
+
+    e.g: qontract-reconcile --config=<config> external-resources get-input aws app-sre-stage rds dashdotdb-stage
+    """
+    namespaces = [ns for ns in get_namespaces() if ns.external_resources]
+    er_inventory = ExternalResourcesInventory(namespaces)
+
+    spec = er_inventory.get_inventory_spec(
+        provision_provider=provision_provider,
+        provisioner=provisioner,
+        provider=provider,
+        identifier=identifier,
+    )
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    er_settings = get_settings()[0]
+    m_inventory = load_module_inventory(get_modules())
+    factories = setup_factories(er_settings, m_inventory, er_inventory, secret_reader)
+    f = factories.get_factory(spec.provision_provider)
+    resource = f.create_external_resource(spec)
+    f.validate_external_resource(resource)
+    print(resource.json(exclude={"data": {FLAG_RESOURCE_MANAGED_BY_ERV2}}))
 
 
 if __name__ == "__main__":

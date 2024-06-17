@@ -2,10 +2,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from unittest.mock import create_autospec
 
 import pytest
@@ -50,7 +47,7 @@ def namespace(assets: list[CNANullAssetV1]) -> NamespaceV1:
     )
 
 
-def null_asset(name: str, addr_block: Optional[str]) -> NullAsset:
+def null_asset(name: str, addr_block: str | None) -> NullAsset:
     return NullAsset(
         uuid=None,
         href=None,

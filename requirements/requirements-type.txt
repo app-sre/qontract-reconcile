@@ -14,7 +14,8 @@ types-tabulate
 types-toml
 types-dateparser
 types-oauthlib
-boto3-stubs[ec2,s3,rds,iam,route53,organizations,service-quotas,sts,support,dynamodb]==1.34.15
+# keep in sync with boto3 in setup.py
+boto3-stubs[account,ec2,s3,rds,iam,route53,organizations,service-quotas,sts,support,dynamodb]==1.34.94
 kubernetes-stubs==22.6.0
 qenerate==0.6.3
 types-psycopg2

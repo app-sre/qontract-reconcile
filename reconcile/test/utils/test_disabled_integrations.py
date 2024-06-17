@@ -1,9 +1,5 @@
 from collections.abc import Mapping
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 import pytest
 from pydantic import BaseModel
@@ -21,7 +17,7 @@ class IntMandatory(BaseModel):
 
 
 class IntOptional(BaseModel):
-    integrations: Optional[list[str]]
+    integrations: list[str] | None
 
 
 class MandatoryIntMandatory(BaseModel):
@@ -29,7 +25,7 @@ class MandatoryIntMandatory(BaseModel):
 
 
 class OptionalIntOptional(BaseModel):
-    disable: Optional[IntOptional]
+    disable: IntOptional | None
 
 
 class MandatoryIntOptional(BaseModel):
@@ -37,7 +33,7 @@ class MandatoryIntOptional(BaseModel):
 
 
 class OptionalIntMandatory(BaseModel):
-    disable: Optional[IntMandatory]
+    disable: IntMandatory | None
 
 
 INT_LIST = ["int1", "int2"]
@@ -69,7 +65,7 @@ INT_LIST = ["int1", "int2"]
     ],
 )
 def test_utils_disabled_integrations(
-    disable_obj: Optional[Union[Mapping[str, Any], HasDisableIntegrations]],
+    disable_obj: Mapping[str, Any] | HasDisableIntegrations | None,
     expected: list[str],
 ) -> None:
     assert disabled_integrations(disable_obj) == expected

@@ -31,6 +31,7 @@ fragment VaultSecret on VaultSecret_v1 {
 query PagerduytInstances {
   pagerduty_instances: pagerduty_instances_v1 {
     name
+    description
     token {
       ...VaultSecret
     }
@@ -47,6 +48,7 @@ class ConfiguredBaseModel(BaseModel):
 
 class PagerDutyInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    description: str = Field(..., alias="description")
     token: VaultSecret = Field(..., alias="token")
 
 

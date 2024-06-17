@@ -6,7 +6,6 @@ import sys
 import time
 from collections.abc import Callable
 from importlib import metadata
-from typing import Optional
 
 import click
 from prometheus_client import (
@@ -80,7 +79,7 @@ class PushgatewayBadConfigError(Exception):
     pass
 
 
-def _parse_dry_run_flag(dry_run: Optional[str]) -> Optional[str]:
+def _parse_dry_run_flag(dry_run: str | None) -> str | None:
     dry_run_options = ["--dry-run", "--no-dry-run"]
     if dry_run is not None and dry_run not in dry_run_options:
         msg = (
@@ -95,9 +94,9 @@ def _parse_dry_run_flag(dry_run: Optional[str]) -> Optional[str]:
 def build_entry_point_args(
     command: click.Command,
     config: str,
-    dry_run: Optional[str],
+    dry_run: str | None,
     integration_name: str,
-    extra_args: Optional[str],
+    extra_args: str | None,
 ) -> list[str]:
     args = ["--config", config]
     if dry_run_flag := _parse_dry_run_flag(dry_run):
@@ -125,7 +124,7 @@ def build_entry_point_func(command_name: str) -> click.Command:
     console_script_entry_points = {
         ep.name: ep for ep in metadata.entry_points().select(group="console_scripts")
     }
-    entry_point: Optional[metadata.EntryPoint] = console_script_entry_points.get(
+    entry_point: metadata.EntryPoint | None = console_script_entry_points.get(
         command_name, None
     )
     if entry_point:
@@ -159,7 +158,7 @@ def _get_pushgateway_env_vars() -> dict[str, str]:
 def _push_gateway_basic_auth_handler(
     url: str,
     method: str,
-    timeout: Optional[float],
+    timeout: float | None,
     headers: list[tuple[str, str]],
     data: bytes,
 ) -> Callable[[], None]:

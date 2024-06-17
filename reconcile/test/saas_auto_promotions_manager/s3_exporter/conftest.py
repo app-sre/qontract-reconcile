@@ -1,5 +1,5 @@
 from collections.abc import Callable, Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -31,7 +31,7 @@ def publisher_builder() -> Callable[[Mapping], Publisher]:
                     success=v,
                     saas_file="",
                     target_config_hash="",
-                    check_in=datetime.now(timezone.utc),
+                    check_in=datetime.now(UTC),
                 )
             else:
                 publisher.deployment_info_by_channel[k] = None

@@ -5,10 +5,7 @@ import shlex
 from collections.abc import Mapping
 from dataclasses import dataclass
 from textwrap import indent
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from jinja2 import Template
 
@@ -25,7 +22,7 @@ SECRET_READER_SETTINGS = """
 """
 
 
-def get_secret_reader_settings() -> Optional[Mapping[str, Any]]:
+def get_secret_reader_settings() -> Mapping[str, Any] | None:
     """Returns SecretReader settings"""
     gqlapi = gql.get_api()
     settings = gqlapi.query(SECRET_READER_SETTINGS)["settings"]
@@ -598,7 +595,7 @@ def get_queue_aws_accounts():
     return get_aws_accounts(uid=uid)
 
 
-def get_jumphosts(hostname: Optional[str] = None) -> JumphostsQueryData:
+def get_jumphosts(hostname: str | None = None) -> JumphostsQueryData:
     """Returns all jumphosts"""
     variables = {}
     # The dictionary must be empty if no hostname is set.
@@ -945,6 +942,12 @@ CLUSTERS_QUERY = """
       }
     }
     automationToken {
+      path
+      field
+      version
+      format
+    }
+    clusterAdminAutomationToken {
       path
       field
       version
@@ -1724,6 +1727,7 @@ CODE_COMPONENT_REPO_QUERY = """
   apps: apps_v1 {
     codeComponents {
       url
+      managePermissions
     }
   }
 }
@@ -1756,7 +1760,7 @@ def get_review_repos():
     ]
 
 
-def get_repos(server="") -> list[str]:
+def get_repos(server: str = "", exclude_manage_permissions: bool = False) -> list[str]:
     """Returns all repos defined under codeComponents
     Optional arguments:
     server: url of the server to return. for example: https://github.com
@@ -1766,6 +1770,8 @@ def get_repos(server="") -> list[str]:
     for a in apps:
         if a["codeComponents"] is not None:
             for c in a["codeComponents"]:
+                if exclude_manage_permissions and c.get("managePermissions") is False:
+                    continue
                 if c["url"].startswith(server):
                     repos.append(c["url"])
     return repos
@@ -2280,7 +2286,7 @@ JIRA_BOARDS_QUERY = """
 """
 
 
-def get_jira_boards(with_slack: Optional[bool] = True):
+def get_jira_boards(with_slack: bool | None = True):
     """Returns Jira boards resources defined in app-interface"""
     gqlapi = gql.get_api()
     query = Template(JIRA_BOARDS_QUERY).render(with_slack=with_slack)
@@ -2784,3 +2790,36 @@ BLACKBOX_EXPORTER_MONITORING_PROVIDER = """
 def get_blackbox_exporter_monitoring_provider() -> dict:
     gqlapi = gql.get_api()
     return gqlapi.query(BLACKBOX_EXPORTER_MONITORING_PROVIDER)["providers"]
+
+
+JENKINS_CONFIGS = """
+{
+  jenkins_configs: jenkins_configs_v1 {
+    name
+    app {
+      name
+    }
+    instance {
+      name
+      serverUrl
+      token {
+        path
+        field
+        version
+        format
+      }
+      deleteMethod
+    }
+    type
+    config
+    config_path {
+      content
+    }
+  }
+}
+"""
+
+
+def get_jenkins_configs():
+    gqlapi = gql.get_api()
+    return gqlapi.query(JENKINS_CONFIGS)["jenkins_configs"]

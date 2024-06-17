@@ -2,7 +2,7 @@ import hashlib
 import json
 import re
 from collections.abc import Iterable
-from typing import Any, Optional
+from typing import Any
 from urllib import parse
 
 import jinja2
@@ -20,7 +20,7 @@ def json_to_dict(input: str) -> Any:
     return data
 
 
-def urlescape(string: str, safe: str = "/", encoding: Optional[str] = None) -> str:
+def urlescape(string: str, safe: str = "/", encoding: str | None = None) -> str:
     """Jinja2 filter that is a simple wrapper around urllib's URL quoting
     functions that takes a string value and makes it safe for use as URL
     components escaping any reserved characters using URL encoding. See:
@@ -37,7 +37,7 @@ def urlescape(string: str, safe: str = "/", encoding: Optional[str] = None) -> s
     return parse.quote(string, safe=safe, encoding=encoding)
 
 
-def urlunescape(string: str, encoding: Optional[str] = None) -> str:
+def urlunescape(string: str, encoding: str | None = None) -> str:
     """Jinja2 filter that is a simple wrapper around urllib's URL unquoting
     functions that takes an URL-encoded string value and unescapes it
     replacing any URL-encoded values with their character equivalent. See:
@@ -78,7 +78,7 @@ def hash_list(input: Iterable) -> str:
     lst = list(input)
     str_lst = []
     for el in lst:
-        if isinstance(el, (list, dict)):
+        if isinstance(el, list | dict):
             raise RuntimeError(
                 f"jinja2 hash_list function received non-primitive value {el}. All values received {lst}"
             )

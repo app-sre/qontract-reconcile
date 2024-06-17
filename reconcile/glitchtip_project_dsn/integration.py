@@ -3,10 +3,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from sretoolbox.utils import threaded
 
@@ -20,7 +17,7 @@ from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     DEFINITION as GLITCHTIP_PROJECT_DEFINITION,
 )
-from reconcile.gql_definitions.glitchtip.glitchtip_project import GlitchtipProjectsV1
+from reconcile.gql_definitions.glitchtip.glitchtip_project import GlitchtipProjectV1
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     query as glitchtip_project_query,
 )
@@ -73,7 +70,7 @@ def glitchtip_project_dsn_secret(project: Project, key: ProjectKey) -> dict[str,
 
 
 def fetch_current_state(
-    project: GlitchtipProjectsV1,
+    project: GlitchtipProjectV1,
     oc_map: OCMap,
     ri: ResourceInventory,
 ) -> None:
@@ -110,7 +107,7 @@ def fetch_current_state(
 
 
 def fetch_desired_state(
-    glitchtip_projects: Iterable[GlitchtipProjectsV1],
+    glitchtip_projects: Iterable[GlitchtipProjectV1],
     ri: ResourceInventory,
     glitchtip_client: GlitchtipClient,
 ) -> None:
@@ -145,7 +142,7 @@ def fetch_desired_state(
             )
 
 
-def projects_query(query_func: Callable) -> list[GlitchtipProjectsV1]:
+def projects_query(query_func: Callable) -> list[GlitchtipProjectV1]:
     glitchtip_projects = []
     for project in (
         glitchtip_project_query(query_func=query_func).glitchtip_projects or []
@@ -169,10 +166,10 @@ def projects_query(query_func: Callable) -> list[GlitchtipProjectsV1]:
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    instance: Optional[str] = None,
-    defer: Optional[Callable] = None,
+    instance: str | None = None,
+    defer: Callable | None = None,
 ) -> None:
     # settings
     vault_settings = get_app_interface_vault_settings()

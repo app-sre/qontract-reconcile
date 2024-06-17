@@ -109,3 +109,23 @@ def test_3wpd_change_empty_env_value_should_not_apply(deployment):
     ]
 
     assert three_way_diff_using_hash(c_item, d_item) is True
+
+
+def test_3wpd_diff_detects_missing_annotation(deployment):
+    d_item = OR(deployment, "", "")
+    d_item.body["metadata"]["annotations"]["new-annotation"] = "test-value"
+    c_item = d_item.annotate(canonicalize=False)
+
+    del c_item.body["metadata"]["annotations"]["new-annotation"]
+
+    assert three_way_diff_using_hash(c_item, d_item) is False
+
+
+def test_3wpd_diff_detects_switch_integration(deployment):
+    d_item = OR(deployment, "same-integration", "")
+    deployment["metadata"]["annotations"]["qontract.integration"] = (
+        "different-integration"
+    )
+    c_item = OR(deployment, "same-integration", "").annotate(canonicalize=False)
+
+    assert three_way_diff_using_hash(c_item, d_item) is False

@@ -1,8 +1,4 @@
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 import pytest
 from pydantic import (
@@ -146,7 +142,7 @@ def test_default_data_none_optional_string(
     """
 
     class DemoModel(BaseModel):
-        optional_string: Optional[str] = Field(...)
+        optional_string: str | None = Field(...)
 
     assert (
         DemoModel(**data_default_none(DemoModel, data)).optional_string
@@ -221,7 +217,7 @@ def test_default_data_none_optional_int(
     """
 
     class DemoModel(BaseModel):
-        optional_int: Optional[int] = Field(...)
+        optional_int: int | None = Field(...)
 
     assert (
         DemoModel(**data_default_none(DemoModel, data)).optional_int == expected_value
@@ -295,7 +291,7 @@ def test_default_data_none_optional_bool(
     """
 
     class DemoModel(BaseModel):
-        optional_bool: Optional[bool] = Field(...)
+        optional_bool: bool | None = Field(...)
 
     assert (
         DemoModel(**data_default_none(DemoModel, data)).optional_bool == expected_value
@@ -401,7 +397,7 @@ def test_default_data_none_mandatory_union_basemodel(
     expected_model_class = globals()[expected_model_class_name]
 
     class DemoModel(BaseModel):
-        model_field: Union[DemoFieldModel, AnotherDemoFieldModel]
+        model_field: DemoFieldModel | AnotherDemoFieldModel
 
         class Config:
             smart_union = True
@@ -440,7 +436,7 @@ def test_default_data_none_mandatory_union_basemodel_list_without_default() -> N
     """
 
     class DemoModel(BaseModel):
-        model_fields: list[Union[DemoFieldModel, AnotherDemoFieldModel]]
+        model_fields: list[DemoFieldModel | AnotherDemoFieldModel]
 
     dm = DemoModel(
         **data_default_none(

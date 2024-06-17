@@ -30,10 +30,18 @@ query GlitchtipProjectsWithAlerts {
     }
     jira {
       project
-      board {
-        name
-        disable {
-          integrations
+      components
+      escalationPolicy {
+        channels {
+          jiraBoard {
+            name
+            issueType
+            disable {
+              integrations
+            }
+          }
+          jiraComponent
+          jiraLabels
         }
       }
       labels

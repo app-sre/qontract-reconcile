@@ -3,11 +3,7 @@ import logging
 import os
 import subprocess
 from collections.abc import Mapping
-from typing import (
-    Any,
-    Optional,
-    Tuple,
-)
+from typing import Any
 
 
 def state_rm_access_key(working_dirs, account, user):
@@ -15,13 +11,13 @@ def state_rm_access_key(working_dirs, account, user):
     init_result = subprocess.run(["terraform", "init"], check=False, cwd=wd)
     if init_result.returncode != 0:
         return False
-    resource = "aws_iam_access_key.{}".format(user)
+    resource = f"aws_iam_access_key.{user}"
     result = subprocess.run(["terraform", "state", "rm", resource], check=False, cwd=wd)
     return result.returncode == 0
 
 
 def _compute_terraform_env(
-    env: Optional[Mapping[str, str]] = None,
+    env: Mapping[str, str] | None = None,
 ) -> Mapping[str, str]:
     default_env = os.environ.copy()
     return default_env if env is None else {**default_env, **env}
@@ -30,8 +26,8 @@ def _compute_terraform_env(
 def _terraform_command(
     args: list[str],
     working_dir: str,
-    env: Optional[Mapping[str, str]] = None,
-) -> Tuple[int, str, str]:
+    env: Mapping[str, str] | None = None,
+) -> tuple[int, str, str]:
     result = subprocess.run(
         args,
         capture_output=True,
@@ -66,8 +62,8 @@ def show_json(working_dir: str, path: str) -> dict[str, Any]:
 
 def init(
     working_dir: str,
-    env: Optional[Mapping[str, str]] = None,
-) -> Tuple[int, str, str]:
+    env: Mapping[str, str] | None = None,
+) -> tuple[int, str, str]:
     """
     Run terraform init -input=false -no-color.
 
@@ -84,8 +80,8 @@ def init(
 
 def output(
     working_dir: str,
-    env: Optional[Mapping[str, str]] = None,
-) -> Tuple[int, str, str]:
+    env: Mapping[str, str] | None = None,
+) -> tuple[int, str, str]:
     """
     Run terraform output -json.
 
@@ -103,8 +99,8 @@ def output(
 def plan(
     working_dir: str,
     out: str,
-    env: Optional[Mapping[str, str]] = None,
-) -> Tuple[int, str, str]:
+    env: Mapping[str, str] | None = None,
+) -> tuple[int, str, str]:
     """
     Run terraform plan -out=<out> -input=false -no-color.
 
@@ -123,8 +119,8 @@ def plan(
 def apply(
     working_dir: str,
     dir_or_plan: str,
-    env: Optional[Mapping[str, str]] = None,
-) -> Tuple[int, str, str]:
+    env: Mapping[str, str] | None = None,
+) -> tuple[int, str, str]:
     """
     Run terraform apply -input=false -no-color <dir_or_plan>.
 

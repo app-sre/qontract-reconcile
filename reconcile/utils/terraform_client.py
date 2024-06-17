@@ -20,7 +20,6 @@ from threading import Lock
 from typing import (
     IO,
     Any,
-    Optional,
     cast,
 )
 
@@ -81,7 +80,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         accounts: Iterable[Mapping[str, Any]],
         working_dirs: Mapping[str, str],
         thread_pool_size: int,
-        aws_api: Optional[AWSApi] = None,
+        aws_api: AWSApi | None = None,
         init_users=False,
     ):
         self.integration = integration
@@ -208,6 +207,15 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 disabled_deletions_detected = True
             self.created_users.extend(created_users)
         return disabled_deletions_detected, errors
+
+    def safe_plan(self, enable_deletion: bool) -> None:
+        """Raises exception if errors are detected at plan step"""
+        disable_deletions_detected, errors = self.plan(enable_deletion)
+
+        if errors:
+            raise RuntimeError("Terraform plan has errors")
+        if disable_deletions_detected:
+            raise RuntimeError("Terraform plan has disabled deletions detected")
 
     @retry()
     def terraform_plan(
@@ -463,12 +471,8 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         if output is None:
             return data
 
-        enc_pass_pfx = "{}_{}".format(
-            self.integration_prefix, self.OUTPUT_TYPE_PASSWORDS
-        )
-        console_urls_pfx = "{}_{}".format(
-            self.integration_prefix, self.OUTPUT_TYPE_CONSOLEURLS
-        )
+        enc_pass_pfx = f"{self.integration_prefix}_{self.OUTPUT_TYPE_PASSWORDS}"
+        console_urls_pfx = f"{self.integration_prefix}_{self.OUTPUT_TYPE_CONSOLEURLS}"
         for k, v in output.items():
             # the integration creates outputs of the form
             # 0.11: output_secret_name[secret_key] = secret_value

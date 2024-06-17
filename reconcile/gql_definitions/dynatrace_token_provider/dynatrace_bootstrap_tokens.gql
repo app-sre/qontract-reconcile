@@ -2,9 +2,12 @@
 
 query DynatraceEnvironment {
   environments: dynatrace_environment_v1 {
+    name
+    description
     bootstrapToken {
       ... VaultSecret
     }
+    environmentID
     environmentUrl
   }
 }

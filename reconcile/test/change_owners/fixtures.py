@@ -1,11 +1,7 @@
 import copy
 import hashlib
 import json
-from typing import (
-    Any,
-    Optional,
-    Tuple,
-)
+from typing import Any
 
 import jsonpath_ng
 import jsonpath_ng.ext
@@ -75,10 +71,10 @@ class QontractServerBundleDiffDataBuilder:
         self,
         path: str,
         schema: str,
-        old_content: Optional[dict[str, Any]],
-        new_content: Optional[dict[str, Any]],
-        old_sha_override: Optional[str] = None,
-        new_sha_override: Optional[str] = None,
+        old_content: dict[str, Any] | None,
+        new_content: dict[str, Any] | None,
+        old_sha_override: str | None = None,
+        new_sha_override: str | None = None,
     ) -> "QontractServerBundleDiffDataBuilder":
         old = copy.deepcopy(old_content)
         if old:
@@ -100,9 +96,9 @@ class QontractServerBundleDiffDataBuilder:
         path: str,
         old_content: Any,
         new_content: Any,
-        schema: Optional[str] = None,
-        old_backrefs: Optional[list[QontractServerResourcefileBackref]] = None,
-        new_backrefs: Optional[list[QontractServerResourcefileBackref]] = None,
+        schema: str | None = None,
+        old_backrefs: list[QontractServerResourcefileBackref] | None = None,
+        new_backrefs: list[QontractServerResourcefileBackref] | None = None,
     ) -> "QontractServerBundleDiffDataBuilder":
         entry = QontractServerResourcefileDiff(resourcepath=path)
         if old_content:
@@ -129,11 +125,11 @@ class QontractServerBundleDiffDataBuilder:
 def build_bundle_datafile_change(
     path: str,
     schema: str,
-    old_content: Optional[dict[str, Any]],
-    new_content: Optional[dict[str, Any]],
-    old_sha_override: Optional[str] = None,
-    new_sha_override: Optional[str] = None,
-) -> Optional[BundleFileChange]:
+    old_content: dict[str, Any] | None,
+    new_content: dict[str, Any] | None,
+    old_sha_override: str | None = None,
+    new_sha_override: str | None = None,
+) -> BundleFileChange | None:
     builder = QontractServerBundleDiffDataBuilder().add_datafile(
         path=path,
         schema=schema,
@@ -149,10 +145,10 @@ def build_bundle_datafile_change(
 
 def build_bundle_resourcefile_change(
     path: str,
-    schema: Optional[str],
-    old_content: Optional[str],
-    new_content: Optional[str],
-) -> Optional[BundleFileChange]:
+    schema: str | None,
+    old_content: str | None,
+    new_content: str | None,
+) -> BundleFileChange | None:
     builder = QontractServerBundleDiffDataBuilder().add_resource_file(
         path=path,
         schema=schema,
@@ -167,7 +163,7 @@ def build_bundle_resourcefile_change(
 @dataclass
 class StubFile:
     filepath: str
-    fileschema: Optional[str]
+    fileschema: str | None
     filetype: BundleFileType
     content: dict[str, Any]
 
@@ -180,9 +176,9 @@ class StubFile:
 
     def _build_bundle_file_change(
         self,
-        old_content: Optional[dict[str, Any]],
-        new_content: Optional[dict[str, Any]],
-        path_override: Optional[str] = None,
+        old_content: dict[str, Any] | None,
+        new_content: dict[str, Any] | None,
+        path_override: str | None = None,
     ) -> BundleFileChange:
         if self.filetype == BundleFileType.DATAFILE:
             if self.fileschema is None:
@@ -246,8 +242,8 @@ class StubFile:
 
 def build_test_datafile(
     content: dict[str, Any],
-    filepath: Optional[str] = None,
-    schema: Optional[str] = None,
+    filepath: str | None = None,
+    schema: str | None = None,
 ) -> StubFile:
     return StubFile(
         filepath=filepath or "datafile.yaml",
@@ -259,8 +255,8 @@ def build_test_datafile(
 
 def build_test_resourcefile(
     content: dict[str, Any],
-    filepath: Optional[str] = None,
-    schema: Optional[str] = None,
+    filepath: str | None = None,
+    schema: str | None = None,
 ) -> StubFile:
     return StubFile(
         filepath=filepath or "path.yaml",
@@ -273,13 +269,13 @@ def build_test_resourcefile(
 def build_role(
     name: str,
     change_type_name: str,
-    datafiles: Optional[list[DatafileObjectV1]],
-    users: Optional[list[str]] = None,
-    bots: Optional[list[str]] = None,
-    slack_groups: Optional[list[str]] = None,
-    slack_workspace: Optional[str] = "workspace",
-    gitlab_groups: Optional[list[str]] = None,
-    labels: Optional[Json] = None,
+    datafiles: list[DatafileObjectV1] | None,
+    users: list[str] | None = None,
+    bots: list[str] | None = None,
+    slack_groups: list[str] | None = None,
+    slack_workspace: str | None = "workspace",
+    gitlab_groups: list[str] | None = None,
+    labels: Json | None = None,
 ) -> self_service_roles.RoleV1:
     permissions: list[PermissionV1] = [
         PermissionSlackUsergroupV1(
@@ -312,10 +308,10 @@ def build_role(
 
 def build_jsonpath_change(
     selectors: list[str],
-    schema: Optional[str] = None,
-    context_selector: Optional[str] = None,
-    context_when: Optional[str] = None,
-    context_where: Optional[str] = None,
+    schema: str | None = None,
+    context_selector: str | None = None,
+    context_when: str | None = None,
+    context_where: str | None = None,
 ) -> ChangeTypeChangeDetectorJsonPathProviderV1:
     if context_selector:
         context = ChangeTypeChangeDetectorContextSelectorV1(
@@ -337,8 +333,8 @@ def build_change_type_change(
     schema: str,
     change_type_names: list[str],
     context_selector: str,
-    context_when: Optional[str] = None,
-    context_where: Optional[str] = None,
+    context_when: str | None = None,
+    context_where: str | None = None,
 ) -> ChangeTypeChangeDetectorChangeTypeProviderV1:
     return ChangeTypeChangeDetectorChangeTypeProviderV1(
         provider="changeType",
@@ -361,8 +357,8 @@ def build_change_type_change(
 def build_change_type(
     name: str,
     change_selectors: list[str],
-    change_schema: Optional[str] = None,
-    context_schema: Optional[str] = None,
+    change_schema: str | None = None,
+    context_schema: str | None = None,
     context_type: BundleFileType = BundleFileType.DATAFILE,
 ) -> ChangeTypeProcessor:
     return change_type_to_processor(
@@ -389,16 +385,15 @@ def build_change_type(
 class MockFileDiffResolver:
     def __init__(
         self,
-        fail_on_unknown_path: Optional[bool] = True,
-        file_diffs: Optional[
-            dict[str, Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]]
-        ] = None,
+        fail_on_unknown_path: bool | None = True,
+        file_diffs: dict[str, tuple[dict[str, Any] | None, dict[str, Any] | None]]
+        | None = None,
     ):
         self.file_diffs = file_diffs or {}
         self.fail_on_unknown_path = fail_on_unknown_path
 
     def register_raw_diff(
-        self, path: str, old: Optional[dict[str, Any]], new: Optional[dict[str, Any]]
+        self, path: str, old: dict[str, Any] | None, new: dict[str, Any] | None
     ) -> "MockFileDiffResolver":
         self.file_diffs[path] = (old, new)
         return self
@@ -413,14 +408,14 @@ class MockFileDiffResolver:
 
     def lookup_file_diff(
         self, file_ref: FileRef
-    ) -> Tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
         if file_ref.path not in self.file_diffs and self.fail_on_unknown_path:
             raise Exception(f"no diff registered for {file_ref.path}")
         return self.file_diffs.get(file_ref.path, (None, None))
 
 
 def change_type_to_processor(
-    change_type: ChangeTypeV1, file_diff_resolver: Optional[FileDiffResolver] = None
+    change_type: ChangeTypeV1, file_diff_resolver: FileDiffResolver | None = None
 ) -> ChangeTypeProcessor:
     return init_change_type_processors(
         [change_type],

@@ -2,10 +2,7 @@ from collections.abc import (
     Callable,
     MutableMapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import pytest
 
@@ -49,7 +46,7 @@ def namespace_factory(
         name: str,
         private: bool,
         internal: bool = False,
-        peered_with: Optional[str] = None,
+        peered_with: str | None = None,
     ) -> NamespaceV1:
         return gql_class_factory(
             NamespaceV1,

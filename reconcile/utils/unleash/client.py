@@ -2,10 +2,7 @@ import logging
 import os
 import threading
 from collections.abc import Mapping
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from UnleashClient import (
     BaseCache,
@@ -13,27 +10,27 @@ from UnleashClient import (
 )
 from UnleashClient.strategies import Strategy
 
-client: Optional[UnleashClient] = None
+client: UnleashClient | None = None
 client_lock = threading.Lock()
 
 
 class CacheDict(BaseCache):
-    def __init__(self):
-        self.cache = {}
+    def __init__(self) -> None:
+        self.cache: dict = {}
 
-    def set(self, key: str, value: Any):
+    def set(self, key: str, value: Any) -> None:
         self.cache[key] = value
 
-    def mset(self, data: dict):
+    def mset(self, data: dict) -> None:
         self.cache.update(data)
 
-    def get(self, key: str, default: Optional[Any] = None):
+    def get(self, key: str, default: Any | None = None) -> Any:
         return self.cache.get(key, default)
 
-    def exists(self, key: str):
+    def exists(self, key: str) -> bool:
         return key in self.cache
 
-    def destroy(self):
+    def destroy(self) -> None:
         self.cache = {}
 
 
@@ -43,7 +40,7 @@ class ClusterStrategy(Strategy):
 
 
 class DisableClusterStrategy(ClusterStrategy):
-    def apply(self, context: Optional[dict] = None) -> bool:
+    def apply(self, context: dict | None = None) -> bool:
         enable = True
 
         if context and "cluster_name" in context.keys():
@@ -54,7 +51,7 @@ class DisableClusterStrategy(ClusterStrategy):
 
 
 class EnableClusterStrategy(ClusterStrategy):
-    def apply(self, context: Optional[dict] = None) -> bool:
+    def apply(self, context: dict | None = None) -> bool:
         enable = False
 
         if context and "cluster_name" in context.keys():
@@ -85,28 +82,21 @@ def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
     return client
 
 
-def _shutdown_client():
-    # Intended for test usage only
-    with client_lock:
-        if client:
-            client.destroy()
-
-
-def get_feature_toggle_default(feature_name, context):
+def get_feature_toggle_default(feature_name: str, context: dict) -> bool:
     return True
 
 
-def get_feature_toggle_default_false(feature_name, context):
+def get_feature_toggle_default_false(feature_name: str, context: dict) -> bool:
     return False
 
 
 def get_feature_toggle_state(
-    integration_name: str, context: Optional[dict] = None, default: bool = True
+    integration_name: str, context: dict | None = None, default: bool = True
 ) -> bool:
     api_url = os.environ.get("UNLEASH_API_URL")
     client_access_token = os.environ.get("UNLEASH_CLIENT_ACCESS_TOKEN")
     if not (api_url and client_access_token):
-        return get_feature_toggle_default(None, None)
+        return get_feature_toggle_default("", {})
 
     c = _get_unleash_api_client(
         api_url,

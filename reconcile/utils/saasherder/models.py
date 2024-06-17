@@ -1,13 +1,8 @@
 import base64
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import (
-    Any,
-    Optional,
-    Sequence,
-    Union,
-)
+from typing import Any
 
 from github import Github
 from pydantic import (
@@ -52,7 +47,7 @@ class UpstreamJob:
 class TriggerSpecBase:
     saas_file_name: str
     env_name: str
-    timeout: Optional[str]
+    timeout: str | None
     pipelines_provider: SaasPipelinesProviders
     resource_template_name: str
     cluster_name: str
@@ -66,8 +61,8 @@ class TriggerSpecBase:
 
 @dataclass
 class TriggerSpecConfig(TriggerSpecBase):
-    target_name: Optional[str] = None
-    reason: Optional[str] = None
+    target_name: str | None = None
+    reason: str | None = None
 
     @property
     def state_key(self) -> str:
@@ -83,7 +78,7 @@ class TriggerSpecConfig(TriggerSpecBase):
 @dataclass
 class TriggerSpecMovingCommit(TriggerSpecBase):
     ref: str
-    reason: Optional[str] = None
+    reason: str | None = None
 
     @property
     def state_key(self) -> str:
@@ -98,7 +93,7 @@ class TriggerSpecMovingCommit(TriggerSpecBase):
 class TriggerSpecUpstreamJob(TriggerSpecBase):
     instance_name: str
     job_name: str
-    reason: Optional[str] = None
+    reason: str | None = None
 
     @property
     def state_key(self) -> str:
@@ -112,7 +107,7 @@ class TriggerSpecUpstreamJob(TriggerSpecBase):
 @dataclass
 class TriggerSpecContainerImage(TriggerSpecBase):
     image: str
-    reason: Optional[str] = None
+    reason: str | None = None
 
     @property
     def state_key(self) -> str:
@@ -123,12 +118,12 @@ class TriggerSpecContainerImage(TriggerSpecBase):
         return key
 
 
-TriggerSpecUnion = Union[
-    TriggerSpecConfig,
-    TriggerSpecMovingCommit,
-    TriggerSpecUpstreamJob,
-    TriggerSpecContainerImage,
-]
+TriggerSpecUnion = (
+    TriggerSpecConfig
+    | TriggerSpecMovingCommit
+    | TriggerSpecUpstreamJob
+    | TriggerSpecContainerImage
+)
 
 
 class Namespace(BaseModel):
@@ -137,7 +132,7 @@ class Namespace(BaseModel):
     app: SaasApp
     cluster: Cluster
     managed_resource_types: list[str] = Field(..., alias="managedResourceTypes")
-    managed_resource_names: Optional[Sequence[ManagedResourceName]] = Field(
+    managed_resource_names: Sequence[ManagedResourceName] | None = Field(
         ..., alias="managedResourceNames"
     )
 
@@ -155,16 +150,16 @@ class PromotionChannelData(BaseModel):
 
 class ParentSaasPromotion(BaseModel):
     q_type: str = Field(..., alias="type")
-    parent_saas: Optional[str]
-    target_config_hash: Optional[str]
+    parent_saas: str | None
+    target_config_hash: str | None
 
     class Config:
         allow_population_by_field_name = True
 
 
 class PromotionData(BaseModel):
-    channel: Optional[str]
-    data: Optional[list[Union[ParentSaasPromotion, PromotionChannelData]]] = None
+    channel: str | None
+    data: list[ParentSaasPromotion | PromotionChannelData] | None = None
 
 
 class Channel(BaseModel):
@@ -175,24 +170,26 @@ class Channel(BaseModel):
 class Promotion(BaseModel):
     """Implementation of the SaasPromotion interface for saasherder and AutoPromoter."""
 
+    url: str
     commit_sha: str
     saas_file: str
     target_config_hash: str
     saas_target_uid: str
-    auto: Optional[bool] = None
-    publish: Optional[list[str]] = None
-    subscribe: Optional[list[Channel]] = None
-    promotion_data: Optional[list[PromotionData]] = None
-    saas_file_paths: Optional[list[str]] = None
-    target_paths: Optional[list[str]] = None
+    soak_days: int
+    auto: bool | None = None
+    publish: list[str] | None = None
+    subscribe: list[Channel] | None = None
+    promotion_data: list[PromotionData] | None = None
+    saas_file_paths: list[str] | None = None
+    target_paths: list[str] | None = None
 
 
 @dataclass
 class ImageAuth:
-    username: Optional[str] = None
-    password: Optional[str] = None
-    auth_server: Optional[str] = None
-    docker_config: Optional[dict[str, dict[str, dict[str, str]]]] = None
+    username: str | None = None
+    password: str | None = None
+    auth_server: str | None = None
+    docker_config: dict[str, dict[str, dict[str, str]]] | None = None
 
     def getDockerConfigJson(self) -> dict:
         if self.docker_config:
@@ -217,7 +214,7 @@ class TargetSpec:
     cluster: str
     namespace: str
     managed_resource_types: Iterable[str]
-    managed_resource_names: Optional[Sequence[ManagedResourceName]]
+    managed_resource_names: Sequence[ManagedResourceName] | None
     delete: bool
     privileged: bool
     image_auth: ImageAuth

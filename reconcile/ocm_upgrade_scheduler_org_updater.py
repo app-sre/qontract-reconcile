@@ -1,9 +1,6 @@
 import json
 import logging
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import yaml
 
@@ -25,7 +22,7 @@ def render_policy(
     template: dict[str, Any],
     cluster_spec: OCMSpec,
     labels: dict[str, str],
-    settings: Optional[dict[str, Any]] = None,
+    settings: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     body = template["path"]["content"]
     type = template.get("type") or "jinja2"
@@ -90,6 +87,8 @@ def run(dry_run, gitlab_project_id):
                         item = {
                             "action": "add",
                             "cluster": ocm_cluster_name,
+                            "url": ocm_cluster_spec.server_url,
+                            "id": ocm_cluster_spec.spec.id,
                             "policy": policy,
                         }
                         updates.append(item)

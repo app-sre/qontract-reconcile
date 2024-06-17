@@ -9,6 +9,7 @@ from reconcile.external_resources.aws import (
     AWSRdsFactory,
     AWSResourceFactory,
 )
+from reconcile.external_resources.meta import QONTRACT_INTEGRATION
 from reconcile.external_resources.model import (
     ExternalResource,
     ExternalResourceKey,
@@ -27,6 +28,14 @@ from reconcile.utils.external_resource_spec import (
 from reconcile.utils.secret_reader import SecretReaderBase
 
 T = TypeVar("T")
+
+AWS_DEFAULT_TAGS = [
+    {
+        "tags": {
+            "app": "app-sre-infra",
+        }
+    }
+]
 
 
 class ObjectFactory(Generic[T]):
@@ -102,6 +111,8 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
     def create_external_resource(self, spec: ExternalResourceSpec) -> ExternalResource:
         f = self.resource_factories.get_factory(spec.provider)
         data = f.resolve(spec)
+        data["tags"] = spec.tags(integration=QONTRACT_INTEGRATION)
+        data["default_tags"] = AWS_DEFAULT_TAGS
 
         region = data.get("region")
         if region:

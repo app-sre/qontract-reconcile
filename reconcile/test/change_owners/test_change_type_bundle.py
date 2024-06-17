@@ -1,7 +1,4 @@
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import pytest
 from pytest_mock.plugin import MockerFixture
@@ -24,7 +21,7 @@ from reconcile.change_owners.bundle import (
     ],
 )
 def test_qontract_server_file_diff_resolver(
-    mocker: MockerFixture, old: Optional[dict[str, Any]], new: Optional[dict[str, Any]]
+    mocker: MockerFixture, old: dict[str, Any] | None, new: dict[str, Any] | None
 ) -> None:
     get_diff_mock = mocker.patch.object(bundle, "get_diff")
     resolved_data = {}

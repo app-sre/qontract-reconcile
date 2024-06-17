@@ -1,8 +1,8 @@
 import json
 import logging
 from collections.abc import Iterable
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from sretoolbox.utils import threaded
 
@@ -73,7 +73,7 @@ def setup_factories(
     return of
 
 
-class ReconcileAction(str, Enum):
+class ReconcileAction(StrEnum):
     NOOP = "NOOP"
     APPLY_NOT_EXISTS = "Resource does not exist"
     APPLY_ERROR = "Resource status in ERROR state"
@@ -212,7 +212,7 @@ class ExternalResourcesManager:
             ResourceStatus.DELETE_IN_PROGRESS,
             ResourceStatus.IN_PROGRESS,
         ]):
-            return need_secret_sync
+            return False
 
         logging.info(
             "Reconciliation In progress. Action: %s, Key:%s",
@@ -231,7 +231,7 @@ class ExternalResourcesManager:
                     r.key,
                 )
                 if r.action == Action.APPLY:
-                    state.resource_status = ResourceStatus.CREATED
+                    state.resource_status = ResourceStatus.PENDING_SECRET_SYNC
                     state.reconciliation_errors = 0
                     self.state_mgr.set_external_resource_state(state)
                     need_secret_sync = True
@@ -260,7 +260,7 @@ class ExternalResourcesManager:
         return need_secret_sync
 
     def _update_state(self, r: Reconciliation, state: ExternalResourceState) -> None:
-        state.ts = datetime.now(timezone.utc)
+        state.ts = datetime.now(UTC)
         if r.action == Action.APPLY:
             state.resource_status = ResourceStatus.IN_PROGRESS
         elif r.action == Action.DESTROY:
@@ -275,9 +275,31 @@ class ExternalResourcesManager:
             r.action == Action.APPLY and state.resource_status == ResourceStatus.CREATED
         )
 
-    def _sync_secrets(self, keys: Iterable[ExternalResourceKey]) -> None:
-        specs = [spec for key in keys if (spec := self.er_inventory.get(key))]
-        self.secrets_reconciler.sync_secrets(specs=specs)
+    def _sync_secrets(
+        self,
+        to_sync_keys: Iterable[ExternalResourceKey],
+    ) -> None:
+        specs = [
+            spec for key in set(to_sync_keys) if (spec := self.er_inventory.get(key))
+        ]
+
+        sync_error_spec_keys = {
+            ExternalResourceKey.from_spec(spec)
+            for spec in self.secrets_reconciler.sync_secrets(specs=specs)
+        }
+
+        for key in to_sync_keys:
+            if key in sync_error_spec_keys:
+                logging.error(
+                    "Outputs secret for key can not be reconciled. Key: %s", key
+                )
+            else:
+                logging.debug(
+                    "Outputs secret for key has been reconciled. Marking resource as %s. Key: %s",
+                    ResourceStatus.CREATED,
+                    key,
+                )
+                self.state_mgr.update_resource_status(key, ResourceStatus.CREATED)
 
     def _build_external_resource(
         self, spec: ExternalResourceSpec, er_inventory: ExternalResourcesInventory
@@ -295,12 +317,12 @@ class ExternalResourcesManager:
     def handle_resources(self) -> None:
         desired_r = self._get_desired_objects_reconciliations()
         deleted_r = self._get_deleted_objects_reconciliations()
-        to_sync: set[ExternalResourceKey] = set()
+        to_sync_keys: set[ExternalResourceKey] = set()
         for r in desired_r.union(deleted_r):
             state = self.state_mgr.get_external_resource_state(r.key)
             need_sync = self._update_in_progress_state(r, state)
             if need_sync:
-                to_sync.add(r.key)
+                to_sync_keys.add(r.key)
 
             metrics.set_gauge(
                 ExternalResourcesReconcileErrorsGauge(
@@ -316,8 +338,12 @@ class ExternalResourcesManager:
                 self.reconciler.reconcile_resource(reconciliation=r)
                 self._update_state(r, state)
 
-        if to_sync:
-            self._sync_secrets(keys=to_sync)
+        pending_sync_keys = self.state_mgr.get_keys_by_status(
+            ResourceStatus.PENDING_SECRET_SYNC
+        )
+
+        if to_sync_keys or pending_sync_keys:
+            self._sync_secrets(to_sync_keys=to_sync_keys | pending_sync_keys)
 
     def handle_dry_run_resources(self) -> None:
         desired_r = self._get_desired_objects_reconciliations()

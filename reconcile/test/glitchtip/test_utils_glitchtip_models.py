@@ -1,5 +1,4 @@
 from collections.abc import Mapping
-from typing import Union
 
 import pytest
 
@@ -26,7 +25,7 @@ from reconcile.utils.glitchtip.models import (
 )
 @pytest.mark.parametrize("model", [Organization, Project, Team])
 def test_model_slugs(
-    model: Union[type[Organization], type[Project], type[Team]], name: str, slug: str
+    model: type[Organization] | type[Project] | type[Team], name: str, slug: str
 ) -> None:
     assert model(name=name).slug == slug
 

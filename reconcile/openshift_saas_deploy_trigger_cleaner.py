@@ -1,14 +1,11 @@
 import logging
 from collections.abc import Callable
 from datetime import (
+    UTC,
     datetime,
     timedelta,
-    timezone,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from dateutil import parser
 
@@ -67,11 +64,11 @@ def get_pipeline_runs_to_delete(
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> None:
-    now_date = datetime.now(timezone.utc)
+    now_date = datetime.now(UTC)
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     pipeline_providers = get_tekton_pipeline_providers()

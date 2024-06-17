@@ -3,7 +3,9 @@
 query StatusPages {
   status_pages: status_page_v1 {
     name
+    description
     pageId
+    url
     apiUrl
     credentials {
       ...VaultSecret
@@ -33,12 +35,18 @@ query StatusPages {
       message
       scheduledStart
       scheduledEnd
+      affectedServices {
+        name
+      }
       announcements {
         provider
         ... on MaintenanceStatuspageAnnouncement_v1 {
           page {
             name
           }
+          remindSubscribers
+          notifySubscribersOnStart
+          notifySubscribersOnCompletion
         }
       }
     }

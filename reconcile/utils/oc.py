@@ -17,7 +17,7 @@ from functools import wraps
 from io import TextIOWrapper
 from subprocess import Popen
 from threading import Lock
-from typing import Any, Optional, Union
+from typing import Any
 
 import urllib3
 from kubernetes.client import (  # type: ignore[attr-defined]
@@ -127,6 +127,10 @@ class JobNotRunningError(Exception):
     pass
 
 
+class RequestEntityTooLargeError(Exception):
+    pass
+
+
 class OCDecorators:
     @classmethod
     def process_reconcile_time(cls, function):
@@ -153,7 +157,7 @@ class OCDecorators:
         @wraps(function)
         def wrapper(*args, **kwargs):
             result = function(*args, **kwargs)
-            msg = result[:-1] if isinstance(result, (list, tuple)) else result
+            msg = result[:-1] if isinstance(result, list | tuple) else result
 
             if not isinstance(msg, OCProcessReconcileTimeDecoratorMsg):
                 return result
@@ -207,7 +211,7 @@ class OCProcessReconcileTimeDecoratorMsg:
         self,
         namespace: str,
         resource: OR,
-        server: Optional[str],
+        server: str | None,
         slow_oc_reconcile_threshold: float,
         is_log_slow_oc_reconcile: bool,
     ):
@@ -251,23 +255,23 @@ class OCCliApiResource:
     @property
     def group_version(self):
         if self.group:
-            return "{}/{}".format(self.group, self.api_version)
+            return f"{self.group}/{self.api_version}"
         return self.api_version
 
 
 class OCCli:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
-        cluster_name: Optional[str],
-        server: Optional[str],
-        token: Optional[str],
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        cluster_name: str | None,
+        server: str | None,
+        token: str | None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
-        connection_parameters: Optional[OCConnectionParameters] = None,
+        connection_parameters: OCConnectionParameters | None = None,
     ):
         """
         As of now we have to conform with 2 ways to initialize this client:
@@ -306,10 +310,10 @@ class OCCli:  # pylint: disable=too-many-public-methods
     def _init_old_without_types(
         self,
         cluster_name: str,
-        server: Optional[str],
-        token: Optional[str],
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        server: str | None,
+        token: str | None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
@@ -474,9 +478,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
                 cmd.extend(["-n", namespace])
 
         if "labels" in kwargs:
-            labels_list = [
-                "{}={}".format(k, v) for k, v in kwargs.get("labels").items()
-            ]
+            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels").items()]
 
             cmd.append("-l")
             cmd.append(",".join(labels_list))
@@ -781,7 +783,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
     def get_service_account_username(user):
         namespace = user.split("/")[0]
         name = user.split("/")[1]
-        return "system:serviceaccount:{}:{}".format(namespace, name)
+        return f"system:serviceaccount:{namespace}:{name}"
 
     def get_owned_pods(self, namespace, resource):
         pods = self.get(namespace, "Pod")["items"]
@@ -1118,6 +1120,8 @@ class OCCli:  # pylint: disable=too-many-public-methods
                     raise StatefulSetUpdateForbidden(f"[{self.server}]: {err}")
                 if "the object has been modified" in err:
                     raise ObjectHasBeenModifiedError(f"[{self.server}]: {err}")
+                if "Request entity too large" in err:
+                    raise RequestEntityTooLargeError(f"[{self.server}]: {err}")
             if not (allow_not_found and "NotFound" in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 
@@ -1216,15 +1220,15 @@ REQUEST_TIMEOUT = 60
 class OCNative(OCCli):
     def __init__(
         self,
-        cluster_name: Optional[str],
-        server: Optional[str],
-        token: Optional[str],
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        cluster_name: str | None,
+        server: str | None,
+        token: str | None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
-        connection_parameters: Optional[OCConnectionParameters] = None,
+        connection_parameters: OCConnectionParameters | None = None,
     ):
         super().__init__(
             cluster_name,
@@ -1329,9 +1333,7 @@ class OCNative(OCCli):
 
         labels = ""
         if "labels" in kwargs:
-            labels_list = [
-                "{}={}".format(k, v) for k, v in kwargs.get("labels").items()
-            ]
+            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels").items()]
 
             labels = ",".join(labels_list)
 
@@ -1389,7 +1391,7 @@ class OCNative(OCCli):
             raise StatusCodeError(f"[{self.server}]: {e}")
 
 
-OCClient = Union[OCNative, OCCli]
+OCClient = OCNative | OCCli
 
 
 class OCLocal(OCCli):
@@ -1417,16 +1419,16 @@ class OC:
 
     def __new__(
         cls,
-        cluster_name: Optional[str] = None,
-        server: Optional[str] = None,
-        token: Optional[str] = None,
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        cluster_name: str | None = None,
+        server: str | None = None,
+        token: str | None = None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
-        connection_parameters: Optional[OCConnectionParameters] = None,
+        connection_parameters: OCConnectionParameters | None = None,
     ):
         use_native_env = os.environ.get("USE_NATIVE_CLIENT", "")
         use_native = True
@@ -1859,7 +1861,5 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
         if len(results) == 1:
             return results[0]
         if not results:
-            raise ResourceNotFoundError("No matches found for {}".format(kwargs))
-        raise ResourceNotUniqueError(
-            "Multiple matches found for {}: {}".format(kwargs, results)
-        )
+            raise ResourceNotFoundError(f"No matches found for {kwargs}")
+        raise ResourceNotUniqueError(f"Multiple matches found for {kwargs}: {results}")

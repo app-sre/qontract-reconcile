@@ -1,18 +1,18 @@
 import base64
 import logging
 import sys
+from collections.abc import Iterable, Mapping
 from datetime import timedelta
-from typing import (
-    Any,
-    Mapping,
-    Optional,
-    Union,
-)
+from typing import Any
 
 from dynatrace import Dynatrace
 from dynatrace.environment_v2.tokens_api import ApiTokenCreated
-from pydantic import BaseModel
 
+from reconcile.dynatrace_token_provider.meta import QONTRACT_INTEGRATION
+from reconcile.dynatrace_token_provider.metrics import (
+    DTPClustersManagedGauge,
+    DTPOrganizationErrorRate,
+)
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
@@ -26,10 +26,6 @@ from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.utils import (
     gql,
     metrics,
-)
-from reconcile.utils.metrics import (
-    CounterMetric,
-    ErrorRateMetricSet,
 )
 from reconcile.utils.ocm.base import (
     OCMClusterServiceLogCreateModel,
@@ -57,7 +53,6 @@ from reconcile.utils.runtime.integration import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase
 
-QONTRACT_INTEGRATION = "dynatrace-token-provider"
 SYNCSET_ID = "ext-dynatrace-tokens-dtp"
 SECRET_NAME = "dynatrace-token-dtp"
 SECRET_NAMESPACE = "dynatrace"
@@ -66,53 +61,16 @@ DYNATRACE_OPERATOR_TOKEN_NAME = "dynatrace-operator-token"
 
 
 class DynatraceTokenProviderIntegrationParams(PydanticRunParams):
-    ocm_organization_ids: Optional[set[str]] = None
+    ocm_organization_ids: set[str] | None = None
 
 
 class ReconcileErrorSummary(Exception):
-    def __init__(self, exceptions: list[str]) -> None:
+    def __init__(self, exceptions: Iterable[str]) -> None:
         self.exceptions = exceptions
 
     def __str__(self) -> str:
         formatted_exceptions = "\n".join([f"- {e}" for e in self.exceptions])
         return f"Reconcile exceptions:\n{formatted_exceptions}"
-
-
-class DTPBaseMetric(BaseModel):
-    integration: str
-    ocm_env: str
-
-
-class DTPOrganizationReconcileCounter(DTPBaseMetric, CounterMetric):
-    org_id: str
-
-    @classmethod
-    def name(cls) -> str:
-        return "dtp_organization_reconciled"
-
-
-class DTPOrganizationReconcileErrorCounter(DTPBaseMetric, CounterMetric):
-    org_id: str
-
-    @classmethod
-    def name(cls) -> str:
-        return "dtp_organization_reconcile_errors"
-
-
-class DTPOrganizationErrorRate(ErrorRateMetricSet):
-    def __init__(self, integration: str, org_id: str, ocm_env: str) -> None:
-        super().__init__(
-            counter=DTPOrganizationReconcileCounter(
-                integration=integration,
-                ocm_env=ocm_env,
-                org_id=org_id,
-            ),
-            error_counter=DTPOrganizationReconcileErrorCounter(
-                integration=integration,
-                ocm_env=ocm_env,
-                org_id=org_id,
-            ),
-        )
 
 
 class DynatraceTokenProviderIntegration(
@@ -132,6 +90,13 @@ class DynatraceTokenProviderIntegration(
                     label_filter=subscription_label_filter().like(
                         "key", dtp_label_key("%")
                     ),
+                )
+                metrics.set_gauge(
+                    DTPClustersManagedGauge(
+                        integration=self.name,
+                        ocm_env=env.name,
+                    ),
+                    len(clusters),
                 )
                 if not clusters:
                     continue
@@ -201,7 +166,7 @@ class DynatraceTokenProviderIntegration(
 
     def get_all_dynatrace_clients(
         self, secret_reader: SecretReaderBase
-    ) -> Mapping[str, Dynatrace]:
+    ) -> dict[str, Dynatrace]:
         dt_tenants = self.get_all_dynatrace_tenants()
         dynatrace_clients = {}
         if not dt_tenants.environments:
@@ -230,7 +195,7 @@ class DynatraceTokenProviderIntegration(
         cluster: ClusterDetails,
         dt_client: Dynatrace,
         ocm_client: OCMBaseClient,
-        existing_dtp_tokens: list[str],
+        existing_dtp_tokens: Iterable[str],
         tenant_id: str,
     ) -> None:
         existing_syncset = self.get_syncset(ocm_client, cluster)
@@ -316,7 +281,7 @@ class DynatraceTokenProviderIntegration(
 
     def get_syncset(
         self, ocm_client: OCMBaseClient, cluster: ClusterDetails
-    ) -> Mapping:
+    ) -> dict[str, Any]:
         try:
             syncset = get_syncset(ocm_client, cluster.ocm_cluster.id, SYNCSET_ID)
         except Exception as e:
@@ -326,8 +291,8 @@ class DynatraceTokenProviderIntegration(
                 raise e
         return syncset
 
-    def get_tokens_from_syncset(self, syncset: Mapping) -> Mapping:
-        tokens = {}
+    def get_tokens_from_syncset(self, syncset: Mapping[str, Any]) -> dict:
+        tokens: dict[str, Any] = {}
         for resource in syncset["resources"]:
             if resource["kind"] == "Secret":
                 operator_token_id = self.base64_decode(resource["data"]["apiTokenId"])
@@ -424,7 +389,7 @@ class DynatraceTokenProviderIntegration(
         return (ingestion_token, operation_token)
 
 
-def dtp_label_key(config_atom: Union[str, None]) -> str:
+def dtp_label_key(config_atom: str | None) -> str:
     return sre_capability_label_key("dtp", config_atom)
 
 
@@ -436,7 +401,7 @@ def _expose_errors_as_service_log(
         service_log=OCMClusterServiceLogCreateModel(
             cluster_uuid=cluster_uuid,
             severity=OCMServiceLogSeverity.Warning,
-            summary="Cluster upgrade policy validation errors",
+            summary="Dynatrace Token Provider Errors",
             description=f"\n {error}",
             service_name=QONTRACT_INTEGRATION,
         ),

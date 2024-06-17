@@ -3,13 +3,12 @@ import sys
 from collections.abc import (
     Callable,
     Iterable,
+    Sequence,
 )
 from datetime import datetime
 from typing import (
     Any,
-    Optional,
-    Sequence,
-    Union,
+    TypedDict,
 )
 from urllib.parse import urlparse
 
@@ -47,6 +46,10 @@ from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,
     UnknownError,
 )
+from reconcile.utils.extended_early_exit import (
+    ExtendedEarlyExitRunnerResult,
+    extended_early_exit_run,
+)
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import (
@@ -67,10 +70,12 @@ from reconcile.utils.slack_api import (
 
 DATE_FORMAT = "%Y-%m-%d %H:%M"
 QONTRACT_INTEGRATION = "slack-usergroups"
+INTEGRATION_VERSION = "0.1.0"
+
 error_occurred = False
 
 
-def get_git_api(url: str) -> Union[GithubRepositoryApi, GitLabApi]:
+def get_git_api(url: str) -> GithubRepositoryApi | GitLabApi:
     """Return GitHub/GitLab API based on url."""
     parsed_url = urlparse(url)
 
@@ -109,9 +114,7 @@ class State(BaseModel):
     workspace: str = ""
     usergroup: str = ""
     description: str = ""
-    users: set[SlackObject] = set()
     user_names: set[str] = set()
-    channels: set[SlackObject] = set()
     channel_names: set[str] = set()
 
     def __bool__(self) -> bool:
@@ -142,7 +145,7 @@ def compute_cluster_user_group(name: str) -> str:
 def get_slack_map(
     secret_reader: SecretReader,
     permissions: Iterable[PermissionSlackUsergroupV1],
-    desired_workspace_name: Optional[str] = None,
+    desired_workspace_name: str | None = None,
 ) -> SlackMap:
     """Return SlackMap (API) per workspaces."""
     slack_map = {}
@@ -178,8 +181,8 @@ def get_slack_map(
 
 def get_current_state(
     slack_map: SlackMap,
-    desired_workspace_name: Optional[str],
-    desired_usergroup_name: Optional[str],
+    desired_workspace_name: str | None,
+    desired_usergroup_name: str | None,
     cluster_usergroups: list[str],
 ) -> SlackState:
     """
@@ -208,10 +211,8 @@ def get_current_state(
             current_state.setdefault(workspace, {})[ug] = State(
                 workspace=workspace,
                 usergroup=ug,
-                users={SlackObject(pk=pk, name=name) for pk, name in users.items()},
-                channels={
-                    SlackObject(pk=pk, name=name) for pk, name in channels.items()
-                },
+                user_names={name for _, name in users.items()},
+                channel_names={name for _, name in channels.items()},
                 description=description,
             )
 
@@ -396,8 +397,8 @@ def get_desired_state(
     pagerduty_map: PagerDutyMap,
     permissions: Iterable[PermissionSlackUsergroupV1],
     users: Iterable[User],
-    desired_workspace_name: Optional[str],
-    desired_usergroup_name: Optional[str],
+    desired_workspace_name: str | None,
+    desired_usergroup_name: str | None,
 ) -> SlackState:
     """Get the desired state of Slack usergroups."""
     desired_state: SlackState = {}
@@ -448,7 +449,7 @@ def get_desired_state(
                 workspace=p.workspace.name,
                 usergroup=usergroup,
                 user_names=user_names,
-                channel_names=sorted(p.channels or []),
+                channel_names=sorted(set(p.channels or [])),
                 description=p.description,
             )
     return desired_state
@@ -458,8 +459,8 @@ def get_desired_state_cluster_usergroups(
     slack_map: SlackMap,
     clusters: Iterable[ClusterV1],
     users: Iterable[UserV1],
-    desired_workspace_name: Optional[str],
-    desired_usergroup_name: Optional[str],
+    desired_workspace_name: str | None,
+    desired_usergroup_name: str | None,
 ) -> SlackState:
     """Get the desired state of Slack usergroups."""
     desired_state: SlackState = {}
@@ -478,11 +479,11 @@ def get_desired_state_cluster_usergroups(
             for u in openshift_users_desired_state
             if u["cluster"] == cluster.name
         ]
-        cluster_usernames = set({
+        cluster_usernames = {
             get_slack_username(u)
             for u in users
             if include_user_to_cluster_usergroup(u, cluster, desired_cluster_users)
-        })
+        }
         cluster_user_group = compute_cluster_user_group(cluster.name)
         for workspace, spec in slack_map.items():
             if not spec.slack.channel:
@@ -504,7 +505,7 @@ def get_desired_state_cluster_usergroups(
                     workspace=workspace,
                     usergroup=cluster_user_group,
                     user_names=cluster_usernames,
-                    channel_names=set([spec.slack.channel]),
+                    channel_names={spec.slack.channel},
                     description=f"Users with access to the {cluster.name} cluster",
                 )
     return desired_state
@@ -515,14 +516,14 @@ def _create_usergroups(
     desired_ug_state: State,
     slack_client: SlackApi,
     dry_run: bool = True,
-) -> None:
+) -> int:
     """Create Slack usergroups."""
     global error_occurred  # noqa: PLW0603
     if current_ug_state:
         logging.debug(
             f"[{desired_ug_state.workspace}] Usergroup exists and will not be created {desired_ug_state.usergroup}"
         )
-        return
+        return 0
 
     logging.info([
         "create_usergroup",
@@ -535,6 +536,7 @@ def _create_usergroups(
         except SlackApiError as error:
             logging.error(error)
             error_occurred = True
+    return 1
 
 
 def _update_usergroup_users_from_state(
@@ -542,29 +544,42 @@ def _update_usergroup_users_from_state(
     desired_ug_state: State,
     slack_client: SlackApi,
     dry_run: bool = True,
-) -> None:
+) -> int:
     """Update the users in a Slack usergroup."""
     global error_occurred  # noqa: PLW0603
-    if current_ug_state.users == desired_ug_state.users:
+    if current_ug_state.user_names == desired_ug_state.user_names:
         logging.debug(
             f"No usergroup user changes detected for {desired_ug_state.usergroup}"
         )
-        return
+        return 0
 
-    for user in desired_ug_state.users - current_ug_state.users:
+    slack_user_objects = [
+        SlackObject(pk=pk, name=name)
+        for pk, name in slack_client.get_active_users_by_names(
+            desired_ug_state.user_names
+        ).items()
+    ]
+    active_user_names = set(s.name for s in slack_user_objects)
+
+    if len(active_user_names) != len(desired_ug_state.user_names):
+        logging.info(
+            f"Following usernames are incorrect for usergroup {desired_ug_state.usergroup} and could not be matched with slack users {desired_ug_state.user_names - active_user_names}"
+        )
+
+    for user in active_user_names - current_ug_state.user_names:
         logging.info([
             "add_user_to_usergroup",
             desired_ug_state.workspace,
             desired_ug_state.usergroup,
-            user.name,
+            user,
         ])
 
-    for user in current_ug_state.users - desired_ug_state.users:
+    for user in current_ug_state.user_names - active_user_names:
         logging.info([
             "del_user_from_usergroup",
             desired_ug_state.workspace,
             desired_ug_state.usergroup,
-            user.name,
+            user,
         ])
 
     if not dry_run:
@@ -574,10 +589,10 @@ def _update_usergroup_users_from_state(
                 logging.info(
                     f"Usergroup {desired_ug_state.usergroup} does not exist yet. Skipping for now."
                 )
-                return
+                return 0
             slack_client.update_usergroup_users(
                 id=ugid,
-                users_list=sorted([user.pk for user in desired_ug_state.users]),
+                users_list=sorted([s.pk for s in slack_user_objects]),
             )
         except SlackApiError as error:
             # Prior to adding this, we weren't handling failed updates to user
@@ -586,6 +601,7 @@ def _update_usergroup_users_from_state(
             # sensitive updates.
             logging.error(error)
             error_occurred = True
+    return 1
 
 
 def _update_usergroup_from_state(
@@ -593,35 +609,58 @@ def _update_usergroup_from_state(
     desired_ug_state: State,
     slack_client: SlackApi,
     dry_run: bool = True,
-) -> None:
+) -> int:
     """Update a Slack usergroup."""
     global error_occurred  # noqa: PLW0603
+    change_detected = False
     if (
-        current_ug_state.channels == desired_ug_state.channels
+        current_ug_state.channel_names == desired_ug_state.channel_names
         and current_ug_state.description == desired_ug_state.description
     ):
         logging.debug(
             f"No usergroup channel/description changes detected for {desired_ug_state.usergroup}",
         )
-        return
+        return 0
 
-    for channel in desired_ug_state.channels - current_ug_state.channels:
+    slack_channel_objects = [
+        SlackObject(pk=pk, name=name)
+        for pk, name in slack_client.get_channels_by_names(
+            desired_ug_state.channel_names or []
+        ).items()
+    ]
+
+    # This is a hack to filter out the missing channels
+    desired_channel_names = {s.name for s in slack_channel_objects}
+
+    # Commenting this out is not correct, we should be checking the length of slack_channel_objects.
+    # However there are a couple of missing channels and filtering these out complies with current behavior.
+    # if len(slack_channel_objects) != len(desired_ug_state.channel_names):
+    #     logging.info(
+    #         f"Following channel names are incorrect for usergroup {desired_ug_state.usergroup} and could not be matched with slack channels {desired_ug_state.channel_names - set([s.name for s in slack_channel_objects])}"
+    #     )
+    #     error_occurred = True
+    #     return
+
+    for channel in desired_channel_names - current_ug_state.channel_names:
+        change_detected = True
         logging.info([
             "add_channel_to_usergroup",
             desired_ug_state.workspace,
             desired_ug_state.usergroup,
-            channel.name,
+            channel,
         ])
 
-    for channel in current_ug_state.channels - desired_ug_state.channels:
+    for channel in current_ug_state.channel_names - desired_channel_names:
+        change_detected = True
         logging.info([
             "del_channel_from_usergroup",
             desired_ug_state.workspace,
             desired_ug_state.usergroup,
-            channel.name,
+            channel,
         ])
 
     if current_ug_state.description != desired_ug_state.description:
+        change_detected = True
         logging.info([
             "update_usergroup_description",
             desired_ug_state.workspace,
@@ -629,24 +668,24 @@ def _update_usergroup_from_state(
             desired_ug_state.description,
         ])
 
-    if not dry_run:
+    if not dry_run and change_detected:
         try:
             ugid = slack_client.get_usergroup_id(desired_ug_state.usergroup)
             if not ugid:
                 logging.info(
                     f"Usergroup {desired_ug_state.usergroup} does not exist yet. Skipping for now."
                 )
-                return
+                return 0
             slack_client.update_usergroup(
                 id=ugid,
-                channels_list=sorted([
-                    channel.pk for channel in desired_ug_state.channels
-                ]),
+                channels_list=sorted(s.pk for s in slack_channel_objects),
                 description=desired_ug_state.description,
             )
         except SlackApiError as error:
             logging.error(error)
             error_occurred = True
+        return 1
+    return 0
 
 
 def act(
@@ -654,51 +693,37 @@ def act(
     desired_state: SlackState,
     slack_map: SlackMap,
     dry_run: bool = True,
-) -> None:
+) -> int:
     """Reconcile the differences between the desired and current state for
     Slack usergroups."""
+    apply_count = 0
     for workspace, desired_ws_state in desired_state.items():
         for usergroup, desired_ug_state in desired_ws_state.items():
             current_ug_state: State = current_state.get(workspace, {}).get(
                 usergroup, State()
             )
 
-            slack_client = slack_map[workspace].slack
-
-            desired_ug_state.users = {
-                SlackObject(pk=pk, name=name)
-                for pk, name in slack_client.get_users_by_names(
-                    sorted(desired_ug_state.user_names)
-                ).items()
-            }
-
-            desired_ug_state.channels = {
-                SlackObject(pk=pk, name=name)
-                for pk, name in slack_client.get_channels_by_names(
-                    sorted(desired_ug_state.channel_names or [])
-                ).items()
-            }
-
-            _create_usergroups(
+            apply_count += _create_usergroups(
                 current_ug_state,
                 desired_ug_state,
-                slack_client=slack_client,
+                slack_client=slack_map[workspace].slack,
                 dry_run=dry_run,
             )
 
-            _update_usergroup_users_from_state(
+            apply_count += _update_usergroup_users_from_state(
                 current_ug_state,
                 desired_ug_state,
-                slack_client=slack_client,
+                slack_client=slack_map[workspace].slack,
                 dry_run=dry_run,
             )
 
-            _update_usergroup_from_state(
+            apply_count += _update_usergroup_from_state(
                 current_ug_state,
                 desired_ug_state,
-                slack_client=slack_client,
+                slack_client=slack_map[workspace].slack,
                 dry_run=dry_run,
             )
+    return apply_count
 
 
 def get_permissions(query_func: Callable) -> list[PermissionSlackUsergroupV1]:
@@ -720,10 +745,22 @@ def get_clusters(query_func: Callable) -> list[ClusterV1]:
     return clusters_query(query_func=query_func).clusters or []
 
 
+class RunnerParams(TypedDict):
+    dry_run: bool
+    slack_map: SlackMap
+    desired_state: SlackState
+    clusters: list[ClusterV1]
+    workspace_name: str | None
+    usergroup_name: str | None
+
+
 def run(
     dry_run: bool,
-    workspace_name: Optional[str] = None,
-    usergroup_name: Optional[str] = None,
+    workspace_name: str | None = None,
+    usergroup_name: str | None = None,
+    enable_extended_early_exit: bool = False,
+    extended_early_exit_cache_ttl_seconds: int = 3600,
+    log_cached_log_output: bool = False,
 ) -> None:
     global error_occurred  # noqa: PLW0603
     error_occurred = False
@@ -766,6 +803,45 @@ def run(
     # merge the two desired states recursively
     desired_state = deep_update(desired_state, desired_state_cluster_usergroups)
 
+    runner_params: RunnerParams = dict(
+        dry_run=dry_run,
+        slack_map=slack_map,
+        desired_state=desired_state,
+        clusters=clusters,
+        workspace_name=workspace_name,
+        usergroup_name=usergroup_name,
+    )
+
+    if enable_extended_early_exit:
+        extended_early_exit_run(
+            QONTRACT_INTEGRATION,
+            INTEGRATION_VERSION,
+            dry_run,
+            desired_state,
+            "",
+            extended_early_exit_cache_ttl_seconds,
+            logging.getLogger(),
+            runner,
+            runner_params=runner_params,
+            log_cached_log_output=log_cached_log_output,
+            secret_reader=secret_reader,
+        )
+    else:
+        runner(**runner_params)
+
+    if error_occurred:
+        logging.error("Error(s) occurred.")
+        sys.exit(1)
+
+
+def runner(
+    dry_run: bool,
+    slack_map: SlackMap,
+    desired_state: SlackState,
+    clusters: list[ClusterV1],
+    workspace_name: str | None = None,
+    usergroup_name: str | None = None,
+) -> ExtendedEarlyExitRunnerResult:
     current_state = get_current_state(
         slack_map=slack_map,
         desired_workspace_name=workspace_name,
@@ -776,15 +852,13 @@ def run(
             if integration_is_enabled(QONTRACT_INTEGRATION, cluster)
         ],
     )
-    act(
+    apply_count = act(
         current_state=current_state,
         desired_state=desired_state,
         slack_map=slack_map,
         dry_run=dry_run,
     )
-    if error_occurred:
-        logging.error("Error(s) occurred.")
-        sys.exit(1)
+    return ExtendedEarlyExitRunnerResult(payload={}, applied_count=apply_count)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:

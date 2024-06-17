@@ -1,0 +1,35 @@
+# qenerate: plugin=pydantic_v1
+
+fragment VPCRequest on VPCRequest_v1 {
+  identifier
+  delete
+  account {
+    name
+    uid
+    terraformUsername
+    automationToken {
+      ...VaultSecret
+    }
+    supportedDeploymentRegions
+    resourcesDefaultRegion
+    providerVersion
+    terraformState {
+      ...TerraformState
+    }
+    enableDeletion
+    deletionApprovals {
+      type
+      name
+      expiration
+    }
+  }
+  region
+  cidr_block {
+    networkAddress
+  }
+  subnets {
+    private 
+    public
+    availability_zones
+  }
+}
