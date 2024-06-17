@@ -51,6 +51,14 @@ class ClusterUpgradeSpec(BaseModel):
         return self.cluster.version.raw_id
 
     @property
+    def oldest_current_version(self) -> str:
+        """
+        Consider versions in node pools and the cluster itself, find the oldest one.
+        """
+        versions = [np.version for np in self.node_pools] + [self.current_version]
+        return min(versions, key=parse_semver)
+
+    @property
     def blocked_versions(self) -> set[str]:
         return set(self.org.blocked_versions or []) | set(
             self.upgrade_policy.conditions.blocked_versions or []
