@@ -43,11 +43,17 @@ class Renderer(ABC):
         template: Template,
         data: TemplateData,
         secret_reader: SecretReaderBase | None = None,
+        trim_blocks: bool = False,
+        lstrip_blocks: bool = False,
+        keep_trailing_newline: bool = False,
     ):
         self.template = template
         self.data = data
         self.secret_reader = secret_reader
         self.ruamel_instance = create_ruamel_instance(explicit_start=True)
+        self.trim_blocks = trim_blocks
+        self.lstrip_blocks = lstrip_blocks
+        self.keep_trailing_newline = keep_trailing_newline
 
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
         return {**self.data.variables, "current": self.data.current}
@@ -58,6 +64,9 @@ class Renderer(ABC):
                 body=template,
                 vars=self._jinja2_render_kwargs(),
                 secret_reader=self.secret_reader,
+                trim_blocks=self.trim_blocks,
+                lstrip_blocks=self.lstrip_blocks,
+                keep_trailing_newline=self.keep_trailing_newline,
             )
         except Jinja2TemplateError as e:
             logging.error(f"Error rendering template {self.template.name}: {e}")
@@ -150,11 +159,24 @@ def create_renderer(
     template: Template,
     data: TemplateData,
     secret_reader: SecretReaderBase | None = None,
+    trim_blocks: bool = False,
+    lstrip_blocks: bool = False,
+    keep_trailing_newline: bool = False,
 ) -> Renderer:
     if template.patch:
-        return PatchRenderer(template=template, data=data, secret_reader=secret_reader)
+        return PatchRenderer(
+            template=template,
+            data=data,
+            secret_reader=secret_reader,
+            trim_blocks=trim_blocks,
+            lstrip_blocks=lstrip_blocks,
+            keep_trailing_newline=keep_trailing_newline,
+        )
     return FullRenderer(
         template=template,
         data=data,
         secret_reader=secret_reader,
+        trim_blocks=trim_blocks,
+        lstrip_blocks=lstrip_blocks,
+        keep_trailing_newline=keep_trailing_newline,
     )

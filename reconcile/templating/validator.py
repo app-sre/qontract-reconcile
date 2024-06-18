@@ -42,6 +42,9 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         template_test: TemplateTestV1,
         ruaml_instance: yaml.YAML,
         secret_reader: SecretReaderBase | None = None,
+        trim_blocks: bool = False,
+        lstrip_blocks: bool = False,
+        keep_trailing_newline: bool = False,
     ) -> Renderer:
         return create_renderer(
             template,
@@ -50,6 +53,9 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                 current=ruaml_instance.load(template_test.current or ""),
             ),
             secret_reader=secret_reader,
+            trim_blocks=trim_blocks,
+            lstrip_blocks=lstrip_blocks,
+            keep_trailing_newline=keep_trailing_newline,
         )
 
     @staticmethod
@@ -62,7 +68,22 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         diffs: list[TemplateDiff] = []
 
         r = TemplateValidatorIntegration._create_renderer(
-            template, template_test, ruaml_instance, secret_reader=secret_reader
+            template,
+            template_test,
+            ruaml_instance,
+            secret_reader=secret_reader,
+            trim_blocks=template.template_render_options.trim_blocks
+            if template.template_render_options
+            and template.template_render_options.trim_blocks is not None
+            else False,
+            lstrip_blocks=template.template_render_options.lstrip_blocks
+            if template.template_render_options
+            and template.template_render_options.lstrip_blocks is not None
+            else False,
+            keep_trailing_newline=template.template_render_options.keep_trailing_newline
+            if template.template_render_options
+            and template.template_render_options.keep_trailing_newline is not None
+            else False,
         )
 
         # Check target path

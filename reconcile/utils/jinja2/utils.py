@@ -32,8 +32,18 @@ class Jinja2TemplateError(Exception):
 
 
 @cache
-def compile_jinja2_template(body: str, extra_curly: bool = False) -> Any:
-    env: dict = {}
+def compile_jinja2_template(
+    body: str,
+    extra_curly: bool = False,
+    trim_blocks: bool = False,
+    lstrip_blocks: bool = False,
+    keep_trailing_newline: bool = False,
+) -> Any:
+    env: dict[str, Any] = {
+        "trim_blocks": trim_blocks,
+        "lstrip_blocks": lstrip_blocks,
+        "keep_trailing_newline": keep_trailing_newline,
+    }
     if extra_curly:
         env = {
             "block_start_string": "{{%",
@@ -154,6 +164,9 @@ def process_jinja2_template(
     extra_curly: bool = False,
     settings: dict[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
+    trim_blocks: bool = False,
+    lstrip_blocks: bool = False,
+    keep_trailing_newline: bool = False,
 ) -> Any:
     if vars is None:
         vars = {}
@@ -187,7 +200,13 @@ def process_jinja2_template(
         for k, v in vars["_template_mocks"].items():
             vars[k] = lambda *args, **kwargs: v
     try:
-        template = compile_jinja2_template(body, extra_curly)
+        template = compile_jinja2_template(
+            body,
+            extra_curly,
+            trim_blocks=trim_blocks,
+            lstrip_blocks=lstrip_blocks,
+            keep_trailing_newline=keep_trailing_newline,
+        )
         r = template.render(vars)
     except Exception as e:
         raise Jinja2TemplateError(e)
@@ -200,6 +219,9 @@ def process_extracurlyjinja2_template(
     extra_curly: bool = True,
     settings: dict[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
+    trim_blocks: bool = False,
+    lstrip_blocks: bool = False,
+    keep_trailing_newline: bool = False,
 ) -> Any:
     if vars is None:
         vars = {}
@@ -209,6 +231,9 @@ def process_extracurlyjinja2_template(
         extra_curly=True,
         settings=settings,
         secret_reader=secret_reader,
+        trim_blocks=trim_blocks,
+        lstrip_blocks=lstrip_blocks,
+        keep_trailing_newline=keep_trailing_newline,
     )
 
 
