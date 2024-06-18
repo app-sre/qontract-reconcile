@@ -1,9 +1,6 @@
 import logging
 import os
-from collections.abc import (
-    Iterable,
-    Set,
-)
+from collections.abc import Iterable
 
 from reconcile import queries
 from reconcile.gitlab_housekeeping import (
@@ -14,6 +11,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 
 LABEL_COLOR = "#0000FF"  # Color blue in hex for labels
 QONTRACT_INTEGRATION = "gitlab-labeler"
+TEST_ON_RHEL8_AI = "test-on-rhel8-ai"
 
 
 def get_app_list() -> dict:
@@ -80,7 +78,7 @@ def guess_onboarding_status(
 
 def guess_labels(
     project_labels: Iterable[str], changed_paths: Iterable[str]
-) -> Set[str]:
+) -> set[str]:
     """
     Guess labels returns a list of labels from the project labels
     that contain parts of the changed paths.
@@ -129,8 +127,14 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None) -> None:
         project_labels = gl.get_project_labels()
         merge_request = gl.get_merge_request(gitlab_merge_request_id)
         changed_paths = gl.get_merge_request_changed_paths(merge_request)
-        guessed_labels = guess_labels(project_labels, changed_paths)
-        labels_to_add = guessed_labels - set(merge_request.labels)
+        new_labels = guess_labels(project_labels, changed_paths)
+
+        author = merge_request.author["username"]
+        app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+        if author in app_sre_team_members:
+            new_labels.add(TEST_ON_RHEL8_AI)
+
+        labels_to_add = new_labels - set(merge_request.labels)
         labels_to_create = labels_to_add - project_labels
 
         # This integration cannot check dry-run mode as it's always running with
