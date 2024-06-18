@@ -28,6 +28,47 @@ def test_utils_get_syncsets(
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
 ) -> None:
     get_syncsets_call = mocker.patch.object(
+        syncsets, "get_syncsets", wraps=syncsets.get_syncsets
+    )
+    cluster_id = "123abc"
+    syncset_list_kind_value = "SyncsetList"
+    syncet_a = {
+        "kind": "Syncset",
+        "id": "syncset1",
+    }
+    syncset_b = {
+        "kind": "Syncset",
+        "id": "syncset2",
+    }
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri=f"/api/clusters_mgmt/v1/clusters/{cluster_id}/external_configuration/syncsets",
+        ).add_paginated_get_response(
+            page=1,
+            size=2,
+            total=2,
+            kind=syncset_list_kind_value,
+            items=[
+                syncet_a,
+                syncset_b,
+            ],
+        )
+    ])
+
+    response = syncsets.get_syncsets(ocm_client=ocm_api, cluster_id=cluster_id)
+
+    assert [item for item in response] == [syncet_a, syncset_b]
+
+    get_syncsets_call.assert_called_once_with(ocm_client=ocm_api, cluster_id=cluster_id)
+
+
+def test_utils_get_syncset(
+    ocm_api: OCMBaseClient,
+    mocker: MockerFixture,
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+) -> None:
+    get_syncsets_call = mocker.patch.object(
         syncsets, "get_syncset", wraps=syncsets.get_syncset
     )
     cluster_id = "123abc"

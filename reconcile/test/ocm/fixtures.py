@@ -3,6 +3,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from pydantic import (
@@ -67,6 +68,18 @@ class OcmUrl(BaseModel):
             "kind": f"{kind}",
             "id": f"{id}",
             "resources": resources,
+        })
+        return self
+
+    def add_paginated_get_response(
+        self, page: int, size: int, total: int, items: Iterable[Mapping], kind: str
+    ) -> "OcmUrl":
+        self.responses.append({
+            "kind": kind,
+            "page": page,
+            "size": size,
+            "total": total,
+            "items": [dict(item) for item in items],
         })
         return self
 
