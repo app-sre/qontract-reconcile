@@ -282,7 +282,7 @@ def build_role(
         PermissionSlackUsergroupV1(
             handle=g,
             workspace=SlackWorkspaceV1(name=slack_workspace),
-            channel=slack_channel,
+            channels=[slack_channel],
         )
         for g in slack_groups or []
     ] + [PermissionGitlabGroupMembershipV1(group=g) for g in gitlab_groups or []]
