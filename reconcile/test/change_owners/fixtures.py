@@ -276,10 +276,13 @@ def build_role(
     slack_workspace: str | None = "workspace",
     gitlab_groups: list[str] | None = None,
     labels: Json | None = None,
+    slack_channel: str | None = "channel",
 ) -> self_service_roles.RoleV1:
     permissions: list[PermissionV1] = [
         PermissionSlackUsergroupV1(
-            handle=g, workspace=SlackWorkspaceV1(name=slack_workspace)
+            handle=g,
+            workspace=SlackWorkspaceV1(name=slack_workspace),
+            channel=slack_channel,
         )
         for g in slack_groups or []
     ] + [PermissionGitlabGroupMembershipV1(group=g) for g in gitlab_groups or []]

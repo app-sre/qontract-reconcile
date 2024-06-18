@@ -67,9 +67,10 @@ class ApproverReachability(Protocol):
 class SlackGroupApproverReachability:
     slack_group: str
     workspace: str
+    channel: str
 
     def render_for_mr_report(self) -> str:
-        return f"Slack group {self.slack_group}/{self.workspace}"
+        return f"Slack group @{self.slack_group} in channel #{self.channel} (workspace {self.workspace})"
 
 
 @dataclass
