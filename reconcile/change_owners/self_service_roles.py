@@ -238,6 +238,7 @@ def approver_reachability_from_role(role: RoleV1) -> list[ApproverReachability]:
                 SlackGroupApproverReachability(
                     slack_group=permission.handle,
                     workspace=permission.workspace.name,
+                    channel=permission.channels[0],
                 )
             )
         elif isinstance(permission, PermissionGitlabGroupMembershipV1):
