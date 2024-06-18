@@ -273,7 +273,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         access_level = self.get_access_level(access)
         # check if we have 'access_level' access so we can  add the group with same role.
         members = self.get_items(
-            project.members.all, query_parameters={"user_ids": self.user.id}
+            project.members_all.list, query_parameters={"user_ids": self.user.id}
         )
         if not any(
             self.user.id == member.id and member.access_level >= access_level
@@ -450,8 +450,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return self.get_items(mr.resourcelabelevents.list)
 
     def get_merge_request_pipelines(self, mr: ProjectMergeRequest) -> list[dict]:
+        # TODO: use typed object in return
+        # TODO: use server side order_by
+        items = self.get_items(mr.pipelines.list)
         return sorted(
-            self.get_items(mr.pipelines), key=lambda x: x["created_at"], reverse=True
+            [i.asdict() for i in items],
+            key=lambda x: x["created_at"],
+            reverse=True,
         )
 
     @staticmethod
@@ -587,6 +592,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.notes.create({"body": body})
 
+    # TODO: deprecated this method as new support of list(get_all=True), and figure out request counter metrics
     @staticmethod
     def get_items(method, **kwargs):
         all_items = []
