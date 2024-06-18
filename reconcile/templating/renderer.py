@@ -46,11 +46,14 @@ APP_INTERFACE_PATH_SEPERATOR = "/"
 
 
 def get_template_collections(
-    query_func: Callable | None = None,
+    query_func: Callable | None = None, template_collection_name: str | None = None
 ) -> list[TemplateCollectionV1]:
+    variables: dict[str, Any] = {"filter": {}}
+    if template_collection_name:
+        variables["filter"]["name"] = template_collection_name
     if not query_func:
         query_func = gql.get_api().query
-    return query(query_func).template_collection_v1 or []
+    return query(query_func, variables=variables).template_collection_v1 or []
 
 
 class FilePersistence(ABC):
@@ -193,6 +196,7 @@ def calc_template_hash(c: TemplateCollectionV1, variables: dict[str, Any]) -> st
 class TemplateRendererIntegrationParams(PydanticRunParams):
     clone_repo: bool = False
     app_interface_data_path: str | None
+    template_collection_name: str | None
 
 
 def join_path(base: str, sub: str) -> str:
@@ -284,8 +288,9 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         ruamel_instance: yaml.YAML,
     ) -> None:
         gql_no_validation = init_from_config(validate_schemas=False)
-
-        for c in get_template_collections():
+        for c in get_template_collections(
+            template_collection_name=self.params.template_collection_name
+        ):
             for_each_items: list[dict[str, Any]] = [{}]
             if c.for_each and c.for_each.items:
                 for_each_items = c.for_each.items

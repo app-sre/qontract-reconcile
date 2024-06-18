@@ -59,7 +59,7 @@ def test_compose_console_url(
 
     assert (
         url
-        == "https://console.url/k8s/ns/namespace_name/tekton.dev~v1beta1~Pipeline/o-saas-deploy-saas_name/"
+        == "https://console.url/k8s/ns/namespace_name/tekton.dev~v1~Pipeline/o-saas-deploy-saas_name/"
         "Runs?name=saas_name-production"
     )
 
@@ -75,7 +75,7 @@ def test_compose_console_url_with_medium_saas_name(
 
     expected_run_name = f"{saas_name}-{env_name}"[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
     assert (
-        url == "https://console.url/k8s/ns/namespace_name/tekton.dev~v1beta1~Pipeline/"
+        url == "https://console.url/k8s/ns/namespace_name/tekton.dev~v1~Pipeline/"
         "o-saas-deploy-saas-openshift-cert-manager-routes/"
         f"Runs?name={expected_run_name}"
     )

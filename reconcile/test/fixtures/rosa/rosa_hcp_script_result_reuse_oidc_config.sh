@@ -31,7 +31,7 @@ rosa create cluster --cluster-name=cluster-1 \
     --operator-roles-prefix cluster-1 \
     --subnet-ids subnet-a,subnet-b,subnet-c \
     --region us-east-1 \
-    --version 4.10.16 \
+    --version 4.8.10 \
     --machine-cidr 10.0.0.0/16 \
     --service-cidr 172.30.0.0/16 \
     --pod-cidr 10.128.0.0/14 \

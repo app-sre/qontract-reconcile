@@ -55,7 +55,7 @@ def compose_console_url(saas_file: SaasFile, env_name: str) -> str:
 
     return (
         f"{saas_file.pipelines_provider.namespace.cluster.console_url}/k8s/ns/"
-        f"{saas_file.pipelines_provider.namespace.name}/tekton.dev~v1beta1~Pipeline/"
+        f"{saas_file.pipelines_provider.namespace.name}/tekton.dev~v1~Pipeline/"
         f"{pipeline_name}/Runs?name={tkn_name}"
     )
 
