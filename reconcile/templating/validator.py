@@ -79,15 +79,17 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
 
         # Check condition
         should_render = r.render_condition()
-        if (
-            template_test.expected_to_render is not None
-            and template_test.expected_to_render != should_render
-        ):
+        expected_to_render = (
+            template_test.expected_to_render
+            if template_test.expected_to_render is not None
+            else True
+        )
+        if expected_to_render != should_render:
             diffs.append(
                 TemplateDiff(
                     template=template.name,
                     test=template_test.name,
-                    diff=f"Condition mismatch, got: {should_render}, expected: {template_test.expected_to_render}",
+                    diff=f"Condition mismatch for expectedToRender, got: {should_render}, expected: {expected_to_render}",
                 )
             )
 
