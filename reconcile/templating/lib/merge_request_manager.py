@@ -148,12 +148,14 @@ class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
         if mr := self._merge_request_already_exists({"collection": collection}):
             if mr.mr_info.collection_hash == collection_hash:
                 logging.info(
-                    "MR already exists and has the same template hash. Skipping",
+                    "MR already exists and has the same template hash. Skipping: %s",
+                    mr.raw.attributes.get("web_url", "NO_WEBURL"),
                 )
                 return None
             else:
                 logging.info(
-                    "Collection Hash changed. Closing it",
+                    "Collection Hash changed. Closing: %s",
+                    mr.raw.attributes.get("web_url", "NO_WEBURL"),
                 )
                 self._vcs.close_app_interface_mr(
                     mr.raw,

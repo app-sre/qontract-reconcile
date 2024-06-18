@@ -11,10 +11,12 @@ from reconcile.utils.ocm.base import (
     PRODUCT_ID_OSD,
     PRODUCT_ID_ROSA,
     ClusterDetails,
+    FleetManagerServiceCluster,
     OCMCluster,
     OCMClusterState,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
+    ProvisionShard,
     build_label_container,
 )
 from reconcile.utils.ocm.labels import (
@@ -144,6 +146,26 @@ def get_ocm_clusters(
         max_page_size=100,
     ):
         yield OCMCluster(**cluster_dict)
+
+
+def get_provision_shard_for_cluster_id(
+    ocm_api: OCMBaseClient,
+    id: str,
+) -> ProvisionShard:
+    data = ocm_api.get(api_path=f"/api/clusters_mgmt/v1/clusters/{id}/provision_shard")
+    return ProvisionShard(**data)
+
+
+def get_service_clusters(
+    ocm_api: OCMBaseClient,
+) -> Generator[FleetManagerServiceCluster, None, None]:
+    for cluster_dict in ocm_api.get_paginated(
+        api_path="/api/osd_fleet_mgmt/v1/service_clusters",
+        max_page_size=100,
+    ):
+        if not cluster_dict.get("provision_shard_reference"):
+            continue
+        yield FleetManagerServiceCluster(**cluster_dict)
 
 
 def get_cluster_details_for_subscriptions(
