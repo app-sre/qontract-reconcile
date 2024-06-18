@@ -185,6 +185,7 @@ def test_self_service_role_slack_user_group_approver_reachability() -> None:
         change_type_name="change-type-name",
         slack_groups=slack_groups,
         slack_workspace=slack_workspace,
+        slack_channel=slack_channel,
     )
     reachability = approver_reachability_from_role(role)
     assert reachability == [
