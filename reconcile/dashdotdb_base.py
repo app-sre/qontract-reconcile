@@ -50,7 +50,7 @@ class DashdotdbBase:
         self.dashdotdb_pass = self.secret_content["password"]
         self.logmarker = marker
         self.scope = scope
-        self.dashdotdb_token: str | None
+        self.dashdotdb_token: str | None = None
 
     def _get_token(self) -> None:
         if self.dry_run:
