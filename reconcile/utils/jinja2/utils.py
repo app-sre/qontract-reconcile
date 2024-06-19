@@ -45,14 +45,14 @@ def compile_jinja2_template(
         "keep_trailing_newline": keep_trailing_newline,
     }
     if extra_curly:
-        env = {
+        env.update({
             "block_start_string": "{{%",
             "block_end_string": "%}}",
             "variable_start_string": "{{{",
             "variable_end_string": "}}}",
             "comment_start_string": "{{#",
             "comment_end_string": "#}}",
-        }
+        })
 
     jinja_env = SandboxedEnvironment(
         extensions=[B64EncodeExtension, RaiseErrorExtension],
