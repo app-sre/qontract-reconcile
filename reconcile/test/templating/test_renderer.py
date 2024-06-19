@@ -575,9 +575,9 @@ def test_reconcile_variables(
 def test__calc_template_hash(template_collection: TemplateCollectionV1) -> None:
     assert (
         calc_template_hash(template_collection, {"foo": "bar"})
-        == "53f3aae861cd9cf2cae255276670f8a69923c1c3f7eec05deb30264414613dcf"
+        == "1b57a0dfecb088946a296b43c7c6ca1845614c544d60a7ef4180d69c8d80517f"
     )
     assert (
         calc_template_hash(template_collection, {"foo": "baz"})
-        == "21c114ed34b09ad63973de146ef0f9387f919157e7acb53ddc333a92a9d0f531"
+        == "ea1fbc437defbad64a9feda91d9a34573ab0a464adeb205f03b490c08190a4df"
     )
