@@ -44,20 +44,6 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         ruaml_instance: yaml.YAML,
         secret_reader: SecretReaderBase | None = None,
     ) -> Renderer:
-        template_render_options = TemplateRenderOptions()
-        if template.template_render_options:
-            if template.template_render_options.trim_blocks is not None:
-                template_render_options.trim_blocks = (
-                    template.template_render_options.trim_blocks
-                )
-            if template.template_render_options.lstrip_blocks is not None:
-                template_render_options.lstrip_blocks = (
-                    template.template_render_options.lstrip_blocks
-                )
-            if template.template_render_options.keep_trailing_newline is not None:
-                template_render_options.keep_trailing_newline = (
-                    template.template_render_options.keep_trailing_newline
-                )
         return create_renderer(
             template,
             TemplateData(
@@ -65,7 +51,17 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                 current=ruaml_instance.load(template_test.current or ""),
             ),
             secret_reader=secret_reader,
-            template_render_options=template_render_options,
+            template_render_options=TemplateRenderOptions.create(
+                trim_blocks=template.template_render_options.trim_blocks
+                if template.template_render_options
+                else None,
+                lstrip_blocks=template.template_render_options.lstrip_blocks
+                if template.template_render_options
+                else None,
+                keep_trailing_newline=template.template_render_options.keep_trailing_newline
+                if template.template_render_options
+                else None,
+            ),
         )
 
     @staticmethod

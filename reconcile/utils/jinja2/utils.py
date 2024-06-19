@@ -1,5 +1,5 @@
 from functools import cache
-from typing import Any
+from typing import Any, Self
 
 import jinja2
 from jinja2.sandbox import SandboxedEnvironment
@@ -33,12 +33,25 @@ class Jinja2TemplateError(Exception):
 
 
 class TemplateRenderOptions(BaseModel):
-    trim_blocks: bool = False
-    lstrip_blocks: bool = False
-    keep_trailing_newline: bool = False
+    trim_blocks: bool
+    lstrip_blocks: bool
+    keep_trailing_newline: bool
 
     class Config:
         frozen = True
+
+    @classmethod
+    def create(
+        cls,
+        trim_blocks: bool | None = None,
+        lstrip_blocks: bool | None = None,
+        keep_trailing_newline: bool | None = None,
+    ) -> Self:
+        return cls(
+            trim_blocks=trim_blocks or False,
+            lstrip_blocks=lstrip_blocks or False,
+            keep_trailing_newline=keep_trailing_newline or False,
+        )
 
 
 @cache
@@ -48,7 +61,7 @@ def compile_jinja2_template(
     template_render_options: TemplateRenderOptions | None = None,
 ) -> Any:
     if not template_render_options:
-        template_render_options = TemplateRenderOptions()
+        template_render_options = TemplateRenderOptions.create()
     env: dict[str, Any] = template_render_options.dict()
     if extra_curly:
         env.update({

@@ -491,6 +491,7 @@ def test_reconcile_simple(
             patch=None,
             template="template",
             autoApproved=None,
+            templateRenderOptions=None,
         ),
         {},
         ANY,
