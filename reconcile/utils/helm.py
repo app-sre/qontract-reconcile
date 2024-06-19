@@ -23,7 +23,11 @@ class JSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
+def do_template(
+    values: Mapping[str, Any],
+    path: str,
+    name: str,
+) -> str:
     try:
         with tempfile.NamedTemporaryFile(mode="w+", encoding="locale") as values_file:
             values_file.write(json.dumps(values, cls=JSONEncoder))
@@ -31,9 +35,9 @@ def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
             cmd = [
                 "helm",
                 "template",
-                "./helm/qontract-reconcile",
+                path,
                 "-n",
-                "qontract-reconcile",
+                name,
                 "-f",
                 values_file.name,
             ]
@@ -46,4 +50,13 @@ def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
             msg += f" {e.stderr.decode()}"
         raise HelmTemplateError(msg)
 
-    return yaml.safe_load(result.stdout.decode())
+    return result.stdout.decode()
+
+
+def template(
+    values: Mapping[str, Any],
+    path: str = "./helm/qontract-reconcile",
+    name: str = "qontract-reconcile",
+) -> Mapping[str, Any]:
+    return yaml.safe_load(do_template(values=values, path=path, name=name))
+
