@@ -89,6 +89,7 @@ query AWSAccountManagerAccounts {
       resourcesDefaultRegion
       supportedDeploymentRegions
       uid
+      additionalFeatures
     }
     organization_accounts {
       ... AWSAccountManaged
@@ -141,6 +142,7 @@ class AWSAccountRequestV1(ConfiguredBaseModel):
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
     supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
     uid: Optional[str] = Field(..., alias="uid")
+    additional_features: Optional[Json] = Field(..., alias="additionalFeatures")
 
 
 class AWSAccountV1(AWSAccountManaged):
