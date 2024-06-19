@@ -1,6 +1,6 @@
 import json
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from subprocess import (
     CalledProcessError,
     run,
@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 
+from reconcile.utils import git
 from reconcile.utils.runtime.sharding import ShardSpec
 
 
@@ -23,7 +24,11 @@ class JSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
+def do_template(
+    values: Mapping[str, Any],
+    path: str,
+    name: str,
+) -> str:
     try:
         with tempfile.NamedTemporaryFile(mode="w+", encoding="locale") as values_file:
             values_file.write(json.dumps(values, cls=JSONEncoder))
@@ -31,9 +36,9 @@ def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
             cmd = [
                 "helm",
                 "template",
-                "./helm/qontract-reconcile",
+                path,
                 "-n",
-                "qontract-reconcile",
+                name,
                 "-f",
                 values_file.name,
             ]
@@ -46,4 +51,26 @@ def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
             msg += f" {e.stderr.decode()}"
         raise HelmTemplateError(msg)
 
-    return yaml.safe_load(result.stdout.decode())
+    return result.stdout.decode()
+
+
+def template(
+    values: Mapping[str, Any],
+    path: str = "./helm/qontract-reconcile",
+    name: str = "qontract-reconcile",
+) -> Mapping[str, Any]:
+    return yaml.safe_load(do_template(values=values, path=path, name=name))
+
+
+def template_all(
+    url: str,
+    path: str,
+    name: str,
+    values: Mapping[str, Any],
+    ssl_verify: bool = True,
+) -> Iterable[Mapping[str, Any]]:
+    with tempfile.TemporaryDirectory() as wd:
+        git.clone(url, wd, depth=1, verify=ssl_verify)
+        return yaml.safe_load_all(
+            do_template(values=values, path=f"{wd}{path}", name=name)
+        )

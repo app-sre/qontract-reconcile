@@ -39,6 +39,7 @@ from sretoolbox.utils import (
 
 from reconcile.github_org import get_default_config
 from reconcile.status import RunningState
+from reconcile.utils import helm
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.jjb_client import JJB
@@ -1033,6 +1034,21 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     + "(We do not support nested directories. Do you by chance have subdirectories?)"
                 )
                 raise
+
+        elif provider == "helm":
+            ssl_verify = (
+                self.gitlab.ssl_verify
+                if self.gitlab and url.startswith(self.gitlab.server)
+                else True
+            )
+            html_url = f"{url}/tree/{target.ref}{path}"
+            resources = helm.template_all(
+                url=url,
+                path=path,
+                name=resource_template_name,
+                values=target.parameters or {},
+                ssl_verify=ssl_verify,
+            )
 
         else:
             logging.error(
