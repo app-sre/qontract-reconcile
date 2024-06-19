@@ -46,4 +46,4 @@ def template(values: Mapping[str, Any]) -> Mapping[str, Any]:
             msg += f" {e.stderr.decode()}"
         raise HelmTemplateError(msg)
 
-    return yaml.safe_load(result.stdout.decode())
+    return yaml.safe_load_all(result.stdout.decode())
