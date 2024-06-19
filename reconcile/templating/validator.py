@@ -12,6 +12,7 @@ from reconcile.gql_definitions.templating.templates import (
 )
 from reconcile.templating.lib.rendering import Renderer, TemplateData, create_renderer
 from reconcile.utils import gql
+from reconcile.utils.jinja2.utils import TemplateRenderOptions
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
@@ -42,10 +43,21 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         template_test: TemplateTestV1,
         ruaml_instance: yaml.YAML,
         secret_reader: SecretReaderBase | None = None,
-        trim_blocks: bool = False,
-        lstrip_blocks: bool = False,
-        keep_trailing_newline: bool = False,
     ) -> Renderer:
+        template_render_options = TemplateRenderOptions()
+        if template.template_render_options:
+            if template.template_render_options.trim_blocks is not None:
+                template_render_options.trim_blocks = (
+                    template.template_render_options.trim_blocks
+                )
+            if template.template_render_options.lstrip_blocks is not None:
+                template_render_options.lstrip_blocks = (
+                    template.template_render_options.lstrip_blocks
+                )
+            if template.template_render_options.keep_trailing_newline is not None:
+                template_render_options.keep_trailing_newline = (
+                    template.template_render_options.keep_trailing_newline
+                )
         return create_renderer(
             template,
             TemplateData(
@@ -53,9 +65,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                 current=ruaml_instance.load(template_test.current or ""),
             ),
             secret_reader=secret_reader,
-            trim_blocks=trim_blocks,
-            lstrip_blocks=lstrip_blocks,
-            keep_trailing_newline=keep_trailing_newline,
+            template_render_options=template_render_options,
         )
 
     @staticmethod
@@ -68,22 +78,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         diffs: list[TemplateDiff] = []
 
         r = TemplateValidatorIntegration._create_renderer(
-            template,
-            template_test,
-            ruaml_instance,
-            secret_reader=secret_reader,
-            trim_blocks=template.template_render_options.trim_blocks
-            if template.template_render_options
-            and template.template_render_options.trim_blocks is not None
-            else False,
-            lstrip_blocks=template.template_render_options.lstrip_blocks
-            if template.template_render_options
-            and template.template_render_options.lstrip_blocks is not None
-            else False,
-            keep_trailing_newline=template.template_render_options.keep_trailing_newline
-            if template.template_render_options
-            and template.template_render_options.keep_trailing_newline is not None
-            else False,
+            template, template_test, ruaml_instance, secret_reader=secret_reader
         )
 
         # Check target path

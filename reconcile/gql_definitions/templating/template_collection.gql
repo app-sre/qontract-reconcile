@@ -26,6 +26,11 @@ query TemplateCollection_v1 {
         identifier
       }
       template
+      templateRenderOptions {
+        trimBlocks
+        lstripBlocks
+        keepTrailingNewline
+      }
     }
   }
 }

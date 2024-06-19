@@ -3,6 +3,7 @@ from typing import Any
 
 import jinja2
 from jinja2.sandbox import SandboxedEnvironment
+from pydantic import BaseModel
 from sretoolbox.utils import retry
 
 from reconcile import queries
@@ -31,18 +32,27 @@ class Jinja2TemplateError(Exception):
         super().__init__("error processing jinja2 template: " + str(msg))
 
 
+class TemplateRenderOptions(BaseModel):
+    trim_blocks: bool = False
+    lstrip_blocks: bool = False
+    keep_trailing_newline: bool = False
+
+    class Config:
+        frozen = True
+
+
 @cache
 def compile_jinja2_template(
     body: str,
     extra_curly: bool = False,
-    trim_blocks: bool = False,
-    lstrip_blocks: bool = False,
-    keep_trailing_newline: bool = False,
+    template_render_options: TemplateRenderOptions | None = None,
 ) -> Any:
+    if not template_render_options:
+        template_render_options = TemplateRenderOptions()
     env: dict[str, Any] = {
-        "trim_blocks": trim_blocks,
-        "lstrip_blocks": lstrip_blocks,
-        "keep_trailing_newline": keep_trailing_newline,
+        "trim_blocks": template_render_options.trim_blocks,
+        "lstrip_blocks": template_render_options.lstrip_blocks,
+        "keep_trailing_newline": template_render_options.keep_trailing_newline,
     }
     if extra_curly:
         env.update({
@@ -164,9 +174,7 @@ def process_jinja2_template(
     extra_curly: bool = False,
     settings: dict[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
-    trim_blocks: bool = False,
-    lstrip_blocks: bool = False,
-    keep_trailing_newline: bool = False,
+    template_render_options: TemplateRenderOptions | None = None,
 ) -> Any:
     if vars is None:
         vars = {}
@@ -200,13 +208,7 @@ def process_jinja2_template(
         for k, v in vars["_template_mocks"].items():
             vars[k] = lambda *args, **kwargs: v
     try:
-        template = compile_jinja2_template(
-            body,
-            extra_curly,
-            trim_blocks=trim_blocks,
-            lstrip_blocks=lstrip_blocks,
-            keep_trailing_newline=keep_trailing_newline,
-        )
+        template = compile_jinja2_template(body, extra_curly, template_render_options)
         r = template.render(vars)
     except Exception as e:
         raise Jinja2TemplateError(e)
@@ -216,12 +218,10 @@ def process_jinja2_template(
 def process_extracurlyjinja2_template(
     body: str,
     vars: dict[str, Any] | None = None,
-    extra_curly: bool = True,
+    extra_curly: bool = True,  # ignored. Just to be compatible with process_jinja2_template
     settings: dict[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
-    trim_blocks: bool = False,
-    lstrip_blocks: bool = False,
-    keep_trailing_newline: bool = False,
+    template_render_options: TemplateRenderOptions | None = None,
 ) -> Any:
     if vars is None:
         vars = {}
@@ -231,9 +231,7 @@ def process_extracurlyjinja2_template(
         extra_curly=True,
         settings=settings,
         secret_reader=secret_reader,
-        trim_blocks=trim_blocks,
-        lstrip_blocks=lstrip_blocks,
-        keep_trailing_newline=keep_trailing_newline,
+        template_render_options=template_render_options,
     )
 
 

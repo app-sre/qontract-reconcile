@@ -5,7 +5,11 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel
 
-from reconcile.utils.jinja2.utils import Jinja2TemplateError, process_jinja2_template
+from reconcile.utils.jinja2.utils import (
+    Jinja2TemplateError,
+    TemplateRenderOptions,
+    process_jinja2_template,
+)
 from reconcile.utils.jsonpath import parse_jsonpath
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReaderBase
@@ -43,17 +47,13 @@ class Renderer(ABC):
         template: Template,
         data: TemplateData,
         secret_reader: SecretReaderBase | None = None,
-        trim_blocks: bool = False,
-        lstrip_blocks: bool = False,
-        keep_trailing_newline: bool = False,
+        template_render_options: TemplateRenderOptions | None = None,
     ):
         self.template = template
         self.data = data
         self.secret_reader = secret_reader
         self.ruamel_instance = create_ruamel_instance(explicit_start=True)
-        self.trim_blocks = trim_blocks
-        self.lstrip_blocks = lstrip_blocks
-        self.keep_trailing_newline = keep_trailing_newline
+        self.template_render_options = template_render_options
 
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
         return {**self.data.variables, "current": self.data.current}
@@ -64,9 +64,7 @@ class Renderer(ABC):
                 body=template,
                 vars=self._jinja2_render_kwargs(),
                 secret_reader=self.secret_reader,
-                trim_blocks=self.trim_blocks,
-                lstrip_blocks=self.lstrip_blocks,
-                keep_trailing_newline=self.keep_trailing_newline,
+                template_render_options=self.template_render_options,
             )
         except Jinja2TemplateError as e:
             logging.error(f"Error rendering template {self.template.name}: {e}")
@@ -159,24 +157,18 @@ def create_renderer(
     template: Template,
     data: TemplateData,
     secret_reader: SecretReaderBase | None = None,
-    trim_blocks: bool = False,
-    lstrip_blocks: bool = False,
-    keep_trailing_newline: bool = False,
+    template_render_options: TemplateRenderOptions | None = None,
 ) -> Renderer:
     if template.patch:
         return PatchRenderer(
             template=template,
             data=data,
             secret_reader=secret_reader,
-            trim_blocks=trim_blocks,
-            lstrip_blocks=lstrip_blocks,
-            keep_trailing_newline=keep_trailing_newline,
+            template_render_options=template_render_options,
         )
     return FullRenderer(
         template=template,
         data=data,
         secret_reader=secret_reader,
-        trim_blocks=trim_blocks,
-        lstrip_blocks=lstrip_blocks,
-        keep_trailing_newline=keep_trailing_newline,
+        template_render_options=template_render_options,
     )
