@@ -49,11 +49,7 @@ def compile_jinja2_template(
 ) -> Any:
     if not template_render_options:
         template_render_options = TemplateRenderOptions()
-    env: dict[str, Any] = {
-        "trim_blocks": template_render_options.trim_blocks,
-        "lstrip_blocks": template_render_options.lstrip_blocks,
-        "keep_trailing_newline": template_render_options.keep_trailing_newline,
-    }
+    env: dict[str, Any] = template_render_options.dict()
     if extra_curly:
         env.update({
             "block_start_string": "{{%",
