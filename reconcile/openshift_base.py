@@ -401,12 +401,16 @@ def apply(
 
         try:
             oc.apply(namespace, annotated)
-        except (InvalidValueApplyError, RequestEntityTooLargeError):
+        except InvalidValueApplyError:
             oc.remove_last_applied_configuration(
                 namespace, resource_type, resource.name
             )
             oc.apply(namespace, annotated)
-        except (MetaDataAnnotationsTooLongApplyError, UnsupportedMediaTypeError):
+        except (
+            MetaDataAnnotationsTooLongApplyError,
+            UnsupportedMediaTypeError,
+            RequestEntityTooLargeError,
+        ):
             if not oc.get(
                 namespace, resource_type, resource.name, allow_not_found=True
             ):
