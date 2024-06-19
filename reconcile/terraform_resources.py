@@ -66,7 +66,7 @@ from reconcile.utils.vault import (
 )
 
 QONTRACT_INTEGRATION = "terraform_resources"
-QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 3)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 4)
 QONTRACT_TF_PREFIX = "qrtf"
 
 
