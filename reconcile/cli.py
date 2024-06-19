@@ -50,6 +50,9 @@ TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 OC_VERSIONS = ["4.12.46", "4.10.15"]
 OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$"
 
+HELM_VERSIONS = ["3.11.1"]
+HELM_VERSION_REGEX = r"^version.BuildInfo{Version:\"v([\d]+\.[\d]+\.[\d]+)\".*$"
+
 
 def before_breadcrumb(crumb, hint):
     # https://docs.sentry.io/platforms/python/configuration/filtering/
@@ -1394,6 +1397,7 @@ def openshift_resources(
 @use_jump_host()
 @binary(["oc", "ssh"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@binary_version("helm", ["version"], HELM_VERSION_REGEX, HELM_VERSIONS)
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
 @click.option("--env-name", default=None, help="environment to deploy to.")
 @trigger_integration
