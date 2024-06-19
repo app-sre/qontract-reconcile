@@ -1,6 +1,6 @@
 import json
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from subprocess import (
     CalledProcessError,
     run,
@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 
+from reconcile.utils import git
 from reconcile.utils.runtime.sharding import ShardSpec
 
 
@@ -60,3 +61,16 @@ def template(
 ) -> Mapping[str, Any]:
     return yaml.safe_load(do_template(values=values, path=path, name=name))
 
+
+def template_all(
+    url: str,
+    path: str,
+    name: str,
+    values: Mapping[str, Any],
+    ssl_verify: bool = True,
+) -> Iterable[Mapping[str, Any]]:
+    with tempfile.TemporaryDirectory() as wd:
+        git.clone(url, wd, verify=ssl_verify)
+        return yaml.safe_load_all(
+            do_template(values=values, path=f"{wd}{path}", name=name)
+        )
