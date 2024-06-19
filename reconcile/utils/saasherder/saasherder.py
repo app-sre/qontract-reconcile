@@ -1363,10 +1363,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         try:
             resources, html_url, promotion = self._process_template(spec)
         except Exception as e:
-            # error log message send in _process_template. We log here debug to have a
-            # safeguard in case something breaks there unexpectedly. We cannot just
+            # error log message send in _process_template. We cannot just
             # register an error without logging as inventory errors don't have details.
-            logging.debug(f"Error in populate_desired_state_saas_file: {e}")
+            logging.error(f"Error in populate_desired_state_saas_file: {e}")
             ri.register_error()
             return None
 
