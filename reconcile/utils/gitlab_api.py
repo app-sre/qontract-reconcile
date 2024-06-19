@@ -13,6 +13,7 @@ from operator import (
 from typing import (
     Any,
     TypedDict,
+    cast,
 )
 from urllib.parse import urlparse
 
@@ -30,7 +31,9 @@ from gitlab.v4.objects import (
     Group,
     Project,
     ProjectIssue,
+    ProjectIssueManager,
     ProjectMergeRequest,
+    ProjectMergeRequestManager,
     ProjectMergeRequestNote,
 )
 from sretoolbox.utils import retry
@@ -614,7 +617,18 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     @staticmethod
     def refresh_labels(item: ProjectMergeRequest | ProjectIssue):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        refreshed_item = item.manager.get(item.get_id())
+        manager: ProjectMergeRequestManager | ProjectIssueManager
+        match item:
+            case ProjectMergeRequest():
+                manager = cast(ProjectMergeRequestManager, item.manager)
+            case ProjectIssue():
+                manager = cast(ProjectIssueManager, item.manager)
+            case _:
+                raise ValueError("item must be a ProjectMergeRequest or ProjectIssue")
+        item_id = item.get_id()
+        if item_id is None:
+            raise ValueError("item must have an id")
+        refreshed_item = manager.get(item_id)
         item.labels = refreshed_item.labels
 
     @staticmethod
