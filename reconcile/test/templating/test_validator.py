@@ -101,7 +101,29 @@ def test_validate_output_condition_diff(
         ruaml_instance,
     )
     assert diff
-    assert diff[0].diff == "Condition mismatch, got: False, expected: True"
+    assert (
+        diff[0].diff
+        == "Condition mismatch for expectedToRender, got: False, expected: True"
+    )
+
+
+def test_validate_output_condition_diff_expected_to_render_default_true(
+    simple_template: TemplateV1,
+    simple_template_test: TemplateTestV1,
+    ruaml_instance: yaml.YAML,
+) -> None:
+    simple_template_test.expected_to_render = None
+    simple_template.condition = "{{1 == 2}}"
+    diff = TemplateValidatorIntegration.validate_template(
+        simple_template,
+        simple_template_test,
+        ruaml_instance,
+    )
+    assert diff
+    assert (
+        diff[0].diff
+        == "Condition mismatch for expectedToRender, got: False, expected: True"
+    )
 
 
 def test_validate_target_path_diff(
