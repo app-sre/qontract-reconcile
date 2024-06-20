@@ -59,8 +59,6 @@ from reconcile.utils.promotion_state import (
     PromotionState,
 )
 from reconcile.utils.saasherder.interfaces import (
-    HasParameters,
-    HasSecretParameters,
     SaasFile,
     SaasParentSaasPromotion,
     SaasResourceTemplate,
@@ -707,29 +705,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         )
 
     @staticmethod
-    def _collect_parameters(container: HasParameters) -> dict[str, str]:
-        parameters = container.parameters or {}
-        if isinstance(parameters, str):
-            parameters = json.loads(parameters)
-        # adjust Python's True/False
-        for k, v in parameters.items():
-            if v is True:
-                parameters[k] = "true"
-            elif v is False:
-                parameters[k] = "false"
-            elif any(isinstance(v, t) for t in [dict, list, tuple]):
-                parameters[k] = json.dumps(v)
-        return parameters
-
-    def _collect_secret_parameters(
-        self, container: HasSecretParameters
-    ) -> dict[str, str]:
-        return {
-            sp.name: self.secret_reader.read_secret(sp.secret)
-            for sp in container.secret_parameters or []
-        }
-
-    @staticmethod
     def _get_file_contents_github(repo: Repository, path: str, commit_sha: str) -> str:
         f = repo.get_contents(path, commit_sha)
         if isinstance(f, list):
@@ -899,44 +874,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         provider = spec.provider
         hash_length = spec.hash_length
         target = spec.target
-        parameters = spec.parameters
         github = spec.github
         target_config_hash = spec.target_config_hash
 
         if provider == "openshift-template":
-            environment_parameters = self._collect_parameters(
-                target.namespace.environment
-            )
-            target_parameters = self._collect_parameters(target)
-
-            try:
-                environment_secret_parameters = self._collect_secret_parameters(
-                    target.namespace.environment
-                )
-                target_secret_parameters = self._collect_secret_parameters(target)
-            except Exception as e:
-                logging.error(f"Error collecting secrets: {e}")
-                raise
-
-            consolidated_parameters = {}
-            consolidated_parameters.update(environment_parameters)
-            consolidated_parameters.update(environment_secret_parameters)
-            consolidated_parameters.update(parameters)
-            consolidated_parameters.update(target_parameters)
-            consolidated_parameters.update(target_secret_parameters)
-
-            for replace_key, replace_value in consolidated_parameters.items():
-                if not isinstance(replace_value, str):
-                    continue
-                replace_pattern = "${" + replace_key + "}"
-                for k, v in consolidated_parameters.items():
-                    if not isinstance(v, str):
-                        continue
-                    if replace_pattern in v:
-                        consolidated_parameters[k] = v.replace(
-                            replace_pattern, replace_value
-                        )
-
+            consolidated_parameters = spec.parameters()
             try:
                 template, html_url, commit_sha = self._get_file_contents(
                     url=url, path=path, ref=target.ref, github=github
@@ -1304,22 +1246,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         specs = []
         github = self._initiate_github(saas_file)
         image_auth = self._initiate_image_auth(saas_file)
-        saas_file_parameters = self._collect_parameters(saas_file)
-        saas_file_secret_parameters = self._collect_secret_parameters(saas_file)
-
         all_trigger_specs = self.get_saas_targets_config_trigger_specs(saas_file)
         # iterate over resource templates (multiple per saas_file)
         for rt in saas_file.resource_templates:
             hash_length = rt.hash_length or self.hash_length
-            resource_template_parameters = self._collect_parameters(rt)
-            resource_template_secret_parameters = self._collect_secret_parameters(rt)
-
-            consolidated_parameters = {}
-            consolidated_parameters.update(saas_file_parameters)
-            consolidated_parameters.update(saas_file_secret_parameters)
-            consolidated_parameters.update(resource_template_parameters)
-            consolidated_parameters.update(resource_template_secret_parameters)
-
             # Iterate over targets (each target is a namespace).
             for target in rt.targets:
                 if target.disable:
@@ -1349,9 +1279,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         # process_template options
                         image_auth=image_auth,
                         hash_length=hash_length,
-                        parameters=consolidated_parameters,
                         github=github,
                         target_config_hash=digest,
+                        secret_reader=self.secret_reader,
                     )
                 )
 
