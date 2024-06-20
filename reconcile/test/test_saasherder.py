@@ -1085,6 +1085,7 @@ class TestConfigHashPromotionsValidation(TestCase):
             "success": True,
             "saas_file": self.saas_file.name,
             "target_config_hash": "ed2af38cf21f268c",
+            "has_succeeded_once": True,
         }
         self.state_mock.get.return_value = publisher_state
         result = self.saasherder.validate_promotions()
@@ -1101,16 +1102,19 @@ class TestConfigHashPromotionsValidation(TestCase):
                 "success": True,
                 "saas_file": self.saas_file.name,
                 "target_config_hash": "ed2af38cf21f268c",
+                "has_succeeded_once": True,
             },
             {
                 "success": True,
                 "saas_file": self.saas_file.name,
                 "target_config_hash": "ed2af38cf21f268c",
+                "has_succeeded_once": True,
             },
             {
                 "success": True,
                 "saas_file": self.saas_file.name,
                 "target_config_hash": "will_not_match",
+                "has_succeeded_once": True,
             },
         ]
         self.state_mock.get.side_effect = publisher_states
@@ -1137,6 +1141,7 @@ class TestConfigHashPromotionsValidation(TestCase):
             "success": True,
             "saas_file": self.saas_file.name,
             "target_config_hash": "whatever",
+            "has_succeeded_once": True,
         }
 
         self.assertEqual(len(self.saasherder.promotions), 4)
@@ -1147,6 +1152,62 @@ class TestConfigHashPromotionsValidation(TestCase):
         self.state_mock.get.return_value = publisher_state
         result = self.saasherder.validate_promotions()
         self.assertTrue(result)
+
+    def test_promotion_state_re_deployment_failed(self) -> None:
+        """A promotion is valid if it has ever succeeded for that ref.
+        Re-deployment results should be neglected for validation.
+        """
+        publisher_state = {
+            # Latest state is failed ...
+            "success": False,
+            "saas_file": self.saas_file.name,
+            "target_config_hash": "ed2af38cf21f268c",
+            # ... however, the deployment succeeded sometime before once.
+            "has_succeeded_once": True,
+        }
+        self.state_mock.get.return_value = publisher_state
+        result = self.saasherder.validate_promotions()
+        self.assertTrue(result)
+
+    def test_promotion_state_never_successfully_deployed(self) -> None:
+        """A promotion is invalid, if it never succeeded before."""
+        publisher_state = {
+            # Latest state is failed ...
+            "success": False,
+            "saas_file": self.saas_file.name,
+            "target_config_hash": "ed2af38cf21f268c",
+            # ... and it never succeeded once before.
+            "has_succeeded_once": False,
+        }
+        self.state_mock.get.return_value = publisher_state
+        result = self.saasherder.validate_promotions()
+        self.assertFalse(result)
+
+    def test_promotion_state_success_backwards_compatibility_success(self) -> None:
+        """Not all states have the has_succeeded_once attribute yet.
+        If it doesnt exist, we should always fall back to latest success state.
+        """
+        publisher_state = {
+            "success": True,
+            "saas_file": self.saas_file.name,
+            "target_config_hash": "ed2af38cf21f268c",
+        }
+        self.state_mock.get.return_value = publisher_state
+        result = self.saasherder.validate_promotions()
+        self.assertTrue(result)
+
+    def test_promotion_state_success_backwards_compatibility_fail(self) -> None:
+        """Not all states have the has_succeeded_once attribute yet.
+        If it doesnt exist, we should always fall back to latest success state.
+        """
+        publisher_state = {
+            "success": False,
+            "saas_file": self.saas_file.name,
+            "target_config_hash": "ed2af38cf21f268c",
+        }
+        self.state_mock.get.return_value = publisher_state
+        result = self.saasherder.validate_promotions()
+        self.assertFalse(result)
 
 
 @pytest.mark.usefixtures("inject_gql_class_factory")

@@ -1846,7 +1846,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     target_uid=target_uid,
                     pre_check_sha_exists=False,
                 )
-                if not (deployment and deployment.success):
+                if not (
+                    deployment and (deployment.success or deployment.has_succeeded_once)
+                ):
                     logging.error(
                         f"Commit {promotion.commit_sha} was not "
                         + f"published with success to channel {channel.name}"
@@ -1943,6 +1945,17 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 all_subscribed_saas_file_paths = set()
                 all_subscribed_target_paths = set()
                 for channel in promotion.publish:
+                    # make sure we keep some attributes on re-deployments of same ref
+                    has_succeeded_once = success
+                    current_state = self._promotion_state.get_promotion_data(
+                        sha=promotion.commit_sha,
+                        channel=channel,
+                        target_uid=promotion.saas_target_uid,
+                        use_cache=True,
+                    )
+                    if current_state and current_state.has_succeeded_once:
+                        has_succeeded_once = True
+
                     # publish to state to pass promotion gate
                     self._promotion_state.publish_promotion_data(
                         sha=promotion.commit_sha,
@@ -1952,6 +1965,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             saas_file=promotion.saas_file,
                             success=success,
                             target_config_hash=promotion.target_config_hash,
+                            has_succeeded_once=has_succeeded_once,
                             # TODO: do not override - check if timestamp already exists
                             check_in=str(now),
                         ),
