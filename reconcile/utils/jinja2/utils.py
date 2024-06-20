@@ -1,8 +1,9 @@
 from functools import cache
-from typing import Any
+from typing import Any, Self
 
 import jinja2
 from jinja2.sandbox import SandboxedEnvironment
+from pydantic import BaseModel
 from sretoolbox.utils import retry
 
 from reconcile import queries
@@ -31,18 +32,46 @@ class Jinja2TemplateError(Exception):
         super().__init__("error processing jinja2 template: " + str(msg))
 
 
+class TemplateRenderOptions(BaseModel):
+    trim_blocks: bool
+    lstrip_blocks: bool
+    keep_trailing_newline: bool
+
+    class Config:
+        frozen = True
+
+    @classmethod
+    def create(
+        cls,
+        trim_blocks: bool | None = None,
+        lstrip_blocks: bool | None = None,
+        keep_trailing_newline: bool | None = None,
+    ) -> Self:
+        return cls(
+            trim_blocks=trim_blocks or False,
+            lstrip_blocks=lstrip_blocks or False,
+            keep_trailing_newline=keep_trailing_newline or False,
+        )
+
+
 @cache
-def compile_jinja2_template(body: str, extra_curly: bool = False) -> Any:
-    env: dict = {}
+def compile_jinja2_template(
+    body: str,
+    extra_curly: bool = False,
+    template_render_options: TemplateRenderOptions | None = None,
+) -> Any:
+    if not template_render_options:
+        template_render_options = TemplateRenderOptions.create()
+    env: dict[str, Any] = template_render_options.dict()
     if extra_curly:
-        env = {
+        env.update({
             "block_start_string": "{{%",
             "block_end_string": "%}}",
             "variable_start_string": "{{{",
             "variable_end_string": "}}}",
             "comment_start_string": "{{#",
             "comment_end_string": "#}}",
-        }
+        })
 
     jinja_env = SandboxedEnvironment(
         extensions=[B64EncodeExtension, RaiseErrorExtension],
@@ -154,6 +183,7 @@ def process_jinja2_template(
     extra_curly: bool = False,
     settings: dict[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
+    template_render_options: TemplateRenderOptions | None = None,
 ) -> Any:
     if vars is None:
         vars = {}
@@ -187,7 +217,7 @@ def process_jinja2_template(
         for k, v in vars["_template_mocks"].items():
             vars[k] = lambda *args, **kwargs: v
     try:
-        template = compile_jinja2_template(body, extra_curly)
+        template = compile_jinja2_template(body, extra_curly, template_render_options)
         r = template.render(vars)
     except Exception as e:
         raise Jinja2TemplateError(e)
@@ -197,9 +227,10 @@ def process_jinja2_template(
 def process_extracurlyjinja2_template(
     body: str,
     vars: dict[str, Any] | None = None,
-    extra_curly: bool = True,
+    extra_curly: bool = True,  # ignored. Just to be compatible with process_jinja2_template
     settings: dict[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
+    template_render_options: TemplateRenderOptions | None = None,
 ) -> Any:
     if vars is None:
         vars = {}
@@ -209,6 +240,7 @@ def process_extracurlyjinja2_template(
         extra_curly=True,
         settings=settings,
         secret_reader=secret_reader,
+        template_render_options=template_render_options,
     )
 
 

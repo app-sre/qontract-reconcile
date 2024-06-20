@@ -12,6 +12,7 @@ from reconcile.gql_definitions.templating.templates import (
 )
 from reconcile.templating.lib.rendering import Renderer, TemplateData, create_renderer
 from reconcile.utils import gql
+from reconcile.utils.jinja2.utils import TemplateRenderOptions
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
@@ -50,6 +51,17 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                 current=ruaml_instance.load(template_test.current or ""),
             ),
             secret_reader=secret_reader,
+            template_render_options=TemplateRenderOptions.create(
+                trim_blocks=template.template_render_options.trim_blocks
+                if template.template_render_options
+                else None,
+                lstrip_blocks=template.template_render_options.lstrip_blocks
+                if template.template_render_options
+                else None,
+                keep_trailing_newline=template.template_render_options.keep_trailing_newline
+                if template.template_render_options
+                else None,
+            ),
         )
 
     @staticmethod

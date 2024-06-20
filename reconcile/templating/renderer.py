@@ -23,6 +23,7 @@ from reconcile.templating.lib.merge_request_manager import (
 )
 from reconcile.templating.lib.model import TemplateInput, TemplateOutput
 from reconcile.templating.lib.rendering import (
+    Renderer,
     TemplateData,
     create_renderer,
 )
@@ -32,12 +33,13 @@ from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.git import clone
 from reconcile.utils.gql import GqlApi, init_from_config
-from reconcile.utils.jinja2.utils import process_jinja2_template
+from reconcile.utils.jinja2.utils import TemplateRenderOptions, process_jinja2_template
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "template-renderer"
@@ -207,6 +209,31 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
     def __init__(self, params: TemplateRendererIntegrationParams) -> None:
         super().__init__(params)
 
+    @staticmethod
+    def _create_renderer(
+        template: TemplateV1,
+        variables: dict,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> Renderer:
+        return create_renderer(
+            template,
+            TemplateData(
+                variables=variables,
+            ),
+            secret_reader=secret_reader,
+            template_render_options=TemplateRenderOptions.create(
+                trim_blocks=template.template_render_options.trim_blocks
+                if template.template_render_options
+                else None,
+                lstrip_blocks=template.template_render_options.lstrip_blocks
+                if template.template_render_options
+                else None,
+                keep_trailing_newline=template.template_render_options.keep_trailing_newline
+                if template.template_render_options
+                else None,
+            ),
+        )
+
     def process_template(
         self,
         template: TemplateV1,
@@ -215,12 +242,8 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         ruaml_instance: yaml.YAML,
         template_input: TemplateInput,
     ) -> TemplateOutput | None:
-        r = create_renderer(
-            template,
-            TemplateData(
-                variables=variables,
-            ),
-            secret_reader=self.secret_reader,
+        r = TemplateRendererIntegration._create_renderer(
+            template, variables, secret_reader=self.secret_reader
         )
         target_path = r.render_target_path()
 

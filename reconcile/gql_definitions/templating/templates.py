@@ -38,6 +38,11 @@ query Templatev1 {
       expectedTargetPath
       expectedToRender
     }
+    templateRenderOptions {
+      trimBlocks
+      lstripBlocks
+      keepTrailingNewline
+    }
   }
 }
 """
@@ -63,6 +68,12 @@ class TemplateTestV1(ConfiguredBaseModel):
     expected_to_render: Optional[bool] = Field(..., alias="expectedToRender")
 
 
+class TemplateRenderOptionsV1(ConfiguredBaseModel):
+    trim_blocks: Optional[bool] = Field(..., alias="trimBlocks")
+    lstrip_blocks: Optional[bool] = Field(..., alias="lstripBlocks")
+    keep_trailing_newline: Optional[bool] = Field(..., alias="keepTrailingNewline")
+
+
 class TemplateV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     auto_approved: Optional[bool] = Field(..., alias="autoApproved")
@@ -71,6 +82,7 @@ class TemplateV1(ConfiguredBaseModel):
     target_path: str = Field(..., alias="targetPath")
     template: str = Field(..., alias="template")
     template_test: list[TemplateTestV1] = Field(..., alias="templateTest")
+    template_render_options: Optional[TemplateRenderOptionsV1] = Field(..., alias="templateRenderOptions")
 
 
 class Templatev1QueryData(ConfiguredBaseModel):

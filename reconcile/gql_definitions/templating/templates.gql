@@ -19,5 +19,10 @@ query Templatev1 {
       expectedTargetPath
       expectedToRender
     }
+    templateRenderOptions {
+      trimBlocks
+      lstripBlocks
+      keepTrailingNewline
+    }
   }
 }
