@@ -136,7 +136,7 @@ class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
 
         output = data.data
         collections = {o.input.collection for o in output}
-        collection_hashes = {o.input.collection_hash for o in output}
+        collection_hashes = {o.input.calc_template_hash() for o in output}
         additional_labels = {label for o in output for label in o.input.labels}
         # From the way the code is written, we can assert that there is only one collection and one template hash
         assert len(collections) == 1
