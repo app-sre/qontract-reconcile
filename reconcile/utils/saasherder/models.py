@@ -15,6 +15,7 @@ from reconcile.utils.saasherder.interfaces import (
     ManagedResourceName,
     SaasApp,
     SaasEnvironment,
+    SaasFile,
     SaasPipelinesProviders,
     SaasResourceTemplateTarget,
 )
@@ -208,17 +209,13 @@ class ImageAuth:
 
 @dataclass
 class TargetSpec:
-    saas_file_name: str
+    saas_file: SaasFile
     resource_template_name: str
     target: SaasResourceTemplateTarget
     cluster: str
     namespace: str
-    managed_resource_types: Iterable[str]
-    managed_resource_names: Sequence[ManagedResourceName] | None
     delete: bool
-    privileged: bool
     image_auth: ImageAuth
-    image_patterns: list[str]
     url: str
     path: str
     provider: str
@@ -226,3 +223,23 @@ class TargetSpec:
     parameters: dict[str, str]
     github: Github
     target_config_hash: str
+
+    @property
+    def saas_file_name(self) -> str:
+        return self.saas_file.name
+
+    @property
+    def managed_resource_types(self) -> Iterable[str]:
+        return self.saas_file.managed_resource_types
+
+    @property
+    def managed_resource_names(self) -> Sequence[ManagedResourceName] | None:
+        return self.saas_file.managed_resource_names
+
+    @property
+    def privileged(self) -> bool:
+        return bool(self.saas_file.cluster_admin)
+
+    @property
+    def image_patterns(self) -> list[str]:
+        return self.saas_file.image_patterns

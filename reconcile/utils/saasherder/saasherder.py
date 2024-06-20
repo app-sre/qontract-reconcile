@@ -1344,13 +1344,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
                 specs.append(
                     TargetSpec(
-                        saas_file_name=saas_file.name,
+                        saas_file=saas_file,
                         cluster=target.namespace.cluster.name,
                         namespace=target.namespace.name,
-                        managed_resource_types=saas_file.managed_resource_types,
-                        managed_resource_names=saas_file.managed_resource_names,
                         delete=bool(target.delete),
-                        privileged=bool(saas_file.cluster_admin),
                         # process_template options
                         resource_template_name=rt.name,
                         image_auth=image_auth,
@@ -1362,8 +1359,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         parameters=consolidated_parameters,
                         github=github,
                         target_config_hash=digest,
-                        # check_image options
-                        image_patterns=saas_file.image_patterns,
                     )
                 )
 
