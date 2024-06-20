@@ -1936,22 +1936,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
-        # If we have more than 1 publisher channel, then we can lookup S3 keys
-        # upfront which can reduce unecessary S3 calls for missing states.
-        # However, if we only have a single channel, then the extra API call
-        # to cache the keys doesnt make sense.
-        num_publish_channels = sum(
-            [
-                len(promotion.publish)
-                for promotion in self.promotions
-                if promotion and promotion.publish
-            ],
-            0,
-        )
-        use_prefix_cache = num_publish_channels > 1
-        if use_prefix_cache:
-            self._promotion_state.cache_commit_shas_from_s3()
-
         now = datetime.now(UTC)
         for promotion in self.promotions:
             if promotion is None:
@@ -1968,7 +1952,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         channel=channel,
                         target_uid=promotion.saas_target_uid,
                         use_cache=True,
-                        use_prefix_cache=use_prefix_cache,
                     )
                     if current_state and current_state.has_succeeded_once:
                         has_succeeded_once = True
