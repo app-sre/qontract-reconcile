@@ -983,6 +983,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 if self.gitlab and url.startswith(self.gitlab.server)
                 else True
             )
+            html_url = f"{url}/tree/{target.ref}{path}"
             consolidated_parameters = spec.parameters(adjust=False)
             if not consolidated_parameters.get("image", {}).get("tag"):
                 commit_sha = self._get_commit_sha(url, target.ref, github)
