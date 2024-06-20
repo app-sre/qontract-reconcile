@@ -1,4 +1,6 @@
 import base64
+import json
+import logging
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
@@ -12,6 +14,8 @@ from pydantic import (
 
 from reconcile.utils.oc_connection_parameters import Cluster
 from reconcile.utils.saasherder.interfaces import (
+    HasParameters,
+    HasSecretParameters,
     ManagedResourceName,
     SaasApp,
     SaasEnvironment,
@@ -20,6 +24,7 @@ from reconcile.utils.saasherder.interfaces import (
     SaasResourceTemplate,
     SaasResourceTemplateTarget,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class Providers(Enum):
@@ -215,9 +220,9 @@ class TargetSpec:
     target: SaasResourceTemplateTarget
     image_auth: ImageAuth
     hash_length: int
-    parameters: dict[str, str]
     github: Github
     target_config_hash: str
+    secret_reader: SecretReaderBase
 
     @property
     def saas_file_name(self) -> str:
@@ -266,3 +271,78 @@ class TargetSpec:
     @property
     def delete(self) -> bool:
         return bool(self.target.delete)
+
+    def parameters(self, adjust: bool = True) -> dict[str, str]:
+        environment_parameters = self._collect_parameters(
+            self.target.namespace.environment, adjust=adjust
+        )
+        saas_file_parameters = self._collect_parameters(self.saas_file, adjust=adjust)
+        resource_template_parameters = self._collect_parameters(
+            self.resource_template, adjust=adjust
+        )
+        target_parameters = self._collect_parameters(self.target, adjust=adjust)
+
+        try:
+            saas_file_secret_parameters = self._collect_secret_parameters(
+                self.saas_file
+            )
+            resource_template_secret_parameters = self._collect_secret_parameters(
+                self.resource_template
+            )
+            environment_secret_parameters = self._collect_secret_parameters(
+                self.target.namespace.environment
+            )
+            target_secret_parameters = self._collect_secret_parameters(self.target)
+        except Exception as e:
+            logging.error(f"Error collecting secrets: {e}")
+            raise
+
+        consolidated_parameters = {}
+        consolidated_parameters.update(environment_parameters)
+        consolidated_parameters.update(environment_secret_parameters)
+        consolidated_parameters.update(saas_file_parameters)
+        consolidated_parameters.update(saas_file_secret_parameters)
+        consolidated_parameters.update(resource_template_parameters)
+        consolidated_parameters.update(resource_template_secret_parameters)
+        consolidated_parameters.update(target_parameters)
+        consolidated_parameters.update(target_secret_parameters)
+
+        for replace_key, replace_value in consolidated_parameters.items():
+            if not isinstance(replace_value, str):
+                continue
+            replace_pattern = "${" + replace_key + "}"
+            for k, v in consolidated_parameters.items():
+                if not isinstance(v, str):
+                    continue
+                if replace_pattern in v:
+                    consolidated_parameters[k] = v.replace(
+                        replace_pattern, replace_value
+                    )
+
+        return consolidated_parameters
+
+    @staticmethod
+    def _collect_parameters(
+        container: HasParameters, adjust: bool = True
+    ) -> dict[str, str]:
+        parameters = container.parameters or {}
+        if isinstance(parameters, str):
+            parameters = json.loads(parameters)
+        if adjust:
+            # adjust Python's True/False
+            for k, v in parameters.items():
+                if v is True:
+                    parameters[k] = "true"
+                elif v is False:
+                    parameters[k] = "false"
+                elif any(isinstance(v, t) for t in [dict, list, tuple]):
+                    parameters[k] = json.dumps(v)
+        return parameters
+
+    def _collect_secret_parameters(
+        self, container: HasSecretParameters
+    ) -> dict[str, str]:
+        return {
+            sp.name: self.secret_reader.read_secret(sp.secret)
+            for sp in container.secret_parameters or []
+        }
