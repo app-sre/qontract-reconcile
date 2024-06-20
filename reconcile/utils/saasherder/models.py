@@ -212,9 +212,6 @@ class TargetSpec:
     saas_file: SaasFile
     resource_template_name: str
     target: SaasResourceTemplateTarget
-    cluster: str
-    namespace: str
-    delete: bool
     image_auth: ImageAuth
     url: str
     path: str
@@ -243,3 +240,15 @@ class TargetSpec:
     @property
     def image_patterns(self) -> list[str]:
         return self.saas_file.image_patterns
+
+    @property
+    def cluster(self) -> str:
+        return self.target.namespace.cluster.name
+
+    @property
+    def namespace(self) -> str:
+        return self.target.namespace.name
+
+    @property
+    def delete(self) -> bool:
+        return bool(self.target.delete)
