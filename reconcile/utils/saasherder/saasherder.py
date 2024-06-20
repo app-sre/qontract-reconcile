@@ -745,11 +745,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     @retry(max_attempts=20)
     def _get_file_contents(
-        self, url: str, path: str, ref: str, github: Github
-    ) -> tuple[Any, str, str]:
-        html_url = f"{url}/blob/{ref}{path}"
-        commit_sha = self._get_commit_sha(url, ref, github)
-
+        self, url: str, path: str, commit_sha: str, github: Github
+    ) -> Any:
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
             repo = github.get_repo(repo_name)
@@ -763,14 +760,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         else:
             raise Exception(f"Only GitHub and GitLab are supported: {url}")
 
-        return yaml.safe_load(content), html_url, commit_sha
+        return yaml.safe_load(content)
 
     @retry()
     def _get_directory_contents(
-        self, url: str, path: str, ref: str, github: Github
-    ) -> tuple[list[Any], str, str]:
-        html_url = f"{url}/tree/{ref}{path}"
-        commit_sha = self._get_commit_sha(url, ref, github)
+        self, url: str, path: str, commit_sha: str, github: Github
+    ) -> list[Any]:
         resources = []
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
@@ -800,7 +795,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         else:
             raise Exception(f"Only GitHub and GitLab are supported: {url}")
 
-        return resources, html_url, commit_sha
+        return resources
 
     @retry()
     def _get_commit_sha(self, url: str, ref: str, github: Github) -> str:
@@ -863,9 +858,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 return True
         return False
 
-    def _process_template(
-        self, spec: TargetSpec
-    ) -> tuple[list[Any], str, Promotion | None]:
+    def _process_template(self, spec: TargetSpec) -> tuple[list[Any], Promotion | None]:
         saas_file_name = spec.saas_file_name
         resource_template_name = spec.resource_template_name
         image_auth = spec.image_auth
@@ -876,18 +869,17 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         target = spec.target
         github = spec.github
         target_config_hash = spec.target_config_hash
+        error_prefix = spec.error_prefix
+        commit_sha = self._get_commit_sha(url, target.ref, github)
 
         if provider == "openshift-template":
             consolidated_parameters = spec.parameters()
             try:
-                template, html_url, commit_sha = self._get_file_contents(
+                template = self._get_file_contents(
                     url=url, path=path, ref=target.ref, github=github
                 )
             except Exception as e:
-                logging.error(
-                    f"[{url}/blob/{target.ref}{path}] "
-                    + f"error fetching template: {str(e)}"
-                )
+                logging.error(f"[{error_prefix}] error fetching template: {str(e)}")
                 raise
 
             # add COMMIT_SHA only if it is unspecified
@@ -905,8 +897,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         channel = consolidated_parameters["CHANNEL"]
                     except KeyError:
                         logging.error(
-                            f"[{saas_file_name}/{resource_template_name}] "
-                            + f"{html_url}: CHANNEL is required when "
+                            f"[{error_prefix} CHANNEL is required when "
                             + "'use_channel_in_image_tag' is true."
                         )
                         raise
@@ -928,17 +919,13 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     registry_image = consolidated_parameters["REGISTRY_IMG"]
                 except KeyError as e:
                     logging.error(
-                        f"[{saas_file_name}/{resource_template_name}] "
-                        + f"{html_url}: error generating REPO_DIGEST. "
+                        f"[{error_prefix} error generating REPO_DIGEST. "
                         + "Is REGISTRY_IMG missing? "
                         + f"{str(e)}"
                     )
                     raise
 
                 image_uri = f"{registry_image}:{image_tag}"
-                error_prefix = (
-                    f"[{saas_file_name}/{resource_template_name}] {html_url}:"
-                )
                 img = self._get_image(
                     image=image_uri,
                     image_patterns=spec.image_patterns,
@@ -959,20 +946,16 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             try:
                 resources = oc.process(template, consolidated_parameters)
             except StatusCodeError as e:
-                logging.error(
-                    f"[{saas_file_name}/{resource_template_name}] "
-                    + f"{html_url}: error processing template: {str(e)}"
-                )
+                logging.error(f"[{error_prefix} error processing template: {str(e)}")
 
         elif provider == "directory":
             try:
-                resources, html_url, commit_sha = self._get_directory_contents(
+                resources = self._get_directory_contents(
                     url=url, path=path, ref=target.ref, github=github
                 )
             except Exception as e:
                 logging.error(
-                    f"[{url}/tree/{target.ref}{path}] "
-                    + f"error fetching directory: {str(e)} "
+                    f"[{error_prefix}] error fetching directory: {str(e)} "
                     + "(We do not support nested directories. Do you by chance have subdirectories?)"
                 )
                 raise
@@ -1018,7 +1001,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 ),
                 soak_days=target.promotion.soak_days or 0,
             )
-        return resources, html_url, target_promotion
+        return resources, target_promotion
 
     def _assemble_channels(
         self, saas_files: Iterable[SaasFile] | None
@@ -1294,8 +1277,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             # to delete resources, we avoid adding them to the desired state
             return None
 
+        html_url = spec.html_url
         try:
-            resources, html_url, promotion = self._process_template(spec)
+            resources, promotion = self._process_template(spec)
         except Exception as e:
             # error log message send in _process_template. We cannot just
             # register an error without logging as inventory errors don't have details.
