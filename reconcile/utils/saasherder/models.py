@@ -272,13 +272,15 @@ class TargetSpec:
     def delete(self) -> bool:
         return bool(self.target.delete)
 
-    def parameters(self) -> dict[str, str]:
+    def parameters(self, adjust: bool = True) -> dict[str, str]:
         environment_parameters = self._collect_parameters(
-            self.target.namespace.environment
+            self.target.namespace.environment, adjust=adjust
         )
-        saas_file_parameters = self._collect_parameters(self.saas_file)
-        resource_template_parameters = self._collect_parameters(self.resource_template)
-        target_parameters = self._collect_parameters(self.target)
+        saas_file_parameters = self._collect_parameters(self.saas_file, adjust=adjust)
+        resource_template_parameters = self._collect_parameters(
+            self.resource_template, adjust=adjust
+        )
+        target_parameters = self._collect_parameters(self.target, adjust=adjust)
 
         try:
             saas_file_secret_parameters = self._collect_secret_parameters(
@@ -320,18 +322,21 @@ class TargetSpec:
         return consolidated_parameters
 
     @staticmethod
-    def _collect_parameters(container: HasParameters) -> dict[str, str]:
+    def _collect_parameters(
+        container: HasParameters, adjust: bool = True
+    ) -> dict[str, str]:
         parameters = container.parameters or {}
         if isinstance(parameters, str):
             parameters = json.loads(parameters)
-        # adjust Python's True/False
-        for k, v in parameters.items():
-            if v is True:
-                parameters[k] = "true"
-            elif v is False:
-                parameters[k] = "false"
-            elif any(isinstance(v, t) for t in [dict, list, tuple]):
-                parameters[k] = json.dumps(v)
+        if adjust:
+            # adjust Python's True/False
+            for k, v in parameters.items():
+                if v is True:
+                    parameters[k] = "true"
+                elif v is False:
+                    parameters[k] = "false"
+                elif any(isinstance(v, t) for t in [dict, list, tuple]):
+                    parameters[k] = json.dumps(v)
         return parameters
 
     def _collect_secret_parameters(
