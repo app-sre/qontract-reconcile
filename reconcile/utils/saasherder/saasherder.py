@@ -1046,7 +1046,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 url=url,
                 path=path,
                 name=resource_template_name,
-                values=target.parameters or {},
+                values=spec.parameters(adjust=False),
                 ssl_verify=ssl_verify,
             )
 
