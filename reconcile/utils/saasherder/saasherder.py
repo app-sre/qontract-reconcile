@@ -983,12 +983,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 if self.gitlab and url.startswith(self.gitlab.server)
                 else True
             )
-            html_url = f"{url}/tree/{target.ref}{path}"
+            consolidated_parameters = spec.parameters(adjust=False)
+            if not consolidated_parameters.get("image", {}).get("tag"):
+                image_tag = commit_sha[:hash_length]
+                consolidated_parameters.setdefault("image", {})["tag"] = image_tag
             resources = helm.template_all(
                 url=url,
                 path=path,
                 name=resource_template_name,
-                values=spec.parameters(adjust=False),
+                values=consolidated_parameters,
                 ssl_verify=ssl_verify,
             )
 
