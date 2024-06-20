@@ -1310,7 +1310,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         all_trigger_specs = self.get_saas_targets_config_trigger_specs(saas_file)
         # iterate over resource templates (multiple per saas_file)
         for rt in saas_file.resource_templates:
-            provider = rt.provider or "openshift-template"
             hash_length = rt.hash_length or self.hash_length
             resource_template_parameters = self._collect_parameters(rt)
             resource_template_secret_parameters = self._collect_secret_parameters(rt)
@@ -1345,14 +1344,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 specs.append(
                     TargetSpec(
                         saas_file=saas_file,
-                        # process_template options
-                        resource_template_name=rt.name,
-                        image_auth=image_auth,
-                        url=rt.url,
-                        path=rt.path,
-                        provider=provider,
-                        hash_length=hash_length,
+                        resource_template=rt,
                         target=target,
+                        # process_template options
+                        image_auth=image_auth,
+                        hash_length=hash_length,
                         parameters=consolidated_parameters,
                         github=github,
                         target_config_hash=digest,

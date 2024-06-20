@@ -17,6 +17,7 @@ from reconcile.utils.saasherder.interfaces import (
     SaasEnvironment,
     SaasFile,
     SaasPipelinesProviders,
+    SaasResourceTemplate,
     SaasResourceTemplateTarget,
 )
 
@@ -210,12 +211,9 @@ class ImageAuth:
 @dataclass
 class TargetSpec:
     saas_file: SaasFile
-    resource_template_name: str
+    resource_template: SaasResourceTemplate
     target: SaasResourceTemplateTarget
     image_auth: ImageAuth
-    url: str
-    path: str
-    provider: str
     hash_length: int
     parameters: dict[str, str]
     github: Github
@@ -240,6 +238,22 @@ class TargetSpec:
     @property
     def image_patterns(self) -> list[str]:
         return self.saas_file.image_patterns
+
+    @property
+    def resource_template_name(self) -> str:
+        return self.resource_template.name
+
+    @property
+    def url(self) -> str:
+        return self.resource_template.url
+
+    @property
+    def path(self) -> str:
+        return self.resource_template.path
+
+    @property
+    def provider(self) -> str:
+        return self.resource_template.provider or "openshift-template"
 
     @property
     def cluster(self) -> str:
