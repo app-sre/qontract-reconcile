@@ -288,7 +288,7 @@ class JJB:  # pylint: disable=too-many-public-methods
                     project_url_raw = job["properties"][0]["github"]["url"]
                     if "https://github.com" in project_url_raw:
                         continue
-                    if job.get("disabled"):
+                    if str(job.get("disabled")).lower() == "true":
                         continue
                     job_url = "{}/project/{}".format(
                         self.instance_urls[name], job["name"]
