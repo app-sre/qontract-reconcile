@@ -24,7 +24,6 @@ from reconcile.templating.renderer import (
     TemplateOutput,
     TemplateRendererIntegration,
     TemplateRendererIntegrationParams,
-    calc_template_hash,
     join_path,
     unpack_dynamic_variables,
     unpack_static_variables,
@@ -120,10 +119,10 @@ def template_renderer_integration(mocker: MockerFixture) -> TemplateRendererInte
 
 
 @pytest.fixture
-def template_input() -> TemplateInput:
+def template_input(template_simple: TemplateV1) -> TemplateInput:
     return TemplateInput(
         collection="test",
-        collection_hash="test",
+        templates=[template_simple.dict(by_alias=True)],
         enable_auto_approval=False,
     )
 
@@ -572,12 +571,15 @@ def test_reconcile_variables(
     )
 
 
-def test__calc_template_hash(template_collection: TemplateCollectionV1) -> None:
+def test__calc_template_hash(template_input: TemplateInput) -> None:
+    template_input.variables.append({"foo": "bar"})
     assert (
-        calc_template_hash(template_collection, {"foo": "bar"})
-        == "1b57a0dfecb088946a296b43c7c6ca1845614c544d60a7ef4180d69c8d80517f"
+        template_input.calc_template_hash()
+        == "8e4d8c1163e03d82941948fccab4dce6135cf50b722369565f066f7a5bfbca61"
     )
+    template_input.collection_hash = ""
+    template_input.variables.append({"baz": "qux"})
     assert (
-        calc_template_hash(template_collection, {"foo": "baz"})
-        == "ea1fbc437defbad64a9feda91d9a34573ab0a464adeb205f03b490c08190a4df"
+        template_input.calc_template_hash()
+        == "8a60dc820267f26fd7c480a65d5ea8b9ac7c169ed9eaf5dd8543074f9486e5a1"
     )
