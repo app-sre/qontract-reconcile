@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from textwrap import dedent
-from unittest.mock import ANY, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 from dateutil import parser
@@ -8,6 +8,7 @@ from pytest_mock import MockerFixture
 
 from reconcile.aws_account_manager import integration
 from reconcile.aws_account_manager.integration import AwsAccountMgmtIntegration
+from reconcile.aws_account_manager.merge_request_manager import MrData
 from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
     AWSAccountRequestV1,
     AWSAccountV1,
@@ -108,7 +109,7 @@ def test_aws_account_manager_utils_integration_create_accounts(
         email=account_request.account_owner.email,
     )
     reconciler.create_iam_user.assert_not_called()
-    merge_request_manager.create_account_file.assert_not_called()
+    merge_request_manager.create_merge_request.assert_not_called()
 
 
 def test_aws_account_manager_utils_integration_create_accounts_save_access_key(
@@ -136,11 +137,13 @@ def test_aws_account_manager_utils_integration_create_accounts_save_access_key(
         name=account_request.name,
         email=account_request.account_owner.email,
     )
-    merge_request_manager.create_account_file.assert_called_once_with(
-        title=ANY,
-        account_request_file_path="data/aws/data/request.yml",
-        account_tmpl_file_content="account-template - 1111111111",
-        account_tmpl_file_path="data/templating/collections/aws-account/data.yml",
+    merge_request_manager.create_merge_request.assert_called_once_with(
+        MrData(
+            title="data: AWS account template collection file",
+            account_request_file_path="data/aws/data/request.yml",
+            account_tmpl_file_content="account-template - 1111111111",
+            account_tmpl_file_path="data/templating/collections/aws-account/data.yml",
+        )
     )
     intg.save_access_key.assert_called_once()
 
@@ -166,11 +169,13 @@ def test_aws_account_manager_utils_integration_create_accounts_create_account_fi
         name=account_request.name,
         email=account_request.account_owner.email,
     )
-    merge_request_manager.create_account_file.assert_called_once_with(
-        title=ANY,
-        account_request_file_path="data/aws/data/request.yml",
-        account_tmpl_file_content="account-template - 1111111111",
-        account_tmpl_file_path="data/templating/collections/aws-account/data.yml",
+    merge_request_manager.create_merge_request.assert_called_once_with(
+        MrData(
+            title="data: AWS account template collection file",
+            account_request_file_path="data/aws/data/request.yml",
+            account_tmpl_file_content="account-template - 1111111111",
+            account_tmpl_file_path="data/templating/collections/aws-account/data.yml",
+        )
     )
 
 
