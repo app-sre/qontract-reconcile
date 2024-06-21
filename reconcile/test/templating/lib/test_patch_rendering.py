@@ -17,6 +17,7 @@ from reconcile.utils.secret_reader import SecretReader
         "patch_overwrite_nested.yaml",
         "patch_jsonpath_identifier.yaml",
         "patch_jsonpath_identifier_update.yaml",
+        "patch_list.yaml",
     ],
 )
 def test_patch_ref_update(
