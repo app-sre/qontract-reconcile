@@ -1,4 +1,5 @@
 import logging
+from typing import cast
 
 from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import ProjectMergeRequest
@@ -61,11 +62,11 @@ class MergeRequestManager:
         self._vcs = vcs
         self._auto_merge_enabled = auto_merge_enabled
 
-    def _merge_request_already_exists(self, aws_acccount_file_path: str) -> bool:
+    def _merge_request_already_exists(self, aws_account_file_path: str) -> bool:
         return any(
-            aws_acccount_file_path == diff["new_path"]
+            aws_account_file_path == diff["new_path"]
             for mr in self._open_mrs
-            for diff in mr.changes()["changes"]
+            for diff in cast(dict, mr.changes())["changes"]
         )
 
     def fetch_open_merge_requests(self) -> None:

@@ -245,9 +245,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if project is None:
             return None
         if query:
-            members = self.get_items(project.members.all, query_parameters=query)
+            members = self.get_items(project.members_all.list, query_parameters=query)
         else:
-            members = self.get_items(project.members.all)
+            members = self.get_items(project.members_all.list)
         return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self):
@@ -467,7 +467,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         merge_request: ProjectMergeRequest,
     ) -> list[str]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        changes = merge_request.changes()["changes"]
+        result = merge_request.changes()
+        changes = cast(dict, result)["changes"]
         changed_paths = set()
         for change in changes:
             old_path = change["old_path"]
