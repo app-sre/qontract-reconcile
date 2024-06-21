@@ -133,6 +133,10 @@ class PatchRenderer(Renderer):
                 if isinstance(data, str):
                     # if the data is already a string, use it as is.
                     # this is the case if the target is a list of strings
+                    if self.template.patch.identifier != ".":
+                        raise ValueError(
+                            f"Use patch.identifier '.' for updating list of strings at {self.template}"
+                        )
                     return data
 
                 if self.template.patch.identifier.startswith("$."):
