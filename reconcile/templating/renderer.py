@@ -244,6 +244,10 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         if current_str is None and template.patch:
             raise ValueError(f"Can not patch non-existing file {target_path}")
 
+        if current_str and template.create_only:
+            logging.debug(f"Skip updating existing file {target_path}.")
+            return None
+
         if current_str:
             r.data.current = ruaml_instance.load(current_str)
 

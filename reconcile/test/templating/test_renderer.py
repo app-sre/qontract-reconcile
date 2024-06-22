@@ -487,6 +487,7 @@ def test_reconcile_simple(
             name="test",
             condition="{{1 == 1}}",
             targetPath="/target_path",
+            createOnly=None,
             patch=None,
             template="template",
             autoApproved=None,
@@ -575,11 +576,11 @@ def test__calc_template_hash(template_input: TemplateInput) -> None:
     template_input.variables.append({"foo": "bar"})
     assert (
         template_input.calc_template_hash()
-        == "8e4d8c1163e03d82941948fccab4dce6135cf50b722369565f066f7a5bfbca61"
+        == "beca0d06b2786cce5a78f28a191e52bad7162900f81923355b6433b3271d77d8"
     )
     template_input.collection_hash = ""
     template_input.variables.append({"baz": "qux"})
     assert (
         template_input.calc_template_hash()
-        == "8a60dc820267f26fd7c480a65d5ea8b9ac7c169ed9eaf5dd8543074f9486e5a1"
+        == "cf3494f37e7371012581bd5c84e52a9ebc4ce93bd501a3facd76373ccd331f9a"
     )
