@@ -18,7 +18,7 @@ from gitlab.v4.objects import (
     ProjectLabelManager,
     ProjectManager,
     ProjectMember,
-    ProjectMemberManager,
+    ProjectMemberAllManager,
     ProjectMergeRequest,
     ProjectMergeRequestManager,
     ProjectMergeRequestNote,
@@ -481,8 +481,8 @@ def test_share_project_with_group_positive(
 ):
     projects = create_autospec(ProjectManager)
     project = create_autospec(Project)
-    project.members = create_autospec(ProjectMemberManager)
-    project.members.all.return_value = [
+    project.members_all = create_autospec(ProjectMemberAllManager)
+    project.members_all.list.return_value = [
         create_autospec(ProjectMember, id=mocked_gitlab_api.user.id, access_level=40)
     ]
     projects.get.return_value = project
@@ -498,8 +498,8 @@ def test_share_project_with_group_errored(
 ):
     projects = create_autospec(ProjectManager)
     project = create_autospec(Project)
-    project.members = create_autospec(ProjectMemberManager)
-    project.members.all.return_value = []
+    project.members_all = create_autospec(ProjectMemberAllManager)
+    project.members_all.list.return_value = []
     projects.get.return_value = project
     mocked_gl.projects = projects
     mocked_logger = mocker.patch("reconcile.utils.gitlab_api.logging")
