@@ -984,11 +984,16 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 else True
             )
             html_url = f"{url}/tree/{target.ref}{path}"
+            consolidated_parameters = spec.parameters(adjust=False)
+            if not consolidated_parameters.get("image", {}).get("tag"):
+                commit_sha = self._get_commit_sha(url, target.ref, github)
+                image_tag = commit_sha[:hash_length]
+                consolidated_parameters.setdefault("image", {})["tag"] = image_tag
             resources = helm.template_all(
                 url=url,
                 path=path,
                 name=resource_template_name,
-                values=spec.parameters(adjust=False),
+                values=consolidated_parameters,
                 ssl_verify=ssl_verify,
             )
 
