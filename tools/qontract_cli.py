@@ -2742,12 +2742,27 @@ def logs(ctx, integration_name: str):
     if not integrations:
         print("integration not found")
         return
-
     integration = integrations[0]
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    namespace = integration.managed[-1].namespace
-    cluster = namespace.cluster
+    managed = integration.managed
+    if not managed:
+        print("integration is not managed")
+        return
+    namespaces = [
+        m.namespace
+        for m in managed
+        if m.namespace.cluster.labels
+        and m.namespace.cluster.labels.get("environment") == "production"
+    ]
+    if not namespaces:
+        print("no managed production namespace found")
+        return
+    namespace = namespaces[0]
+    cluster = namespaces[0].cluster
+    if not cluster.automation_token:
+        print("cluster automation token not found")
+        return
     token = secret_reader.read_secret(cluster.automation_token)
 
     command = f"oc --server {cluster.server_url} --token {token} --namespace {namespace.name} logs -c int -l app=qontract-reconcile-{integration.name}"
