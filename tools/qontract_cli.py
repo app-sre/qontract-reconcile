@@ -2032,7 +2032,7 @@ def app_interface_review_queue(ctx) -> None:
             ):
                 continue
 
-            pipelines = mr.pipelines()
+            pipelines = gl.get_merge_request_pipelines(mr)
             if not pipelines:
                 continue
             running_pipelines = [p for p in pipelines if p["status"] == "running"]
@@ -2129,7 +2129,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx):
             continue
 
         # skip MRs where the pipeline is still running or where it failed
-        pipelines = mr.pipelines()
+        pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
             continue
         running_pipelines = [p for p in pipelines if p["status"] == "running"]
