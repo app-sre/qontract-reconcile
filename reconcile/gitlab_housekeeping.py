@@ -232,9 +232,10 @@ def handle_stale_items(
                 continue
 
             # if item has 'stale' label - check the notes
+            # TODO: add request count metrics and maybe server side filter to reduce requests
             cancel_notes = [
                 n
-                for n in item.notes.list()
+                for n in item.notes.list(iterator=True)
                 if n.attributes.get("body") == f"/{LABEL} cancel"
             ]
             if not cancel_notes:

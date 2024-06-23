@@ -13,6 +13,7 @@ from operator import (
 from typing import (
     Any,
     TypedDict,
+    cast,
 )
 from urllib.parse import urlparse
 
@@ -30,7 +31,9 @@ from gitlab.v4.objects import (
     Group,
     Project,
     ProjectIssue,
+    ProjectIssueManager,
     ProjectMergeRequest,
+    ProjectMergeRequestManager,
     ProjectMergeRequestNote,
 )
 from sretoolbox.utils import retry
@@ -242,9 +245,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if project is None:
             return None
         if query:
-            members = self.get_items(project.members.all, query_parameters=query)
+            members = self.get_items(project.members_all.list, query_parameters=query)
         else:
-            members = self.get_items(project.members.all)
+            members = self.get_items(project.members_all.list)
         return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self):
@@ -273,7 +276,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         access_level = self.get_access_level(access)
         # check if we have 'access_level' access so we can  add the group with same role.
         members = self.get_items(
-            project.members.all, query_parameters={"user_ids": self.user.id}
+            project.members_all.list, query_parameters={"user_ids": self.user.id}
         )
         if not any(
             self.user.id == member.id and member.access_level >= access_level
@@ -450,8 +453,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return self.get_items(mr.resourcelabelevents.list)
 
     def get_merge_request_pipelines(self, mr: ProjectMergeRequest) -> list[dict]:
+        # TODO: use typed object in return
+        # TODO: use server side order_by
+        items = self.get_items(mr.pipelines.list)
         return sorted(
-            self.get_items(mr.pipelines), key=lambda x: x["created_at"], reverse=True
+            [i.asdict() for i in items],
+            key=lambda x: x["created_at"],
+            reverse=True,
         )
 
     @staticmethod
@@ -459,7 +467,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         merge_request: ProjectMergeRequest,
     ) -> list[str]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        changes = merge_request.changes()["changes"]
+        result = merge_request.changes()
+        changes = cast(dict, result)["changes"]
         changed_paths = set()
         for change in changes:
             old_path = change["old_path"]
@@ -587,6 +596,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.notes.create({"body": body})
 
+    # TODO: deprecated this method as new support of list(get_all=True), and figure out request counter metrics
     @staticmethod
     def get_items(method, **kwargs):
         all_items = []
@@ -608,7 +618,18 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     @staticmethod
     def refresh_labels(item: ProjectMergeRequest | ProjectIssue):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        refreshed_item = item.manager.get(item.get_id())
+        manager: ProjectMergeRequestManager | ProjectIssueManager
+        match item:
+            case ProjectMergeRequest():
+                manager = cast(ProjectMergeRequestManager, item.manager)
+            case ProjectIssue():
+                manager = cast(ProjectIssueManager, item.manager)
+            case _:
+                raise ValueError("item must be a ProjectMergeRequest or ProjectIssue")
+        item_id = item.get_id()
+        if item_id is None:
+            raise ValueError("item must have an id")
+        refreshed_item = manager.get(item_id)
         item.labels = refreshed_item.labels
 
     @staticmethod

@@ -7,7 +7,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Self
 
-from deepdiff import DeepHash
 from ruamel import yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
@@ -48,11 +47,11 @@ APP_INTERFACE_PATH_SEPERATOR = "/"
 
 
 def get_template_collections(
-    query_func: Callable | None = None, template_collection_name: str | None = None
+    query_func: Callable | None = None, name: str | None = None
 ) -> list[TemplateCollectionV1]:
-    variables: dict[str, Any] = {"filter": {}}
-    if template_collection_name:
-        variables["filter"]["name"] = template_collection_name
+    variables = {}
+    if name:
+        variables["name"] = name
     if not query_func:
         query_func = gql.get_api().query
     return query(query_func, variables=variables).template_collection_v1 or []
@@ -187,14 +186,6 @@ def unpack_dynamic_variables(
     return dynamic
 
 
-def calc_template_hash(c: TemplateCollectionV1, variables: dict[str, Any]) -> str:
-    hashable = {
-        "templates": sorted(c.templates, key=lambda x: x.name),
-        "variables": variables,
-    }
-    return DeepHash(hashable)[hashable]
-
-
 class TemplateRendererIntegrationParams(PydanticRunParams):
     clone_repo: bool = False
     app_interface_data_path: str | None
@@ -276,11 +267,11 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         self,
         collection: TemplateCollectionV1,
         gql_api: GqlApi,
-        dry_run: bool,
         persistence: FilePersistence,
         ruamel_instance: yaml.YAML,
+        input: TemplateInput,
         each: dict[str, Any],
-    ) -> None:
+    ) -> list[TemplateOutput]:
         variables = {}
         if collection.variables:
             variables = {
@@ -289,20 +280,17 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 ),
                 "static": unpack_static_variables(collection.variables, each),
             }
+            input.variables.append(variables)
 
-        with PersistenceTransaction(persistence, dry_run) as p:
-            input = TemplateInput(
-                collection=collection.name,
-                collection_hash=calc_template_hash(collection, variables),
-                enable_auto_approval=collection.enable_auto_approval or False,
-                labels=collection.additional_mr_labels or [],
+        outputs: list[TemplateOutput] = []
+        for template in collection.templates:
+            output = self.process_template(
+                template, variables, persistence, ruamel_instance, input
             )
-            for template in collection.templates:
-                output = self.process_template(
-                    template, variables, p, ruamel_instance, input
-                )
-                if not dry_run and output:
-                    p.write([output])
+            if output:
+                outputs.append(output)
+
+        return outputs
 
     def reconcile(
         self,
@@ -311,21 +299,31 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         ruamel_instance: yaml.YAML,
     ) -> None:
         gql_no_validation = init_from_config(validate_schemas=False)
-        for c in get_template_collections(
-            template_collection_name=self.params.template_collection_name
-        ):
+        for c in get_template_collections(name=self.params.template_collection_name):
             for_each_items: list[dict[str, Any]] = [{}]
             if c.for_each and c.for_each.items:
                 for_each_items = c.for_each.items
-            for item in for_each_items:
-                self.reconcile_template_collection(
-                    c,
-                    gql_no_validation,
-                    dry_run,
-                    persistence,
-                    ruamel_instance,
-                    item,
-                )
+            input = TemplateInput(
+                collection=c.name,
+                templates=c.templates,
+                enable_auto_approval=c.enable_auto_approval or False,
+                labels=c.additional_mr_labels or [],
+            )
+            with PersistenceTransaction(persistence, dry_run) as p:
+                outputs: list[TemplateOutput] = []
+                for item in for_each_items:
+                    outputs.extend(
+                        self.reconcile_template_collection(
+                            c,
+                            gql_no_validation,
+                            p,
+                            ruamel_instance,
+                            input,
+                            item,
+                        )
+                    )
+                if not dry_run and outputs:
+                    p.write(outputs)
 
     @property
     def name(self) -> str:

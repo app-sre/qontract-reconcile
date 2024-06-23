@@ -3,6 +3,7 @@ from datetime import (
     timedelta,
 )
 from unittest.mock import (
+    Mock,
     create_autospec,
     patch,
 )
@@ -172,7 +173,7 @@ def project() -> Project:
 
 
 @pytest.fixture
-def can_be_merged_merge_request() -> ProjectMergeRequest:
+def can_be_merged_merge_request() -> Mock:
     mr = create_autospec(ProjectMergeRequest)
     mr.merge_status = "can_be_merged"
     mr.work_in_progress = False
@@ -205,7 +206,7 @@ def success_merge_request_pipeline() -> dict:
 
 def test_merge_merge_requests(
     project: Project,
-    can_be_merged_merge_request: ProjectMergeRequest,
+    can_be_merged_merge_request: Mock,
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
     success_merge_request_pipeline: dict,
 ) -> None:
