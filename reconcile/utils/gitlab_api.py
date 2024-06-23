@@ -29,13 +29,13 @@ from gitlab.const import (
 from gitlab.v4.objects import (
     CurrentUser,
     Group,
+    PersonalAccessToken,
     Project,
     ProjectIssue,
     ProjectIssueManager,
     ProjectMergeRequest,
     ProjectMergeRequestManager,
     ProjectMergeRequestNote,
-    PersonalAccessToken,
 )
 from sretoolbox.utils import retry
 
