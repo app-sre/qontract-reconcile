@@ -35,6 +35,7 @@ from gitlab.v4.objects import (
     ProjectMergeRequest,
     ProjectMergeRequestManager,
     ProjectMergeRequestNote,
+    PersonalAccessToken,
 )
 from sretoolbox.utils import retry
 
@@ -862,3 +863,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         project = self.get_project(repo_url)
         response: Any = project.repository_compare(ref_from, ref_to)
         return response.get("commits", [])
+
+    def get_personal_access_tokens(self) -> list[PersonalAccessToken]:
+        return self.get_items(self.gl.personal_access_tokens.list)
