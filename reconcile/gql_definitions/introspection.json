@@ -3464,6 +3464,16 @@
                             "description": null,
                             "args": [
                                 {
+                                    "name": "name",
+                                    "description": null,
+                                    "type": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    },
+                                    "defaultValue": null
+                                },
+                                {
                                     "name": "path",
                                     "description": null,
                                     "type": {

@@ -19,8 +19,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query TemplateCollection_v1 {
-  template_collection_v1 {
+query TemplateCollection_v1($name: String) {
+  template_collection_v1(name: $name) {
     name
     additionalMrLabels
     description
