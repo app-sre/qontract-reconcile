@@ -272,7 +272,7 @@ class TargetSpec:
     def delete(self) -> bool:
         return bool(self.target.delete)
 
-    def parameters(self, adjust: bool = True) -> dict[str, str]:
+    def parameters(self, adjust: bool = True) -> dict[str, Any]:
         environment_parameters = self._collect_parameters(
             self.target.namespace.environment, adjust=adjust
         )
