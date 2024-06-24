@@ -866,6 +866,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         resource_template_name = spec.resource_template_name
         url = spec.url
         path = spec.path
+        ref = spec.ref
         provider = spec.provider
         hash_length = spec.hash_length
         target = spec.target
@@ -877,7 +878,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             consolidated_parameters = spec.parameters()
             try:
                 template, commit_sha = self._get_file_contents(
-                    url=url, path=path, ref=target.ref, github=github
+                    url=url, path=path, ref=ref, github=github
                 )
             except Exception as e:
                 logging.error(f"{error_prefix} error fetching template: {str(e)}")
@@ -952,7 +953,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         elif provider == "directory":
             try:
                 resources, commit_sha = self._get_directory_contents(
-                    url=url, path=path, ref=target.ref, github=github
+                    url=url, path=path, ref=ref, github=github
                 )
             except Exception as e:
                 logging.error(
@@ -969,7 +970,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             )
             consolidated_parameters = spec.parameters(adjust=False)
             if not consolidated_parameters.get("image", {}).get("tag"):
-                commit_sha = self._get_commit_sha(url, target.ref, github)
+                commit_sha = self._get_commit_sha(url, ref, github)
                 image_tag = commit_sha[:hash_length]
                 consolidated_parameters.setdefault("image", {})["tag"] = image_tag
             resources = helm.template_all(

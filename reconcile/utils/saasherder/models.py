@@ -257,6 +257,10 @@ class TargetSpec:
         return self.resource_template.path
 
     @property
+    def ref(self) -> str:
+        return self.target.ref
+
+    @property
     def provider(self) -> str:
         return self.resource_template.provider or "openshift-template"
 
@@ -275,7 +279,7 @@ class TargetSpec:
     @property
     def html_url(self) -> str:
         git_object = "blob" if self.provider == "openshift-template" else "tree"
-        return f"{self.url}/{git_object}/{self.target.ref}{self.path}"
+        return f"{self.url}/{git_object}/{self.ref}{self.path}"
 
     @property
     def error_prefix(self) -> str:
