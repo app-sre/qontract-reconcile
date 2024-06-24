@@ -864,7 +864,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     def _process_template(self, spec: TargetSpec) -> tuple[list[Any], Promotion | None]:
         saas_file_name = spec.saas_file_name
         resource_template_name = spec.resource_template_name
-        image_auth = spec.image_auth
         url = spec.url
         path = spec.path
         provider = spec.provider
@@ -931,7 +930,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 img = self._get_image(
                     image=image_uri,
                     image_patterns=spec.image_patterns,
-                    image_auth=image_auth,
+                    image_auth=spec.image_auth,
                     error_prefix=error_prefix,
                 )
                 if not img:
@@ -1135,14 +1134,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     def _check_images(
         self,
-        saas_file_name: str,
-        resource_template_name: str,
-        image_auth: ImageAuth,
-        image_patterns: list[str],
-        html_url: str,
+        spec: TargetSpec,
         resources: Resources,
     ) -> bool:
-        error_prefix = f"[{saas_file_name}/{resource_template_name}] {html_url}:"
         images_list = threaded.run(
             self._collect_images, resources, self.available_thread_pool_size
         )
@@ -1154,9 +1148,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             self._get_image,
             images,
             self.available_thread_pool_size,
-            image_patterns=image_patterns,
-            image_auth=image_auth,
-            error_prefix=error_prefix,
+            image_patterns=spec.image_patterns,
+            image_auth=spec.image_auth,
+            error_prefix=spec.error_prefix,
         )
         return None in images
 
@@ -1316,11 +1310,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self._additional_resource_process(resources, html_url)
         # check images
         image_error = self._check_images(
-            saas_file_name=spec.saas_file_name,
-            resource_template_name=spec.resource_template_name,
-            image_auth=spec.image_auth,
-            image_patterns=spec.image_patterns,
-            html_url=html_url,
+            spec=spec,
             resources=resources,
         )
         if image_error:
