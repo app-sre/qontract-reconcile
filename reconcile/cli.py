@@ -2084,7 +2084,8 @@ def template_validator(ctx):
 )
 @click.option(
     "--clone-repo",
-    help="Path to a folder app-interface repo should be cloned to. Use this for regular integration run.",
+    is_flag=True,
+    help="Flag to enable cloning of the app-interface repo. Use this for regular integration run.",
     default=False,
 )
 @click.option(
