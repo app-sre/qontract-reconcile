@@ -123,11 +123,28 @@ class PatchRenderer(Renderer):
         )
 
         if isinstance(matched_value, list):
-            if not self.template.patch.identifier:
-                raise ValueError(
-                    f"Expected identifier in patch for list at {self.template}"
-                )
-            dta_identifier = data_to_add.get(self.template.patch.identifier)
+
+            def get_identifier(data: dict[str, Any]) -> Any:
+                assert self.template.patch is not None  # mypy
+                if not self.template.patch.identifier:
+                    raise ValueError(
+                        f"Expected identifier in patch for list at {self.template}"
+                    )
+                if self.template.patch.identifier.startswith(
+                    "$"
+                ) and not self.template.patch.identifier.startswith("$ref"):
+                    # jsonpath and list of strings support
+                    if matches := [
+                        match.value
+                        for match in parse_jsonpath(
+                            self.template.patch.identifier
+                        ).find(data)
+                    ]:
+                        return matches[0]
+                    return None
+                return data.get(self.template.patch.identifier)
+
+            dta_identifier = get_identifier(data_to_add)
             if not dta_identifier:
                 raise ValueError(
                     f"Expected identifier {self.template.patch.identifier} in data to add"
@@ -137,7 +154,7 @@ class PatchRenderer(Renderer):
                 (
                     index
                     for index, data in enumerate(matched_value)
-                    if data.get(self.template.patch.identifier) == dta_identifier
+                    if get_identifier(data) == dta_identifier
                 ),
                 None,
             )

@@ -1,0 +1,36 @@
+---
+template:
+  name: update file
+
+  targetPath: /some/saas/deploy.yml
+  templateTest: []
+
+  patch:
+    path: "$.openshiftResources[?provider=='prometheus-rule'].variables.instances"
+    identifier: $
+
+  template: "{{ bar }}"
+
+current:
+  openshiftResources:
+  - provider: prometheus-rule
+    type: resource-template-extracurlyjinja2
+    path: /what/ever/it/is.yml
+    variables:
+      target_down_severity: critical
+      instances:
+      - a
+      - b
+
+expected: |
+  ---
+  openshiftResources:
+  - provider: prometheus-rule
+    type: resource-template-extracurlyjinja2
+    path: /what/ever/it/is.yml
+    variables:
+      target_down_severity: critical
+      instances:
+      - a
+      - b
+      - bar
