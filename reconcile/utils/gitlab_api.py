@@ -303,7 +303,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     ) -> tuple[int, dict[str, Any]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
-        shared_projects = self.get_items(group.projects.list, all=True)
+        shared_projects = self.get_items(group.projects.list)
         return group.id, {
             project.web_url: shared_group
             for project in shared_projects
