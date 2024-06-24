@@ -847,11 +847,11 @@ class TestPopulateDesiredState(TestCase):
 
     def fake_get_file_contents(
         self, url: str, path: str, ref: str, github: Github
-    ) -> tuple[Any, str, str]:
+    ) -> tuple[Any, str]:
         self.assertEqual("https://github.com/rhobs/configuration", url)
 
         content = self.fxts.get(ref + (path.replace("/", "_")))
-        return yaml.safe_load(content), "yolo", ref
+        return yaml.safe_load(content), ref
 
     def tearDown(self) -> None:
         for p in (
@@ -1040,7 +1040,7 @@ class TestConfigHashPromotionsValidation(TestCase):
 
         self.gfc_patcher = patch.object(SaasHerder, "_get_file_contents", autospec=True)
         gfc_mock = self.gfc_patcher.start()
-        gfc_mock.return_value = (self.template, "url", "ahash")
+        gfc_mock.return_value = (self.template, "ahash")
 
         self.deploy_current_state_fxt = self.fxt.get_anymarkup("saas_deploy.state.json")
 
@@ -1242,7 +1242,7 @@ class TestSoakDays(TestCase):
 
         self.gfc_patcher = patch.object(SaasHerder, "_get_file_contents", autospec=True)
         gfc_mock = self.gfc_patcher.start()
-        gfc_mock.return_value = (self.template, "url", "ahash")
+        gfc_mock.return_value = (self.template, "ahash")
 
         self.deploy_current_state_fxt = self.fxt.get_anymarkup("saas_deploy.state.json")
 

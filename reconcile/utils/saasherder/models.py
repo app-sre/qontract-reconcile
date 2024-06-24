@@ -272,6 +272,11 @@ class TargetSpec:
     def delete(self) -> bool:
         return bool(self.target.delete)
 
+    @property
+    def html_url(self) -> str:
+        git_object = "blob" if self.provider == "openshift-template" else "tree"
+        return f"{self.url}/{git_object}/{self.target.ref}{self.path}"
+
     def parameters(self, adjust: bool = True) -> dict[str, Any]:
         environment_parameters = self._collect_parameters(
             self.target.namespace.environment, adjust=adjust
