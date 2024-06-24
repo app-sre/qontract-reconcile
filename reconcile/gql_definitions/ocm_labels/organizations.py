@@ -26,6 +26,9 @@ query OcmOrganizations {
     environment {
       name
     }
+    disable {
+      integrations
+    }
   }
 }
 """
@@ -41,10 +44,15 @@ class OpenShiftClusterManagerEnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
+class DisableClusterAutomationsV1(ConfiguredBaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+
+
 class OpenShiftClusterManagerV1(ConfiguredBaseModel):
     org_id: str = Field(..., alias="orgId")
     name: str = Field(..., alias="name")
     environment: OpenShiftClusterManagerEnvironmentV1 = Field(..., alias="environment")
+    disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
 
 class OcmOrganizationsQueryData(ConfiguredBaseModel):
