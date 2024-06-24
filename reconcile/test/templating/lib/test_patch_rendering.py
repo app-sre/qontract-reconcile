@@ -15,6 +15,7 @@ from reconcile.utils.secret_reader import SecretReader
         "patch_overwrite_newline_list.yaml",
         "patch_overwrite.yaml",
         "patch_overwrite_nested.yaml",
+        "patch_ref.yaml",
         "patch_jsonpath_identifier.yaml",
         "patch_jsonpath_identifier_update.yaml",
         "patch_list.yaml",

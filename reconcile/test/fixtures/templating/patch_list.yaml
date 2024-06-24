@@ -7,7 +7,7 @@ template:
 
   patch:
     path: "$.openshiftResources[?provider=='prometheus-rule'].variables.instances"
-    identifier: .
+    identifier: $
 
   template: "{{ bar }}"
 

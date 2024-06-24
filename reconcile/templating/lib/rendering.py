@@ -124,23 +124,16 @@ class PatchRenderer(Renderer):
 
         if isinstance(matched_value, list):
 
-            def get_identifier(data: dict[str, Any] | str) -> Any:
+            def get_identifier(data: dict[str, Any]) -> Any:
                 assert self.template.patch is not None  # mypy
                 if not self.template.patch.identifier:
                     raise ValueError(
                         f"Expected identifier in patch for list at {self.template}"
                     )
-                if isinstance(data, str):
-                    # if the data is already a string, use it as is.
-                    # this is the case if the target is a list of strings
-                    if self.template.patch.identifier != ".":
-                        raise ValueError(
-                            f"Use patch.identifier '.' for updating list of strings at {self.template}"
-                        )
-                    return data
-
-                if self.template.patch.identifier.startswith("$."):
-                    # jsonpath support
+                if self.template.patch.identifier.startswith(
+                    "$"
+                ) and not self.template.patch.identifier.startswith("$ref"):
+                    # jsonpath and list of strings support
                     if matches := [
                         match.value
                         for match in parse_jsonpath(
