@@ -8,7 +8,6 @@ from typing import Any
 from dynatrace import Dynatrace
 from dynatrace.environment_v2.tokens_api import ApiTokenCreated
 
-from reconcile.dynatrace_token_provider.meta import QONTRACT_INTEGRATION
 from reconcile.dynatrace_token_provider.metrics import (
     DTPClustersManagedGauge,
     DTPOrganizationErrorRate,
@@ -53,6 +52,7 @@ from reconcile.utils.runtime.integration import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase
 
+QONTRACT_INTEGRATION = "dynatrace-token-provider"
 SYNCSET_ID = "ext-dynatrace-tokens-dtp"
 SECRET_NAME = "dynatrace-token-dtp"
 SECRET_NAMESPACE = "dynatrace"
