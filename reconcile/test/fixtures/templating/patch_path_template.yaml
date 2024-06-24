@@ -1,0 +1,33 @@
+---
+template:
+  name: update file
+
+  targetPath: /some/saas/deploy.yml
+
+  patch:
+    path: "$.externalResources[?provisioner.'$ref'=='/{{ bar }}/account.yml'].resources"
+    identifier: identifier
+
+  template: |
+    identifier: {{ bar }}
+    output_resource_name: {{ bar }}
+
+  templateTest: []
+current:
+  externalResources:
+  - provisioner:
+      $ref: /bar/account.yml
+    resources:
+    - identifier: just-another-identifier
+      output_resource_name: just-another-identifier
+
+expected: |
+  ---
+  externalResources:
+  - provisioner:
+      $ref: /bar/account.yml
+    resources:
+    - identifier: just-another-identifier
+      output_resource_name: just-another-identifier
+    - identifier: bar
+      output_resource_name: bar

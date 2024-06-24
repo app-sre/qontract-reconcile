@@ -108,7 +108,7 @@ class PatchRenderer(Renderer):
         if self.template.patch is None:  # here to satisfy mypy
             raise ValueError("PatchRenderer requires a patch")
 
-        p = parse_jsonpath(self.template.patch.path)
+        p = parse_jsonpath(self._render_template(self.template.patch.path))
 
         matched_values = [match.value for match in p.find(self.data.current)]
 
