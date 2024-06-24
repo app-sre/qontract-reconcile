@@ -872,7 +872,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         target = spec.target
         github = spec.github
         target_config_hash = spec.target_config_hash
-        html_url = spec.html_url
+        error_prefix = spec.error_prefix
 
         if provider == "openshift-template":
             consolidated_parameters = spec.parameters()
@@ -881,10 +881,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     url=url, path=path, ref=target.ref, github=github
                 )
             except Exception as e:
-                logging.error(
-                    f"[{url}/blob/{target.ref}{path}] "
-                    + f"error fetching template: {str(e)}"
-                )
+                logging.error(f"{error_prefix} error fetching template: {str(e)}")
                 raise
 
             # add COMMIT_SHA only if it is unspecified
@@ -902,8 +899,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         channel = consolidated_parameters["CHANNEL"]
                     except KeyError:
                         logging.error(
-                            f"[{saas_file_name}/{resource_template_name}] "
-                            + f"{html_url}: CHANNEL is required when "
+                            f"{error_prefix} CHANNEL is required when "
                             + "'use_channel_in_image_tag' is true."
                         )
                         raise
@@ -925,17 +921,13 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     registry_image = consolidated_parameters["REGISTRY_IMG"]
                 except KeyError as e:
                     logging.error(
-                        f"[{saas_file_name}/{resource_template_name}] "
-                        + f"{html_url}: error generating REPO_DIGEST. "
+                        f"{error_prefix} error generating REPO_DIGEST. "
                         + "Is REGISTRY_IMG missing? "
                         + f"{str(e)}"
                     )
                     raise
 
                 image_uri = f"{registry_image}:{image_tag}"
-                error_prefix = (
-                    f"[{saas_file_name}/{resource_template_name}] {html_url}:"
-                )
                 img = self._get_image(
                     image=image_uri,
                     image_patterns=spec.image_patterns,
@@ -956,10 +948,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             try:
                 resources = oc.process(template, consolidated_parameters)
             except StatusCodeError as e:
-                logging.error(
-                    f"[{saas_file_name}/{resource_template_name}] "
-                    + f"{html_url}: error processing template: {str(e)}"
-                )
+                logging.error(f"{error_prefix} error processing template: {str(e)}")
 
         elif provider == "directory":
             try:
@@ -968,8 +957,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 )
             except Exception as e:
                 logging.error(
-                    f"[{url}/tree/{target.ref}{path}] "
-                    + f"error fetching directory: {str(e)} "
+                    f"{error_prefix} error fetching directory: {str(e)} "
                     + "(We do not support nested directories. Do you by chance have subdirectories?)"
                 )
                 raise
@@ -994,10 +982,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             )
 
         else:
-            logging.error(
-                f"[{saas_file_name}/{resource_template_name}] "
-                + f"unknown provider: {provider}"
-            )
+            logging.error(f"{error_prefix} unknown provider: {provider}")
 
         target_promotion = None
         if target.promotion:

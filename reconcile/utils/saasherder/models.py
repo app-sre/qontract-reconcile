@@ -277,6 +277,10 @@ class TargetSpec:
         git_object = "blob" if self.provider == "openshift-template" else "tree"
         return f"{self.url}/{git_object}/{self.target.ref}{self.path}"
 
+    @property
+    def error_prefix(self) -> str:
+        return f"[{self.saas_file_name}/{self.resource_template_name}] {self.html_url}:"
+
     def parameters(self, adjust: bool = True) -> dict[str, Any]:
         environment_parameters = self._collect_parameters(
             self.target.namespace.environment, adjust=adjust
