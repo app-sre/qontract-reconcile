@@ -4,8 +4,6 @@ from collections.abc import Iterable, Mapping
 from datetime import timedelta
 from typing import Any
 
-from dynatrace.environment_v2.tokens_api import ApiTokenCreated
-
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.metrics import (
     DTPClustersManagedGauge,
@@ -15,7 +13,7 @@ from reconcile.dynatrace_token_provider.ocm import Cluster, OCMClient
 from reconcile.utils import (
     metrics,
 )
-from reconcile.utils.dynatrace.client import DynatraceClient
+from reconcile.utils.dynatrace.client import DynatraceAPITokenCreated, DynatraceClient
 from reconcile.utils.ocm.base import (
     OCMClusterServiceLogCreateModel,
     OCMServiceLogSeverity,
@@ -182,7 +180,7 @@ class DynatraceTokenProviderIntegration(
             tokens = self.get_tokens_from_syncset(existing_syncset)
             need_patching = False
             for token_name, token in tokens.items():
-                if token["id"] not in existing_dtp_tokens:
+                if token.id not in existing_dtp_tokens:
                     need_patching = True
                     logging.info(f"{token_name} missing in Dynatrace.")
                     if token_name == DYNATRACE_INGESTION_TOKEN_NAME:
@@ -190,8 +188,8 @@ class DynatraceTokenProviderIntegration(
                             ingestion_token = self.create_dynatrace_ingestion_token(
                                 dt_client, cluster.external_id
                             )
-                            token["id"] = ingestion_token.id
-                            token["token"] = ingestion_token.token
+                            token.id = ingestion_token.id
+                            token.token = ingestion_token.token
                         logging.info(
                             f"Ingestion token created in Dynatrace for cluster {cluster.external_id}."
                         )
@@ -200,15 +198,15 @@ class DynatraceTokenProviderIntegration(
                             operator_token = self.create_dynatrace_operator_token(
                                 dt_client, cluster.external_id
                             )
-                            token["id"] = operator_token.id
-                            token["token"] = operator_token.token
+                            token.id = operator_token.id
+                            token.token = operator_token.token
                         logging.info(
                             f"Operator token created in Dynatrace for cluster {cluster.external_id}."
                         )
                 elif token_name == DYNATRACE_INGESTION_TOKEN_NAME:
-                    ingestion_token = ApiTokenCreated(raw_element=token)
+                    ingestion_token = token
                 elif token_name == DYNATRACE_OPERATOR_TOKEN_NAME:
-                    operator_token = ApiTokenCreated(raw_element=token)
+                    operator_token = token
             if need_patching:
                 if not dry_run:
                     patch_syncset_payload = self.construct_base_syncset(
@@ -241,7 +239,9 @@ class DynatraceTokenProviderIntegration(
                 raise e
         return syncset
 
-    def get_tokens_from_syncset(self, syncset: Mapping[str, Any]) -> dict:
+    def get_tokens_from_syncset(
+        self, syncset: Mapping[str, Any]
+    ) -> dict[str, DynatraceAPITokenCreated]:
         tokens: dict[str, Any] = {}
         for resource in syncset["resources"]:
             if resource["kind"] == "Secret":
@@ -251,20 +251,20 @@ class DynatraceTokenProviderIntegration(
                     resource["data"]["dataIngestTokenId"]
                 )
                 ingest_token = self.base64_decode(resource["data"]["dataIngestToken"])
-        tokens[DYNATRACE_INGESTION_TOKEN_NAME] = {
-            "id": ingest_token_id,
-            "token": ingest_token,
-        }
-        tokens[DYNATRACE_OPERATOR_TOKEN_NAME] = {
-            "id": operator_token_id,
-            "token": operator_token,
-        }
+        tokens[DYNATRACE_INGESTION_TOKEN_NAME] = DynatraceAPITokenCreated(
+            id=ingest_token_id,
+            token=ingest_token,
+        )
+        tokens[DYNATRACE_OPERATOR_TOKEN_NAME] = DynatraceAPITokenCreated(
+            id=operator_token_id,
+            token=operator_token,
+        )
         return tokens
 
     def construct_base_syncset(
         self,
-        ingestion_token: ApiTokenCreated,
-        operator_token: ApiTokenCreated,
+        ingestion_token: DynatraceAPITokenCreated,
+        operator_token: DynatraceAPITokenCreated,
         dt_api_url: str,
     ) -> dict[str, Any]:
         return {
@@ -296,8 +296,8 @@ class DynatraceTokenProviderIntegration(
 
     def construct_syncset(
         self,
-        ingestion_token: ApiTokenCreated,
-        operator_token: ApiTokenCreated,
+        ingestion_token: DynatraceAPITokenCreated,
+        operator_token: DynatraceAPITokenCreated,
         dt_api_url: str,
     ) -> dict[str, Any]:
         syncset = self.construct_base_syncset(
@@ -310,7 +310,7 @@ class DynatraceTokenProviderIntegration(
 
     def create_dynatrace_ingestion_token(
         self, dt_client: DynatraceClient, cluster_uuid: str
-    ) -> ApiTokenCreated:
+    ) -> DynatraceAPITokenCreated:
         return dt_client.create_api_token(
             name=f"dtp-ingestion-token-{cluster_uuid}",
             scopes=["metrics.ingest", "logs.ingest", "events.ingest"],
@@ -318,7 +318,7 @@ class DynatraceTokenProviderIntegration(
 
     def create_dynatrace_operator_token(
         self, dt_client: DynatraceClient, cluster_uuid: str
-    ) -> ApiTokenCreated:
+    ) -> DynatraceAPITokenCreated:
         return dt_client.create_api_token(
             name=f"dtp-operator-token-{cluster_uuid}",
             scopes=[
@@ -333,7 +333,7 @@ class DynatraceTokenProviderIntegration(
 
     def create_dynatrace_tokens(
         self, dt_client: DynatraceClient, cluster_uuid: str
-    ) -> tuple[ApiTokenCreated, ApiTokenCreated]:
+    ) -> tuple[DynatraceAPITokenCreated, DynatraceAPITokenCreated]:
         ingestion_token = self.create_dynatrace_ingestion_token(dt_client, cluster_uuid)
         operation_token = self.create_dynatrace_operator_token(dt_client, cluster_uuid)
         return (ingestion_token, operation_token)
