@@ -11,7 +11,7 @@ from reconcile.templating.lib.merge_request_manager import (
     create_parser,
     render_description,
 )
-from reconcile.templating.lib.model import TemplateInput, TemplateOutput
+from reconcile.templating.lib.model import TemplateOutput, TemplateResult
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.merge_request_manager import OpenMergeRequest
 from reconcile.utils.vcs import VCS
@@ -29,10 +29,9 @@ def mergereqeustmanager(mocker: MockerFixture) -> tuple[MergeRequestManager, Moc
 
 
 @pytest.fixture
-def template_input() -> TemplateInput:
-    return TemplateInput(
+def template_result() -> TemplateResult:
+    return TemplateResult(
         collection="test",
-        collection_hash="test",
         enable_auto_approval=False,
     )
 
@@ -44,7 +43,7 @@ def test_parser_parse() -> None:
     t = create_parser().parse(render_description(collection, shasum))
     assert isinstance(t, TemplateInfo)
     assert t.collection == collection
-    assert t.collection_hash == shasum
+    assert t.result_hash == shasum
 
 
 @pytest.mark.parametrize("is_new,create,update", [(True, 1, 0), (False, 0, 1)])
@@ -53,12 +52,11 @@ def test_templaterenderingmr_process_updated(
     create: int,
     update: int,
     gitlab_cli: Mock,
-    template_input: TemplateInput,
 ) -> None:
     trm = TemplateRenderingMR(
         "title",
         "description",
-        [TemplateOutput(is_new=is_new, content="", path="", input=template_input)],
+        [TemplateOutput(is_new=is_new, content="", path="")],
         ["label"],
     )
     trm.process(gitlab_cli)
@@ -67,73 +65,53 @@ def test_templaterenderingmr_process_updated(
     assert gitlab_cli.update_file.call_count == update
 
 
-def test_create_tr_merge_request_fail(
-    mergereqeustmanager: tuple[MergeRequestManager, Mock], template_input: TemplateInput
-) -> None:
-    with pytest.raises(AssertionError):
-        input2 = template_input.copy()
-        input2.collection = "foo"
-        mergereqeustmanager[0].create_merge_request(
-            MrData(
-                data=[
-                    TemplateOutput(
-                        is_new=True, content="", path="", input=template_input
-                    ),
-                    TemplateOutput(is_new=True, content="", path="", input=input2),
-                ],
-                auto_approved=False,
-            ),
-        )
-
-
 def test_create_tr_merge_request_create(
     mergereqeustmanager: tuple[MergeRequestManager, Mock],
+    template_result: TemplateResult,
 ) -> None:
     mrm, vcs = mergereqeustmanager
-    mrm.create_merge_request(
-        MrData(
-            data=[
-                TemplateOutput(
-                    input=TemplateInput(collection="foo", collection_hash="abc"),
-                    is_new=True,
-                    content="",
-                    path="",
-                )
-            ],
-            auto_approved=False,
-        ),
-    )
+    template_result.outputs = [
+        TemplateOutput(
+            is_new=True,
+            content="",
+            path="",
+        )
+    ]
+    mrm.create_merge_request(MrData(result=template_result, auto_approved=False))
 
     vcs.open_app_interface_merge_request.assert_called_once()
 
 
-@pytest.mark.parametrize("thash,closed", [("cba", True), ("abc", False)])
+@pytest.mark.parametrize(
+    "thash,closed",
+    [
+        ("cba", True),
+        ("4b6d287de34635c2c1e0de5daff6da363336e765fb1630e04b7c9b7ac153c388", False),
+    ],
+)
 def test_create_tr_merge_request_found(
     thash: str,
     closed: bool,
     mergereqeustmanager: tuple[MergeRequestManager, Mock],
     mocker: MockerFixture,
+    template_result: TemplateResult,
 ) -> None:
     mrm, vcs = mergereqeustmanager
     mrm._open_mrs.append(
         OpenMergeRequest(
             raw=mocker.patch("gitlab.v4.objects.ProjectMergeRequest", autospec=True),
-            mr_info=TemplateInfo(collection="foo", collection_hash=thash),
+            mr_info=TemplateInfo(collection="test", result_hash=thash),
         )
     )
-    mrm.create_merge_request(
-        MrData(
-            data=[
-                TemplateOutput(
-                    input=TemplateInput(collection="foo", collection_hash="abc"),
-                    is_new=True,
-                    content="",
-                    path="",
-                )
-            ],
-            auto_approved=False,
-        ),
-    )
+    template_result.outputs = [
+        TemplateOutput(
+            is_new=True,
+            content="",
+            path="",
+        )
+    ]
+    # template_result.result_hash = "abc"
+    mrm.create_merge_request(MrData(result=template_result, auto_approved=False))
     if closed:
         vcs.close_app_interface_mr.assert_called_once()
         vcs.open_app_interface_merge_request.assert_called_once()

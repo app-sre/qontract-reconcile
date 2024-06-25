@@ -4,7 +4,7 @@ import string
 
 from pydantic import BaseModel
 
-from reconcile.templating.lib.model import TemplateOutput
+from reconcile.templating.lib.model import TemplateOutput, TemplateResult
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.merge_request_manager.merge_request_manager import (
     MergeRequestManagerBase,
@@ -24,14 +24,14 @@ TR_LABEL = "template-output"
 
 VERSION_REF = "tr_version"
 COLLECTION_REF = "collection"
-TEMPLATE_COLLECTION_HASH_REF = "collection_hash"
+TEMPLATE_RESULT_HASH_REF = "result_hash"
 
 COMPILED_REGEXES = {
     i: re.compile(rf".*{i}: (.*)$", re.MULTILINE)
     for i in [
         VERSION_REF,
         COLLECTION_REF,
-        TEMPLATE_COLLECTION_HASH_REF,
+        TEMPLATE_RESULT_HASH_REF,
     ]
 }
 
@@ -47,7 +47,7 @@ Parts of this description are used by the Template Renderer to manage the MR.
 
 * {VERSION_REF}: $version
 * {COLLECTION_REF}: $collection
-* {TEMPLATE_COLLECTION_HASH_REF}: $collection_hash
+* {TEMPLATE_RESULT_HASH_REF}: $result_hash
 """
 )
 
@@ -63,10 +63,10 @@ def create_parser() -> Parser:
 
 
 def render_description(
-    collection: str, collection_hash: str, version: str = TR_VERSION
+    collection: str, result_hash: str, version: str = TR_VERSION
 ) -> str:
     return MR_DESC.substitute(
-        collection=collection, collection_hash=collection_hash, version=version
+        collection=collection, result_hash=result_hash, version=version
     )
 
 
@@ -76,7 +76,7 @@ def render_title(collection: str) -> str:
 
 class TemplateInfo(BaseModel):
     collection: str
-    collection_hash: str
+    result_hash: str
 
 
 class TemplateRenderingMR(MergeRequestBase):
@@ -122,7 +122,7 @@ class TemplateRenderingMR(MergeRequestBase):
 
 
 class MrData(BaseModel):
-    data: list[TemplateOutput]
+    result: TemplateResult
     auto_approved: bool
 
 
@@ -134,21 +134,17 @@ class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
         if not self._housekeeping_ran:
             self.housekeeping()
 
-        output = data.data
-        collections = {o.input.collection for o in output}
-        collection_hashes = {o.input.calc_template_hash() for o in output}
-        additional_labels = {label for o in output for label in o.input.labels}
-        # From the way the code is written, we can assert that there is only one collection and one template hash
-        assert len(collections) == 1
-        assert len(collection_hashes) == 1
-        collection = collections.pop()
-        collection_hash = collection_hashes.pop()
+        result = data.result
+        output = result.outputs
+        collection = result.collection
+        result_hash = result.calc_result_hash()
+        additional_labels = result.labels
 
         """Create a new MR with the rendered template."""
         if mr := self._merge_request_already_exists({"collection": collection}):
-            if mr.mr_info.collection_hash == collection_hash:
+            if mr.mr_info.result_hash == result_hash:
                 logging.info(
-                    "MR already exists and has the same template hash. Skipping: %s",
+                    "MR already exists and has the same result hash. Skipping: %s",
                     mr.raw.attributes.get("web_url", "NO_WEBURL"),
                 )
                 return None
@@ -159,13 +155,13 @@ class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
                 )
                 self._vcs.close_app_interface_mr(
                     mr.raw,
-                    "Closing this MR because the collection hash has changed.",
+                    "Closing this MR because the result hash has changed.",
                 )
 
-        description = render_description(collection, collection_hash)
+        description = render_description(collection, result_hash)
         title = render_title(collection)
 
-        logging.info("Opening MR for %s with hash (%s)", collection, collection_hash)
+        logging.info("Opening MR for %s with hash (%s)", collection, result_hash)
         mr_labels = [TR_LABEL]
 
         if data.auto_approved:
