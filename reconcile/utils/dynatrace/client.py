@@ -9,6 +9,10 @@ class DynatraceTokenCreationError(Exception):
     pass
 
 
+class DynatraceTokenRetrievalError(Exception):
+    pass
+
+
 class DynatraceClient:
     def __init__(self, environment_url: str, api: Dynatrace) -> None:
         self._environment_url = environment_url
@@ -22,6 +26,15 @@ class DynatraceClient:
                 f"{self._environment_url=} Failed to create token for {name=}", e
             ) from e
         return token.token
+
+    def get_token_ids_for_name_prefix(self, prefix: str) -> list[str]:
+        try:
+            dt_tokens = self._api.tokens.list()
+        except Exception as e:
+            raise DynatraceTokenRetrievalError(
+                f"{self._environment_url=} Failed to retrieve tokens for {prefix=}", e
+            ) from e
+        return [token.id for token in dt_tokens if token.name.startswith(prefix)]
 
     @staticmethod
     def create(
