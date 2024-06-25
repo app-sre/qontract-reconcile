@@ -31,6 +31,7 @@ from reconcile.utils.oc_map import (
     OCMap,
     init_oc_map_from_clusters,
 )
+from reconcile.utils.ocm.base import OCMClusterGroupId
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.sharding import is_in_shard
 
@@ -270,16 +271,19 @@ def run(
         defer(oc_map.cleanup)
     desired_state = fetch_desired_state(oc_map.clusters())
 
-    # we only manage dedicated-admins via OCM
     current_state = [
         s
         for s in current_state
-        if not (s["cluster"] in ocm_clusters and s["group"] == "dedicated-admins")
+        if not (
+            s["cluster"] in ocm_clusters and s["group"] in OCMClusterGroupId.values()
+        )
     ]
     desired_state = [
         s
         for s in desired_state
-        if not (s["cluster"] in ocm_clusters and s["group"] == "dedicated-admins")
+        if not (
+            s["cluster"] in ocm_clusters and s["group"] in OCMClusterGroupId.values()
+        )
     ]
 
     ob.publish_cluster_desired_metrics_from_state(
