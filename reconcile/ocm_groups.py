@@ -13,6 +13,7 @@ from reconcile import (
 from reconcile.status import ExitCodes
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm.base import OCMClusterGroupId
 
 QONTRACT_INTEGRATION = "ocm-groups"
 
@@ -76,9 +77,12 @@ def run(dry_run, thread_pool_size=10):
     ocm_map, current_state = fetch_current_state(clusters, thread_pool_size)
     desired_state = openshift_groups.fetch_desired_state(clusters=ocm_map.clusters())
 
-    # we only manage dedicated-admins via OCM
-    current_state = [s for s in current_state if s["group"] == "dedicated-admins"]
-    desired_state = [s for s in desired_state if s["group"] == "dedicated-admins"]
+    current_state = [
+        s for s in current_state if s["group"] in OCMClusterGroupId.values()
+    ]
+    desired_state = [
+        s for s in desired_state if s["group"] in OCMClusterGroupId.values()
+    ]
 
     diffs = openshift_groups.calculate_diff(current_state, desired_state)
     openshift_groups.validate_diffs(diffs)
@@ -100,8 +104,9 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
         if integration_is_enabled(QONTRACT_INTEGRATION, c) and _cluster_is_compatible(c)
     ]
     desired_state = openshift_groups.fetch_desired_state(clusters=clusters)
-    # we only manage dedicated-admins via OCM
-    desired_state = [s for s in desired_state if s["group"] == "dedicated-admins"]
+    desired_state = [
+        s for s in desired_state if s["group"] in OCMClusterGroupId.values()
+    ]
 
     return {
         "state": desired_state,

@@ -64,6 +64,10 @@ class OCMClusterGroupId(Enum):
     DEDICATED_ADMINS = "dedicated-admins"
     CLUSTER_ADMINS = "cluster-admins"
 
+    @classmethod
+    def values(cls) -> list[str]:
+        return [group.value for group in cls]
+
 
 class OCMClusterUser(BaseModel):
     """
