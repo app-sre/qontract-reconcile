@@ -4,7 +4,7 @@ from unittest.mock import create_autospec
 
 import pytest
 from dynatrace import Dynatrace
-from dynatrace.environment_v2.tokens_api import ApiTokenCreated, TokenService
+from dynatrace.environment_v2.tokens_api import ApiToken, ApiTokenCreated, TokenService
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def dynatrace_api_builder() -> Callable[[Mapping], Dynatrace]:
         if isinstance(list_token_result, list):
             listed_tokens = []
             for token_tup in list_token_result:
-                token = create_autospec(spec=ApiTokenCreated)
+                token = create_autospec(spec=ApiToken)
                 token.id = token_tup[1]
                 token.name = token_tup[0]
                 listed_tokens.append(token)
