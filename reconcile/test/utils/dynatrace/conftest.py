@@ -15,9 +15,10 @@ def dynatrace_api_builder() -> Callable[[Mapping], Dynatrace]:
         dynatrace_mock.tokens = token_service
 
         token_created_result = data.get("CREATE_TOKEN_RESULT")
-        if isinstance(token_created_result, str):
+        if isinstance(token_created_result, tuple):
             token = create_autospec(spec=ApiTokenCreated)
-            token.token = token_created_result
+            token.id = token_created_result[0]
+            token.token = token_created_result[1]
             token_service.create.return_value = token
         else:
             # For raising exceptions

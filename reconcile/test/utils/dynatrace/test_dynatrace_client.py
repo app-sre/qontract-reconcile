@@ -4,6 +4,7 @@ from dynatrace import Dynatrace
 from pytest import raises
 
 from reconcile.utils.dynatrace.client import (
+    DynatraceAPITokenCreated,
     DynatraceClient,
     DynatraceTokenCreationError,
     DynatraceTokenRetrievalError,
@@ -13,12 +14,12 @@ from reconcile.utils.dynatrace.client import (
 def test_dynatrace_create_token_success(
     dynatrace_api_builder: Callable[[Mapping], Dynatrace],
 ) -> None:
-    api = dynatrace_api_builder({"CREATE_TOKEN_RESULT": "test-token"})
+    api = dynatrace_api_builder({"CREATE_TOKEN_RESULT": ("id1", "test-token")})
 
     client = DynatraceClient.create(environment_url="test-env", token=None, api=api)
     token = client.create_api_token(name="test-token-name", scopes=["test-scope"])
 
-    assert token == "test-token"
+    assert token == DynatraceAPITokenCreated(token="test-token", id="id1")
     api.tokens.create.assert_called_once_with(
         name="test-token-name", scopes=["test-scope"]
     )
