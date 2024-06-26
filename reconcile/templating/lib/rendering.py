@@ -78,7 +78,7 @@ class Renderer(ABC):
         pass
 
     def render_target_path(self) -> str:
-        return self._render_template(self.template.target_path)
+        return self._render_template(self.template.target_path).strip()
 
     def render_condition(self) -> bool:
         return self._render_template(self.template.condition or "True") == "True"

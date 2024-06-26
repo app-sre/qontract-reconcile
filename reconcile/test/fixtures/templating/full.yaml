@@ -1,7 +1,11 @@
 template:
   name: full
 
-  targetPath: /{{bar}}/foo.yml
+  # test targetPath with templating, multiline and whitespaces
+  targetPath: |
+    {% if true %}
+        /{{bar}}/foo.yml     {# with whitespaces and newlines #}
+    {% endif %}
 
   template: |
     foo: {{ bar }}
