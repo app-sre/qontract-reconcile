@@ -70,6 +70,7 @@ class ROSAOcmAwsAttrs(BaseModel):
 class ROSAClusterAWSAccount(BaseModel):
     uid: str
     rosa: ROSAOcmAwsAttrs | None
+    billing_account_id: str | None
 
     class Config:
         extra = Extra.forbid

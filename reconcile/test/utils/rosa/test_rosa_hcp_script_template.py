@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from reconcile.ocm.types import OCMSpec
+from reconcile.ocm.types import OCMSpec, ROSAClusterSpec
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.models import data_default_none
 from reconcile.utils.rosa.session import generate_rosa_creation_script
@@ -85,6 +85,18 @@ def test_generate_rosa_creation_script_dry_run(
     rosa_cluster_spec: OCMSpec, script_result_fixtures: Fixtures
 ) -> None:
     expected = script_result_fixtures.get("rosa_hcp_script_result_dry_run.sh")
+    script = generate_rosa_creation_script(
+        cluster_name="cluster-1", cluster=rosa_cluster_spec, dry_run=True
+    )
+    assert normalize_script(expected) == normalize_script(script)
+
+
+def test_generate_rosa_creation_script_billing_account(
+    rosa_cluster_spec: OCMSpec, script_result_fixtures: Fixtures
+) -> None:
+    expected = script_result_fixtures.get("rosa_hcp_script_result_billing_account.sh")
+    if isinstance(rosa_cluster_spec.spec, ROSAClusterSpec):
+        rosa_cluster_spec.spec.account.billing_account_id = "123456789"
     script = generate_rosa_creation_script(
         cluster_name="cluster-1", cluster=rosa_cluster_spec, dry_run=True
     )

@@ -45,8 +45,9 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
     but the cluster only needs the target OCM environment where it belongs.
     This method changes the cluster dictionary to include just those.
     """
-    uid = cluster["spec"]["account"]["uid"]
-    rosa_ocm_configs = cluster["spec"]["account"]["rosa"]
+    account = cluster["spec"]["account"]
+    uid = account["uid"]
+    rosa_ocm_configs = account["rosa"]
     rosa: ROSAOcmAwsAttrs | None = None
     if rosa_ocm_configs:
         ocm_env = [
@@ -75,10 +76,13 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
         rosa = None
 
     # doing this allows to exclude account fields which can be queried in graphql
-    cluster["spec"]["account"] = ROSAClusterAWSAccount(
+    rosa_cluster_aws_account = ROSAClusterAWSAccount(
         uid=uid,
         rosa=rosa,
     )
+    if billing_account := account.get("billingAccount"):
+        rosa_cluster_aws_account.billing_account_id = billing_account["uid"]
+    cluster["spec"]["account"] = rosa_cluster_aws_account
 
 
 def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> dict[str, OCMSpec]:
