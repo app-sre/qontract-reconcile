@@ -58,9 +58,20 @@ def get_template_collections(
 
 
 class FilePersistence(ABC):
+    def __init__(self, dry_run: bool) -> None:
+        self.dry_run = dry_run
+        self.outputs: list[TemplateOutput] = []
+        self.result: TemplateResult | None = None
+
+    def __enter__(self) -> Self:
+        return self
+
     @abstractmethod
-    def write(self, result: TemplateResult) -> None:
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         pass
+
+    def write(self, output: TemplateOutput) -> None:
+        self.outputs.append(output)
 
     @abstractmethod
     def read(self, path: str) -> str | None:
@@ -84,40 +95,40 @@ class LocalFilePersistence(FilePersistence):
     This class provides a simple file persistence implementation for local files.
     """
 
-    def __init__(self, app_interface_data_path: str) -> None:
+    def __init__(self, dry_run: bool, app_interface_data_path: str) -> None:
+        super().__init__(dry_run)
         if not app_interface_data_path.endswith("/data"):
             raise ValueError("app_interface_data_path should end with /data")
         self.app_interface_data_path = app_interface_data_path
 
-    def write(self, result: TemplateResult) -> None:
-        for output in result.outputs:
+    def read(self, path: str) -> str | None:
+        return self._read_local_file(join_path(self.app_interface_data_path, path))
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        if self.dry_run:
+            return
+        for output in self.outputs:
             filepath = Path(join_path(self.app_interface_data_path, output.path))
             filepath.parent.mkdir(parents=True, exist_ok=True)
             filepath.write_text(output.content, encoding="utf-8")
-
-    def read(self, path: str) -> str | None:
-        return self._read_local_file(join_path(self.app_interface_data_path, path))
 
 
 class PersistenceTransaction(FilePersistence):
     """
     This class provides a context manager to make read/write operations
-    consistent. Reads/writes are beeing cached and writes are beeing delayed
+    consistent. Reads/writes are beeing cached and writes are being delayed
     until the context is left.
     """
 
-    def __init__(self, persistence: FilePersistence, dry_run: bool) -> None:
+    def __init__(self, persistence: FilePersistence) -> None:
+        super().__init__(persistence.dry_run)
         self.persistence = persistence
-        self.dry_run = dry_run
         self.content_cache: dict[str, str | None] = {}
         self.output_cache: dict[str, TemplateOutput] = {}
-        self.result: TemplateResult
 
-    def write(self, result: TemplateResult) -> None:
-        self.result = result
-        for output in result.outputs:
-            self.content_cache[output.path] = output.content
-            self.output_cache[output.path] = output
+    def write(self, output: TemplateOutput) -> None:
+        self.content_cache[output.path] = output.content
+        self.output_cache[output.path] = output
 
     def read(self, path: str) -> str | None:
         if path not in self.content_cache:
@@ -129,8 +140,8 @@ class PersistenceTransaction(FilePersistence):
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         if not self.dry_run and self.output_cache:
-            self.result.outputs = list(self.output_cache.values())
-            self.persistence.write(self.result)
+            for output in self.output_cache.values():
+                self.persistence.write(output)
 
 
 class ClonedRepoGitlabPersistence(FilePersistence):
@@ -138,30 +149,42 @@ class ClonedRepoGitlabPersistence(FilePersistence):
     This class is used to persist the rendered templates in a cloned gitlab repo
     Reads are from the local filesystem, writes are done via utils.VCS abstraction
 
-    Only one MR is created per run. Auto-approval MRs are prefered.
+    One MR is created per template-collection. Auto-approval MRs are prefered.
     """
 
-    def __init__(self, local_path: str, vcs: VCS, mr_manager: MergeRequestManager):
+    def __init__(
+        self, dry_run: bool, local_path: str, vcs: VCS, mr_manager: MergeRequestManager
+    ):
+        super().__init__(dry_run)
         self.local_path = join_path(local_path, "data")
         self.vcs = vcs
         self.mr_manager = mr_manager
 
-    def write(self, result: TemplateResult) -> None:
+    def read(self, path: str) -> str | None:
+        return self._read_local_file(join_path(self.local_path, path))
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        if self.result is None:
+            raise ValueError("ClonedRepoGitlabPersistence.result not set!")
+
+        if self.dry_run:
+            return
+
         self.mr_manager.housekeeping()
 
-        if result.enable_auto_approval:
-            auto_approved = [o for o in result.outputs if o.auto_approved]
+        self.result.outputs = self.outputs
+        if self.result.enable_auto_approval:
+            auto_approved = [o for o in self.result.outputs if o.auto_approved]
             if auto_approved:
-                result.outputs = auto_approved
+                self.result.outputs = auto_approved
                 self.mr_manager.create_merge_request(
-                    MrData(result=result, auto_approved=True)
+                    MrData(result=self.result, auto_approved=True)
                 )
                 return
 
-        self.mr_manager.create_merge_request(MrData(result=result, auto_approved=False))
-
-    def read(self, path: str) -> str | None:
-        return self._read_local_file(join_path(self.local_path, path))
+        self.mr_manager.create_merge_request(
+            MrData(result=self.result, auto_approved=False)
+        )
 
 
 def unpack_static_variables(
@@ -240,27 +263,24 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             template, variables, secret_reader=self.secret_reader
         )
         target_path = r.render_target_path()
-
-        current_str = persistence.read(
-            target_path,
-        )
-        if current_str is None and template.patch:
+        current_file = persistence.read(target_path)
+        if current_file is None and template.patch:
             raise ValueError(f"Can not patch non-existing file {target_path}")
 
-        if current_str:
-            r.data.current = ruaml_instance.load(current_str)
+        if current_file:
+            r.data.current = ruaml_instance.load(current_file)
 
         if r.render_condition():
             output = r.render_output()
 
-            if current_str != output:
+            if current_file != output:
                 logging.info(
                     f"diff for template {template.name} in target path {target_path}"
                 )
                 return TemplateOutput(
                     path=target_path,
                     content=output,
-                    is_new=current_str is None,
+                    is_new=current_file is None,
                     auto_approved=template.auto_approved or False,
                 )
         return None
@@ -272,7 +292,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         persistence: FilePersistence,
         ruamel_instance: yaml.YAML,
         each: dict[str, Any],
-    ) -> list[TemplateOutput]:
+    ) -> None:
         variables = {}
         if collection.variables:
             variables = {
@@ -281,46 +301,38 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 ),
                 "static": unpack_static_variables(collection.variables, each),
             }
-
-        outputs: list[TemplateOutput] = []
-        for template in collection.templates:
-            output = self.process_template(
-                template, variables, persistence, ruamel_instance
-            )
-            if output:
-                outputs.append(output)
-
-        return outputs
+        with PersistenceTransaction(persistence) as persistence_transaction:
+            for template in collection.templates:
+                if output := self.process_template(
+                    template, variables, persistence_transaction, ruamel_instance
+                ):
+                    persistence_transaction.write(output)
 
     def reconcile(
-        self,
-        dry_run: bool,
-        persistence: FilePersistence,
-        ruamel_instance: yaml.YAML,
+        self, persistence: FilePersistence, ruamel_instance: yaml.YAML
     ) -> None:
-        gql_no_validation = init_from_config(validate_schemas=False)
-        for c in get_template_collections(name=self.params.template_collection_name):
+        gql_api = init_from_config(validate_schemas=False)
+        for collection in get_template_collections(
+            name=self.params.template_collection_name
+        ):
             for_each_items: list[dict[str, Any]] = [{}]
-            if c.for_each and c.for_each.items:
-                for_each_items = c.for_each.items
+            if collection.for_each and collection.for_each.items:
+                for_each_items = collection.for_each.items
             result = TemplateResult(
-                collection=c.name,
-                enable_auto_approval=c.enable_auto_approval or False,
-                labels=c.additional_mr_labels or [],
+                collection=collection.name,
+                enable_auto_approval=collection.enable_auto_approval or False,
+                labels=collection.additional_mr_labels or [],
             )
-            with PersistenceTransaction(persistence, dry_run) as p:
+            with persistence as p:
+                p.result = result
                 for item in for_each_items:
-                    result.outputs.extend(
-                        self.reconcile_template_collection(
-                            c,
-                            gql_no_validation,
-                            p,
-                            ruamel_instance,
-                            item,
-                        )
+                    self.reconcile_template_collection(
+                        collection=collection,
+                        gql_api=gql_api,
+                        persistence=p,
+                        ruamel_instance=ruamel_instance,
+                        each=item,
                     )
-                if not dry_run and result.outputs:
-                    p.write(result)
 
     @property
     def name(self) -> str:
@@ -331,8 +343,11 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         ruaml_instance = create_ruamel_instance(explicit_start=True)
 
         if not self.params.clone_repo and self.params.app_interface_data_path:
-            persistence = LocalFilePersistence(self.params.app_interface_data_path)
-            self.reconcile(dry_run, persistence, ruaml_instance)
+            persistence = LocalFilePersistence(
+                dry_run=dry_run,
+                app_interface_data_path=self.params.app_interface_data_path,
+            )
+            self.reconcile(persistence, ruaml_instance)
 
         elif self.params.clone_repo:
             gitlab_instances = get_gitlab_instances()
@@ -359,14 +374,14 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 prefix=f"{QONTRACT_INTEGRATION}-",
             ) as temp_dir:
                 logging.debug(f"Cloning {url} to {temp_dir}")
-
                 clone(url, temp_dir, depth=1, verify=ssl_verify)
-
                 persistence = ClonedRepoGitlabPersistence(
-                    temp_dir, vcs, merge_request_manager
+                    dry_run=dry_run,
+                    local_path=temp_dir,
+                    vcs=vcs,
+                    mr_manager=merge_request_manager,
                 )
-
-                self.reconcile(dry_run, persistence, ruaml_instance)
+                self.reconcile(persistence, ruaml_instance)
 
         else:
             raise ValueError("App-interface-data-path must be set")
