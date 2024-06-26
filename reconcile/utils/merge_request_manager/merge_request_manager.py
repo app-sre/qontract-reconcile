@@ -67,7 +67,7 @@ class MergeRequestManagerBase(Generic[T]):
         """
         for mr in self._fetch_managed_open_merge_requests():
             attrs = mr.attributes
-            desc = attrs.get("description")
+            desc = str(attrs.get("description") or "")
             has_conflicts = attrs.get("has_conflicts", False)
             if has_conflicts:
                 logging.info(

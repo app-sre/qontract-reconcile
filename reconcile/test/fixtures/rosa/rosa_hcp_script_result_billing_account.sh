@@ -22,9 +22,10 @@ INSTALLER_ROLE_ARN=$(rosa list account-roles --region us-east-1 -o json | jq '.[
 rosa create operator-roles --prefix cluster-1 --oidc-config-id ${OIDC_CONFIG_ID} --hosted-cp --installer-role-arn ${INSTALLER_ROLE_ARN} -m auto -y
 
 # cluster creation
-BILLING_ACCOUNT_ID=$(aws organizations describe-organization | jq .Organization.MasterAccountId -r)
+BILLING_ACCOUNT_ID="123456789"
 rosa create cluster --cluster-name=cluster-1 \
     --billing-account ${BILLING_ACCOUNT_ID} \
+    --dry-run \
     --sts \
     --hosted-cp \
     --oidc-config-id ${OIDC_CONFIG_ID} \
@@ -38,5 +39,6 @@ rosa create cluster --cluster-name=cluster-1 \
     --host-prefix 23 \
     --replicas 1 \
     --compute-machine-type m5.xlarge \
+    --disable-workload-monitoring \
     --properties provision_shard_id:provision_shard_id \
     --channel-group stable

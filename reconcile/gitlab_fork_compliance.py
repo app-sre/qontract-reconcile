@@ -1,10 +1,8 @@
 import logging
 import sys
 
-from gitlab import (
-    MAINTAINER_ACCESS,
-    GitlabGetError,
-)
+from gitlab import GitlabGetError
+from gitlab.const import MAINTAINER_ACCESS
 
 from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi
@@ -66,7 +64,7 @@ class GitlabForkCompliance:
         # who are not
         if self.maintainers_group:
             group = self.gl_cli.gl.groups.get(self.maintainers_group)
-            maintainers = group.members.list()
+            maintainers = group.members.list(iterator=True)
             project_maintainers = self.src.get_project_maintainers()
             for member in maintainers:
                 if member.username in project_maintainers:

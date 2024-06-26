@@ -190,6 +190,9 @@ query Clusters($name: String) {
               worker_role_arn
             }
           }
+          billingAccount {
+            uid
+          }
         }
       }
       id
@@ -438,6 +441,10 @@ class RosaOcmSpecV1(ConfiguredBaseModel):
     ocm_environments: Optional[list[RosaOcmAwsSpecV1]] = Field(..., alias="ocm_environments")
 
 
+class AWSAccountV1_AWSAccountV1(ConfiguredBaseModel):
+    uid: str = Field(..., alias="uid")
+
+
 class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
@@ -445,6 +452,7 @@ class AWSAccountV1(ConfiguredBaseModel):
     automation_token: VaultSecret = Field(..., alias="automationToken")
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
     rosa: Optional[RosaOcmSpecV1] = Field(..., alias="rosa")
+    billing_account: Optional[AWSAccountV1_AWSAccountV1] = Field(..., alias="billingAccount")
 
 
 class ClusterSpecROSAV1(ClusterSpecV1):

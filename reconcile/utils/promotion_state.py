@@ -18,10 +18,15 @@ class PromotionData(BaseModel):
     requirements.
     """
 
+    # The success is primarily used for SAPM auto-promotions
     success: bool
     target_config_hash: str | None
     saas_file: str | None
     check_in: str | None
+    # Whether this promotion has ever succeeded
+    # Note, this shouldnt be overridden on subsequent promotions of same ref
+    # This attribute is primarily used by saasherder validations
+    has_succeeded_once: bool | None
 
     class Config:
         smart_union = True

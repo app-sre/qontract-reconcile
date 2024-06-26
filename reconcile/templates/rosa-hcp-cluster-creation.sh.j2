@@ -3,12 +3,6 @@
 set -e
 set -o pipefail
 
-CURRENT_CLUSTER_COUNT=$(rosa list clusters -o json | jq 'length')
-if (( CURRENT_CLUSTER_COUNT > 0 )); then
-  echo "Error: This account already has a cluster. Only one cluster per account is supported."
-  exit 1
-fi
-
 rosa init
 rosa create ocm-role --admin -y -m auto
 rosa create account-roles --hosted-cp -y -m auto
@@ -32,7 +26,11 @@ INSTALLER_ROLE_ARN=$(rosa list account-roles --region us-east-1 -o json | jq '.[
 rosa create operator-roles --prefix {{ cluster_name }} --oidc-config-id ${OIDC_CONFIG_ID} --hosted-cp --installer-role-arn ${INSTALLER_ROLE_ARN} -m auto -y
 
 # cluster creation
+{% if cluster.spec.account.billing_account_id %}
+BILLING_ACCOUNT_ID="{{ cluster.spec.account.billing_account_id }}"
+{% else %}
 BILLING_ACCOUNT_ID=$(aws organizations describe-organization | jq .Organization.MasterAccountId -r)
+{% endif %}
 rosa create cluster --cluster-name={{ cluster_name }} \
     --billing-account ${BILLING_ACCOUNT_ID} \
     {% if dry_run -%}

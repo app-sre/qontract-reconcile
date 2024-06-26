@@ -257,6 +257,10 @@ class TargetSpec:
         return self.resource_template.path
 
     @property
+    def ref(self) -> str:
+        return self.target.ref
+
+    @property
     def provider(self) -> str:
         return self.resource_template.provider or "openshift-template"
 
@@ -272,7 +276,16 @@ class TargetSpec:
     def delete(self) -> bool:
         return bool(self.target.delete)
 
-    def parameters(self, adjust: bool = True) -> dict[str, str]:
+    @property
+    def html_url(self) -> str:
+        git_object = "blob" if self.provider == "openshift-template" else "tree"
+        return f"{self.url}/{git_object}/{self.ref}{self.path}"
+
+    @property
+    def error_prefix(self) -> str:
+        return f"[{self.saas_file_name}/{self.resource_template_name}] {self.html_url}:"
+
+    def parameters(self, adjust: bool = True) -> dict[str, Any]:
         environment_parameters = self._collect_parameters(
             self.target.namespace.environment, adjust=adjust
         )

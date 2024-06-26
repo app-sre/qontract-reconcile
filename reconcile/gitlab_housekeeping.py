@@ -5,6 +5,7 @@ from collections.abc import (
 )
 from dataclasses import dataclass
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -66,6 +67,7 @@ HOLD_LABELS = [
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
 
 
 merged_merge_requests = Counter(
@@ -91,6 +93,12 @@ merge_requests_waiting = Gauge(
     name="qontract_reconcile_merge_requests_waiting",
     documentation="Number of merge requests that are in the queue waiting to be merged.",
     labelnames=["project_id"],
+)
+
+gitlab_token_expiration = Gauge(
+    name="qontract_reconcile_gitlab_token_expiration_days",
+    documentation="Time until personal access tokens expire",
+    labelnames=["name"],
 )
 
 
@@ -232,9 +240,10 @@ def handle_stale_items(
                 continue
 
             # if item has 'stale' label - check the notes
+            # TODO: add request count metrics and maybe server side filter to reduce requests
             cancel_notes = [
                 n
-                for n in item.notes.list()
+                for n in item.notes.list(iterator=True)
                 if n.attributes.get("body") == f"/{LABEL} cancel"
             ]
             if not cancel_notes:
@@ -541,12 +550,22 @@ def get_app_sre_usernames(gl: GitLabApi) -> set[str]:
     return {u.username for u in gl.get_app_sre_group_users()}
 
 
+def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
+    pats = gl.get_personal_access_tokens()
+    for pat in pats:
+        expiration_date = datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)
+        days_until_expiration = expiration_date.date() - datetime.now(UTC).date()
+        gitlab_token_expiration.labels(pat.name).set(days_until_expiration.days)
+
+
 def run(dry_run, wait_for_pipeline):
     default_days_interval = 15
     default_limit = 8
     default_enable_closing = False
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
+    with GitLabApi(instance, settings=settings) as gl:
+        publish_access_token_expiration_metrics(gl)
     repos = queries.get_repos_gitlab_housekeeping(server=instance["url"])
     app_sre_usernames: Set[str] = set()
 

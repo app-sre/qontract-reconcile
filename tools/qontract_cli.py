@@ -1359,10 +1359,14 @@ def rosa_create_cluster_command(ctx, cluster_name):
 
     settings = queries.get_app_interface_settings()
     account = cluster.spec.account
-    with AWSApi(
-        1, [account.dict(by_alias=True)], settings=settings, init_users=False
-    ) as aws_api:
-        billing_account = aws_api.get_organization_billing_account(account.name)
+
+    if account.billing_account:
+        billing_account = account.billing_account.uid
+    else:
+        with AWSApi(
+            1, [account.dict(by_alias=True)], settings=settings, init_users=False
+        ) as aws_api:
+            billing_account = aws_api.get_organization_billing_account(account.name)
 
     print(
         " ".join([
@@ -2032,7 +2036,7 @@ def app_interface_review_queue(ctx) -> None:
             ):
                 continue
 
-            pipelines = mr.pipelines()
+            pipelines = gl.get_merge_request_pipelines(mr)
             if not pipelines:
                 continue
             running_pipelines = [p for p in pipelines if p["status"] == "running"]
@@ -2129,7 +2133,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx):
             continue
 
         # skip MRs where the pipeline is still running or where it failed
-        pipelines = mr.pipelines()
+        pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
             continue
         running_pipelines = [p for p in pipelines if p["status"] == "running"]

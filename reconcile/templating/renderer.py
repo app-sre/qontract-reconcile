@@ -7,7 +7,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Self
 
-from deepdiff import DeepHash
 from ruamel import yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
@@ -21,7 +20,7 @@ from reconcile.templating.lib.merge_request_manager import (
     MrData,
     create_parser,
 )
-from reconcile.templating.lib.model import TemplateInput, TemplateOutput
+from reconcile.templating.lib.model import TemplateOutput, TemplateResult
 from reconcile.templating.lib.rendering import (
     Renderer,
     TemplateData,
@@ -48,11 +47,11 @@ APP_INTERFACE_PATH_SEPERATOR = "/"
 
 
 def get_template_collections(
-    query_func: Callable | None = None, template_collection_name: str | None = None
+    query_func: Callable | None = None, name: str | None = None
 ) -> list[TemplateCollectionV1]:
-    variables: dict[str, Any] = {"filter": {}}
-    if template_collection_name:
-        variables["filter"]["name"] = template_collection_name
+    variables = {}
+    if name:
+        variables["name"] = name
     if not query_func:
         query_func = gql.get_api().query
     return query(query_func, variables=variables).template_collection_v1 or []
@@ -60,7 +59,7 @@ def get_template_collections(
 
 class FilePersistence(ABC):
     @abstractmethod
-    def write(self, outputs: list[TemplateOutput]) -> None:
+    def write(self, result: TemplateResult) -> None:
         pass
 
     @abstractmethod
@@ -90,8 +89,8 @@ class LocalFilePersistence(FilePersistence):
             raise ValueError("app_interface_data_path should end with /data")
         self.app_interface_data_path = app_interface_data_path
 
-    def write(self, outputs: list[TemplateOutput]) -> None:
-        for output in outputs:
+    def write(self, result: TemplateResult) -> None:
+        for output in result.outputs:
             filepath = Path(join_path(self.app_interface_data_path, output.path))
             filepath.parent.mkdir(parents=True, exist_ok=True)
             filepath.write_text(output.content, encoding="utf-8")
@@ -112,9 +111,11 @@ class PersistenceTransaction(FilePersistence):
         self.dry_run = dry_run
         self.content_cache: dict[str, str | None] = {}
         self.output_cache: dict[str, TemplateOutput] = {}
+        self.result: TemplateResult
 
-    def write(self, outputs: list[TemplateOutput]) -> None:
-        for output in outputs:
+    def write(self, result: TemplateResult) -> None:
+        self.result = result
+        for output in result.outputs:
             self.content_cache[output.path] = output.content
             self.output_cache[output.path] = output
 
@@ -128,7 +129,8 @@ class PersistenceTransaction(FilePersistence):
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         if not self.dry_run and self.output_cache:
-            self.persistence.write(list(self.output_cache.values()))
+            self.result.outputs = list(self.output_cache.values())
+            self.persistence.write(self.result)
 
 
 class ClonedRepoGitlabPersistence(FilePersistence):
@@ -144,18 +146,19 @@ class ClonedRepoGitlabPersistence(FilePersistence):
         self.vcs = vcs
         self.mr_manager = mr_manager
 
-    def write(self, outputs: list[TemplateOutput]) -> None:
+    def write(self, result: TemplateResult) -> None:
         self.mr_manager.housekeeping()
 
-        if any([o.input.enable_auto_approval for o in outputs]):
-            auto_approved = [o for o in outputs if o.auto_approved]
+        if result.enable_auto_approval:
+            auto_approved = [o for o in result.outputs if o.auto_approved]
             if auto_approved:
+                result.outputs = auto_approved
                 self.mr_manager.create_merge_request(
-                    MrData(data=auto_approved, auto_approved=True)
+                    MrData(result=result, auto_approved=True)
                 )
                 return
 
-        self.mr_manager.create_merge_request(MrData(data=outputs, auto_approved=False))
+        self.mr_manager.create_merge_request(MrData(result=result, auto_approved=False))
 
     def read(self, path: str) -> str | None:
         return self._read_local_file(join_path(self.local_path, path))
@@ -185,14 +188,6 @@ def unpack_dynamic_variables(
         )
         dynamic[dv.name] = gql.query(query) or {}
     return dynamic
-
-
-def calc_template_hash(c: TemplateCollectionV1, variables: dict[str, Any]) -> str:
-    hashable = {
-        "templates": sorted(c.templates, key=lambda x: x.name),
-        "variables": variables,
-    }
-    return DeepHash(hashable)[hashable]
 
 
 class TemplateRendererIntegrationParams(PydanticRunParams):
@@ -240,7 +235,6 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         variables: dict,
         persistence: FilePersistence,
         ruaml_instance: yaml.YAML,
-        template_input: TemplateInput,
     ) -> TemplateOutput | None:
         r = TemplateRendererIntegration._create_renderer(
             template, variables, secret_reader=self.secret_reader
@@ -268,7 +262,6 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     content=output,
                     is_new=current_str is None,
                     auto_approved=template.auto_approved or False,
-                    input=template_input,
                 )
         return None
 
@@ -276,11 +269,10 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         self,
         collection: TemplateCollectionV1,
         gql_api: GqlApi,
-        dry_run: bool,
         persistence: FilePersistence,
         ruamel_instance: yaml.YAML,
         each: dict[str, Any],
-    ) -> None:
+    ) -> list[TemplateOutput]:
         variables = {}
         if collection.variables:
             variables = {
@@ -290,19 +282,15 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 "static": unpack_static_variables(collection.variables, each),
             }
 
-        with PersistenceTransaction(persistence, dry_run) as p:
-            input = TemplateInput(
-                collection=collection.name,
-                collection_hash=calc_template_hash(collection, variables),
-                enable_auto_approval=collection.enable_auto_approval or False,
-                labels=collection.additional_mr_labels or [],
+        outputs: list[TemplateOutput] = []
+        for template in collection.templates:
+            output = self.process_template(
+                template, variables, persistence, ruamel_instance
             )
-            for template in collection.templates:
-                output = self.process_template(
-                    template, variables, p, ruamel_instance, input
-                )
-                if not dry_run and output:
-                    p.write([output])
+            if output:
+                outputs.append(output)
+
+        return outputs
 
     def reconcile(
         self,
@@ -311,21 +299,28 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         ruamel_instance: yaml.YAML,
     ) -> None:
         gql_no_validation = init_from_config(validate_schemas=False)
-        for c in get_template_collections(
-            template_collection_name=self.params.template_collection_name
-        ):
+        for c in get_template_collections(name=self.params.template_collection_name):
             for_each_items: list[dict[str, Any]] = [{}]
             if c.for_each and c.for_each.items:
                 for_each_items = c.for_each.items
-            for item in for_each_items:
-                self.reconcile_template_collection(
-                    c,
-                    gql_no_validation,
-                    dry_run,
-                    persistence,
-                    ruamel_instance,
-                    item,
-                )
+            result = TemplateResult(
+                collection=c.name,
+                enable_auto_approval=c.enable_auto_approval or False,
+                labels=c.additional_mr_labels or [],
+            )
+            with PersistenceTransaction(persistence, dry_run) as p:
+                for item in for_each_items:
+                    result.outputs.extend(
+                        self.reconcile_template_collection(
+                            c,
+                            gql_no_validation,
+                            p,
+                            ruamel_instance,
+                            item,
+                        )
+                    )
+                if not dry_run and result.outputs:
+                    p.write(result)
 
     @property
     def name(self) -> str:

@@ -91,7 +91,11 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
     def get_organizations(
         self, query_func: Callable
     ) -> list[OpenShiftClusterManagerV1]:
-        return organization_query(query_func).organizations or []
+        return [
+            o
+            for o in organization_query(query_func).organizations or []
+            if integration_is_enabled(self.name, o)
+        ]
 
     def get_environments(self, query_func: Callable) -> list[OCMEnvironment]:
         return ocm_environment_query(query_func).environments
