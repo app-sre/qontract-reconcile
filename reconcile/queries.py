@@ -773,6 +773,9 @@ CLUSTERS_QUERY = """
               worker_role_arn
             }
           }
+          billingAccount {
+            uid
+          }
         }
       }
       id
