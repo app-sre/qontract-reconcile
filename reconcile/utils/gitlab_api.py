@@ -130,7 +130,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     @cached_property
     def project_main_branch(self) -> str:
         return next(
-            (b.name for b in self.project.branches.list() if b.default),
+            (b.name for b in self.project.branches.list(iterator=True) if b.default),
             DEFAULT_MAIN_BRANCH,
         )
 
