@@ -80,7 +80,7 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
         uid=uid,
         rosa=rosa,
     )
-    if billing_account := account["billingAccount"]:
+    if billing_account := account.get("billingAccount"):
         rosa_cluster_aws_account.billing_account_id = billing_account["uid"]
     cluster["spec"]["account"] = rosa_cluster_aws_account
 
