@@ -89,6 +89,9 @@ query Clusters($name: String) {
               worker_role_arn
             }
           }
+          billingAccount {
+            uid
+          }
         }
       }
       id

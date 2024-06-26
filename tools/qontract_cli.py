@@ -1359,10 +1359,14 @@ def rosa_create_cluster_command(ctx, cluster_name):
 
     settings = queries.get_app_interface_settings()
     account = cluster.spec.account
-    with AWSApi(
-        1, [account.dict(by_alias=True)], settings=settings, init_users=False
-    ) as aws_api:
-        billing_account = aws_api.get_organization_billing_account(account.name)
+
+    if account.billing_account:
+        billing_account = account.billing_account.uid
+    else:
+        with AWSApi(
+            1, [account.dict(by_alias=True)], settings=settings, init_users=False
+        ) as aws_api:
+            billing_account = aws_api.get_organization_billing_account(account.name)
 
     print(
         " ".join([
