@@ -707,7 +707,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if p is None:
             return []
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        return p.hooks.list(per_page=100)
+        # TODO: get_all may send multiple requests, update metrics accordingly
+        return p.hooks.list(per_page=100, get_all=True)
 
     def create_project_hook(self, repo_url, data):
         p = self.get_project(repo_url)
