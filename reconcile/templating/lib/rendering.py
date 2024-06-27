@@ -78,7 +78,7 @@ class Renderer(ABC):
         pass
 
     def render_target_path(self) -> str:
-        return self._render_template(self.template.target_path)
+        return self._render_template(self.template.target_path).strip()
 
     def render_condition(self) -> bool:
         return self._render_template(self.template.condition or "True") == "True"
@@ -108,7 +108,7 @@ class PatchRenderer(Renderer):
         if self.template.patch is None:  # here to satisfy mypy
             raise ValueError("PatchRenderer requires a patch")
 
-        p = parse_jsonpath(self.template.patch.path)
+        p = parse_jsonpath(self._render_template(self.template.patch.path))
 
         matched_values = [match.value for match in p.find(self.data.current)]
 

@@ -2,7 +2,7 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
-from unittest.mock import ANY
+from unittest.mock import ANY, MagicMock, call
 
 import pytest
 from gitlab import GitlabGetError
@@ -103,7 +103,7 @@ def template_collection(
 @pytest.fixture
 def local_file_persistence(tmp_path: Path) -> LocalFilePersistence:
     os.mkdir(tmp_path / "data")
-    return LocalFilePersistence(str(tmp_path / "data"))
+    return LocalFilePersistence(False, str(tmp_path / "data"))
 
 
 @pytest.fixture
@@ -144,9 +144,20 @@ def reconcile_mocks(mocker: MockerFixture) -> tuple:
     pt = mocker.patch.object(t, "process_template")
     mocker.patch("reconcile.templating.renderer.init_from_config")
     p = mocker.MagicMock(LocalFilePersistence)
+    p.dry_run = False
     r = create_ruamel_instance()
 
     return t, p, r, pt
+
+
+@pytest.fixture
+def vcs(mocker: MockerFixture) -> MagicMock:
+    return mocker.MagicMock(VCS)
+
+
+@pytest.fixture
+def mr_manager(mocker: MockerFixture) -> MagicMock:
+    return mocker.MagicMock(MergeRequestManager)
 
 
 def test_unpack_static_variables(
@@ -252,14 +263,22 @@ def test_join_path() -> None:
     assert join_path("foo", "/bar") == "foo/bar"
 
 
-def test_local_file_persistence_write(
-    tmp_path: Path, template_result: TemplateResult
-) -> None:
+def test_local_file_persistence_write(tmp_path: Path) -> None:
     os.makedirs(tmp_path / "data")
-    lfp = LocalFilePersistence(str(tmp_path / "data"))
-    template_result.outputs = [TemplateOutput(path="/foo", content="bar")]
-    lfp.write(template_result)
+    with LocalFilePersistence(
+        dry_run=False, app_interface_data_path=str(tmp_path / "data")
+    ) as lfp:
+        lfp.write(TemplateOutput(path="/foo", content="bar"))
     assert (tmp_path / "data" / "foo").read_text() == "bar"
+
+
+def test_local_file_persistence_write_dry_run(tmp_path: Path) -> None:
+    os.makedirs(tmp_path / "data")
+    with LocalFilePersistence(
+        dry_run=True, app_interface_data_path=str(tmp_path / "data")
+    ) as lfp:
+        lfp.write(TemplateOutput(path="/foo", content="bar"))
+    assert not (tmp_path / "data" / "foo").exists()
 
 
 def test_local_file_persistence_read(tmp_path: Path) -> None:
@@ -267,18 +286,21 @@ def test_local_file_persistence_read(tmp_path: Path) -> None:
     os.makedirs(data_dir)
     test_file = data_dir / "foo"
     test_file.write_text("hello")
-    lfp = LocalFilePersistence(str(data_dir))
+    lfp = LocalFilePersistence(dry_run=False, app_interface_data_path=str(data_dir))
     assert lfp.read("foo") == "hello"
 
 
 def test_crg_file_persistence_write(
-    mocker: MockerFixture, tmp_path: Path, template_result: TemplateResult
+    vcs: MagicMock,
+    mr_manager: MagicMock,
+    tmp_path: Path,
+    template_result: TemplateResult,
 ) -> None:
-    vcs = mocker.MagicMock(VCS)
-    mr_manager = mocker.MagicMock(MergeRequestManager)
-    template_result.outputs = [TemplateOutput(path="/foo", content="bar")]
-    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
-    crg.write(template_result)
+    with ClonedRepoGitlabPersistence(
+        dry_run=False, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
+    ) as crg:
+        crg.result = template_result
+        crg.write(TemplateOutput(path="/foo", content="bar"))
 
     mr_manager.housekeeping.assert_called_once()
     mr_manager.create_merge_request.assert_called_once_with(
@@ -286,78 +308,129 @@ def test_crg_file_persistence_write(
     )
 
 
-def test_crg_file_persistence_write_auto_approval(
-    mocker: MockerFixture, tmp_path: Path, template_result: TemplateResult
+def test_crg_file_persistence_write_dry_run(
+    vcs: MagicMock,
+    mr_manager: MagicMock,
+    tmp_path: Path,
+    template_result: TemplateResult,
 ) -> None:
-    vcs = mocker.MagicMock(VCS)
-    mr_manager = mocker.MagicMock(MergeRequestManager)
-    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
+    with ClonedRepoGitlabPersistence(
+        dry_run=True, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
+    ) as crg:
+        crg.result = template_result
+        crg.write(TemplateOutput(path="/foo", content="bar"))
 
-    tauto = TemplateOutput(path="/foo", content="bar", auto_approved=True)
-    tnoauto = TemplateOutput(path="/foo2", content="bar2", auto_approved=False)
-    template_result.outputs = [tauto, tnoauto]
-    crg.write(template_result)
+    mr_manager.housekeeping.assert_not_called()
+    mr_manager.create_merge_request.assert_not_called()
 
-    assert template_result.outputs == [tauto, tnoauto]
+
+def test_crg_file_persistence_write_no_auto_approval(
+    vcs: MagicMock,
+    mr_manager: MagicMock,
+    tmp_path: Path,
+    template_result: TemplateResult,
+) -> None:
+    template_result.enable_auto_approval = False
+    with ClonedRepoGitlabPersistence(
+        dry_run=False, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
+    ) as crg:
+        crg.result = template_result
+        tauto = TemplateOutput(path="/foo", content="bar", auto_approved=True)
+        crg.write(tauto)
+        tnoauto = TemplateOutput(path="/foo2", content="bar2", auto_approved=False)
+        crg.write(tnoauto)
+
+    assert crg.result.outputs == [tauto, tnoauto]
     mr_manager.create_merge_request.assert_called_with(
         MrData(result=template_result, auto_approved=False)
     )
 
+
+def test_crg_file_persistence_write_auto_approval(
+    tmp_path: Path,
+    template_result: TemplateResult,
+    vcs: MagicMock,
+    mr_manager: MagicMock,
+) -> None:
     template_result.enable_auto_approval = True
-    crg.write(template_result)
+    with ClonedRepoGitlabPersistence(
+        dry_run=False, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
+    ) as crg:
+        crg.result = template_result
+        tauto = TemplateOutput(path="/foo", content="bar", auto_approved=True)
+        crg.write(tauto)
+        tnoauto = TemplateOutput(path="/foo2", content="bar2", auto_approved=False)
+        crg.write(tnoauto)
 
-    assert template_result.outputs == [tauto]
-    mr_manager.create_merge_request.assert_called_with(
-        MrData(result=template_result, auto_approved=True)
-    )
+    assert mr_manager.create_merge_request.call_count == 2
+    mr_manager.create_merge_request.assert_has_calls([
+        call(
+            MrData(
+                result=TemplateResult(
+                    collection=f"{template_result.collection}-auto-approved",
+                    enable_auto_approval=True,
+                    labels=template_result.labels,
+                    outputs=[tauto],
+                ),
+                auto_approved=True,
+            )
+        ),
+        call(
+            MrData(
+                result=TemplateResult(
+                    collection=f"{template_result.collection}-not-auto-approved",
+                    enable_auto_approval=True,
+                    labels=template_result.labels,
+                    outputs=[tnoauto],
+                ),
+                auto_approved=False,
+            )
+        ),
+    ])
 
 
-def test_crg_file_persistence_read_found(mocker: MockerFixture, tmp_path: Path) -> None:
-    vcs = mocker.MagicMock(VCS)
+def test_crg_file_persistence_read_found(
+    vcs: MagicMock, mr_manager: MagicMock, tmp_path: Path
+) -> None:
     os.makedirs(tmp_path / "data")
     test_file = tmp_path / "data" / "foo"
     test_file.write_text("hello")
-    mr_manager = mocker.MagicMock(MergeRequestManager)
-    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
-
+    crg = ClonedRepoGitlabPersistence(False, str(tmp_path), vcs, mr_manager)
     assert crg.read("foo") == "hello"
 
 
-def test_crg_file_persistence_read_miss(mocker: MockerFixture, tmp_path: Path) -> None:
-    vcs = mocker.MagicMock(VCS)
+def test_crg_file_persistence_read_miss(
+    vcs: MagicMock, mr_manager: MagicMock, tmp_path: Path
+) -> None:
     vcs.get_file_content_from_app_interface_master.side_effect = GitlabGetError()
-    mr_manager = mocker.MagicMock(MergeRequestManager)
-    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
-
+    crg = ClonedRepoGitlabPersistence(False, str(tmp_path), vcs, mr_manager)
     assert crg.read("foo") is None
 
 
-def test_persistence_transaction_dry_run(
-    mocker: MockerFixture, template_result: TemplateResult
-) -> None:
-    test_path = "foo"
+def test_persistence_transaction_dry_run(mocker: MockerFixture) -> None:
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
+    output = TemplateOutput(path="foo", content="updated_value")
+    output2 = TemplateOutput(path="foo2", content="updated_value")
 
-    output = TemplateOutput(path=test_path, content="updated_value")
-
-    with PersistenceTransaction(persistence_mock, True) as p:
-        p.write(template_result)
-        template_result.outputs = [output]
-        p.write(template_result)
+    persistence_mock.dry_run = True
+    with PersistenceTransaction(persistence_mock) as p:
+        p.write(output)
     persistence_mock.write.assert_not_called()
 
-    template_result.outputs = []
-    with PersistenceTransaction(persistence_mock, False) as p:
-        p.write(template_result)
-        template_result.outputs = [output]
-        p.write(template_result)
-    persistence_mock.write.assert_called_once()
+    persistence_mock.dry_run = False
+    print(persistence_mock.dry_run)
+    with PersistenceTransaction(persistence_mock) as p:
+        p.write(output)
+        p.write(output2)
+    assert persistence_mock.write.call_count == 2
+    persistence_mock.write.assert_has_calls([mocker.call(output), mocker.call(output2)])
 
 
 def test_persistence_transaction_read(mocker: MockerFixture) -> None:
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
     persistence_mock.read.return_value = "foo"
-    p = PersistenceTransaction(persistence_mock, False)
+    persistence_mock.dry_run = False
+    p = PersistenceTransaction(persistence_mock)
     p.read("foo")
     p.read("foo")
 
@@ -366,19 +439,18 @@ def test_persistence_transaction_read(mocker: MockerFixture) -> None:
 
 
 def test_persistence_transaction_write(
-    mocker: MockerFixture, template_result: TemplateResult
+    mocker: MockerFixture,
 ) -> None:
     test_path = "foo"
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
     persistence_mock.read.return_value = "initial_value"
-    p = PersistenceTransaction(persistence_mock, False)
+    persistence_mock.dry_run = False
+    p = PersistenceTransaction(persistence_mock)
     p.read(test_path)
     assert p.content_cache == {test_path: "initial_value"}
 
     output = TemplateOutput(path=test_path, content="updated_value")
-    p.write(template_result)
-    template_result.outputs = [output]
-    p.write(template_result)
+    p.write(output)
 
     assert p.output_cache == {output.path: output}
     assert p.content_cache == {test_path: "updated_value"}
@@ -407,10 +479,8 @@ def test_process_template_overwrite(
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
     secret_reader: SecretReader,
-    template_result: TemplateResult,
 ) -> None:
-    template_result.outputs = [TemplateOutput(path="/target_path", content="bar")]
-    local_file_persistence.write(template_result)
+    local_file_persistence.write(TemplateOutput(path="/target_path", content="bar"))
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     t._secret_reader = secret_reader
     output = t.process_template(
@@ -465,11 +535,7 @@ def test_reconcile_simple(
     gtc.return_value = [template_collection]
 
     t, p, r, pt = reconcile_mocks
-    t.reconcile(
-        False,
-        p,
-        r,
-    )
+    t.reconcile(p, r)
 
     pt.assert_called_once()
     assert pt.call_args[0] == (
@@ -486,7 +552,6 @@ def test_reconcile_simple(
         ANY,
         r,
     )
-    p.write.assert_called_once()
 
 
 def test_reconcile_twice(
@@ -498,32 +563,9 @@ def test_reconcile_twice(
 
     gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
     gtc.return_value = [template_collection, template_collection]
-    t.reconcile(
-        False,
-        p,
-        r,
-    )
+    t.reconcile(p, r)
 
     assert pt.call_count == 2
-    assert p.write.call_count == 2
-
-
-def test_reconcile_dry_run(
-    mocker: MockerFixture,
-    reconcile_mocks: tuple,
-    template_collection: TemplateCollectionV1,
-) -> None:
-    t, p, r, pt = reconcile_mocks
-    gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
-    gtc.return_value = [template_collection, template_collection]
-    t.reconcile(
-        True,
-        p,
-        r,
-    )
-
-    assert pt.call_count == 2
-    assert p.write.call_count == 0
 
 
 def test_reconcile_variables(
@@ -544,11 +586,7 @@ def test_reconcile_variables(
     usv = mocker.patch("reconcile.templating.renderer.unpack_static_variables")
     usv.return_value = {"baz": "qux"}
 
-    t.reconcile(
-        True,
-        p,
-        r,
-    )
+    t.reconcile(p, r)
 
     pt.assert_called_once()
     assert pt.call_args[0] == (
