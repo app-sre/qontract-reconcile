@@ -168,7 +168,7 @@ class ClonedRepoGitlabPersistence(FilePersistence):
             raise ValueError("ClonedRepoGitlabPersistence.result not set!")
         self.result.outputs = self.outputs
 
-        if self.dry_run:
+        if self.dry_run or not self.outputs:
             return
 
         self.mr_manager.housekeeping()
@@ -347,6 +347,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             )
             with persistence as p:
                 p.result = result
+                p.outputs = []
                 for item in for_each_items:
                     self.reconcile_template_collection(
                         collection=collection,
