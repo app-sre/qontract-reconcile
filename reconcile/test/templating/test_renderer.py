@@ -2,7 +2,7 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
-from unittest.mock import ANY, MagicMock
+from unittest.mock import ANY, MagicMock, call
 
 import pytest
 from gitlab import GitlabGetError
@@ -330,6 +330,7 @@ def test_crg_file_persistence_write_no_auto_approval(
     tmp_path: Path,
     template_result: TemplateResult,
 ) -> None:
+    template_result.enable_auto_approval = False
     with ClonedRepoGitlabPersistence(
         dry_run=False, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
     ) as crg:
@@ -361,10 +362,31 @@ def test_crg_file_persistence_write_auto_approval(
         tnoauto = TemplateOutput(path="/foo2", content="bar2", auto_approved=False)
         crg.write(tnoauto)
 
-    assert template_result.outputs == [tauto]
-    mr_manager.create_merge_request.assert_called_with(
-        MrData(result=template_result, auto_approved=True)
-    )
+    assert mr_manager.create_merge_request.call_count == 2
+    mr_manager.create_merge_request.assert_has_calls([
+        call(
+            MrData(
+                result=TemplateResult(
+                    collection=f"{template_result.collection}-auto-approved",
+                    enable_auto_approval=True,
+                    labels=template_result.labels,
+                    outputs=[tauto],
+                ),
+                auto_approved=True,
+            )
+        ),
+        call(
+            MrData(
+                result=TemplateResult(
+                    collection=f"{template_result.collection}-not-auto-approved",
+                    enable_auto_approval=True,
+                    labels=template_result.labels,
+                    outputs=[tnoauto],
+                ),
+                auto_approved=False,
+            )
+        ),
+    ])
 
 
 def test_crg_file_persistence_read_found(

@@ -166,25 +166,47 @@ class ClonedRepoGitlabPersistence(FilePersistence):
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         if self.result is None:
             raise ValueError("ClonedRepoGitlabPersistence.result not set!")
+        self.result.outputs = self.outputs
 
         if self.dry_run:
             return
 
         self.mr_manager.housekeeping()
 
-        self.result.outputs = self.outputs
         if self.result.enable_auto_approval:
-            auto_approved = [o for o in self.result.outputs if o.auto_approved]
-            if auto_approved:
-                self.result.outputs = auto_approved
+            if auto_approved_outputs := [o for o in self.outputs if o.auto_approved]:
+                # create an MR with auto-approved templates only
                 self.mr_manager.create_merge_request(
-                    MrData(result=self.result, auto_approved=True)
+                    MrData(
+                        result=TemplateResult(
+                            collection=f"{self.result.collection}-auto-approved",
+                            enable_auto_approval=self.result.enable_auto_approval,
+                            labels=self.result.labels,
+                            outputs=auto_approved_outputs,
+                        ),
+                        auto_approved=True,
+                    )
                 )
-                return
-
-        self.mr_manager.create_merge_request(
-            MrData(result=self.result, auto_approved=False)
-        )
+            if not_auto_approved_outputs := [
+                o for o in self.outputs if not o.auto_approved
+            ]:
+                # create an MR with not auto-approved templates only
+                self.mr_manager.create_merge_request(
+                    MrData(
+                        result=TemplateResult(
+                            collection=f"{self.result.collection}-not-auto-approved",
+                            enable_auto_approval=self.result.enable_auto_approval,
+                            labels=self.result.labels,
+                            outputs=not_auto_approved_outputs,
+                        ),
+                        auto_approved=False,
+                    )
+                )
+        else:
+            # create an MR with all templates
+            self.mr_manager.create_merge_request(
+                MrData(result=self.result, auto_approved=False)
+            )
 
 
 def unpack_static_variables(
