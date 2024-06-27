@@ -126,6 +126,7 @@ def test_is_rebase():
     mocked_gitlab_api.project.commits.list.assert_called_once_with(
         ref_name=expected_ref,
         per_page=1,
+        page=1,
     )
     mocked_gitlab_api.project.repository_compare.assert_called_once_with(
         expected_sha,

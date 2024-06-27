@@ -854,7 +854,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_commit_sha(self, ref: str, repo_url: str) -> str:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         project = self.get_project(repo_url)
-        commits = project.commits.list(ref_name=ref, per_page=1)
+        commits = project.commits.list(ref_name=ref, per_page=1, page=1)
         return commits[0].id
 
     def repository_compare(
