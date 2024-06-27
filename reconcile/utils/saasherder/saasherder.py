@@ -769,7 +769,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self, url: str, path: str, ref: str, github: Github
     ) -> tuple[list[Any], str]:
         commit_sha = self._get_commit_sha(url, ref, github)
-        resources = []
+        resources: list[Any] = []
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
             repo = github.get_repo(repo_name)
