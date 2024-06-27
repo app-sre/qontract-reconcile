@@ -769,7 +769,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self, url: str, path: str, ref: str, github: Github
     ) -> tuple[list[Any], str]:
         commit_sha = self._get_commit_sha(url, ref, github)
-        resources = []
+        resources: list[Any] = []
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
             repo = github.get_repo(repo_name)
@@ -781,8 +781,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 file_contents_decoded = self._get_file_contents_github(
                     repo, file_path, commit_sha
                 )
-                resource = yaml.safe_load(file_contents_decoded)
-                resources.append(resource)
+                result_resources = yaml.safe_load_all(file_contents_decoded)
+                resources.extend(result_resources)
         elif "gitlab" in url:
             if not self.gitlab:
                 raise Exception("gitlab is not initialized")
