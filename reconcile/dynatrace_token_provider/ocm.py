@@ -35,17 +35,33 @@ class Cluster(BaseModel):
     external_id: str
     organization_id: str
     dt_tenant: str
+    token_spec_name: str
+    is_hcp: bool
 
     @staticmethod
     def from_cluster_details(cluster: ClusterDetails) -> Cluster:
         dt_tenant = cluster.labels.get_label_value(
             f"{sre_capability_label_key('dtp', None)}.tenant"
         )
+        token_spec_name = cluster.labels.get_label_value(
+            sre_capability_label_key("dtp", None)
+        )
+        if not token_spec_name:
+            """
+            We want to stay backwards compatible.
+            Earlier version of DTP did not set a value for the label.
+            We fall back to a default token in that case.
+
+            Long-term, we want to remove this behavior.
+            """
+            token_spec_name = "default"
         return Cluster(
             id=cluster.ocm_cluster.id,
             external_id=cluster.ocm_cluster.external_id,
             organization_id=cluster.organization_id,
             dt_tenant=dt_tenant,
+            token_spec_name=token_spec_name,
+            is_hcp=cluster.ocm_cluster.is_rosa_hypershift(),
         )
 
 
@@ -76,6 +92,32 @@ class OCMClient:
             syncset_id=syncset_id,
             syncset_map=syncset_map,
         )
+
+    def create_manifest(self, cluster_id: str, manifest_map: Mapping) -> None:
+        pass
+        # TODO
+        # create_manifest(
+        #     ocm_client=self._ocm_client, cluster_id=cluster_id, syncset_map=manifest_map
+        # )
+
+    def get_manifest(self, cluster_id: str, manifest_id: str) -> Any:
+        return {}
+        # TODO
+        # return get_manifest(
+        #     ocm_client=self._ocm_client, cluster_id=cluster_id, manifest_id=manifest_id
+        # )
+
+    def patch_manifest(
+        self, cluster_id: str, manifest_id: str, manifest_map: Mapping
+    ) -> None:
+        pass
+        # TODO
+        # patch_manifest(
+        #     ocm_client=self._ocm_client,
+        #     cluster_id=cluster_id,
+        #     manifest_id=manifest_id,
+        #     manifest_map=manifest_map,
+        # )
 
     def discover_clusters_by_labels(self, label_filter: Filter) -> list[Cluster]:
         return [

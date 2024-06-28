@@ -17,7 +17,7 @@ from reconcile.utils.dynatrace.client import DynatraceAPITokenCreated
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
-def test_single_non_hcp_cluster_create_tokens(
+def test_single_hcp_cluster_create_tokens(
     secret_reader: SecretReaderBase,
     default_token_spec: DynatraceTokenProviderTokenSpecV1,
     default_operator_token: DynatraceAPIToken,
@@ -25,8 +25,8 @@ def test_single_non_hcp_cluster_create_tokens(
     default_cluster: Cluster,
 ) -> None:
     """
-    We have a single non-HCP cluster that does not have a syncset/token yet.
-    New tokens in a new syncset should be created.
+    We have a single HCP cluster that does not have a manifest/token yet.
+    New tokens in a new manifest should be created.
     """
     integration = DynatraceTokenProviderIntegration(
         DynatraceTokenProviderIntegrationParams(ocm_organization_ids={"ocm_org_id_a"})
