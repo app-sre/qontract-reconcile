@@ -2187,7 +2187,11 @@ def app_interface_merge_history(ctx):
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
-    merge_requests = gl.project.mergerequests.list(state=MRState.MERGED, per_page=100)
+    merge_requests = gl.project.mergerequests.list(
+        state=MRState.MERGED,
+        per_page=100,
+        get_all=True,
+    )
 
     columns = [
         "id",

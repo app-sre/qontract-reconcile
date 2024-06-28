@@ -694,7 +694,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def get_user(self, username):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        user = self.gl.users.list(search=username)
+        user = self.gl.users.list(search=username, page=1, per_page=1)
         if len(user) == 0:
             logging.error(username + " user not found")
             return
@@ -774,7 +774,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                 break
         # labels
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        label_events = mr.resourcelabelevents.list()
+        # TODO: this may send multiple requests, update metrics accordingly
+        label_events = mr.resourcelabelevents.list(get_all=True)
         for label in reversed(label_events):
             if label.action == "add" and label.label["name"] in hold_labels:
                 username = label.user["username"]
