@@ -71,6 +71,7 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+from reconcile.gql_definitions.integrations import integrations as integrations_gql
 from reconcile.gql_definitions.maintenance import maintenances as maintenances_gql
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.slack_base import slackapi_from_queries
@@ -2722,6 +2723,46 @@ def systems_and_tools(ctx):
     )
     inventory = get_systems_and_tools_inventory()
     print_output(ctx.obj["options"], inventory.data, inventory.columns)
+
+
+@get.command()
+@click.argument("integration_name")
+@click.pass_context
+def logs(ctx, integration_name: str):
+    integrations = [
+        i
+        for i in integrations_gql.query(query_func=gql.get_api().query).integrations
+        or []
+        if i.name == integration_name
+    ]
+    if not integrations:
+        print("integration not found")
+        return
+    integration = integrations[0]
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    managed = integration.managed
+    if not managed:
+        print("integration is not managed")
+        return
+    namespaces = [
+        m.namespace
+        for m in managed
+        if m.namespace.cluster.labels
+        and m.namespace.cluster.labels.get("environment") == "production"
+    ]
+    if not namespaces:
+        print("no managed production namespace found")
+        return
+    namespace = namespaces[0]
+    cluster = namespaces[0].cluster
+    if not cluster.automation_token:
+        print("cluster automation token not found")
+        return
+    token = secret_reader.read_secret(cluster.automation_token)
+
+    command = f"oc --server {cluster.server_url} --token {token} --namespace {namespace.name} logs -c int -l app=qontract-reconcile-{integration.name}"
+    print(command)
 
 
 @get.command
