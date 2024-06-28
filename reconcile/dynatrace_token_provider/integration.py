@@ -66,11 +66,15 @@ class DynatraceTokenProviderIntegration(
         with metrics.transactional_metrics(self.name):
             unhandled_exceptions = []
             for ocm_env_name, ocm_client in dependencies.ocm_client_by_env_name.items():
-                clusters = ocm_client.discover_clusters_by_labels(
-                    label_filter=subscription_label_filter().like(
-                        "key", dtp_label_key("%")
-                    ),
-                )
+                clusters: list[Cluster] = []
+                try:
+                    clusters = ocm_client.discover_clusters_by_labels(
+                        label_filter=subscription_label_filter().like(
+                            "key", dtp_label_key("%")
+                        ),
+                    )
+                except Exception as e:
+                    unhandled_exceptions.append(f"{ocm_env_name}: {e}")
                 metrics.set_gauge(
                     DTPClustersManagedGauge(
                         integration=self.name,
