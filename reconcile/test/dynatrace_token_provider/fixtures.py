@@ -6,6 +6,7 @@ from unittest.mock import (
     create_autospec,
 )
 
+from reconcile.dynatrace_token_provider.model import K8sSecret
 from reconcile.dynatrace_token_provider.ocm import Cluster, OCMClient
 from reconcile.utils.dynatrace.client import DynatraceAPITokenCreated, DynatraceClient
 
@@ -17,30 +18,30 @@ def tobase64(s: str) -> str:
 
 
 def build_syncset(
-    operator_token: DynatraceAPITokenCreated,
-    ingestion_token: DynatraceAPITokenCreated,
+    secrets: Iterable[K8sSecret],
     tenant_id: str,
     with_id: bool,
 ) -> dict:
+    secrets_data: list[dict[str, Any]] = []
+    for secret in secrets:
+        data: dict[str, str] = {
+            "apiUrl": tobase64(f"https://{tenant_id}.live.dynatrace.com/api"),
+        }
+        for token in secret.tokens:
+            data[token.secret_key] = tobase64(token.token)
+            data[f"{token.secret_key}Id"] = tobase64(token.id)
+        secrets_data.append({
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "metadata": {
+                "name": secret.secret_name,
+                "namespace": secret.namespace_name,
+            },
+            "data": data,
+        })
     syncset = {
         "kind": "SyncSet",
-        "resources": [
-            {
-                "apiVersion": "v1",
-                "kind": "Secret",
-                "metadata": {
-                    "name": "dynatrace-token-dtp",
-                    "namespace": "dynatrace",
-                },
-                "data": {
-                    "apiUrl": tobase64(f"https://{tenant_id}.live.dynatrace.com/api"),
-                    "dataIngestTokenId": tobase64(ingestion_token.id),
-                    "dataIngestToken": tobase64(ingestion_token.token),
-                    "apiTokenId": tobase64(operator_token.id),
-                    "apiToken": tobase64(operator_token.token),
-                },
-            }
-        ],
+        "resources": secrets_data,
     }
     if with_id:
         syncset["id"] = "ext-dynatrace-tokens-dtp"
