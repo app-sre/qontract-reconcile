@@ -195,7 +195,7 @@ objects:
                 path: ${KUBE_SA_TOKEN_FILENAME}
         - name: qontract-reconcile-toml
           secret:
-            secretName: qontract-reconcile-toml
+            secretName: ${QONTRACT_RECONCILE_TOML_SECRET_NAME}
         - name: logs
           emptyDir: {}
         - name: fluentd-config
@@ -241,6 +241,8 @@ parameters:
   value: --dry-run
 - name: SLEEP_DURATION_SECS
   value: "300"
+- name: QONTRACT_RECONCILE_TOML_SECRET_NAME
+  value: qontract-reconcile-toml
 - name: APP_INTERFACE_SQS_SECRET_NAME
   value: app-interface-sqs
 - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
