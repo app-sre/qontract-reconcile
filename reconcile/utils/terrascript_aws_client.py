@@ -5391,7 +5391,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if "gitlab" in url:
             gitlab = self.init_gitlab()
             project = gitlab.get_project(url)
-            commits = project.commits.list(ref_name=ref, per_page=1)
+            commits = project.commits.list(ref_name=ref, per_page=1, page=1)
             return commits[0].id
 
         return ""
