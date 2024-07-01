@@ -808,14 +808,14 @@ def handle_deleted_resources(
             resource_type=resource_type,
             options=options,
         ):
-            privileged = data["use_admin_token"].get(name, False)
+            options.privileged = data["use_admin_token"].get(name, False)
             action = {
                 "action": ACTION_DELETED,
                 "cluster": cluster,
                 "namespace": namespace,
                 "kind": resource_type,
                 "name": name,
-                "privileged": True if privileged else False,
+                "privileged": options.privileged,
             }
             actions.append(action)
             delete_action(
