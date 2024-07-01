@@ -28,6 +28,7 @@ fragment User on User_v1 {
   github_username
   slack_username
   pagerduty_username
+  tag_on_merge_requests
 }
 
 fragment VaultSecret on VaultSecret_v1 {

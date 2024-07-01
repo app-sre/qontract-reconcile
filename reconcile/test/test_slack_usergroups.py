@@ -79,6 +79,7 @@ def user() -> UserV1:
         name="name",
         pagerduty_username="pagerduty",
         tag_on_cluster_updates=None,
+        tag_on_merge_requests=None,
         roles=None,
     )
 

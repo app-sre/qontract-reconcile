@@ -30,3 +30,4 @@ class User(ConfiguredBaseModel):
     github_username: str = Field(..., alias="github_username")
     slack_username: Optional[str] = Field(..., alias="slack_username")
     pagerduty_username: Optional[str] = Field(..., alias="pagerduty_username")
+    tag_on_merge_requests: Optional[bool] = Field(..., alias="tag_on_merge_requests")

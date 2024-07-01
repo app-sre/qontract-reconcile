@@ -52,6 +52,7 @@ permissions:
           slack_username: slack_username
           pagerduty_username: pagerduty_username
           github_username: github_username
+          tag_on_merge_requests: null
     schedule:
       schedule:
         - start: '2022-12-23 09:00'
@@ -62,6 +63,7 @@ permissions:
               slack_username: slack_username
               pagerduty_username: pagerduty_username
               github_username: github_username
+              tag_on_merge_requests: null
     skip: null
     workspace:
       name: coreos
