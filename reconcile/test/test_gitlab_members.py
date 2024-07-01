@@ -67,6 +67,7 @@ def user() -> User:
         github_username="github_username",
         name="name",
         pagerduty_username="pagerduty_username",
+        tag_on_merge_requests=None,
     )
 
 

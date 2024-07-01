@@ -694,7 +694,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def get_user(self, username):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        user = self.gl.users.list(search=username)
+        user = self.gl.users.list(search=username, page=1, per_page=1)
         if len(user) == 0:
             logging.error(username + " user not found")
             return
@@ -707,7 +707,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if p is None:
             return []
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        return p.hooks.list(per_page=100)
+        # TODO: get_all may send multiple requests, update metrics accordingly
+        return p.hooks.list(per_page=100, get_all=True)
 
     def create_project_hook(self, repo_url, data):
         p = self.get_project(repo_url)
@@ -773,7 +774,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                 break
         # labels
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        label_events = mr.resourcelabelevents.list()
+        # TODO: this may send multiple requests, update metrics accordingly
+        label_events = mr.resourcelabelevents.list(get_all=True)
         for label in reversed(label_events):
             if label.action == "add" and label.label["name"] in hold_labels:
                 username = label.user["username"]
@@ -854,7 +856,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_commit_sha(self, ref: str, repo_url: str) -> str:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         project = self.get_project(repo_url)
-        commits = project.commits.list(ref_name=ref, per_page=1)
+        commits = project.commits.list(ref_name=ref, per_page=1, page=1)
         return commits[0].id
 
     def repository_compare(

@@ -333,6 +333,7 @@ def get_slack_usernames_from_owners(
                 get_slack_username(u)
                 for u in users
                 if getattr(u, user_key).lower() in [o.lower() for o in all_owners]
+                and u.tag_on_merge_requests is not False
             ]
             not_found_users = [
                 owner
