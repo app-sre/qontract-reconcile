@@ -2190,7 +2190,7 @@ def app_interface_merge_history(ctx):
     merge_requests = gl.project.mergerequests.list(
         state=MRState.MERGED,
         per_page=100,
-        get_all=True,
+        get_all=False,
     )
 
     columns = [
