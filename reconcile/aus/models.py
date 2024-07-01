@@ -22,6 +22,11 @@ from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.semver_helper import parse_semver
 
 
+class NodePoolSpec(BaseModel):
+    id: str
+    version: str
+
+
 class ClusterUpgradeSpec(BaseModel):
     """
     An upgrade spec for a cluster.
@@ -31,6 +36,7 @@ class ClusterUpgradeSpec(BaseModel):
     cluster: OCMCluster
     upgrade_policy: ClusterUpgradePolicyV1 = Field(..., alias="upgradePolicy")
     health: AUSClusterHealth
+    node_pools: list[NodePoolSpec] = Field(default_factory=list, alias="nodePools")
 
     @property
     def name(self) -> str:
@@ -43,6 +49,14 @@ class ClusterUpgradeSpec(BaseModel):
     @property
     def current_version(self) -> str:
         return self.cluster.version.raw_id
+
+    @property
+    def oldest_current_version(self) -> str:
+        """
+        Consider versions in node pools and the cluster itself, find the oldest one.
+        """
+        versions = [np.version for np in self.node_pools] + [self.current_version]
+        return min(versions, key=parse_semver)
 
     @property
     def blocked_versions(self) -> set[str]:

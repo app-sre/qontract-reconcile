@@ -74,8 +74,6 @@ from reconcile.utils.filtering import remove_none_values_from_dict
 from reconcile.utils.ocm.addons import AddonService, AddonServiceV1, AddonServiceV2
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
-    get_node_pools,
-    get_version,
 )
 from reconcile.utils.ocm.upgrades import (
     OCMVersionGate,
@@ -296,7 +294,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                     org_id=cluster_upgrade_spec.org.org_id,
                     org_name=org_upgrade_spec.org.name,
                     channel=cluster_upgrade_spec.cluster.version.channel_group,
-                    current_version=cluster_upgrade_spec.current_version,
+                    current_version=cluster_upgrade_spec.oldest_current_version,
                     cluster_name=cluster_upgrade_spec.name,
                     schedule=cluster_upgrade_spec.upgrade_policy.schedule,
                     sector=cluster_upgrade_spec.upgrade_policy.conditions.sector or "",
@@ -607,13 +605,13 @@ def fetch_current_state(
             for upgrade_policy in upgrade_policies:
                 upgrade_policy["cluster"] = spec.cluster
                 current_state.append(ControlPlaneUpgradePolicy(**upgrade_policy))
-            for node_pool in get_node_pools(ocm_api, spec.cluster.id):
+            for node_pool in spec.node_pools:
                 node_upgrade_policies = get_node_pool_upgrade_policies(
-                    ocm_api, spec.cluster.id, node_pool["id"]
+                    ocm_api, spec.cluster.id, node_pool.id
                 )
                 for upgrade_policy in node_upgrade_policies:
                     upgrade_policy["cluster"] = spec.cluster
-                    upgrade_policy["node_pool"] = node_pool["id"]
+                    upgrade_policy["node_pool"] = node_pool.id
                     current_state.append(NodePoolUpgradePolicy(**upgrade_policy))
         else:
             upgrade_policies = get_upgrade_policies(ocm_api, spec.cluster.id)
@@ -1002,27 +1000,23 @@ def _create_upgrade_policy(
 
 
 def _calculate_node_pool_diffs(
-    ocm_api: OCMBaseClient, spec: ClusterUpgradeSpec, now: datetime
+    spec: ClusterUpgradeSpec, now: datetime
 ) -> UpgradePolicyHandler | None:
-    node_pools = get_node_pools(ocm_api, spec.cluster.id)
-    if node_pools:
-        for pool in node_pools:
-            pool_version_id = pool.get("version", {}).get("id")
-            pool_version = get_version(ocm_api, pool_version_id)["raw_id"]
-            if parse_semver(pool_version).match(f"<{spec.current_version}"):
-                next_schedule = (now + timedelta(minutes=MIN_DELTA_MINUTES)).strftime(
-                    "%Y-%m-%dT%H:%M:%SZ"
-                )
-                return UpgradePolicyHandler(
-                    action="create",
-                    policy=NodePoolUpgradePolicy(
-                        cluster=spec.cluster,
-                        version=spec.current_version,
-                        schedule_type="manual",
-                        next_run=next_schedule,
-                        node_pool=pool["id"],
-                    ),
-                )
+    for pool in spec.node_pools:
+        if parse_semver(pool.version).match(f"<{spec.current_version}"):
+            next_schedule = (now + timedelta(minutes=MIN_DELTA_MINUTES)).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+            return UpgradePolicyHandler(
+                action="create",
+                policy=NodePoolUpgradePolicy(
+                    cluster=spec.cluster,
+                    version=spec.current_version,
+                    schedule_type="manual",
+                    next_run=next_schedule,
+                    node_pool=pool.id,
+                ),
+            )
     return None
 
 
@@ -1072,7 +1066,7 @@ def calculate_diff(
             if verify_lock_should_skip(spec, locked):
                 continue
 
-            node_pool_update = _calculate_node_pool_diffs(ocm_api, spec, now)
+            node_pool_update = _calculate_node_pool_diffs(spec, now)
             if node_pool_update:  # node pool update policy not yet created
                 diffs.append(node_pool_update)
                 set_mutex(locked, spec.cluster.id, spec.effective_mutexes)

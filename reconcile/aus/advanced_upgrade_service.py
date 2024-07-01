@@ -18,7 +18,11 @@ from reconcile.aus.healthchecks import (
 from reconcile.aus.metrics import AUSOCMEnvironmentError
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
+    NodePoolSpec,
     OrganizationUpgradeSpec,
+)
+from reconcile.aus.node_pool_spec import (
+    get_node_pool_specs_by_org_cluster,
 )
 from reconcile.aus.ocm_upgrade_scheduler_org import (
     OCMClusterUpgradeSchedulerOrgIntegration,
@@ -148,6 +152,9 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
             labels_by_org = _get_org_labels(
                 ocm_api=ocm_api, org_ids=set(organizations.keys())
             )
+            node_pool_specs_by_org_cluster = get_node_pool_specs_by_org_cluster(
+                ocm_api, clusters_by_org
+            )
 
         cluster_health_providers = self._health_check_providers_for_env(ocm_env.name)
 
@@ -159,6 +166,7 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
                 org_ref.org_id: vdi for org_ref, vdi in inheritance_network.items()
             },
             cluster_health_providers=cluster_health_providers,
+            node_pool_specs_by_org_cluster=node_pool_specs_by_org_cluster,
         )
 
     def signal_validation_issues(
@@ -243,6 +251,7 @@ def _build_org_upgrade_specs_for_ocm_env(
     labels_by_org: dict[str, LabelContainer],
     inheritance_network: dict[str, "VersionDataInheritance"],
     cluster_health_providers: dict[str, ClusterHealthProvider],
+    node_pool_specs_by_org_cluster: dict[str, dict[str, list[NodePoolSpec]]],
 ) -> dict[str, OrganizationUpgradeSpec]:
     """
     Builds the cluster upgrade specs for the given OCM environment.
@@ -258,6 +267,8 @@ def _build_org_upgrade_specs_for_ocm_env(
                 org=orgs[org_id],
                 providers=cluster_health_providers,
             ),
+            node_pool_specs_by_cluster_id=node_pool_specs_by_org_cluster.get(org_id)
+            or {},
         )
         for org_id, clusters in clusters_by_org.items()
     }
@@ -315,6 +326,7 @@ def _build_org_upgrade_spec(
     org_labels: LabelContainer,
     version_data_inheritance: Optional["VersionDataInheritance"],
     cluster_health_provider: AUSClusterHealthCheckProvider,
+    node_pool_specs_by_cluster_id: dict[str, list[NodePoolSpec]],
 ) -> OrganizationUpgradeSpec:
     """
     Build a upgrade policy spec for each cluster in the organization that
@@ -359,6 +371,7 @@ def _build_org_upgrade_spec(
                     upgradePolicy=upgrade_policy,
                     cluster=c.ocm_cluster,
                     health=cluster_health,
+                    nodePools=node_pool_specs_by_cluster_id.get(c.ocm_cluster.id) or [],
                 )
             )
         except ValidationError as validation_error:
