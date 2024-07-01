@@ -812,7 +812,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             if not self.gitlab:
                 raise Exception("gitlab is not initialized")
             project = self.gitlab.get_project(url)
-            commits = project.commits.list(ref_name=ref, per_page=1)
+            commits = project.commits.list(ref_name=ref, per_page=1, page=1)
             commit_sha = commits[0].id
 
         return commit_sha
@@ -969,7 +969,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 else True
             )
             consolidated_parameters = spec.parameters(adjust=False)
-            if not consolidated_parameters.get("image", {}).get("tag"):
+            image = consolidated_parameters.get("image", {})
+            if isinstance(image, dict) and not image.get("tag"):
                 commit_sha = self._get_commit_sha(url, ref, github)
                 image_tag = commit_sha[:hash_length]
                 consolidated_parameters.setdefault("image", {})["tag"] = image_tag
