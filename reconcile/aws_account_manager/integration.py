@@ -49,7 +49,7 @@ class AwsAccountMgmtIntegrationParams(PydanticRunParams):
     initial_user_name: str = "terraform"
     initial_user_policy_arn: str = "arn:aws:iam::aws:policy/AdministratorAccess"
     initial_user_secret_vault_path: str = (
-        "app-sre/creds/terraform/{account_name}/config"
+        "app-sre-v2/creds/terraform/{account_name}/config"
     )
     account_tmpl_resource: str = "/aws-account-manager/account-tmpl.yml"
     template_collection_root_path: str = "data/templating/collections/aws-account"

@@ -81,7 +81,7 @@ def test_aws_account_manager_utils_integration_save_access_key(
                 "aws_access_key_id": "access_key",
                 "aws_secret_access_key": "secret_key",
             },
-            "path": "app-sre/creds/terraform/account/config",
+            "path": "app-sre-v2/creds/terraform/account/config",
         },
         decode_base64=False,
     )
