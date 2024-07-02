@@ -1,0 +1,17 @@
+# qenerate: plugin=pydantic_v1
+
+query DynatraceTokenProviderTokenSpecs {
+  token_specs: dynatrace_token_provider_token_spec_v1 {
+    name
+    ocm_org_ids
+    secrets {
+      name
+      namespace
+      tokens {
+        name
+        keyNameInSecret
+        scopes
+      }
+    }
+  }
+}
