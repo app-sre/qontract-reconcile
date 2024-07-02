@@ -88,7 +88,6 @@ class ExternalResourcesInventory(MutableMapping):
         ]
 
         for spec in desired_specs:
-            # self.set(ExternalResourceKey.from_spec(spec), spec)
             self._inventory[ExternalResourceKey.from_spec(spec)] = spec
 
     def __getitem__(self, key: ExternalResourceKey) -> ExternalResourceSpec | None:
