@@ -14,6 +14,11 @@ from reconcile.utils.ocm.clusters import (
     discover_clusters_by_labels,
 )
 from reconcile.utils.ocm.labels import Filter
+from reconcile.utils.ocm.manifests import (
+    create_manifest,
+    get_manifest,
+    patch_manifest,
+)
 from reconcile.utils.ocm.service_log import create_service_log
 from reconcile.utils.ocm.sre_capability_labels import sre_capability_label_key
 from reconcile.utils.ocm.syncsets import (
@@ -29,6 +34,10 @@ from reconcile.utils.ocm_base_client import (
 Thin abstractions of reconcile.ocm module to reduce coupling.
 """
 
+DTP_LABEL = sre_capability_label_key("dtp", None)
+DTP_TENANT_LABEL = sre_capability_label_key("dtp", "tenant")
+DTP_LABEL_SEARCH = sre_capability_label_key("dtp", "%")
+
 
 class Cluster(BaseModel):
     id: str
@@ -40,12 +49,8 @@ class Cluster(BaseModel):
 
     @staticmethod
     def from_cluster_details(cluster: ClusterDetails) -> Cluster:
-        dt_tenant = cluster.labels.get_label_value(
-            f"{sre_capability_label_key('dtp', None)}.tenant"
-        )
-        token_spec_name = cluster.labels.get_label_value(
-            sre_capability_label_key("dtp", None)
-        )
+        dt_tenant = cluster.labels.get_label_value(DTP_TENANT_LABEL)
+        token_spec_name = cluster.labels.get_label_value(DTP_LABEL)
         if not token_spec_name:
             """
             We want to stay backwards compatible.
@@ -94,30 +99,26 @@ class OCMClient:
         )
 
     def create_manifest(self, cluster_id: str, manifest_map: Mapping) -> None:
-        pass
-        # TODO
-        # create_manifest(
-        #     ocm_client=self._ocm_client, cluster_id=cluster_id, syncset_map=manifest_map
-        # )
+        create_manifest(
+            ocm_client=self._ocm_client,
+            cluster_id=cluster_id,
+            manifest_map=manifest_map,
+        )
 
     def get_manifest(self, cluster_id: str, manifest_id: str) -> Any:
-        return {}
-        # TODO
-        # return get_manifest(
-        #     ocm_client=self._ocm_client, cluster_id=cluster_id, manifest_id=manifest_id
-        # )
+        return get_manifest(
+            ocm_client=self._ocm_client, cluster_id=cluster_id, manifest_id=manifest_id
+        )
 
     def patch_manifest(
         self, cluster_id: str, manifest_id: str, manifest_map: Mapping
     ) -> None:
-        pass
-        # TODO
-        # patch_manifest(
-        #     ocm_client=self._ocm_client,
-        #     cluster_id=cluster_id,
-        #     manifest_id=manifest_id,
-        #     manifest_map=manifest_map,
-        # )
+        patch_manifest(
+            ocm_client=self._ocm_client,
+            cluster_id=cluster_id,
+            manifest_id=manifest_id,
+            manifest_map=manifest_map,
+        )
 
     def discover_clusters_by_labels(self, label_filter: Filter) -> list[Cluster]:
         return [

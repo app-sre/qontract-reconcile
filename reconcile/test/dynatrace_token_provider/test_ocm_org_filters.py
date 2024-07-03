@@ -100,4 +100,6 @@ def test_ocm_org_filters(
 
     ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.create_syncset.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.create_manifest.assert_not_called()  # type: ignore[attr-defined]
     dynatrace_client.create_api_token.assert_not_called()  # type: ignore[attr-defined]

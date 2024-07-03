@@ -10,8 +10,8 @@ from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
 )
 from reconcile.test.dynatrace_token_provider.fixtures import (
     build_dynatrace_client,
+    build_manifest,
     build_ocm_client,
-    build_syncset,
 )
 from reconcile.utils.dynatrace.client import DynatraceAPITokenCreated
 from reconcile.utils.secret_reader import SecretReaderBase
@@ -22,7 +22,7 @@ def test_single_hcp_cluster_create_tokens(
     default_token_spec: DynatraceTokenProviderTokenSpecV1,
     default_operator_token: DynatraceAPIToken,
     default_ingestion_token: DynatraceAPIToken,
-    default_cluster: Cluster,
+    default_hcp_cluster: Cluster,
 ) -> None:
     """
     We have a single HCP cluster that does not have a manifest/token yet.
@@ -33,7 +33,7 @@ def test_single_hcp_cluster_create_tokens(
     )
 
     ocm_client = build_ocm_client(
-        discover_clusters_by_labels=[default_cluster],
+        discover_clusters_by_labels=[default_hcp_cluster],
         get_syncset={},
         get_manifest={},
     )
@@ -54,8 +54,8 @@ def test_single_hcp_cluster_create_tokens(
 
     dynatrace_client = build_dynatrace_client(
         create_api_token={
-            f"dtp-ingestion-token-{default_cluster.external_id}": ingestion_token,
-            f"dtp-operator-token-{default_cluster.external_id}": operator_token,
+            f"dtp-ingestion-token-{default_hcp_cluster.external_id}": ingestion_token,
+            f"dtp-operator-token-{default_hcp_cluster.external_id}": operator_token,
         },
         existing_token_ids=set(),
     )
@@ -76,9 +76,11 @@ def test_single_hcp_cluster_create_tokens(
     integration.reconcile(dry_run=False, dependencies=dependencies)
 
     ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
-    ocm_client.create_syncset.assert_called_once_with(  # type: ignore[attr-defined]
+    ocm_client.create_syncset.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.create_manifest.assert_called_once_with(  # type: ignore[attr-defined]
         cluster_id="cluster_a",
-        syncset_map=build_syncset(
+        manifest_map=build_manifest(
             secrets=[
                 K8sSecret(
                     secret_name="dynatrace-token-dtp",
@@ -89,7 +91,7 @@ def test_single_hcp_cluster_create_tokens(
                     ],
                 )
             ],
-            tenant_id=default_cluster.dt_tenant,
+            tenant_id=default_hcp_cluster.dt_tenant,
             with_id=True,
         ),
     )

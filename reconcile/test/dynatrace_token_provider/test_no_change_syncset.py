@@ -25,7 +25,7 @@ def test_no_change_non_hcp_cluster(
     default_cluster: Cluster,
 ) -> None:
     """
-    We have a cluster with an existing syncset and tokens.
+    We have a non-HCP cluster with an existing syncset and tokens.
     The token ids match with the token ids in Dynatrace.
     We expect no changes.
     """
@@ -93,4 +93,6 @@ def test_no_change_non_hcp_cluster(
 
     ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.create_syncset.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.create_manifest.assert_not_called()  # type: ignore[attr-defined]
     dynatrace_client.create_api_token.assert_not_called()  # type: ignore[attr-defined]

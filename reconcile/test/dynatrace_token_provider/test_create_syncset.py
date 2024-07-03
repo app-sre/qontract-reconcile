@@ -76,6 +76,8 @@ def test_single_non_hcp_cluster_create_tokens(
     integration.reconcile(dry_run=False, dependencies=dependencies)
 
     ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.create_manifest.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.create_syncset.assert_called_once_with(  # type: ignore[attr-defined]
         cluster_id="cluster_a",
         syncset_map=build_syncset(

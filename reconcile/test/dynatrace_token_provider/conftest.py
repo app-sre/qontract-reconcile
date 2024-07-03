@@ -24,7 +24,7 @@ def default_token_spec(
                     "namespace": "dynatrace",
                     "tokens": [
                         {
-                            "name": "dtp-ingestion-token",
+                            "name": "ingestion-token",
                             "keyNameInSecret": "dataIngestToken",
                             "scopes": [
                                 "metrics.ingest",
@@ -33,7 +33,7 @@ def default_token_spec(
                             ],
                         },
                         {
-                            "name": "dtp-operator-token",
+                            "name": "operator-token",
                             "keyNameInSecret": "apiToken",
                             "scopes": [
                                 "activeGateTokenManagement.create",
@@ -80,4 +80,16 @@ def default_cluster() -> Cluster:
         dt_tenant="dt_tenant_a",
         token_spec_name="default",
         is_hcp=False,
+    )
+
+
+@pytest.fixture
+def default_hcp_cluster() -> Cluster:
+    return Cluster(
+        id="cluster_a",
+        external_id="external_id_a",
+        organization_id="ocm_org_id_a",
+        dt_tenant="dt_tenant_a",
+        token_spec_name="default",
+        is_hcp=True,
     )

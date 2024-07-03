@@ -17,11 +17,10 @@ def tobase64(s: str) -> str:
     return encoded.decode("utf-8")
 
 
-def build_syncset(
+def _build_secret_data(
     secrets: Iterable[K8sSecret],
     tenant_id: str,
-    with_id: bool,
-) -> dict:
+) -> list[dict[str, Any]]:
     secrets_data: list[dict[str, Any]] = []
     for secret in secrets:
         data: dict[str, str] = {
@@ -39,6 +38,18 @@ def build_syncset(
             },
             "data": data,
         })
+    return secrets_data
+
+
+def build_syncset(
+    secrets: Iterable[K8sSecret],
+    tenant_id: str,
+    with_id: bool,
+) -> dict:
+    secrets_data = _build_secret_data(
+        secrets=secrets,
+        tenant_id=tenant_id,
+    )
     syncset = {
         "kind": "SyncSet",
         "resources": secrets_data,
@@ -46,6 +57,24 @@ def build_syncset(
     if with_id:
         syncset["id"] = "ext-dynatrace-tokens-dtp"
     return syncset
+
+
+def build_manifest(
+    secrets: Iterable[K8sSecret],
+    tenant_id: str,
+    with_id: bool,
+) -> dict:
+    secrets_data = _build_secret_data(
+        secrets=secrets,
+        tenant_id=tenant_id,
+    )
+    manifest = {
+        "kind": "Manifest",
+        "workloads": secrets_data,
+    }
+    if with_id:
+        manifest["id"] = "ext-dynatrace-tokens-dtp"
+    return manifest
 
 
 def build_ocm_client(
