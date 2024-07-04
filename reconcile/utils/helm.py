@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 from collections.abc import Iterable, Mapping
 from subprocess import (
@@ -30,6 +31,26 @@ def do_template(
     name: str,
 ) -> str:
     try:
+        with open(os.path.join(path, "Chart.yaml"), encoding="locale") as chart_file:
+            chart = yaml.safe_load(chart_file)
+            if dependencies := chart.get("dependencies"):
+                for dep in dependencies:
+                    if repo := dep.get("repository"):
+                        cmd = [
+                            "helm",
+                            "repo",
+                            "add",
+                            dep["name"],
+                            repo,
+                        ]
+                        run(cmd, capture_output=False, check=True)
+                cmd = [
+                    "helm",
+                    "dependency",
+                    "build",
+                    path,
+                ]
+                run(cmd, capture_output=False, check=True)
         with tempfile.NamedTemporaryFile(mode="w+", encoding="locale") as values_file:
             values_file.write(json.dumps(values, cls=JSONEncoder))
             values_file.flush()
