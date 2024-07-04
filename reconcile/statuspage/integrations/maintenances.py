@@ -55,7 +55,7 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
         now = datetime.now(UTC)
         slack = slackapi_from_queries(QONTRACT_INTEGRATION, init_usergroups=False)
         for m in desired_state:
-            scheduled_start = datetime.fromisoformat(m.schedule_start)
+            scheduled_start = m.schedule_start
             if now <= scheduled_start <= now + timedelta(hours=1):
                 state_key = f"notifications/{m.name}"
                 if binding_state.state.exists(state_key):

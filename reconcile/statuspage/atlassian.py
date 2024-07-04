@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import datetime
 from typing import (
     Any,
     Self,
@@ -414,8 +415,8 @@ class AtlassianStatusPageProvider:
         return StatusMaintenance(
             name=name_override or raw_maintenance.name,
             message=raw_maintenance.incident_updates[0].body,
-            schedule_start=raw_maintenance.scheduled_for,
-            schedule_end=raw_maintenance.scheduled_until,
+            schedule_start=datetime.fromisoformat(raw_maintenance.scheduled_for),
+            schedule_end=datetime.fromisoformat(raw_maintenance.scheduled_until),
             components=[
                 self._raw_component_to_status_component(c)
                 for c in raw_maintenance.components
@@ -470,8 +471,8 @@ class AtlassianStatusPageProvider:
         data = {
             "name": maintenance.name,
             "status": "scheduled",
-            "scheduled_for": maintenance.schedule_start,
-            "scheduled_until": maintenance.schedule_end,
+            "scheduled_for": maintenance.schedule_start.isoformat(),
+            "scheduled_until": maintenance.schedule_end.isoformat(),
             "body": maintenance.message,
             "scheduled_remind_prior": maintenance.announcements.remind_subscribers,
             "scheduled_auto_transition": True,

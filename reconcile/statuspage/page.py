@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Self, cast
 
 from pydantic import BaseModel
@@ -128,8 +129,8 @@ class StatusMaintenance(BaseModel):
 
     name: str
     message: str
-    schedule_start: str
-    schedule_end: str
+    schedule_start: datetime
+    schedule_end: datetime
     components: list[StatusComponent]
     announcements: StatusMaintenanceAnnouncement
 
