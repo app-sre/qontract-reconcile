@@ -1,3 +1,4 @@
+import datetime
 from functools import cache
 from typing import Any, Self
 
@@ -212,6 +213,9 @@ def process_jinja2_template(
         "url": url_makes_sense,
         "s3": lookup_s3_object,
         "flatten_dict": flatten,
+        "yesterday": lambda: (datetime.datetime.now() - datetime.timedelta(1)).strftime(
+            "%Y-%m-%d"
+        ),
     })
     if "_template_mocks" in vars:
         for k, v in vars["_template_mocks"].items():
