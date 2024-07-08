@@ -1348,7 +1348,10 @@ def aggregate_shared_resources_typed(
     namespace: HasOpenshiftServiceAccountTokensAndSharedResources
     | HasOpenShiftResourcesAndSharedResources,
 ) -> None:
-    """This function aggregates the shared resources to the appropriate namespace section."""
+    """This function aggregates the shared resources to the appropriate namespace section.
+
+    Attention: It updates the namespace object in place and isn't indempotent!
+    """
     if not namespace.shared_resources:
         return
 
