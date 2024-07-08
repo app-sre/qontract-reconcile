@@ -1,4 +1,3 @@
-import base64
 import hashlib
 import json
 from abc import (
@@ -88,7 +87,6 @@ class ExternalResourcesInventory(MutableMapping):
         ]
 
         for spec in desired_specs:
-            # self.set(ExternalResourceKey.from_spec(spec), spec)
             self._inventory[ExternalResourceKey.from_spec(spec)] = spec
 
     def __getitem__(self, key: ExternalResourceKey) -> ExternalResourceSpec | None:
@@ -239,6 +237,3 @@ class ExternalResource(BaseModel):
         return hashlib.md5(
             json.dumps(self.data, sort_keys=True).encode("utf-8")
         ).hexdigest()
-
-    def serialize_input(self) -> str:
-        return base64.b64encode(json.dumps(self.dict()).encode()).decode()
