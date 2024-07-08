@@ -93,16 +93,16 @@ def fetch_desired_state(
                 )
                 raise
 
-            oc_resource_name = (
-                sat.name
-                or f"{sat.namespace.cluster.name}-{sat.namespace.name}-{sat.service_account_name}"
+            oc_resource = construct_sa_token_oc_resource(
+                name=(
+                    sat.name
+                    or f"{sat.namespace.cluster.name}-{sat.namespace.name}-{sat.service_account_name}"
+                ),
+                sa_token=sa_token,
             )
-            oc_resource = construct_sa_token_oc_resource(oc_resource_name, sa_token)
-            ri.add_desired(
+            ri.add_desired_resource(
                 namespace.cluster.name,
                 namespace.name,
-                "Secret",
-                oc_resource_name,
                 oc_resource,
             )
 
