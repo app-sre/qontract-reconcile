@@ -150,7 +150,9 @@ def canonicalize_namespaces(namespaces: Iterable[NamespaceV1]) -> list[Namespace
     return canonicalized_namespaces
 
 
-def get_serviceaccount_tokens(query_func: Callable) -> list[NamespaceV1]:
+def get_namespaces_with_serviceaccount_tokens(
+    query_func: Callable,
+) -> list[NamespaceV1]:
     return [
         namespace
         for namespace in serviceaccount_tokens_query(query_func=query_func).namespaces
@@ -177,7 +179,9 @@ def run(
     defer: Callable | None = None,
 ) -> None:
     gql_api = gql.get_api()
-    namespaces = canonicalize_namespaces(get_serviceaccount_tokens(gql_api.query))
+    namespaces = canonicalize_namespaces(
+        get_namespaces_with_serviceaccount_tokens(gql_api.query)
+    )
     ri, oc_map = ob.fetch_current_state(
         namespaces=[ns.dict(by_alias=True) for ns in namespaces],
         thread_pool_size=thread_pool_size,

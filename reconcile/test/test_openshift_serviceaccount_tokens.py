@@ -10,7 +10,7 @@ from reconcile.openshift_serviceaccount_tokens import (
     canonicalize_namespaces,
     construct_sa_token_oc_resource,
     fetch_desired_state,
-    get_serviceaccount_tokens,
+    get_namespaces_with_serviceaccount_tokens,
     get_tokens_for_service_account,
     write_outputs_to_vault,
 )
@@ -43,7 +43,7 @@ def query_func(
 
 @pytest.fixture
 def namespaces(query_func: Callable) -> list[NamespaceV1]:
-    return get_serviceaccount_tokens(query_func)
+    return get_namespaces_with_serviceaccount_tokens(query_func)
 
 
 @pytest.fixture
@@ -124,7 +124,7 @@ def test_openshift_serviceaccount_tokens__write_outputs_to_vault(
     ])
 
 
-def test_openshift_serviceaccount_tokens__get_serviceaccount_tokens(
+def test_openshift_serviceaccount_tokens__get_namespaces_with_serviceaccount_tokens(
     namespaces: list[NamespaceV1],
 ) -> None:
     assert len(namespaces) == 3
