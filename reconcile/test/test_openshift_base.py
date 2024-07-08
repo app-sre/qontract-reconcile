@@ -1205,3 +1205,65 @@ def test_get_state_count_combinations():
     ]
     expected = {"c1": 2, "c2": 2, "c3": 1}
     assert expected == sut.get_state_count_combinations(state)
+
+
+def test_aggregate_shared_resources_typed_openshift_service_resources() -> None:
+    class OpenShiftResourcesStub(BaseModel):
+        openshift_resources: list | None
+
+    class OpenShiftResourcesAndSharedResourcesStub(OpenShiftResourcesStub, BaseModel):
+        shared_resources: list[OpenShiftResourcesStub] | None
+
+    namespace = OpenShiftResourcesAndSharedResourcesStub(
+        openshift_resources=[1], shared_resources=None
+    )
+    sut.aggregate_shared_resources_typed(namespace=namespace)
+    assert namespace.openshift_resources == [1]
+
+    namespace = OpenShiftResourcesAndSharedResourcesStub(
+        openshift_resources=None,
+        shared_resources=[OpenShiftResourcesStub(openshift_resources=[2])],
+    )
+    sut.aggregate_shared_resources_typed(namespace=namespace)
+    assert namespace.openshift_resources == [2]
+
+    namespace = OpenShiftResourcesAndSharedResourcesStub(
+        openshift_resources=[1],
+        shared_resources=[OpenShiftResourcesStub(openshift_resources=[2])],
+    )
+    sut.aggregate_shared_resources_typed(namespace=namespace)
+    assert namespace.openshift_resources == [1, 2]
+
+
+def test_aggregate_shared_resources_typed_openshift_service_account_token() -> None:
+    class OpenshiftServiceAccountTokensStub(BaseModel):
+        openshift_service_account_tokens: list | None
+
+    class OpenshiftServiceAccountTokensAndSharedResourcesStub(
+        OpenshiftServiceAccountTokensStub, BaseModel
+    ):
+        shared_resources: list[OpenshiftServiceAccountTokensStub] | None
+
+    namespace = OpenshiftServiceAccountTokensAndSharedResourcesStub(
+        openshift_service_account_tokens=[1], shared_resources=None
+    )
+    sut.aggregate_shared_resources_typed(namespace=namespace)
+    assert namespace.openshift_service_account_tokens == [1]
+
+    namespace = OpenshiftServiceAccountTokensAndSharedResourcesStub(
+        openshift_service_account_tokens=None,
+        shared_resources=[
+            OpenshiftServiceAccountTokensStub(openshift_service_account_tokens=[2])
+        ],
+    )
+    sut.aggregate_shared_resources_typed(namespace=namespace)
+    assert namespace.openshift_service_account_tokens == [2]
+
+    namespace = OpenshiftServiceAccountTokensAndSharedResourcesStub(
+        openshift_service_account_tokens=[1],
+        shared_resources=[
+            OpenshiftServiceAccountTokensStub(openshift_service_account_tokens=[2])
+        ],
+    )
+    sut.aggregate_shared_resources_typed(namespace=namespace)
+    assert namespace.openshift_service_account_tokens == [1, 2]

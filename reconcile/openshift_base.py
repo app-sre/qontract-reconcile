@@ -1306,6 +1306,82 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
             namespace_info[shared_resources_type] = namespace_type_resources
 
 
+@runtime_checkable
+class HasOpenShiftResources(Protocol):
+    openshift_resources: list | None
+
+
+@runtime_checkable
+class HasOpenshiftServiceAccountTokens(Protocol):
+    openshift_service_account_tokens: list | None
+
+
+@runtime_checkable
+class HasSharedResourcesOpenShiftResources(Protocol):
+    @property
+    def shared_resources(self) -> Sequence[HasOpenShiftResources] | None:
+        pass
+
+
+@runtime_checkable
+class HasSharedResourcesOpenshiftServiceAccountTokens(Protocol):
+    @property
+    def shared_resources(self) -> Sequence[HasOpenshiftServiceAccountTokens] | None:
+        pass
+
+
+@runtime_checkable
+class HasOpenshiftServiceAccountTokensAndSharedResources(
+    HasOpenshiftServiceAccountTokens,
+    HasSharedResourcesOpenshiftServiceAccountTokens,
+    Protocol,
+): ...
+
+
+@runtime_checkable
+class HasOpenShiftResourcesAndSharedResources(
+    HasOpenShiftResources, HasSharedResourcesOpenShiftResources, Protocol
+): ...
+
+
+def aggregate_shared_resources_typed(
+    namespace: HasOpenshiftServiceAccountTokensAndSharedResources
+    | HasOpenShiftResourcesAndSharedResources,
+) -> None:
+    """This function aggregates the shared resources to the appropriate namespace section.
+
+    Attention: It updates the namespace object in place and isn't indempotent!
+    """
+    if not namespace.shared_resources:
+        return
+
+    match namespace:
+        case HasOpenshiftServiceAccountTokensAndSharedResources():
+            shared_type_resources_items = []
+            for ost_shared_resources_item in namespace.shared_resources:
+                if shared_type_resources := getattr(
+                    ost_shared_resources_item, "openshift_service_account_tokens"
+                ):
+                    shared_type_resources_items.extend(shared_type_resources)
+            if namespace.openshift_service_account_tokens:
+                namespace.openshift_service_account_tokens.extend(
+                    shared_type_resources_items
+                )
+            else:
+                namespace.openshift_service_account_tokens = shared_type_resources_items
+        case HasOpenShiftResourcesAndSharedResources():
+            shared_type_resources_items = []
+            for or_shared_resources_item in namespace.shared_resources:
+                if shared_type_resources := getattr(
+                    or_shared_resources_item, "openshift_resources"
+                ):
+                    shared_type_resources_items.extend(shared_type_resources)
+            if namespace.openshift_resources:
+                namespace.openshift_resources.extend(shared_type_resources_items)
+            else:
+                namespace.openshift_resources = shared_type_resources_items
+
+
 def determine_user_keys_for_access(
     cluster_name: str,
     auth_list: Sequence[dict[str, str] | HasService],

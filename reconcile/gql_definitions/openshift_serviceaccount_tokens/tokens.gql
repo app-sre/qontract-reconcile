@@ -1,0 +1,19 @@
+# qenerate: plugin=pydantic_v1
+
+query ServiceAccountTokens {
+  namespaces: namespaces_v1 {
+    name
+    delete
+    cluster {
+      ...OcConnectionCluster
+    }
+    sharedResources {
+      openshiftServiceAccountTokens {
+        ...ServiceAccountToken
+      }
+    }
+    openshiftServiceAccountTokens {
+      ...ServiceAccountToken
+    }
+  }
+}

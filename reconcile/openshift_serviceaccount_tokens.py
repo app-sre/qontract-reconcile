@@ -1,9 +1,15 @@
 import logging
 import sys
+from collections.abc import Callable, Iterable
 
 import reconcile.openshift_base as ob
-from reconcile import queries
+from reconcile.gql_definitions.openshift_serviceaccount_tokens.tokens import NamespaceV1
+from reconcile.gql_definitions.openshift_serviceaccount_tokens.tokens import (
+    query as serviceaccount_tokens_query,
+)
+from reconcile.utils import gql
 from reconcile.utils.defer import defer
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
@@ -14,7 +20,7 @@ QONTRACT_INTEGRATION = "openshift-serviceaccount-tokens"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def construct_sa_token_oc_resource(name, sa_token):
+def construct_sa_token_oc_resource(name: str, sa_token: str) -> OR:
     body = {
         "apiVersion": "v1",
         "kind": "Secret",
@@ -47,104 +53,133 @@ def get_tokens_for_service_account(
     return result
 
 
-def fetch_desired_state(namespaces: list[dict], ri: ResourceInventory, oc_map: OC_Map):
-    for namespace_info in namespaces:
-        if not namespace_info.get("openshiftServiceAccountTokens"):
+def fetch_desired_state(
+    namespaces: list[NamespaceV1], ri: ResourceInventory, oc_map: OC_Map
+) -> None:
+    for namespace in namespaces:
+        if not namespace.openshift_service_account_tokens:
             continue
-        namespace_name = namespace_info["name"]
-        cluster_name = namespace_info["cluster"]["name"]
-        oc = oc_map.get(cluster_name)
-        if not oc:
+
+        if not (oc := oc_map.get(namespace.cluster.name)):
             logging.log(level=oc.log_level, msg=oc.message)
             continue
-        for sat in namespace_info["openshiftServiceAccountTokens"]:
-            sa_name = sat["serviceAccountName"]
-            sa_namespace_info = sat["namespace"]
-            sa_namespace_name = sa_namespace_info["name"]
-            sa_cluster_name = sa_namespace_info["cluster"]["name"]
-            oc = oc_map.get(sa_cluster_name)
+
+        for sat in namespace.openshift_service_account_tokens:
+            oc = oc_map.get(sat.namespace.cluster.name)
             if not oc:
                 if oc.log_level >= logging.ERROR:
                     ri.register_error()
                 logging.log(level=oc.log_level, msg=oc.message)
                 continue
 
-            all_tokens = oc.get_items(kind="Secret", namespace=sa_namespace_name)
-            oc_resource_name = (
-                sat.get("name") or f"{sa_cluster_name}-{sa_namespace_name}-{sa_name}"
+            namespace_secrets = oc.get_items(
+                kind="Secret", namespace=sat.namespace.name
             )
             try:
-                sa_token_list = get_tokens_for_service_account(sa_name, all_tokens)
-                sa_token_list.sort(key=lambda t: t["metadata"]["name"])
-                sa_token = sa_token_list[0]["data"]["token"]
+                sa_tokens = get_tokens_for_service_account(
+                    sat.service_account_name, namespace_secrets
+                )
+                sa_tokens.sort(key=lambda t: t["metadata"]["name"])
+                # take the first token found
+                sa_token = sa_tokens[0]["data"]["token"]
             except KeyError:
-                logging.log(
-                    level=logging.ERROR,
-                    msg=f"[{sa_cluster_name}/{sa_namespace_name}] Token not found for service account: {sa_name}",
+                logging.error(
+                    f"[{sat.namespace.cluster.name}/{sat.namespace.name}] Token not found for service account: {sat.service_account_name}"
                 )
                 raise
             except IndexError:
-                logging.log(
-                    level=logging.ERROR,
-                    msg=f"[{sa_cluster_name}/{sa_namespace_name}] 0 Secret found for service account: {sa_name}",
+                logging.error(
+                    f"[{sat.namespace.cluster.name}/{sat.namespace.name}] 0 Secret found for service account: {sat.service_account_name}"
                 )
                 raise
 
-            oc_resource = construct_sa_token_oc_resource(oc_resource_name, sa_token)
-            ri.add_desired(
-                cluster_name, namespace_name, "Secret", oc_resource_name, oc_resource
+            oc_resource = construct_sa_token_oc_resource(
+                name=(
+                    sat.name
+                    or f"{sat.namespace.cluster.name}-{sat.namespace.name}-{sat.service_account_name}"
+                ),
+                sa_token=sa_token,
+            )
+            ri.add_desired_resource(
+                namespace.cluster.name,
+                namespace.name,
+                oc_resource,
             )
 
 
-def write_outputs_to_vault(vault_path, ri):
+def write_outputs_to_vault(
+    vault_client: VaultClient, vault_path: str, ri: ResourceInventory
+) -> None:
     integration_name = QONTRACT_INTEGRATION.replace("_", "-")
-    vault_client = VaultClient()
     for cluster, namespace, _, data in ri:
         for name, d_item in data["desired"].items():
             body_data = d_item.body["data"]
             # write secret to per-namespace location
             secret_path = (
-                f"{vault_path}/{integration_name}/" + f"{cluster}/{namespace}/{name}"
+                f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
             )
             secret = {"path": secret_path, "data": body_data}
-            vault_client.write(secret)
+            vault_client.write(secret)  # type: ignore
             # write secret to shared-resources location
-            secret_path = (
-                f"{vault_path}/{integration_name}/" + f"shared-resources/{name}"
-            )
+            secret_path = f"{vault_path}/{integration_name}/shared-resources/{name}"
             secret = {"path": secret_path, "data": body_data}
-            vault_client.write(secret)
+            vault_client.write(secret)  # type: ignore
 
 
-def canonicalize_namespaces(namespaces):
-    canonicalized_namespaces = []
-    for namespace_info in namespaces:
-        if ob.is_namespace_deleted(namespace_info):
-            continue
-        ob.aggregate_shared_resources(namespace_info, "openshiftServiceAccountTokens")
-        openshift_serviceaccount_tokens = namespace_info.get(
-            "openshiftServiceAccountTokens"
+def canonicalize_namespaces(namespaces: Iterable[NamespaceV1]) -> list[NamespaceV1]:
+    canonicalized_namespaces: dict[str, NamespaceV1] = {}
+    for namespace in namespaces:
+        ob.aggregate_shared_resources_typed(namespace)
+        if namespace.openshift_service_account_tokens:
+            canonicalized_namespaces[f"{namespace.cluster.name}/{namespace.name}"] = (
+                namespace
+            )
+    for namespace in list(canonicalized_namespaces.values()):
+        for sat in namespace.openshift_service_account_tokens or []:
+            key = f"{sat.namespace.cluster.name}/{sat.namespace.name}"
+            if key not in canonicalized_namespaces:
+                canonicalized_namespaces[key] = NamespaceV1(
+                    **sat.namespace.dict(by_alias=True),
+                    sharedResources=None,
+                    openshiftServiceAccountTokens=None,
+                )
+    return list(canonicalized_namespaces.values())
+
+
+def get_namespaces_with_serviceaccount_tokens(
+    query_func: Callable,
+) -> list[NamespaceV1]:
+    return [
+        namespace
+        for namespace in serviceaccount_tokens_query(query_func=query_func).namespaces
+        or []
+        if integration_is_enabled(QONTRACT_INTEGRATION, namespace.cluster)
+        and not bool(namespace.delete)
+        and (
+            namespace.openshift_service_account_tokens
+            or any(
+                sr.openshift_service_account_tokens
+                for sr in namespace.shared_resources or []
+            )
         )
-        if openshift_serviceaccount_tokens:
-            canonicalized_namespaces.append(namespace_info)
-            for sat in openshift_serviceaccount_tokens:
-                canonicalized_namespaces.append(sat["namespace"])
-
-    return canonicalized_namespaces
+    ]
 
 
 @defer
 def run(
-    dry_run,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    vault_output_path="",
-    defer=None,
-):
-    namespaces = canonicalize_namespaces(queries.get_serviceaccount_tokens())
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: bool | None = None,
+    use_jump_host: bool = True,
+    vault_output_path: str = "",
+    defer: Callable | None = None,
+) -> None:
+    gql_api = gql.get_api()
+    namespaces = canonicalize_namespaces(
+        get_namespaces_with_serviceaccount_tokens(gql_api.query)
+    )
     ri, oc_map = ob.fetch_current_state(
-        namespaces=namespaces,
+        namespaces=[ns.dict(by_alias=True) for ns in namespaces],
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
@@ -152,12 +187,13 @@ def run(
         internal=internal,
         use_jump_host=use_jump_host,
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
     fetch_desired_state(namespaces, ri, oc_map)
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
     if not dry_run and vault_output_path:
-        write_outputs_to_vault(vault_output_path, ri)
+        write_outputs_to_vault(VaultClient(), vault_output_path, ri)
 
     if ri.has_error_registered():
         sys.exit(1)

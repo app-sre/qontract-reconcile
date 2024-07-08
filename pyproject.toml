@@ -121,7 +121,6 @@ module = [
     "reconcile.openshift_resourcequotas",
     "reconcile.openshift_rolebindings",
     "reconcile.openshift_routes",
-    "reconcile.openshift_serviceaccount_tokens",
     "reconcile.openshift_vault_secrets",
     "reconcile.quay_base",
     "reconcile.quay_membership",
