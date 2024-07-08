@@ -762,13 +762,6 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             valid_upgrade_target = self._aws_api.get_db_valid_upgrade_target(
                 account_name, engine, before_version, region_name=region_name
             )
-            if not valid_upgrade_target:
-                # valid_upgrade_target can be empty when current version is no longer supported by AWS.
-                # In this case, we can't validate it, so skip.
-                logging.warning(
-                    f"No valid upgrade target available, skip validation for {resource_name}."
-                )
-                return
             target = next(
                 (
                     t
