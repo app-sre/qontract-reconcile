@@ -1,0 +1,113 @@
+---
+namespaces:
+- name: with-openshift-serviceaccount-tokens
+  cluster:
+    name: cluster
+    serverUrl: 'https://cluster.com'
+  sharedResources:
+  - openshiftServiceAccountTokens: null
+  openshiftServiceAccountTokens:
+  - serviceAccountName: grafana
+    namespace:
+      name: with-openshift-serviceaccount-tokens
+      cluster:
+        name: cluster
+        serverUrl: 'https://cluster.com'
+  - serviceAccountName: grafana
+    namespace:
+      name: with-openshift-serviceaccount-tokens
+      cluster:
+        name: another-cluster
+        serverUrl: 'https://cluster.com'
+
+- name: with-shared-resources
+  cluster:
+    name: cluster
+    serverUrl: 'https://cluster.com'
+    internal: true
+    automationToken:
+      path: app-sre/integrations-output/openshift-cluster-bots/cluster
+      field: token
+    clusterAdminAutomationToken:
+      path: app-sre/integrations-output/openshift-cluster-bots/cluster-cluster-admin
+      field: token
+  sharedResources:
+  - openshiftServiceAccountTokens:
+    - name: tekton-oauth-token
+      serviceAccountName: tekton-pipeline
+      namespace:
+        name: platform-changelog-stage
+        cluster:
+          name: another-cluster
+          serverUrl: 'https://another-cluster.com'
+  openshiftServiceAccountTokens: null
+
+- name: with-openshift-serviceaccount-tokens-and-shared-resources
+  cluster:
+    name: cluster
+    serverUrl: 'https://cluster.com'
+    internal: true
+    automationToken:
+      path: app-sre/integrations-output/openshift-cluster-bots/cluster
+      field: token
+    clusterAdminAutomationToken:
+      path: app-sre/integrations-output/openshift-cluster-bots/cluster-cluster-admin
+      field: token
+  sharedResources:
+  - openshiftServiceAccountTokens:
+    - name: tekton-oauth-token
+      serviceAccountName: tekton-pipeline
+      namespace:
+        name: platform-changelog-stage
+        cluster:
+          name: another-cluster
+          serverUrl: 'https://another-cluster.com'
+  openshiftServiceAccountTokens:
+  - serviceAccountName: grafana
+    namespace:
+      name: observability
+      cluster:
+        name: cluster
+        serverUrl: 'https://cluster.com'
+
+
+- name: no-openshift-serviceaccount-tokens-must-be-ignored
+  cluster:
+    name: cluster
+    serverUrl: 'https://cluster.com'
+  sharedResources:
+  - openshiftServiceAccountTokens: null
+  openshiftServiceAccountTokens: null
+
+- name: namespace-deleted
+  delete: true
+  cluster:
+    name: cluster
+    serverUrl: 'https://cluster.com'
+  sharedResources:
+  - openshiftServiceAccountTokens: null
+  openshiftServiceAccountTokens:
+  - serviceAccountName: grafana
+    namespace:
+      name: must-be-ignored
+      cluster:
+        name: cluster
+        serverUrl: 'https://cluster.com'
+
+- name: integration-disabled
+  delete: true
+  cluster:
+    name: cluster
+    serverUrl: 'https://cluster.com'
+    disable:
+      integrations:
+      - openshift-serviceaccount-tokens
+  sharedResources:
+  - openshiftServiceAccountTokens: null
+  openshiftServiceAccountTokens:
+  - serviceAccountName: grafana
+    namespace:
+      name: must-be-ignored
+      cluster:
+        name: cluster
+        serverUrl: 'https://cluster.com'
