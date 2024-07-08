@@ -140,25 +140,28 @@ def test_openshift_serviceaccount_tokens__canonicalize_namespaces(
     namespaces: list[NamespaceV1],
 ) -> None:
     nss = canonicalize_namespaces(namespaces)
+    # sort by number of tokens and namespace name
+    nss.sort(key=lambda n: f"{len(n.openshift_service_account_tokens or [])}-{n.name}")
     assert len(nss) == 6
 
-    # 1st namespace in yaml
-    nss[0].name == "with-openshift-serviceaccount-tokens"
-    nss[0].cluster.name == "cluster"
-    # must create this new namespace because of another referenced cluster
-    nss[1].name == "with-openshift-serviceaccount-tokens"
-    nss[1].cluster.name == "another-cluster"
-    assert len(nss[0].openshift_service_account_tokens or []) == 2
+    # added via remote service account token
+    assert nss[0].name == "observability"
+    assert nss[0].openshift_service_account_tokens is None
+    assert nss[1].name == "platform-changelog-stage"
+    assert nss[1].openshift_service_account_tokens is None
+    assert nss[2].name == "with-openshift-serviceaccount-tokens"
+    assert nss[2].openshift_service_account_tokens is None
 
-    # 2nd namespace in yaml
-    nss[2].name == "with-shared-resources"
-    # shared resources must be resolved to openshift_service_account_tokens
-    assert len(nss[2].openshift_service_account_tokens or []) == 1
+    # namespace with tokens or shared resources defined
+    nss[3].name == "with-shared-resources"
+    nss[3].cluster.name == "cluster"
+    assert len(nss[3].openshift_service_account_tokens or []) == 1
 
-    # 3rd namespace in yaml
-    nss[4].name == "with-openshift-serviceaccount-tokens-and-shared-resources"
-    # shared resources must be resolved to openshift_service_account_tokens
+    nss[4].name == "with-openshift-serviceaccount-tokens"
     assert len(nss[4].openshift_service_account_tokens or []) == 2
+
+    nss[5].name == "with-openshift-serviceaccount-tokens-and-shared-resources"
+    assert len(nss[5].openshift_service_account_tokens or []) == 2
 
 
 def test_openshift_serviceaccount_tokens__fetch_desired_state(

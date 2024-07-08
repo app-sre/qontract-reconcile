@@ -127,27 +127,23 @@ def write_outputs_to_vault(
 
 
 def canonicalize_namespaces(namespaces: Iterable[NamespaceV1]) -> list[NamespaceV1]:
-    canonicalized_namespaces = []
+    canonicalized_namespaces: dict[str, NamespaceV1] = {}
     for namespace in namespaces:
         ob.aggregate_shared_resources_typed(namespace)
         if namespace.openshift_service_account_tokens:
-            canonicalized_namespaces.append(namespace)
-            for sat in namespace.openshift_service_account_tokens:
-                if f"{sat.namespace.cluster.name}/{sat.namespace.name}" in [
-                    f"{ns.cluster.name}/{ns.name}" for ns in canonicalized_namespaces
-                ]:
-                    # do not add duplicate namespaces to speed up fetch_current_state
-                    continue
-                canonicalized_namespaces.append(
-                    # convert openshiftServiceAccountTokens.namespace to NamespaceV1
-                    NamespaceV1(
-                        **sat.namespace.dict(by_alias=True),
-                        sharedResources=None,
-                        openshiftServiceAccountTokens=None,
-                    )
+            canonicalized_namespaces[f"{namespace.cluster.name}/{namespace.name}"] = (
+                namespace
+            )
+    for namespace in list(canonicalized_namespaces.values()):
+        for sat in namespace.openshift_service_account_tokens or []:
+            key = f"{sat.namespace.cluster.name}/{sat.namespace.name}"
+            if key not in canonicalized_namespaces:
+                canonicalized_namespaces[key] = NamespaceV1(
+                    **sat.namespace.dict(by_alias=True),
+                    sharedResources=None,
+                    openshiftServiceAccountTokens=None,
                 )
-
-    return canonicalized_namespaces
+    return list(canonicalized_namespaces.values())
 
 
 def get_namespaces_with_serviceaccount_tokens(
