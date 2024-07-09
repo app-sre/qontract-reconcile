@@ -1,7 +1,7 @@
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-builder:0.5.3 as build-image
+FROM quay.io/app-sre/qontract-reconcile-builder:0.6.0 as build-image
 
 WORKDIR /work
 
@@ -20,7 +20,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.12.4 as dev-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.13.0 as dev-image
 
 ARG CONTAINER_UID=1000
 RUN useradd --uid ${CONTAINER_UID} reconcile
@@ -87,4 +87,3 @@ ENV OC_VERSION=4.10.15
 # versions in these environments so in this case we extract an older version of oc and kubectl
 COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.1.0 \
     /work/${OC_VERSION}/ /usr/local/bin/
-
