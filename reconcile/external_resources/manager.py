@@ -1,4 +1,3 @@
-import json
 import logging
 from collections.abc import Iterable
 from datetime import UTC, datetime
@@ -43,6 +42,7 @@ from reconcile.utils.external_resource_spec import (
 from reconcile.utils.secret_reader import SecretReaderBase
 
 FLAG_RESOURCE_MANAGED_BY_ERV2 = "managed_by_erv2"
+FLAG_DELETE_RESOURCE = "delete"
 
 
 def setup_factories(
@@ -157,13 +157,13 @@ class ExternalResourcesManager:
     def _get_desired_objects_reconciliations(self) -> set[Reconciliation]:
         r: set[Reconciliation] = set()
         for key, spec in self.er_inventory.items():
+            if spec.marked_to_delete:
+                continue
             module = self.module_inventory.get_from_spec(spec)
-
             try:
                 resource = self._build_external_resource(spec, self.er_inventory)
             except ExternalResourceValidationError as e:
-                k = ExternalResourceKey.from_spec(spec)
-                self.errors[k] = e
+                self.errors[key] = e
                 continue
 
             reconciliation = Reconciliation(
@@ -179,21 +179,23 @@ class ExternalResourcesManager:
         return r
 
     def _get_deleted_objects_reconciliations(self) -> set[Reconciliation]:
-        desired_keys = set(self.er_inventory.keys())
-        state_resource_keys = self.state_mgr.get_all_resource_keys()
-        deleted_keys = state_resource_keys - desired_keys
-        r: set[Reconciliation] = set()
+        to_reconcile: set[Reconciliation] = set()
+        deleted_keys = (k for k, v in self.er_inventory.items() if v.marked_to_delete)
         for key in deleted_keys:
             state = self.state_mgr.get_external_resource_state(key)
-            reconciliation = Reconciliation(
+            if state.resource_status == ResourceStatus.NOT_EXISTS:
+                logging.debug("Resource has already been removed. key: %s", key)
+                continue
+
+            r = Reconciliation(
                 key=key,
                 resource_hash=state.reconciliation.resource_hash,
                 module_configuration=state.reconciliation.module_configuration,
                 input=state.reconciliation.input,
                 action=Action.DESTROY,
             )
-            r.add(reconciliation)
-        return r
+            to_reconcile.add(r)
+        return to_reconcile
 
     def _update_in_progress_state(
         self, r: Reconciliation, state: ExternalResourceState
@@ -310,8 +312,8 @@ class ExternalResourcesManager:
         return resource
 
     def _serialize_resource_input(self, resource: ExternalResource) -> str:
-        return json.dumps(
-            resource.dict(exclude={"data": {FLAG_RESOURCE_MANAGED_BY_ERV2}})
+        return resource.json(
+            exclude={"data": {FLAG_RESOURCE_MANAGED_BY_ERV2, FLAG_DELETE_RESOURCE}}
         )
 
     def handle_resources(self) -> None:

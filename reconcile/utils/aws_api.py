@@ -1621,7 +1621,9 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         rds = self._account_rds_client(account_name, **optional_kwargs)
         response = rds.describe_db_engine_versions(
-            Engine=engine, EngineVersion=engine_version
+            Engine=engine,
+            EngineVersion=engine_version,
+            IncludeAll=True,
         )
 
         if versions := response["DBEngineVersions"]:

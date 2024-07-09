@@ -23,6 +23,7 @@ from reconcile.utils.jinja2.filters import (
     matches_jsonpath,
     urlescape,
     urlunescape,
+    yaml_to_dict,
 )
 from reconcile.utils.secret_reader import SecretNotFound, SecretReader, SecretReaderBase
 from reconcile.utils.vault import SecretFieldNotFound
@@ -81,6 +82,7 @@ def compile_jinja2_template(
     )
     jinja_env.filters.update({
         "json_to_dict": json_to_dict,
+        "yaml_to_dict": yaml_to_dict,
         "urlescape": urlescape,
         "urlunescape": urlunescape,
         "eval": eval_filter,

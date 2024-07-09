@@ -274,6 +274,7 @@ def test_get_db_valid_upgrade_target(
     mocked_rds_client.describe_db_engine_versions.assert_called_once_with(
         Engine=engine,
         EngineVersion=engine_version,
+        IncludeAll=True,
     )
 
 

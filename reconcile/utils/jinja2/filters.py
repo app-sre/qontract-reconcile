@@ -6,6 +6,7 @@ from typing import Any
 from urllib import parse
 
 import jinja2
+import yaml
 
 from reconcile.utils.jsonpath import parse_jsonpath
 
@@ -17,6 +18,15 @@ def json_to_dict(input: str) -> Any:
     :return: dict with the parsed inputs contents
     """
     data = json.loads(input)
+    return data
+
+
+def yaml_to_dict(input: str) -> Any:
+    """Jinja2 filter to parse YAML strings into dictionaries.
+    :param input: yaml string
+    :return: dict with the parsed inputs contents
+    """
+    data = yaml.safe_load(input)
     return data
 
 

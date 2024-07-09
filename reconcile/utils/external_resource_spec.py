@@ -93,6 +93,10 @@ class ExternalResourceSpec:
     )
 
     @property
+    def marked_to_delete(self) -> bool:
+        return self.resource.get("delete") or False
+
+    @property
     def provider(self) -> str:
         return self.resource["provider"]
 
