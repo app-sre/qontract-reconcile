@@ -1629,6 +1629,25 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         if versions := response["DBEngineVersions"]:
             return versions[0]["ValidUpgradeTarget"]
         return []
+    
+    def describe_db_parameter_group(
+        self,
+        account_name: str,
+        db_parameter_group_name: str,
+        region_name: str | None = None,
+    ) -> dict[str, str]:
+        optional_kwargs = {}
+
+        if region_name:
+            optional_kwargs["region_name"] = region_name
+
+        rds = self._account_rds_client(account_name, **optional_kwargs)
+        paginator = rds.get_paginator('describe_db_parameters')
+        parameters = {}
+        for page in paginator.paginate(DBParameterGroupName=db_parameter_group_name):
+            for param in page.get("Parameters", []):
+                parameters[param["ParameterName"]] = param["ParameterValue"]
+        return parameters
 
     def get_organization_billing_account(self, account_name: str) -> str:
         org = self._account_organizations_client(account_name)
