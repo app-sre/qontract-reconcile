@@ -117,7 +117,7 @@ class ProjectAlertRecipient(BaseModel):
 class ProjectAlert(BaseModel):
     pk: int | None
     name: str
-    timespan_minutes: int
+    timespan_minutes: int = Field(alias="timespanMinutes")
     quantity: int
     recipients: list[ProjectAlertRecipient] = Field([], alias="alertRecipients")
 
