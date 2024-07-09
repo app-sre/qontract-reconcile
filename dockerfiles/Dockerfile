@@ -51,7 +51,7 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 # STAGE 3 - prod-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.12.4 as prod-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.13.0 as prod-image
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}
