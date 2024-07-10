@@ -95,7 +95,9 @@ class PromotionState:
         if use_cache and path_v2 in self._promotion_data_cache:
             return self._promotion_data_cache[path_v2]
 
-        data = self._state.get(path_v2)
+        data = self._state.get(path_v2, None)
+        if not data:
+            return None
         promotion_data = PromotionData(**data)
         self._promotion_data_cache[path_v2] = promotion_data
         return promotion_data
