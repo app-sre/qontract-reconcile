@@ -208,7 +208,7 @@ def create_cluster_bots(
             mode="w+", encoding="locale", delete=True
         ) as kc:
             kc.write(kubeconfig_content)
-            kc.flush
+            kc.flush()
             logging.info(
                 f"[{cluster.name}] create {config.dedicated_admin_sa} service account"
             )
