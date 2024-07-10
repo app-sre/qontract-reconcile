@@ -248,6 +248,7 @@ VARIABLE_KEYS = [
     "records",
     "extra_tags",
     "lifecycle",
+    "module",
 ]
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
@@ -1575,6 +1576,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.populate_tf_resource_rosa_authenticator_vpce(spec)
         elif provider == "msk":
             self.populate_tf_resource_msk(spec)
+        elif provider == "module-poc":
+            self.populate_tf_resource_module(spec)
         else:
             raise UnknownProviderError(provider)
 
@@ -6713,3 +6716,44 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             f"{account_name}-{name}", name=name, saml_metadata_document=metadata
         )
         self.add_resource(account_name, saml_idp)
+
+    def populate_tf_resource_module(self, spec: ExternalResourceSpec):
+        account = spec.provisioner_name
+        identifier = spec.identifier
+        values = self.init_values(spec, init_tags=False)
+        values.pop("identifier")
+
+        tf_resources: list[Resource] = []
+        self.init_common_outputs(tf_resources, spec)
+
+        module_spec = values.pop("module")
+        url: str = module_spec["url"]
+        path: str = module_spec["path"]
+        ref: str = module_spec["ref"]
+
+        self.init_gitlab()
+        self.init_github()
+        if self.gitlab and url.startswith(self.gitlab.server):
+            ssl_verify = self.gitlab.ssl_verify
+            token = self.gitlab.token
+        else:
+            ssl_verify = True
+            token = self.token
+
+        wd = os.path.join(self.working_dirs[account], identifier)
+        git.clone(
+            url,
+            wd,
+            ref=ref,
+            depth=1,
+            verify=ssl_verify,
+            token=token,
+        )
+
+        values["source"] = os.path.join(wd, path)
+        module = Module(identifier, **values)
+        tf_resources.append(module)
+
+        # TODO for each module output create terrascript output
+
+        self.add_resources(account, tf_resources)
