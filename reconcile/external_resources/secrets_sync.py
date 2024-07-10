@@ -52,7 +52,7 @@ class VaultSecret(BaseModel):
 class SecretHelper:
     @staticmethod
     def get_comparable_secret(resource: OpenshiftResource) -> OpenshiftResource:
-        metadata = {k: v for k, v in resource.body["metadata"].items()}
+        metadata = dict(resource.body["metadata"].items())
         metadata["annotations"] = {
             k: v
             for k, v in metadata.get("annotations", {}).items()
@@ -177,7 +177,7 @@ class SecretsReconciler:
         """
         self._populate_secret_data(specs)
 
-        to_sync_specs = [spec for spec in self._specs_with_secret(specs)]
+        to_sync_specs = list(self._specs_with_secret(specs))
         ocmap = self._init_ocmap(to_sync_specs)
 
         for spec in to_sync_specs:

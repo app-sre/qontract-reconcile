@@ -342,7 +342,7 @@ def test_get_service_clusters_empty(mocker: MockFixture) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
     ocm.get_paginated.return_value = []
 
-    service_clusters = [cluster for cluster in get_service_clusters(ocm_api=ocm)]
+    service_clusters = list(get_service_clusters(ocm_api=ocm))
 
     assert service_clusters == []
 
@@ -373,6 +373,6 @@ def test_get_service_clusters_no_provision_shard(mocker: MockFixture) -> None:
 
     ocm.get_paginated.return_value = [data_a, data_b]
 
-    service_clusters = [cluster for cluster in get_service_clusters(ocm_api=ocm)]
+    service_clusters = list(get_service_clusters(ocm_api=ocm))
 
     assert service_clusters == [cluster_a]

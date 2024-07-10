@@ -26,6 +26,8 @@ extend-select = [
     "SIM",
     # flake8-bugbear
     "B",
+    # flake8-comprehensions
+    "C4",
 
 ]
 ignore = [

@@ -58,7 +58,7 @@ def test_utils_get_manifests(
 
     response = manifests.get_manifests(ocm_client=ocm_api, cluster_id=cluster_id)
 
-    assert [item for item in response] == [manifest_a, manifest_b]
+    assert list(response) == [manifest_a, manifest_b]
 
     get_manifests_call.assert_called_once_with(
         ocm_client=ocm_api, cluster_id=cluster_id

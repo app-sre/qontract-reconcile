@@ -528,12 +528,12 @@ def run(
         defer(tf.cleanup)
     if print_to_file:
         return
-    runner_params: RunnerParams = dict(
-        terraform_client=tf,
-        terrascript_client=ts,
-        enable_deletion=enable_deletion,
-        dry_run=dry_run,
-    )
+    runner_params: RunnerParams = {
+        "terraform_client": tf,
+        "terrascript_client": ts,
+        "enable_deletion": enable_deletion,
+        "dry_run": dry_run,
+    }
     if enable_extended_early_exit and get_feature_toggle_state(
         "terraform-tgw-attachments-extended-early-exit",
         default=False,

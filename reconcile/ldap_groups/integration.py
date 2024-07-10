@@ -143,7 +143,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
     def get_roles(self, query_func: Callable) -> list[RoleV1]:
         """Return the roles with ldap_group set."""
         data = roles_query(query_func, variables={})
-        roles = [role for role in data.roles or []]
+        roles = list(data.roles or [])
         if duplicates := find_duplicates(
             role.ldap_group.name for role in roles if role.ldap_group
         ):

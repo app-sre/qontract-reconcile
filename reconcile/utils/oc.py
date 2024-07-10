@@ -1276,13 +1276,13 @@ class OCNative(OCCli):
 
     @retry(exceptions=(ServerTimeoutError, InternalServerError, ForbiddenError))
     def _get_client(self, server, token):
-        opts = dict(
-            api_key={"authorization": f"Bearer {token}"},
-            host=server,
-            verify_ssl=False,
+        opts = {
+            "api_key": {"authorization": f"Bearer {token}"},
+            "host": server,
+            "verify_ssl": False,
             # default timeout seems to be 1+ minutes
-            retries=5,
-        )
+            "retries": 5,
+        }
         if self.jump_host:
             # the ports could be parameterized, but at this point
             # we only have need of 1 tunnel for 1 service
@@ -1839,17 +1839,14 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
             ]
         # If there are multiple matches, prefer non-List kinds
         if len(results) > 1 and not all(  # pylint: disable=R1729
-            [isinstance(x, ResourceList) for x in results]
+            isinstance(x, ResourceList) for x in results
         ):
             results = [
                 result for result in results if not isinstance(result, ResourceList)
             ]
         # if multiple resources are found that share a GVK, prefer the one with the most supported verbs
-        if (
-            len(results) > 1
-            and len(set((x.group_version, x.kind) for x in results)) == 1
-        ):
-            if len(set(len(x.verbs) for x in results)) != 1:
+        if len(results) > 1 and len({(x.group_version, x.kind) for x in results}) == 1:
+            if len({len(x.verbs) for x in results}) != 1:
                 results = [max(results, key=lambda x: len(x.verbs))]
         if len(results) == 1:
             return results[0]

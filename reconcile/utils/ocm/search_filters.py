@@ -56,7 +56,7 @@ class ListCondition(ABC, FilterCondition):
             raise InvalidFilterError(f"Cannot merge {self} with {other}")
         return type(self)(
             key=self.key,
-            values=sorted(list(set(self.values + other.values))),
+            values=sorted(set(self.values + other.values)),
         )
 
 
@@ -72,9 +72,7 @@ class EqCondition(ListCondition):
     def render(self) -> str:
         if len(self.values) == 1:
             return f"{self.key}='{self._escape_value(self.values[0])}'"
-        quoted_values = ",".join(
-            map(lambda x: f"'{self._escape_value(x)}'", self.values)
-        )
+        quoted_values = ",".join(f"'{self._escape_value(x)}'" for x in self.values)
         return f"{self.key} in ({quoted_values})"
 
     def _escape_value(self, value: Any) -> str:
@@ -93,9 +91,7 @@ class LikeCondition(ListCondition):
     def render(self) -> str:
         if len(self.values) == 1:
             return f"{self.key} like '{self.values[0]}'"
-        quoted_values = " or ".join(
-            map(lambda x: f"{self.key} like '{x}'", self.values)
-        )
+        quoted_values = " or ".join(f"{self.key} like '{x}'" for x in self.values)
         if len(self.values) > 1:
             return f"({quoted_values})"
         return quoted_values

@@ -686,11 +686,11 @@ def run(
     if defer:
         defer(tf.cleanup)
 
-    runner_params: RunnerParams = dict(
-        tf=tf,
-        dry_run=dry_run,
-        enable_deletion=enable_deletion,
-    )
+    runner_params: RunnerParams = {
+        "tf": tf,
+        "dry_run": dry_run,
+        "enable_deletion": enable_deletion,
+    }
 
     if enable_extended_early_exit and get_feature_toggle_state(
         "terraform-vpc-peerings-extended-early-exit",

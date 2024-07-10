@@ -698,11 +698,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return namespaces
 
     def _collect_repo_urls(self) -> set[str]:
-        return set(
+        return {
             rt.url
             for saas_file in self.saas_files
             for rt in saas_file.resource_templates
-        )
+        }
 
     @staticmethod
     def _get_file_contents_github(repo: Repository, path: str, commit_sha: str) -> str:

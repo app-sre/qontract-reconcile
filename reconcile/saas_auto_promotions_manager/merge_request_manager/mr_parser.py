@@ -202,7 +202,7 @@ class MRParser:
             is_batchable_str = self._apply_regex(
                 pattern=self._is_batchable_regex, promotion_data=promotion_data
             )
-            if is_batchable_str not in set(["True", "False"]):
+            if is_batchable_str not in {"True", "False"}:
                 logging.info(
                     "Bad %s format. Closing %s",
                     IS_BATCHABLE,

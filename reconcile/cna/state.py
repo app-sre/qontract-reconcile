@@ -36,10 +36,10 @@ class State:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, State):
             return False
-        if not set(list(self._assets.keys())) == set(list(other._assets.keys())):
+        if not set(self._assets.keys()) == set(other._assets.keys()):
             return False
         for kind in list(self._assets.keys()):
-            if not set(list(self._assets[kind])) == set(list(other._assets[kind])):
+            if not set(self._assets[kind]) == set(other._assets[kind]):
                 return False
             for name, asset in self._assets[kind].items():
                 if asset != other._assets[kind][name]:

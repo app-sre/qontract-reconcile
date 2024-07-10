@@ -560,7 +560,7 @@ def _update_usergroup_users_from_state(
             desired_ug_state.user_names
         ).items()
     ]
-    active_user_names = set(s.name for s in slack_user_objects)
+    active_user_names = {s.name for s in slack_user_objects}
 
     if len(active_user_names) != len(desired_ug_state.user_names):
         logging.info(
@@ -804,14 +804,14 @@ def run(
     # merge the two desired states recursively
     desired_state = deep_update(desired_state, desired_state_cluster_usergroups)
 
-    runner_params: RunnerParams = dict(
-        dry_run=dry_run,
-        slack_map=slack_map,
-        desired_state=desired_state,
-        clusters=clusters,
-        workspace_name=workspace_name,
-        usergroup_name=usergroup_name,
-    )
+    runner_params: RunnerParams = {
+        "dry_run": dry_run,
+        "slack_map": slack_map,
+        "desired_state": desired_state,
+        "clusters": clusters,
+        "workspace_name": workspace_name,
+        "usergroup_name": usergroup_name,
+    }
 
     if enable_extended_early_exit:
         extended_early_exit_run(
