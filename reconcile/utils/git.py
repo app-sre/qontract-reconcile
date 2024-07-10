@@ -6,17 +6,31 @@ class GitError(Exception):
     pass
 
 
-def clone(repo_url, wd, depth=None, verify=True):
+def clone(
+    repo_url: str,
+    wd: str,
+    depth: int | None = None,
+    verify: bool | None = True,
+    ref: str | None = None,
+    token: str | None = None,
+):
     cmd = ["git"]
     if not verify:
         cmd += ["-c", "http.sslVerify=false"]
     cmd += ["clone"]
     if depth:
         cmd += ["--depth", str(depth)]
-    cmd += [repo_url, wd]
+    if ref:
+        cmd += ["--branch", ref]
+    if token:
+        cmd.append(repo_url.replace("https://", f"https://{token}@"))
+    else:
+        cmd.append(repo_url)
+    cmd += [wd]
+    os.makedirs(wd, exist_ok=True)
     result = subprocess.run(cmd, cwd=wd, capture_output=True, check=False)
     if result.returncode != 0:
-        raise GitError(f"git clone failed: {repo_url}")
+        raise GitError(f"git clone failed: {repo_url}: {result}")
 
 
 def checkout(commit, wd):

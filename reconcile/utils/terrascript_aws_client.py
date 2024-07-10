@@ -151,7 +151,7 @@ from reconcile.gql_definitions.fragments.aws_vpc_request import (
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
 )
-from reconcile.utils import gql
+from reconcile.utils import git, gql
 from reconcile.utils.aws_api import (
     AmiTag,
     AWSApi,
@@ -634,8 +634,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if not self.github:
             with self.github_lock:
                 if not self.github:
-                    token = get_default_config()["token"]
-                    self.github = Github(token, base_url=GH_BASE_URL)
+                    self.token = get_default_config()["token"]
+                    self.github = Github(self.token, base_url=GH_BASE_URL)
         return self.github
 
     def init_gitlab(self) -> GitLabApi:
