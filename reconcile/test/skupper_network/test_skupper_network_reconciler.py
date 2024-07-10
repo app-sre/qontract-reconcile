@@ -64,9 +64,12 @@ def test_skupper_network_reconciler_get_token(
     fake_site_configmap: dict[str, Any],
 ) -> None:
     oc.get.return_value = fake_site_configmap
-    reconciler._get_token(
-        oc_map, skupper_sites[0], name=fake_site_configmap["metadata"]["name"]
-    ) == fake_site_configmap
+    assert (
+        reconciler._get_token(
+            oc_map, skupper_sites[0], name=fake_site_configmap["metadata"]["name"]
+        )
+        == fake_site_configmap
+    )
 
 
 @pytest.mark.parametrize("dry_run", [True, False])

@@ -102,7 +102,6 @@ class SaasFilesInventory:
                     soak_days = (
                         target.promotion.soak_days if target.promotion.soak_days else 0
                     )
-                    resource_template.url
                     subscriber = Subscriber(
                         uid=target.uid(
                             parent_saas_file_name=saas_file.name,
