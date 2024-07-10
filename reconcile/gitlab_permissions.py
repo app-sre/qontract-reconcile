@@ -85,7 +85,11 @@ def share_project_with_group_members(
 
 def share_project_with_group(gl: GitLabApi, repos: list[str], dry_run: bool) -> None:
     # get repos not owned by app-sre
-    non_app_sre_project_repos = {repo for repo in repos if "/app-sre/" not in repo}
+    non_app_sre_project_repos = {
+        repo
+        for repo in repos
+        if not gl.is_group_project_owner(group_name=APP_SRE_GROUP_NAME, repo_url=repo)
+    }
     desired_state = {
         project_repo_url: GroupSpec(APP_SRE_GROUP_NAME, MAINTAINER_ACCESS)
         for project_repo_url in non_app_sre_project_repos

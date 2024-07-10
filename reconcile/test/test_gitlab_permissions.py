@@ -53,6 +53,7 @@ def test_run_share_with_group(
         1234,
         {"https://test.com": {"group_access_level": 30, "group_name": "app-sre"}},
     )
+    mocked_gl.is_group_project_owner.return_value = False
     gitlab_permissions.run(False, thread_pool_size=1)
     mocked_gl.share_project_with_group.assert_called_once_with(
         repo_url="https://test-gitlab.com", group_id=1234, dry_run=False
@@ -75,6 +76,7 @@ def test_run_reshare_with_group(
             }
         },
     )
+    mocked_gl.is_group_project_owner.return_value = False
     gitlab_permissions.run(False, thread_pool_size=1)
     mocked_gl.share_project_with_group.assert_called_once_with(
         repo_url="https://test-gitlab.com", group_id=1234, dry_run=False, reshare=True
