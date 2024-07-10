@@ -4076,9 +4076,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         :return: key is AWS account name and value is directory location
         """
         if existing_dirs is None:
-            working_dirs: dict[str, str] = {}
+            self.working_dirs: dict[str, str] = {}
         else:
-            working_dirs = existing_dirs
+            self.working_dirs = existing_dirs
 
         if print_to_file:
             if is_file_in_git_repo(print_to_file):
@@ -4096,12 +4096,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if existing_dirs is None:
                 wd = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
             else:
-                wd = working_dirs[name]
+                wd = self.working_dirs[name]
             with open(wd + "/config.tf.json", "w", encoding="locale") as f:
                 f.write(content)
-            working_dirs[name] = wd
+            self.working_dirs[name] = wd
 
-        return working_dirs
+        return self.working_dirs
 
     def terraform_configurations(self) -> dict[str, str]:
         """
