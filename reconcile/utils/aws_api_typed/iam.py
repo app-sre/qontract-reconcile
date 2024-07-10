@@ -41,7 +41,9 @@ class AWSApiIam:
             user = self.client.create_user(UserName=user_name)
             return AWSUser(**user["User"])
         except self.client.exceptions.EntityAlreadyExistsException:
-            raise AWSEntityAlreadyExistsException(f"User {user_name} already exists")
+            raise AWSEntityAlreadyExistsException(
+                f"User {user_name} already exists"
+            ) from None
 
     def attach_user_policy(self, user_name: str, policy_arn: str) -> None:
         """Attach a policy to a user."""
@@ -62,4 +64,4 @@ class AWSApiIam:
             if self.get_account_alias() != account_alias:
                 raise ValueError(
                     "Account alias already exists for another AWS account. Choose another one!"
-                )
+                ) from None

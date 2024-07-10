@@ -179,7 +179,9 @@ class OpenshiftResource:
     @staticmethod
     def ignorable_key_value_pair(key, val):
         ignorable_key_value_pair = {"annotations": None, "divisor": "0"}
-        return bool(key in ignorable_key_value_pair and ignorable_key_value_pair[key] == val)
+        return bool(
+            key in ignorable_key_value_pair and ignorable_key_value_pair[key] == val
+        )
 
     @staticmethod
     def cpu_equal(val1, val2):
@@ -234,11 +236,11 @@ class OpenshiftResource:
 
     def verify_valid_k8s_object(self):
         try:
-            self.name  # pylint: disable=pointless-statement
-            self.kind  # pylint: disable=pointless-statement
+            assert self.name
+            assert self.kind
         except (KeyError, TypeError) as e:
             msg = f"resource invalid data ({e.__class__.__name__}). details: {self.error_details}"
-            raise ConstructResourceError(msg)
+            raise ConstructResourceError(msg) from None
 
         if self.kind not in {
             "Role",

@@ -1058,7 +1058,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         except KeyError:
                             msg = f"Key '{rec['key']}' was not found in the contents of secret '{rec['path']}'"
                             logging.error(msg)
-                            raise KeyError(msg)
+                            raise KeyError(msg) from None
                     vault_values.append(value)
                 record["records"] = vault_values
 
@@ -4232,7 +4232,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         try:
             raw_values = gqlapi.get_resource(path)
         except gql.GqlGetResourceError as e:
-            raise FetchResourceError(str(e))
+            raise FetchResourceError(str(e)) from e
         return raw_values
 
     def get_values(self, path: str) -> dict[str, Any]:
@@ -4242,7 +4242,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             values.pop("$schema", None)
         except anymarkup.AnyMarkupError:
             e_msg = "Could not parse data. Skipping resource: {}"
-            raise FetchResourceError(e_msg.format(path))
+            raise FetchResourceError(e_msg.format(path)) from None
         return values
 
     @staticmethod
@@ -5703,7 +5703,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             except ClientError as details:
                 raise StateInaccessibleException(
                     f"Bucket {bucket_name} is not accessible - {str(details)}"
-                )
+                ) from None
 
             # todo: probably remove 'RedHat' from the object/variable/filepath
             # names to keep the code RedHat-agnostic?

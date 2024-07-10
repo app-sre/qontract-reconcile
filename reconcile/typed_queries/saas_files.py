@@ -235,7 +235,7 @@ class SaasFileList:
                 except JsonPathParserError as e:
                     raise ParameterError(
                         f"Invalid jsonpath expression in namespaceSelector '{selector}' :{e}"
-                    )
+                    ) from None
 
         return self._matching_namespaces_cache[selector]
 

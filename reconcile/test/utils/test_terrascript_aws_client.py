@@ -297,7 +297,7 @@ def test_get_asg_image_id(mocker, ts: tsclient.TerrascriptClient):
 
 class MockProjectCommit:
     def __init__(self, id):
-        setattr(self, "id", id)
+        self.id = id
 
 
 @pytest.mark.parametrize(

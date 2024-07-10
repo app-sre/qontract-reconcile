@@ -175,7 +175,9 @@ class TerraformRepoIntegration(
                         explicit_start=True,
                     )
             except FileNotFoundError:
-                raise ParameterError(f"Unable to write to '{self.params.output_file}'")
+                raise ParameterError(
+                    f"Unable to write to '{self.params.output_file}'"
+                ) from None
         else:
             print(yaml.safe_dump(data=output.dict(), explicit_start=True))
 
@@ -231,7 +233,7 @@ class TerraformRepoIntegration(
             except (KeyError, AttributeError):
                 raise ParameterError(
                     f'Invalid ref: "{ref}" on repo: "{repo_url}". Or the project repo is not reachable'
-                )
+                ) from None
 
     def merge_results(
         self,

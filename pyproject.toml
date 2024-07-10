@@ -22,8 +22,10 @@ extend-select = [
     "PL",
     # pyupgrade
     "UP",
-    # simply
+    # flake8-simply
     "SIM",
+    # flake8-bugbear
+    "B",
 
 ]
 ignore = [

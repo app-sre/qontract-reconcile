@@ -173,7 +173,7 @@ class ResourceValueResolver:
             values.pop("$schema", None)
         except anymarkup.AnyMarkupError:
             e_msg = "Could not parse data. Skipping resource: {}"
-            raise FetchResourceError(e_msg.format(path))
+            raise FetchResourceError(e_msg.format(path)) from None
         return values
 
     @staticmethod
@@ -182,7 +182,7 @@ class ResourceValueResolver:
         try:
             raw_values = gqlapi.get_resource(path)
         except gql.GqlGetResourceError as e:
-            raise FetchResourceError(str(e))
+            raise FetchResourceError(str(e)) from e
         return raw_values
 
     @staticmethod

@@ -1134,7 +1134,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         try:
             out_json = json.loads(out)
         except ValueError as e:
-            raise JSONParsingError(out + "\n" + str(e))
+            raise JSONParsingError(out + "\n" + str(e)) from e
 
         return out_json
 
@@ -1303,7 +1303,7 @@ class OCNative(OCCli):
         try:
             return DynamicClient(k8s_client, discoverer=OpenshiftLazyDiscoverer)
         except urllib3.exceptions.MaxRetryError as e:
-            raise StatusCodeError(f"[{self.server}]: {e}")
+            raise StatusCodeError(f"[{self.server}]: {e}") from None
 
     def _get_obj_client(self, kind, group_version):
         key = f"{kind}.{group_version}"
@@ -1376,7 +1376,7 @@ class OCNative(OCCli):
         except NotFoundError as e:
             if allow_not_found:
                 return {}
-            raise StatusCodeError(f"[{self.server}]: {e}")
+            raise StatusCodeError(f"[{self.server}]: {e}") from None
 
     def get_all(self, kind, all_namespaces=False):
         k, group_version = self._parse_kind(kind)
@@ -1384,7 +1384,7 @@ class OCNative(OCCli):
         try:
             return obj_client.get(_request_timeout=REQUEST_TIMEOUT).to_dict()
         except NotFoundError as e:
-            raise StatusCodeError(f"[{self.server}]: {e}")
+            raise StatusCodeError(f"[{self.server}]: {e}") from None
 
 
 OCClient = OCNative | OCCli

@@ -1360,8 +1360,9 @@ def aggregate_shared_resources_typed(
         case HasOpenshiftServiceAccountTokensAndSharedResources():
             shared_type_resources_items = []
             for ost_shared_resources_item in namespace.shared_resources:
-                if shared_type_resources := getattr(
-                    ost_shared_resources_item, "openshift_service_account_tokens"
+                if (
+                    shared_type_resources
+                    := ost_shared_resources_item.openshift_service_account_tokens
                 ):
                     shared_type_resources_items.extend(shared_type_resources)
             if namespace.openshift_service_account_tokens:
@@ -1373,8 +1374,9 @@ def aggregate_shared_resources_typed(
         case HasOpenShiftResourcesAndSharedResources():
             shared_type_resources_items = []
             for or_shared_resources_item in namespace.shared_resources:
-                if shared_type_resources := getattr(
-                    or_shared_resources_item, "openshift_resources"
+                if (
+                    shared_type_resources
+                    := or_shared_resources_item.openshift_resources
                 ):
                     shared_type_resources_items.extend(shared_type_resources)
             if namespace.openshift_resources:
@@ -1414,7 +1416,7 @@ def determine_user_keys_for_access(
         except KeyError:
             raise NotImplementedError(
                 f"[{cluster_name}] auth service not implemented: {service}"
-            )
+            ) from None
     return user_keys
 
 

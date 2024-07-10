@@ -33,7 +33,9 @@ class ImapClient:
         try:
             config = {k: data[k] for k in required_keys}
         except KeyError as e:
-            raise Exception(f"Missing expected IMAP config key in vault secret: {e}")
+            raise Exception(
+                f"Missing expected IMAP config key in vault secret: {e}"
+            ) from None
         return config
 
     def get_mails(

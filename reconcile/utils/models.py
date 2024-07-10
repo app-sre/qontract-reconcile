@@ -120,4 +120,4 @@ def cron_validator(value: str) -> str:
         croniter(value)
         return value
     except ValueError as e:
-        raise ValueError(f"Invalid cron expression: {e}")
+        raise ValueError(f"Invalid cron expression: {e}") from None
