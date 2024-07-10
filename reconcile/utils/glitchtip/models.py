@@ -86,7 +86,7 @@ class RecipientType(Enum):
 
 
 class ProjectAlertRecipient(BaseModel):
-    pk: int | None
+    pk: int | None = Field(None, alias="id")
     recipient_type: RecipientType = Field(..., alias="recipientType")
     url: str = ""
 
@@ -115,9 +115,9 @@ class ProjectAlertRecipient(BaseModel):
 
 
 class ProjectAlert(BaseModel):
-    pk: int | None
+    pk: int | None = Field(None, alias="id")
     name: str
-    timespan_minutes: int
+    timespan_minutes: int = Field(..., alias="timespanMinutes")
     quantity: int
     recipients: list[ProjectAlertRecipient] = Field([], alias="alertRecipients")
 
