@@ -92,7 +92,7 @@ class AggregatedDiffRunner:
         self.actions = []
 
     def register(self, on, action, cond=None):
-        if on not in self.diff.keys():
+        if on not in self.diff:
             raise Exception(f"Unknown diff key for 'on': {on}")
         self.actions.append((on, action, cond))
 

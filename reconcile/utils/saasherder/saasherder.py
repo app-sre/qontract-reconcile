@@ -1189,8 +1189,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         creds = self.secret_reader.read_all_secret(saas_file.authentication.image)
         required_docker_config_keys = [".dockerconfigjson"]
         required_keys_basic_auth = ["user", "token"]
-        ok = all(k in creds.keys() for k in required_keys_basic_auth) or all(
-            k in creds.keys() for k in required_docker_config_keys
+        ok = all(k in creds for k in required_keys_basic_auth) or all(
+            k in creds for k in required_docker_config_keys
         )
         if not ok:
             logging.warning(

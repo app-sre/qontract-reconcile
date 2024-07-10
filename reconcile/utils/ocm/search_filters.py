@@ -284,10 +284,7 @@ class Filter:
         are None or empty, the condition is not added.
         """
         if values:
-            if isinstance(values, list):
-                value_list = values
-            else:
-                value_list = list(values)
+            value_list = values if isinstance(values, list) else list(values)
             value_list.sort()
             return self.add_condition(EqCondition(key, value_list))
         return self

@@ -2799,7 +2799,7 @@ def jenkins_jobs(ctx):
 
             for pj in project["jobs"]:
                 for job in pj.values():
-                    node = job["node"] if "node" in job else root_node
+                    node = job.get("node", root_node)
                     if node in {"rhel8", "rhel8-app-interface"}:
                         apps[app_name]["rhel8"] += 1
                         totals["rhel8"] += 1

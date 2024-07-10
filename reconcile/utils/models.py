@@ -94,10 +94,7 @@ class CSV(list[str]):
 
     @classmethod
     def validate(cls, value: str) -> list[str]:
-        if not value:
-            items = []
-        else:
-            items = value.split(",")
+        items = [] if not value else value.split(",")
         return items
 
     @classmethod

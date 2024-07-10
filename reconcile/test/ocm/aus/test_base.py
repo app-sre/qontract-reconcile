@@ -254,7 +254,7 @@ def test_upgradeable_version_no_block(cluster_1: OCMCluster) -> None:
         upgradePolicy=build_upgrade_policy(workloads=["workload1"], soak_days=0),
         health=build_healthy_cluster_health(),
     )
-    assert "4.12.19" == base.upgradeable_version(upgrade_spec, VersionData(), None)
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) == "4.12.19"
 
 
 #
@@ -280,7 +280,7 @@ def test_sorted_version() -> None:
             ),
         ],
     )
-    assert ["cluster1", "cluster2", "cluster3"] == [s.cluster.name for s in org.specs]
+    assert [s.cluster.name for s in org.specs] == ["cluster1", "cluster2", "cluster3"]
 
 
 def test_sorted_soakdays() -> None:
@@ -301,7 +301,7 @@ def test_sorted_soakdays() -> None:
             ),
         ],
     )
-    assert ["cluster1", "cluster2", "cluster3"] == [s.cluster.name for s in org.specs]
+    assert [s.cluster.name for s in org.specs] == ["cluster1", "cluster2", "cluster3"]
 
 
 def test_sorted_version_soakdays() -> None:
@@ -328,8 +328,11 @@ def test_sorted_version_soakdays() -> None:
             ),
         ],
     )
-    assert ["cluster11", "cluster12", "cluster21", "cluster22"] == [
-        s.cluster.name for s in org.specs
+    assert [s.cluster.name for s in org.specs] == [
+        "cluster11",
+        "cluster12",
+        "cluster21",
+        "cluster22",
     ]
 
 

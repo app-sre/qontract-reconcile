@@ -13,7 +13,7 @@ class SQSGateway:
     """Wrapper around SQS AWS SDK"""
 
     def __init__(self, accounts, secret_reader: SecretReader):
-        queue_url = os.environ.get("gitlab_pr_submitter_queue_url")
+        queue_url = os.environ.get("gitlab_pr_submitter_queue_url")  # noqa: SIM112
         if not queue_url:
             raise SQSGatewayInitError(
                 "when /app-interface/app-interface-settings-1.yml#mergeRequestGateway "

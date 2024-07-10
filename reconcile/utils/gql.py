@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import textwrap
 import threading
@@ -44,10 +45,8 @@ def capture_and_forget(error):
     :type error: Exception
     """
 
-    try:
+    with contextlib.suppress(Exception):
         capture_exception(error)
-    except Exception:
-        pass
 
 
 class GqlApiError(Exception):

@@ -850,7 +850,7 @@ def apply_action(
             resource=resource,
             wait_for_namespace=options.wait_for_namespace,
             recycle_pods=options.recycle_pods,
-            privileged=True if options.privileged else False,
+            privileged=bool(options.privileged),
         )
 
     except StatusCodeError as e:
@@ -884,8 +884,8 @@ def delete_action(
             namespace=namespace,
             resource_type=resource_type,
             name=resource_name,
-            enable_deletion=True if options.enable_deletion else False,
-            privileged=True if options.privileged else False,
+            enable_deletion=bool(options.enable_deletion),
+            privileged=bool(options.privileged),
         )
     except StatusCodeError as e:
         ri.register_error()
@@ -938,9 +938,10 @@ def _realize_resource_data_3way_diff(
         logging.error(msg)
         return actions
 
-    options.enable_deletion = False if ri.has_error_registered() else True
+    # don't delete resources if there are errors
+    options.enable_deletion = not ri.has_error_registered()
     # only allow to override enable_deletion if no errors were found
-    if options.enable_deletion is True and options.override_enable_deletion is False:
+    if options.enable_deletion and options.override_enable_deletion is False:
         options.enable_deletion = False
 
     diff_result = differ.diff_mappings(
@@ -1405,10 +1406,7 @@ def determine_user_keys_for_access(
         return ["github_username"]
 
     for auth in auth_list:
-        if isinstance(auth, HasService):
-            service = auth.service
-        else:
-            service = auth["service"]
+        service = auth.service if isinstance(auth, HasService) else auth["service"]
         try:
             if AUTH_METHOD_USER_KEY[service] in user_keys:
                 continue

@@ -284,7 +284,7 @@ class TerraformRepoIntegration(
                 # state.add already performs a json.dumps(key) so we export the
                 # pydantic model as a dict to avoid a double json dump with extra quotes
                 state.add(add_key, add_val.dict(by_alias=True), force=True)
-            for delete_key in diff_result.delete.keys():
+            for delete_key in diff_result.delete:
                 state.rm(delete_key)
             for change_key, change_val in diff_result.change.items():
                 if change_val.desired.delete:

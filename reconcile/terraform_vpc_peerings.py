@@ -44,7 +44,7 @@ def find_matching_peering(
     peering_info = to_cluster["peering"]
     peer_connections = peering_info["connections"]
     for peer_connection in peer_connections:
-        if not peer_connection["provider"] == desired_provider:
+        if peer_connection["provider"] != desired_provider:
             continue
         if not peer_connection["cluster"]:
             continue
@@ -318,7 +318,7 @@ def build_desired_state_vpc_mesh_single_cluster(
     for peer_connection in peer_connections:
         # We only care about account-vpc-mesh peering providers
         peer_connection_provider = peer_connection["provider"]
-        if not peer_connection_provider == "account-vpc-mesh":
+        if peer_connection_provider != "account-vpc-mesh":
             continue
         # filter on account
         account = peer_connection["account"]
@@ -443,7 +443,7 @@ def build_desired_state_vpc_single_cluster(
     for peer_connection in peer_connections:
         # We only care about account-vpc peering providers
         peer_connection_provider = peer_connection["provider"]
-        if not peer_connection_provider == "account-vpc":
+        if peer_connection_provider != "account-vpc":
             continue
         # requester is the cluster's AWS account
         requester = {

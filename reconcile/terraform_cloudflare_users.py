@@ -1,3 +1,4 @@
+import contextlib
 from collections.abc import (
     Iterable,
     Mapping,
@@ -264,10 +265,8 @@ class TerraformCloudflareUsers(
                 False,
             )
 
-            try:
+            with contextlib.suppress(ClientAlreadyRegisteredError):
                 cf_clients.register_client(cf_account.name, client)
-            except ClientAlreadyRegisteredError:
-                pass
 
         return cf_clients
 

@@ -70,7 +70,7 @@ class VCS:
         self._allow_opening_mrs = allow_opening_mrs
         self._secret_reader = secret_reader
         self._gh_per_repo_url: dict[str, GithubRepositoryApi] = (
-            {} if not github_api_per_repo_url else github_api_per_repo_url
+            github_api_per_repo_url if github_api_per_repo_url else {}
         )
         self._default_gh_token = (
             default_gh_token

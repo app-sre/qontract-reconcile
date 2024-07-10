@@ -239,10 +239,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_project_maintainers(
         self, repo_url: str | None = None, query: dict | None = None
     ) -> list[str] | None:
-        if repo_url is None:
-            project = self.project
-        else:
-            project = self.get_project(repo_url)
+        project = self.project if repo_url is None else self.get_project(repo_url)
         if project is None:
             return None
         if query:

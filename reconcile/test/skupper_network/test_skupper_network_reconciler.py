@@ -207,11 +207,7 @@ def test_skupper_network_reconciler_connect_sites(
         assert transfer_token.call_count == 0
         assert create_token.call_count == 0
         assert get_token.call_count == 0
-    elif local_token:
-        assert transfer_token.call_count == 0
-        assert create_token.call_count == 0
-        assert get_token.call_count == 1
-    elif not local_token and not remote_site_exists:
+    elif local_token or not local_token and not remote_site_exists:
         assert transfer_token.call_count == 0
         assert create_token.call_count == 0
         assert get_token.call_count == 1
@@ -284,9 +280,7 @@ def test_skupper_network_reconciler_delete_unused_tokens(
         oc_map,
         dry_run=dry_run,
     )
-    if dry_run:
-        assert oc.delete.call_count == 0
-    elif not token_secrets:
+    if dry_run or not token_secrets:
         assert oc.delete.call_count == 0
     else:
         assert oc.delete.call_count == expected_deletion_count

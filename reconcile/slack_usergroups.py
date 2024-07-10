@@ -768,7 +768,7 @@ def run(
 
     gqlapi = gql.get_api()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
-    init_users = False if usergroup_name else True
+    init_users = not usergroup_name
 
     # queries
     permissions = get_permissions(query_func=gqlapi.query)

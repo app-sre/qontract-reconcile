@@ -78,7 +78,7 @@ class MRParser:
             attrs = mr.attributes
             desc = str(attrs.get("description", ""))
             parts = desc.split(PROMOTION_DATA_SEPARATOR)
-            if not len(parts) == 2:
+            if len(parts) != 2:
                 logging.info(
                     "Bad data separator format. Closing %s",
                     mr.attributes.get("web_url", "NO_WEBURL"),

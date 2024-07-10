@@ -585,7 +585,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                         secret_copy["db.password"] = replica_src_password
 
             # clean metadata
-            for key in secret.keys():
+            for key in secret:
                 if integration_prefix in key:
                     secret_copy.pop(key)
 

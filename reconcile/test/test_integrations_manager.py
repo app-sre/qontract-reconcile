@@ -76,7 +76,7 @@ def test_collect_parameters() -> None:
             }
         ]
     }
-    os.environ["tplt_param"] = "override"
+    os.environ["TPLT_PARAM"] = "override"
     environment = EnvironmentV1(name="e", parameters='{"env_param": "test"}')
 
     parameters = intop.collect_parameters(template, environment, "", "", None)
@@ -113,7 +113,7 @@ def test_collect_parameters_os_env_strongest() -> None:
             }
         ]
     }
-    os.environ["env_param"] = "strongest"
+    os.environ["ENV_PARAM"] = "strongest"
     environment = EnvironmentV1(name="env", parameters='{"env_param": "override"}')
     parameters = intop.collect_parameters(template, environment, "", "", None)
     expected = {
@@ -487,19 +487,19 @@ def shard_manager(
 def test_shard_manager_aws_account_filtering(
     aws_account_sharding_strategy: AWSAccountShardingStrategy,
 ) -> None:
-    assert ["acc-1", "acc-2", "acc-3", "acc-4"] == [
+    assert [
         a.name
         for a in aws_account_sharding_strategy.filter_objects("another-integration")
-    ]
+    ] == ["acc-1", "acc-2", "acc-3", "acc-4"]
 
 
 def test_shard_manager_aws_account_filtering_disabled(
     aws_account_sharding_strategy: AWSAccountShardingStrategy,
 ) -> None:
     # acc-4 is disabled for AWS_INTEGRATION
-    assert ["acc-1", "acc-2", "acc-3"] == [
+    assert [
         a.name for a in aws_account_sharding_strategy.filter_objects(AWS_INTEGRATION)
-    ]
+    ] == ["acc-1", "acc-2", "acc-3"]
 
 
 #

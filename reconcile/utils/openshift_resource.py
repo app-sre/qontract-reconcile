@@ -1,4 +1,6 @@
+# ruff: noqa: SIM114
 import base64
+import contextlib
 import copy
 import datetime
 import hashlib
@@ -172,28 +174,20 @@ class OpenshiftResource:
             "uid",
             "fieldRef",
         ]
-        if val in ignorable_fields:
-            return True
-        return False
+        return val in ignorable_fields
 
     @staticmethod
     def ignorable_key_value_pair(key, val):
         ignorable_key_value_pair = {"annotations": None, "divisor": "0"}
-        if key in ignorable_key_value_pair and ignorable_key_value_pair[key] == val:
-            return True
-        return False
+        return bool(key in ignorable_key_value_pair and ignorable_key_value_pair[key] == val)
 
     @staticmethod
     def cpu_equal(val1, val2):
         # normalize both to string
-        try:
+        with contextlib.suppress(Exception):
             val1 = f"{int(float(val1) * 1000)}m"
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             val2 = f"{int(float(val2) * 1000)}m"
-        except Exception:
-            pass
         return val1 == val2
 
     @staticmethod
@@ -348,10 +342,7 @@ class OpenshiftResource:
             openshift_resource: new OpenshiftResource object with
                 annotations.
         """
-        if canonicalize:
-            body = self.canonicalize(self.body)
-        else:
-            body = self.body
+        body = self.canonicalize(self.body) if canonicalize else self.body
 
         sha256sum = self.calculate_sha256sum(self.serialize(body))
 

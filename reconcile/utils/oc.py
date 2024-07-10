@@ -231,14 +231,10 @@ def equal_spec_template(t1: dict, t2: dict) -> bool:
     """Compare two spec.templates."""
     t1_copy = copy.deepcopy(t1)
     t2_copy = copy.deepcopy(t2)
-    try:
+    with suppress(KeyError):
         del t1_copy["metadata"]["labels"]["pod-template-hash"]
-    except KeyError:
-        pass
-    try:
+    with suppress(KeyError):
         del t2_copy["metadata"]["labels"]["pod-template-hash"]
-    except KeyError:
-        pass
     return t1_copy == t2_copy
 
 
@@ -740,11 +736,11 @@ class OCCli:  # pylint: disable=too-many-public-methods
         cmd = ["logs", "--all-containers=true", "-n", namespace, f"job/{name}"]
         if follow:
             cmd.append("-f")
-        # pylint: disable=consider-using-with
+
         if isinstance(output, TextIOWrapper):
             output_file = output
         else:
-            output_file = open(os.path.join(output, name), "w", encoding="locale")
+            output_file = open(os.path.join(output, name), "w", encoding="locale")  # noqa: SIM115
 
         if wait_for_logs_process:
             subprocess.run(self.oc_base_cmd + cmd, stdout=output_file, check=False)
@@ -1640,10 +1636,7 @@ class OC_Map:
                 )
                 return
 
-            if self.use_jump_host:
-                jump_host = cluster_info.get("jumpHost")
-            else:
-                jump_host = None
+            jump_host = cluster_info.get("jumpHost") if self.use_jump_host else None
             if jump_host:
                 self.set_jh_ports(jump_host)
             try:

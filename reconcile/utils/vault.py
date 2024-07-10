@@ -385,10 +385,7 @@ class _VaultClient:
     def list(self, path: str) -> list[str]:
         """Returns a list of secrets in a given path."""
         kv_version = self._get_mount_version_by_secret_path(path)
-        if kv_version == 2:
-            path_list = self._list_kv2(path)
-        else:
-            path_list = self._list(path)
+        path_list = self._list_kv2(path) if kv_version == 2 else self._list(path)
 
         if not path_list:
             # path list can be None if the path does not exist

@@ -1,3 +1,5 @@
+import contextlib
+
 import pytest
 from pytest_mock import MockerFixture
 from terrascript.resource import (
@@ -458,12 +460,10 @@ def test_terraform_state_when_not_present(ts):
 def test_terraform_state_when_not_present_error(ts):
     account_name = "some-account"
     integration_name = "not-found-integration"
-    try:
+    with contextlib.suppress(ValueError):
         ts.state_bucket_for_account(
             integration_name, account_name, terraform_state_config_test_missing
         )
-    except ValueError:
-        pass
 
 
 def build_s3_spec(

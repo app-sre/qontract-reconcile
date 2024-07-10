@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import sys
 from collections.abc import (
@@ -344,10 +345,8 @@ def build_cloudflare_terraform_config_collection(
             rps,
         )
 
-        try:
+        with contextlib.suppress(ClientAlreadyRegisteredError):
             cf_clients.register_client(f"{cf_account.name}-{zone.identifier}", client)
-        except ClientAlreadyRegisteredError:
-            pass
 
     return cf_clients
 

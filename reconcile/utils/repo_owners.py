@@ -194,15 +194,9 @@ class RepoOwners:
     @staticmethod
     def _set_to_sorted_list(owners):
         approvers = owners["approvers"]
-        if approvers:
-            sorted_approvers = sorted(approvers)
-        else:
-            sorted_approvers = []
+        sorted_approvers = sorted(approvers) if approvers else []
 
         reviewers = owners["reviewers"]
-        if reviewers:
-            sorted_reviewers = sorted(reviewers)
-        else:
-            sorted_reviewers = []
+        sorted_reviewers = sorted(reviewers) if reviewers else []
 
         return {"approvers": sorted_approvers, "reviewers": sorted_reviewers}

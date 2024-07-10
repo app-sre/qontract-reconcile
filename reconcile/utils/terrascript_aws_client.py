@@ -1918,10 +1918,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if name not in self.configs:
             return False
 
-        if self.configs[name]["supportedDeploymentRegions"] is not None:
-            return True
-
-        return False
+        return self.configs[name]["supportedDeploymentRegions"] is not None
 
     def _find_resource_spec(
         self, account: str, source: str, provider: str
@@ -1949,12 +1946,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def _db_needs_auth(config):
-        if (
+        return bool(
             "replicate_source_db" not in config
             and config.get("replica_source", None) is None
-        ):
-            return True
-        return False
+        )
 
     @staticmethod
     def validate_db_name(name):
@@ -2808,10 +2803,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
 
         # iam policy for queue
-        policy_index = 0
-        for all_queues in all_queues_per_spec:
+        for policy_index, all_queues in enumerate(all_queues_per_spec):
             policy_identifier = f"{identifier}-{policy_index}"
-            policy_index += 1
             if len(all_queues_per_spec) == 1:
                 policy_identifier = identifier
             values = {}
@@ -2864,10 +2857,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         values = {}
         fifo_topic = common_values.get("fifo_topic", False)
-        if fifo_topic:
-            topic_name = identifier + (".fifo")
-        else:
-            topic_name = identifier
+        topic_name = identifier + ".fifo" if fifo_topic else identifier
 
         values["name"] = topic_name
         values["policy"] = policy
@@ -2878,7 +2868,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resource = aws_sns_topic(identifier, **values)
         tf_resources.append(tf_resource)
 
-        if "subscriptions" in common_values.keys():
+        if "subscriptions" in common_values:
             subscriptions = common_values.get("subscriptions")
             for index, sub in enumerate(subscriptions):
                 sub_values = {}
@@ -3151,7 +3141,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         values = common_values.get("distribution_config", {})
         # aws_s3_bucket_acl
-        if "logging_config" in values.keys():
+        if "logging_config" in values:
             # we could set this at a global level with a standard name like "cloudfront"
             # but we need all aws accounts upgraded to aws provider >3.60 first
             tf_resources.append(
@@ -4734,7 +4724,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(Output(output_name, value=output_value))
         # add master user creds to output and secretsmanager if internal_user_database_enabled
-        security_options = es_values.get("advanced_security_options", None)
+        security_options = es_values.get("advanced_security_options")
         if security_options and security_options.get(
             "internal_user_database_enabled", False
         ):
@@ -4985,7 +4975,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def _get_alb_rule_condition_value(condition):
         condition_type = condition["type"]
         condition_type_key = SUPPORTED_ALB_LISTENER_RULE_CONDITION_TYPE_MAPPING.get(
-            condition_type, None
+            condition_type
         )
         if condition_type_key is None:
             raise KeyError(f"unknown alb rule condition type {condition_type}")

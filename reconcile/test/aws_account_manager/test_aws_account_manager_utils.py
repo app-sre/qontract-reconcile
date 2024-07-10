@@ -54,4 +54,4 @@ def test_aws_account_manager_utils_security_contact_is_set(
 def test_aws_account_manager_utils_state_key() -> None:
     account = "account"
     task = "task"
-    assert "task.account.task" == state_key(account, task)
+    assert state_key(account, task) == "task.account.task"

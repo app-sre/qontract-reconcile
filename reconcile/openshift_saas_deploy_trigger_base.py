@@ -313,11 +313,14 @@ def _pipeline_exists(
     if isinstance(oc, OCLogMsg):
         logging.error(oc.message)
         raise RuntimeError(f"No OC client for {tkn_cluster_name}: {oc.message}")
-    if oc.get(
-        namespace=tkn_namespace_name, kind="Pipeline", name=name, allow_not_found=True
-    ):
-        return True
-    return False
+    return bool(
+        oc.get(
+            namespace=tkn_namespace_name,
+            kind="Pipeline",
+            name=name,
+            allow_not_found=True,
+        )
+    )
 
 
 def _construct_tekton_trigger_resource(
