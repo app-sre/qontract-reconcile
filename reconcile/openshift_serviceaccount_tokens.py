@@ -1,4 +1,5 @@
 import logging
+import random
 import sys
 from collections.abc import Callable, Iterable
 
@@ -32,6 +33,31 @@ def construct_sa_token_oc_resource(name: str, sa_token: str) -> OR:
     }
     return OR(
         body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=name
+    )
+
+
+def service_account_token_request(name: str) -> OR:
+    """Create a service account token secret for a given service account."""
+    body = {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "type": "kubernetes.io/service-account-token",
+        "metadata": {
+            # service-account-name-<random-number>
+            "name": f"{name}-token-{random.randrange(99999):05d}",
+            "annotations": {
+                "kubernetes.io/service-account.name": name,
+            },
+        },
+    }
+    return OR(
+        body,
+        # We are marking this token secret as "unmanaged" because we just want to create it
+        # and not manage it in the future.
+        # Openshift will delete this token secret automatically if the service account is deleted.
+        f"{QONTRACT_INTEGRATION}-unmanaged",
+        QONTRACT_INTEGRATION_VERSION,
+        error_details=name,
     )
 
 
@@ -79,17 +105,27 @@ def fetch_desired_state(
                 sa_tokens = get_tokens_for_service_account(
                     sat.service_account_name, namespace_secrets
                 )
+                if not sa_tokens:
+                    # OpenShfit 4.16+ does not automatically create service account tokens anymore so we need to create them manually.
+                    logging.info(
+                        f"[{sat.namespace.cluster.name}/{sat.namespace.name}] Creating token for service account: {sat.service_account_name}"
+                    )
+                    # Be aware: The secret won't be created by OpenShift as long as the service account doesn't exist.
+                    ri.add_desired_resource(
+                        cluster=sat.namespace.cluster.name,
+                        namespace=sat.namespace.name,
+                        resource=service_account_token_request(
+                            sat.service_account_name
+                        ),
+                    )
+                    continue
+
                 sa_tokens.sort(key=lambda t: t["metadata"]["name"])
                 # take the first token found
                 sa_token = sa_tokens[0]["data"]["token"]
             except KeyError:
                 logging.error(
                     f"[{sat.namespace.cluster.name}/{sat.namespace.name}] Token not found for service account: {sat.service_account_name}"
-                )
-                raise
-            except IndexError:
-                logging.error(
-                    f"[{sat.namespace.cluster.name}/{sat.namespace.name}] 0 Secret found for service account: {sat.service_account_name}"
                 )
                 raise
 
