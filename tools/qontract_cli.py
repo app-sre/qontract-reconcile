@@ -2729,10 +2729,13 @@ def systems_and_tools(ctx):
     print_output(ctx.obj["options"], inventory.data, inventory.columns)
 
 
-@get.command()
+@get.command(short_help="get integration logs")
 @click.argument("integration_name")
+@click.option(
+    "--environment_name", default="production", help="environment to get logs from"
+)
 @click.pass_context
-def logs(ctx, integration_name: str):
+def logs(ctx, integration_name: str, environment_name: str):
     integrations = [
         i
         for i in integrations_gql.query(query_func=gql.get_api().query).integrations
@@ -2753,10 +2756,10 @@ def logs(ctx, integration_name: str):
         m.namespace
         for m in managed
         if m.namespace.cluster.labels
-        and m.namespace.cluster.labels.get("environment") == "production"
+        and m.namespace.cluster.labels.get("environment") == environment_name
     ]
     if not namespaces:
-        print("no managed production namespace found")
+        print(f"no managed {environment_name} namespace found")
         return
     namespace = namespaces[0]
     cluster = namespaces[0].cluster
