@@ -7,11 +7,13 @@ from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.openshift_serviceaccount_tokens.tokens import NamespaceV1
 from reconcile.openshift_serviceaccount_tokens import (
+    QONTRACT_INTEGRATION,
     canonicalize_namespaces,
     construct_sa_token_oc_resource,
     fetch_desired_state,
     get_namespaces_with_serviceaccount_tokens,
     get_tokens_for_service_account,
+    service_account_token_request,
     write_outputs_to_vault,
 )
 from reconcile.test.fixtures import Fixtures
@@ -50,7 +52,19 @@ def namespaces(query_func: Callable) -> list[NamespaceV1]:
 def ri(namespaces: list[NamespaceV1]) -> ResourceInventory:
     _ri = ResourceInventory()
     _ri.initialize_resource_type(
-        cluster="cluster", namespace="namespace", resource_type="Secret"
+        cluster="cluster",
+        namespace="namespace",
+        resource_type="Secret",
+    )
+    _ri.initialize_resource_type(
+        cluster="another-cluster",
+        namespace="platform-changelog-stage",
+        resource_type="Secret",
+    )
+    _ri.initialize_resource_type(
+        cluster="another-cluster",
+        namespace="with-openshift-serviceaccount-tokens",
+        resource_type="Secret",
     )
     for ns in namespaces:
         _ri.initialize_resource_type(
@@ -226,3 +240,41 @@ def test_openshift_serviceaccount_tokens__fetch_desired_state(
             "desired"
         ]
     )
+
+
+def test_openshift_serviceaccount_tokens__fetch_desired_state_create_token(
+    mocker: MockerFixture, namespaces: list[NamespaceV1], ri: ResourceInventory
+) -> None:
+    oc_map = mocker.create_autospec(OC_Map)
+    oc = mocker.create_autospec(OCCli)
+    oc_map.get.return_value = oc
+    oc.get_items.return_value = []
+
+    fetch_desired_state(
+        namespaces=[namespaces[0]],
+        ri=ri,
+        oc_map=oc_map,
+    )
+
+    assert (
+        len(
+            ri._clusters["cluster"]["with-openshift-serviceaccount-tokens"]["Secret"][
+                "desired"
+            ].keys()
+        )
+        == 1
+    )
+    r = list(
+        ri._clusters["cluster"]["with-openshift-serviceaccount-tokens"]["Secret"][
+            "desired"
+        ].values()
+    )[0]
+    assert r.body["type"] == "kubernetes.io/service-account-token"
+
+
+def test_openshift_serviceaccount_tokens__service_account_token_request() -> None:
+    resource = service_account_token_request("grafana")
+    assert resource.name.startswith("grafana-")
+    assert resource.body["type"] == "kubernetes.io/service-account-token"
+    assert resource.kind == "Secret"
+    assert resource.integration != QONTRACT_INTEGRATION
