@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 88
 target-version = 'py311'
-required-version = "0.4.8"
+required-version = "0.5.1"
 
 src = ["reconcile", "tools", "release", "dockerfiles/hack", "setup.py"]
 extend-exclude = ["reconcile/gql_definitions"]
@@ -22,6 +22,8 @@ extend-select = [
     "PL",
     # pyupgrade
     "UP",
+    # simply
+    "SIM",
 
 ]
 ignore = [
@@ -38,6 +40,7 @@ ignore = [
     "PLW1641", # Object does not implement `__hash__` method
     "PLW2901", # `for` loop variable `v` overwritten by assignment target
     "UP031",   # Use format specifiers instead of percent format
+    "SIM102",  # Use a single `if` statement instead of nested `if` statements
 ]
 [tool.ruff.format]
 preview = true
