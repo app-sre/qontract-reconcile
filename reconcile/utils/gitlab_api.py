@@ -102,13 +102,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         self.server = instance["url"]
         if not secret_reader:
             secret_reader = SecretReader(settings=settings)
-        token = secret_reader.read(instance["token"])
+        self.token = secret_reader.read(instance["token"])
         self.ssl_verify = instance["sslVerify"]
         if self.ssl_verify is None:
             self.ssl_verify = True
         self.gl = gitlab.Gitlab(
             self.server,
-            private_token=token,
+            private_token=self.token,
             ssl_verify=self.ssl_verify,
             timeout=timeout,
         )

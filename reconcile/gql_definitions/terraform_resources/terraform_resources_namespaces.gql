@@ -417,6 +417,19 @@ query TerraformResourcesNamespaces {
                   }
                 }
             }
+            ... on NamespaceTerraformResourceModule_v1 {
+                region
+                identifier
+                defaults
+                overrides
+                output_resource_name
+                annotations
+                module {
+                    url
+                    path
+                    ref
+                }
+            }
         }
       }
     }

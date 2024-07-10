@@ -151,7 +151,7 @@ from reconcile.gql_definitions.fragments.aws_vpc_request import (
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
 )
-from reconcile.utils import gql
+from reconcile.utils import git, gql
 from reconcile.utils.aws_api import (
     AmiTag,
     AWSApi,
@@ -248,6 +248,7 @@ VARIABLE_KEYS = [
     "records",
     "extra_tags",
     "lifecycle",
+    "module",
 ]
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
@@ -634,8 +635,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if not self.github:
             with self.github_lock:
                 if not self.github:
-                    token = get_default_config()["token"]
-                    self.github = Github(token, base_url=GH_BASE_URL)
+                    self.token = get_default_config()["token"]
+                    self.github = Github(self.token, base_url=GH_BASE_URL)
         return self.github
 
     def init_gitlab(self) -> GitLabApi:
@@ -1575,6 +1576,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.populate_tf_resource_rosa_authenticator_vpce(spec)
         elif provider == "msk":
             self.populate_tf_resource_msk(spec)
+        elif provider == "module-poc":
+            self.populate_tf_resource_module(spec)
         else:
             raise UnknownProviderError(provider)
 
@@ -4076,9 +4079,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         :return: key is AWS account name and value is directory location
         """
         if existing_dirs is None:
-            working_dirs: dict[str, str] = {}
+            self.working_dirs: dict[str, str] = {}
         else:
-            working_dirs = existing_dirs
+            self.working_dirs = existing_dirs
 
         if print_to_file:
             if is_file_in_git_repo(print_to_file):
@@ -4096,12 +4099,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             if existing_dirs is None:
                 wd = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
             else:
-                wd = working_dirs[name]
+                wd = self.working_dirs[name]
             with open(wd + "/config.tf.json", "w", encoding="locale") as f:
                 f.write(content)
-            working_dirs[name] = wd
+            self.working_dirs[name] = wd
 
-        return working_dirs
+        return self.working_dirs
 
     def terraform_configurations(self) -> dict[str, str]:
         """
@@ -6713,3 +6716,44 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             f"{account_name}-{name}", name=name, saml_metadata_document=metadata
         )
         self.add_resource(account_name, saml_idp)
+
+    def populate_tf_resource_module(self, spec: ExternalResourceSpec):
+        account = spec.provisioner_name
+        identifier = spec.identifier
+        values = self.init_values(spec, init_tags=False)
+        values.pop("identifier")
+
+        tf_resources: list[Resource] = []
+        self.init_common_outputs(tf_resources, spec)
+
+        module_spec = values.pop("module")
+        url: str = module_spec["url"]
+        path: str = module_spec["path"]
+        ref: str = module_spec["ref"]
+
+        self.init_gitlab()
+        self.init_github()
+        if self.gitlab and url.startswith(self.gitlab.server):
+            ssl_verify = self.gitlab.ssl_verify
+            token = self.gitlab.token
+        else:
+            ssl_verify = True
+            token = self.token
+
+        wd = os.path.join(self.working_dirs[account], identifier)
+        git.clone(
+            url,
+            wd,
+            ref=ref,
+            depth=1,
+            verify=ssl_verify,
+            token=token,
+        )
+
+        values["source"] = os.path.join(wd, path)
+        module = Module(identifier, **values)
+        tf_resources.append(module)
+
+        # TODO for each module output create terrascript output
+
+        self.add_resources(account, tf_resources)
