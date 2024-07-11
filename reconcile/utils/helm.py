@@ -48,7 +48,7 @@ def do_template(
                                 dep["name"],
                                 repo,
                                 "--repository-config",
-                                repositories_file,
+                                repositories_file.name,
                             ]
                             run(cmd, capture_output=False, check=True)
                     cmd = [
@@ -57,7 +57,7 @@ def do_template(
                         "build",
                         path,
                         "--repository-config",
-                        repositories_file,
+                        repositories_file.name,
                     ]
                     run(cmd, capture_output=False, check=True)
             with tempfile.NamedTemporaryFile(
@@ -74,7 +74,7 @@ def do_template(
                     "-f",
                     values_file.name,
                     "--repository-config",
-                    repositories_file,
+                    repositories_file.name,
                 ]
                 result = run(cmd, capture_output=True, check=True)
     except CalledProcessError as e:
