@@ -31,9 +31,14 @@ def do_template(
     name: str,
 ) -> str:
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="w+", encoding="locale"
-        ) as repositories_file:
+        with (
+            tempfile.NamedTemporaryFile(
+                mode="w+", encoding="locale"
+            ) as repository_config_file,
+            tempfile.NamedTemporaryFile(
+                mode="w+", encoding="locale"
+            ) as repository_cache_file,
+        ):
             with open(
                 os.path.join(path, "Chart.yaml"), encoding="locale"
             ) as chart_file:
@@ -48,7 +53,9 @@ def do_template(
                                 dep["name"],
                                 repo,
                                 "--repository-config",
-                                repositories_file.name,
+                                repository_config_file.name,
+                                "--repository-cache",
+                                repository_cache_file.name,
                             ]
                             run(cmd, capture_output=False, check=True)
                     cmd = [
@@ -57,7 +64,9 @@ def do_template(
                         "build",
                         path,
                         "--repository-config",
-                        repositories_file.name,
+                        repository_config_file.name,
+                        "--repository-cache",
+                        repository_cache_file.name,
                     ]
                     run(cmd, capture_output=False, check=True)
             with tempfile.NamedTemporaryFile(
@@ -74,7 +83,9 @@ def do_template(
                     "-f",
                     values_file.name,
                     "--repository-config",
-                    repositories_file.name,
+                    repository_config_file.name,
+                    "--repository-cache",
+                    repository_cache_file.name,
                 ]
                 result = run(cmd, capture_output=True, check=True)
     except CalledProcessError as e:
