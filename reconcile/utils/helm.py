@@ -70,7 +70,7 @@ def do_template(
             msg += f" {e.stdout.decode()}"
         if e.stderr:
             msg += f" {e.stderr.decode()}"
-        raise HelmTemplateError(msg)
+        raise HelmTemplateError(msg) from None
 
     return result.stdout.decode()
 

@@ -698,11 +698,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return namespaces
 
     def _collect_repo_urls(self) -> set[str]:
-        return set(
+        return {
             rt.url
             for saas_file in self.saas_files
             for rt in saas_file.resource_templates
-        )
+        }
 
     @staticmethod
     def _get_file_contents_github(repo: Repository, path: str, commit_sha: str) -> str:
@@ -1189,8 +1189,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         creds = self.secret_reader.read_all_secret(saas_file.authentication.image)
         required_docker_config_keys = [".dockerconfigjson"]
         required_keys_basic_auth = ["user", "token"]
-        ok = all(k in creds.keys() for k in required_keys_basic_auth) or all(
-            k in creds.keys() for k in required_docker_config_keys
+        ok = all(k in creds for k in required_keys_basic_auth) or all(
+            k in creds for k in required_docker_config_keys
         )
         if not ok:
             logging.warning(

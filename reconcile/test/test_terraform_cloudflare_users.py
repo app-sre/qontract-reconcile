@@ -426,23 +426,23 @@ def app_interface_settings_cloudflare_and_vault():
 
 
 def secret_reader_side_effect(*args):
-    if {
+    if args[0] == {
         "path": "some-path",
         "field": "some-field",
         "version": None,
         "q_format": None,
-    } == args[0]:
+    }:
         aws_acct_creds = {}
         aws_acct_creds["aws_access_key_id"] = "key_id"
         aws_acct_creds["aws_secret_access_key"] = "access_key"
         return aws_acct_creds
 
-    if {
+    if args[0] == {
         "path": "creds",
         "field": "some-field",
         "version": None,
         "q_format": None,
-    } == args[0]:
+    }:
         cf_acct_creds = {}
         cf_acct_creds["api_token"] = "api_token"
         cf_acct_creds["account_id"] = "account_id"

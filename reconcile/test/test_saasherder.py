@@ -1487,39 +1487,39 @@ def test_render_templated_parameters(
     assert saas_file.resource_templates[0].targets[0].secret_parameters == [
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="no-template",
-            secret=dict(
-                path="path/to/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/to/secret",
+                "field": "secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="ignore-go-template",
-            secret=dict(
-                path="path/{{ .GO_PARAM }}/secret",
-                field="{{ .GO_PARAM }}-secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/{{ .GO_PARAM }}/secret",
+                "field": "{{ .GO_PARAM }}-secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="template-param-1",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/appsres03ue1/test-namespace/secret",
+                "field": "secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="template-param-2",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="App-SRE-stage-secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/appsres03ue1/test-namespace/secret",
+                "field": "App-SRE-stage-secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
     ]
 
@@ -1549,38 +1549,38 @@ def test_render_templated_parameters_in_init(
     assert saas_file.resource_templates[0].targets[0].secret_parameters == [
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="no-template",
-            secret=dict(
-                path="path/to/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/to/secret",
+                "field": "secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="ignore-go-template",
-            secret=dict(
-                path="path/{{ .GO_PARAM }}/secret",
-                field="{{ .GO_PARAM }}-secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/{{ .GO_PARAM }}/secret",
+                "field": "{{ .GO_PARAM }}-secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="template-param-1",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/appsres03ue1/test-namespace/secret",
+                "field": "secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="template-param-2",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="App-SRE-stage-secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/appsres03ue1/test-namespace/secret",
+                "field": "App-SRE-stage-secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
     ]

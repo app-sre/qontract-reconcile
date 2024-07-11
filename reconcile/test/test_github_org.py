@@ -85,22 +85,24 @@ class TestGithubOrg:
     def do_current_state_test(path):
         fixture = fxt.get_anymarkup(path)
 
-        with patch("reconcile.github_org.RawGithubApi") as m_rga:
-            with patch("reconcile.github_org.Github") as m_gh:
-                m_gh.return_value = GithubMock(fixture["gh_api"])
-                m_rga.return_value = RawGithubApiMock()
+        with (
+            patch("reconcile.github_org.RawGithubApi") as m_rga,
+            patch("reconcile.github_org.Github") as m_gh,
+        ):
+            m_gh.return_value = GithubMock(fixture["gh_api"])
+            m_rga.return_value = RawGithubApiMock()
 
-                gh_api_store = github_org.GHApiStore(config.get_config())
-                current_state = github_org.fetch_current_state(gh_api_store)
-                current_state = current_state.dump()
+            gh_api_store = github_org.GHApiStore(config.get_config())
+            current_state = github_org.fetch_current_state(gh_api_store)
+            current_state = current_state.dump()
 
-                expected_current_state = fixture["state"]
+            expected_current_state = fixture["state"]
 
-                assert len(current_state) == len(expected_current_state)
-                for group in current_state:
-                    params = group["params"]
-                    items = sorted(group["items"])
-                    assert items == get_items_by_params(expected_current_state, params)
+            assert len(current_state) == len(expected_current_state)
+            for group in current_state:
+                params = group["params"]
+                items = sorted(group["items"])
+                assert items == get_items_by_params(expected_current_state, params)
 
     @staticmethod
     def do_desired_state_test(path):

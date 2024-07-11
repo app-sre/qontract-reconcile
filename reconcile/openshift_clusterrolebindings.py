@@ -1,3 +1,4 @@
+import contextlib
 import sys
 
 import reconcile.openshift_base as ob
@@ -118,7 +119,9 @@ def fetch_desired_state(ri, oc_map):
                     oc_resource, resource_name = construct_user_oc_resource(
                         permission["cluster_role"], username
                     )
-                    try:
+                    with contextlib.suppress(ResourceKeyExistsError):
+                        # a user may have a Role assigned to them
+                        # from multiple app-interface roles
                         ri.add_desired(
                             cluster,
                             namespace_cluster_scope,
@@ -126,10 +129,7 @@ def fetch_desired_state(ri, oc_map):
                             resource_name,
                             oc_resource,
                         )
-                    except ResourceKeyExistsError:
-                        # a user may have a Role assigned to them
-                        # from multiple app-interface roles
-                        pass
+
             for sa in service_accounts:
                 if ri is None:
                     continue
@@ -137,7 +137,10 @@ def fetch_desired_state(ri, oc_map):
                 oc_resource, resource_name = construct_sa_oc_resource(
                     permission["cluster_role"], namespace, sa_name
                 )
-                try:
+
+                with contextlib.suppress(ResourceKeyExistsError):
+                    # a ServiceAccount may have a Role assigned to it
+                    # from multiple app-interface roles
                     ri.add_desired(
                         cluster,
                         namespace_cluster_scope,
@@ -145,10 +148,6 @@ def fetch_desired_state(ri, oc_map):
                         resource_name,
                         oc_resource,
                     )
-                except ResourceKeyExistsError:
-                    # a ServiceAccount may have a Role assigned to it
-                    # from multiple app-interface roles
-                    pass
 
     return users_desired_state
 

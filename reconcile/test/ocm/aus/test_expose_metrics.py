@@ -21,7 +21,7 @@ def test_remaining_soak_day_metric_values_for_cluster_skip_early_ready() -> None
     Test that ready versions are skipped in metric reporting if there is a later
     version that is not ready.
     """
-    assert {"4.13.11": 0.0} == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=build_cluster_upgrade_spec(
             name="cluster1",
             current_version="4.13.0",
@@ -30,7 +30,7 @@ def test_remaining_soak_day_metric_values_for_cluster_skip_early_ready() -> None
         ),
         soaked_versions={},
         current_upgrade=None,
-    )
+    ) == {"4.13.11": 0.0}
 
 
 def test_remaining_soak_day_metric_values_for_cluster_skip_early_non_ready() -> None:
@@ -38,7 +38,7 @@ def test_remaining_soak_day_metric_values_for_cluster_skip_early_non_ready() -> 
     Test that still soaking versions are skipped in metric reporting if there is
     a later version that is not ready.
     """
-    assert {"4.13.11": 0.0} == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=build_cluster_upgrade_spec(
             name="cluster1",
             current_version="4.13.0",
@@ -47,7 +47,7 @@ def test_remaining_soak_day_metric_values_for_cluster_skip_early_non_ready() -> 
         ),
         soaked_versions={"4.13.10": 1.8, "4.13.11": 2.0},
         current_upgrade=None,
-    )
+    ) == {"4.13.11": 0.0}
 
 
 def test_remaining_soak_day_metric_values_for_cluster_skip_early_mixed() -> None:
@@ -55,7 +55,7 @@ def test_remaining_soak_day_metric_values_for_cluster_skip_early_mixed() -> None
     Test that still soaking versions and soakey versions are skipped in metric
     reporting if there is a later version that is not ready.
     """
-    assert {"4.13.11": 0.0} == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=build_cluster_upgrade_spec(
             name="cluster1",
             current_version="4.13.0",
@@ -64,17 +64,14 @@ def test_remaining_soak_day_metric_values_for_cluster_skip_early_mixed() -> None
         ),
         soaked_versions={"4.13.9": 2.0, "4.13.10": 1.8, "4.13.11": 2.0},
         current_upgrade=None,
-    )
+    ) == {"4.13.11": 0.0}
 
 
 def test_remaining_soak_day_metric_values_for_cluster_blocked_versions() -> None:
     """
     Test that blocked versions are reported as blocked
     """
-    assert {
-        "4.14.0-rc.1": UPGRADE_BLOCKED_METRIC_VALUE,
-        "4.14.0": 0.0,
-    } == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=build_cluster_upgrade_spec(
             name="cluster1",
             current_version="4.13.0",
@@ -84,7 +81,10 @@ def test_remaining_soak_day_metric_values_for_cluster_blocked_versions() -> None
         ),
         soaked_versions={},
         current_upgrade=None,
-    )
+    ) == {
+        "4.14.0-rc.1": UPGRADE_BLOCKED_METRIC_VALUE,
+        "4.14.0": 0.0,
+    }
 
 
 def test_remaining_soak_day_metric_values_for_cluster_blocked_versions_and_skip_early_ready() -> (
@@ -94,10 +94,7 @@ def test_remaining_soak_day_metric_values_for_cluster_blocked_versions_and_skip_
     Test that blocked versions are reported as blocked and do not interfere with
     skipping ready early versions.
     """
-    assert {
-        "4.14.0-rc.1": UPGRADE_BLOCKED_METRIC_VALUE,
-        "4.14.0": 0.0,
-    } == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=build_cluster_upgrade_spec(
             name="cluster1",
             current_version="4.13.0",
@@ -107,7 +104,10 @@ def test_remaining_soak_day_metric_values_for_cluster_blocked_versions_and_skip_
         ),
         soaked_versions={},
         current_upgrade=None,
-    )
+    ) == {
+        "4.14.0-rc.1": UPGRADE_BLOCKED_METRIC_VALUE,
+        "4.14.0": 0.0,
+    }
 
 
 def test_remaining_soak_day_metric_values_for_cluster_blocked_version_currently_upgrading() -> (
@@ -124,10 +124,7 @@ def test_remaining_soak_day_metric_values_for_cluster_blocked_version_currently_
         soak_days=0,
         blocked_versions=[r"^.*-rc\..*$"],
     )
-    assert {
-        "4.14.0-rc.1": UPGRADE_SCHEDULED_METRIC_VALUE,
-        "4.14.0": 0.0,
-    } == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=spec,
         soaked_versions={},
         current_upgrade=build_cluster_upgrade_policy(
@@ -135,7 +132,10 @@ def test_remaining_soak_day_metric_values_for_cluster_blocked_version_currently_
             version="4.14.0-rc.1",
             state="scheduled",
         ),
-    )
+    ) == {
+        "4.14.0-rc.1": UPGRADE_SCHEDULED_METRIC_VALUE,
+        "4.14.0": 0.0,
+    }
 
 
 def test_remaining_soak_day_metric_values_for_cluster_currently_upgrading() -> None:
@@ -149,10 +149,7 @@ def test_remaining_soak_day_metric_values_for_cluster_currently_upgrading() -> N
         available_upgrades=["4.13.11", "4.14.0"],
         soak_days=0,
     )
-    assert {
-        "4.13.11": UPGRADE_STARTED_METRIC_VALUE,
-        "4.14.0": 0.0,
-    } == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=spec,
         soaked_versions={},
         current_upgrade=build_cluster_upgrade_policy(
@@ -160,7 +157,10 @@ def test_remaining_soak_day_metric_values_for_cluster_currently_upgrading() -> N
             version="4.13.11",
             state="started",
         ),
-    )
+    ) == {
+        "4.13.11": UPGRADE_STARTED_METRIC_VALUE,
+        "4.14.0": 0.0,
+    }
 
 
 def test_remaining_soak_day_metric_values_for_cluster_currently_scheduled() -> None:
@@ -174,10 +174,7 @@ def test_remaining_soak_day_metric_values_for_cluster_currently_scheduled() -> N
         available_upgrades=["4.13.11", "4.14.0"],
         soak_days=0,
     )
-    assert {
-        "4.13.11": UPGRADE_SCHEDULED_METRIC_VALUE,
-        "4.14.0": 0.0,
-    } == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=spec,
         soaked_versions={},
         current_upgrade=build_cluster_upgrade_policy(
@@ -185,7 +182,10 @@ def test_remaining_soak_day_metric_values_for_cluster_currently_scheduled() -> N
             version="4.13.11",
             state="scheduled",
         ),
-    )
+    ) == {
+        "4.13.11": UPGRADE_SCHEDULED_METRIC_VALUE,
+        "4.14.0": 0.0,
+    }
 
 
 def test_remaining_soak_day_metric_values_for_cluster_currently_scheduled_skip_earlier() -> (
@@ -201,9 +201,7 @@ def test_remaining_soak_day_metric_values_for_cluster_currently_scheduled_skip_e
         available_upgrades=["4.13.11", "4.14.0"],
         soak_days=0,
     )
-    assert {
-        "4.14.0": UPGRADE_SCHEDULED_METRIC_VALUE
-    } == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=spec,
         soaked_versions={},
         current_upgrade=build_cluster_upgrade_policy(
@@ -211,7 +209,7 @@ def test_remaining_soak_day_metric_values_for_cluster_currently_scheduled_skip_e
             version="4.14.0",
             state="scheduled",
         ),
-    )
+    ) == {"4.14.0": UPGRADE_SCHEDULED_METRIC_VALUE}
 
 
 def test_remaining_soak_day_metric_values_for_cluster_currently_upgrading_skip_earlier() -> (
@@ -227,9 +225,7 @@ def test_remaining_soak_day_metric_values_for_cluster_currently_upgrading_skip_e
         available_upgrades=["4.13.11", "4.14.0"],
         soak_days=0,
     )
-    assert {
-        "4.14.0": UPGRADE_STARTED_METRIC_VALUE
-    } == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=spec,
         soaked_versions={},
         current_upgrade=build_cluster_upgrade_policy(
@@ -237,7 +233,7 @@ def test_remaining_soak_day_metric_values_for_cluster_currently_upgrading_skip_e
             version="4.14.0",
             state="started",
         ),
-    )
+    ) == {"4.14.0": UPGRADE_STARTED_METRIC_VALUE}
 
 
 def test_remaining_soak_day_metric_values_for_cluster_long_running_upgrade() -> None:
@@ -250,9 +246,7 @@ def test_remaining_soak_day_metric_values_for_cluster_long_running_upgrade() -> 
         available_upgrades=["4.13.11"],
         soak_days=0,
     )
-    assert {
-        "4.13.11": UPGRADE_LONG_RUNNING_METRIC_VALUE
-    } == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=spec,
         soaked_versions={},
         current_upgrade=build_cluster_upgrade_policy(
@@ -261,7 +255,7 @@ def test_remaining_soak_day_metric_values_for_cluster_long_running_upgrade() -> 
             state="started",
             next_run=datetime.utcnow() - timedelta(hours=7),
         ),
-    )
+    ) == {"4.13.11": UPGRADE_LONG_RUNNING_METRIC_VALUE}
 
 
 def test_remaining_soak_day_metric_values_for_cluster_not_filtering() -> None:
@@ -272,12 +266,12 @@ def test_remaining_soak_day_metric_values_for_cluster_not_filtering() -> None:
         soak_days=2,
         blocked_versions=[r"^4\.14\..*$"],
     )
-    assert {
-        "4.13.11": 0.0,
-        "4.13.12": 2.0,
-        "4.14.1": UPGRADE_BLOCKED_METRIC_VALUE,
-    } == remaining_soak_day_metric_values_for_cluster(
+    assert remaining_soak_day_metric_values_for_cluster(
         spec=spec,
         soaked_versions={"4.13.11": 2.0},
         current_upgrade=None,
-    )
+    ) == {
+        "4.13.11": 0.0,
+        "4.13.12": 2.0,
+        "4.14.1": UPGRADE_BLOCKED_METRIC_VALUE,
+    }

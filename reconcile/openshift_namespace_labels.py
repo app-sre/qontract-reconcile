@@ -164,7 +164,7 @@ class LabelInventory:
             desired = types[DESIRED]
             managed = self.get(cluster, ns, MANAGED, [])
             current = self.get(cluster, ns, CURRENT, {})
-            changed = self.setdefault(cluster, ns, CHANGED, {})
+            changed = self.setdefault(cluster, ns, CHANGED, {})  # noqa: B909
 
             # cleanup managed items
             for k in managed:
@@ -192,7 +192,7 @@ class LabelInventory:
                     changed[k] = v
 
             # remove old labels
-            for k, v in current.items():
+            for k, _ in current.items():
                 if k in managed and k not in desired:
                     changed[k] = None
 

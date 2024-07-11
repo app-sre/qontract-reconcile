@@ -115,8 +115,8 @@ def test_templated_path_expression() -> None:
         )
     )
     assert (
-        "path.to.some.value.[?[Expression(Child(This(), Fields('name')) == 'some-file.yaml')]]"
-        == str(jsonpath)
+        str(jsonpath)
+        == "path.to.some.value.[?[Expression(Child(This(), Fields('name')) == 'some-file.yaml')]]"
     )
 
 

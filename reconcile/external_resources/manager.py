@@ -210,10 +210,10 @@ class ExternalResourcesManager:
         """
         need_secret_sync = False
 
-        if state.resource_status not in set([
+        if state.resource_status not in {
             ResourceStatus.DELETE_IN_PROGRESS,
             ResourceStatus.IN_PROGRESS,
-        ]):
+        }:
             return False
 
         logging.info(
@@ -374,5 +374,5 @@ class ExternalResourcesManager:
         for r in triggered:
             self.reconciler.get_resource_reconcile_logs(reconciliation=r)
 
-        if ReconcileStatus.ERROR in [rs for rs in results.values()]:
+        if ReconcileStatus.ERROR in list(results.values()):
             raise Exception("Some Resources have reconciliation errors.")

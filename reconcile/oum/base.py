@@ -265,7 +265,7 @@ def reconcile_cluster_roles(
         }
         # only process roles present in the desired state and ignore the ones that are not
         # this way a role can still be managed manually while another one is managed by this integration
-        for group in desired_groups.keys():
+        for group in desired_groups:
             desired_members = desired_groups.get(group, set())
             current_members = current_groups.get(group, set())
 

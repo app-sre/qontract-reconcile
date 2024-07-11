@@ -55,7 +55,9 @@ def load_site_controller_template(
             resource["content"], undefined=jinja2.StrictUndefined
         ).render(variables)
     except jinja2.exceptions.UndefinedError as e:
-        raise SkupperNetworkExcpetion(f"Failed to render template {path}: {e.message}")
+        raise SkupperNetworkExcpetion(
+            f"Failed to render template {path}: {e.message}"
+        ) from None
     return yaml.safe_load(body)
 
 

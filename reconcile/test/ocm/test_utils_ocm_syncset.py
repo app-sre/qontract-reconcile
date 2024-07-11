@@ -58,7 +58,7 @@ def test_utils_get_syncsets(
 
     response = syncsets.get_syncsets(ocm_client=ocm_api, cluster_id=cluster_id)
 
-    assert [item for item in response] == [syncet_a, syncset_b]
+    assert list(response) == [syncet_a, syncset_b]
 
     get_syncsets_call.assert_called_once_with(ocm_client=ocm_api, cluster_id=cluster_id)
 

@@ -1,3 +1,4 @@
+# ruff: noqa: SIM117
 import typing
 from unittest.mock import patch
 

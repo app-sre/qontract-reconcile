@@ -558,8 +558,9 @@ def test_validate_db_upgrade_cannot_upgrade(aws_api, tf):
             },
         )
 
-    assert "Cannot upgrade RDS instance: test-database-1 from 11.12 to 14.2" == str(
-        error.value
+    assert (
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1 from 11.12 to 14.2"
     )
 
 
@@ -586,8 +587,8 @@ def test_validate_db_upgrade_major_version_upgrade_not_allow(aws_api, tf):
         )
 
     assert (
-        "allow_major_version_upgrade is not enabled for upgrading RDS instance: test-database-1 to a new major version."
-        == str(error.value)
+        str(error.value)
+        == "allow_major_version_upgrade is not enabled for upgrading RDS instance: test-database-1 to a new major version."
     )
 
 
@@ -614,8 +615,9 @@ def test_validate_db_upgrade_with_empty_valid_upgrade_target(
             },
         )
 
-    assert "Cannot upgrade RDS instance: test-database-1 from 11.12 to 11.17" == str(
-        error.value
+    assert (
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1 from 11.12 to 11.17"
     )
 
 

@@ -45,7 +45,7 @@ class AUSClusterHealthCheckProvider:
 
     def cluster_health(self, cluster_external_id: str, org_id: str) -> AUSClusterHealth:
         state: dict[str, list[AUSHealthError]] = {}
-        for provider_name in self.providers.keys():
+        for provider_name in self.providers:
             state[provider_name] = []
             provider, enforce = self.providers[provider_name]
             health = provider.cluster_health(cluster_external_id, org_id)

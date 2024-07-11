@@ -19,7 +19,7 @@ from reconcile.utils.ocm.search_filters import (
 
 
 def test_search_filter_eq() -> None:
-    assert "some_field='some_value'" == Filter().eq("some_field", "some_value").render()
+    assert Filter().eq("some_field", "some_value").render() == "some_field='some_value'"
 
 
 def test_search_filter_eq_none_value() -> None:
@@ -29,8 +29,8 @@ def test_search_filter_eq_none_value() -> None:
 
 def test_search_filter_is_in() -> None:
     assert (
-        "some_field in ('a','b','c')"
-        == Filter().is_in("some_field", ["a", "b", "c"]).render()
+        Filter().is_in("some_field", ["a", "b", "c"]).render()
+        == "some_field in ('a','b','c')"
     )
 
 
@@ -48,29 +48,29 @@ def test_search_filter_is_in_one_items() -> None:
 def test_search_filter_merge_eq_eq_and() -> None:
     f1 = Filter().eq("some_field", "a")
     f2 = Filter().eq("some_field", "b")
-    assert "some_field in ('a','b')" == (f1 & f2).render()
+    assert (f1 & f2).render() == "some_field in ('a','b')"
 
 
 def test_search_filter_merge_eq_eq_chain() -> None:
     f = Filter().eq("some_field", "a").eq("some_field", "b")
-    assert "some_field in ('a','b')" == f.render()
+    assert f.render() == "some_field in ('a','b')"
 
 
 def test_search_filter_merge_eq_is_in_and() -> None:
     f1 = Filter().eq("some_field", "a")
     f2 = Filter().is_in("some_field", ["b", "c"])
-    assert "some_field in ('a','b','c')" == (f1 & f2).render()
+    assert (f1 & f2).render() == "some_field in ('a','b','c')"
 
 
 def test_search_filter_merge_eq_is_in_chain() -> None:
     f = Filter().eq("some_field", "a").is_in("some_field", ["b", "c"])
-    assert "some_field in ('a','b','c')" == f.render()
+    assert f.render() == "some_field in ('a','b','c')"
 
 
 def test_search_filter_merge_eq_is_in_dedup() -> None:
     f1 = Filter().eq("some_field", "a")
     f2 = Filter().is_in("some_field", ["a", "b", "c"])
-    assert "some_field in ('a','b','c')" == (f1 & f2).render()
+    assert (f1 & f2).render() == "some_field in ('a','b','c')"
 
 
 #
@@ -80,8 +80,8 @@ def test_search_filter_merge_eq_is_in_dedup() -> None:
 
 def test_search_filter_like() -> None:
     assert (
-        "some_field like 'some_value%'"
-        == Filter().like("some_field", "some_value%").render()
+        Filter().like("some_field", "some_value%").render()
+        == "some_field like 'some_value%'"
     )
 
 
@@ -93,12 +93,12 @@ def test_search_filter_like_none_value() -> None:
 def test_search_filter_merge_like_merge() -> None:
     f1 = Filter().like("some_field", "a%")
     f2 = Filter().like("some_field", "b%")
-    assert "(some_field like 'a%' or some_field like 'b%')" == (f1 & f2).render()
+    assert (f1 & f2).render() == "(some_field like 'a%' or some_field like 'b%')"
 
 
 def test_search_filter_merge_like_chain() -> None:
     f = Filter().like("some_field", "a%").like("some_field", "b%")
-    assert "(some_field like 'a%' or some_field like 'b%')" == f.render()
+    assert f.render() == "(some_field like 'a%' or some_field like 'b%')"
 
 
 #
@@ -234,7 +234,7 @@ def test_search_filter_chain_conditions() -> None:
     multi_filter = (
         Filter().eq("some_field", "some_value").is_in("some_list", ["a", "b"])
     )
-    assert "some_field='some_value' and some_list in ('a','b')" == multi_filter.render()
+    assert multi_filter.render() == "some_field='some_value' and some_list in ('a','b')"
 
 
 def test_search_filter_combine_different_conditions() -> None:
@@ -244,9 +244,9 @@ def test_search_filter_combine_different_conditions() -> None:
     f4 = Filter().like("like_field", "b%")
     combined = f1 & f2 & f3 & f4
     assert (
-        "eq_field_1='some_value' and eq_field_2='some_other_value' and "
+        combined.render()
+        == "eq_field_1='some_value' and eq_field_2='some_other_value' and "
         + "(like_field like 'a%' or like_field like 'b%')"
-        == combined.render()
     )
 
 
@@ -259,7 +259,7 @@ def test_search_filter_immutability() -> None:
     eq_filter = Filter().eq("some_field", "some_value")
     derive_filter = eq_filter.eq("some_other_field", "some_other_value")
     assert eq_filter != derive_filter
-    assert "some_field='some_value'" == eq_filter.render()
+    assert eq_filter.render() == "some_field='some_value'"
 
 
 #
@@ -272,8 +272,8 @@ def test_search_filter_or() -> None:
     f2 = Filter().eq("some_other_field", "some_other_value")
     or_condition = f1 | f2
     assert (
-        "(some_field='some_value' or some_other_field='some_other_value')"
-        == or_condition.render()
+        or_condition.render()
+        == "(some_field='some_value' or some_other_field='some_other_value')"
     )
 
 
@@ -283,8 +283,8 @@ def test_search_filter_combine_and_or() -> None:
     or_condition = f1 | f2
     combined_filter = Filter().eq("eq_field", "eq_value") & or_condition
     assert (
-        "(some_field='some_value' or some_other_field='some_other_value') and eq_field='eq_value'"
-        == combined_filter.render()
+        combined_filter.render()
+        == "(some_field='some_value' or some_other_field='some_other_value') and eq_field='eq_value'"
     )
 
 
@@ -294,8 +294,8 @@ def test_search_filter_combine_or_and() -> None:
     or_condition = f1 | f2
     combined_filter = or_condition & Filter().eq("eq_field", "eq_value")
     assert (
-        "(some_field='some_value' or some_other_field='some_other_value') and eq_field='eq_value'"
-        == combined_filter.render()
+        combined_filter.render()
+        == "(some_field='some_value' or some_other_field='some_other_value') and eq_field='eq_value'"
     )
 
 

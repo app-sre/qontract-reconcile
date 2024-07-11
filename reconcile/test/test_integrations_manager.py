@@ -71,18 +71,18 @@ def test_collect_parameters() -> None:
     template = {
         "parameters": [
             {
-                "name": "tplt_param",
+                "name": "TPLT_PARAM",
                 "value": "default",
             }
         ]
     }
-    os.environ["tplt_param"] = "override"
+    os.environ["TPLT_PARAM"] = "override"
     environment = EnvironmentV1(name="e", parameters='{"env_param": "test"}')
 
     parameters = intop.collect_parameters(template, environment, "", "", None)
     expected = {
         "env_param": "test",
-        "tplt_param": "override",
+        "TPLT_PARAM": "override",
     }
     assert parameters == expected
 
@@ -108,16 +108,16 @@ def test_collect_parameters_os_env_strongest() -> None:
     template = {
         "parameters": [
             {
-                "name": "env_param",
+                "name": "ENV_PARAM",
                 "value": "default",
             }
         ]
     }
-    os.environ["env_param"] = "strongest"
-    environment = EnvironmentV1(name="env", parameters='{"env_param": "override"}')
+    os.environ["ENV_PARAM"] = "strongest"
+    environment = EnvironmentV1(name="env", parameters='{"ENV_PARAM": "override"}')
     parameters = intop.collect_parameters(template, environment, "", "", None)
     expected = {
-        "env_param": "strongest",
+        "ENV_PARAM": "strongest",
     }
     assert parameters == expected
 
@@ -487,19 +487,19 @@ def shard_manager(
 def test_shard_manager_aws_account_filtering(
     aws_account_sharding_strategy: AWSAccountShardingStrategy,
 ) -> None:
-    assert ["acc-1", "acc-2", "acc-3", "acc-4"] == [
+    assert [
         a.name
         for a in aws_account_sharding_strategy.filter_objects("another-integration")
-    ]
+    ] == ["acc-1", "acc-2", "acc-3", "acc-4"]
 
 
 def test_shard_manager_aws_account_filtering_disabled(
     aws_account_sharding_strategy: AWSAccountShardingStrategy,
 ) -> None:
     # acc-4 is disabled for AWS_INTEGRATION
-    assert ["acc-1", "acc-2", "acc-3"] == [
+    assert [
         a.name for a in aws_account_sharding_strategy.filter_objects(AWS_INTEGRATION)
-    ]
+    ] == ["acc-1", "acc-2", "acc-3"]
 
 
 #

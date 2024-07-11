@@ -125,7 +125,7 @@ def build_entry_point_func(command_name: str) -> click.Command:
         ep.name: ep for ep in metadata.entry_points().select(group="console_scripts")
     }
     entry_point: metadata.EntryPoint | None = console_script_entry_points.get(
-        command_name, None
+        command_name
     )
     if entry_point:
         return entry_point.load()

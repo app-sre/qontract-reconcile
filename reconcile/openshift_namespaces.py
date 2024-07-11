@@ -127,7 +127,7 @@ def check_results(
     desired_state: Iterable[Mapping[str, str]], results: Iterable[Any]
 ) -> bool:
     err = False
-    for s, e in zip(desired_state, results):
+    for s, e in zip(desired_state, results, strict=False):
         if isinstance(e, Exception):
             err = True
             msg = (

@@ -263,7 +263,7 @@ def test_state_create_delete_update(
     assert deletions == expected_deletions
     assert updates == expected_updates
 
-    for update, expected_update in zip(updates, expected_updates):
+    for update, expected_update in zip(updates, expected_updates, strict=False):
         """
         The update should contain the uuid of the actual asset.
         Currently CNA does not support addressing w/o use of

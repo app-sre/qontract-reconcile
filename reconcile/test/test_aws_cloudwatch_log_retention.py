@@ -1,8 +1,5 @@
 from collections.abc import Generator
-from datetime import (
-    datetime,
-    timedelta,
-)
+from datetime import UTC, datetime, timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -97,7 +94,7 @@ def setup_mocks(
     aws_accounts: list[dict],
     log_groups: list[dict],
     tags: dict[str, Any],
-    utcnow: datetime = datetime.utcnow(),
+    utcnow: datetime = datetime.now(UTC),  # noqa: B008
 ) -> MagicMock:
     mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.get_aws_accounts",

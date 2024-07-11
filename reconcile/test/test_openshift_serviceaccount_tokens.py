@@ -125,7 +125,7 @@ def test_openshift_serviceaccount_tokens__write_outputs_to_vault(
         value=construct_sa_token_oc_resource("name", "token"),
     )
     write_outputs_to_vault(vault_client, "path/to/secrets", ri)
-    vault_client.write.call_count == 2
+    assert vault_client.write.call_count == 2
     vault_client.write.assert_has_calls([
         call({
             "path": "path/to/secrets/openshift-serviceaccount-tokens/cluster/namespace/name",
@@ -167,14 +167,14 @@ def test_openshift_serviceaccount_tokens__canonicalize_namespaces(
     assert nss[2].openshift_service_account_tokens is None
 
     # namespace with tokens or shared resources defined
-    nss[3].name == "with-shared-resources"
-    nss[3].cluster.name == "cluster"
+    assert nss[3].name == "with-shared-resources"
+    assert nss[3].cluster.name == "cluster"
     assert len(nss[3].openshift_service_account_tokens or []) == 1
 
-    nss[4].name == "with-openshift-serviceaccount-tokens"
+    assert nss[4].name == "with-openshift-serviceaccount-tokens"
     assert len(nss[4].openshift_service_account_tokens or []) == 2
 
-    nss[5].name == "with-openshift-serviceaccount-tokens-and-shared-resources"
+    assert nss[5].name == "with-openshift-serviceaccount-tokens-and-shared-resources"
     assert len(nss[5].openshift_service_account_tokens or []) == 2
 
 

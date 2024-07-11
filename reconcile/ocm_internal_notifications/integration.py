@@ -36,6 +36,7 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
         self.slack = slackapi_from_queries(
             integration_name=self.name, init_usergroups=False
         )
+        self.slack_get_user_id_by_name = lru_cache()(self._slack_get_user_id_by_name)
 
     @property
     def name(self) -> str:
@@ -44,8 +45,7 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
     def get_environments(self, query_func: Callable) -> list[OCMEnvironment]:
         return ocm_environment_query(query_func).environments
 
-    @lru_cache
-    def slack_get_user_id_by_name(
+    def _slack_get_user_id_by_name(
         self, user_name: str, mail_address: str
     ) -> str | None:
         try:

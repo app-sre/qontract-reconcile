@@ -57,9 +57,7 @@ class QuayApi:
     def user_exists(self, user):
         url = f"{self.api_url}/users/{user}"
         r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
-        if not r.ok:
-            return False
-        return True
+        return r.ok
 
     def remove_user_from_team(self, user, team):
         """Deletes an user from a team.

@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import textwrap
 import threading
@@ -44,10 +45,8 @@ def capture_and_forget(error):
     :type error: Exception
     """
 
-    try:
+    with contextlib.suppress(Exception):
         capture_exception(error)
-    except Exception:
-        pass
 
 
 class GqlApiError(Exception):
@@ -142,11 +141,13 @@ class GqlApi:
                 gql(query), variables, get_execution_result=True
             ).formatted
         except requests.exceptions.ConnectionError as e:
-            raise GqlApiError(f"Could not connect to GraphQL server ({e})")
+            raise GqlApiError(f"Could not connect to GraphQL server ({e})") from None
         except TransportQueryError as e:
-            raise GqlApiError(f"`error` returned with GraphQL response {e}")
+            raise GqlApiError(f"`error` returned with GraphQL response {e}") from None
         except AssertionError:
-            raise GqlApiError("`data` field missing from GraphQL response payload")
+            raise GqlApiError(
+                "`data` field missing from GraphQL response payload"
+            ) from None
         except Exception as e:
             raise GqlApiError("Unexpected error occurred") from e
 
@@ -187,7 +188,7 @@ class GqlApi:
             if q_result:
                 templates = q_result["templates"]
         except GqlApiError:
-            raise GqlGetResourceError(path, "Template not found.")
+            raise GqlGetResourceError(path, "Template not found.") from None
 
         if len(templates) != 1:
             raise GqlGetResourceError(path, "Expecting one and only one template.")
@@ -212,7 +213,7 @@ class GqlApi:
                 "resources"
             ]
         except GqlApiError:
-            raise GqlGetResourceError(path, "Resource not found.")
+            raise GqlGetResourceError(path, "Resource not found.") from None
 
         if len(resources) != 1:
             raise GqlGetResourceError(path, "Expecting one and only one resource.")

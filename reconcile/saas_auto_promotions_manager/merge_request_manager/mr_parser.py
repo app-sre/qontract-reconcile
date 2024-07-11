@@ -78,7 +78,7 @@ class MRParser:
             attrs = mr.attributes
             desc = str(attrs.get("description", ""))
             parts = desc.split(PROMOTION_DATA_SEPARATOR)
-            if not len(parts) == 2:
+            if len(parts) != 2:
                 logging.info(
                     "Bad data separator format. Closing %s",
                     mr.attributes.get("web_url", "NO_WEBURL"),
@@ -202,7 +202,7 @@ class MRParser:
             is_batchable_str = self._apply_regex(
                 pattern=self._is_batchable_regex, promotion_data=promotion_data
             )
-            if is_batchable_str not in set(["True", "False"]):
+            if is_batchable_str not in {"True", "False"}:
                 logging.info(
                     "Bad %s format. Closing %s",
                     IS_BATCHABLE,

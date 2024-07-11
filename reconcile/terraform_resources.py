@@ -399,22 +399,22 @@ def run(
     if print_to_file:
         return
 
-    runner_params: RunnerParams = dict(
-        accounts=accounts,
-        account_names=account_names,
-        tf_namespaces=tf_namespaces,
-        tf=tf,
-        ts=ts,
-        secret_reader=secret_reader,
-        dry_run=dry_run,
-        enable_deletion=enable_deletion,
-        thread_pool_size=thread_pool_size,
-        internal=internal,
-        use_jump_host=use_jump_host,
-        light=light,
-        vault_output_path=vault_output_path,
-        defer=defer,
-    )
+    runner_params: RunnerParams = {
+        "accounts": accounts,
+        "account_names": account_names,
+        "tf_namespaces": tf_namespaces,
+        "tf": tf,
+        "ts": ts,
+        "secret_reader": secret_reader,
+        "dry_run": dry_run,
+        "enable_deletion": enable_deletion,
+        "thread_pool_size": thread_pool_size,
+        "internal": internal,
+        "use_jump_host": use_jump_host,
+        "light": light,
+        "vault_output_path": vault_output_path,
+        "defer": defer,
+    }
 
     if enable_extended_early_exit and get_feature_toggle_state(
         "terraform-resources-extended-early-exit",

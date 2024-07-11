@@ -73,9 +73,7 @@ class ManualStatusProvider(StatusProvider, BaseModel):
         now = datetime.now(UTC)
         if self.start and now < self.start:
             return False
-        if self.end and self.end < now:
-            return False
-        return True
+        return not (self.end and self.end < now)
 
 
 def build_status_provider_config(

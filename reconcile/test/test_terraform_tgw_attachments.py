@@ -1124,7 +1124,7 @@ def test_duplicate_tgw_connection_names(
     with pytest.raises(integ.ValidationError) as e:
         integ.run(True)
 
-    assert "duplicate tgw connection names found" == str(e.value)
+    assert str(e.value) == "duplicate tgw connection names found"
 
 
 def test_missing_vpc_id(
@@ -1149,7 +1149,7 @@ def test_missing_vpc_id(
     with pytest.raises(RuntimeError) as e:
         integ.run(True)
 
-    assert "Could not find VPC ID for cluster" == str(e.value)
+    assert str(e.value) == "Could not find VPC ID for cluster"
 
 
 def test_error_in_tf_plan(
@@ -1176,7 +1176,7 @@ def test_error_in_tf_plan(
     with pytest.raises(RuntimeError) as e:
         integ.run(True)
 
-    assert "Error running terraform plan" == str(e.value)
+    assert str(e.value) == "Error running terraform plan"
 
 
 def test_disabled_deletions_detected_in_tf_plan(
@@ -1203,7 +1203,7 @@ def test_disabled_deletions_detected_in_tf_plan(
     with pytest.raises(RuntimeError) as e:
         integ.run(True)
 
-    assert "Disabled deletions detected running terraform plan" == str(e.value)
+    assert str(e.value) == "Disabled deletions detected running terraform plan"
 
 
 def test_error_in_terraform_apply(
@@ -1230,7 +1230,7 @@ def test_error_in_terraform_apply(
     with pytest.raises(RuntimeError) as e:
         integ.run(False)
 
-    assert "Error running terraform apply" == str(e.value)
+    assert str(e.value) == "Error running terraform apply"
 
 
 def test_early_exit_desired_state(

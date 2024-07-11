@@ -39,9 +39,7 @@ def has_uncommited_changes() -> bool:
     result = subprocess.run(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True
     )
-    if result.stdout:
-        return True
-    return False
+    return bool(result.stdout)
 
 
 def show_uncommited_changes() -> str:

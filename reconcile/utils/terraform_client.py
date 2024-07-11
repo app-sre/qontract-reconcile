@@ -407,7 +407,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     f"[{account_name}] expiration not does not match "
                     f"date format {DATE_FORMAT}. details: "
                     f"type: {da['type']}, name: {da['name']}"
-                )
+                ) from None
             if (
                 resource_type == da["type"]
                 and resource_name == da["name"]
@@ -585,7 +585,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                         secret_copy["db.password"] = replica_src_password
 
             # clean metadata
-            for key in secret.keys():
+            for key in secret:
                 if integration_prefix in key:
                     secret_copy.pop(key)
 

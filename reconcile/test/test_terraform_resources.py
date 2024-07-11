@@ -449,22 +449,22 @@ def test_terraform_resources_runner_dry_run(
 
     defer = MagicMock()
 
-    runner_params = dict(
-        accounts=[{"name": "a"}],
-        account_names={"a"},
-        tf_namespaces=[],
-        tf=tf,
-        ts=ts,
-        secret_reader=secret_reader,
-        dry_run=True,
-        enable_deletion=False,
-        thread_pool_size=10,
-        internal=None,
-        use_jump_host=True,
-        light=False,
-        vault_output_path="",
-        defer=defer,
-    )
+    runner_params = {
+        "accounts": [{"name": "a"}],
+        "account_names": {"a"},
+        "tf_namespaces": [],
+        "tf": tf,
+        "ts": ts,
+        "secret_reader": secret_reader,
+        "dry_run": True,
+        "enable_deletion": False,
+        "thread_pool_size": 10,
+        "internal": None,
+        "use_jump_host": True,
+        "light": False,
+        "vault_output_path": "",
+        "defer": defer,
+    }
 
     result = integ.runner(**runner_params)
 
@@ -494,22 +494,22 @@ def test_terraform_resources_runner_no_dry_run(
     mocked_ob = mocker.patch("reconcile.terraform_resources.ob")
     mocked_ob.realize_data.return_value = [{"action": "applied"}]
 
-    runner_params = dict(
-        accounts=[{"name": "a"}],
-        account_names={"a"},
-        tf_namespaces=[],
-        tf=tf,
-        ts=ts,
-        secret_reader=secret_reader,
-        dry_run=False,
-        enable_deletion=False,
-        thread_pool_size=10,
-        internal=None,
-        use_jump_host=True,
-        light=False,
-        vault_output_path="",
-        defer=defer,
-    )
+    runner_params = {
+        "accounts": [{"name": "a"}],
+        "account_names": {"a"},
+        "tf_namespaces": [],
+        "tf": tf,
+        "ts": ts,
+        "secret_reader": secret_reader,
+        "dry_run": False,
+        "enable_deletion": False,
+        "thread_pool_size": 10,
+        "internal": None,
+        "use_jump_host": True,
+        "light": False,
+        "vault_output_path": "",
+        "defer": defer,
+    }
 
     result = integ.runner(**runner_params)
 

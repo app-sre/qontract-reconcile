@@ -406,13 +406,10 @@ class JobStatus(BaseModel):
     conditions: list[JobStatusCondition]
 
     def is_complete(self) -> bool:
-        return True if self.conditions else False
+        return bool(self.conditions)
 
     def has_errors(self) -> bool:
-        for condition in self.conditions:
-            if condition.type == "Failed":
-                return True
-        return False
+        return any(condition.type == "Failed" for condition in self.conditions)
 
 
 def _populate_resources(

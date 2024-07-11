@@ -166,23 +166,23 @@ def mock_app_interface_vault_settings(mocker):
 
 
 def secret_reader_side_effect(*args):
-    if {
+    if args[0] == {
         "path": "aws-account-path",
         "field": "token",
         "version": 1,
         "q_format": "plain",
-    } == args[0]:
+    }:
         aws_acct_creds = {}
         aws_acct_creds["aws_access_key_id"] = "key_id"
         aws_acct_creds["aws_secret_access_key"] = "access_key"
         return aws_acct_creds
 
-    if {
+    if args[0] == {
         "path": "cf-account-path",
         "field": "key",
         "version": 1,
         "q_format": "plain",
-    } == args[0]:
+    }:
         cf_acct_creds = {}
         cf_acct_creds["api_token"] = "api_token"
         cf_acct_creds["account_id"] = "account_id"
@@ -289,8 +289,8 @@ def test_cloudflare_accounts_validation(
     with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
         integ.run(True, None, False, 10)
     assert sample.value.code == 0
-    assert ["No Cloudflare accounts were detected, nothing to do."] == [
-        rec.message for rec in caplog.records
+    assert [rec.message for rec in caplog.records] == [
+        "No Cloudflare accounts were detected, nothing to do."
     ]
 
 
@@ -313,8 +313,8 @@ def test_namespace_validation(
     with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
         integ.run(True, None, False, 10)
     assert sample.value.code == 0
-    assert ["No namespaces were detected, nothing to do."] == [
-        rec.message for rec in caplog.records
+    assert [rec.message for rec in caplog.records] == [
+        "No namespaces were detected, nothing to do."
     ]
 
 
@@ -356,27 +356,27 @@ def test_cloudflare_namespace_validation(
     with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
         integ.run(True, None, False, 10)
     assert sample.value.code == 0
-    assert ["No cloudflare namespaces were detected, nothing to do."] == [
-        rec.message for rec in caplog.records
+    assert [rec.message for rec in caplog.records] == [
+        "No cloudflare namespaces were detected, nothing to do."
     ]
 
 
 def custom_ssl_secret_reader_side_effect(*args):
     """For use of secret_reader inside cloudflare client"""
-    if {
+    if args[0] == {
         "path": "certificate/secret/cert/path",
         "field": "certificate.crt",
         "version": 1,
         "q_format": "plain",
-    } == args[0]:
+    }:
         return "----- CERTIFICATE -----"
 
-    if {
+    if args[0] == {
         "path": "certificate/secret/cert/path",
         "field": "certificate.key",
         "version": 1,
         "q_format": "plain",
-    } == args[0]:
+    }:
         return "----- KEY -----"
 
 

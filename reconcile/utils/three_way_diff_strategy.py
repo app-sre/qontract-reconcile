@@ -95,14 +95,11 @@ def is_empty_env_value(current: OR, desired: OR, patch: Mapping[str, Any]) -> bo
     :return: True if the change is not needed, False otherwise
     """
     pointer = patch["path"]
-    if (
+    return bool(
         patch["op"] == "add"
         and not patch["value"]
         and re.match(EMPTY_ENV_VALUE, pointer)
-    ):
-        return True
-
-    return False
+    )
 
 
 def is_valid_change(current: OR, desired: OR, patch: Mapping[str, Any]) -> bool:
@@ -116,10 +113,7 @@ def is_valid_change(current: OR, desired: OR, patch: Mapping[str, Any]) -> bool:
         return False
 
     # Other cases
-    if is_empty_env_value(current, desired, patch):
-        return False
-
-    return True
+    return not is_empty_env_value(current, desired, patch)
 
 
 def three_way_diff_using_hash(c_item: OR, d_item: OR) -> bool:

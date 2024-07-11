@@ -118,7 +118,7 @@ class ExternalResourcesInventory(MutableMapping):
             return self._inventory[key]
         except KeyError:
             msg = f"Resource spec not found: Provider {provider}, Id: {identifier}"
-            raise FetchResourceError(msg)
+            raise FetchResourceError(msg) from None
 
 
 class Action(StrEnum):

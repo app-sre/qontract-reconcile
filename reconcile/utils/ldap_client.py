@@ -33,7 +33,7 @@ class LdapClient:
         _, _, results, _ = self.connection.search(
             self.base_dn, f"(&(objectclass=person)(|{user_filter}))", attributes=["uid"]
         )
-        return set(r["attributes"]["uid"][0] for r in results)
+        return {r["attributes"]["uid"][0] for r in results}
 
     def get_group_members(self, groups_dns: set[str]) -> dict[str, set[str]]:
         """

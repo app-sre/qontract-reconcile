@@ -175,7 +175,9 @@ class TerraformRepoIntegration(
                         explicit_start=True,
                     )
             except FileNotFoundError:
-                raise ParameterError(f"Unable to write to '{self.params.output_file}'")
+                raise ParameterError(
+                    f"Unable to write to '{self.params.output_file}'"
+                ) from None
         else:
             print(yaml.safe_dump(data=output.dict(), explicit_start=True))
 
@@ -231,7 +233,7 @@ class TerraformRepoIntegration(
             except (KeyError, AttributeError):
                 raise ParameterError(
                     f'Invalid ref: "{ref}" on repo: "{repo_url}". Or the project repo is not reachable'
-                )
+                ) from None
 
     def merge_results(
         self,
@@ -284,7 +286,7 @@ class TerraformRepoIntegration(
                 # state.add already performs a json.dumps(key) so we export the
                 # pydantic model as a dict to avoid a double json dump with extra quotes
                 state.add(add_key, add_val.dict(by_alias=True), force=True)
-            for delete_key in diff_result.delete.keys():
+            for delete_key in diff_result.delete:
                 state.rm(delete_key)
             for change_key, change_val in diff_result.change.items():
                 if change_val.desired.delete:

@@ -277,10 +277,10 @@ def run(
 ) -> None:
     gql_api = gql.get_api()
     boards = get_jira_boards(query_func=gql_api.query)
-    runner_params: RunnerParams = dict(
-        exit_on_permission_errors=exit_on_permission_errors,
-        boards=boards,
-    )
+    runner_params: RunnerParams = {
+        "exit_on_permission_errors": exit_on_permission_errors,
+        "boards": boards,
+    }
     if enable_extended_early_exit and get_feature_toggle_state(
         "jira-permissions-validator-extended-early-exit",
         default=True,

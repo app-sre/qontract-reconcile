@@ -64,7 +64,7 @@ class AWSApiServiceQuotas:
         except self.client.exceptions.ResourceAlreadyExistsException:
             raise AWSResourceAlreadyExistsException(
                 f"Service quota increase request {service_code=}, {quota_code=} already exists."
-            )
+            ) from None
 
     def get_service_quota(self, service_code: str, quota_code: str) -> AWSQuota:
         """Return the current value of the service quota."""
@@ -76,4 +76,4 @@ class AWSApiServiceQuotas:
         except self.client.exceptions.NoSuchResourceException:
             raise AWSNoSuchResourceException(
                 f"Service quota {service_code=}, {quota_code=} not found."
-            )
+            ) from None

@@ -818,7 +818,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         assume_role may be None for ROSA (CCS) clusters where we own the account
         """
         required_keys = ["name", "assume_region"]
-        ok = all(elem in account.keys() for elem in required_keys)
+        ok = all(elem in account for elem in required_keys)
         if not ok:
             account_name = account.get("name")
             raise KeyError(f"[{account_name}] account is missing required keys")

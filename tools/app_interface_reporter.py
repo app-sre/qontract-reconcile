@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 import textwrap
@@ -438,10 +439,8 @@ def main(
         if reports_path:
             report_file = os.path.join(reports_path, report["file_path"])
 
-            try:
+            with contextlib.suppress(FileExistsError):
                 os.makedirs(os.path.dirname(report_file))
-            except FileExistsError:
-                pass
 
             with open(report_file, "w", encoding="locale") as f:
                 f.write(report["content"])
