@@ -31,39 +31,52 @@ def do_template(
     name: str,
 ) -> str:
     try:
-        with open(os.path.join(path, "Chart.yaml"), encoding="locale") as chart_file:
-            chart = yaml.safe_load(chart_file)
-            if dependencies := chart.get("dependencies"):
-                for dep in dependencies:
-                    if repo := dep.get("repository"):
-                        cmd = [
-                            "helm",
-                            "repo",
-                            "add",
-                            dep["name"],
-                            repo,
-                        ]
-                        run(cmd, capture_output=False, check=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w+", encoding="locale"
+        ) as repositories_file:
+            with open(
+                os.path.join(path, "Chart.yaml"), encoding="locale"
+            ) as chart_file:
+                chart = yaml.safe_load(chart_file)
+                if dependencies := chart.get("dependencies"):
+                    for dep in dependencies:
+                        if repo := dep.get("repository"):
+                            cmd = [
+                                "helm",
+                                "repo",
+                                "add",
+                                dep["name"],
+                                repo,
+                                "--repository-config",
+                                repositories_file,
+                            ]
+                            run(cmd, capture_output=False, check=True)
+                    cmd = [
+                        "helm",
+                        "dependency",
+                        "build",
+                        path,
+                        "--repository-config",
+                        repositories_file,
+                    ]
+                    run(cmd, capture_output=False, check=True)
+            with tempfile.NamedTemporaryFile(
+                mode="w+", encoding="locale"
+            ) as values_file:
+                values_file.write(json.dumps(values, cls=JSONEncoder))
+                values_file.flush()
                 cmd = [
                     "helm",
-                    "dependency",
-                    "build",
+                    "template",
                     path,
+                    "-n",
+                    name,
+                    "-f",
+                    values_file.name,
+                    "--repository-config",
+                    repositories_file,
                 ]
-                run(cmd, capture_output=False, check=True)
-        with tempfile.NamedTemporaryFile(mode="w+", encoding="locale") as values_file:
-            values_file.write(json.dumps(values, cls=JSONEncoder))
-            values_file.flush()
-            cmd = [
-                "helm",
-                "template",
-                path,
-                "-n",
-                name,
-                "-f",
-                values_file.name,
-            ]
-            result = run(cmd, capture_output=True, check=True)
+                result = run(cmd, capture_output=True, check=True)
     except CalledProcessError as e:
         msg = f'Error running helm template [{" ".join(cmd)}]'
         if e.stdout:
