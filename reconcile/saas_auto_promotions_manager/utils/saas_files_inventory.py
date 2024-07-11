@@ -9,6 +9,9 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     Subscriber,
 )
 from reconcile.typed_queries.saas_files import SaasFile
+from reconcile.utils.models import (
+    cron_validator,
+)
 
 
 class SaasFileInventoryError(Exception):
@@ -113,6 +116,7 @@ class SaasFilesInventory:
                         ref=target.ref,
                         target_namespace=target.namespace,
                         soak_days=soak_days,
+                        schedule=schedule,
                         blocked_versions=blocked_versions.get(
                             resource_template.url, set()
                         ),

@@ -45,6 +45,7 @@ class Subscriber:
         uid: str,
         soak_days: int,
         blocked_versions: set[str],
+        schedule: str,
     ):
         self.saas_name = saas_name
         self.template_name = template_name
@@ -117,6 +118,10 @@ class Subscriber:
                     continue
                 delta += now - deployed_at
         return delta >= timedelta(days=self.soak_days)
+    
+    def _is_valid_deployment_window(self) -> bool:
+        # TODO: implement
+        return True
 
     def _compute_desired_ref(self) -> None:
         """
