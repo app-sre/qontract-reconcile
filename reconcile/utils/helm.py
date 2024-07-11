@@ -33,7 +33,7 @@ def do_template(
     try:
         with tempfile.NamedTemporaryFile(
             mode="w+", encoding="locale"
-        ) as repositories_file:
+        ) as repository_config_file:
             with open(
                 os.path.join(path, "Chart.yaml"), encoding="locale"
             ) as chart_file:
@@ -48,7 +48,7 @@ def do_template(
                                 dep["name"],
                                 repo,
                                 "--repository-config",
-                                repositories_file.name,
+                                repository_config_file.name,
                             ]
                             run(cmd, capture_output=False, check=True)
                     cmd = [
@@ -57,7 +57,7 @@ def do_template(
                         "build",
                         path,
                         "--repository-config",
-                        repositories_file.name,
+                        repository_config_file.name,
                     ]
                     run(cmd, capture_output=False, check=True)
             with tempfile.NamedTemporaryFile(
@@ -74,7 +74,7 @@ def do_template(
                     "-f",
                     values_file.name,
                     "--repository-config",
-                    repositories_file.name,
+                    repository_config_file.name,
                 ]
                 result = run(cmd, capture_output=True, check=True)
     except CalledProcessError as e:
