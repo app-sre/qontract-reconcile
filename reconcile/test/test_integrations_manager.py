@@ -71,7 +71,7 @@ def test_collect_parameters() -> None:
     template = {
         "parameters": [
             {
-                "name": "tplt_param",
+                "name": "TPLT_PARAM",
                 "value": "default",
             }
         ]
@@ -82,7 +82,7 @@ def test_collect_parameters() -> None:
     parameters = intop.collect_parameters(template, environment, "", "", None)
     expected = {
         "env_param": "test",
-        "tplt_param": "override",
+        "TPLT_PARAM": "override",
     }
     assert parameters == expected
 
@@ -108,16 +108,16 @@ def test_collect_parameters_os_env_strongest() -> None:
     template = {
         "parameters": [
             {
-                "name": "env_param",
+                "name": "ENV_PARAM",
                 "value": "default",
             }
         ]
     }
     os.environ["ENV_PARAM"] = "strongest"
-    environment = EnvironmentV1(name="env", parameters='{"env_param": "override"}')
+    environment = EnvironmentV1(name="env", parameters='{"ENV_PARAM": "override"}')
     parameters = intop.collect_parameters(template, environment, "", "", None)
     expected = {
-        "env_param": "strongest",
+        "ENV_PARAM": "strongest",
     }
     assert parameters == expected
 
