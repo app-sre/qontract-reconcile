@@ -35,9 +35,7 @@ def do_template(
             tempfile.NamedTemporaryFile(
                 mode="w+", encoding="locale"
             ) as repository_config_file,
-            tempfile.NamedTemporaryFile(
-                mode="w+", encoding="locale"
-            ) as repository_cache_file,
+            tempfile.TemporaryDirectory() as repository_cache_dir,
         ):
             with open(
                 os.path.join(path, "Chart.yaml"), encoding="locale"
@@ -55,7 +53,7 @@ def do_template(
                                 "--repository-config",
                                 repository_config_file.name,
                                 "--repository-cache",
-                                repository_cache_file.name,
+                                repository_cache_dir,
                             ]
                             run(cmd, capture_output=False, check=True)
                     cmd = [
@@ -66,7 +64,7 @@ def do_template(
                         "--repository-config",
                         repository_config_file.name,
                         "--repository-cache",
-                        repository_cache_file.name,
+                        repository_cache_dir,
                     ]
                     run(cmd, capture_output=False, check=True)
             with tempfile.NamedTemporaryFile(
@@ -85,7 +83,7 @@ def do_template(
                     "--repository-config",
                     repository_config_file.name,
                     "--repository-cache",
-                    repository_cache_file.name,
+                    repository_cache_dir,
                 ]
                 result = run(cmd, capture_output=True, check=True)
     except CalledProcessError as e:
