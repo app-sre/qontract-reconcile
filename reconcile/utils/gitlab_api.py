@@ -265,38 +265,16 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def share_project_with_group(
         self,
-        repo_url: str,
+        project: Project,
         group_id: int,
-        dry_run: bool,
-        access: str = "maintainer",
+        access_level: int,
         reshare: bool = False,
     ) -> None:
-        project = self.get_project(repo_url)
-        if project is None:
-            return None
-        access_level = self.get_access_level(access)
-        # check if we have 'access_level' access so we can  add the group with same role.
-        members = self.get_items(
-            project.members_all.list, query_parameters={"user_ids": self.user.id}
-        )
-        if not any(
-            self.user.id == member.id and member.access_level >= access_level
-            for member in members
-        ):
-            logging.error(
-                "%s is not shared with %s as %s",
-                repo_url,
-                self.user.username,
-                access,
-            )
-            return None
-        logging.info(["add_group_as_maintainer", repo_url, group_id])
-        if not dry_run:
-            if reshare:
-                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-                project.unshare(group_id)
+        if reshare:
             gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-            project.share(group_id, access_level)
+            project.unshare(group_id)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        project.share(group_id, access_level)
 
     def get_group_id_and_shared_projects(
         self, group_name: str

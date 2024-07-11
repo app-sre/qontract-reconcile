@@ -1,7 +1,13 @@
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
-from gitlab.v4.objects import CurrentUser, GroupMember
+from gitlab.v4.objects import (
+    CurrentUser,
+    GroupMember,
+    Project,
+    ProjectMember,
+    ProjectMemberAllManager,
+)
 from pytest_mock import MockerFixture
 
 from reconcile import gitlab_permissions
@@ -23,6 +29,7 @@ def mocked_gl() -> MagicMock:
     gl.server = "test_server"
     gl.user = create_autospec(CurrentUser)
     gl.user.username = "test_name"
+    gl.user.id = 1234
     return gl
 
 
@@ -53,10 +60,17 @@ def test_run_share_with_group(
         1234,
         {"https://test.com": {"group_access_level": 30, "group_name": "app-sre"}},
     )
+    mocked_gl.get_access_level.return_value = 40
+    project = create_autospec(Project)
+    project.members_all = create_autospec(ProjectMemberAllManager)
+    project.members_all.get.return_value = create_autospec(
+        ProjectMember, id=mocked_gl.user.id, access_level=40
+    )
+    mocked_gl.get_project.return_value = project
     mocked_gl.is_group_project_owner.return_value = False
     gitlab_permissions.run(False, thread_pool_size=1)
     mocked_gl.share_project_with_group.assert_called_once_with(
-        repo_url="https://test-gitlab.com", group_id=1234, dry_run=False
+        project, group_id=1234, access_level=40
     )
 
 
@@ -76,8 +90,15 @@ def test_run_reshare_with_group(
             }
         },
     )
+    mocked_gl.get_access_level.return_value = 40
+    project = create_autospec(Project)
+    project.members_all = create_autospec(ProjectMemberAllManager)
+    project.members_all.get.return_value = create_autospec(
+        ProjectMember, id=mocked_gl.user.id, access_level=40
+    )
+    mocked_gl.get_project.return_value = project
     mocked_gl.is_group_project_owner.return_value = False
     gitlab_permissions.run(False, thread_pool_size=1)
     mocked_gl.share_project_with_group.assert_called_once_with(
-        repo_url="https://test-gitlab.com", group_id=1234, dry_run=False, reshare=True
+        project=project, group_id=1234, access_level=40, reshare=True
     )

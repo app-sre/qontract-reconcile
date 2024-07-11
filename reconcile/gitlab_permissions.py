@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from gitlab.const import MAINTAINER_ACCESS
+from gitlab.v4.objects import Project
 from sretoolbox.utils import threaded
 
 from reconcile import queries
@@ -15,6 +15,7 @@ from reconcile.utils.unleash import get_feature_toggle_state
 
 QONTRACT_INTEGRATION = "gitlab-permissions"
 APP_SRE_GROUP_NAME = "app-sre"
+GROUP_ACCESS = "maintainer"
 PAGE_SIZE = 100
 
 
@@ -22,6 +23,96 @@ PAGE_SIZE = 100
 class GroupSpec:
     group_name: str
     group_access_level: int
+
+
+class GroupPermissionHandler:
+    def __init__(
+        self, gl: GitLabApi, group_name: str, access: str, dry_run: bool
+    ) -> None:
+        self.gl = gl
+        self.group_name = group_name
+        self.access = access
+        self.access_level = self.gl.get_access_level(access)
+        self.dry_run = dry_run
+
+    def run(self, repos: list[str]) -> None:
+        # get repos not owned by app-sre
+        non_app_sre_project_repos = {
+            repo
+            for repo in repos
+            if not self.gl.is_group_project_owner(
+                group_name=self.group_name, repo_url=repo
+            )
+        }
+        access_level = self.gl.get_access_level(self.access)
+        desired_state = {
+            project_repo_url: GroupSpec(self.group_name, access_level)
+            for project_repo_url in non_app_sre_project_repos
+        }
+        group_id, shared_projects = self.gl.get_group_id_and_shared_projects(
+            self.group_name
+        )
+        current_state = {
+            project_repo_url: GroupSpec(
+                shared_projects[project_repo_url]["group_name"],
+                shared_projects[project_repo_url]["group_access_level"],
+            )
+            for project_repo_url in shared_projects
+        }
+        self.reconcile(desired_state, current_state, group_id)
+
+    def can_share_project(self, project: Project) -> bool:
+        # get user data of project
+        user = project.members_all.get(id=self.gl.user.id)
+        return user.access_level >= self.access_level
+
+    def reconcile(
+        self,
+        desired_state: dict[str, GroupSpec],
+        current_state: dict[str, GroupSpec],
+        group_id: int,
+    ) -> None:
+        # get the diff data
+        diff_data = diff_mappings(
+            current=current_state,
+            desired=desired_state,
+            equal=lambda current, desired: current.group_access_level
+            == desired.group_access_level,
+        )
+        for repo in diff_data.add.keys():
+            project = self.gl.get_project(repo)
+            if not self.can_share_project(project):
+                logging.error(
+                    "%s is not shared with %s as %s",
+                    repo,
+                    self.gl.user.username,
+                    self.access,
+                )
+                return None
+            logging.info([f"share_group_{self.group_name}_as_{self.access}", repo])
+            if not self.dry_run:
+                self.gl.share_project_with_group(
+                    project=project, group_id=group_id, access_level=self.access_level
+                )
+
+        for repo in diff_data.change.keys():
+            project = self.gl.get_project(repo)
+            if not self.can_share_project(project):
+                logging.error(
+                    "%s is not shared with %s as %s",
+                    repo,
+                    self.gl.user.username,
+                    self.group_name,
+                )
+                return None
+            logging.info([f"reshare_group_{self.group_name}_as_{self.access}", repo])
+            if not self.dry_run:
+                self.gl.share_project_with_group(
+                    project=project,
+                    group_id=group_id,
+                    access_level=self.access_level,
+                    reshare=True,
+                )
 
 
 def get_members_to_add(repo, gl, app_sre):
@@ -64,7 +155,11 @@ def run(dry_run, thread_pool_size=10, defer=None):
         default=False,
     )
     if share_with_group_enabled:
-        share_project_with_group(gl, repos, dry_run)
+        group_permission_handler = GroupPermissionHandler(
+            gl=gl, group_name=APP_SRE_GROUP_NAME, access=GROUP_ACCESS, dry_run=dry_run
+        )
+        group_permission_handler.run(repos=repos)
+        # share_project_with_group(gl, repos, "maintainer", APP_SRE_GROUP_NAME, dry_run)
     else:
         share_project_with_group_members(gl, repos, thread_pool_size, dry_run)
 
@@ -83,41 +178,66 @@ def share_project_with_group_members(
             gl.add_project_member(m["repo"], m["user"])
 
 
-def share_project_with_group(gl: GitLabApi, repos: list[str], dry_run: bool) -> None:
-    # get repos not owned by app-sre
-    non_app_sre_project_repos = {
-        repo
-        for repo in repos
-        if not gl.is_group_project_owner(group_name=APP_SRE_GROUP_NAME, repo_url=repo)
-    }
-    desired_state = {
-        project_repo_url: GroupSpec(APP_SRE_GROUP_NAME, MAINTAINER_ACCESS)
-        for project_repo_url in non_app_sre_project_repos
-    }
-    group_id, shared_projects = gl.get_group_id_and_shared_projects(APP_SRE_GROUP_NAME)
-    current_state = {
-        project_repo_url: GroupSpec(
-            shared_projects[project_repo_url]["group_name"],
-            shared_projects[project_repo_url]["group_access_level"],
-        )
-        for project_repo_url in shared_projects
-    }
+# def share_project_with_group(
+#     gl: GitLabApi, repos: list[str], access: str, group_name: str, dry_run: bool
+# ) -> None:
+#     # get repos not owned by app-sre
+#     non_app_sre_project_repos = {
+#         repo
+#         for repo in repos
+#         if not gl.is_group_project_owner(group_name=group_name, repo_url=repo)
+#     }
+#     access_level = gl.get_access_level(access)
+#     non_app_sre_project_repos = {"https://gitlab.cee.redhat.com/mekhan/app-interface"}
+#     desired_state = {
+#         project_repo_url: GroupSpec(group_name, access_level)
+#         for project_repo_url in non_app_sre_project_repos
+#     }
+#     group_id, shared_projects = gl.get_group_id_and_shared_projects(group_name)
+#     current_state = {
+#         project_repo_url: GroupSpec(
+#             shared_projects[project_repo_url]["group_name"],
+#             shared_projects[project_repo_url]["group_access_level"],
+#         )
+#         for project_repo_url in shared_projects
+#     }
 
-    # get the diff data
-    diff_data = diff_mappings(
-        current=current_state,
-        desired=desired_state,
-        equal=lambda current, desired: current.group_access_level
-        == desired.group_access_level,
-    )
+#     # get the diff data
+#     diff_data = diff_mappings(
+#         current=current_state,
+#         desired=desired_state,
+#         equal=lambda current, desired: current.group_access_level
+#         == desired.group_access_level,
+#     )
 
-    for repo in diff_data.add.keys():
-        gl.share_project_with_group(repo_url=repo, group_id=group_id, dry_run=dry_run)
+#     for repo in diff_data.add.keys():
+#         project = gl.get_project(repo)
+#         if not can_share_project(project, gl):
+#             logging.error(
+#                 "%s is not shared with %s as maintainer",
+#                 repo,
+#                 gl.user.username,
+#             )
+#             return None
+#         logging.info(["add_group_as_maintainer", repo, group_id])
+#         if not dry_run:
+#             gl.share_project_with_group(
+#                 repo_url=repo, group_id=group_id, dry_run=dry_run
+#             )
 
-    for repo in diff_data.change.keys():
-        gl.share_project_with_group(
-            repo_url=repo, group_id=group_id, dry_run=dry_run, reshare=True
-        )
+#     for repo in diff_data.change.keys():
+#         project = gl.get_project(repo)
+#         if not can_share_project(project, gl):
+#             logging.error(
+#                 "%s is not shared with %s as maintainer",
+#                 repo,
+#                 gl.user.username,
+#             )
+#             return None
+#         logging.info(["add_group_as_maintainer", repo, group_id])
+#         gl.share_project_with_group(
+#             repo_url=repo, group_id=group_id, dry_run=dry_run, reshare=True
+#         )
 
 
 def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
