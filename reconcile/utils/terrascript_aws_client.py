@@ -2650,6 +2650,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(tf_aws_iam_policy_attachment)
 
+        for policy in common_values.get("policies") or []:
+            tf_iam_role_policy_attachment = aws_iam_role_policy_attachment(
+                identifier + "-" + policy,
+                role=role_tf_resource.name,
+                policy_arn=f"arn:{self._get_partition(account)}:iam::aws:policy/{policy}",
+                depends_on=self.get_dependencies([role_tf_resource]),
+            )
+            tf_resources.append(tf_iam_role_policy_attachment)
+
         # output role arn
         output_name = output_prefix + "__role_arn"
         output_value = "${" + role_tf_resource.arn + "}"
