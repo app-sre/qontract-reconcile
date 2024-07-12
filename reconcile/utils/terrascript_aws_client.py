@@ -1196,16 +1196,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     self.add_resource(infra_account_name, tf_resource)
 
     def populate_vpc_requests(
-        self, vpc_requests: Iterable[VPCRequest], aws_provider_version: str
+        self, vpc_requests: Iterable[VPCRequest], vpc_module_version: str
     ) -> None:
         for request in vpc_requests:
             # skiping deleted requests
             if request.delete:
                 continue
             # The default values here come from infra repo's module configuration
-            values = {
+            vpc_module_values = {
                 "source": "terraform-aws-modules/vpc/aws",
-                "version": aws_provider_version,
+                "version": vpc_module_version,
                 "name": request.identifier,
                 "cidr": request.cidr_block.network_address,
                 "private_subnet_tags": {"kubernetes.io/role/internal-elb": "1"},
@@ -1218,29 +1218,52 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             }
 
             if request.subnets and request.subnets.public:
-                values["public_subnets"] = request.subnets.public
+                vpc_module_values["public_subnets"] = request.subnets.public
             if request.subnets and request.subnets.private:
-                values["private_subnets"] = request.subnets.private
+                vpc_module_values["private_subnets"] = request.subnets.private
             if request.subnets and request.subnets.availability_zones:
-                values["azs"] = request.subnets.availability_zones
+                vpc_module_values["azs"] = request.subnets.availability_zones
 
             # We only want to enable nat_gateway if we have public and private subnets
             if request.subnets and request.subnets.public and request.subnets.private:
-                values["enable_nat_gateway"] = True
+                vpc_module_values["enable_nat_gateway"] = True
 
             aws_account = request.account.name
-            module = Module(request.identifier, **values)
-            self.add_resource(aws_account, module)
+            vpc_module = Module(request.identifier, **vpc_module_values)
+            self.add_resource(aws_account, vpc_module)
+
+            # vpc_endpoint
+            vpc_endpoint_values = {
+                "source": "terraform-aws-modules/vpc/aws//modules/vpc-endpoints",
+                "version": vpc_module_version,
+                "vpc_id": vpc_module.vpc_id,
+                "endpoints": {
+                    "s3": {
+                        "service": "s3",
+                        "serivce_type": "Gateway",
+                        "tags": {
+                            "managed_by_integration": self.integration,
+                            "Name": f"{request.identifier}--vpce-s3",
+                            "route_table_ids": vpc_module.vpc.private_route_table_ids,
+                        },
+                    }
+                },
+            }
+
+            vpc_endpoint = Module(
+                f"{request.identifier}-endpoint", **vpc_endpoint_values
+            )
+            self.add_resource(aws_account, vpc_endpoint)
 
             # The outputs for module are only working with this sintaxe
             vpc_id_output = Output(
-                f"{request.identifier}-vpc_id", value=f"${{{module.vpc_id}}}"
+                f"{request.identifier}-vpc_id", value=f"${{{vpc_module.vpc_id}}}"
             )
             self.add_resource(aws_account, vpc_id_output)
 
             vpc_cidr_block_output = Output(
                 f"{request.identifier}-vpc_cidr_block",
-                value=f"${{{module.vpc_cidr_block}}}",
+                value=f"${{{vpc_module.vpc_cidr_block}}}",
             )
             self.add_resource(aws_account, vpc_cidr_block_output)
 
