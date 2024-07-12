@@ -80,7 +80,7 @@ class GroupPermissionHandler:
             == desired.group_access_level,
         )
 
-        for repo in diff_data.add.keys():
+        for repo in diff_data.add:
             project = self.gl.get_project(repo)
             if not self.can_share_project(project):
                 logging.error(
@@ -99,7 +99,7 @@ class GroupPermissionHandler:
                     project=project, group_id=group_id, access_level=self.access_level
                 )
 
-        for repo in diff_data.change.keys():
+        for repo in diff_data.change:
             project = self.gl.get_project(repo)
             if not self.can_share_project(project):
                 logging.error(

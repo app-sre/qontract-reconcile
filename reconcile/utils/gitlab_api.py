@@ -668,9 +668,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def is_group_project_owner(group_name: str, repo_url: str) -> bool:
         """Utility function to check if the project is owned by the group by checking if group name part of repo url"""
         substr = f"/{group_name}/"
-        if substr in repo_url:
-            return True
-        return False
+        return substr in repo_url
 
     @staticmethod
     def close(item):
