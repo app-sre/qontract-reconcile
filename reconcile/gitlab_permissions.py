@@ -62,7 +62,7 @@ class GroupPermissionHandler:
         self.reconcile(desired_state, current_state, group_id)
 
     def can_share_project(self, project: Project) -> bool:
-        # get user data of project
+        # check if user have access greater or equal access required
         user = project.members_all.get(id=self.gl.user.id)
         return user.access_level >= self.access_level
 
