@@ -36,8 +36,8 @@ class GroupPermissionHandler:
         self.dry_run = dry_run
 
     def run(self, repos: list[str]) -> None:
-        # get repos not owned by app-sre
-        non_app_sre_project_repos = {
+        # get repos not owned by the group
+        non_group_owned_project_repos = {
             repo
             for repo in repos
             if not self.gl.is_group_project_owner(
@@ -47,7 +47,7 @@ class GroupPermissionHandler:
 
         desired_state = {
             project_repo_url: GroupSpec(self.group_name, self.access_level)
-            for project_repo_url in non_app_sre_project_repos
+            for project_repo_url in non_group_owned_project_repos
         }
         group_id, shared_projects = self.gl.get_group_id_and_shared_projects(
             self.group_name
