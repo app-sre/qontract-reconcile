@@ -1236,7 +1236,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             vpc_endpoint_values = {
                 "source": "terraform-aws-modules/vpc/aws//modules/vpc-endpoints",
                 "version": vpc_module_version,
-                "vpc_id": vpc_module.vpc_id,
+                "vpc_id": f"${{{vpc_module.vpc_id}}}",
                 "endpoints": {
                     "s3": {
                         "service": "s3",
