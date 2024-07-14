@@ -55,7 +55,7 @@ def do_template(
                                 "--repository-cache",
                                 repository_cache_dir,
                             ]
-                            run(cmd, capture_output=False, check=True)
+                            run(cmd, capture_output=True, check=True)
                     cmd = [
                         "helm",
                         "dependency",
@@ -66,7 +66,7 @@ def do_template(
                         "--repository-cache",
                         repository_cache_dir,
                     ]
-                    run(cmd, capture_output=False, check=True)
+                    run(cmd, capture_output=True, check=True)
             with tempfile.NamedTemporaryFile(
                 mode="w+", encoding="locale"
             ) as values_file:
