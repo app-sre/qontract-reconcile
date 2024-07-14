@@ -12,6 +12,7 @@ from pydantic import (
     Field,
 )
 
+from reconcile.utils.helpers import flatten
 from reconcile.utils.oc_connection_parameters import Cluster
 from reconcile.utils.saasherder.interfaces import (
     HasParameters,
@@ -345,6 +346,8 @@ class TargetSpec:
                     parameters[k] = "false"
                 elif any(isinstance(v, t) for t in [dict, list, tuple]):
                     parameters[k] = json.dumps(v)
+        elif self.provider == "helm":
+            parameters = flatten(parameters)
         return parameters
 
     def _collect_secret_parameters(

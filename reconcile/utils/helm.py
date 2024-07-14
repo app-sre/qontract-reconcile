@@ -67,25 +67,20 @@ def do_template(
                         repository_cache_dir,
                     ]
                     run(cmd, capture_output=False, check=True)
-            with tempfile.NamedTemporaryFile(
-                mode="w+", encoding="locale"
-            ) as values_file:
-                values_file.write(json.dumps(values, cls=JSONEncoder))
-                values_file.flush()
-                cmd = [
-                    "helm",
-                    "template",
-                    path,
-                    "-n",
-                    name,
-                    "-f",
-                    values_file.name,
-                    "--repository-config",
-                    repository_config_file.name,
-                    "--repository-cache",
-                    repository_cache_dir,
-                ]
-                result = run(cmd, capture_output=True, check=True)
+            cmd = [
+                "helm",
+                "template",
+                path,
+                "-n",
+                name,
+                "--set",
+                ",".join(f"{k}={v}" for k, v in values.items()),
+                "--repository-config",
+                repository_config_file.name,
+                "--repository-cache",
+                repository_cache_dir,
+            ]
+            result = run(cmd, capture_output=True, check=True)
     except CalledProcessError as e:
         msg = f'Error running helm template [{" ".join(cmd)}]'
         if e.stdout:
