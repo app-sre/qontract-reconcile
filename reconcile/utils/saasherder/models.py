@@ -285,15 +285,13 @@ class TargetSpec:
     def error_prefix(self) -> str:
         return f"[{self.saas_file_name}/{self.resource_template_name}] {self.html_url}:"
 
-    def parameters(self, adjust: bool = True) -> dict[str, Any]:
+    def parameters(self) -> dict[str, Any]:
         environment_parameters = self._collect_parameters(
-            self.target.namespace.environment, adjust=adjust
+            self.target.namespace.environment
         )
-        saas_file_parameters = self._collect_parameters(self.saas_file, adjust=adjust)
-        resource_template_parameters = self._collect_parameters(
-            self.resource_template, adjust=adjust
-        )
-        target_parameters = self._collect_parameters(self.target, adjust=adjust)
+        saas_file_parameters = self._collect_parameters(self.saas_file)
+        resource_template_parameters = self._collect_parameters(self.resource_template)
+        target_parameters = self._collect_parameters(self.target)
 
         try:
             saas_file_secret_parameters = self._collect_secret_parameters(
@@ -334,14 +332,11 @@ class TargetSpec:
 
         return consolidated_parameters
 
-    @staticmethod
-    def _collect_parameters(
-        container: HasParameters, adjust: bool = True
-    ) -> dict[str, str]:
+    def _collect_parameters(self, container: HasParameters) -> dict[str, str]:
         parameters = container.parameters or {}
         if isinstance(parameters, str):
             parameters = json.loads(parameters)
-        if adjust:
+        if self.provider == "openshift-template":
             # adjust Python's True/False
             for k, v in parameters.items():
                 if v is True:
