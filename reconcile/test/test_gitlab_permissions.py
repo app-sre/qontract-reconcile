@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, create_autospec
 import pytest
 from gitlab.v4.objects import (
     CurrentUser,
+    Group,
     GroupMember,
     Project,
     ProjectMember,
@@ -56,10 +57,12 @@ def test_run_share_with_group(
     mocker.patch(
         "reconcile.gitlab_permissions.get_feature_toggle_state"
     ).return_value = True
-    mocked_gl.get_group_id_and_shared_projects.return_value = (
-        1234,
-        {"https://test.com": {"group_access_level": 30, "group_name": "app-sre"}},
-    )
+    group = create_autospec(Group, id=1234)
+    group.name = "app-sre"
+    mocked_gl.get_group.return_value = group
+    mocked_gl.get_shared_projects.return_value = {
+        "https://test.com": {"group_access_level": 30, "group_name": group.name}
+    }
     mocked_gl.get_access_level.return_value = 40
     project = create_autospec(Project)
     project.members_all = create_autospec(ProjectMemberAllManager)
@@ -81,15 +84,15 @@ def test_run_reshare_with_group(
     mocker.patch(
         "reconcile.gitlab_permissions.get_feature_toggle_state"
     ).return_value = True
-    mocked_gl.get_group_id_and_shared_projects.return_value = (
-        1234,
-        {
-            "https://test-gitlab.com": {
-                "group_access_level": 30,
-                "group_name": "app-sre",
-            }
-        },
-    )
+    group = create_autospec(Group, id=1234)
+    group.name = "app-sre"
+    mocked_gl.get_group.return_value = group
+    mocked_gl.get_shared_projects.return_value = {
+        "https://test-gitlab.com": {
+            "group_access_level": 30,
+            "group_name": group.name,
+        }
+    }
     mocked_gl.get_access_level.return_value = 40
     project = create_autospec(Project)
     project.members_all = create_autospec(ProjectMemberAllManager)

@@ -276,6 +276,15 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         project.share(group_id, access_level)
 
+    def get_shared_projects(self, group: Group) -> dict[str, Any]:
+        shared_projects = self.get_items(group.projects.list)
+        return {
+            project.web_url: shared_group
+            for project in shared_projects
+            for shared_group in project.shared_with_groups
+            if shared_group["group_id"] == group.id
+        }
+
     def get_group_id_and_shared_projects(
         self, group_name: str
     ) -> tuple[int, dict[str, Any]]:
@@ -394,6 +403,10 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return REPORTER_ACCESS
         if access == "guest":
             return GUEST_ACCESS
+
+    def get_group(self, group_name: str) -> Group:
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        return self.gl.groups.get(group_name)
 
     def get_group_id_and_projects(self, group_name: str) -> tuple[str, list[str]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()

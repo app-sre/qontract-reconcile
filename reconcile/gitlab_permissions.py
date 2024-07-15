@@ -30,10 +30,10 @@ class GroupPermissionHandler:
         self, gl: GitLabApi, group_name: str, access: str, dry_run: bool
     ) -> None:
         self.gl = gl
-        self.group_name = group_name
+        self.dry_run = dry_run
         self.access_level_string = access
         self.access_level = self.gl.get_access_level(access)
-        self.dry_run = dry_run
+        self.group = self.gl.get_group(group_name)
 
     def run(self, repos: list[str]) -> None:
         # get repos not owned by the group
@@ -41,17 +41,14 @@ class GroupPermissionHandler:
             repo
             for repo in repos
             if not self.gl.is_group_project_owner(
-                group_name=self.group_name, repo_url=repo
+                group_name=self.group.name, repo_url=repo
             )
         }
-
         desired_state = {
-            project_repo_url: GroupSpec(self.group_name, self.access_level)
+            project_repo_url: GroupSpec(self.group.name, self.access_level)
             for project_repo_url in non_group_owned_project_repos
         }
-        group_id, shared_projects = self.gl.get_group_id_and_shared_projects(
-            self.group_name
-        )
+        shared_projects = self.gl.get_shared_projects(self.group)
         current_state = {
             project_repo_url: GroupSpec(
                 shared_projects[project_repo_url]["group_name"],
@@ -59,7 +56,7 @@ class GroupPermissionHandler:
             )
             for project_repo_url in shared_projects
         }
-        self.reconcile(desired_state, current_state, group_id)
+        self.reconcile(desired_state, current_state)
 
     def can_share_project(self, project: Project) -> bool:
         # check if user have access greater or equal access required
@@ -70,7 +67,6 @@ class GroupPermissionHandler:
         self,
         desired_state: dict[str, GroupSpec],
         current_state: dict[str, GroupSpec],
-        group_id: int,
     ) -> None:
         # get the diff data
         diff_data = diff_mappings(
@@ -91,12 +87,14 @@ class GroupPermissionHandler:
                 )
                 return None
             logging.info([
-                f"share_group_{self.group_name}_as_{self.access_level_string}",
+                f"share_group_{self.group.name}_as_{self.access_level_string}",
                 repo,
             ])
             if not self.dry_run:
                 self.gl.share_project_with_group(
-                    project=project, group_id=group_id, access_level=self.access_level
+                    project=project,
+                    group_id=self.group.id,
+                    access_level=self.access_level,
                 )
 
         for repo in diff_data.change:
@@ -106,17 +104,17 @@ class GroupPermissionHandler:
                     "%s is not shared with %s as %s",
                     repo,
                     self.gl.user.username,
-                    self.group_name,
+                    self.group.name,
                 )
                 return None
             logging.info([
-                f"reshare_group_{self.group_name}_as_{self.access_level_string}",
+                f"reshare_group_{self.group.name}_as_{self.access_level_string}",
                 repo,
             ])
             if not self.dry_run:
                 self.gl.share_project_with_group(
                     project=project,
-                    group_id=group_id,
+                    group_id=self.group.id,
                     access_level=self.access_level,
                     reshare=True,
                 )
