@@ -6570,7 +6570,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         msk_version_str = values["kafka_version"].replace(".", "-")
         msk_config_name = f"{resource_id}-{msk_version_str}"
         msk_config = aws_msk_configuration(
-            resource_id,
+            msk_config_name,
             name=msk_config_name,
             kafka_versions=[values["kafka_version"]],
             server_properties=values["server_properties"],
