@@ -969,11 +969,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 else True
             )
             consolidated_parameters = spec.parameters(adjust=False)
-            image = consolidated_parameters.get("image", {})
-            if isinstance(image, dict) and not image.get("tag"):
-                commit_sha = self._get_commit_sha(url, ref, github)
-                image_tag = commit_sha[:hash_length]
-                consolidated_parameters.setdefault("image", {})["tag"] = image_tag
+            commit_sha = self._get_commit_sha(url, ref, github)
+            image_tag = commit_sha[:hash_length]
+            consolidated_parameters.setdefault("image", {})["tag"] = image_tag
             resources = helm.template_all(
                 url=url,
                 path=path,
