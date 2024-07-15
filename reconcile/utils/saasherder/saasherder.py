@@ -971,7 +971,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             consolidated_parameters = spec.parameters(adjust=False)
             commit_sha = self._get_commit_sha(url, ref, github)
             image_tag = commit_sha[:hash_length]
-            consolidated_parameters.setdefault("image", {})["tag"] = image_tag
+            consolidated_parameters.setdefault("IMAGE_TAG", image_tag)
             resources = helm.template_all(
                 url=url,
                 path=path,
