@@ -166,6 +166,7 @@ class TestSaasFileValid(TestCase):
             subscribe=None,
             promotion_data=None,
             soakDays=0,
+            schedule="* * * * *",
         )
         saasherder = SaasHerder(
             [self.saas_file],
@@ -190,6 +191,7 @@ class TestSaasFileValid(TestCase):
             subscribe=None,
             promotion_data=None,
             soakDays=0,
+            schedule="* * * * *",
         )
         saasherder = SaasHerder(
             [self.saas_file],

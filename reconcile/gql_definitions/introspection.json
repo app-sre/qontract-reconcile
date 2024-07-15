@@ -22280,6 +22280,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "schedule",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "promotion_data",
                             "description": null,
                             "args": [],

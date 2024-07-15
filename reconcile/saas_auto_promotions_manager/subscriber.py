@@ -4,6 +4,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from croniter import croniter
+
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
@@ -58,6 +60,7 @@ class Subscriber:
         self.target_namespace = target_namespace
         self.uid = uid
         self.soak_days = soak_days
+        self.schedule = schedule
         self._content_hash = ""
         self._use_target_config_hash = use_target_config_hash
         self._blocked_versions = blocked_versions
@@ -118,10 +121,9 @@ class Subscriber:
                     continue
                 delta += now - deployed_at
         return delta >= timedelta(days=self.soak_days)
-    
+
     def _is_valid_deployment_window(self) -> bool:
-        # TODO: implement
-        return True
+        return croniter.match(self.schedule, datetime.now(UTC))
 
     def _compute_desired_ref(self) -> None:
         """
@@ -170,6 +172,14 @@ class Subscriber:
             logging.debug(
                 "Subscriber at path %s promotion stopped because of soak days",
                 self.target_file_path,
+            )
+            return
+
+        if not self._is_valid_deployment_window():
+            logging.debug(
+                "Subscriber at path %s promotion stopped because we are not in the deployment window %s",
+                self.target_file_path,
+                self.schedule,
             )
             return
 

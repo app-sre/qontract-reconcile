@@ -1,6 +1,8 @@
 import logging
 from collections.abc import Iterable
 
+from croniter import croniter
+
 from reconcile.gql_definitions.common.saas_files import ParentSaasPromotionV1
 from reconcile.saas_auto_promotions_manager.publisher import Publisher
 from reconcile.saas_auto_promotions_manager.subscriber import (
@@ -9,9 +11,6 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     Subscriber,
 )
 from reconcile.typed_queries.saas_files import SaasFile
-from reconcile.utils.models import (
-    cron_validator,
-)
 
 
 class SaasFileInventoryError(Exception):
@@ -105,6 +104,20 @@ class SaasFilesInventory:
                     soak_days = (
                         target.promotion.soak_days if target.promotion.soak_days else 0
                     )
+                    schedule = (
+                        target.promotion.schedule
+                        if target.promotion.schedule
+                        else "* * * * *"
+                    )
+                    # Ideally we would catch that at schema validation time
+                    if not croniter.is_valid(schedule):
+                        logging.error(
+                            "Subscriber at %s has an invalid schedule declaration %s. We will block any promotion for that target until this is fixed.",
+                            file_path,
+                            schedule,
+                        )
+                        # Lets set schedule for impossible date to block promotions
+                        schedule = "0 5 31 2 1"
                     subscriber = Subscriber(
                         uid=target.uid(
                             parent_saas_file_name=saas_file.name,
