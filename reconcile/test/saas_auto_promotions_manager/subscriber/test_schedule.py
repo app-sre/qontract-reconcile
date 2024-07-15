@@ -53,3 +53,26 @@ def test_single_publisher_outside_schedule(
     # We are outside of our cron expression-> do not promote
     assert subscriber.desired_ref == "current_sha"
     assert subscriber.desired_hashes == []
+
+
+def test_single_publisher_invalid_schedule(
+    subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
+) -> None:
+    subscriber = subscriber_builder({
+        "CUR_SUBSCRIBER_REF": "current_sha",
+        # invalid format
+        "SCHEDULE": "* * * * * ? 2099",
+        "USE_TARGET_CONFIG_HASH": False,
+        "CHANNELS": {
+            "channel-a": {
+                "publisher_a": {
+                    "REAL_WORLD_SHA": "new_sha",
+                }
+            },
+        },
+    })
+    subscriber.compute_desired_state()
+
+    # Invalid cron expression-> do not promote
+    assert subscriber.desired_ref == "current_sha"
+    assert subscriber.desired_hashes == []

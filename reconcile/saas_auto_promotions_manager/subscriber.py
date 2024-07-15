@@ -123,6 +123,14 @@ class Subscriber:
         return delta >= timedelta(days=self.soak_days)
 
     def _is_valid_deployment_window(self) -> bool:
+        # Ideally we would catch that at schema validation time
+        if not croniter.is_valid(self.schedule):
+            logging.error(
+                "Subscriber at %s has an invalid schedule declaration %s. We will block any promotion for that target until this is fixed.",
+                self.target_file_path,
+                self.schedule,
+            )
+            return False
         return croniter.match(self.schedule, datetime.now(UTC))
 
     def _compute_desired_ref(self) -> None:
