@@ -140,6 +140,7 @@ query SaasFiles {
           publish
           subscribe
           soakDays
+          schedule
           promotion_data {
             channel
             data {

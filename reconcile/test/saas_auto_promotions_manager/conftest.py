@@ -159,6 +159,7 @@ def subscriber_builder(
             use_target_config_hash=data.get("USE_TARGET_CONFIG_HASH", True),
             soak_days=data.get("SOAK_DAYS", 0),
             blocked_versions=data.get("BLOCKED_VERSIONS", {}),
+            schedule=data.get("SCHEDULE", "* * * * *"),
         )
         subscriber.channels = channels
         subscriber.config_hashes_by_channel_name = cur_config_hashes_by_channel
