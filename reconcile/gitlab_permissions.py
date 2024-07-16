@@ -37,6 +37,16 @@ class GroupPermissionHandler:
 
     def run(self, repos: list[str]) -> None:
         # get repos not owned by the group
+        # repo_to_project_mapping = {
+        #     repo:self.gl.get_project(repo)
+        #     for repo in repos
+        # }
+        
+        # non_group_owned_projects = {
+        #     repo:repo_to_project_mapping[repo]
+        #     for repo in repo_to_project_mapping
+        #     if self.gl.group.id != repo_to_project_mapping[repo].
+        # }
         non_group_owned_project_repos = {
             repo
             for repo in repos
@@ -44,6 +54,9 @@ class GroupPermissionHandler:
                 group_name=self.group.name, repo_url=repo
             )
         }
+        #testing
+        non_group_owned_project_repos= {"https://gitlab.cee.redhat.com/mekhan/app-interface"}
+        #testing
         desired_state = {
             project_repo_url: GroupSpec(self.group.name, self.access_level)
             for project_repo_url in non_group_owned_project_repos
@@ -78,6 +91,7 @@ class GroupPermissionHandler:
 
         for repo in diff_data.add:
             project = self.gl.get_project(repo)
+            logging.debug(self.gl.get_project("https://gitlab.cee.redhat.com/app-sre/terraform-repo-tekton").__dict__)
             if not self.can_share_project(project):
                 logging.error(
                     "%s is not shared with %s as %s",
