@@ -24,6 +24,7 @@ from typing import (
 )
 
 from botocore.errorfactory import ClientError
+from packaging import version as pkg_version
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -805,15 +806,30 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         replica_source,
         region_name,
     ):
-        supported_versions = {
-            "mysql": ["5.7", "8.0.15"],
-            "postgres": ["11.21", "12.16", "13.12", "14.9", "15.4", "16.1"],
+        min_supported_versions = {
+            "mysql": [pkg_version.parse("5.7"), pkg_version.parse("8.0.15")],
+            "postgres": [
+                pkg_version.parse("11.21"),
+                pkg_version.parse("12.16"),
+                pkg_version.parse("13.12"),
+                pkg_version.parse("14.9"),
+                pkg_version.parse("15.4"),
+                pkg_version.parse("16.1"),
+            ],
         }
 
         def is_supported(engine, version):
-            for v in supported_versions.get(engine, []):
-                if version.startswith(v):
-                    return True
+            parsed_version = pkg_version.parse(version)
+            if engine == "mysql":
+                return any(
+                    parsed_version >= min_version
+                    for min_version in min_supported_versions["mysql"]
+                )
+            elif engine == "postgres":
+                return any(
+                    parsed_version >= min_version
+                    for min_version in min_supported_versions["postgres"]
+                )
             return False
 
         if not is_supported(engine, version):
@@ -830,7 +846,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             pg_details = self._aws_api.describe_db_parameter_group(
                 account_name, parameter_group, region_name
             )
-            if not pg_details.get("rds.logical_replication") == "1":
+            if pg_details.get("rds.logical_replication") != "1":
                 raise ValueError(
                     f"Parameter group {parameter_group} does not have logical replication enabled."
                 )

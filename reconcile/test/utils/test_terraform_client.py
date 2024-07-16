@@ -627,7 +627,7 @@ def test_validate_blue_green_update_requirements_supported_version(aws_api, tf):
     tf.validate_blue_green_update_requirements(
         account_name="a1",
         engine="postgres",
-        version="12.16",
+        version="12.17",
         parameter_group="test-pg",
         replica_source=None,
         region_name="us-east-1",
@@ -639,7 +639,7 @@ def test_validate_blue_green_update_requirements_unsupported_version(aws_api, tf
         tf.validate_blue_green_update_requirements(
             account_name="a1",
             engine="postgres",
-            version="10.6",
+            version="11.19",
             parameter_group="test-pg",
             replica_source=None,
             region_name="us-east-1",
