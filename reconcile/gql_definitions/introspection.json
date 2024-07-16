@@ -32089,6 +32089,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "forceRerunTimestamp",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "tfVersion",
                             "description": null,
                             "args": [],

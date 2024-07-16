@@ -361,6 +361,8 @@ class TerraformRepoIntegration(
                 )
             if self.params.validate_git:
                 self.check_ref(d.repository, d.ref)
+            if d.force_rerun_timestamp:
+                logging.info("user has forced a re-run of tf-repo execution")
 
         if len(merged) != 0:
             if not dry_run and state:
