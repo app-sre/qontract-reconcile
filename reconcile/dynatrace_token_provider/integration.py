@@ -303,22 +303,15 @@ class DynatraceTokenProviderIntegration(
                 else {}
             )
             for desired_token in secret.tokens:
-                new_token = current_tokens_by_name.get(
-                    desired_token.name,
-                    DynatraceAPIToken(
-                        token="",
-                        id="does-for-sure-not-exist-3e14dab5801ed1f657425aca498ab008bac77f00deafd773695e394e434044d2",
-                        name="",
-                        secret_key="",
-                    ),
-                )
-                if new_token.id not in existing_dtp_tokens:
+                new_token = current_tokens_by_name.get(desired_token.name)
+                if not new_token or new_token.id not in existing_dtp_tokens:
                     has_diff = True
                     if not dry_run:
                         new_token = self.create_dynatrace_token(
                             dt_client, cluster_uuid, desired_token
                         )
-                desired_tokens.append(new_token)
+                if new_token:
+                    desired_tokens.append(new_token)
             desired.append(
                 K8sSecret(
                     secret_name=secret.name,
