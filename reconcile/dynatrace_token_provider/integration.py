@@ -36,8 +36,6 @@ from reconcile.utils.runtime.integration import (
 
 QONTRACT_INTEGRATION = "dynatrace-token-provider"
 SYNCSET_AND_MANIFEST_ID = "ext-dynatrace-tokens-dtp"
-SECRET_NAME = "dynatrace-token-dtp"
-SECRET_NAMESPACE = "dynatrace"
 
 
 class DynatraceTokenProviderIntegrationParams(PydanticRunParams):
