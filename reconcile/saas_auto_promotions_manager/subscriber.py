@@ -4,6 +4,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from croniter import croniter
+
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
@@ -45,6 +47,7 @@ class Subscriber:
         uid: str,
         soak_days: int,
         blocked_versions: set[str],
+        schedule: str,
     ):
         self.saas_name = saas_name
         self.template_name = template_name
@@ -57,6 +60,7 @@ class Subscriber:
         self.target_namespace = target_namespace
         self.uid = uid
         self.soak_days = soak_days
+        self.schedule = schedule
         self._content_hash = ""
         self._use_target_config_hash = use_target_config_hash
         self._blocked_versions = blocked_versions
@@ -118,6 +122,17 @@ class Subscriber:
                 delta += now - deployed_at
         return delta >= timedelta(days=self.soak_days)
 
+    def _is_valid_deployment_window(self) -> bool:
+        # Ideally we would catch that at schema validation time
+        if not croniter.is_valid(self.schedule):
+            logging.error(
+                "Subscriber at %s has an invalid schedule declaration %s. We will block any promotion for that target until this is fixed.",
+                self.target_file_path,
+                self.schedule,
+            )
+            return False
+        return croniter.match(self.schedule, datetime.now(UTC))
+
     def _compute_desired_ref(self) -> None:
         """
         Compute the desired reference for this subscriber.
@@ -165,6 +180,14 @@ class Subscriber:
             logging.debug(
                 "Subscriber at path %s promotion stopped because of soak days",
                 self.target_file_path,
+            )
+            return
+
+        if not self._is_valid_deployment_window():
+            logging.debug(
+                "Subscriber at path %s promotion stopped because we are not in the deployment window %s",
+                self.target_file_path,
+                self.schedule,
             )
             return
 

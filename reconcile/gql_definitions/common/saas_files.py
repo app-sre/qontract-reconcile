@@ -265,6 +265,7 @@ query SaasFiles {
           publish
           subscribe
           soakDays
+          schedule
           promotion_data {
             channel
             data {
@@ -471,6 +472,7 @@ class SaasResourceTemplateTargetPromotionV1(ConfiguredBaseModel):
     publish: Optional[list[str]] = Field(..., alias="publish")
     subscribe: Optional[list[str]] = Field(..., alias="subscribe")
     soak_days: Optional[int] = Field(..., alias="soakDays")
+    schedule: Optional[str] = Field(..., alias="schedule")
     promotion_data: Optional[list[PromotionDataV1]] = Field(..., alias="promotion_data")
 
 

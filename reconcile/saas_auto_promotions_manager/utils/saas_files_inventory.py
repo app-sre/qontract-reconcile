@@ -102,6 +102,11 @@ class SaasFilesInventory:
                     soak_days = (
                         target.promotion.soak_days if target.promotion.soak_days else 0
                     )
+                    schedule = (
+                        target.promotion.schedule
+                        if target.promotion.schedule
+                        else "* * * * *"
+                    )
                     subscriber = Subscriber(
                         uid=target.uid(
                             parent_saas_file_name=saas_file.name,
@@ -113,6 +118,7 @@ class SaasFilesInventory:
                         ref=target.ref,
                         target_namespace=target.namespace,
                         soak_days=soak_days,
+                        schedule=schedule,
                         blocked_versions=blocked_versions.get(
                             resource_template.url, set()
                         ),
