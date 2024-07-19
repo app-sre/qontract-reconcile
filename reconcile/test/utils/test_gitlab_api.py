@@ -8,8 +8,6 @@ from gitlab.v4.objects import (
     GroupManager,
     GroupMember,
     GroupMemberManager,
-    GroupProject,
-    GroupProjectManager,
     Project,
     ProjectIssue,
     ProjectIssueManager,
@@ -489,35 +487,3 @@ def test_share_project_with_group_positive(
     mocked_gl.projects = projects
     mocked_gitlab_api.share_project_with_group(project, 1111, 40)
     project.share.assert_called_once_with(1111, 40)
-
-
-def test_get_group_id_and_shared_projects(mocked_gitlab_api: GitLabApi, mocked_gl: Any):
-    groups = create_autospec(GroupManager)
-    mocked_group = create_autospec(
-        Group,
-        id=1234,
-    )
-    mocked_group.projects = create_autospec(GroupProjectManager)
-    mocked_group.projects.list.return_value = [
-        create_autospec(
-            GroupProject,
-            web_url="https://xyz1.com",
-            shared_with_groups=[
-                {
-                    "group_id": 1234,
-                    "group_access_level": 40,
-                },
-                {"group_id": 1244, "group_access_level": 50},
-            ],
-        ),
-        create_autospec(
-            GroupProject,
-            web_url="https://xyz2.com",
-            shared_with_groups=[{"group_id": 1234, "group_access_level": 30}],
-        ),
-    ]
-    groups.get.return_value = mocked_group
-    mocked_gl.groups = groups
-    id, shared_projects = mocked_gitlab_api.get_group_id_and_shared_projects("test")
-    assert id == 1234
-    assert shared_projects["https://xyz1.com"]["group_access_level"] == 40

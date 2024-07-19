@@ -3,7 +3,10 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from gitlab.v4.objects import Project
+from gitlab.v4.objects import (
+    GroupProjectManager,
+    Project,
+)
 from sretoolbox.utils import threaded
 
 from reconcile import queries
@@ -23,6 +26,11 @@ PAGE_SIZE = 100
 class GroupSpec:
     group_name: str
     group_access_level: int
+    is_ancestor: bool = False
+
+
+class GroupAccessLevelError(Exception):
+    pass
 
 
 class GroupPermissionHandler:
@@ -36,40 +44,32 @@ class GroupPermissionHandler:
         self.group = self.gl.get_group(group_name)
 
     def run(self, repos: list[str]) -> None:
-        # get repos not owned by the group
-        # repo_to_project_mapping = {
-        #     repo:self.gl.get_project(repo)
-        #     for repo in repos
-        # }
-        
-        # non_group_owned_projects = {
-        #     repo:repo_to_project_mapping[repo]
-        #     for repo in repo_to_project_mapping
-        #     if self.gl.group.id != repo_to_project_mapping[repo].
-        # }
-        non_group_owned_project_repos = {
-            repo
-            for repo in repos
-            if not self.gl.is_group_project_owner(
-                group_name=self.group.name, repo_url=repo
-            )
-        }
-        #testing
-        non_group_owned_project_repos= {"https://gitlab.cee.redhat.com/mekhan/app-interface"}
-        #testing
         desired_state = {
             project_repo_url: GroupSpec(self.group.name, self.access_level)
-            for project_repo_url in non_group_owned_project_repos
+            for project_repo_url in repos
         }
-        shared_projects = self.gl.get_shared_projects(self.group)
+        projects_from_group = self.gl.get_all_projects_from_group(self.group)
         current_state = {
-            project_repo_url: GroupSpec(
-                shared_projects[project_repo_url]["group_name"],
-                shared_projects[project_repo_url]["group_access_level"],
-            )
-            for project_repo_url in shared_projects
+            project.web_url: self.extract_group_spec(project)
+            for project in projects_from_group
         }
         self.reconcile(desired_state, current_state)
+
+    def extract_group_spec(self, project: GroupProjectManager) -> GroupSpec:
+        # check if the project is shared with group with an access level
+        # in case of project being the ancestor the shared_with_groups will be empty
+        for group in project.shared_with_groups:
+            if group["group_id"] == self.group.id:
+                return GroupSpec(
+                    group_name=self.group.name,
+                    group_access_level=group["group_access_level"],
+                )
+        # return the desired groupspec data to skip project whose ancestor is the group
+        return GroupSpec(
+            group_name=self.group.name,
+            group_access_level=self.access_level,
+            is_ancestor=True,
+        )
 
     def can_share_project(self, project: Project) -> bool:
         # check if user have access greater or equal access required
@@ -88,18 +88,15 @@ class GroupPermissionHandler:
             equal=lambda current, desired: current.group_access_level
             == desired.group_access_level,
         )
-
+        errors: list[Exception] = []
         for repo in diff_data.add:
             project = self.gl.get_project(repo)
-            logging.debug(self.gl.get_project("https://gitlab.cee.redhat.com/app-sre/terraform-repo-tekton").__dict__)
             if not self.can_share_project(project):
-                logging.error(
-                    "%s is not shared with %s as %s",
-                    repo,
-                    self.gl.user.username,
-                    self.access_level_string,
+                errors.append(
+                    GroupAccessLevelError(
+                        f"{repo} is not shared with {self.gl.user.username} as {self.access_level_string}"
+                    )
                 )
-                return None
             logging.info([
                 f"share_group_{self.group.name}_as_{self.access_level_string}",
                 repo,
@@ -114,13 +111,11 @@ class GroupPermissionHandler:
         for repo in diff_data.change:
             project = self.gl.get_project(repo)
             if not self.can_share_project(project):
-                logging.error(
-                    "%s is not shared with %s as %s",
-                    repo,
-                    self.gl.user.username,
-                    self.group.name,
+                errors.append(
+                    GroupAccessLevelError(
+                        f"{repo} is not shared with {self.gl.user.username} as {self.access_level_string}"
+                    )
                 )
-                return None
             logging.info([
                 f"reshare_group_{self.group.name}_as_{self.access_level_string}",
                 repo,
@@ -132,6 +127,8 @@ class GroupPermissionHandler:
                     access_level=self.access_level,
                     reshare=True,
                 )
+        if errors:
+            raise ExceptionGroup("Reconcile errors occurred", errors)
 
 
 def get_members_to_add(repo, gl, app_sre):

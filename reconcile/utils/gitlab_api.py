@@ -29,6 +29,7 @@ from gitlab.const import (
 from gitlab.v4.objects import (
     CurrentUser,
     Group,
+    GroupProjectManager,
     PersonalAccessToken,
     Project,
     ProjectIssue,
@@ -276,27 +277,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         project.share(group_id, access_level)
 
-    def get_shared_projects(self, group: Group) -> dict[str, Any]:
+    def get_all_projects_from_group(self, group: Group) -> list[GroupProjectManager]:
         shared_projects = self.get_items(group.projects.list)
-        return {
-            project.web_url: shared_group
-            for project in shared_projects
-            for shared_group in project.shared_with_groups
-            if shared_group["group_id"] == group.id
-        }
-
-    def get_group_id_and_shared_projects(
-        self, group_name: str
-    ) -> tuple[int, dict[str, Any]]:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        group = self.gl.groups.get(group_name)
-        shared_projects = self.get_items(group.projects.list)
-        return group.id, {
-            project.web_url: shared_group
-            for project in shared_projects
-            for shared_group in project.shared_with_groups
-            if shared_group["group_id"] == group.id
-        }
+        return shared_projects
 
     @staticmethod
     def _is_bot_username(username: str) -> bool:
@@ -683,6 +666,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         substr = f"/{group_name}/"
         return substr in repo_url
 
+    # def is_group_project_owner_v2(group_name:str,repu_url)
     @staticmethod
     def close(item):
         item.state_event = "close"
