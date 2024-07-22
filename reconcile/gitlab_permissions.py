@@ -44,7 +44,6 @@ class GroupPermissionHandler:
         self.group = self.gl.get_group(group_name)
 
     def run(self, repos: list[str]) -> None:
-        repos = ["https://gitlab.cee.redhat.com/mekhan/app-interface"]
         desired_state = {
             project_repo_url: GroupSpec(self.group.name, self.access_level)
             for project_repo_url in repos

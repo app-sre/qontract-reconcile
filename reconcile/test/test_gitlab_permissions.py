@@ -81,7 +81,6 @@ def test_run_share_with_group(
         ProjectMember, id=mocked_gl.user.id, access_level=40
     )
     mocked_gl.get_project.return_value = project
-    mocked_gl.is_group_project_owner.return_value = False
     gitlab_permissions.run(False, thread_pool_size=1)
     mocked_gl.share_project_with_group.assert_called_once_with(
         project, group_id=1234, access_level=40
@@ -118,7 +117,6 @@ def test_run_reshare_with_group(
         ProjectMember, id=mocked_gl.user.id, access_level=40
     )
     mocked_gl.get_project.return_value = project
-    mocked_gl.is_group_project_owner.return_value = False
     gitlab_permissions.run(False, thread_pool_size=1)
     mocked_gl.share_project_with_group.assert_called_once_with(
         project=project, group_id=1234, access_level=40, reshare=True
@@ -155,6 +153,5 @@ def test_run_share_with_group_failed(
         ProjectMember, id=mocked_gl.user.id, access_level=10
     )
     mocked_gl.get_project.return_value = project
-    mocked_gl.is_group_project_owner.return_value = False
     with pytest.raises(Exception):
         gitlab_permissions.run(False, thread_pool_size=1)
