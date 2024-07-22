@@ -116,7 +116,7 @@ class ExternalResourcesManager:
                     return ReconcileAction.APPLY_NOT_EXISTS
                 case ResourceStatus.ERROR:
                     return ReconcileAction.APPLY_ERROR
-                case ResourceStatus.CREATED:
+                case ResourceStatus.CREATED | ResourceStatus.PENDING_SECRET_SYNC:
                     if (
                         reconciliation.resource_hash
                         != state.reconciliation.resource_hash
