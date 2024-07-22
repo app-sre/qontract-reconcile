@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from gitlab.v4.objects import (
-    GroupProjectManager,
+    GroupProject,
     Project,
 )
 from sretoolbox.utils import threaded
@@ -44,27 +44,28 @@ class GroupPermissionHandler:
         self.group = self.gl.get_group(group_name)
 
     def run(self, repos: list[str]) -> None:
+        repos = ["https://gitlab.cee.redhat.com/mekhan/app-interface"]
         desired_state = {
             project_repo_url: GroupSpec(self.group.name, self.access_level)
             for project_repo_url in repos
         }
-        projects_from_group = self.gl.get_all_projects_from_group(self.group)
+        projects_from_group = self.gl.get_all_group_projects(self.group)
         current_state = {
             project.web_url: self.extract_group_spec(project)
             for project in projects_from_group
         }
         self.reconcile(desired_state, current_state)
 
-    def extract_group_spec(self, project: GroupProjectManager) -> GroupSpec:
-        # check if the project is shared with group with an access level
-        # in case of project being the ancestor the shared_with_groups will be empty
+    def extract_group_spec(self, project: GroupProject) -> GroupSpec:
+        # check if the project have shared_with_groups with an access level
+        # in case of group being the only ancestor of project the shared_with_groups will be empty
         for group in project.shared_with_groups:
             if group["group_id"] == self.group.id:
                 return GroupSpec(
                     group_name=self.group.name,
                     group_access_level=group["group_access_level"],
                 )
-        # return the desired groupspec data to skip project whose ancestor is the group
+        # return the desired groupspec data to skip project whose ancestor is the group as they cannot be shared/unshared
         return GroupSpec(
             group_name=self.group.name,
             group_access_level=self.access_level,
@@ -72,7 +73,7 @@ class GroupPermissionHandler:
         )
 
     def can_share_project(self, project: Project) -> bool:
-        # check if user have access greater or equal access required
+        # check if user have access greater or equal access to be shared with the group
         user = project.members_all.get(id=self.gl.user.id)
         return user.access_level >= self.access_level
 
@@ -97,6 +98,7 @@ class GroupPermissionHandler:
                         f"{repo} is not shared with {self.gl.user.username} as {self.access_level_string}"
                     )
                 )
+                continue
             logging.info([
                 f"share_group_{self.group.name}_as_{self.access_level_string}",
                 repo,
@@ -107,7 +109,6 @@ class GroupPermissionHandler:
                     group_id=self.group.id,
                     access_level=self.access_level,
                 )
-
         for repo in diff_data.change:
             project = self.gl.get_project(repo)
             if not self.can_share_project(project):
@@ -116,6 +117,7 @@ class GroupPermissionHandler:
                         f"{repo} is not shared with {self.gl.user.username} as {self.access_level_string}"
                     )
                 )
+                continue
             logging.info([
                 f"reshare_group_{self.group.name}_as_{self.access_level_string}",
                 repo,

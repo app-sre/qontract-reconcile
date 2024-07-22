@@ -5,7 +5,7 @@ from gitlab.v4.objects import (
     CurrentUser,
     Group,
     GroupMember,
-    GroupProjectManager,
+    GroupProject,
     Project,
     ProjectMember,
     ProjectMemberAllManager,
@@ -61,9 +61,9 @@ def test_run_share_with_group(
     group = create_autospec(Group, id=1234)
     group.name = "app-sre"
     mocked_gl.get_group.return_value = group
-    mocked_gl.get_all_projects_from_group.return_value = [
+    mocked_gl.get_all_group_projects.return_value = [
         create_autospec(
-            GroupProjectManager,
+            GroupProject,
             web_url="https://test.com",
             shared_with_groups=[
                 {
@@ -98,9 +98,9 @@ def test_run_reshare_with_group(
     group = create_autospec(Group, id=1234)
     group.name = "app-sre"
     mocked_gl.get_group.return_value = group
-    mocked_gl.get_all_projects_from_group.return_value = [
+    mocked_gl.get_all_group_projects.return_value = [
         create_autospec(
-            GroupProjectManager,
+            GroupProject,
             web_url="https://test-gitlab.com",
             shared_with_groups=[
                 {
@@ -135,9 +135,9 @@ def test_run_share_with_group_failed(
     group = create_autospec(Group, id=1234)
     group.name = "app-sre"
     mocked_gl.get_group.return_value = group
-    mocked_gl.get_all_projects_from_group.return_value = [
+    mocked_gl.get_all_group_projects.return_value = [
         create_autospec(
-            GroupProjectManager,
+            GroupProject,
             web_url="https://test-gitlab.com",
             shared_with_groups=[
                 {
