@@ -154,6 +154,14 @@ class ExternalResourcesManager:
             )
         return reconcile
 
+    def get_all_reconciliations(self) -> dict[str, set[Reconciliation]]:
+        """Returns all reconciliations in a dict. Useful to return all data
+        from app-interface to make comparisions (early-exit)"""
+        return {
+            "desired": self._get_desired_objects_reconciliations(),
+            "deleted": self._get_deleted_objects_reconciliations(),
+        }
+
     def _get_desired_objects_reconciliations(self) -> set[Reconciliation]:
         r: set[Reconciliation] = set()
         for key, spec in self.er_inventory.items():
