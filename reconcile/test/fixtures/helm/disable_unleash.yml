@@ -47,8 +47,68 @@ objects:
                 key: log_group_name
           command: ["/bin/sh", "-c"]
           args:
+          # generate /etc/vector/vector.yaml
+          # and generate /fluentd/etc/fluent.conf
           - |
-            # generate fluent.conf
+            ### APPSRE-8096: Vector Section Begins
+            mkdir -p /etc/vector
+            cat > /etc/vector/vector.yaml <<EOF
+            sources:
+              qr:
+                type: file
+                include:
+                  - /fluentd/log/integration.log
+                read_from: beginning
+                data_dir: /fluentd/log
+
+            transforms:
+              ### De-spaminate
+              despam_events:
+                type: filter
+                inputs:
+                  - qr
+                condition:
+                  type: datadog_search
+                  source: -"using gql endpoint" AND -"Certificate did not match expected hostname"
+
+              ### Craft a JSON document that has escaped double quotes and changes the event from the 
+              ### Vector-default `message` to `text`, which is require by Slack and Google Chat.
+              rename_message_webhooks:
+                type: remap
+                inputs:
+                  - despam_events
+                source: |-
+                  .message = join!(
+                  [
+                    "{\"text\":\"",
+                    format_timestamp!(
+                      now(),
+                      "%Y-%m-%d %H:%M:%S %z"
+                    ),
+                    " ",
+                    " [${POD_NAME}] ",
+                    replace!(
+                      del(.message),
+                      "\"",
+                      "\\\""),
+                    "\"}"
+                  ])
+
+            sinks:
+              ################
+              ### Cloudwatch log sink
+              ################
+              cloudwatch_logs:
+                type: aws_cloudwatch_logs
+                inputs:
+                  - rename_message_webhooks
+                group_name: "${LOG_GROUP_NAME}"
+                encoding:
+                  codec: text
+                stream_name: "integ"
+            EOF
+            ### APPSRE-8096: Vector Section Ends
+            echo "Creating /fluentd/etc/fluent.conf"
             cat > /fluentd/etc/fluent.conf <<EOF
             <source>
               @type tail
@@ -90,6 +150,8 @@ objects:
           volumeMounts:
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          - name: vector-config
+            mountPath: /etc/vector/
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -142,6 +204,37 @@ objects:
             mountPath: /fluentd/log/
           - name: qontract-reconcile-sa-token
             mountPath: ${KUBE_SA_TOKEN_MOUNT_PATH}
+          ### APPSRE-8096: Vector Section Begins
+        - name: vector
+          image: ${VECTOR_IMAGE}:${VECTOR_IMAGE_TAG}
+          imagePullPolicy: ${VECTOR_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_DEFAULT_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+          volumeMounts:
+            - name: vector-config
+              mountPath: /etc/vector
+          ### APPSRE-8096: Vector Section Ends
+
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
           imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
@@ -185,6 +278,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: vector-config
           emptyDir: {}
         - name: tmp-dir
           emptyDir: {}
@@ -275,6 +370,14 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
+### APPSRE-8096: Vector Section Begins
+- name: VECTOR_IMAGE
+  value: timberio/vector
+- name: VECTOR_IMAGE_TAG
+  value: 0.38.0-debian
+- name: VECTOR_IMAGE_PULL_POLICY
+  value: Always
+### APPSRE-8096: Vector Section Ends
 - name: INTEG_MEMORY_LIMIT
   value: 90Mi
 - name: INTEG_CPU_REQUEST
