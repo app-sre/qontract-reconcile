@@ -391,11 +391,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         return self.gl.groups.get(group_name)
 
-    def get_group_id_and_projects(self, group_name: str) -> tuple[str, list[str]]:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        group = self.gl.groups.get(group_name)
-        return group.id, [p.name for p in self.get_items(group.projects.list)]
-
     def create_project(self, group_id, project):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.gl.projects.create({"name": project, "namespace_id": group_id})
