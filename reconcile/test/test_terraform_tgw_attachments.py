@@ -3,10 +3,6 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import (
-    Optional,
-    Union,
-)
 from unittest.mock import create_autospec
 
 import pytest
@@ -162,10 +158,10 @@ def peering_connection_builder(
         name: str,
         provider: str,
         manage_routes: bool = False,
-        account: Optional[ClusterPeeringConnectionAccountTGWV1_AWSAccountV1] = None,
-        assume_role: Optional[str] = None,
-        cidr_block: Optional[str] = None,
-        delete: Optional[bool] = None,
+        account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1 | None = None,
+        assume_role: str | None = None,
+        cidr_block: str | None = None,
+        delete: bool | None = None,
     ) -> ClusterPeeringConnectionAccountTGWV1:
         return gql_class_factory(
             ClusterPeeringConnectionAccountTGWV1,
@@ -260,13 +256,11 @@ def peering_builder(
 ) -> Callable[..., ClusterPeeringV1]:
     def builder(
         connections: list[
-            Union[
-                ClusterPeeringConnectionAccountTGWV1,
-                ClusterPeeringConnectionAccountV1,
-                ClusterPeeringConnectionAccountVPCMeshV1,
-                ClusterPeeringConnectionClusterRequesterV1,
-                ClusterPeeringConnectionV1,
-            ]
+            ClusterPeeringConnectionAccountTGWV1
+            | ClusterPeeringConnectionAccountV1
+            | ClusterPeeringConnectionAccountVPCMeshV1
+            | ClusterPeeringConnectionClusterRequesterV1
+            | ClusterPeeringConnectionV1
         ],
     ) -> ClusterPeeringV1:
         return gql_class_factory(
@@ -504,11 +498,11 @@ def build_expected_desired_state_item(
 def _setup_mocks(
     mocker: MockerFixture,
     vault_settings: AppInterfaceSettingsV1,
-    clusters: Optional[Iterable[ClusterV1]] = None,
-    accounts: Optional[Iterable[AWSAccountV1]] = None,
-    vpc_details: Optional[Mapping] = None,
-    tgws: Optional[Iterable] = None,
-    assume_role: Optional[str] = None,
+    clusters: Iterable[ClusterV1] | None = None,
+    accounts: Iterable[AWSAccountV1] | None = None,
+    vpc_details: Mapping | None = None,
+    tgws: Iterable | None = None,
+    assume_role: str | None = None,
     feature_toggle_state: bool = True,
 ) -> dict:
     mocked_gql_api = create_autospec(GqlApi)
@@ -1130,7 +1124,7 @@ def test_duplicate_tgw_connection_names(
     with pytest.raises(integ.ValidationError) as e:
         integ.run(True)
 
-    assert "duplicate tgw connection names found" == str(e.value)
+    assert str(e.value) == "duplicate tgw connection names found"
 
 
 def test_missing_vpc_id(
@@ -1155,7 +1149,7 @@ def test_missing_vpc_id(
     with pytest.raises(RuntimeError) as e:
         integ.run(True)
 
-    assert "Could not find VPC ID for cluster" == str(e.value)
+    assert str(e.value) == "Could not find VPC ID for cluster"
 
 
 def test_error_in_tf_plan(
@@ -1182,7 +1176,7 @@ def test_error_in_tf_plan(
     with pytest.raises(RuntimeError) as e:
         integ.run(True)
 
-    assert "Error running terraform plan" == str(e.value)
+    assert str(e.value) == "Error running terraform plan"
 
 
 def test_disabled_deletions_detected_in_tf_plan(
@@ -1209,7 +1203,7 @@ def test_disabled_deletions_detected_in_tf_plan(
     with pytest.raises(RuntimeError) as e:
         integ.run(True)
 
-    assert "Disabled deletions detected running terraform plan" == str(e.value)
+    assert str(e.value) == "Disabled deletions detected running terraform plan"
 
 
 def test_error_in_terraform_apply(
@@ -1236,7 +1230,7 @@ def test_error_in_terraform_apply(
     with pytest.raises(RuntimeError) as e:
         integ.run(False)
 
-    assert "Error running terraform apply" == str(e.value)
+    assert str(e.value) == "Error running terraform apply"
 
 
 def test_early_exit_desired_state(

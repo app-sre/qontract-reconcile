@@ -170,7 +170,7 @@ def act(diff, jenkins_map):
     elif action == "unassign_role_from_user":
         jenkins_map[instance].unassign_role_from_user(role, user)
     else:
-        raise Exception("invalid action: {}".format(action))
+        raise Exception(f"invalid action: {action}")
 
 
 def run(dry_run):

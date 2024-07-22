@@ -31,6 +31,7 @@ query SelfServiceRolesQuery($name: String) {
         workspace {
           name
         }
+        channels
       }
       ... on PermissionGitlabGroupMembership_v1 {
         group

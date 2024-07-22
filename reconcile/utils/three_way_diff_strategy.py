@@ -61,7 +61,7 @@ def normalize_object(item: OR) -> OR:
         validate_k8s_object=False,
     )
 
-    annotations = n.body.get("metadata", {}).get("annotations", {})
+    annotations = n.body.get("metadata").get("annotations") or {}
     metadata["annotations"] = {
         k: v for k, v in annotations.items() if k not in NORMALIZE_IGNORE_ANNOTATIONS
     }
@@ -95,14 +95,11 @@ def is_empty_env_value(current: OR, desired: OR, patch: Mapping[str, Any]) -> bo
     :return: True if the change is not needed, False otherwise
     """
     pointer = patch["path"]
-    if (
+    return bool(
         patch["op"] == "add"
         and not patch["value"]
         and re.match(EMPTY_ENV_VALUE, pointer)
-    ):
-        return True
-
-    return False
+    )
 
 
 def is_valid_change(current: OR, desired: OR, patch: Mapping[str, Any]) -> bool:
@@ -116,10 +113,7 @@ def is_valid_change(current: OR, desired: OR, patch: Mapping[str, Any]) -> bool:
         return False
 
     # Other cases
-    if is_empty_env_value(current, desired, patch):
-        return False
-
-    return True
+    return not is_empty_env_value(current, desired, patch)
 
 
 def three_way_diff_using_hash(c_item: OR, d_item: OR) -> bool:
@@ -129,6 +123,14 @@ def three_way_diff_using_hash(c_item: OR, d_item: OR) -> bool:
         c_item_sha256 = annotations["qontract.sha256sum"]
     except KeyError:
         logging.debug("Current object QR hash is missing -> Apply")
+        return False
+
+    if (
+        c_item_integration := annotations["qontract.integration"]
+    ) != d_item.integration:
+        logging.info(
+            f"resource switching integration from {c_item_integration} to {d_item.integration}"
+        )
         return False
 
     # Original object does not match Desired -> Apply

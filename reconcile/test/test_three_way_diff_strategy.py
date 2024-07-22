@@ -119,3 +119,13 @@ def test_3wpd_diff_detects_missing_annotation(deployment):
     del c_item.body["metadata"]["annotations"]["new-annotation"]
 
     assert three_way_diff_using_hash(c_item, d_item) is False
+
+
+def test_3wpd_diff_detects_switch_integration(deployment):
+    d_item = OR(deployment, "same-integration", "")
+    deployment["metadata"]["annotations"]["qontract.integration"] = (
+        "different-integration"
+    )
+    c_item = OR(deployment, "same-integration", "").annotate(canonicalize=False)
+
+    assert three_way_diff_using_hash(c_item, d_item) is False

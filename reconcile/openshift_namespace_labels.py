@@ -5,11 +5,7 @@ from collections.abc import (
     Generator,
 )
 from threading import Lock
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 from kubernetes.client.exceptions import ApiException
 from sretoolbox.utils import threaded
@@ -47,9 +43,9 @@ CURRENT = "current"
 CHANGED = "changed"
 UPDATED_MANAGED = "updated-managed"
 
-Labels = dict[str, Optional[str]]
+Labels = dict[str, str | None]
 LabelKeys = list[str]
-LabelsOrKeys = Union[Labels, LabelKeys]
+LabelsOrKeys = Labels | LabelKeys
 Types = dict[str, LabelsOrKeys]
 
 InternalLabelInventory = dict[str, dict[str, Types]]
@@ -104,8 +100,8 @@ class LabelInventory:
         cluster: str,
         namespace: str,
         type: str,
-        default: Optional[LabelsOrKeys] = None,
-    ) -> Optional[LabelsOrKeys]:
+        default: LabelsOrKeys | None = None,
+    ) -> LabelsOrKeys | None:
         """Get the labels or keys for the given cluster / namespace / type"""
         return self._inv.get(cluster, {}).get(namespace, {}).get(type, default)
 
@@ -168,7 +164,7 @@ class LabelInventory:
             desired = types[DESIRED]
             managed = self.get(cluster, ns, MANAGED, [])
             current = self.get(cluster, ns, CURRENT, {})
-            changed = self.setdefault(cluster, ns, CHANGED, {})
+            changed = self.setdefault(cluster, ns, CHANGED, {})  # noqa: B909
 
             # cleanup managed items
             for k in managed:
@@ -196,7 +192,7 @@ class LabelInventory:
                     changed[k] = v
 
             # remove old labels
-            for k, v in current.items():
+            for k, _ in current.items():
                 if k in managed and k not in desired:
                     changed[k] = None
 
@@ -293,9 +289,7 @@ def get_managed(inventory: LabelInventory, state: State) -> None:
         inventory.set(cluster=cluster, namespace=ns_name, type=MANAGED, labels=managed)
 
 
-def lookup_namespaces(
-    cluster: str, oc_map: OCMap
-) -> tuple[str, Optional[dict[str, Any]]]:
+def lookup_namespaces(cluster: str, oc_map: OCMap) -> tuple[str, dict[str, Any] | None]:
     """
     Retrieve all namespaces from the given cluster
     """
@@ -410,9 +404,9 @@ class NamespaceLabelError(Exception):
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
     raise_errors: bool = False,
 ) -> None:
     _LOG.debug("Collecting GQL data ...")

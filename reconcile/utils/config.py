@@ -35,7 +35,7 @@ def read(secret):
             config = config[t]
         return config[field]
     except Exception as e:
-        raise SecretNotFound(f"key not found in config file {path}: {str(e)}")
+        raise SecretNotFound(f"key not found in config file {path}: {str(e)}") from None
 
 
 def read_all(secret):
@@ -47,4 +47,6 @@ def read_all(secret):
             config = config[t]
         return config
     except Exception as e:
-        raise SecretNotFound(f"secret {path} not found in config file: {str(e)}")
+        raise SecretNotFound(
+            f"secret {path} not found in config file: {str(e)}"
+        ) from None

@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import jinja2
@@ -49,7 +49,7 @@ class AwsAccountMgmtIntegrationParams(PydanticRunParams):
     initial_user_name: str = "terraform"
     initial_user_policy_arn: str = "arn:aws:iam::aws:policy/AdministratorAccess"
     initial_user_secret_vault_path: str = (
-        "app-sre/creds/terraform/{account_name}/config"
+        "app-sre-v2/creds/terraform/{account_name}/config"
     )
     account_tmpl_resource: str = "/aws-account-manager/account-tmpl.yml"
     template_collection_root_path: str = "data/templating/collections/aws-account"
@@ -99,7 +99,7 @@ class AwsAccountMgmtIntegration(
             "accountRequest": account_request.dict(by_alias=True),
             "uid": uid,
             "settings": settings,
-            "timestamp": int(datetime.now(tz=timezone.utc).timestamp()),
+            "timestamp": int(datetime.now(tz=UTC).timestamp()),
         })
         return tmpl
 
@@ -114,10 +114,8 @@ class AwsAccountMgmtIntegration(
             for account in data.accounts or []
             if integration_is_enabled(self.name, account)
             and (not account_name or account.name == account_name)
+            and validate(account)
         ]
-        for account in all_aws_accounts:
-            validate(account)
-
         payer_accounts = [
             account
             for account in all_aws_accounts
@@ -161,13 +159,12 @@ class AwsAccountMgmtIntegration(
     ) -> None:
         """Create new AWS accounts."""
         for account_request in account_requests:
-            if not (
-                uid := reconciler.create_organization_account(
-                    aws_api=aws_api,
-                    name=account_request.name,
-                    email=account_request.account_owner.email,
-                )
-            ):
+            uid = account_request.uid or reconciler.create_organization_account(
+                aws_api=aws_api,
+                name=account_request.name,
+                email=account_request.account_owner.email,
+            )
+            if not uid:
                 continue
 
             with aws_api.assume_role(
@@ -219,18 +216,16 @@ class AwsAccountMgmtIntegration(
                 self.reconcile_account(account_role_api, reconciler, account)
 
     def reconcile_account(
-        self,
-        aws_api: AWSApi,
-        reconciler: AWSReconciler,
-        account: AWSAccountManaged,
-        create_initial_user: bool = True,
+        self, aws_api: AWSApi, reconciler: AWSReconciler, account: AWSAccountManaged
     ) -> None:
         """Reconcile an AWS account."""
+        assert account.security_contact  # mypy
         reconciler.reconcile_account(
             aws_api=aws_api,
             name=account.name,
             alias=account.alias,
             quotas=[q for ql in account.quota_limits or [] for q in ql.quotas],
+            security_contact=account.security_contact,
         )
 
     def reconcile_payer_accounts(
@@ -245,8 +240,7 @@ class AwsAccountMgmtIntegration(
         # reconcile accounts within payer accounts, aka organization accounts
         for payer_account in payer_accounts:
             # having a state per flavor and payer account makes it easier in a shared environment
-            reconciler.state.state_path = default_state_path
-            reconciler.state.state_path += f"/{payer_account.name}"
+            reconciler.state.state_path = f"{default_state_path}/{payer_account.name}"
             aws_account_manager_role = (
                 payer_account.automation_role.aws_account_manager
                 if payer_account.automation_role
@@ -258,29 +252,31 @@ class AwsAccountMgmtIntegration(
                 )
 
             secret = self.secret_reader.read_all_secret(payer_account.automation_token)
-            with AWSApi(
-                AWSStaticCredentials(
-                    access_key_id=secret["aws_access_key_id"],
-                    secret_access_key=secret["aws_secret_access_key"],
-                    region=payer_account.resources_default_region,
-                )
-            ) as payer_account_aws_api:
-                with payer_account_aws_api.assume_role(
+            with (
+                AWSApi(
+                    AWSStaticCredentials(
+                        access_key_id=secret["aws_access_key_id"],
+                        secret_access_key=secret["aws_secret_access_key"],
+                        region=payer_account.resources_default_region,
+                    )
+                ) as payer_account_aws_api,
+                payer_account_aws_api.assume_role(
                     account_id=payer_account.uid,
                     role=aws_account_manager_role,
-                ) as acct_manager_role_aws_api:
-                    self.create_accounts(
-                        acct_manager_role_aws_api,
-                        reconciler,
-                        merge_request_manager,
-                        account_template,
-                        payer_account.account_requests or [],
-                    )
-                    self.reconcile_organization_accounts(
-                        acct_manager_role_aws_api,
-                        reconciler,
-                        payer_account.organization_accounts or [],
-                    )
+                ) as acct_manager_role_aws_api,
+            ):
+                self.create_accounts(
+                    acct_manager_role_aws_api,
+                    reconciler,
+                    merge_request_manager,
+                    account_template,
+                    payer_account.account_requests or [],
+                )
+                self.reconcile_organization_accounts(
+                    acct_manager_role_aws_api,
+                    reconciler,
+                    payer_account.organization_accounts or [],
+                )
 
     def reconcile_non_organization_accounts(
         self,
@@ -290,8 +286,8 @@ class AwsAccountMgmtIntegration(
     ) -> None:
         """Reconcile accounts not part of an organization via a payer account (e.g. payer accounts themselves)"""
         for account in non_organization_accounts:
-            reconciler.state.state_path = default_state_path
-            reconciler.state.state_path += f"/{account.name}"
+            # the state must be account specific
+            reconciler.state.state_path = f"{default_state_path}/{account.name}"
             secret = self.secret_reader.read_all_secret(account.automation_token)
             with AWSApi(
                 AWSStaticCredentials(

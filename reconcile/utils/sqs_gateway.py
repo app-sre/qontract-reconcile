@@ -13,7 +13,7 @@ class SQSGateway:
     """Wrapper around SQS AWS SDK"""
 
     def __init__(self, accounts, secret_reader: SecretReader):
-        queue_url = os.environ.get("gitlab_pr_submitter_queue_url")
+        queue_url = os.environ.get("gitlab_pr_submitter_queue_url")  # noqa: SIM112
         if not queue_url:
             raise SQSGatewayInitError(
                 "when /app-interface/app-interface-settings-1.yml#mergeRequestGateway "
@@ -46,9 +46,7 @@ class SQSGateway:
             a["name"] for a in accounts if a["uid"] == queue_account_uid
         ]
         if len(queue_account_name) != 1:
-            raise SQSGatewayInitError(
-                "account uid not found: {}".format(queue_account_uid)
-            )
+            raise SQSGatewayInitError(f"account uid not found: {queue_account_uid}")
         return queue_account_name[0]
 
     def send_message(self, body):

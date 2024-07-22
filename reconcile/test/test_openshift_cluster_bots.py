@@ -131,10 +131,10 @@ def test_oc(mocker: MockerFixture) -> None:
     assert ocb.oc(*args) is None
     run_mock.assert_called_once_with(run_args, **run_kwargs)
 
-    ret_mock.stdout = "{}".encode()
+    ret_mock.stdout = b"{}"
     assert ocb.oc(*args) == {}
 
-    ret_mock.stdout = "".encode()
+    ret_mock.stdout = b""
     assert ocb.oc(*args) is None
 
     run_mock.side_effect = CalledProcessError(returncode=4, cmd="oc")
@@ -152,7 +152,7 @@ def test_retrieve_token(mocker: MockerFixture) -> None:
         ocb.retrieve_token("kc", "ns", "sa")
     assert oc_mock.call_count == 3
 
-    oc_mock.return_value = {"data": {"token": base64.b64encode("Got It!".encode())}}
+    oc_mock.return_value = {"data": {"token": base64.b64encode(b"Got It!")}}
     assert ocb.retrieve_token("kc", "ns", "sa") == "Got It!"
 
 
@@ -220,7 +220,7 @@ def test_run_no_cluster_admin(
     mocker: MockerFixture, integ_params: dict[str, Any], cluster: Callable
 ) -> None:
     mocks = _setup_mocks(mocker, filtered_clusters=[cluster(server_url="https://api")])
-    mocks.oc.return_value = {"data": {"token": base64.b64encode("mytoken".encode())}}
+    mocks.oc.return_value = {"data": {"token": base64.b64encode(b"mytoken")}}
     ocb.run(**integ_params)
     assert mocks.oc.call_count == 3
     mocks.vault.assert_called_once()
@@ -233,7 +233,7 @@ def test_run_cluster_admin(
     mocks = _setup_mocks(
         mocker, filtered_clusters=[cluster(server_url="https://api", admin=True)]
     )
-    mocks.oc.return_value = {"data": {"token": base64.b64encode("mytoken".encode())}}
+    mocks.oc.return_value = {"data": {"token": base64.b64encode(b"mytoken")}}
     ocb.run(**integ_params)
     assert mocks.oc.call_count == 8
     mocks.vault.assert_called_once()

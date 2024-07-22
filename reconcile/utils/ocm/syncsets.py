@@ -1,8 +1,6 @@
+from collections.abc import Generator, Mapping
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Mapping,
-)
+from typing import Any
 
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -13,6 +11,13 @@ class SyncSet:
         self.href = f"/api/clusters_mgmt/v1/clusters/{cluster_id}/external_configuration/syncsets"
 
     href: str
+
+
+def get_syncsets(
+    ocm_client: OCMBaseClient, cluster_id: str
+) -> Generator[dict[str, Any], None, None]:
+    syncset = SyncSet(cluster_id)
+    return ocm_client.get_paginated(api_path=syncset.href)
 
 
 def get_syncset(ocm_client: OCMBaseClient, cluster_id: str, syncset_id: str) -> Any:

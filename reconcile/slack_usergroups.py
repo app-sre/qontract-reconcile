@@ -3,14 +3,12 @@ import sys
 from collections.abc import (
     Callable,
     Iterable,
+    Sequence,
 )
 from datetime import datetime
 from typing import (
     Any,
-    Optional,
-    Sequence,
     TypedDict,
-    Union,
 )
 from urllib.parse import urlparse
 
@@ -77,7 +75,7 @@ INTEGRATION_VERSION = "0.1.0"
 error_occurred = False
 
 
-def get_git_api(url: str) -> Union[GithubRepositoryApi, GitLabApi]:
+def get_git_api(url: str) -> GithubRepositoryApi | GitLabApi:
     """Return GitHub/GitLab API based on url."""
     parsed_url = urlparse(url)
 
@@ -147,7 +145,7 @@ def compute_cluster_user_group(name: str) -> str:
 def get_slack_map(
     secret_reader: SecretReader,
     permissions: Iterable[PermissionSlackUsergroupV1],
-    desired_workspace_name: Optional[str] = None,
+    desired_workspace_name: str | None = None,
 ) -> SlackMap:
     """Return SlackMap (API) per workspaces."""
     slack_map = {}
@@ -183,8 +181,8 @@ def get_slack_map(
 
 def get_current_state(
     slack_map: SlackMap,
-    desired_workspace_name: Optional[str],
-    desired_usergroup_name: Optional[str],
+    desired_workspace_name: str | None,
+    desired_usergroup_name: str | None,
     cluster_usergroups: list[str],
 ) -> SlackState:
     """
@@ -335,6 +333,7 @@ def get_slack_usernames_from_owners(
                 get_slack_username(u)
                 for u in users
                 if getattr(u, user_key).lower() in [o.lower() for o in all_owners]
+                and u.tag_on_merge_requests is not False
             ]
             not_found_users = [
                 owner
@@ -399,8 +398,8 @@ def get_desired_state(
     pagerduty_map: PagerDutyMap,
     permissions: Iterable[PermissionSlackUsergroupV1],
     users: Iterable[User],
-    desired_workspace_name: Optional[str],
-    desired_usergroup_name: Optional[str],
+    desired_workspace_name: str | None,
+    desired_usergroup_name: str | None,
 ) -> SlackState:
     """Get the desired state of Slack usergroups."""
     desired_state: SlackState = {}
@@ -461,8 +460,8 @@ def get_desired_state_cluster_usergroups(
     slack_map: SlackMap,
     clusters: Iterable[ClusterV1],
     users: Iterable[UserV1],
-    desired_workspace_name: Optional[str],
-    desired_usergroup_name: Optional[str],
+    desired_workspace_name: str | None,
+    desired_usergroup_name: str | None,
 ) -> SlackState:
     """Get the desired state of Slack usergroups."""
     desired_state: SlackState = {}
@@ -557,19 +556,18 @@ def _update_usergroup_users_from_state(
 
     slack_user_objects = [
         SlackObject(pk=pk, name=name)
-        for pk, name in slack_client.get_users_by_names(
+        for pk, name in slack_client.get_active_users_by_names(
             desired_ug_state.user_names
         ).items()
     ]
+    active_user_names = {s.name for s in slack_user_objects}
 
-    if len(slack_user_objects) != len(desired_ug_state.user_names):
+    if len(active_user_names) != len(desired_ug_state.user_names):
         logging.info(
-            f"Following usernames are incorrect for usergroup {desired_ug_state.usergroup} and could not be matched with slack users {desired_ug_state.user_names - set(s.name for s in slack_user_objects)}"
+            f"Following usernames are incorrect for usergroup {desired_ug_state.usergroup} and could not be matched with slack users {desired_ug_state.user_names - active_user_names}"
         )
-        error_occurred = True
-        return 0
 
-    for user in desired_ug_state.user_names - current_ug_state.user_names:
+    for user in active_user_names - current_ug_state.user_names:
         logging.info([
             "add_user_to_usergroup",
             desired_ug_state.workspace,
@@ -577,7 +575,7 @@ def _update_usergroup_users_from_state(
             user,
         ])
 
-    for user in current_ug_state.user_names - desired_ug_state.user_names:
+    for user in current_ug_state.user_names - active_user_names:
         logging.info([
             "del_user_from_usergroup",
             desired_ug_state.workspace,
@@ -753,14 +751,14 @@ class RunnerParams(TypedDict):
     slack_map: SlackMap
     desired_state: SlackState
     clusters: list[ClusterV1]
-    workspace_name: Optional[str]
-    usergroup_name: Optional[str]
+    workspace_name: str | None
+    usergroup_name: str | None
 
 
 def run(
     dry_run: bool,
-    workspace_name: Optional[str] = None,
-    usergroup_name: Optional[str] = None,
+    workspace_name: str | None = None,
+    usergroup_name: str | None = None,
     enable_extended_early_exit: bool = False,
     extended_early_exit_cache_ttl_seconds: int = 3600,
     log_cached_log_output: bool = False,
@@ -770,7 +768,7 @@ def run(
 
     gqlapi = gql.get_api()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
-    init_users = False if usergroup_name else True
+    init_users = not usergroup_name
 
     # queries
     permissions = get_permissions(query_func=gqlapi.query)
@@ -806,14 +804,14 @@ def run(
     # merge the two desired states recursively
     desired_state = deep_update(desired_state, desired_state_cluster_usergroups)
 
-    runner_params: RunnerParams = dict(
-        dry_run=dry_run,
-        slack_map=slack_map,
-        desired_state=desired_state,
-        clusters=clusters,
-        workspace_name=workspace_name,
-        usergroup_name=usergroup_name,
-    )
+    runner_params: RunnerParams = {
+        "dry_run": dry_run,
+        "slack_map": slack_map,
+        "desired_state": desired_state,
+        "clusters": clusters,
+        "workspace_name": workspace_name,
+        "usergroup_name": usergroup_name,
+    }
 
     if enable_extended_early_exit:
         extended_early_exit_run(
@@ -842,8 +840,8 @@ def runner(
     slack_map: SlackMap,
     desired_state: SlackState,
     clusters: list[ClusterV1],
-    workspace_name: Optional[str] = None,
-    usergroup_name: Optional[str] = None,
+    workspace_name: str | None = None,
+    usergroup_name: str | None = None,
 ) -> ExtendedEarlyExitRunnerResult:
     current_state = get_current_state(
         slack_map=slack_map,

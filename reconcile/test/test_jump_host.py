@@ -1,8 +1,5 @@
 import os
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from unittest.mock import create_autospec
 
 import pytest
@@ -55,7 +52,7 @@ def test_base_jumphost(fs: Any, parameters: JumphostParameters, expected_port: i
     jumphost = JumpHostBase(parameters=parameters)
     assert os.path.exists(jumphost._identity_file)
 
-    with open(jumphost._identity_file, "r", encoding="locale") as f:
+    with open(jumphost._identity_file, encoding="locale") as f:
         assert f.read() == parameters.key
 
     assert jumphost._port == expected_port
@@ -99,8 +96,8 @@ def test_base_jumphost(fs: Any, parameters: JumphostParameters, expected_port: i
 def test_ssh_jumphost(
     fs: Any,
     parameters: JumphostParameters,
-    local_port: Optional[int],
-    remote_port: Optional[int],
+    local_port: int | None,
+    remote_port: int | None,
 ):
     gql_mock = create_autospec(spec=gql.GqlApi)
     gql_mock.get_resource.side_effect = [{"content": EXPECTED_KNOWN_HOSTS_CONTENT}]
@@ -113,5 +110,5 @@ def test_ssh_jumphost(
     if local_port:
         assert jumphost._local_port == local_port
 
-    with open(known_hosts_file, "r", encoding="locale") as f:
+    with open(known_hosts_file, encoding="locale") as f:
         assert f.read() == EXPECTED_KNOWN_HOSTS_CONTENT

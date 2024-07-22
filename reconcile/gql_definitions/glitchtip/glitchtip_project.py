@@ -143,7 +143,7 @@ class GlitchtipInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
-class GlitchtipProjectsV1_GlitchtipOrganizationV1(ConfiguredBaseModel):
+class GlitchtipProjectV1_GlitchtipOrganizationV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     instance: GlitchtipInstanceV1 = Field(..., alias="instance")
     owners: Optional[list[str]] = Field(..., alias="owners")
@@ -180,19 +180,19 @@ class AppV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
 
 
-class GlitchtipProjectsV1(ConfiguredBaseModel):
+class GlitchtipProjectV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     platform: str = Field(..., alias="platform")
     project_id: Optional[str] = Field(..., alias="projectId")
     event_throttle_rate: Optional[int] = Field(..., alias="eventThrottleRate")
     teams: list[GlitchtipTeamV1] = Field(..., alias="teams")
-    organization: GlitchtipProjectsV1_GlitchtipOrganizationV1 = Field(..., alias="organization")
+    organization: GlitchtipProjectV1_GlitchtipOrganizationV1 = Field(..., alias="organization")
     namespaces: list[NamespaceV1] = Field(..., alias="namespaces")
     app: Optional[AppV1] = Field(..., alias="app")
 
 
 class ProjectsQueryData(ConfiguredBaseModel):
-    glitchtip_projects: Optional[list[GlitchtipProjectsV1]] = Field(..., alias="glitchtip_projects")
+    glitchtip_projects: Optional[list[GlitchtipProjectV1]] = Field(..., alias="glitchtip_projects")
 
 
 def query(query_func: Callable, **kwargs: Any) -> ProjectsQueryData:

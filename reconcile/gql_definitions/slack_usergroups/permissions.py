@@ -28,6 +28,7 @@ fragment User on User_v1 {
   github_username
   slack_username
   pagerduty_username
+  tag_on_merge_requests
 }
 
 fragment VaultSecret on VaultSecret_v1 {
@@ -161,7 +162,7 @@ class SlackWorkspaceV1(ConfiguredBaseModel):
 
 class PermissionSlackUsergroupV1(PermissionV1):
     name: str = Field(..., alias="name")
-    channels: Optional[list[str]] = Field(..., alias="channels")
+    channels: list[str] = Field(..., alias="channels")
     description: str = Field(..., alias="description")
     handle: str = Field(..., alias="handle")
     owners_from_repos: Optional[list[str]] = Field(..., alias="ownersFromRepos")

@@ -2,8 +2,6 @@ import logging
 import re
 from collections.abc import Iterable
 from typing import (
-    Optional,
-    Union,
     cast,
 )
 
@@ -123,7 +121,7 @@ def copy_vault_secret(
     except SecretAccessForbidden:
         # Raise exception if we can't read the secret from the source vault.
         # This is likely to be related to the approle permissions.
-        raise SecretAccessForbidden("Cannot read secret from source vault")
+        raise SecretAccessForbidden("Cannot read secret from source vault") from None
     except SecretNotFound:
         # If the secret is present in vault, but there are no versions of it
         # we want to be aware of it, but not cause a failure of the complete
@@ -179,7 +177,7 @@ def copy_vault_secret(
 
 def check_invalid_paths(
     path_list: Iterable[str],
-    policy_paths: Optional[Iterable[str]],
+    policy_paths: Iterable[str] | None,
 ) -> None:
     """Checks if the paths to be replicated are present in the policy used to limit the secrets
     that are going to be replicated."""
@@ -283,12 +281,10 @@ def get_jenkins_secret_list(
 
 
 def get_vault_credentials(
-    vault_auth: Union[
-        VaultReplicationConfigV1_VaultInstanceAuthV1,
-        VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
-    ],
+    vault_auth: VaultReplicationConfigV1_VaultInstanceAuthV1
+    | VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1,
     vault_address: str,
-) -> dict[str, Optional[str]]:
+) -> dict[str, str | None]:
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface and comming from Vault itself."""
     vault_creds = {}

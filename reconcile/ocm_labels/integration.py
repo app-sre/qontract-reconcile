@@ -5,10 +5,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from deepdiff import DeepHash
 from pydantic import validator
@@ -94,7 +91,11 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
     def get_organizations(
         self, query_func: Callable
     ) -> list[OpenShiftClusterManagerV1]:
-        return organization_query(query_func).organizations or []
+        return [
+            o
+            for o in organization_query(query_func).organizations or []
+            if integration_is_enabled(self.name, o)
+        ]
 
     def get_environments(self, query_func: Callable) -> list[OCMEnvironment]:
         return ocm_environment_query(query_func).environments
@@ -124,7 +125,7 @@ class OcmLabelsIntegration(QontractReconcileIntegration[OcmLabelsIntegrationPara
             init_aus_cluster_label_source(query_func),
         ]
 
-    def get_early_exit_desired_state(self) -> Optional[dict[str, Any]]:
+    def get_early_exit_desired_state(self) -> dict[str, Any] | None:
         gqlapi = gql.get_api()
         desired = {
             "org_labels": self.fetch_desired_state(

@@ -2,7 +2,6 @@ import sys
 from textwrap import indent
 from typing import (
     Any,
-    Optional,
     cast,
 )
 
@@ -109,8 +108,8 @@ def setup(
     print_to_file,
     thread_pool_size: int,
     skip_reencrypt_accounts: list[str],
-    appsre_pgp_key: Optional[str] = None,
-    account_name: Optional[str] = None,
+    appsre_pgp_key: str | None = None,
+    account_name: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, str], bool, AWSApi]:
     accounts = [
         a
@@ -173,7 +172,7 @@ Encrypted password: {}
         if account not in skip_reencrypt_accounts:
             continue
         to = user_name
-        subject = "Invitation to join the {} AWS account".format(account)
+        subject = f"Invitation to join the {account} AWS account"
         body = msg_template.format(account, console_url, user_name, enc_password)
         mails.append((to, subject, body))
 
@@ -224,7 +223,7 @@ def get_reencrypt_settings():
         if reencrypt_settings.skip_aws_accounts:
             skip_accounts = [s.name for s in reencrypt_settings.skip_aws_accounts]
 
-    appsre_pgp_key: Optional[str] = None
+    appsre_pgp_key: str | None = None
     if reencrypt_settings is not None:
         appsre_pgp_key = reencrypt_settings.public_gpg_key
 
@@ -233,11 +232,11 @@ def get_reencrypt_settings():
 
 def run(
     dry_run: bool,
-    print_to_file: Optional[str] = None,
+    print_to_file: str | None = None,
     enable_deletion: bool = False,
     thread_pool_size: int = 10,
     send_mails: bool = True,
-    account_name: Optional[str] = None,
+    account_name: str | None = None,
 ):
     skip_accounts, appsre_pgp_key, reencrypt_settings = get_reencrypt_settings()
 

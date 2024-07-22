@@ -4,7 +4,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Any, Optional
+from typing import Any
 
 import reconcile.utils.mr.clusters_updates as cu
 import reconcile.utils.ocm as ocmmod
@@ -45,8 +45,9 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
     but the cluster only needs the target OCM environment where it belongs.
     This method changes the cluster dictionary to include just those.
     """
-    uid = cluster["spec"]["account"]["uid"]
-    rosa_ocm_configs = cluster["spec"]["account"]["rosa"]
+    account = cluster["spec"]["account"]
+    uid = account["uid"]
+    rosa_ocm_configs = account["rosa"]
     rosa: ROSAOcmAwsAttrs | None = None
     if rosa_ocm_configs:
         ocm_env = [
@@ -75,10 +76,13 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
         rosa = None
 
     # doing this allows to exclude account fields which can be queried in graphql
-    cluster["spec"]["account"] = ROSAClusterAWSAccount(
+    rosa_cluster_aws_account = ROSAClusterAWSAccount(
         uid=uid,
         rosa=rosa,
     )
+    if billing_account := account.get("billingAccount"):
+        rosa_cluster_aws_account.billing_account_id = billing_account["uid"]
+    cluster["spec"]["account"] = rosa_cluster_aws_account
 
 
 def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> dict[str, OCMSpec]:
@@ -283,7 +287,7 @@ def get_cluster_ocm_update_spec(
 
 
 def _app_interface_updates_mr(
-    clusters_updates: Mapping[str, Any], gitlab_project_id: Optional[str], dry_run: bool
+    clusters_updates: Mapping[str, Any], gitlab_project_id: str | None, dry_run: bool
 ):
     """Creates an MR to app-interface with the necessary cluster manifest updates
 
@@ -318,15 +322,15 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
 
 
 class OcmClustersParams(PydanticRunParams):
-    gitlab_project_id: Optional[str] = None
+    gitlab_project_id: str | None = None
     thread_pool_size: int = 10
 
     # rosa job controller params
-    job_controller_cluster: Optional[str] = None
-    job_controller_namespace: Optional[str] = None
-    rosa_job_service_account: Optional[str] = None
-    rosa_role: Optional[str] = None
-    rosa_job_image: Optional[str] = None
+    job_controller_cluster: str | None = None
+    job_controller_namespace: str | None = None
+    rosa_job_service_account: str | None = None
+    rosa_role: str | None = None
+    rosa_job_image: str | None = None
 
 
 class OcmClusters(QontractReconcileIntegration[OcmClustersParams]):

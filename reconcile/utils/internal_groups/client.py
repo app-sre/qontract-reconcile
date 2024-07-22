@@ -1,6 +1,5 @@
 from typing import (
     Any,
-    Optional,
     Self,
 )
 
@@ -47,7 +46,7 @@ class InternalGroupsApi:
             resp.raise_for_status()
         except requests.exceptions.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
-                raise NotFound
+                raise NotFound(e.response.text) from e
             raise
 
     def __enter__(self) -> Self:
@@ -61,7 +60,7 @@ class InternalGroupsApi:
 
     @retry(exceptions=(TokenExpiredError,), max_attempts=2)
     def _request(
-        self, method: str, url: str, json: Optional[dict[Any, Any]] = None
+        self, method: str, url: str, json: dict[Any, Any] | None = None
     ) -> Response:
         try:
             return self._client.request(

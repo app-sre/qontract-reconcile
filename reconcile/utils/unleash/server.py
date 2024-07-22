@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 
 import requests
 from pydantic import BaseModel, Field
@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth
 
 
-class FeatureToggleType(str, Enum):
+class FeatureToggleType(StrEnum):
     experiment = "experiment"
     kill_switch = "kill-switch"
     release = "release"

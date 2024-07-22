@@ -1,16 +1,12 @@
+import contextlib
 import logging
 import textwrap
 import threading
 from datetime import (
+    UTC,
     datetime,
-    timezone,
 )
-from typing import (
-    Any,
-    Dict,
-    Optional,
-    Union,
-)
+from typing import Any
 from urllib.parse import urlparse
 
 import requests
@@ -49,10 +45,8 @@ def capture_and_forget(error):
     :type error: Exception
     """
 
-    try:
+    with contextlib.suppress(Exception):
         capture_exception(error)
-    except Exception:
-        pass
 
 
 class GqlApiError(Exception):
@@ -83,9 +77,7 @@ class GqlApiErrorForbiddenSchema(Exception):
 
 class GqlGetResourceError(Exception):
     def __init__(self, path, msg):
-        super().__init__(
-            "Error getting resource from path {}: {}".format(path, str(msg))
-        )
+        super().__init__(f"Error getting resource from path {path}: {str(msg)}")
 
 
 class GqlApi:
@@ -95,11 +87,11 @@ class GqlApi:
     def __init__(
         self,
         url: str,
-        token: Optional[str] = None,
+        token: str | None = None,
         int_name=None,
         validate_schemas=False,
-        commit: Optional[str] = None,
-        commit_timestamp: Optional[str] = None,
+        commit: str | None = None,
+        commit_timestamp: str | None = None,
     ) -> None:
         self.url = url
         self.token = token
@@ -122,7 +114,7 @@ class GqlApi:
                     self._valid_schemas = integration["schemas"]
                     break
 
-            if not self._valid_schemas:
+            if validate_schemas and not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
     def _init_gql_client(self) -> Client:
@@ -143,17 +135,19 @@ class GqlApi:
     @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_and_forget)
     def query(
         self, query: str, variables=None, skip_validation=False
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         try:
             result = self.client.execute(
                 gql(query), variables, get_execution_result=True
             ).formatted
         except requests.exceptions.ConnectionError as e:
-            raise GqlApiError("Could not connect to GraphQL server ({})".format(e))
+            raise GqlApiError(f"Could not connect to GraphQL server ({e})") from None
         except TransportQueryError as e:
-            raise GqlApiError("`error` returned with GraphQL response {}".format(e))
+            raise GqlApiError(f"`error` returned with GraphQL response {e}") from None
         except AssertionError:
-            raise GqlApiError("`data` field missing from GraphQL response payload")
+            raise GqlApiError(
+                "`data` field missing from GraphQL response payload"
+            ) from None
         except Exception as e:
             raise GqlApiError("Unexpected error occurred") from e
 
@@ -194,7 +188,7 @@ class GqlApi:
             if q_result:
                 templates = q_result["templates"]
         except GqlApiError:
-            raise GqlGetResourceError(path, "Template not found.")
+            raise GqlGetResourceError(path, "Template not found.") from None
 
         if len(templates) != 1:
             raise GqlGetResourceError(path, "Expecting one and only one template.")
@@ -219,7 +213,7 @@ class GqlApi:
                 "resources"
             ]
         except GqlApiError:
-            raise GqlGetResourceError(path, "Resource not found.")
+            raise GqlGetResourceError(path, "Resource not found.") from None
 
         if len(resources) != 1:
             raise GqlGetResourceError(path, "Expecting one and only one resource.")
@@ -247,16 +241,14 @@ class GqlApi:
         return list(self._queried_schemas)
 
     @property
-    def commit_timestamp_utc(self) -> Optional[str]:
+    def commit_timestamp_utc(self) -> str | None:
         if self.commit_timestamp:
-            return datetime.fromtimestamp(
-                int(self.commit_timestamp), timezone.utc
-            ).isoformat()
+            return datetime.fromtimestamp(int(self.commit_timestamp), UTC).isoformat()
         return None
 
 
 class GqlApiSingleton:
-    gql_api: Optional[GqlApi] = None
+    gql_api: GqlApi | None = None
     gqlapi_lock = threading.Lock()
 
     @classmethod
@@ -288,11 +280,11 @@ class GqlApiSingleton:
 
 def init(
     url: str,
-    token: Optional[str] = None,
+    token: str | None = None,
     integration=None,
     validate_schemas=False,
-    commit: Optional[str] = None,
-    commit_timestamp: Optional[str] = None,
+    commit: str | None = None,
+    commit_timestamp: str | None = None,
 ):
     return GqlApiSingleton.create(
         url,
@@ -319,12 +311,12 @@ class PersistentRequestsHTTPTransport(RequestsHTTPTransport):
         self,
         session: requests.Session,
         url: str,
-        headers: Optional[Dict[str, Any]] = None,
-        cookies: Optional[Union[Dict[str, Any], RequestsCookieJar]] = None,
-        auth: Optional[AuthBase] = None,
+        headers: dict[str, Any] | None = None,
+        cookies: dict[str, Any] | RequestsCookieJar | None = None,
+        auth: AuthBase | None = None,
         use_json: bool = True,
-        timeout: Optional[int] = None,
-        verify: Union[bool, str] = True,
+        timeout: int | None = None,
+        verify: bool | str = True,
         retries: int = 0,
         method: str = "POST",
         **kwargs: Any,
@@ -398,8 +390,8 @@ def init_from_config(
 
 
 def _get_gql_server_and_token(
-    autodetect_sha: bool = False, sha: Optional[str] = None
-) -> tuple[str, str, Optional[str], Optional[str]]:
+    autodetect_sha: bool = False, sha: str | None = None
+) -> tuple[str, str, str | None, str | None]:
     config = get_config()
 
     server_url = urlparse(config["graphql"]["server"])
@@ -425,7 +417,7 @@ def get_api() -> GqlApi:
 
 
 def get_api_for_sha(
-    sha: str, integration: Optional[str] = None, validate_schemas: bool = True
+    sha: str, integration: str | None = None, validate_schemas: bool = True
 ) -> GqlApi:
     server, token, commit, timestamp = _get_gql_server_and_token(
         autodetect_sha=False, sha=sha
@@ -442,8 +434,8 @@ def get_api_for_sha(
 
 def get_api_for_server(
     server: str,
-    token: Optional[str],
-    integration: Optional[str] = None,
+    token: str | None,
+    integration: str | None = None,
     validate_schemas: bool = True,
 ) -> GqlApi:
     return GqlApi(
@@ -458,7 +450,7 @@ def get_api_for_server(
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_diff(
-    old_sha: str, file_type: Optional[str] = None, file_path: Optional[str] = None
+    old_sha: str, file_type: str | None = None, file_path: str | None = None
 ) -> dict[str, Any]:
     config = get_config()
 

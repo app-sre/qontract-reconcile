@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
-    Optional,
     Self,
 )
 
@@ -46,7 +45,7 @@ class StateInaccessibleException(Exception):
 
 def init_state(
     integration: str,
-    secret_reader: Optional[SecretReaderBase] = None,
+    secret_reader: SecretReaderBase | None = None,
 ) -> "State":
     if not secret_reader:
         vault_settings = get_app_interface_vault_settings()
@@ -252,7 +251,7 @@ class State:
         except ClientError as details:
             raise StateInaccessibleException(
                 f"Bucket {self.bucket} is not accessible - {str(details)}"
-            )
+            ) from None
 
     def __enter__(self) -> Self:
         return self
@@ -303,7 +302,7 @@ class State:
             raise StateInaccessibleException(
                 f"Can not access state key {key_path} "
                 f"in bucket {self.bucket} - {str(details)}"
-            )
+            ) from None
 
     def ls(self) -> list[str]:
         """
@@ -408,10 +407,10 @@ class State:
             return json.loads(response["Body"].read())
         except ClientError as details:
             if details.response["Error"]["Code"] == "NoSuchKey":
-                raise KeyError(item)
+                raise KeyError(item) from None
             raise
         except json.decoder.JSONDecodeError:
-            raise KeyError(item)
+            raise KeyError(item) from None
 
     def __setitem__(self, key: str, value: Any) -> None:
         self._set(key, value)

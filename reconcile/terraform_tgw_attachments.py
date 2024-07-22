@@ -7,9 +7,7 @@ from collections.abc import (
 )
 from typing import (
     Any,
-    Optional,
     TypedDict,
-    Union,
     cast,
 )
 
@@ -69,7 +67,7 @@ class ValidationError(Exception):
 class AccountProviderInfo(BaseModel):
     name: str
     uid: str
-    assume_role: Optional[str]
+    assume_role: str | None
     assume_region: str
     assume_cidr: str
 
@@ -78,9 +76,9 @@ class Requester(BaseModel):
     tgw_id: str
     tgw_arn: str
     region: str
-    routes: Optional[list[dict]]
-    rules: Optional[list[dict]]
-    hostedzones: Optional[list[str]]
+    routes: list[dict] | None
+    rules: list[dict] | None
+    hostedzones: list[str] | None
     cidr_block: str
     account: AccountProviderInfo
 
@@ -88,11 +86,11 @@ class Requester(BaseModel):
 class Accepter(BaseModel):
     cidr_block: str
     region: str
-    vpc_id: Optional[str]
-    route_table_ids: Optional[list[str]]
-    subnets_id_az: Optional[list[dict]]
+    vpc_id: str | None
+    route_table_ids: list[str] | None
+    subnets_id_az: list[dict] | None
     account: AccountProviderInfo
-    api_security_group_id: Optional[str]
+    api_security_group_id: str | None
 
 
 class DesiredStateItem(BaseModel):
@@ -122,9 +120,9 @@ class RunnerParams(TypedDict):
 
 def _build_desired_state_tgw_attachments(
     clusters: Iterable[ClusterV1],
-    ocm_map: Optional[OCMMap],
+    ocm_map: OCMMap | None,
     awsapi: AWSApi,
-    account_name: Optional[str] = None,
+    account_name: str | None = None,
 ) -> tuple[list[DesiredStateItem], bool]:
     """
     Fetch state for TGW attachments between a cluster and all TGWs
@@ -143,10 +141,10 @@ def _build_desired_state_tgw_attachments(
 
 def _build_desired_state_items(
     clusters: Iterable[ClusterV1],
-    ocm_map: Optional[OCMMap],
+    ocm_map: OCMMap | None,
     awsapi: AWSApi,
-    account_name: Optional[str] = None,
-) -> Generator[Optional[DesiredStateItem], Any, None]:
+    account_name: str | None = None,
+) -> Generator[DesiredStateItem | None, Any, None]:
     for cluster_info in clusters:
         ocm = ocm_map.get(cluster_info.name) if ocm_map and cluster_info.ocm else None
         for peer_connection in cluster_info.peering.connections:  # type: ignore[union-attr]
@@ -162,9 +160,9 @@ def _build_desired_state_items(
 def _build_desired_state_tgw_connection(
     peer_connection: ClusterPeeringConnectionAccountTGWV1,
     cluster_info: ClusterV1,
-    ocm: Optional[OCM],
+    ocm: OCM | None,
     awsapi: AWSApi,
-) -> Generator[Optional[DesiredStateItem], Any, None]:
+) -> Generator[DesiredStateItem | None, Any, None]:
     cluster_name = cluster_info.name
     cluster_region = cluster_info.spec.region if cluster_info.spec is not None else ""
     cluster_cidr_block = (
@@ -226,7 +224,7 @@ def _build_account_with_assume_role(
     cluster: ClusterV1,
     region: str,
     cidr_block: str,
-    ocm: Optional[OCM],
+    ocm: OCM | None,
 ) -> AccountProviderInfo:
     account = peer_connection.account
     # assume_role is the role to assume to provision the
@@ -313,7 +311,7 @@ def _build_requester(
 def _build_ocm_map(
     clusters: Iterable[ClusterV1],
     vault_settings: AppInterfaceSettingsV1,
-) -> Optional[OCMMap]:
+) -> OCMMap | None:
     ocm_clusters = [c.dict(by_alias=True) for c in clusters if c.ocm]
     return (
         OCMMap(
@@ -338,7 +336,7 @@ def _validate_tgw_connection_names(desired_state: Iterable[DesiredStateItem]) ->
 def _populate_tgw_attachments_working_dirs(
     ts: Terrascript,
     desired_state: Iterable[DesiredStateItem],
-    print_to_file: Optional[str],
+    print_to_file: str | None,
 ) -> dict[str, str]:
     accounts_by_infra_account_name: dict[str, list[dict[str, Any]]] = {}
     for item in desired_state:
@@ -353,14 +351,12 @@ def _populate_tgw_attachments_working_dirs(
 
 
 def _is_tgw_peer_connection(
-    peer_connection: Union[
-        ClusterPeeringConnectionAccountTGWV1,
-        ClusterPeeringConnectionAccountV1,
-        ClusterPeeringConnectionAccountVPCMeshV1,
-        ClusterPeeringConnectionClusterRequesterV1,
-        ClusterPeeringConnectionV1,
-    ],
-    account_name: Optional[str],
+    peer_connection: ClusterPeeringConnectionAccountTGWV1
+    | ClusterPeeringConnectionAccountV1
+    | ClusterPeeringConnectionAccountVPCMeshV1
+    | ClusterPeeringConnectionClusterRequesterV1
+    | ClusterPeeringConnectionV1,
+    account_name: str | None,
 ) -> bool:
     if peer_connection.provider != TGW_CONNECTION_PROVIDER:
         return False
@@ -372,7 +368,7 @@ def _is_tgw_peer_connection(
 
 def _is_tgw_cluster(
     cluster: ClusterV1,
-    account_name: Optional[str] = None,
+    account_name: str | None = None,
 ) -> bool:
     return any(
         _is_tgw_peer_connection(pc, account_name)
@@ -382,7 +378,7 @@ def _is_tgw_cluster(
 
 def _filter_tgw_clusters(
     clusters: Iterable[ClusterV1],
-    account_name: Optional[str] = None,
+    account_name: str | None = None,
 ) -> list[ClusterV1]:
     return [c for c in clusters if _is_tgw_cluster(c, account_name)]
 
@@ -408,7 +404,7 @@ def _filter_tgw_accounts(
 
 
 def _fetch_desired_state_data_source(
-    account_name: Optional[str] = None,
+    account_name: str | None = None,
 ) -> DesiredStateDataSource:
     clusters = get_clusters_with_peering(gql.get_api())
     tgw_clusters = _filter_tgw_clusters(clusters, account_name)
@@ -420,11 +416,11 @@ def _fetch_desired_state_data_source(
 
 
 def setup(
-    account_name: Optional[str],
+    account_name: str | None,
     desired_state_data_source: DesiredStateDataSource,
     tgw_accounts: list[dict[str, Any]],
     thread_pool_size: int = 10,
-    print_to_file: Optional[str] = None,
+    print_to_file: str | None = None,
 ) -> tuple[SecretReaderBase, AWSApi, Terraform, Terrascript]:
     tgw_clusters = desired_state_data_source.clusters
     all_accounts = [a.dict(by_alias=True) for a in desired_state_data_source.accounts]
@@ -498,11 +494,11 @@ def runner(
 @defer
 def run(
     dry_run: bool,
-    print_to_file: Optional[str] = None,
+    print_to_file: str | None = None,
     enable_deletion: bool = False,
     thread_pool_size: int = 10,
-    account_name: Optional[str] = None,
-    defer: Optional[Callable] = None,
+    account_name: str | None = None,
+    defer: Callable | None = None,
     enable_extended_early_exit: bool = False,
     extended_early_exit_cache_ttl_seconds: int = 3600,
     log_cached_log_output: bool = False,
@@ -532,12 +528,12 @@ def run(
         defer(tf.cleanup)
     if print_to_file:
         return
-    runner_params: RunnerParams = dict(
-        terraform_client=tf,
-        terrascript_client=ts,
-        enable_deletion=enable_deletion,
-        dry_run=dry_run,
-    )
+    runner_params: RunnerParams = {
+        "terraform_client": tf,
+        "terrascript_client": ts,
+        "enable_deletion": enable_deletion,
+        "dry_run": dry_run,
+    }
     if enable_extended_early_exit and get_feature_toggle_state(
         "terraform-tgw-attachments-extended-early-exit",
         default=False,

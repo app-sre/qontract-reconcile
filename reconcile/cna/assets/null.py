@@ -2,10 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.cna.assets.asset import (
     Asset,
@@ -18,7 +15,7 @@ from reconcile.gql_definitions.cna.queries.cna_resources import CNANullAssetV1
 
 @dataclass(frozen=True)
 class NullAsset(Asset):
-    addr_block: Optional[str]
+    addr_block: str | None
 
     def api_payload(self) -> dict[str, Any]:
         return {

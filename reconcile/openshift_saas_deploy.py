@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 from collections.abc import Callable
-from typing import Optional
 
 import reconcile.openshift_base as ob
 from reconcile import (
@@ -56,7 +55,7 @@ def compose_console_url(saas_file: SaasFile, env_name: str) -> str:
 
     return (
         f"{saas_file.pipelines_provider.namespace.cluster.console_url}/k8s/ns/"
-        f"{saas_file.pipelines_provider.namespace.name}/tekton.dev~v1beta1~Pipeline/"
+        f"{saas_file.pipelines_provider.namespace.name}/tekton.dev~v1~Pipeline/"
         f"{pipeline_name}/Runs?name={tkn_name}"
     )
 
@@ -68,9 +67,9 @@ def slack_notify(
     ri: ResourceInventory,
     console_url: str,
     in_progress: bool,
-    trigger_integration: Optional[str] = None,
-    trigger_reason: Optional[str] = None,
-    skip_successful_notifications: Optional[bool] = False,
+    trigger_integration: str | None = None,
+    trigger_reason: str | None = None,
+    skip_successful_notifications: bool | None = False,
 ) -> None:
     success = not ri.has_error_registered()
     # if the deployment doesn't want any notifications for successful
@@ -112,12 +111,12 @@ def run(
     thread_pool_size: int = 10,
     io_dir: str = "throughput/",
     use_jump_host: bool = True,
-    saas_file_name: Optional[str] = None,
-    env_name: Optional[str] = None,
-    trigger_integration: Optional[str] = None,
-    trigger_reason: Optional[str] = None,
-    saas_file_list: Optional[SaasFileList] = None,
-    defer: Optional[Callable] = None,
+    saas_file_name: str | None = None,
+    env_name: str | None = None,
+    trigger_integration: str | None = None,
+    trigger_reason: str | None = None,
+    saas_file_list: SaasFileList | None = None,
+    defer: Callable | None = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)

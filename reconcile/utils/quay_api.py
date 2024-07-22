@@ -30,9 +30,7 @@ class QuayApi:
             if cache_members:
                 return cache_members
 
-        url = "{}/organization/{}/team/{}/members?includePending=true".format(
-            self.api_url, self.organization, team
-        )
+        url = f"{self.api_url}/organization/{self.organization}/team/{team}/members?includePending=true"
 
         r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
         if r.status_code == 404:
@@ -57,33 +55,27 @@ class QuayApi:
         return members_list
 
     def user_exists(self, user):
-        url = "{}/users/{}".format(self.api_url, user)
+        url = f"{self.api_url}/users/{user}"
         r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
-        if not r.ok:
-            return False
-        return True
+        return r.ok
 
     def remove_user_from_team(self, user, team):
         """Deletes an user from a team.
 
         :raises HTTPError if there are any problems with the request
         """
-        url_team = "{}/organization/{}/team/{}/members/{}".format(
-            self.api_url, self.organization, team, user
-        )
+        url_team = f"{self.api_url}/organization/{self.organization}/team/{team}/members/{user}"
 
         r = requests.delete(url_team, headers=self.auth_header, timeout=self._timeout)
         if not r.ok:
             message = r.json().get("message", "")
 
-            expected_message = "User {} does not belong to team {}".format(user, team)
+            expected_message = f"User {user} does not belong to team {team}"
 
             if message != expected_message:
                 r.raise_for_status()
 
-        url_org = "{}/organization/{}/members/{}".format(
-            self.api_url, self.organization, user
-        )
+        url_org = f"{self.api_url}/organization/{self.organization}/members/{user}"
 
         r = requests.delete(url_org, headers=self.auth_header, timeout=self._timeout)
         r.raise_for_status()
@@ -98,9 +90,7 @@ class QuayApi:
         if user in self.list_team_members(team, cache=True):
             return True
 
-        url = "{}/organization/{}/team/{}/members/{}".format(
-            self.api_url, self.organization, team, user
-        )
+        url = f"{self.api_url}/organization/{self.organization}/team/{team}/members/{user}"
         r = requests.put(url, headers=self.auth_header, timeout=self._timeout)
         r.raise_for_status()
         return True
@@ -117,7 +107,7 @@ class QuayApi:
         :raises HTTPError: unsuccessful attempt to create the team
         """
 
-        url = "{}/organization/{}/team/{}".format(self.api_url, self.organization, team)
+        url = f"{self.api_url}/organization/{self.organization}/team/{team}"
 
         payload = {"role": role}
 
@@ -140,7 +130,7 @@ class QuayApi:
         if count > self.LIMIT_FOLLOWS:
             raise ValueError("Too many page follows")
 
-        url = "{}/repository".format(self.api_url)
+        url = f"{self.api_url}/repository"
 
         # params
         params = {"namespace": self.organization}
@@ -176,7 +166,7 @@ class QuayApi:
         """
         visibility = "public" if public else "private"
 
-        url = "{}/repository".format(self.api_url)
+        url = f"{self.api_url}/repository"
 
         params = {
             "repo_kind": "image",
@@ -193,14 +183,14 @@ class QuayApi:
         r.raise_for_status()
 
     def repo_delete(self, repo_name):
-        url = "{}/repository/{}/{}".format(self.api_url, self.organization, repo_name)
+        url = f"{self.api_url}/repository/{self.organization}/{repo_name}"
 
         # perform request
         r = requests.delete(url, headers=self.auth_header, timeout=self._timeout)
         r.raise_for_status()
 
     def repo_update_description(self, repo_name, description):
-        url = "{}/repository/{}/{}".format(self.api_url, self.organization, repo_name)
+        url = f"{self.api_url}/repository/{self.organization}/{repo_name}"
 
         params = {"description": description}
 
@@ -217,9 +207,7 @@ class QuayApi:
         self._repo_change_visibility(repo_name, "private")
 
     def _repo_change_visibility(self, repo_name, visibility):
-        url = "{}/repository/{}/{}/changevisibility".format(
-            self.api_url, self.organization, repo_name
-        )
+        url = f"{self.api_url}/repository/{self.organization}/{repo_name}/changevisibility"
 
         params = {"visibility": visibility}
 

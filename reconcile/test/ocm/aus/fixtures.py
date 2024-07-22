@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from reconcile.aus.base import ClusterUpgradePolicy
 from reconcile.aus.healthchecks import AUSClusterHealth, AUSHealthError
@@ -40,11 +39,11 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 
 def build_upgrade_policy(
     soak_days: int = 0,
-    workloads: Optional[list[str]] = None,
-    schedule: Optional[str] = None,
-    sector: Optional[str] = None,
-    mutexes: Optional[list[str]] = None,
-    blocked_versions: Optional[list[str]] = None,
+    workloads: list[str] | None = None,
+    schedule: str | None = None,
+    sector: str | None = None,
+    mutexes: list[str] | None = None,
+    blocked_versions: list[str] | None = None,
 ) -> ClusterUpgradePolicyV1:
     return ClusterUpgradePolicyV1(
         schedule=schedule or "* * * * *",
@@ -59,7 +58,7 @@ def build_upgrade_policy(
     )
 
 
-def build_ocm_environment(env_name: Optional[str] = None) -> OCMEnvironment:
+def build_ocm_environment(env_name: str | None = None) -> OCMEnvironment:
     return OCMEnvironment(
         name=env_name or "env-name",
         description="env desc",
@@ -74,17 +73,17 @@ def build_ocm_environment(env_name: Optional[str] = None) -> OCMEnvironment:
 
 
 def build_organization(
-    org_id: Optional[str] = None,
-    org_name: Optional[str] = None,
-    env_name: Optional[str] = None,
-    ocm_env: Optional[OCMEnvironment] = None,
-    inherit_version_data_from_org_ids: Optional[list[tuple[str, str, bool]]] = None,
-    publish_version_data_from_org_ids: Optional[list[str]] = None,
-    blocked_versions: Optional[list[str]] = None,
-    sector_dependencies: Optional[dict[str, Optional[list[str]]]] = None,
+    org_id: str | None = None,
+    org_name: str | None = None,
+    env_name: str | None = None,
+    ocm_env: OCMEnvironment | None = None,
+    inherit_version_data_from_org_ids: list[tuple[str, str, bool]] | None = None,
+    publish_version_data_from_org_ids: list[str] | None = None,
+    blocked_versions: list[str] | None = None,
+    sector_dependencies: dict[str, list[str] | None] | None = None,
     addonManagedUpgrades: bool = False,
-    disabled_integrations: Optional[list[str]] = None,
-    health_checks: Optional[list[tuple[str, bool]]] = None,
+    disabled_integrations: list[str] | None = None,
+    health_checks: list[tuple[str, bool]] | None = None,
 ) -> AUSOCMOrganization:
     org_id = org_id or "org-1-id"
     disable = (
@@ -94,6 +93,7 @@ def build_organization(
     )
     return AUSOCMOrganization(
         name=org_name or "org-name",
+        labels=None,
         environment=ocm_env or build_ocm_environment(env_name or "env-name"),
         orgId=org_id,
         blockedVersions=blocked_versions,
@@ -154,7 +154,7 @@ def build_organization(
 
 def build_organization_upgrade_spec(
     specs: list[tuple[OCMCluster, ClusterUpgradePolicyV1, AUSClusterHealth]],
-    org: Optional[AUSOCMOrganization] = None,
+    org: AUSOCMOrganization | None = None,
 ) -> OrganizationUpgradeSpec:
     org = org or build_organization()
     return OrganizationUpgradeSpec(
@@ -174,12 +174,12 @@ def build_organization_upgrade_spec(
 def build_cluster_upgrade_spec(
     name: str,
     current_version: str = "4.13.0",
-    workloads: Optional[list[str]] = None,
+    workloads: list[str] | None = None,
     soak_days: int = 0,
-    org: Optional[AUSOCMOrganization] = None,
-    available_upgrades: Optional[list[str]] = None,
-    mutexes: Optional[list[str]] = None,
-    blocked_versions: Optional[list[str]] = None,
+    org: AUSOCMOrganization | None = None,
+    available_upgrades: list[str] | None = None,
+    mutexes: list[str] | None = None,
+    blocked_versions: list[str] | None = None,
     cluster_health: bool = True,
 ) -> ClusterUpgradeSpec:
     return ClusterUpgradeSpec(
@@ -205,11 +205,11 @@ def build_addon_upgrade_spec(
     current_cluster_version: str = "4.13.0",
     current_addon_version: str = "1.2.3",
     addon_state: str = "ready",
-    workloads: Optional[list[str]] = None,
+    workloads: list[str] | None = None,
     soak_days: int = 0,
-    org: Optional[AUSOCMOrganization] = None,
-    available_cluster_upgrades: Optional[list[str]] = None,
-    available_addon_upgrades: Optional[list[str]] = None,
+    org: AUSOCMOrganization | None = None,
+    available_cluster_upgrades: list[str] | None = None,
+    available_addon_upgrades: list[str] | None = None,
     cluster_health: bool = True,
 ) -> ClusterAddonUpgradeSpec:
     return ClusterAddonUpgradeSpec(
@@ -240,7 +240,7 @@ def build_addon_upgrade_spec(
 
 
 def build_cluster_upgrade_policy(
-    cluster: OCMCluster, version: str, state: str, next_run: Optional[datetime] = None
+    cluster: OCMCluster, version: str, state: str, next_run: datetime | None = None
 ) -> ClusterUpgradePolicy:
     next_run_str = (next_run or datetime.utcnow()).strftime("%Y-%m-%dT%H:%M:%SZ")
     return ClusterUpgradePolicy(
@@ -279,7 +279,7 @@ class NoopGateHandler(GateHandler):
 
 
 def build_cluster_health(
-    errors: Optional[list[tuple[str, bool]]] = None,
+    errors: list[tuple[str, bool]] | None = None,
 ) -> AUSClusterHealth:
     return AUSClusterHealth(
         state={

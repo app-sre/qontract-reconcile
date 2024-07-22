@@ -1,13 +1,9 @@
 import logging
 import sys
 from collections.abc import Callable
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile import queries
-from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.secret_reader import (
@@ -16,46 +12,14 @@ from reconcile.utils.secret_reader import (
 )
 from reconcile.utils.state import init_state
 
-QUERY = """
-{
-  jenkins_configs: jenkins_configs_v1 {
-    name
-    app {
-      name
-    }
-    instance {
-      name
-      serverUrl
-      token {
-        path
-        field
-        version
-        format
-      }
-      deleteMethod
-    }
-    type
-    config
-    config_path {
-      content
-    }
-  }
-}
-"""
-
 QONTRACT_INTEGRATION = "jenkins-job-builder"
 GENERATE_TYPE = ["jobs", "views"]
 
 
-def get_jenkins_configs():
-    gqlapi = gql.get_api()
-    return gqlapi.query(QUERY)["jenkins_configs"]
-
-
 def collect_configs(
-    instance_name: Optional[str], config_name: Optional[str]
+    instance_name: str | None, config_name: str | None
 ) -> list[dict[str, Any]]:
-    configs = get_jenkins_configs()
+    configs = queries.get_jenkins_configs()
     if instance_name is not None:
         configs = [n for n in configs if n["instance"]["name"] == instance_name]
         if not configs:
@@ -74,8 +38,8 @@ def collect_configs(
 
 def init_jjb(
     secret_reader: SecretReaderBase,
-    instance_name: Optional[str] = None,
-    config_name: Optional[str] = None,
+    instance_name: str | None = None,
+    config_name: str | None = None,
     print_only: bool = False,
 ) -> JJB:
     configs = collect_configs(instance_name, config_name)
@@ -99,7 +63,7 @@ def validate_repos_and_admins(jjb: JJB):
     )
     unknown_admins = [a for a in jjb_admins if a not in github_usernames]
     for a in unknown_admins:
-        logging.warning("admin is missing from users: {}".format(a))
+        logging.warning(f"admin is missing from users: {a}")
     if missing_repos:
         sys.exit(1)
 
@@ -109,10 +73,10 @@ def run(
     dry_run: bool,
     io_dir: str = "throughput/",
     print_only: bool = False,
-    config_name: Optional[str] = None,
-    job_name: Optional[str] = None,
-    instance_name: Optional[str] = None,
-    defer: Optional[Callable] = None,
+    config_name: str | None = None,
+    job_name: str | None = None,
+    instance_name: str | None = None,
+    defer: Callable | None = None,
 ) -> None:
     if not print_only and config_name is not None:
         raise Exception("--config-name must works with --print-only mode")

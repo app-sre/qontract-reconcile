@@ -1,5 +1,4 @@
 import json
-from typing import Optional
 
 import pytest
 
@@ -179,16 +178,20 @@ def test_change_type_contexts_for_self_service_roles_schema() -> None:
 def test_self_service_role_slack_user_group_approver_reachability() -> None:
     slack_groups = ["slack-group-1", "slack-group-2"]
     slack_workspace = "slack-workspace"
+    slack_channel = "slack-channel"
     role = build_role(
         name="role",
         datafiles=None,
         change_type_name="change-type-name",
         slack_groups=slack_groups,
         slack_workspace=slack_workspace,
+        slack_channel=slack_channel,
     )
     reachability = approver_reachability_from_role(role)
     assert reachability == [
-        SlackGroupApproverReachability(slack_group=g, workspace=slack_workspace)
+        SlackGroupApproverReachability(
+            slack_group=g, workspace=slack_workspace, channel=slack_channel
+        )
         for g in slack_groups
     ]
 
@@ -263,5 +266,5 @@ def test_self_service_role_empty_change_owner_labels() -> None:
         ),
     ],
 )
-def test_build_approver(member: RoleMember, approver: Optional[Approver]) -> None:
+def test_build_approver(member: RoleMember, approver: Approver | None) -> None:
     assert build_approver(member) == approver

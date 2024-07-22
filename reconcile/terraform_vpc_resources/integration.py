@@ -1,7 +1,7 @@
 import logging
 import sys
-from collections.abc import Mapping, MutableMapping
-from typing import Any, Iterable, Optional
+from collections.abc import Iterable, Mapping, MutableMapping
+from typing import Any
 
 import jinja2
 
@@ -41,14 +41,10 @@ AWS_PROVIDER_VERSION = "5.7.1"
 
 
 class TerraformVpcResourcesParams(PydanticRunParams):
-    account_name: Optional[str]
-    print_to_file: Optional[str]
+    account_name: str | None
+    print_to_file: str | None
     thread_pool_size: int
     enable_deletion: bool = False
-
-
-class NoManagedVPCForAccount(Exception):
-    pass
 
 
 class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesParams]):
@@ -57,7 +53,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         return QONTRACT_INTEGRATION.replace("_", "-")
 
     def _filter_accounts(
-        self, data: Iterable[VPCRequest], account_name: Optional[str]
+        self, data: Iterable[VPCRequest], account_name: str | None
     ) -> list[AWSAccountV1]:
         """Return a list of accounts extracted from the provided VPCRequests.
         If account_name is given returns the account object with that name."""
@@ -74,7 +70,15 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         """Receives a terraform outputs dict and returns a map of outputs per VPC requests"""
         outputs_per_request: MutableMapping[str, Any] = {}
         for request in requests:
+            # Skiping requests that don't have outputs,
+            # this happens because we are not filtering the requests
+            # when running the integration for a single account with --account-name.
+            # We also don't want to create outputs for deleted requets.
+            if request.account.name not in outputs or request.delete:
+                continue
+
             outputs_per_request[request.identifier] = []
+
             outputs_per_account = outputs[request.account.name]
 
             # If the output exists for that request get its value
@@ -129,11 +133,11 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         if data:
             accounts = self._filter_accounts(data, account_name)
             if account_name and not accounts:
-                error_msg = f"The account {account_name} doesn't have any managed vpc. Verify your input"
-                logging.error(error_msg)
-                raise NoManagedVPCForAccount(error_msg)
+                msg = f"The account {account_name} doesn't have any managed vpc. Verify your input"
+                logging.debug(msg)
+                sys.exit(ExitCodes.SUCCESS)
         else:
-            logging.warning("No VPC requests found, nothing to do.")
+            logging.debug("No VPC requests found, nothing to do.")
             sys.exit(ExitCodes.SUCCESS)
 
         accounts_untyped: list[dict] = [acc.dict(by_alias=True) for acc in accounts]
@@ -160,12 +164,14 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             thread_pool_size=thread_pool_size,
         )
 
-        tf_client.plan(enable_deletion=enable_deletion)
+        tf_client.safe_plan(enable_deletion=enable_deletion)
 
         if dry_run:
             sys.exit(ExitCodes.SUCCESS)
 
         tf_client.apply()
+
+        tf_client.init_outputs()
 
         handled_output = self._handle_outputs(data, tf_client.outputs)
 

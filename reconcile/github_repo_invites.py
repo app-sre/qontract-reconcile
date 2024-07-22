@@ -5,10 +5,7 @@ from collections.abc import (
     Mapping,
 )
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile import queries
 from reconcile.utils import (
@@ -27,7 +24,7 @@ class CodeComponents:
 
 
 def _parse_code_components(
-    raw: Optional[Iterable[Mapping[str, Any]]],
+    raw: Iterable[Mapping[str, Any]] | None,
 ) -> CodeComponents:
     urls = set()
     known_orgs = set()

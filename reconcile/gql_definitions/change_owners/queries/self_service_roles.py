@@ -78,6 +78,7 @@ query SelfServiceRolesQuery($name: String) {
         workspace {
           name
         }
+        channels
       }
       ... on PermissionGitlabGroupMembership_v1 {
         group
@@ -135,6 +136,7 @@ class SlackWorkspaceV1(ConfiguredBaseModel):
 class PermissionSlackUsergroupV1(PermissionV1):
     handle: str = Field(..., alias="handle")
     workspace: SlackWorkspaceV1 = Field(..., alias="workspace")
+    channels: list[str] = Field(..., alias="channels")
 
 
 class PermissionGitlabGroupMembershipV1(PermissionV1):

@@ -10,22 +10,16 @@ from collections import (
     defaultdict,
 )
 from collections.abc import (
+    Generator,
     Iterable,
     Mapping,
     MutableMapping,
     Sequence,
 )
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timedelta
 from types import TracebackType
-from typing import (
-    Any,
-    Generator,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any
 from urllib.parse import urlparse
 
 import yaml
@@ -45,6 +39,7 @@ from sretoolbox.utils import (
 
 from reconcile.github_org import get_default_config
 from reconcile.status import RunningState
+from reconcile.utils import helm
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.jjb_client import JJB
@@ -64,8 +59,6 @@ from reconcile.utils.promotion_state import (
     PromotionState,
 )
 from reconcile.utils.saasherder.interfaces import (
-    HasParameters,
-    HasSecretParameters,
     SaasFile,
     SaasParentSaasPromotion,
     SaasResourceTemplate,
@@ -121,12 +114,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         secret_reader: SecretReaderBase,
         hash_length: int,
         repo_url: str,
-        gitlab: Optional[GitLabApi] = None,
-        jenkins_map: Optional[dict[str, JenkinsApi]] = None,
-        state: Optional[State] = None,
+        gitlab: GitLabApi | None = None,
+        jenkins_map: dict[str, JenkinsApi] | None = None,
+        state: State | None = None,
         validate: bool = False,
         include_trigger_trace: bool = False,
-        all_saas_files: Optional[Iterable[SaasFile]] = None,
+        all_saas_files: Iterable[SaasFile] | None = None,
     ):
         self.error_registered = False
         self.saas_files = saas_files
@@ -150,6 +143,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self._promotion_state = PromotionState(state=state) if state else None
         self._channel_map = self._assemble_channels(saas_files=all_saas_files)
         self.images: set[str] = set()
+        self.blocked_versions = self._collect_blocked_versions()
+        self.hotfix_versions = self._collect_hotfix_versions()
 
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -169,9 +164,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         self.cleanup()
 
@@ -201,8 +196,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     yield (saas_file, resource_template, target)
 
     def _get_saas_file_feature_enabled(
-        self, name: str, default: Optional[bool] = None
-    ) -> Optional[bool]:
+        self, name: str, default: bool | None = None
+    ) -> bool | None:
         """Returns a bool indicating if a feature is enabled in a saas file,
         or a supplied default. Returns False if there are multiple
         saas files in the process.
@@ -432,9 +427,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 self.valid = False
                 # This should never be possible theoretically ...
                 logging.error(
-                    "Non-unique resource template reference {} in " "channel {}".format(
-                        rt_ref, channel
-                    )
+                    f"Non-unique resource template reference {rt_ref} in "
+                    f"channel {channel}"
                 )
                 continue
             publications[channel].add(rt_ref)
@@ -459,9 +453,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     self.valid = False
                     logging.error(
                         "Channel is not published by any target\n"
-                        "subscriber_saas: {}\n"
-                        "subscriber_rt: {}\n"
-                        "channel: {}".format(sub_saas, sub_rt_name, sub_channel)
+                        f"subscriber_saas: {sub_saas}\n"
+                        f"subscriber_rt: {sub_rt_name}\n"
+                        f"channel: {sub_channel}"
                     )
                 for pub_ref in pub_channel_refs:
                     (pub_saas, pub_rt_name, pub_rt_url, _) = pub_ref
@@ -470,26 +464,19 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         logging.error(
                             "Subscriber and Publisher targets have different "
                             "source repositories\n"
-                            "publisher_saas: {}\n"
-                            "publisher_rt: {}\n"
-                            "publisher_repo: {}\n"
-                            "subscriber_saas: {}\n"
-                            "subscriber_rt: {}\n"
-                            "subscriber_repo: {}\n".format(
-                                pub_saas,
-                                pub_rt_name,
-                                pub_rt_url,
-                                sub_saas,
-                                sub_rt_name,
-                                sub_rt_url,
-                            )
+                            f"publisher_saas: {pub_saas}\n"
+                            f"publisher_rt: {pub_rt_name}\n"
+                            f"publisher_repo: {pub_rt_url}\n"
+                            f"subscriber_saas: {sub_saas}\n"
+                            f"subscriber_rt: {sub_rt_name}\n"
+                            f"subscriber_repo: {sub_rt_url}\n"
                         )
 
     @staticmethod
     def build_saas_file_env_combo(
         saas_file_name: str,
         env_name: str,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Build a tuple of short and long names for a saas file and environment combo,
         max tekton pipelinerun name length can be 63,
@@ -711,33 +698,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return namespaces
 
     def _collect_repo_urls(self) -> set[str]:
-        return set(
+        return {
             rt.url
             for saas_file in self.saas_files
             for rt in saas_file.resource_templates
-        )
-
-    @staticmethod
-    def _collect_parameters(container: HasParameters) -> dict[str, str]:
-        parameters = container.parameters or {}
-        if isinstance(parameters, str):
-            parameters = json.loads(parameters)
-        # adjust Python's True/False
-        for k, v in parameters.items():
-            if v is True:
-                parameters[k] = "true"
-            elif v is False:
-                parameters[k] = "false"
-            elif any(isinstance(v, t) for t in [dict, list, tuple]):
-                parameters[k] = json.dumps(v)
-        return parameters
-
-    def _collect_secret_parameters(
-        self, container: HasSecretParameters
-    ) -> dict[str, str]:
-        return {
-            sp.name: self.secret_reader.read_secret(sp.secret)
-            for sp in container.secret_parameters or []
         }
 
     @staticmethod
@@ -782,8 +746,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     @retry(max_attempts=20)
     def _get_file_contents(
         self, url: str, path: str, ref: str, github: Github
-    ) -> tuple[Any, str, str]:
-        html_url = f"{url}/blob/{ref}{path}"
+    ) -> tuple[Any, str]:
         commit_sha = self._get_commit_sha(url, ref, github)
 
         if "github" in url:
@@ -799,15 +762,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         else:
             raise Exception(f"Only GitHub and GitLab are supported: {url}")
 
-        return yaml.safe_load(content), html_url, commit_sha
+        return yaml.safe_load(content), commit_sha
 
     @retry()
     def _get_directory_contents(
         self, url: str, path: str, ref: str, github: Github
-    ) -> tuple[list[Any], str, str]:
-        html_url = f"{url}/tree/{ref}{path}"
+    ) -> tuple[list[Any], str]:
         commit_sha = self._get_commit_sha(url, ref, github)
-        resources = []
+        resources: list[Any] = []
         if "github" in url:
             repo_name = url.rstrip("/").replace("https://github.com/", "")
             repo = github.get_repo(repo_name)
@@ -819,8 +781,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 file_contents_decoded = self._get_file_contents_github(
                     repo, file_path, commit_sha
                 )
-                resource = yaml.safe_load(file_contents_decoded)
-                resources.append(resource)
+                result_resources = yaml.safe_load_all(file_contents_decoded)
+                resources.extend(result_resources)
         elif "gitlab" in url:
             if not self.gitlab:
                 raise Exception("gitlab is not initialized")
@@ -836,7 +798,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         else:
             raise Exception(f"Only GitHub and GitLab are supported: {url}")
 
-        return resources, html_url, commit_sha
+        return resources, commit_sha
 
     @retry()
     def _get_commit_sha(self, url: str, ref: str, github: Github) -> str:
@@ -850,7 +812,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             if not self.gitlab:
                 raise Exception("gitlab is not initialized")
             project = self.gitlab.get_project(url)
-            commits = project.commits.list(ref_name=ref, per_page=1)
+            commits = project.commits.list(ref_name=ref, per_page=1, page=1)
             commit_sha = commits[0].id
 
         return commit_sha
@@ -899,65 +861,31 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 return True
         return False
 
-    def _process_template(
-        self, spec: TargetSpec
-    ) -> tuple[list[Any], str, Optional[Promotion]]:
+    def _process_template(self, spec: TargetSpec) -> tuple[list[Any], Promotion | None]:
         saas_file_name = spec.saas_file_name
         resource_template_name = spec.resource_template_name
-        image_auth = spec.image_auth
         url = spec.url
         path = spec.path
+        ref = spec.ref
         provider = spec.provider
         hash_length = spec.hash_length
         target = spec.target
-        parameters = spec.parameters
         github = spec.github
         target_config_hash = spec.target_config_hash
+        error_prefix = spec.error_prefix
 
         if provider == "openshift-template":
-            environment_parameters = self._collect_parameters(
-                target.namespace.environment
-            )
-            target_parameters = self._collect_parameters(target)
-
+            consolidated_parameters = spec.parameters()
             try:
-                environment_secret_parameters = self._collect_secret_parameters(
-                    target.namespace.environment
-                )
-                target_secret_parameters = self._collect_secret_parameters(target)
-            except Exception as e:
-                logging.error(f"Error collecting secrets: {e}")
-                raise
-
-            consolidated_parameters = {}
-            consolidated_parameters.update(environment_parameters)
-            consolidated_parameters.update(environment_secret_parameters)
-            consolidated_parameters.update(parameters)
-            consolidated_parameters.update(target_parameters)
-            consolidated_parameters.update(target_secret_parameters)
-
-            for replace_key, replace_value in consolidated_parameters.items():
-                if not isinstance(replace_value, str):
-                    continue
-                replace_pattern = "${" + replace_key + "}"
-                for k, v in consolidated_parameters.items():
-                    if not isinstance(v, str):
-                        continue
-                    if replace_pattern in v:
-                        consolidated_parameters[k] = v.replace(
-                            replace_pattern, replace_value
-                        )
-
-            try:
-                template, html_url, commit_sha = self._get_file_contents(
-                    url=url, path=path, ref=target.ref, github=github
+                template, commit_sha = self._get_file_contents(
+                    url=url, path=path, ref=ref, github=github
                 )
             except Exception as e:
-                logging.error(
-                    f"[{url}/blob/{target.ref}{path}] "
-                    + f"error fetching template: {str(e)}"
-                )
+                logging.error(f"{error_prefix} error fetching template: {str(e)}")
                 raise
+
+            # add COMMIT_SHA only if it is unspecified
+            consolidated_parameters.setdefault("COMMIT_SHA", commit_sha)
 
             # add IMAGE_TAG only if it is unspecified
             if not (image_tag := consolidated_parameters.get("IMAGE_TAG", "")):
@@ -971,8 +899,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         channel = consolidated_parameters["CHANNEL"]
                     except KeyError:
                         logging.error(
-                            f"[{saas_file_name}/{resource_template_name}] "
-                            + f"{html_url}: CHANNEL is required when "
+                            f"{error_prefix} CHANNEL is required when "
                             + "'use_channel_in_image_tag' is true."
                         )
                         raise
@@ -994,21 +921,17 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     registry_image = consolidated_parameters["REGISTRY_IMG"]
                 except KeyError as e:
                     logging.error(
-                        f"[{saas_file_name}/{resource_template_name}] "
-                        + f"{html_url}: error generating REPO_DIGEST. "
+                        f"{error_prefix} error generating REPO_DIGEST. "
                         + "Is REGISTRY_IMG missing? "
                         + f"{str(e)}"
                     )
                     raise
 
                 image_uri = f"{registry_image}:{image_tag}"
-                error_prefix = (
-                    f"[{saas_file_name}/{resource_template_name}] {html_url}:"
-                )
                 img = self._get_image(
                     image=image_uri,
                     image_patterns=spec.image_patterns,
-                    image_auth=image_auth,
+                    image_auth=spec.image_auth,
                     error_prefix=error_prefix,
                 )
                 if not img:
@@ -1025,28 +948,47 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             try:
                 resources = oc.process(template, consolidated_parameters)
             except StatusCodeError as e:
-                logging.error(
-                    f"[{saas_file_name}/{resource_template_name}] "
-                    + f"{html_url}: error processing template: {str(e)}"
-                )
+                logging.error(f"{error_prefix} error processing template: {str(e)}")
 
         elif provider == "directory":
             try:
-                resources, html_url, commit_sha = self._get_directory_contents(
-                    url=url, path=path, ref=target.ref, github=github
+                resources, commit_sha = self._get_directory_contents(
+                    url=url, path=path, ref=ref, github=github
                 )
             except Exception as e:
                 logging.error(
-                    f"[{url}/tree/{target.ref}{path}] "
-                    + f"error fetching directory: {str(e)}"
+                    f"{error_prefix} error fetching directory: {str(e)} "
+                    + "(We do not support nested directories. Do you by chance have subdirectories?)"
                 )
                 raise
 
-        else:
-            logging.error(
-                f"[{saas_file_name}/{resource_template_name}] "
-                + f"unknown provider: {provider}"
+        elif provider == "helm":
+            ssl_verify = (
+                self.gitlab.ssl_verify
+                if self.gitlab and url.startswith(self.gitlab.server)
+                else True
             )
+            consolidated_parameters = spec.parameters(adjust=False)
+            commit_sha = self._get_commit_sha(url, ref, github)
+            image_tag = commit_sha[:hash_length]
+            image = consolidated_parameters.setdefault("image", {})
+            if isinstance(image, dict):
+                image.setdefault("tag", image_tag)
+            global_parameters = consolidated_parameters.setdefault("global", {})
+            if isinstance(global_parameters, dict):
+                image = global_parameters.setdefault("image", {})
+                if isinstance(image, dict):
+                    image.setdefault("tag", image_tag)
+            resources = helm.template_all(
+                url=url,
+                path=path,
+                name=resource_template_name,
+                values=consolidated_parameters,
+                ssl_verify=ssl_verify,
+            )
+
+        else:
+            logging.error(f"{error_prefix} unknown provider: {provider}")
 
         target_promotion = None
         if target.promotion:
@@ -1054,6 +996,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 self._channel_map[sub] for sub in target.promotion.subscribe or []
             ]
             target_promotion = Promotion(
+                url=url,
                 auto=target.promotion.auto,
                 publish=target.promotion.publish,
                 subscribe=channels,
@@ -1065,11 +1008,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     parent_resource_template_name=resource_template_name,
                     parent_saas_file_name=saas_file_name,
                 ),
+                soak_days=target.promotion.soak_days or 0,
             )
-        return resources, html_url, target_promotion
+        return resources, target_promotion
 
     def _assemble_channels(
-        self, saas_files: Optional[Iterable[SaasFile]]
+        self, saas_files: Iterable[SaasFile] | None
     ) -> dict[str, Channel]:
         """
         We need to assemble all publisher_uids that are publishing to a channel.
@@ -1093,6 +1037,22 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             )
                         channel_map[publish].publisher_uids.append(publisher_uid)
         return channel_map
+
+    def _collect_blocked_versions(self) -> dict[str, set[str]]:
+        blocked_versions: dict[str, set[str]] = {}
+        for saas_file in self.saas_files:
+            for cc in saas_file.app.code_components or []:
+                for v in cc.blocked_versions or []:
+                    blocked_versions.setdefault(cc.url, set()).add(v)
+        return blocked_versions
+
+    def _collect_hotfix_versions(self) -> dict[str, set[str]]:
+        hotfix_versions: dict[str, set[str]] = {}
+        for saas_file in self.saas_files:
+            for cc in saas_file.app.code_components or []:
+                for v in cc.hotfix_versions or []:
+                    hotfix_versions.setdefault(cc.url, set()).add(v)
+        return hotfix_versions
 
     @staticmethod
     def _collect_images(resource: Resource) -> set[str]:
@@ -1134,7 +1094,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         image_patterns: Iterable[str],
         image_auth: ImageAuth,
         error_prefix: str,
-    ) -> Optional[Image]:
+    ) -> Image | None:
         if not image_patterns:
             logging.error(
                 f"{error_prefix} imagePatterns is empty (does not contain {image})"
@@ -1181,14 +1141,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     def _check_images(
         self,
-        saas_file_name: str,
-        resource_template_name: str,
-        image_auth: ImageAuth,
-        image_patterns: list[str],
-        html_url: str,
+        spec: TargetSpec,
         resources: Resources,
     ) -> bool:
-        error_prefix = f"[{saas_file_name}/{resource_template_name}] {html_url}:"
         images_list = threaded.run(
             self._collect_images, resources, self.available_thread_pool_size
         )
@@ -1200,14 +1155,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             self._get_image,
             images,
             self.available_thread_pool_size,
-            image_patterns=image_patterns,
-            image_auth=image_auth,
-            error_prefix=error_prefix,
+            image_patterns=spec.image_patterns,
+            image_auth=spec.image_auth,
+            error_prefix=spec.error_prefix,
         )
         return None in images
 
     def _initiate_github(
-        self, saas_file: SaasFile, base_url: Optional[str] = None
+        self, saas_file: SaasFile, base_url: str | None = None
     ) -> Github:
         token = (
             self.secret_reader.read_secret(saas_file.authentication.code)
@@ -1239,8 +1194,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         creds = self.secret_reader.read_all_secret(saas_file.authentication.image)
         required_docker_config_keys = [".dockerconfigjson"]
         required_keys_basic_auth = ["user", "token"]
-        ok = all(k in creds.keys() for k in required_keys_basic_auth) or all(
-            k in creds.keys() for k in required_docker_config_keys
+        ok = all(k in creds for k in required_keys_basic_auth) or all(
+            k in creds for k in required_docker_config_keys
         )
         if not ok:
             logging.warning(
@@ -1270,7 +1225,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             self.thread_pool_size,
             ri=ri,
         )
-        self.promotions: list[Optional[Promotion]] = promotions
+        self.promotions: list[Promotion | None] = promotions
 
     def _init_populate_desired_state_specs(
         self, saas_file: SaasFile
@@ -1278,23 +1233,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         specs = []
         github = self._initiate_github(saas_file)
         image_auth = self._initiate_image_auth(saas_file)
-        saas_file_parameters = self._collect_parameters(saas_file)
-        saas_file_secret_parameters = self._collect_secret_parameters(saas_file)
-
         all_trigger_specs = self.get_saas_targets_config_trigger_specs(saas_file)
         # iterate over resource templates (multiple per saas_file)
         for rt in saas_file.resource_templates:
-            provider = rt.provider or "openshift-template"
             hash_length = rt.hash_length or self.hash_length
-            resource_template_parameters = self._collect_parameters(rt)
-            resource_template_secret_parameters = self._collect_secret_parameters(rt)
-
-            consolidated_parameters = {}
-            consolidated_parameters.update(saas_file_parameters)
-            consolidated_parameters.update(saas_file_secret_parameters)
-            consolidated_parameters.update(resource_template_parameters)
-            consolidated_parameters.update(resource_template_secret_parameters)
-
             # Iterate over targets (each target is a namespace).
             for target in rt.targets:
                 if target.disable:
@@ -1318,26 +1260,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
                 specs.append(
                     TargetSpec(
-                        saas_file_name=saas_file.name,
-                        cluster=target.namespace.cluster.name,
-                        namespace=target.namespace.name,
-                        managed_resource_types=saas_file.managed_resource_types,
-                        managed_resource_names=saas_file.managed_resource_names,
-                        delete=bool(target.delete),
-                        privileged=bool(saas_file.cluster_admin),
-                        # process_template options
-                        resource_template_name=rt.name,
-                        image_auth=image_auth,
-                        url=rt.url,
-                        path=rt.path,
-                        provider=provider,
-                        hash_length=hash_length,
+                        saas_file=saas_file,
+                        resource_template=rt,
                         target=target,
-                        parameters=consolidated_parameters,
+                        # process_template options
+                        image_auth=image_auth,
+                        hash_length=hash_length,
                         github=github,
                         target_config_hash=digest,
-                        # check_image options
-                        image_patterns=saas_file.image_patterns,
+                        secret_reader=self.secret_reader,
                     )
                 )
 
@@ -1345,18 +1276,18 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     def populate_desired_state_saas_file(
         self, spec: TargetSpec, ri: ResourceInventory
-    ) -> Optional[Promotion]:
+    ) -> Promotion | None:
         if spec.delete:
             # to delete resources, we avoid adding them to the desired state
             return None
 
+        html_url = spec.html_url
         try:
-            resources, html_url, promotion = self._process_template(spec)
+            resources, promotion = self._process_template(spec)
         except Exception as e:
-            # error log message send in _process_template. We log here debug to have a
-            # safeguard in case something breaks there unexpectedly. We cannot just
+            # error log message send in _process_template. We cannot just
             # register an error without logging as inventory errors don't have details.
-            logging.debug(f"Error in populate_desired_state_saas_file: {e}")
+            logging.error(f"Error in populate_desired_state_saas_file: {e}")
             ri.register_error()
             return None
 
@@ -1386,11 +1317,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self._additional_resource_process(resources, html_url)
         # check images
         image_error = self._check_images(
-            saas_file_name=spec.saas_file_name,
-            resource_template_name=spec.resource_template_name,
-            image_auth=spec.image_auth,
-            image_patterns=spec.image_patterns,
-            html_url=html_url,
+            spec=spec,
             resources=resources,
         )
         if image_error:
@@ -1437,12 +1364,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     def get_diff(
         self, trigger_type: TriggerTypes, dry_run: bool
     ) -> tuple[
-        Union[
-            list[TriggerSpecConfig],
-            list[TriggerSpecMovingCommit],
-            list[TriggerSpecUpstreamJob],
-            list[TriggerSpecContainerImage],
-        ],
+        list[TriggerSpecConfig]
+        | list[TriggerSpecMovingCommit]
+        | list[TriggerSpecUpstreamJob]
+        | list[TriggerSpecContainerImage],
         bool,
     ]:
         if trigger_type == TriggerTypes.MOVING_COMMITS:
@@ -1736,7 +1661,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return list(itertools.chain.from_iterable(results))
 
     @staticmethod
-    def remove_none_values(d: Optional[dict[Any, Any]]) -> dict[Any, Any]:
+    def remove_none_values(d: dict[Any, Any] | None) -> dict[Any, Any]:
         if d is None:
             return {}
         new = {}
@@ -1877,81 +1802,107 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             # TODO: add environment.parameters to the include list!?!?
         )
 
+    def _validate_promotion(self, promotion: Promotion) -> bool:
+        # Placing this check here to make mypy happy
+        if not (self.state and self._promotion_state):
+            raise Exception("state is not initialized")
+
+        if not promotion.subscribe:
+            return True
+
+        if promotion.commit_sha in self.blocked_versions.get(promotion.url, set()):
+            logging.error(f"Commit {promotion.commit_sha} is blocked!")
+            return False
+
+        # hotfix must run before further gates are evaluated to override them
+        if promotion.commit_sha in self.hotfix_versions.get(promotion.url, set()):
+            return True
+
+        now = datetime.now(UTC)
+        passed_soak_days = timedelta(days=0)
+
+        for channel in promotion.subscribe:
+            config_hashes: set[str] = set()
+            for target_uid in channel.publisher_uids:
+                deployment = self._promotion_state.get_promotion_data(
+                    sha=promotion.commit_sha,
+                    channel=channel.name,
+                    target_uid=target_uid,
+                    pre_check_sha_exists=False,
+                )
+                if not (
+                    deployment and (deployment.success or deployment.has_succeeded_once)
+                ):
+                    logging.error(
+                        f"Commit {promotion.commit_sha} was not "
+                        + f"published with success to channel {channel.name}"
+                    )
+                    return False
+                if check_in := deployment.check_in:
+                    passed_soak_days += now - datetime.fromisoformat(check_in)
+                if deployment.target_config_hash:
+                    config_hashes.add(deployment.target_config_hash)
+
+            # This code supports current saas targets that does
+            # not have promotion_data yet
+            if not config_hashes or not promotion.promotion_data:
+                logging.info(
+                    "Promotion data is missing; rely on the success " "state only"
+                )
+                continue
+
+            # Validate the promotion_data section.
+            # Just validate parent_saas_config hash
+            # promotion_data type by now.
+            parent_saas_config = None
+            for pd in promotion.promotion_data:
+                if pd.channel == channel.name:
+                    for data in pd.data or []:
+                        if isinstance(data, SaasParentSaasPromotion):
+                            parent_saas_config = data
+
+            # This section might not exist due to a manual MR.
+            # Promotion shall continue if this data is missing.
+            # The parent at the same ref has succeed if this code
+            # is reached though.
+            if not parent_saas_config:
+                logging.info(
+                    "Parent Saas config missing on target "
+                    "rely on the success state only"
+                )
+                continue
+
+            # Validate that the state config_hash set by the parent
+            # matches with the hash set in promotion_data
+            if parent_saas_config.target_config_hash in config_hashes:
+                continue
+
+            logging.error(
+                "Parent saas target has run with a newer "
+                "configuration and the same commit (ref). "
+                "Check if other MR exists for this target, "
+                f"or update {parent_saas_config.target_config_hash} "
+                f"to any in {config_hashes} for channel {channel.name}"
+            )
+            return False
+
+        if passed_soak_days < timedelta(days=promotion.soak_days):
+            logging.error(
+                f"SoakDays in publishers did not pass. So far accumulated soakDays is {passed_soak_days},"
+                f"but we have a soakDays setting of {promotion.soak_days}. We cannot proceed with this promotion."
+            )
+            return False
+        return True
+
     def validate_promotions(self) -> bool:
         """
         If there were promotion sections in the participating saas files
         validate that the conditions are met."""
-        if not (self.state and self._promotion_state):
-            raise Exception("state is not initialized")
-
-        for promotion in self.promotions:
-            if promotion is None:
-                continue
-            # validate that the commit sha being promoted
-            # was successfully published to the subscribed channel(s)
-            if promotion.subscribe:
-                for channel in promotion.subscribe:
-                    config_hashes: set[str] = set()
-                    for target_uid in channel.publisher_uids:
-                        deployment = self._promotion_state.get_promotion_data(
-                            sha=promotion.commit_sha,
-                            channel=channel.name,
-                            target_uid=target_uid,
-                            local_lookup=False,
-                        )
-                        if not (deployment and deployment.success):
-                            logging.error(
-                                f"Commit {promotion.commit_sha} was not "
-                                + f"published with success to channel {channel.name}"
-                            )
-                            return False
-                        if deployment.target_config_hash:
-                            config_hashes.add(deployment.target_config_hash)
-
-                    # This code supports current saas targets that does
-                    # not have promotion_data yet
-                    if not config_hashes or not promotion.promotion_data:
-                        logging.info(
-                            "Promotion data is missing; rely on the success "
-                            "state only"
-                        )
-                        return True
-
-                    # Validate the promotion_data section.
-                    # Just validate parent_saas_config hash
-                    # promotion_data type by now.
-                    parent_saas_config = None
-                    for pd in promotion.promotion_data:
-                        if pd.channel == channel.name:
-                            for data in pd.data or []:
-                                if isinstance(data, SaasParentSaasPromotion):
-                                    parent_saas_config = data
-
-                    # This section might not exist due to a manual MR.
-                    # Promotion shall continue if this data is missing.
-                    # The parent at the same ref has succeed if this code
-                    # is reached though.
-                    if not parent_saas_config:
-                        logging.info(
-                            "Parent Saas config missing on target "
-                            "rely on the success state only"
-                        )
-                        return True
-
-                    # Validate that the state config_hash set by the parent
-                    # matches with the hash set in promotion_data
-                    if parent_saas_config.target_config_hash in config_hashes:
-                        return True
-
-                    logging.error(
-                        "Parent saas target has run with a newer "
-                        "configuration and the same commit (ref). "
-                        "Check if other MR exists for this target, "
-                        f"or update {parent_saas_config.target_config_hash} "
-                        f"to any in {config_hashes} for channel {channel.name}"
-                    )
-                    return False
-        return True
+        return all(
+            self._validate_promotion(promotion)
+            for promotion in self.promotions
+            if promotion is not None
+        )
 
     def publish_promotions(
         self,
@@ -1969,7 +1920,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for promotion in self.promotions:
             if promotion is None:
                 continue
@@ -1978,6 +1929,17 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 all_subscribed_saas_file_paths = set()
                 all_subscribed_target_paths = set()
                 for channel in promotion.publish:
+                    # make sure we keep some attributes on re-deployments of same ref
+                    has_succeeded_once = success
+                    current_state = self._promotion_state.get_promotion_data(
+                        sha=promotion.commit_sha,
+                        channel=channel,
+                        target_uid=promotion.saas_target_uid,
+                        use_cache=True,
+                    )
+                    if current_state and current_state.has_succeeded_once:
+                        has_succeeded_once = True
+
                     # publish to state to pass promotion gate
                     self._promotion_state.publish_promotion_data(
                         sha=promotion.commit_sha,
@@ -1987,6 +1949,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             saas_file=promotion.saas_file,
                             success=success,
                             target_config_hash=promotion.target_config_hash,
+                            has_succeeded_once=has_succeeded_once,
+                            # TODO: do not override - check if timestamp already exists
                             check_in=str(now),
                         ),
                     )

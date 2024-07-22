@@ -12,19 +12,29 @@ from operator import (
 )
 from typing import (
     Any,
-    Optional,
     TypedDict,
+    cast,
 )
 from urllib.parse import urlparse
 
 import gitlab
 import urllib3
+from gitlab.const import (
+    DEVELOPER_ACCESS,
+    GUEST_ACCESS,
+    MAINTAINER_ACCESS,
+    OWNER_ACCESS,
+    REPORTER_ACCESS,
+)
 from gitlab.v4.objects import (
     CurrentUser,
     Group,
+    PersonalAccessToken,
     Project,
     ProjectIssue,
+    ProjectIssueManager,
     ProjectMergeRequest,
+    ProjectMergeRequestManager,
     ProjectMergeRequestNote,
 )
 from sretoolbox.utils import retry
@@ -93,11 +103,14 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if not secret_reader:
             secret_reader = SecretReader(settings=settings)
         token = secret_reader.read(instance["token"])
-        ssl_verify = instance["sslVerify"]
-        if ssl_verify is None:
-            ssl_verify = True
+        self.ssl_verify = instance["sslVerify"]
+        if self.ssl_verify is None:
+            self.ssl_verify = True
         self.gl = gitlab.Gitlab(
-            self.server, private_token=token, ssl_verify=ssl_verify, timeout=timeout
+            self.server,
+            private_token=token,
+            ssl_verify=self.ssl_verify,
+            timeout=timeout,
         )
         self._auth()
         self.user: CurrentUser = self.gl.user
@@ -117,7 +130,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     @cached_property
     def project_main_branch(self) -> str:
         return next(
-            (b.name for b in self.project.branches.list() if b.default),
+            (b.name for b in self.project.branches.list(iterator=True) if b.default),
             DEFAULT_MAIN_BRANCH,
         )
 
@@ -226,16 +239,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_project_maintainers(
         self, repo_url: str | None = None, query: dict | None = None
     ) -> list[str] | None:
-        if repo_url is None:
-            project = self.project
-        else:
-            project = self.get_project(repo_url)
+        project = self.project if repo_url is None else self.get_project(repo_url)
         if project is None:
             return None
         if query:
-            members = self.get_items(project.members.all, query_parameters=query)
+            members = self.get_items(project.members_all.list, query_parameters=query)
         else:
-            members = self.get_items(project.members.all)
+            members = self.get_items(project.members_all.list)
         return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self):
@@ -249,6 +259,54 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return self.gl.groups.get(group_name)
         except gitlab.exceptions.GitlabGetError:
             return None
+
+    def share_project_with_group(
+        self,
+        repo_url: str,
+        group_id: int,
+        dry_run: bool,
+        access: str = "maintainer",
+        reshare: bool = False,
+    ) -> None:
+        project = self.get_project(repo_url)
+        if project is None:
+            return None
+        access_level = self.get_access_level(access)
+        # check if we have 'access_level' access so we can  add the group with same role.
+        members = self.get_items(
+            project.members_all.list, query_parameters={"user_ids": self.user.id}
+        )
+        if not any(
+            self.user.id == member.id and member.access_level >= access_level
+            for member in members
+        ):
+            logging.error(
+                "%s is not shared with %s as %s",
+                repo_url,
+                self.user.username,
+                access,
+            )
+            return None
+        logging.info(["add_group_as_maintainer", repo_url, group_id])
+        if not dry_run:
+            if reshare:
+                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+                project.unshare(group_id)
+            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+            project.share(group_id, access_level)
+
+    def get_group_id_and_shared_projects(
+        self, group_name: str
+    ) -> tuple[int, dict[str, Any]]:
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        group = self.gl.groups.get(group_name)
+        shared_projects = self.get_items(group.projects.list)
+        return group.id, {
+            project.web_url: shared_group
+            for project in shared_projects
+            for shared_group in project.shared_with_groups
+            if shared_group["group_id"] == group.id
+        }
 
     @staticmethod
     def _is_bot_username(username: str) -> bool:
@@ -331,30 +389,30 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def get_access_level_string(access_level):
-        if access_level == gitlab.OWNER_ACCESS:
+        if access_level == OWNER_ACCESS:
             return "owner"
-        if access_level == gitlab.MAINTAINER_ACCESS:
+        if access_level == MAINTAINER_ACCESS:
             return "maintainer"
-        if access_level == gitlab.DEVELOPER_ACCESS:
+        if access_level == DEVELOPER_ACCESS:
             return "developer"
-        if access_level == gitlab.REPORTER_ACCESS:
+        if access_level == REPORTER_ACCESS:
             return "reporter"
-        if access_level == gitlab.GUEST_ACCESS:
+        if access_level == GUEST_ACCESS:
             return "guest"
 
     @staticmethod
     def get_access_level(access):
         access = access.lower()
         if access == "owner":
-            return gitlab.OWNER_ACCESS
+            return OWNER_ACCESS
         if access == "maintainer":
-            return gitlab.MAINTAINER_ACCESS
+            return MAINTAINER_ACCESS
         if access == "developer":
-            return gitlab.DEVELOPER_ACCESS
+            return DEVELOPER_ACCESS
         if access == "reporter":
-            return gitlab.REPORTER_ACCESS
+            return REPORTER_ACCESS
         if access == "guest":
-            return gitlab.GUEST_ACCESS
+            return GUEST_ACCESS
 
     def get_group_id_and_projects(self, group_name: str) -> tuple[str, list[str]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
@@ -393,8 +451,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return self.get_items(mr.resourcelabelevents.list)
 
     def get_merge_request_pipelines(self, mr: ProjectMergeRequest) -> list[dict]:
+        # TODO: use typed object in return
+        # TODO: use server side order_by
+        items = self.get_items(mr.pipelines.list)
         return sorted(
-            self.get_items(mr.pipelines), key=lambda x: x["created_at"], reverse=True
+            [i.asdict() for i in items],
+            key=lambda x: x["created_at"],
+            reverse=True,
         )
 
     @staticmethod
@@ -402,7 +465,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         merge_request: ProjectMergeRequest,
     ) -> list[str]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        changes = merge_request.changes()["changes"]
+        result = merge_request.changes()
+        changes = cast(dict, result)["changes"]
         changed_paths = set()
         for change in changes:
             old_path = change["old_path"]
@@ -530,6 +594,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.notes.create({"body": body})
 
+    # TODO: deprecated this method as new support of list(get_all=True), and figure out request counter metrics
     @staticmethod
     def get_items(method, **kwargs):
         all_items = []
@@ -551,7 +616,18 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     @staticmethod
     def refresh_labels(item: ProjectMergeRequest | ProjectIssue):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        refreshed_item = item.manager.get(item.get_id())
+        manager: ProjectMergeRequestManager | ProjectIssueManager
+        match item:
+            case ProjectMergeRequest():
+                manager = cast(ProjectMergeRequestManager, item.manager)
+            case ProjectIssue():
+                manager = cast(ProjectIssueManager, item.manager)
+            case _:
+                raise ValueError("item must be a ProjectMergeRequest or ProjectIssue")
+        item_id = item.get_id()
+        if item_id is None:
+            raise ValueError("item must have an id")
+        refreshed_item = manager.get(item_id)
         item.labels = refreshed_item.labels
 
     @staticmethod
@@ -615,7 +691,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def get_user(self, username):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        user = self.gl.users.list(search=username)
+        user = self.gl.users.list(search=username, page=1, per_page=1)
         if len(user) == 0:
             logging.error(username + " user not found")
             return
@@ -628,7 +704,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if p is None:
             return []
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        return p.hooks.list(per_page=100)
+        # TODO: get_all may send multiple requests, update metrics accordingly
+        return p.hooks.list(per_page=100, get_all=True)
 
     def create_project_hook(self, repo_url, data):
         p = self.get_project(repo_url)
@@ -694,7 +771,8 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                 break
         # labels
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        label_events = mr.resourcelabelevents.list()
+        # TODO: this may send multiple requests, update metrics accordingly
+        label_events = mr.resourcelabelevents.list(get_all=True)
         for label in reversed(label_events):
             if label.action == "add" and label.label["name"] in hold_labels:
                 username = label.user["username"]
@@ -743,7 +821,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         author, assignee = last_assignment[0], last_assignment[1]
         return author in team_usernames and mr.assignee["username"] == assignee
 
-    def last_assignment(self, mr: ProjectMergeRequest) -> Optional[tuple[str, str]]:
+    def last_assignment(self, mr: ProjectMergeRequest) -> tuple[str, str] | None:
         body_format = "assigned to @"
         notes = self.get_items(mr.notes.list)
 
@@ -762,7 +840,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def last_comment(
         self, mr: ProjectMergeRequest, exclude_bot=True
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         comments = self.get_merge_request_comments(mr)
         comments.sort(key=itemgetter("created_at"), reverse=True)
         for comment in comments:
@@ -775,7 +853,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def get_commit_sha(self, ref: str, repo_url: str) -> str:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         project = self.get_project(repo_url)
-        commits = project.commits.list(ref_name=ref, per_page=1)
+        commits = project.commits.list(ref_name=ref, per_page=1, page=1)
         return commits[0].id
 
     def repository_compare(
@@ -784,3 +862,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         project = self.get_project(repo_url)
         response: Any = project.repository_compare(ref_from, ref_to)
         return response.get("commits", [])
+
+    def get_personal_access_tokens(self) -> list[PersonalAccessToken]:
+        return self.get_items(self.gl.personal_access_tokens.list)

@@ -2,7 +2,9 @@ import pytest
 from boto3 import Session
 from pytest_mock import MockerFixture
 
+from reconcile.utils.aws_api_typed.account import AWSApiAccount
 from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials, SubApi
+from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
 from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
 from reconcile.utils.aws_api_typed.s3 import AWSApiS3
@@ -49,6 +51,8 @@ def test_aws_api_typed_api_close(aws_api: AWSApi, mocker: MockerFixture) -> None
 @pytest.mark.parametrize(
     "api_cls, client_name",
     [
+        (AWSApiAccount, "account"),
+        (AWSApiDynamoDB, "dynamodb"),
         (AWSApiIam, "iam"),
         (AWSApiOrganizations, "organizations"),
         (AWSApiS3, "s3"),
@@ -75,9 +79,19 @@ def test_aws_api_typed_api_init_sub_api(
     assert aws_api._session_clients == [client]
 
 
-def test_aws_api_typed_api_sts(aws_api: AWSApi) -> None:
-    sub_api = aws_api.sts
-    assert isinstance(sub_api, AWSApiSts)
+def test_aws_api_typed_api_account(aws_api: AWSApi) -> None:
+    sub_api = aws_api.account
+    assert isinstance(sub_api, AWSApiAccount)
+
+
+def test_aws_api_typed_api_dynamodb(aws_api: AWSApi) -> None:
+    sub_api = aws_api.dynamodb
+    assert isinstance(sub_api, AWSApiDynamoDB)
+
+
+def test_aws_api_typed_api_iam(aws_api: AWSApi) -> None:
+    sub_api = aws_api.iam
+    assert isinstance(sub_api, AWSApiIam)
 
 
 def test_aws_api_typed_api_organizations(aws_api: AWSApi) -> None:
@@ -85,9 +99,24 @@ def test_aws_api_typed_api_organizations(aws_api: AWSApi) -> None:
     assert isinstance(sub_api, AWSApiOrganizations)
 
 
-def test_aws_api_typed_api_iam(aws_api: AWSApi) -> None:
-    sub_api = aws_api.iam
-    assert isinstance(sub_api, AWSApiIam)
+def test_aws_api_typed_api_s3(aws_api: AWSApi) -> None:
+    sub_api = aws_api.s3
+    assert isinstance(sub_api, AWSApiS3)
+
+
+def test_aws_api_typed_api_service_quotas(aws_api: AWSApi) -> None:
+    sub_api = aws_api.service_quotas
+    assert isinstance(sub_api, AWSApiServiceQuotas)
+
+
+def test_aws_api_typed_api_sts(aws_api: AWSApi) -> None:
+    sub_api = aws_api.sts
+    assert isinstance(sub_api, AWSApiSts)
+
+
+def test_aws_api_typed_api_support(aws_api: AWSApi) -> None:
+    sub_api = aws_api.support
+    assert isinstance(sub_api, AWSApiSupport)
 
 
 def test_aws_api_typed_api_assume_role(aws_api: AWSApi, mocker: MockerFixture) -> None:

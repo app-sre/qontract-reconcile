@@ -1,6 +1,6 @@
 import logging
+from collections.abc import Callable
 from difflib import context_diff
-from typing import Callable, Optional
 
 from pydantic import BaseModel
 from ruamel import yaml
@@ -12,6 +12,7 @@ from reconcile.gql_definitions.templating.templates import (
 )
 from reconcile.templating.lib.rendering import Renderer, TemplateData, create_renderer
 from reconcile.utils import gql
+from reconcile.utils.jinja2.utils import TemplateRenderOptions
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
@@ -22,7 +23,7 @@ QONTRACT_INTEGRATION = "template-validator"
 
 
 def get_templates(
-    query_func: Optional[Callable] = None,
+    query_func: Callable | None = None,
 ) -> list[TemplateV1]:
     if not query_func:
         query_func = gql.get_api().query
@@ -41,7 +42,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         template: TemplateV1,
         template_test: TemplateTestV1,
         ruaml_instance: yaml.YAML,
-        secret_reader: Optional[SecretReaderBase] = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> Renderer:
         return create_renderer(
             template,
@@ -50,6 +51,17 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                 current=ruaml_instance.load(template_test.current or ""),
             ),
             secret_reader=secret_reader,
+            template_render_options=TemplateRenderOptions.create(
+                trim_blocks=template.template_render_options.trim_blocks
+                if template.template_render_options
+                else None,
+                lstrip_blocks=template.template_render_options.lstrip_blocks
+                if template.template_render_options
+                else None,
+                keep_trailing_newline=template.template_render_options.keep_trailing_newline
+                if template.template_render_options
+                else None,
+            ),
         )
 
     @staticmethod
@@ -57,7 +69,7 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
         template: TemplateV1,
         template_test: TemplateTestV1,
         ruaml_instance: yaml.YAML,
-        secret_reader: Optional[SecretReaderBase] = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> list[TemplateDiff]:
         diffs: list[TemplateDiff] = []
 
@@ -79,15 +91,17 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
 
         # Check condition
         should_render = r.render_condition()
-        if (
-            template_test.expected_to_render is not None
-            and template_test.expected_to_render != should_render
-        ):
+        expected_to_render = (
+            template_test.expected_to_render
+            if template_test.expected_to_render is not None
+            else True
+        )
+        if expected_to_render != should_render:
             diffs.append(
                 TemplateDiff(
                     template=template.name,
                     test=template_test.name,
-                    diff=f"Condition mismatch, got: {should_render}, expected: {template_test.expected_to_render}",
+                    diff=f"Condition mismatch for expectedToRender, got: {should_render}, expected: {expected_to_render}",
                 )
             )
 

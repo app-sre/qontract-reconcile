@@ -1,9 +1,5 @@
 import logging
-from typing import (
-    Callable,
-    Iterable,
-    Optional,
-)
+from collections.abc import Callable, Iterable
 
 from reconcile.aus.advanced_upgrade_service import aus_label_key
 from reconcile.aus.base import gates_to_agree, get_orgs_for_environment
@@ -54,7 +50,7 @@ class VersionGateApproverParams(PydanticRunParams):
     job_controller_namespace: str
     rosa_job_service_account: str
     rosa_role: str
-    rosa_job_image: Optional[str] = None
+    rosa_job_image: str | None = None
 
 
 class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams]):

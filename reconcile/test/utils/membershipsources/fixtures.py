@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.fragments.membership_source import (
@@ -17,21 +15,21 @@ class MockUser(BaseModel):
 
 class MockBot(BaseModel):
     name: str
-    org_username: Optional[str]
+    org_username: str | None
 
 
 class MockRole(BaseModel):
     name: str
     users: list[MockUser]
     bots: list[MockBot]
-    member_sources: Optional[list[RoleMembershipSource]]
+    member_sources: list[RoleMembershipSource] | None
 
 
 def build_role(
     name: str,
-    users: Optional[list[str]] = None,
-    bots: Optional[list[str]] = None,
-    member_sources: Optional[list[RoleMembershipSource]] = None,
+    users: list[str] | None = None,
+    bots: list[str] | None = None,
+    member_sources: list[RoleMembershipSource] | None = None,
 ) -> MockRole:
     return MockRole(
         name=name,

@@ -12,7 +12,7 @@ def environ(variables=None):
         def f_environ(*args, **kwargs):
             for e in variables:
                 if not os.environ.get(e):
-                    raise KeyError("Could not find environment variable: {}".format(e))
+                    raise KeyError(f"Could not find environment variable: {e}")
             f(*args, **kwargs)
 
         return f_environ

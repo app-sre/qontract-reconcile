@@ -2,7 +2,6 @@ from collections.abc import (
     Callable,
     Mapping,
 )
-from typing import Optional
 
 from reconcile.gql_definitions.common.clusters_with_dms import (
     DEFINITION,
@@ -15,7 +14,7 @@ from reconcile.utils.gql import GqlApi
 
 
 def test_no_clusters(
-    gql_api_builder: Callable[[Optional[Mapping]], GqlApi],
+    gql_api_builder: Callable[[Mapping | None], GqlApi],
     gql_class_factory: Callable[..., ClustersWithMonitoringQueryData],
 ) -> None:
     data = gql_class_factory(ClustersWithMonitoringQueryData, [])
@@ -28,7 +27,7 @@ def test_no_clusters(
 
 
 def test_get_clusters(
-    gql_api_builder: Callable[[Optional[Mapping]], GqlApi],
+    gql_api_builder: Callable[[Mapping | None], GqlApi],
     gql_class_factory: Callable[..., ClustersWithMonitoringQueryData],
 ) -> None:
     data = gql_class_factory(

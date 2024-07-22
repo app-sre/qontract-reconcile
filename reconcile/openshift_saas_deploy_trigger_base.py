@@ -1,10 +1,7 @@
 import logging
 from collections.abc import Callable
 from threading import Lock
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from sretoolbox.utils import threaded
 
@@ -63,7 +60,7 @@ def run(
     internal: bool,
     use_jump_host: bool,
     include_trigger_trace: bool,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> bool:
     """Run trigger integration
 
@@ -316,24 +313,27 @@ def _pipeline_exists(
     if isinstance(oc, OCLogMsg):
         logging.error(oc.message)
         raise RuntimeError(f"No OC client for {tkn_cluster_name}: {oc.message}")
-    if oc.get(
-        namespace=tkn_namespace_name, kind="Pipeline", name=name, allow_not_found=True
-    ):
-        return True
-    return False
+    return bool(
+        oc.get(
+            namespace=tkn_namespace_name,
+            kind="Pipeline",
+            name=name,
+            allow_not_found=True,
+        )
+    )
 
 
 def _construct_tekton_trigger_resource(
     saas_file_name: str,
     env_name: str,
     tkn_pipeline_name: str,
-    timeout: Optional[str],
+    timeout: str | None,
     tkn_cluster_console_url: str,
     tkn_namespace_name: str,
     integration: str,
     integration_version: str,
     include_trigger_trace: bool,
-    reason: Optional[str],
+    reason: str | None,
 ) -> tuple[OR, str]:
     """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
 

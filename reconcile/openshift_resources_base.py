@@ -7,8 +7,11 @@ import re
 import sys
 from collections import defaultdict
 from collections.abc import (
+    Callable,
+    Generator,
     Iterable,
     Mapping,
+    MutableMapping,
     Sequence,
 )
 from contextlib import contextmanager
@@ -17,10 +20,9 @@ from textwrap import indent
 from threading import Lock
 from typing import (
     Any,
-    Optional,
     Protocol,
-    Tuple,
 )
+from unittest.mock import DEFAULT, patch
 
 import anymarkup
 from deepdiff import DeepHash
@@ -29,9 +31,9 @@ from sretoolbox.utils import (
 )
 
 import reconcile.openshift_base as ob
+import reconcile.utils.jinja2.utils as jinja2_utils
 from reconcile import queries
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
-from reconcile.checkpoint import url_makes_sense
 from reconcile.utils import (
     amtool,
     gql,
@@ -41,9 +43,6 @@ from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.jinja2.utils import (
     FetchSecretError,
-    lookup_github_file_content,
-    lookup_s3_object,
-    lookup_secret,
     process_extracurlyjinja2_template,
     process_jinja2_template,
 )
@@ -237,23 +236,23 @@ KUBERNETES_SECRET_DATA_KEY_RE = "^[-._a-zA-Z0-9]+$"
 _log_lock = Lock()
 
 
-def _locked_info_log(msg: str):
+def _locked_info_log(msg: str) -> None:
     with _log_lock:
         logging.info(msg)
 
 
-def _locked_debug_log(msg: str):
+def _locked_debug_log(msg: str) -> None:
     with _log_lock:
         logging.debug(msg)
 
 
-def _locked_error_log(msg: str):
+def _locked_error_log(msg: str) -> None:
     with _log_lock:
         logging.error(msg)
 
 
 class FetchRouteError(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg: Any):
         super().__init__("error fetching route: " + str(msg))
 
 
@@ -266,16 +265,21 @@ class SecretKeyFormatError(Exception):
 
 
 class UnknownProviderError(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg: Any):
         super().__init__("unknown provider error: " + str(msg))
 
 
 class UnknownTemplateTypeError(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg: Any):
         super().__init__("unknown template type error: " + str(msg))
 
 
-def check_alertmanager_config(data, path, alertmanager_config_key, decode_base64=False):
+def check_alertmanager_config(
+    data: Mapping[str, Any],
+    path: str,
+    alertmanager_config_key: str,
+    decode_base64: bool = False,
+) -> None:
     try:
         config = data[alertmanager_config_key]
     except KeyError:
@@ -283,7 +287,7 @@ def check_alertmanager_config(data, path, alertmanager_config_key, decode_base64
             f"error validating alertmanager config in {path}: "
             f"missing key {alertmanager_config_key}"
         )
-        raise FetchResourceError(e_msg)
+        raise FetchResourceError(e_msg) from None
 
     if decode_base64:
         config = base64.b64decode(config).decode("utf-8")
@@ -295,15 +299,15 @@ def check_alertmanager_config(data, path, alertmanager_config_key, decode_base64
 
 
 def fetch_provider_resource(
-    resource: dict,
-    tfunc=None,
-    tvars=None,
-    validate_json=False,
-    validate_alertmanager_config=False,
-    alertmanager_config_key="alertmanager.yaml",
-    add_path_to_prom_rules=True,
-    skip_validation=False,
-    settings=None,
+    resource: Mapping,
+    tfunc: Callable | None = None,
+    tvars: Mapping[str, Any] | None = None,
+    validate_json: bool = False,
+    validate_alertmanager_config: bool = False,
+    alertmanager_config_key: str = "alertmanager.yaml",
+    add_path_to_prom_rules: bool = True,
+    skip_validation: bool = False,
+    settings: Mapping[str, Any] | None = None,
 ) -> OR:
     path = resource["path"]
     content = resource["content"]
@@ -325,10 +329,10 @@ def fetch_provider_resource(
     except TypeError:
         body_type = type(body).__name__
         e_msg = f"invalid resource type {body_type} found in path: {path}"
-        raise FetchResourceError(e_msg)
+        raise FetchResourceError(e_msg) from None
     except anymarkup.AnyMarkupError:
         e_msg = f"Could not parse data. Skipping resource: {path}"
-        raise FetchResourceError(e_msg)
+        raise FetchResourceError(e_msg) from None
 
     if validate_json:
         files = body["data"]
@@ -337,7 +341,7 @@ def fetch_provider_resource(
                 json.loads(file_content)
             except ValueError:
                 e_msg = f"invalid json in {path} under {file_name}"
-                raise FetchResourceError(e_msg)
+                raise FetchResourceError(e_msg) from None
 
     if validate_alertmanager_config:
         if body["kind"] == "Secret":
@@ -379,21 +383,21 @@ def fetch_provider_resource(
             body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=path
         )
     except ConstructResourceError as e:
-        raise FetchResourceError(str(e))
+        raise FetchResourceError(str(e)) from None
 
 
 def fetch_provider_vault_secret(
-    path,
-    version,
-    name,
-    labels,
-    annotations,
-    type,
-    integration,
-    integration_version,
-    validate_alertmanager_config=False,
-    alertmanager_config_key="alertmanager.yaml",
-    settings=None,
+    path: str,
+    version: str,
+    name: str,
+    labels: Mapping[str, str] | None,
+    annotations: Mapping[str, str],
+    type: str,
+    integration: str,
+    integration_version: str,
+    validate_alertmanager_config: bool = False,
+    alertmanager_config_key: str = "alertmanager.yaml",
+    settings: Mapping[str, Any] | None = None,
 ) -> OR:
     # get the fields from vault
     secret_reader = SecretReader(settings)
@@ -403,7 +407,7 @@ def fetch_provider_vault_secret(
         check_alertmanager_config(raw_data, path, alertmanager_config_key)
 
     # construct oc resource
-    body = {
+    body: dict[str, Any] = {
         "apiVersion": "v1",
         "kind": "Secret",
         "type": type,
@@ -426,14 +430,14 @@ def fetch_provider_vault_secret(
     try:
         return OR(body, integration, integration_version, error_details=path)
     except ConstructResourceError as e:
-        raise FetchResourceError(str(e))
+        raise FetchResourceError(str(e)) from None
 
 
 # check to ensure that all of the keys are valid by looking to see if there are
 # any white space issues. If any issues are uncovered, an exception will be
 # raised.
 # we're receiving the full key: value information, not simply a list of keys.
-def assert_valid_secret_keys(secrets_data: dict[str, str]):
+def assert_valid_secret_keys(secrets_data: dict[str, str]) -> None:
     for k in secrets_data:
         matches = re.search(KUBERNETES_SECRET_DATA_KEY_RE, k)
         if not matches:
@@ -442,7 +446,12 @@ def assert_valid_secret_keys(secrets_data: dict[str, str]):
             )
 
 
-def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -> OR:
+def fetch_provider_route(
+    resource: Mapping,
+    tls_path: str | None,
+    tls_version: str | None,
+    settings: Mapping | None = None,
+) -> OR:
     path = resource["path"]
     openshift_resource = fetch_provider_resource(resource)
 
@@ -468,9 +477,7 @@ def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -
             tls[k] = v
             continue
 
-        msg = "Route secret '{}' key '{}' not in valid keys {}".format(
-            tls_path, k, valid_keys
-        )
+        msg = f"Route secret '{tls_path}' key '{k}' not in valid keys {valid_keys}"
         _locked_info_log(msg)
 
     host = openshift_resource.body["spec"].get("host")
@@ -485,12 +492,15 @@ def fetch_provider_route(resource: dict, tls_path, tls_version, settings=None) -
 
 
 def fetch_openshift_resource(
-    resource, parent, settings=None, skip_validation=False
+    resource: Mapping,
+    parent: Mapping[str, Any],
+    settings: Mapping | None = None,
+    skip_validation: bool = False,
 ) -> OR:
     provider = resource["provider"]
     if provider == "resource":
         path = resource["resource"]["path"]
-        _locked_debug_log("Processing {}: {}".format(provider, path))
+        _locked_debug_log(f"Processing {provider}: {path}")
         validate_json = resource.get("validate_json") or False
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
@@ -510,7 +520,7 @@ def fetch_openshift_resource(
         )
     elif provider == "resource-template":
         path = resource["resource"]["path"]
-        _locked_debug_log("Processing {}: {}".format(provider, path))
+        _locked_debug_log(f"Processing {provider}: {path}")
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         validate_alertmanager_config = (
             resource.get("validate_alertmanager_config") or False
@@ -543,12 +553,12 @@ def fetch_openshift_resource(
                 settings=settings,
             )
         except Exception as e:
-            msg = "could not render template at path {}\n{}".format(path, e)
-            raise ResourceTemplateRenderError(msg)
+            msg = f"could not render template at path {path}\n{e}"
+            raise ResourceTemplateRenderError(msg) from None
     elif provider == "vault-secret":
         path = resource["path"]
         version = resource["version"]
-        _locked_debug_log("Processing {}: {} - {}".format(provider, path, version))
+        _locked_debug_log(f"Processing {provider}: {path} - {version}")
         rn = resource["name"]
         name = path.split("/")[-1] if rn is None else rn
         rl = resource["labels"]
@@ -578,10 +588,10 @@ def fetch_openshift_resource(
                 settings=settings,
             )
         except (SecretVersionNotFound, SecretVersionIsNone) as e:
-            raise FetchSecretError(e)
+            raise FetchSecretError(e) from None
     elif provider == "route":
         path = resource["resource"]["path"]
-        _locked_debug_log("Processing {}: {}".format(provider, path))
+        _locked_debug_log(f"Processing {provider}: {path}")
         tls_path = resource["vault_tls_secret_path"]
         tls_version = resource["vault_tls_secret_version"]
         openshift_resource = fetch_provider_route(
@@ -589,7 +599,7 @@ def fetch_openshift_resource(
         )
     elif provider == "prometheus-rule":
         path = resource["resource"]["path"]
-        _locked_debug_log("Processing {}: {}".format(provider, path))
+        _locked_debug_log(f"Processing {provider}: {path}")
         add_path_to_prom_rules = resource.get("add_path_to_prom_rules", True)
         tv = {}
         if resource["variables"]:
@@ -617,8 +627,8 @@ def fetch_openshift_resource(
                 settings=settings,
             )
         except Exception as e:
-            msg = "could not render template at path {}\n{}".format(path, e)
-            raise ResourceTemplateRenderError(msg)
+            msg = f"could not render template at path {path}\n{e}"
+            raise ResourceTemplateRenderError(msg) from None
 
     else:
         raise UnknownProviderError(provider)
@@ -632,8 +642,8 @@ def fetch_current_state(
     cluster: str,
     namespace: str,
     kind: str,
-    resource_names=Iterable[str],
-):
+    resource_names: Iterable[str] | None,
+) -> None:
     _locked_debug_log(f"Fetching {kind} from {cluster}/{namespace}")
     if not oc.is_kind_supported(kind):
         logging.warning(f"[{cluster}] cluster has no API resource {kind}.")
@@ -659,8 +669,8 @@ def fetch_desired_state(
     resource: Mapping[str, Any],
     parent: Mapping[str, Any],
     privileged: bool,
-    settings: Optional[Mapping[str, Any]] = None,
-):
+    settings: Mapping[str, Any] | None = None,
+) -> None:
     try:
         openshift_resource = fetch_openshift_resource(resource, parent, settings)
     except (
@@ -670,7 +680,7 @@ def fetch_desired_state(
         UnknownProviderError,
     ) as e:
         ri.register_error()
-        msg = "[{}/{}] {}".format(cluster, namespace, str(e))
+        msg = f"[{cluster}/{namespace}] {str(e)}"
         _locked_error_log(msg)
         return
 
@@ -688,9 +698,7 @@ def fetch_desired_state(
         # combination was not initialized, meaning that it shouldn't be
         # managed. But someone is trying to add it via app-interface
         ri.register_error()
-        msg = "[{}/{}] unknown kind: {}. hint: is it missing from managedResourceTypes?".format(
-            cluster, namespace, openshift_resource.kind
-        )
+        msg = f"[{cluster}/{namespace}] unknown kind: {openshift_resource.kind}. hint: is it missing from managedResourceTypes?"
         _locked_error_log(msg)
         return
     except ResourceKeyExistsError:
@@ -698,18 +706,14 @@ def fetch_desired_state(
         # a desired resource with the same name and
         # the same type was already added previously
         ri.register_error()
-        msg = ("[{}/{}] desired item already exists: {}/{}.").format(
-            cluster, namespace, openshift_resource.kind, openshift_resource.name
-        )
+        msg = f"[{cluster}/{namespace}] desired item already exists: {openshift_resource.kind}/{openshift_resource.name}."
         _locked_error_log(msg)
         return
     except ResourceNotManagedError:
         # This is failing because the resource name is
         # not in the list of resource names that are managed
         ri.register_error()
-        msg = "[{}/{}] desired item is not managed: {}/{}.".format(
-            cluster, namespace, openshift_resource.kind, openshift_resource.name
-        )
+        msg = f"[{cluster}/{namespace}] desired item is not managed: {openshift_resource.kind}/{openshift_resource.name}."
         _locked_error_log(msg)
         return
 
@@ -717,7 +721,7 @@ def fetch_desired_state(
 def fetch_states(
     spec: ob.StateSpec,
     ri: ResourceInventory,
-    settings: Optional[Mapping[str, Any]] = None,
+    settings: Mapping[str, Any] | None = None,
 ) -> None:
     try:
         if isinstance(spec, ob.CurrentStateSpec):
@@ -747,13 +751,13 @@ def fetch_states(
 
 
 def fetch_data(
-    namespaces,
-    thread_pool_size,
-    internal,
-    use_jump_host,
-    init_api_resources=False,
-    overrides=None,
-):
+    namespaces: Iterable[Mapping[str, Any]],
+    thread_pool_size: int,
+    internal: bool | None,
+    use_jump_host: bool,
+    init_api_resources: bool = False,
+    overrides: Iterable[str] | None = None,
+) -> tuple[OC_Map, ResourceInventory]:
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     logging.debug(f"Overriding keys {overrides}")
@@ -775,11 +779,11 @@ def fetch_data(
 
 
 def filter_namespaces_by_cluster_and_namespace(
-    namespaces,
-    cluster_names: Optional[Iterable[str]],
-    exclude_clusters: Optional[Iterable[str]],
-    namespace_name: Optional[str],
-):
+    namespaces: Sequence[dict[str, Any]],
+    cluster_names: Iterable[str] | None,
+    exclude_clusters: Iterable[str] | None,
+    namespace_name: str | None,
+) -> Sequence[dict[str, Any]]:
     if cluster_names:
         namespaces = [n for n in namespaces if n["cluster"]["name"] in cluster_names]
     elif exclude_clusters:
@@ -795,9 +799,9 @@ def filter_namespaces_by_cluster_and_namespace(
 
 def canonicalize_namespaces(
     namespaces: Iterable[dict[str, Any]],
-    providers: list[str],
-    resource_schema_filter: Optional[str] = None,
-) -> tuple[list[dict[str, Any]], Optional[list[str]]]:
+    providers: Sequence[str],
+    resource_schema_filter: str | None = None,
+) -> tuple[list[dict[str, Any]], list[str] | None]:
     canonicalized_namespaces = []
     override = None
     logging.debug(f"Received providers {providers}")
@@ -821,6 +825,8 @@ def canonicalize_namespaces(
                 override = ["Secret"]
             elif providers[0] == "route":
                 override = ["Route"]
+            elif providers[0] == "prometheus-rule":
+                override = ["PrometheusRule"]
 
             namespace_info["openshiftResources"] = ors
             canonicalized_namespaces.append(namespace_info)
@@ -829,17 +835,17 @@ def canonicalize_namespaces(
 
 
 def get_namespaces(
-    providers: Optional[list[str]] = None,
-    cluster_names: Optional[Iterable[str]] = None,
-    exclude_clusters: Optional[Iterable[str]] = None,
-    namespace_name: Optional[str] = None,
-    resource_schema_filter: Optional[str] = None,
-    filter_by_shard: Optional[bool] = True,
-) -> tuple[list[dict[str, Any]], Optional[list[str]]]:
+    providers: Sequence[str] | None = None,
+    cluster_names: Iterable[str] | None = None,
+    exclude_clusters: Iterable[str] | None = None,
+    namespace_name: str | None = None,
+    resource_schema_filter: str | None = None,
+    filter_by_shard: bool | None = True,
+) -> tuple[list[dict[str, Any]], list[str] | None]:
     if providers is None:
         providers = []
     gqlapi = gql.get_api()
-    namespaces = [
+    namespaces: list[dict[str, Any]] = [
         namespace_info
         for namespace_info in gqlapi.query(NAMESPACES_QUERY)["namespaces"]
         if not ob.is_namespace_deleted(namespace_info)
@@ -850,33 +856,33 @@ def get_namespaces(
             )
         )
     ]
-    namespaces = filter_namespaces_by_cluster_and_namespace(
+    _namespaces = filter_namespaces_by_cluster_and_namespace(
         namespaces, cluster_names, exclude_clusters, namespace_name
     )
-    return canonicalize_namespaces(namespaces, providers, resource_schema_filter)
+    return canonicalize_namespaces(_namespaces, providers, resource_schema_filter)
 
 
 @defer
 def run(
-    dry_run,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    providers=None,
-    cluster_name: Optional[Sequence[str]] = None,
-    exclude_cluster: Optional[Sequence[str]] = None,
-    namespace_name=None,
-    init_api_resources=False,
-    defer=None,
-):
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: bool | None = None,
+    use_jump_host: bool = True,
+    providers: Sequence[str] | None = None,
+    cluster_name: Sequence[str] | None = None,
+    exclude_cluster: Sequence[str] | None = None,
+    namespace_name: str | None = None,
+    init_api_resources: bool = False,
+    defer: Callable | None = None,
+) -> ResourceInventory | None:
     # https://click.palletsprojects.com/en/8.1.x/options/#multiple-options
     cluster_names = cluster_name
     exclude_clusters = exclude_cluster
 
-    if exclude_cluster and not dry_run:
+    if exclude_clusters and not dry_run:
         raise RuntimeError("--exclude-cluster is only supported in dry-run mode")
 
-    if exclude_cluster and cluster_name:
+    if exclude_clusters and cluster_names:
         raise RuntimeError(
             "--cluster-name and --exclude-cluster can not be used together"
         )
@@ -894,7 +900,7 @@ def run(
     if not namespaces:
         logging.debug(
             "No namespaces found when filtering for "
-            f"cluster={cluster_name}, namespace={namespace_name}. "
+            f"cluster={cluster_names}, namespace={namespace_name}. "
             "Exiting."
         )
         return None
@@ -906,7 +912,8 @@ def run(
         init_api_resources=init_api_resources,
         overrides=overrides,
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
     if dry_run and QONTRACT_INTEGRATION == "openshift-resources":
         error = check_cluster_scoped_resources(oc_map, ri, namespaces, None)
         if error:
@@ -983,7 +990,7 @@ class CheckClusterScopedResourceNames:
 @dataclass
 class CheckClusterScopedResourceDuplicates:
     oc_map: OC_Map
-    all_namespaces: Optional[Iterable[Mapping]] = None
+    all_namespaces: Iterable[Mapping] | None = None
 
     def check(self) -> list[Exception]:
         errors: list[Exception] = []
@@ -1005,13 +1012,13 @@ class CheckClusterScopedResourceDuplicates:
 
     def _find_resource_duplicates(
         self, cluster_cs_resources: dict[str, dict[str, dict[str, list[str]]]]
-    ) -> list[Tuple[str, str, str, list[str]]]:
+    ) -> list[tuple[str, str, str, list[str]]]:
         # ) -> dict[Tuple[str, str, str], list[str]]:
         """Finds cluster resource duplicates by kind/name.
         :param cluster_cs_resources
         :return: duplicates as [(cluster, kind, name, [namespaces])]
         """
-        duplicates: list[Tuple[str, str, str, list[str]]] = []
+        duplicates: list[tuple[str, str, str, list[str]]] = []
 
         for cluster, cluster_resources in cluster_cs_resources.items():
             _kind_name: dict[str, dict[str, list[str]]] = {}
@@ -1031,7 +1038,7 @@ def check_cluster_scoped_resources(
     oc_map: OC_Map,
     ri: ResourceInventory,
     namespaces: Iterable[Mapping[str, Any]],
-    all_namespaces: Optional[Iterable[Mapping[str, Any]]] = None,
+    all_namespaces: Iterable[Mapping[str, Any]] | None = None,
 ) -> bool:
     checks = [
         CheckClusterScopedResourceNames(oc_map, ri, namespaces),
@@ -1052,7 +1059,7 @@ def check_cluster_scoped_resources(
 def get_cluster_scoped_resources(
     oc_map: OC_Map,
     clusters: Iterable[str],
-    namespaces: Optional[Iterable[Mapping[str, Any]]] = None,
+    namespaces: Iterable[Mapping[str, Any]] | None = None,
     thread_pool_size: int = 10,
 ) -> dict[str, dict[str, dict[str, list[str]]]]:
     """Returns cluster scoped resources for a list of clusters
@@ -1089,7 +1096,7 @@ def get_cluster_scoped_resources(
 def _get_namespace_cluster_scoped_resources(
     namespace: Mapping,
     oc_map: OC_Map,
-) -> Tuple[str, str, dict[str, dict[str, Any]]]:
+) -> tuple[str, str, dict[str, dict[str, Any]]]:
     """Returns all non-namespaced resources defined in a namespace manifest.
 
     :param namespace: the namespace dict
@@ -1108,7 +1115,7 @@ def _get_namespace_cluster_scoped_resources(
 
 
 def early_exit_desired_state(
-    providers: list[str], resource_schema_filter: Optional[str] = None
+    providers: list[str], resource_schema_filter: str | None = None
 ) -> dict[str, Any]:
     settings = queries.get_secret_reader_settings()
     namespaces, _ = get_namespaces(
@@ -1130,7 +1137,7 @@ def early_exit_desired_state(
             settings=settings,
         )
 
-    def post_process_ns(ns):
+    def post_process_ns(ns: MutableMapping) -> MutableMapping:
         # the sharedResources have been aggreated into the openshiftResources
         # and are no longer needed - speeds up diffing process
         del ns["sharedResources"]
@@ -1151,7 +1158,7 @@ def early_exit_desired_state(
     }
 
 
-def _early_exit_fetch_resource(spec, settings):
+def _early_exit_fetch_resource(spec: Sequence, settings: Mapping) -> dict[str, str]:
     resource = spec[0]
     ns_info = spec[1]
     cluster_name = ns_info["cluster"]["name"]
@@ -1179,58 +1186,64 @@ def _early_exit_fetch_resource(spec, settings):
 
 
 @contextmanager
-def early_exit_monkey_patch():
+def early_exit_monkey_patch() -> Generator:
     """Avoid looking outside of app-interface on early-exit pr-check."""
-    orig_lookup_secret = lookup_secret
-    orig_lookup_github_file_content = lookup_github_file_content
-    orig_url_makes_sense = url_makes_sense
-    orig_check_alertmanager_config = check_alertmanager_config
-    orig_lookup_s3_object = lookup_s3_object
-
-    try:
-        yield _early_exit_monkey_patch_assign(
+    with patch.multiple(
+        jinja2_utils,
+        lookup_secret=DEFAULT,
+        lookup_github_file_content=DEFAULT,
+        url_makes_sense=DEFAULT,
+        lookup_s3_object=DEFAULT,
+    ) as mocks:
+        # mock lookup_secret
+        mocks["lookup_secret"].side_effect = (
             lambda path,
             key,
             version=None,
             tvars=None,
             allow_not_found=False,
             settings=None,
-            secret_reader=None: f"vault({path}, {key}, {version}, {allow_not_found})",
+            secret_reader=None: f"vault({path}, {key}, {version}"
+        )
+        # needed for jinja2 `is_safe_callable`
+        mocks["lookup_secret"].unsafe_callable = False
+        mocks["lookup_secret"].alters_data = False
+
+        # mock lookup_github_file_content
+        mocks["lookup_github_file_content"].side_effect = (
             lambda repo,
             path,
             ref,
             tvars=None,
             settings=None,
-            secret_reader=None: f"github({repo}, {path}, {ref})",
-            lambda url: False,
-            lambda data, path, alertmanager_config_key, decode_base64=False: True,
+            secret_reader=None: f"github({repo}, {path}, {ref})"
+        )
+        # needed for jinja2 `is_safe_callable`
+        mocks["lookup_github_file_content"].unsafe_callable = False
+        mocks["lookup_github_file_content"].alters_data = False
+
+        # mock url_makes_sense
+        mocks["url_makes_sense"].side_effect = lambda url: False
+        # needed for jinja2 `is_safe_callable`
+        mocks["url_makes_sense"].unsafe_callable = False
+        mocks["url_makes_sense"].alters_data = False
+
+        # mock lookup_s3_object
+        mocks["lookup_s3_object"].side_effect = (
             lambda account_name,
             bucket_name,
             path,
-            region_name=None: f"lookup_s3_object({account_name}, {bucket_name}, {path}, {region_name})",
+            region_name=None: f"lookup_s3_object({account_name}, {bucket_name}, {path}, {region_name})"
         )
-    finally:
-        _early_exit_monkey_patch_assign(
-            orig_lookup_secret,
-            orig_lookup_github_file_content,
-            orig_url_makes_sense,
-            orig_check_alertmanager_config,
-            orig_lookup_s3_object,
-        )
+        # needed for jinja2 `is_safe_callable`
+        mocks["lookup_s3_object"].unsafe_callable = False
+        mocks["lookup_s3_object"].alters_data = False
 
-
-def _early_exit_monkey_patch_assign(
-    lookup_secret,
-    lookup_github_file_content,
-    url_makes_sense,
-    check_alertmanager_config,
-    lookup_s3_object,
-):
-    sys.modules[__name__].lookup_secret = lookup_secret
-    sys.modules[__name__].lookup_github_file_content = lookup_github_file_content
-    sys.modules[__name__].url_makes_sense = url_makes_sense
-    sys.modules[__name__].check_alertmanager_config = check_alertmanager_config
-    sys.modules[__name__].lookup_s3_object = lookup_s3_object
+        with patch(
+            "reconcile.openshift_resources_base.check_alertmanager_config",
+            return_value=True,
+        ):
+            yield
 
 
 def desired_state_shard_config() -> DesiredStateShardConfig:

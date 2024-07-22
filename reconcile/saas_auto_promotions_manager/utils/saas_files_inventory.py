@@ -86,6 +86,10 @@ class SaasFilesInventory:
 
     def _assemble_subscribers_with_auto_promotions(self) -> None:
         for saas_file in self._saas_files:
+            blocked_versions: dict[str, set[str]] = {}
+            for code_component in saas_file.app.code_components or []:
+                for version in code_component.blocked_versions or []:
+                    blocked_versions.setdefault(code_component.url, set()).add(version)
             for resource_template in saas_file.resource_templates:
                 for target in resource_template.targets:
                     file_path = target.path if target.path else saas_file.path
@@ -98,6 +102,11 @@ class SaasFilesInventory:
                     soak_days = (
                         target.promotion.soak_days if target.promotion.soak_days else 0
                     )
+                    schedule = (
+                        target.promotion.schedule
+                        if target.promotion.schedule
+                        else "* * * * *"
+                    )
                     subscriber = Subscriber(
                         uid=target.uid(
                             parent_saas_file_name=saas_file.name,
@@ -109,6 +118,10 @@ class SaasFilesInventory:
                         ref=target.ref,
                         target_namespace=target.namespace,
                         soak_days=soak_days,
+                        schedule=schedule,
+                        blocked_versions=blocked_versions.get(
+                            resource_template.url, set()
+                        ),
                         # Note: this will be refactored at a later point.
                         # https://issues.redhat.com/browse/APPSRE-7516
                         use_target_config_hash=bool(saas_file.publish_job_logs),

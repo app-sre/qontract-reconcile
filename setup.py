@@ -26,7 +26,7 @@ setup(
         "hvac>=0.7.0,<0.8.0",
         "ldap3>=2.9.1,<2.10.0",
         "anymarkup>=0.7.0,<0.9.0",
-        "python-gitlab>=1.11.0,<1.12.0",
+        "python-gitlab~=4.6",
         "semver~=3.0",
         # keep in sync with boto3-stubs in requirements-type.txt
         "boto3==1.34.94",
@@ -47,7 +47,7 @@ setup(
         "parse==1.18.0",
         "sendgrid>=6.4.8,<6.5.0",
         "dnspython~=2.1",
-        "requests==2.31.0",
+        "requests~=2.32",
         "kubernetes~=24.0",
         "websocket-client<0.55.0,>=0.35",
         "sshtunnel>=0.4.0",

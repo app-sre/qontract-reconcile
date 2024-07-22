@@ -20,7 +20,6 @@ from threading import Lock
 from typing import (
     IO,
     Any,
-    Optional,
     cast,
 )
 
@@ -81,7 +80,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         accounts: Iterable[Mapping[str, Any]],
         working_dirs: Mapping[str, str],
         thread_pool_size: int,
-        aws_api: Optional[AWSApi] = None,
+        aws_api: AWSApi | None = None,
         init_users=False,
     ):
         self.integration = integration
@@ -208,6 +207,15 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 disabled_deletions_detected = True
             self.created_users.extend(created_users)
         return disabled_deletions_detected, errors
+
+    def safe_plan(self, enable_deletion: bool) -> None:
+        """Raises exception if errors are detected at plan step"""
+        disable_deletions_detected, errors = self.plan(enable_deletion)
+
+        if errors:
+            raise RuntimeError("Terraform plan has errors")
+        if disable_deletions_detected:
+            raise RuntimeError("Terraform plan has disabled deletions detected")
 
     @retry()
     def terraform_plan(
@@ -399,7 +407,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     f"[{account_name}] expiration not does not match "
                     f"date format {DATE_FORMAT}. details: "
                     f"type: {da['type']}, name: {da['name']}"
-                )
+                ) from None
             if (
                 resource_type == da["type"]
                 and resource_name == da["name"]
@@ -463,12 +471,8 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         if output is None:
             return data
 
-        enc_pass_pfx = "{}_{}".format(
-            self.integration_prefix, self.OUTPUT_TYPE_PASSWORDS
-        )
-        console_urls_pfx = "{}_{}".format(
-            self.integration_prefix, self.OUTPUT_TYPE_CONSOLEURLS
-        )
+        enc_pass_pfx = f"{self.integration_prefix}_{self.OUTPUT_TYPE_PASSWORDS}"
+        console_urls_pfx = f"{self.integration_prefix}_{self.OUTPUT_TYPE_CONSOLEURLS}"
         for k, v in output.items():
             # the integration creates outputs of the form
             # 0.11: output_secret_name[secret_key] = secret_value
@@ -581,7 +585,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                         secret_copy["db.password"] = replica_src_password
 
             # clean metadata
-            for key in secret.keys():
+            for key in secret:
                 if integration_prefix in key:
                     secret_copy.pop(key)
 
@@ -753,22 +757,11 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         if after_version == before_version:
             return
 
-        allow_major_version_upgrade = after.get("allow_major_version_upgrade", False)
         region_name = get_region_from_availability_zone(before["availability_zone"])
         if self._aws_api is not None:
             valid_upgrade_target = self._aws_api.get_db_valid_upgrade_target(
                 account_name, engine, before_version, region_name=region_name
             )
-            if not valid_upgrade_target:
-                # valid_upgrade_target can be empty when current version is no longer supported by AWS.
-                # In this case, we can't validate it, so treat it as major version upgrade for safety.
-                # Skip validation if allow_major_version_upgrade is enabled.
-                if not allow_major_version_upgrade:
-                    raise ValueError(
-                        "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
-                        f"{resource_name} to a new version when there is no valid upgrade target available."
-                    )
-                return
             target = next(
                 (
                     t
@@ -782,6 +775,10 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     f"Cannot upgrade RDS instance: {resource_name} "
                     f"from {before_version} to {after_version}"
                 )
+            allow_major_version_upgrade = after.get(
+                "allow_major_version_upgrade",
+                False,
+            )
             if target["IsMajorVersionUpgrade"] and not allow_major_version_upgrade:
                 raise ValueError(
                     "allow_major_version_upgrade is not enabled for upgrading RDS instance: "

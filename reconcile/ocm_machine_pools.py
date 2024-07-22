@@ -3,12 +3,8 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from enum import Enum
-from typing import (
-    Iterable,
-    Optional,
-)
 
 from pydantic import (
     BaseModel,
@@ -100,12 +96,12 @@ class AbstractPool(ABC, BaseModel):
     # Abstract class for machine pools, to be implemented by OSD/HyperShift classes
 
     id: str
-    replicas: Optional[int]
-    taints: Optional[list[Mapping[str, str]]]
-    labels: Optional[Mapping[str, str]]
+    replicas: int | None
+    taints: list[Mapping[str, str]] | None
+    labels: Mapping[str, str] | None
     cluster: str
     cluster_type: ClusterType = Field(..., exclude=True)
-    autoscaling: Optional[AbstractAutoscaling]
+    autoscaling: AbstractAutoscaling | None
 
     @root_validator()
     @classmethod
@@ -131,7 +127,7 @@ class AbstractPool(ABC, BaseModel):
         pass
 
     @abstractmethod
-    def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
+    def invalid_diff(self, pool: ClusterMachinePoolV1) -> str | None:
         pass
 
     @abstractmethod
@@ -184,7 +180,7 @@ class MachinePool(AbstractPool):
             or self._has_diff_autoscale(pool)
         )
 
-    def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
+    def invalid_diff(self, pool: ClusterMachinePoolV1) -> str | None:
         if self.instance_type != pool.instance_type:
             return "instance_type"
         return None
@@ -203,7 +199,7 @@ class MachinePool(AbstractPool):
         cluster: str,
         cluster_type: ClusterType,
     ):
-        autoscaling: Optional[MachinePoolAutoscaling] = None
+        autoscaling: MachinePoolAutoscaling | None = None
         if pool.autoscale:
             autoscaling = MachinePoolAutoscaling(
                 min_replicas=pool.autoscale.min_replicas,
@@ -229,7 +225,7 @@ class NodePool(AbstractPool):
     # Node pool, used for HyperShift clusters
 
     aws_node_pool: AWSNodePool
-    subnet: Optional[str]
+    subnet: str | None
 
     def delete(self, ocm: OCM) -> None:
         ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
@@ -266,7 +262,7 @@ class NodePool(AbstractPool):
             or self._has_diff_autoscale(pool)
         )
 
-    def invalid_diff(self, pool: ClusterMachinePoolV1) -> Optional[str]:
+    def invalid_diff(self, pool: ClusterMachinePoolV1) -> str | None:
         if self.aws_node_pool.instance_type != pool.instance_type:
             return "instance_type"
         if self.subnet != pool.subnet:
@@ -283,7 +279,7 @@ class NodePool(AbstractPool):
         cluster: str,
         cluster_type: ClusterType,
     ):
-        autoscaling: Optional[NodePoolAutoscaling] = None
+        autoscaling: NodePoolAutoscaling | None = None
         if pool.autoscale:
             autoscaling = NodePoolAutoscaling(
                 min_replica=pool.autoscale.min_replicas,

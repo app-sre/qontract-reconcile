@@ -1,8 +1,5 @@
 import imaplib
-from typing import (
-    Any,
-    Union,
-)
+from typing import Any
 
 from reconcile.utils.secret_reader import SecretReader
 
@@ -15,7 +12,7 @@ class ImapClient:
         self.password: str = imap_config["password"]
         self.port: int = int(imap_config["port"])
         self.timeout: int = settings["imap"].get("timeout", 30)
-        self._server: Union[imaplib.IMAP4_SSL, None] = None
+        self._server: imaplib.IMAP4_SSL | None = None
 
     def __enter__(self) -> "ImapClient":
         self._server = imaplib.IMAP4_SSL(
@@ -36,7 +33,9 @@ class ImapClient:
         try:
             config = {k: data[k] for k in required_keys}
         except KeyError as e:
-            raise Exception(f"Missing expected IMAP config key in vault secret: {e}")
+            raise Exception(
+                f"Missing expected IMAP config key in vault secret: {e}"
+            ) from None
         return config
 
     def get_mails(

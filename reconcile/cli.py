@@ -6,12 +6,9 @@ import os
 import re
 import sys
 import traceback
+from collections.abc import Iterable
 from signal import SIGUSR1
 from types import ModuleType
-from typing import (
-    Iterable,
-    Optional,
-)
 
 import click
 import sentry_sdk
@@ -52,6 +49,9 @@ TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 
 OC_VERSIONS = ["4.12.46", "4.10.15"]
 OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$"
+
+HELM_VERSIONS = ["3.11.1"]
+HELM_VERSION_REGEX = r"^version.BuildInfo{Version:\"v([\d]+\.[\d]+\.[\d]+)\".*$"
 
 
 def before_breadcrumb(crumb, hint):
@@ -737,6 +737,9 @@ def terraform_aws_route53(
     required=True,
     default="https://auth.redhat.com/auth/realms/EmployeeIDP/protocol/saml/descriptor",
 )
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
 def aws_saml_idp(
     ctx,
@@ -746,6 +749,9 @@ def aws_saml_idp(
     account_name,
     saml_idp_name,
     saml_metadata_url,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
 ):
     from reconcile.aws_saml_idp.integration import (
         AwsSamlIdpIntegration,
@@ -761,6 +767,9 @@ def aws_saml_idp(
                 saml_idp_name=saml_idp_name,
                 saml_metadata_url=saml_metadata_url,
                 account_name=account_name,
+                enable_extended_early_exit=enable_extended_early_exit,
+                extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+                log_cached_log_output=log_cached_log_output,
             )
         ),
         ctx=ctx.obj,
@@ -924,6 +933,9 @@ def openshift_serviceaccount_tokens(
     required=True,
     default=6,
 )
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
 @click.pass_context
 def aws_saml_roles(
     ctx,
@@ -933,6 +945,9 @@ def aws_saml_roles(
     account_name,
     saml_idp_name,
     max_session_duration_hours,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
 ):
     from reconcile.aws_saml_roles.integration import (
         AwsSamlRolesIntegration,
@@ -948,6 +963,9 @@ def aws_saml_roles(
                 saml_idp_name=saml_idp_name,
                 max_session_duration_hours=max_session_duration_hours,
                 account_name=account_name,
+                enable_extended_early_exit=enable_extended_early_exit,
+                extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+                log_cached_log_output=log_cached_log_output,
             )
         ),
         ctx=ctx.obj,
@@ -985,7 +1003,7 @@ def aws_saml_roles(
     "--initial-user-secret-vault-path",
     help="The path in Vault to store the initial user secret. Python format string with access to 'account_name' attribute.",
     required=True,
-    default="app-sre/creds/terraform/{account_name}/config",
+    default="app-sre-v2/creds/terraform/{account_name}/config",
 )
 @click.option(
     "--account-tmpl-resource",
@@ -1379,6 +1397,7 @@ def openshift_resources(
 @use_jump_host()
 @binary(["oc", "ssh"])
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@binary_version("helm", ["version"], HELM_VERSION_REGEX, HELM_VERSIONS)
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
 @click.option("--env-name", default=None, help="environment to deploy to.")
 @trigger_integration
@@ -1758,6 +1777,31 @@ def openshift_routes(
     )
 
 
+@integration.command(short_help="Manages OpenShift Prometheus Rules.")
+@threaded()
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@use_jump_host()
+@cluster_name
+@namespace_name
+@click.pass_context
+def openshift_prometheus_rules(
+    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
+):
+    import reconcile.openshift_prometheus_rules
+
+    run_integration(
+        reconcile.openshift_prometheus_rules,
+        ctx.obj,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
+    )
+
+
 @integration.command(short_help="Configures the teams and members in Quay.")
 @click.pass_context
 def quay_membership(ctx):
@@ -2040,11 +2084,19 @@ def template_validator(ctx):
 )
 @click.option(
     "--clone-repo",
-    help="Path to a folder app-interface repo should be cloned to. Use this for regular integration run.",
+    is_flag=True,
+    help="Flag to enable cloning of the app-interface repo. Use this for regular integration run.",
     default=False,
 )
+@click.option(
+    "--template-collection-name",
+    help="specific template collection name to render",
+    required=False,
+)
 @click.pass_context
-def template_renderer(ctx, app_interface_data_path, clone_repo):
+def template_renderer(
+    ctx, app_interface_data_path, clone_repo, template_collection_name
+):
     from reconcile.templating.renderer import (
         TemplateRendererIntegration,
         TemplateRendererIntegrationParams,
@@ -2055,6 +2107,7 @@ def template_renderer(ctx, app_interface_data_path, clone_repo):
             TemplateRendererIntegrationParams(
                 app_interface_data_path=app_interface_data_path,
                 clone_repo=clone_repo,
+                template_collection_name=template_collection_name,
             )
         ),
         ctx=ctx.obj,
@@ -2487,13 +2540,13 @@ def ocm_groups(ctx, thread_pool_size):
 @click.pass_context
 def ocm_clusters(
     ctx,
-    gitlab_project_id: Optional[str],
+    gitlab_project_id: str | None,
     thread_pool_size: int,
-    job_controller_cluster: Optional[str],
-    job_controller_namespace: Optional[str],
-    rosa_job_service_account: Optional[str],
-    rosa_role: Optional[str],
-    rosa_job_image: Optional[str],
+    job_controller_cluster: str | None,
+    job_controller_namespace: str | None,
+    rosa_job_service_account: str | None,
+    rosa_role: str | None,
+    rosa_job_image: str | None,
 ):
     from reconcile.ocm_clusters import (
         OcmClusters,
@@ -2657,11 +2710,20 @@ def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
 @integration.command(
     short_help="Manage Addons Upgrade Policy schedules in OCM organizations."
 )
+@click.option(
+    "--ocm-env",
+    help="The OCM environment the integration should operator on. If none is specified, all environments will be operated on.",
+    required=False,
+    envvar="OCM_ENV",
+)
 @org_id_multiple
 @exclude_org_id
 @click.pass_context
 def ocm_addons_upgrade_scheduler_org(
-    ctx, org_id: Iterable[str], exclude_org_id: Iterable[str]
+    ctx,
+    ocm_env: str,
+    org_id: Iterable[str],
+    exclude_org_id: Iterable[str],
 ) -> None:
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
     from reconcile.aus.ocm_addons_upgrade_scheduler_org import (
@@ -2671,7 +2733,7 @@ def ocm_addons_upgrade_scheduler_org(
     run_class_integration(
         integration=OCMAddonsUpgradeSchedulerOrgIntegration(
             AdvancedUpgradeSchedulerBaseIntegrationParams(
-                ocm_environment="ocm-integration",
+                ocm_environment=ocm_env,
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
             )
@@ -2759,7 +2821,7 @@ def version_gate_approver(
     job_controller_namespace: str,
     rosa_job_service_account: str,
     rosa_role: str,
-    rosa_job_image: Optional[str],
+    rosa_job_image: str | None,
 ) -> None:
     from reconcile.aus.version_gate_approver import (
         VersionGateApprover,
@@ -3333,7 +3395,7 @@ def signalfx_prometheus_endpoint_monitoring(
     )
 
 
-def parse_image_tag_from_ref(ctx, param, value) -> Optional[dict[str, str]]:
+def parse_image_tag_from_ref(ctx, param, value) -> dict[str, str] | None:
     if value:
         result = {}
         for v in value:
@@ -3666,6 +3728,24 @@ def external_resources(
         thread_pool_size,
         workers_cluster,
         workers_namespace,
+    )
+
+
+@integration.command(
+    short_help="Syncs External Resources Secrets from Vault to Clusters"
+)
+@click.pass_context
+@threaded(default=5)
+def external_resources_secrets_sync(
+    ctx,
+    thread_pool_size: int,
+):
+    import reconcile.external_resources.integration_secrets_sync
+
+    run_integration(
+        reconcile.external_resources.integration_secrets_sync,
+        ctx.obj,
+        thread_pool_size,
     )
 
 

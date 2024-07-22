@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 from pydantic import (
     BaseModel,
@@ -9,7 +8,7 @@ from pydantic import (
 )
 
 
-class EntityType(str, Enum):
+class EntityType(StrEnum):
     USER = "user"
     SERVICE_ACCOUNT = "serviceaccount"
     DELETED_USER = "deleteduser"
@@ -35,17 +34,17 @@ class Group(BaseModel):
     contact_list: str = Field(..., alias="contactList")
     owners: list[Entity]
     display_name: str = Field(..., alias="displayName")
-    notes: Optional[str] = None
-    rover_group_member_query: Optional[str] = Field(None, alias="roverGroupMemberQuery")
-    rover_group_inclusions: Optional[list[Entity]] = Field(
+    notes: str | None = None
+    rover_group_member_query: str | None = Field(None, alias="roverGroupMemberQuery")
+    rover_group_inclusions: list[Entity] | None = Field(
         None, alias="roverGroupInclusions"
     )
-    rover_group_exclusions: Optional[list[Entity]] = Field(
+    rover_group_exclusions: list[Entity] | None = Field(
         None, alias="roverGroupExclusions"
     )
     members: list[Entity] = []
-    member_of: Optional[list[str]] = Field(None, alias="memberOf")
-    namespace: Optional[str] = None
+    member_of: list[str] | None = Field(None, alias="memberOf")
+    namespace: str | None = None
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Group):

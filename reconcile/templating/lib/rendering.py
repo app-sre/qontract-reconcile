@@ -1,11 +1,15 @@
 import logging
 from abc import ABC, abstractmethod
 from io import StringIO
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 from pydantic import BaseModel
 
-from reconcile.utils.jinja2.utils import Jinja2TemplateError, process_jinja2_template
+from reconcile.utils.jinja2.utils import (
+    Jinja2TemplateError,
+    TemplateRenderOptions,
+    process_jinja2_template,
+)
 from reconcile.utils.jsonpath import parse_jsonpath
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReaderBase
@@ -13,27 +17,27 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 class TemplateData(BaseModel):
     variables: dict[str, Any]
-    current: Optional[dict[str, Any]]
-    current_with_explicit_start: Optional[bool] = False
+    current: dict[str, Any] | None
+    current_with_explicit_start: bool | None = False
 
 
 class TemplatePatch(Protocol):
     path: str
-    identifier: Optional[str]
+    identifier: str | None
 
     def dict(self) -> dict[str, str]: ...
 
 
 class Template(Protocol):
     name: str
-    condition: Optional[str]
+    condition: str | None
     target_path: str
     template: str
 
     def dict(self) -> dict[str, str]: ...
 
     @property
-    def patch(self) -> Optional[TemplatePatch]:
+    def patch(self) -> TemplatePatch | None:
         pass
 
 
@@ -42,12 +46,14 @@ class Renderer(ABC):
         self,
         template: Template,
         data: TemplateData,
-        secret_reader: Optional[SecretReaderBase] = None,
+        secret_reader: SecretReaderBase | None = None,
+        template_render_options: TemplateRenderOptions | None = None,
     ):
         self.template = template
         self.data = data
         self.secret_reader = secret_reader
         self.ruamel_instance = create_ruamel_instance(explicit_start=True)
+        self.template_render_options = template_render_options
 
     def _jinja2_render_kwargs(self) -> dict[str, Any]:
         return {**self.data.variables, "current": self.data.current}
@@ -58,6 +64,7 @@ class Renderer(ABC):
                 body=template,
                 vars=self._jinja2_render_kwargs(),
                 secret_reader=self.secret_reader,
+                template_render_options=self.template_render_options,
             )
         except Jinja2TemplateError as e:
             logging.error(f"Error rendering template {self.template.name}: {e}")
@@ -71,7 +78,7 @@ class Renderer(ABC):
         pass
 
     def render_target_path(self) -> str:
-        return self._render_template(self.template.target_path)
+        return self._render_template(self.template.target_path).strip()
 
     def render_condition(self) -> bool:
         return self._render_template(self.template.condition or "True") == "True"
@@ -101,7 +108,7 @@ class PatchRenderer(Renderer):
         if self.template.patch is None:  # here to satisfy mypy
             raise ValueError("PatchRenderer requires a patch")
 
-        p = parse_jsonpath(self.template.patch.path)
+        p = parse_jsonpath(self._render_template(self.template.patch.path))
 
         matched_values = [match.value for match in p.find(self.data.current)]
 
@@ -116,11 +123,28 @@ class PatchRenderer(Renderer):
         )
 
         if isinstance(matched_value, list):
-            if not self.template.patch.identifier:
-                raise ValueError(
-                    f"Expected identifier in patch for list at {self.template}"
-                )
-            dta_identifier = data_to_add.get(self.template.patch.identifier)
+
+            def get_identifier(data: dict[str, Any]) -> Any:
+                assert self.template.patch is not None  # mypy
+                if not self.template.patch.identifier:
+                    raise ValueError(
+                        f"Expected identifier in patch for list at {self.template}"
+                    )
+                if self.template.patch.identifier.startswith(
+                    "$"
+                ) and not self.template.patch.identifier.startswith("$ref"):
+                    # jsonpath and list of strings support
+                    if matches := [
+                        match.value
+                        for match in parse_jsonpath(
+                            self.template.patch.identifier
+                        ).find(data)
+                    ]:
+                        return matches[0]
+                    return None
+                return data.get(self.template.patch.identifier)
+
+            dta_identifier = get_identifier(data_to_add)
             if not dta_identifier:
                 raise ValueError(
                     f"Expected identifier {self.template.patch.identifier} in data to add"
@@ -130,7 +154,7 @@ class PatchRenderer(Renderer):
                 (
                     index
                     for index, data in enumerate(matched_value)
-                    if data.get(self.template.patch.identifier) == dta_identifier
+                    if get_identifier(data) == dta_identifier
                 ),
                 None,
             )
@@ -149,12 +173,19 @@ class PatchRenderer(Renderer):
 def create_renderer(
     template: Template,
     data: TemplateData,
-    secret_reader: Optional[SecretReaderBase] = None,
+    secret_reader: SecretReaderBase | None = None,
+    template_render_options: TemplateRenderOptions | None = None,
 ) -> Renderer:
     if template.patch:
-        return PatchRenderer(template=template, data=data, secret_reader=secret_reader)
+        return PatchRenderer(
+            template=template,
+            data=data,
+            secret_reader=secret_reader,
+            template_render_options=template_render_options,
+        )
     return FullRenderer(
         template=template,
         data=data,
         secret_reader=secret_reader,
+        template_render_options=template_render_options,
     )

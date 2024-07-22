@@ -1,4 +1,6 @@
+# ruff: noqa: SIM114
 import base64
+import contextlib
 import copy
 import datetime
 import hashlib
@@ -6,14 +8,11 @@ import json
 import re
 from collections.abc import Mapping
 from threading import Lock
-from typing import (
-    Optional,
-    Union,
-)
 
 import semver
 from pydantic import BaseModel
 
+from reconcile.external_resources.meta import SECRET_UPDATED_AT
 from reconcile.utils.metrics import GaugeMetric
 
 SECRET_MAX_KEY_LENGTH = 253
@@ -47,7 +46,7 @@ IGNORABLE_DATA_FIELDS = ["service-ca.crt"]
 # these labels existance and/or value is determined by a controller running
 # on the cluster. we need to ignore their existance in the current state,
 # otherwise we will deal with constant reconciliation
-CONTROLLER_MANAGED_LABELS: dict[str, set[Union[str, re.Pattern]]] = {
+CONTROLLER_MANAGED_LABELS: dict[str, set[str | re.Pattern]] = {
     "ManagedCluster": {
         "clusterID",
         "managed-by",
@@ -175,28 +174,22 @@ class OpenshiftResource:
             "uid",
             "fieldRef",
         ]
-        if val in ignorable_fields:
-            return True
-        return False
+        return val in ignorable_fields
 
     @staticmethod
     def ignorable_key_value_pair(key, val):
         ignorable_key_value_pair = {"annotations": None, "divisor": "0"}
-        if key in ignorable_key_value_pair and ignorable_key_value_pair[key] == val:
-            return True
-        return False
+        return bool(
+            key in ignorable_key_value_pair and ignorable_key_value_pair[key] == val
+        )
 
     @staticmethod
     def cpu_equal(val1, val2):
         # normalize both to string
-        try:
+        with contextlib.suppress(Exception):
             val1 = f"{int(float(val1) * 1000)}m"
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             val2 = f"{int(float(val2) * 1000)}m"
-        except Exception:
-            pass
         return val1 == val2
 
     @staticmethod
@@ -243,13 +236,11 @@ class OpenshiftResource:
 
     def verify_valid_k8s_object(self):
         try:
-            self.name  # pylint: disable=pointless-statement
-            self.kind  # pylint: disable=pointless-statement
+            assert self.name
+            assert self.kind
         except (KeyError, TypeError) as e:
-            msg = "resource invalid data ({}). details: {}".format(
-                e.__class__.__name__, self.error_details
-            )
-            raise ConstructResourceError(msg)
+            msg = f"resource invalid data ({e.__class__.__name__}). details: {self.error_details}"
+            raise ConstructResourceError(msg) from None
 
         if self.kind not in {
             "Role",
@@ -353,10 +344,7 @@ class OpenshiftResource:
             openshift_resource: new OpenshiftResource object with
                 annotations.
         """
-        if canonicalize:
-            body = self.canonicalize(self.body)
-        else:
-            body = self.body
+        body = self.canonicalize(self.body) if canonicalize else self.body
 
         sha256sum = self.calculate_sha256sum(self.serialize(body))
 
@@ -526,6 +514,9 @@ class OpenshiftResource:
         # remove qontract specific params
         for a in QONTRACT_ANNOTATIONS:
             annotations.pop(a, None)
+
+        # Remove external resources annotation used for optimistic locking
+        annotations.pop(SECRET_UPDATED_AT, None)
         return body
 
     @staticmethod
@@ -577,7 +568,7 @@ class ResourceInventory:
         cluster,
         namespace,
         resource_type,
-        managed_names: Optional[list[str]] = None,
+        managed_names: list[str] | None = None,
     ):
         self._clusters.setdefault(cluster, {})
         self._clusters[cluster].setdefault(namespace, {})
@@ -686,8 +677,8 @@ def build_secret(
     integration_version: str,
     unencoded_data: Mapping[str, str],
     error_details: str = "",
-    caller_name: Optional[str] = None,
-    annotations: Optional[Mapping[str, str]] = None,
+    caller_name: str | None = None,
+    annotations: Mapping[str, str] | None = None,
 ) -> OpenshiftResource:
     encoded_data = {
         k: base64_encode_secret_field_value(v) for k, v in unencoded_data.items()

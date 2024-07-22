@@ -3,7 +3,7 @@ import os
 import tempfile
 from collections import defaultdict
 from collections.abc import Iterable
-from typing import Any, Optional, Self
+from typing import Any, Self
 
 import requests
 from sretoolbox.container import (
@@ -30,11 +30,11 @@ class QuayMirrorOrg:
     def __init__(
         self,
         dry_run: bool = False,
-        control_file_dir: Optional[str] = None,
-        compare_tags: Optional[bool] = None,
+        control_file_dir: str | None = None,
+        compare_tags: bool | None = None,
         compare_tags_interval: int = 28800,  # 8 hours
-        orgs: Optional[Iterable[str]] = None,
-        repositories: Optional[Iterable[str]] = None,
+        orgs: Iterable[str] | None = None,
+        repositories: Iterable[str] | None = None,
     ) -> None:
         self.dry_run = dry_run
         self.skopeo_cli = Skopeo(dry_run)
@@ -56,7 +56,7 @@ class QuayMirrorOrg:
                 tempfile.gettempdir(), CONTROL_FILE_NAME
             )
 
-        self._has_enough_time_passed_since_last_compare_tags: Optional[bool] = None
+        self._has_enough_time_passed_since_last_compare_tags: bool | None = None
         self.session = requests.Session()
 
     def __enter__(self) -> Self:
@@ -290,11 +290,11 @@ class QuayMirrorOrg:
 
 def run(
     dry_run,
-    control_file_dir: Optional[str],
-    compare_tags: Optional[bool],
+    control_file_dir: str | None,
+    compare_tags: bool | None,
     compare_tags_interval: int,
-    orgs: Optional[Iterable[str]],
-    repositories: Optional[Iterable[str]],
+    orgs: Iterable[str] | None,
+    repositories: Iterable[str] | None,
 ):
     with QuayMirrorOrg(
         dry_run,

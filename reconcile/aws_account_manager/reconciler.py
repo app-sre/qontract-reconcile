@@ -25,12 +25,22 @@ TASK_REQUEST_SERVICE_QUOTA = "request-service-quota"
 TASK_CHECK_SERVICE_QUOTA_STATUS = "check-service-quota-status"
 TASK_ENABLE_ENTERPRISE_SUPPORT = "enable-enterprise-support"
 TASK_CHECK_ENTERPRISE_SUPPORT_STATUS = "check-enterprise-support-status"
+TASK_SET_SECURITY_CONTACT = "set-security-contact"
 
 
 class Quota(Protocol):
     service_code: str
     quota_code: str
     value: float
+
+    def dict(self) -> dict[str, Any]: ...
+
+
+class Contact(Protocol):
+    name: str
+    title: str | None
+    email: str
+    phone_number: str
 
     def dict(self) -> dict[str, Any]: ...
 
@@ -194,7 +204,7 @@ class AWSReconciler:
                 except AWSResourceAlreadyExistsException:
                     raise AbortStateTransaction(
                         f"A quota increase for this {new_quota.service_code}/{new_quota.quota_code} already exists. Try it again later."
-                    )
+                    ) from None
                 ids.append(req.id)
 
             _state.value = {"last_applied_quotas": quotas_dict, "ids": ids}
@@ -288,6 +298,33 @@ class AWSReconciler:
             )
             raise AbortStateTransaction("Enterprise support case still open")
 
+    def _set_security_contact(
+        self,
+        aws_api: AWSApi,
+        account: str,
+        name: str,
+        title: str | None,
+        email: str,
+        phone_number: str,
+    ) -> None:
+        """Set the security contact for the account."""
+        title = title or name
+        security_contact = f"{name} {title} {email} {phone_number}"
+        with self.state.transaction(
+            state_key(account, TASK_SET_SECURITY_CONTACT)
+        ) as _state:
+            if _state.exists and _state.value == security_contact:
+                return
+
+            logging.info(f"Setting security contact for {account}")
+            if self.dry_run:
+                raise AbortStateTransaction("Dry run")
+
+            aws_api.account.set_security_contact(
+                name=name, title=title, email=email, phone_number=phone_number
+            )
+            _state.value = security_contact
+
     #
     # Public methods
     #
@@ -345,9 +382,22 @@ class AWSReconciler:
             self._check_enterprise_support_status(aws_api, case_id)
 
     def reconcile_account(
-        self, aws_api: AWSApi, name: str, alias: str | None, quotas: Iterable[Quota]
+        self,
+        aws_api: AWSApi,
+        name: str,
+        alias: str | None,
+        quotas: Iterable[Quota],
+        security_contact: Contact,
     ) -> None:
         """Reconcile/update the AWS account. Return the initial user access key if a new user was created."""
         self._set_account_alias(aws_api, name, alias)
         if request_ids := self._request_quotas(aws_api, name, quotas):
             self._check_quota_change_requests(aws_api, name, request_ids)
+        self._set_security_contact(
+            aws_api,
+            account=name,
+            name=security_contact.name,
+            title=security_contact.title,
+            email=security_contact.email,
+            phone_number=security_contact.phone_number,
+        )

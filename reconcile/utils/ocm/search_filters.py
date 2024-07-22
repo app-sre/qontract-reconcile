@@ -5,14 +5,13 @@ from abc import (
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import (
+    UTC,
     datetime,
-    timezone,
 )
 from enum import Enum
 from typing import (
     Any,
     Optional,
-    Union,
 )
 
 import dateparser
@@ -57,7 +56,7 @@ class ListCondition(ABC, FilterCondition):
             raise InvalidFilterError(f"Cannot merge {self} with {other}")
         return type(self)(
             key=self.key,
-            values=sorted(list(set(self.values + other.values))),
+            values=sorted(set(self.values + other.values)),
         )
 
 
@@ -73,9 +72,7 @@ class EqCondition(ListCondition):
     def render(self) -> str:
         if len(self.values) == 1:
             return f"{self.key}='{self._escape_value(self.values[0])}'"
-        quoted_values = ",".join(
-            map(lambda x: f"'{self._escape_value(x)}'", self.values)
-        )
+        quoted_values = ",".join(f"'{self._escape_value(x)}'" for x in self.values)
         return f"{self.key} in ({quoted_values})"
 
     def _escape_value(self, value: Any) -> str:
@@ -94,9 +91,7 @@ class LikeCondition(ListCondition):
     def render(self) -> str:
         if len(self.values) == 1:
             return f"{self.key} like '{self.values[0]}'"
-        quoted_values = " or ".join(
-            map(lambda x: f"{self.key} like '{x}'", self.values)
-        )
+        quoted_values = " or ".join(f"{self.key} like '{x}'" for x in self.values)
         if len(self.values) > 1:
             return f"({quoted_values})"
         return quoted_values
@@ -128,8 +123,8 @@ class DateRangeCondition(FilterCondition):
     by the dateparser library is supported, e.g. "now", "today", "5 days ago"
     """
 
-    start: Optional[Union[datetime, str]]
-    end: Optional[Union[datetime, str]]
+    start: datetime | str | None
+    end: datetime | str | None
 
     def copy_and_merge(self, other: "FilterCondition") -> "FilterCondition":
         raise InvalidFilterError("daterange merge not supported")
@@ -150,7 +145,7 @@ class DateRangeCondition(FilterCondition):
             conditions.append(f"{self.key} <= '{resolved_end.isoformat()}'")
         return " and ".join(conditions)
 
-    def resolve_start(self) -> Optional[datetime]:
+    def resolve_start(self) -> datetime | None:
         """
         Resolves the start bound of the date range. If the start bound is a
         string, it is parsed by the dateparser library. If it is already a
@@ -158,7 +153,7 @@ class DateRangeCondition(FilterCondition):
         """
         return DateRangeCondition._resolve_date(self.start) if self.start else None
 
-    def resolve_end(self) -> Optional[datetime]:
+    def resolve_end(self) -> datetime | None:
         """
         Resolves the end bound of the date range. If the end bound is a
         string, it is parsed by the dateparser library. If it is already a
@@ -166,7 +161,7 @@ class DateRangeCondition(FilterCondition):
         return DateRangeCondition._resolve_date(self.end) if self.end else None
 
     @staticmethod
-    def _resolve_date(date: Union[datetime, str]) -> datetime:
+    def _resolve_date(date: datetime | str) -> datetime:
         if isinstance(date, datetime):
             return date
         parsed = dateparser.parse(
@@ -180,7 +175,7 @@ class DateRangeCondition(FilterCondition):
 
     @staticmethod
     def now() -> datetime:
-        return datetime.now(tz=timezone.utc)
+        return datetime.now(tz=UTC)
 
 
 class InvalidFilterError(Exception):
@@ -210,13 +205,13 @@ class Filter:
 
     def __init__(
         self,
-        conditions: Optional[list[FilterCondition]] = None,
+        conditions: list[FilterCondition] | None = None,
         mode: FilterMode = FilterMode.AND,
     ):
         self.conditions: list[FilterCondition] = conditions or []
         self.mode = mode
 
-    def condition_by_key(self, key: str) -> Optional[FilterCondition]:
+    def condition_by_key(self, key: str) -> FilterCondition | None:
         """
         Returns the condition with the given key, or None if it does not exist.
         """
@@ -258,7 +253,7 @@ class Filter:
         merged_condition = existing_condition.copy_and_merge(condition)
         return self.copy_and_override(merged_condition)
 
-    def eq(self, key: str, value: Optional[str]) -> "Filter":
+    def eq(self, key: str, value: str | None) -> "Filter":
         """
         Copies the filter and adds a condition to the copy, that requires
         the given key to be equal to the given value. If the value is None,
@@ -268,7 +263,7 @@ class Filter:
             return self.is_in(key, [value])
         return self
 
-    def like(self, key: str, value: Optional[str]) -> "Filter":
+    def like(self, key: str, value: str | None) -> "Filter":
         """
         Copies the filter and adds a condition to the copy, that requires
         the given key to be similar to the given value based on the % wildcard.
@@ -278,22 +273,19 @@ class Filter:
             return self.add_condition(LikeCondition(key, [value]))
         return self
 
-    def is_in(self, key: str, values: Optional[Iterable[Any]]) -> "Filter":
+    def is_in(self, key: str, values: Iterable[Any] | None) -> "Filter":
         """
         Copies the filter and adds a condition to the copy, that requires
         the given key to be equal to one of the given values. If the values
         are None or empty, the condition is not added.
         """
         if values:
-            if isinstance(values, list):
-                value_list = values
-            else:
-                value_list = list(values)
+            value_list = values if isinstance(values, list) else list(values)
             value_list.sort()
             return self.add_condition(EqCondition(key, value_list))
         return self
 
-    def before(self, key: str, date: Optional[Union[datetime, str]]) -> "Filter":
+    def before(self, key: str, date: datetime | str | None) -> "Filter":
         """
         Copies the filter and adds a condition to the copy, that requires
         the given key to be before the given date. If the date is None,
@@ -303,7 +295,7 @@ class Filter:
             return self.add_condition(DateRangeCondition(key, None, date))
         return self
 
-    def after(self, key: str, date: Optional[Union[datetime, str]]) -> "Filter":
+    def after(self, key: str, date: datetime | str | None) -> "Filter":
         """
         Copies the filter and adds a condition to the copy, that requires
         the given key to be after the given date. If the date is None,
@@ -316,8 +308,8 @@ class Filter:
     def between(
         self,
         key: str,
-        start: Optional[Union[datetime, str]],
-        end: Optional[Union[datetime, str]],
+        start: datetime | str | None,
+        end: datetime | str | None,
     ) -> "Filter":
         """
         Copies the filter and adds a condition to the copy, that requires

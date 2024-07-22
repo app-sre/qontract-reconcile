@@ -40,7 +40,18 @@ def test_aws_account_manager_utils_is_valid_payer_account_must_have_premium_supp
         validate(payer_account)
 
 
+def test_aws_account_manager_utils_security_contact_is_set(
+    payer_account: AWSAccountV1,
+) -> None:
+    # be sure the account is valid at the beginning
+    assert validate(payer_account)
+
+    payer_account.security_contact = None
+    with pytest.raises(ValueError):
+        validate(payer_account)
+
+
 def test_aws_account_manager_utils_state_key() -> None:
     account = "account"
     task = "task"
-    assert "task.account.task" == state_key(account, task)
+    assert state_key(account, task) == "task.account.task"

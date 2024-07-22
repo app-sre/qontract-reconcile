@@ -1,9 +1,6 @@
 import logging
 import sys
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile.closedbox_endpoint_monitoring_base import (
     Endpoint,
@@ -43,7 +40,7 @@ def run(
 
 def build_probe(
     provider: EndpointMonitoringProvider, endpoints: list[Endpoint]
-) -> Optional[OpenshiftResource]:
+) -> OpenshiftResource | None:
     signalfx = provider.signalFx
     if not signalfx:
         return None

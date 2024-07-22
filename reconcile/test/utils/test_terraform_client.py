@@ -558,8 +558,9 @@ def test_validate_db_upgrade_cannot_upgrade(aws_api, tf):
             },
         )
 
-    assert "Cannot upgrade RDS instance: test-database-1 from 11.12 to 14.2" == str(
-        error.value
+    assert (
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1 from 11.12 to 14.2"
     )
 
 
@@ -586,36 +587,12 @@ def test_validate_db_upgrade_major_version_upgrade_not_allow(aws_api, tf):
         )
 
     assert (
-        "allow_major_version_upgrade is not enabled for upgrading RDS instance: test-database-1 to a new major version."
-        == str(error.value)
+        str(error.value)
+        == "allow_major_version_upgrade is not enabled for upgrading RDS instance: test-database-1 to a new major version."
     )
 
 
-def test_validate_db_upgrade_with_empty_valid_upgrade_targe_and_allow_major_version_upgrade(
-    aws_api: AWSApi,
-    tf: tfclient.TerraformClient,
-) -> None:
-    aws_api.get_db_valid_upgrade_target.return_value = []  # type: ignore[attr-defined]
-
-    tf.validate_db_upgrade(
-        account_name="a1",
-        resource_name="test-database-1",
-        resource_change={
-            "before": {
-                "engine": "postgres",
-                "engine_version": "11.12",
-                "availability_zone": "us-east-1a",
-            },
-            "after": {
-                "engine": "postgres",
-                "engine_version": "11.17",
-                "allow_major_version_upgrade": True,
-            },
-        },
-    )
-
-
-def test_validate_db_upgrade_with_empty_valid_upgrade_targe_and_not_allow_major_version_upgrade(
+def test_validate_db_upgrade_with_empty_valid_upgrade_target(
     aws_api: AWSApi,
     tf: tfclient.TerraformClient,
 ) -> None:
@@ -639,9 +616,8 @@ def test_validate_db_upgrade_with_empty_valid_upgrade_targe_and_not_allow_major_
         )
 
     assert (
-        "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
-        "test-database-1 to a new version when there is no valid upgrade target available."
-        == str(error.value)
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1 from 11.12 to 11.17"
     )
 
 
@@ -903,6 +879,29 @@ def test_terraform_plan_with_error(
         f"[{ACCOUNT_NAME} - plan] {error_message}"
     )
     mocked_lean_tf.show_json.assert_not_called()
+
+
+def test_terraform_safe_plan_raises_errors(
+    tf: tfclient.TerraformClient,
+    mocker: MockerFixture,
+) -> None:
+    mocked_threaded_run = mocker.patch("reconcile.utils.terraform_client.threaded.run")
+    error_message = "exceeded available rate limit retries"
+    mocked_threaded_run.return_value = [(1, "", error_message)]
+    mocked_tempfile = mocker.patch("reconcile.utils.terraform_client.tempfile")
+    with mocked_tempfile.NamedTemporaryFile.return_value as f:
+        f.name = "temp-name"
+        f.read.return_value.decode.return_value = ""
+    with pytest.raises(RuntimeError) as exception:
+        tf.safe_plan(enable_deletion=False)
+
+    assert str(exception.value) == "Terraform plan has errors"
+
+    mocked_threaded_run.return_value = [(1, "detected disable deletion", False)]
+    with pytest.raises(RuntimeError) as exception:
+        tf.safe_plan(enable_deletion=False)
+
+    assert str(exception.value) == "Terraform plan has disabled deletions detected"
 
 
 def test_terraform_apply(

@@ -3,7 +3,6 @@ import sys
 from dataclasses import dataclass
 from typing import (
     Any,
-    Optional,
     TypeVar,
 )
 
@@ -44,7 +43,7 @@ class IntegrationRunConfiguration:
     potential problems with the integration or the configuration data from app-interface.
     """
 
-    early_exit_compare_sha: Optional[str]
+    early_exit_compare_sha: str | None
     """
     The SHA of the bundle to compare the current desired state against.
     """
@@ -66,11 +65,11 @@ class IntegrationRunConfiguration:
     A debug flag to control whether the URL of the GraphQL endpoint in use is printed.
     """
 
-    def main_bundle_desired_state(self) -> Optional[dict[str, Any]]:
+    def main_bundle_desired_state(self) -> dict[str, Any] | None:
         self.switch_to_main_bundle()
         return self.integration.get_early_exit_desired_state()
 
-    def comparison_bundle_desired_state(self) -> Optional[dict[str, Any]]:
+    def comparison_bundle_desired_state(self) -> dict[str, Any] | None:
         self.switch_to_comparison_bundle()
         data = (  # pylint: disable=assignment-from-none
             self.integration.get_early_exit_desired_state()
@@ -78,7 +77,7 @@ class IntegrationRunConfiguration:
         self.switch_to_main_bundle()
         return data
 
-    def switch_to_main_bundle(self, validate_schemas: Optional[bool] = None) -> None:
+    def switch_to_main_bundle(self, validate_schemas: bool | None = None) -> None:
         final_validate_schemas = (
             validate_schemas if validate_schemas is not None else self.valdiate_schemas
         )
@@ -89,9 +88,7 @@ class IntegrationRunConfiguration:
             print_url=self.print_url,
         )
 
-    def switch_to_comparison_bundle(
-        self, validate_schemas: Optional[bool] = None
-    ) -> None:
+    def switch_to_comparison_bundle(self, validate_schemas: bool | None = None) -> None:
         final_validate_schemas = (
             validate_schemas if validate_schemas is not None else self.valdiate_schemas
         )
@@ -105,7 +102,7 @@ class IntegrationRunConfiguration:
 
 def get_desired_state_diff(
     run_cfg: IntegrationRunConfiguration,
-) -> Optional[DesiredStateDiff]:
+) -> DesiredStateDiff | None:
     """
     Calculates the desired state diff between the current bundle and the
     comparison bundle for an integration. If the integration does not support
@@ -172,7 +169,7 @@ def _integration_wet_run(
 
 def _integration_dry_run(
     integration: QontractReconcileIntegration[RunParamsTypeVar],
-    desired_state_diff: Optional[DesiredStateDiff],
+    desired_state_diff: DesiredStateDiff | None,
 ) -> None:
     """
     Runs an integration in dry-run mode, i.e. not actually making any changes
@@ -216,7 +213,7 @@ def _integration_dry_run(
             return_exceptions=True,
         )
 
-        for shard, result in zip(affected_shard_list, results):
+        for shard, result in zip(affected_shard_list, results, strict=False):
             if _is_task_result_an_error(result):
                 logging.error(f"Failed to run integration shard {shard}: {result}")
         failed_shards_count = sum(1 for _ in filter(_is_task_result_an_error, results))

@@ -17,7 +17,7 @@ from functools import wraps
 from io import TextIOWrapper
 from subprocess import Popen
 from threading import Lock
-from typing import Any, Optional, Union
+from typing import Any
 
 import urllib3
 from kubernetes.client import (  # type: ignore[attr-defined]
@@ -127,6 +127,10 @@ class JobNotRunningError(Exception):
     pass
 
 
+class RequestEntityTooLargeError(Exception):
+    pass
+
+
 class OCDecorators:
     @classmethod
     def process_reconcile_time(cls, function):
@@ -153,7 +157,7 @@ class OCDecorators:
         @wraps(function)
         def wrapper(*args, **kwargs):
             result = function(*args, **kwargs)
-            msg = result[:-1] if isinstance(result, (list, tuple)) else result
+            msg = result[:-1] if isinstance(result, list | tuple) else result
 
             if not isinstance(msg, OCProcessReconcileTimeDecoratorMsg):
                 return result
@@ -207,7 +211,7 @@ class OCProcessReconcileTimeDecoratorMsg:
         self,
         namespace: str,
         resource: OR,
-        server: Optional[str],
+        server: str | None,
         slow_oc_reconcile_threshold: float,
         is_log_slow_oc_reconcile: bool,
     ):
@@ -227,14 +231,10 @@ def equal_spec_template(t1: dict, t2: dict) -> bool:
     """Compare two spec.templates."""
     t1_copy = copy.deepcopy(t1)
     t2_copy = copy.deepcopy(t2)
-    try:
+    with suppress(KeyError):
         del t1_copy["metadata"]["labels"]["pod-template-hash"]
-    except KeyError:
-        pass
-    try:
+    with suppress(KeyError):
         del t2_copy["metadata"]["labels"]["pod-template-hash"]
-    except KeyError:
-        pass
     return t1_copy == t2_copy
 
 
@@ -251,23 +251,23 @@ class OCCliApiResource:
     @property
     def group_version(self):
         if self.group:
-            return "{}/{}".format(self.group, self.api_version)
+            return f"{self.group}/{self.api_version}"
         return self.api_version
 
 
 class OCCli:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
-        cluster_name: Optional[str],
-        server: Optional[str],
-        token: Optional[str],
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        cluster_name: str | None,
+        server: str | None,
+        token: str | None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
-        connection_parameters: Optional[OCConnectionParameters] = None,
+        connection_parameters: OCConnectionParameters | None = None,
     ):
         """
         As of now we have to conform with 2 ways to initialize this client:
@@ -306,10 +306,10 @@ class OCCli:  # pylint: disable=too-many-public-methods
     def _init_old_without_types(
         self,
         cluster_name: str,
-        server: Optional[str],
-        token: Optional[str],
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        server: str | None,
+        token: str | None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
@@ -474,9 +474,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
                 cmd.extend(["-n", namespace])
 
         if "labels" in kwargs:
-            labels_list = [
-                "{}={}".format(k, v) for k, v in kwargs.get("labels").items()
-            ]
+            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels").items()]
 
             cmd.append("-l")
             cmd.append(",".join(labels_list))
@@ -738,11 +736,11 @@ class OCCli:  # pylint: disable=too-many-public-methods
         cmd = ["logs", "--all-containers=true", "-n", namespace, f"job/{name}"]
         if follow:
             cmd.append("-f")
-        # pylint: disable=consider-using-with
+
         if isinstance(output, TextIOWrapper):
             output_file = output
         else:
-            output_file = open(os.path.join(output, name), "w", encoding="locale")
+            output_file = open(os.path.join(output, name), "w", encoding="locale")  # noqa: SIM115
 
         if wait_for_logs_process:
             subprocess.run(self.oc_base_cmd + cmd, stdout=output_file, check=False)
@@ -781,7 +779,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
     def get_service_account_username(user):
         namespace = user.split("/")[0]
         name = user.split("/")[1]
-        return "system:serviceaccount:{}:{}".format(namespace, name)
+        return f"system:serviceaccount:{namespace}:{name}"
 
     def get_owned_pods(self, namespace, resource):
         pods = self.get(namespace, "Pod")["items"]
@@ -1118,6 +1116,8 @@ class OCCli:  # pylint: disable=too-many-public-methods
                     raise StatefulSetUpdateForbidden(f"[{self.server}]: {err}")
                 if "the object has been modified" in err:
                     raise ObjectHasBeenModifiedError(f"[{self.server}]: {err}")
+                if "Request entity too large" in err:
+                    raise RequestEntityTooLargeError(f"[{self.server}]: {err}")
             if not (allow_not_found and "NotFound" in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 
@@ -1134,7 +1134,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         try:
             out_json = json.loads(out)
         except ValueError as e:
-            raise JSONParsingError(out + "\n" + str(e))
+            raise JSONParsingError(out + "\n" + str(e)) from e
 
         return out_json
 
@@ -1216,15 +1216,15 @@ REQUEST_TIMEOUT = 60
 class OCNative(OCCli):
     def __init__(
         self,
-        cluster_name: Optional[str],
-        server: Optional[str],
-        token: Optional[str],
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        cluster_name: str | None,
+        server: str | None,
+        token: str | None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
-        connection_parameters: Optional[OCConnectionParameters] = None,
+        connection_parameters: OCConnectionParameters | None = None,
     ):
         super().__init__(
             cluster_name,
@@ -1276,13 +1276,13 @@ class OCNative(OCCli):
 
     @retry(exceptions=(ServerTimeoutError, InternalServerError, ForbiddenError))
     def _get_client(self, server, token):
-        opts = dict(
-            api_key={"authorization": f"Bearer {token}"},
-            host=server,
-            verify_ssl=False,
+        opts = {
+            "api_key": {"authorization": f"Bearer {token}"},
+            "host": server,
+            "verify_ssl": False,
             # default timeout seems to be 1+ minutes
-            retries=5,
-        )
+            "retries": 5,
+        }
         if self.jump_host:
             # the ports could be parameterized, but at this point
             # we only have need of 1 tunnel for 1 service
@@ -1303,7 +1303,7 @@ class OCNative(OCCli):
         try:
             return DynamicClient(k8s_client, discoverer=OpenshiftLazyDiscoverer)
         except urllib3.exceptions.MaxRetryError as e:
-            raise StatusCodeError(f"[{self.server}]: {e}")
+            raise StatusCodeError(f"[{self.server}]: {e}") from None
 
     def _get_obj_client(self, kind, group_version):
         key = f"{kind}.{group_version}"
@@ -1329,9 +1329,7 @@ class OCNative(OCCli):
 
         labels = ""
         if "labels" in kwargs:
-            labels_list = [
-                "{}={}".format(k, v) for k, v in kwargs.get("labels").items()
-            ]
+            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels").items()]
 
             labels = ",".join(labels_list)
 
@@ -1378,7 +1376,7 @@ class OCNative(OCCli):
         except NotFoundError as e:
             if allow_not_found:
                 return {}
-            raise StatusCodeError(f"[{self.server}]: {e}")
+            raise StatusCodeError(f"[{self.server}]: {e}") from None
 
     def get_all(self, kind, all_namespaces=False):
         k, group_version = self._parse_kind(kind)
@@ -1386,10 +1384,10 @@ class OCNative(OCCli):
         try:
             return obj_client.get(_request_timeout=REQUEST_TIMEOUT).to_dict()
         except NotFoundError as e:
-            raise StatusCodeError(f"[{self.server}]: {e}")
+            raise StatusCodeError(f"[{self.server}]: {e}") from None
 
 
-OCClient = Union[OCNative, OCCli]
+OCClient = OCNative | OCCli
 
 
 class OCLocal(OCCli):
@@ -1417,16 +1415,16 @@ class OC:
 
     def __new__(
         cls,
-        cluster_name: Optional[str] = None,
-        server: Optional[str] = None,
-        token: Optional[str] = None,
-        jh: Optional[Mapping[Any, Any]] = None,
-        settings: Optional[Mapping[Any, Any]] = None,
+        cluster_name: str | None = None,
+        server: str | None = None,
+        token: str | None = None,
+        jh: Mapping[Any, Any] | None = None,
+        settings: Mapping[Any, Any] | None = None,
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
-        connection_parameters: Optional[OCConnectionParameters] = None,
+        connection_parameters: OCConnectionParameters | None = None,
     ):
         use_native_env = os.environ.get("USE_NATIVE_CLIENT", "")
         use_native = True
@@ -1638,10 +1636,7 @@ class OC_Map:
                 )
                 return
 
-            if self.use_jump_host:
-                jump_host = cluster_info.get("jumpHost")
-            else:
-                jump_host = None
+            jump_host = cluster_info.get("jumpHost") if self.use_jump_host else None
             if jump_host:
                 self.set_jh_ports(jump_host)
             try:
@@ -1844,22 +1839,17 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
             ]
         # If there are multiple matches, prefer non-List kinds
         if len(results) > 1 and not all(  # pylint: disable=R1729
-            [isinstance(x, ResourceList) for x in results]
+            isinstance(x, ResourceList) for x in results
         ):
             results = [
                 result for result in results if not isinstance(result, ResourceList)
             ]
         # if multiple resources are found that share a GVK, prefer the one with the most supported verbs
-        if (
-            len(results) > 1
-            and len(set((x.group_version, x.kind) for x in results)) == 1
-        ):
-            if len(set(len(x.verbs) for x in results)) != 1:
+        if len(results) > 1 and len({(x.group_version, x.kind) for x in results}) == 1:
+            if len({len(x.verbs) for x in results}) != 1:
                 results = [max(results, key=lambda x: len(x.verbs))]
         if len(results) == 1:
             return results[0]
         if not results:
-            raise ResourceNotFoundError("No matches found for {}".format(kwargs))
-        raise ResourceNotUniqueError(
-            "Multiple matches found for {}: {}".format(kwargs, results)
-        )
+            raise ResourceNotFoundError(f"No matches found for {kwargs}")
+        raise ResourceNotUniqueError(f"Multiple matches found for {kwargs}: {results}")

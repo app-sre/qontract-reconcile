@@ -167,6 +167,7 @@ query TerraformResourcesNamespaces {
                 assume_action
                 inline_policy
                 role_policy
+                policies
                 output_resource_name
                 annotations
                 lifecycle {
@@ -645,6 +646,7 @@ class NamespaceTerraformResourceRoleV1(NamespaceTerraformResourceAWSV1):
     assume_action: Optional[str] = Field(..., alias="assume_action")
     inline_policy: Optional[str] = Field(..., alias="inline_policy")
     role_policy: Optional[str] = Field(..., alias="role_policy")
+    policies: Optional[list[str]] = Field(..., alias="policies")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
     lifecycle: Optional[NamespaceTerraformResourceLifecycleV1] = Field(..., alias="lifecycle")

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from reconcile.utils.secret_reader import HasSecret
 
@@ -22,6 +21,6 @@ class TerraformStateS3:
 class CloudflareAccount:
     name: str
     api_credentials: HasSecret
-    enforce_twofactor: Optional[bool]
-    type: Optional[str]
+    enforce_twofactor: bool | None
+    type: str | None
     provider_version: str

@@ -1,5 +1,5 @@
 import json
-from typing import Mapping
+from collections.abc import Mapping
 from unittest.mock import (
     MagicMock,
     mock_open,

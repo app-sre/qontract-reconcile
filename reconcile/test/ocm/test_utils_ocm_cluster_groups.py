@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from werkzeug import Request
 
@@ -64,7 +63,7 @@ def test_get_cluster_groups(
 def test_add_user_to_cluster_group(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_ocm_http_request: Callable[[str, str], Optional[Request]],
+    find_ocm_http_request: Callable[[str, str], Request | None],
 ) -> None:
     cluster_id = "cluster_id"
     user_name = "user-to-add"

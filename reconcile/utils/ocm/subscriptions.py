@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import ValidationError
 
 from reconcile.utils.ocm.base import (
@@ -38,7 +36,7 @@ def get_subscriptions(
 
 
 def build_subscription_filter(
-    states: Optional[set[str]] = None, managed: bool = True
+    states: set[str] | None = None, managed: bool = True
 ) -> Filter:
     """
     Helper function to create a subscription search filer for two very common

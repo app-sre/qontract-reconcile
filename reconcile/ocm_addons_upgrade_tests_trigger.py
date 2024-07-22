@@ -1,8 +1,5 @@
 import logging
-from typing import (
-    Callable,
-    Optional,
-)
+from collections.abc import Callable
 
 from reconcile import queries
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -18,7 +15,7 @@ QONTRACT_INTEGRATION = "ocm-addons-upgrade-tests-trigger"
 
 
 @defer
-def run(dry_run: bool, defer: Optional[Callable] = None) -> None:
+def run(dry_run: bool, defer: Callable | None = None) -> None:
     settings = queries.get_app_interface_settings()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -40,7 +37,7 @@ def run(dry_run: bool, defer: Optional[Callable] = None) -> None:
         )
 
         ocm = ocm_map[ocm_name]
-        state_updates: dict[str, Optional[str]] = {}
+        state_updates: dict[str, str | None] = {}
         for aut in addon_upgrade_tests:
             addon_name = aut["addon"]["name"]
             addon_org_version = None

@@ -1,9 +1,6 @@
 import logging
 import sys
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile import queries
 from reconcile.closedbox_endpoint_monitoring_base import (
@@ -69,7 +66,7 @@ def get_blackbox_providers() -> list[EndpointMonitoringProvider]:
 
 def build_probe(
     provider: EndpointMonitoringProvider, endpoints: list[Endpoint]
-) -> Optional[OpenshiftResource]:
+) -> OpenshiftResource | None:
     blackbox_exporter = provider.blackboxExporter
     if blackbox_exporter:
         prober_url = parse_prober_url(blackbox_exporter.exporterUrl)

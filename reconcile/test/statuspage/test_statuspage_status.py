@@ -1,7 +1,7 @@
 from datetime import (
+    UTC,
     datetime,
     timedelta,
-    timezone,
 )
 
 from reconcile.gql_definitions.statuspage.statuspages import (
@@ -21,7 +21,7 @@ def test_manual_status_provider():
 
 
 def test_manual_status_provider_active_period():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     bounded_period = ManualStatusProvider(
         start=now,
         end=now + timedelta(days=1),
@@ -45,7 +45,7 @@ def test_manual_status_provider_active_period():
 
 
 def test_manual_status_provider_inactive_period():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     past_period = ManualStatusProvider(
         start=None,
         end=now - timedelta(minutes=1),

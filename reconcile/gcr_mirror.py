@@ -124,12 +124,8 @@ class QuayMirror:
     @staticmethod
     def sync_tag(tags, tags_exclude, candidate):
         if tags is not None:
-            for tag in tags:
-                if re.match(tag, candidate):
-                    return True
-            # When tags is defined, we don't look at
-            # tags_exclude
-            return False
+            # When tags is defined, we don't look at tags_exclude
+            return any(re.match(tag, candidate) for tag in tags)
 
         if tags_exclude is not None:
             for tag_exclude in tags_exclude:
@@ -241,7 +237,7 @@ class QuayMirror:
         control_file_name = "qontract-reconcile-gcr-mirror.timestamp"
         control_file_path = os.path.join(tempfile.gettempdir(), control_file_name)
         try:
-            with open(control_file_path, "r", encoding="locale") as file_obj:
+            with open(control_file_path, encoding="locale") as file_obj:
                 last_deep_sync = float(file_obj.read())
         except FileNotFoundError:
             self._record_timestamp(control_file_path)

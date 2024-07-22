@@ -3,7 +3,6 @@ from dataclasses import (
     asdict,
     dataclass,
 )
-from typing import Optional
 from unittest.mock import (
     create_autospec,
     mock_open,
@@ -64,20 +63,20 @@ def cloudflare_account_test(account_config):
 
 def custom_ssl_secret_reader_side_effect(*args):
     """For use of secret_reader inside cloudflare client"""
-    if {
+    if args[0] == {
         "path": "certificate/path",
         "field": "cert.crt",
         "version": 1,
         "format": "plain",
-    } == args[0]:
+    }:
         return "----- CERTIFICATE -----"
 
-    if {
+    if args[0] == {
         "path": "key/path",
         "field": "cert.key",
         "version": 1,
         "format": "plain",
-    } == args[0]:
+    }:
         return "----- KEY -----"
 
 
@@ -508,22 +507,22 @@ def test_create_cloudflare_terrascript_not_include_account(
 
 
 def secret_reader_side_effect(*args):
-    if {
+    if asdict(args[0]) == {
         "path": "automation_token_path",
         "field": "some-field",
         "version": None,
         "q_format": None,
-    } == asdict(args[0]):
+    }:
         aws_acct_creds = {}
         aws_acct_creds["aws_access_key_id"] = "key_id"
         aws_acct_creds["aws_secret_access_key"] = "access_key"
         return aws_acct_creds
-    if {
+    if asdict(args[0]) == {
         "path": "creds",
         "field": "some-field",
         "version": None,
         "q_format": None,
-    } == asdict(args[0]):
+    }:
         cf_acct_creds = {}
         cf_acct_creds["api_token"] = "api_token"
         cf_acct_creds["account_id"] = "account_id"
@@ -534,8 +533,8 @@ def secret_reader_side_effect(*args):
 class VaultSecret:
     path: str
     field: str
-    version: Optional[int]
-    q_format: Optional[str]
+    version: int | None
+    q_format: str | None
 
 
 @pytest.fixture

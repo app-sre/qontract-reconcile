@@ -17,6 +17,11 @@ query SaasFiles {
         name
         email
       }
+      codeComponents {
+        url
+        blockedVersions
+        hotfixVersions
+      }
     }
     pipelinesProvider {
       name
@@ -135,6 +140,7 @@ query SaasFiles {
           publish
           subscribe
           soakDays
+          schedule
           promotion_data {
             channel
             data {

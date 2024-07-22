@@ -13,7 +13,7 @@ from reconcile.glitchtip_project_dsn.integration import (
     fetch_desired_state,
     projects_query,
 )
-from reconcile.gql_definitions.glitchtip.glitchtip_project import GlitchtipProjectsV1
+from reconcile.gql_definitions.glitchtip.glitchtip_project import GlitchtipProjectV1
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.glitchtip import GlitchtipClient
 from reconcile.utils.oc_map import OCMap
@@ -24,14 +24,14 @@ from reconcile.utils.openshift_resource import ResourceInventory
 def projects(
     fx: Fixtures,
     data_factory: Callable[
-        [type[GlitchtipProjectsV1], MutableMapping[str, Any]], MutableMapping[str, Any]
+        [type[GlitchtipProjectV1], MutableMapping[str, Any]], MutableMapping[str, Any]
     ],
-) -> list[GlitchtipProjectsV1]:
+) -> list[GlitchtipProjectV1]:
     def q(*args: Any, **kwargs: Any) -> dict:
         raw_data = fx.get_anymarkup("dsn_projects.yml")
         return {
             "glitchtip_projects": [
-                data_factory(GlitchtipProjectsV1, item)
+                data_factory(GlitchtipProjectV1, item)
                 for item in raw_data["glitchtip_projects"]
             ]
         }
@@ -39,7 +39,7 @@ def projects(
     return projects_query(q)
 
 
-def test_project_query(projects: Sequence[GlitchtipProjectsV1]) -> None:
+def test_project_query(projects: Sequence[GlitchtipProjectV1]) -> None:
     assert len(projects) == 2
     assert len(projects[0].namespaces) == 2
     assert projects[0].namespaces[0].name == "namespace-1"
@@ -52,7 +52,7 @@ def test_project_query(projects: Sequence[GlitchtipProjectsV1]) -> None:
 
 
 def test_fetch_current_state(
-    oc_map: OCMap, projects: Sequence[GlitchtipProjectsV1]
+    oc_map: OCMap, projects: Sequence[GlitchtipProjectV1]
 ) -> None:
     ri = ResourceInventory()
     fetch_current_state(projects[0], oc_map, ri)
@@ -63,7 +63,7 @@ def test_fetch_current_state(
 def test_desire_state(
     glitchtip_client: GlitchtipClient,
     glitchtip_server_full_api_response: None,
-    projects: Sequence[GlitchtipProjectsV1],
+    projects: Sequence[GlitchtipProjectV1],
 ) -> None:
     ri = ResourceInventory()
     fetch_desired_state(

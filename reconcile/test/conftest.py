@@ -6,11 +6,8 @@ from collections.abc import (
     MutableMapping,
 )
 from pathlib import Path
-from typing import (
-    Any,
-    Optional,
-)
-from unittest.mock import create_autospec
+from typing import Any
+from unittest.mock import MagicMock, create_autospec
 
 import pytest
 from pydantic import BaseModel
@@ -74,7 +71,8 @@ def s3_state_builder() -> Callable[[Mapping], State]:
             return get(key)
 
         state = create_autospec(spec=State)
-        state.get = get
+        mock_get = MagicMock(side_effect=get)
+        state.get = mock_get
         state.__getitem__ = __getitem__
         state.ls.side_effect = [data.get("ls", [])]
         return state
@@ -95,14 +93,14 @@ def vault_secret():
 @pytest.fixture
 def data_factory() -> (
     Callable[
-        [type[BaseModel], Optional[MutableMapping[str, Any]]],
+        [type[BaseModel], MutableMapping[str, Any] | None],
         MutableMapping[str, Any],
     ]
 ):
     """Set default values to None."""
 
     def _data_factory(
-        klass: type[BaseModel], data: Optional[MutableMapping[str, Any]] = None
+        klass: type[BaseModel], data: MutableMapping[str, Any] | None = None
     ) -> MutableMapping[str, Any]:
         return data_default_none(klass, data or {})
 
@@ -116,14 +114,14 @@ class GQLClassFactoryError(Exception):
 @pytest.fixture
 def gql_class_factory() -> (
     Callable[
-        [type[BaseModel], Optional[MutableMapping[str, Any]]],
+        [type[BaseModel], MutableMapping[str, Any] | None],
         BaseModel,
     ]
 ):
     """Create a GQL class from a fixture and set default values to None."""
 
     def _gql_class_factory(
-        klass: type[BaseModel], data: Optional[MutableMapping[str, Any]] = None
+        klass: type[BaseModel], data: MutableMapping[str, Any] | None = None
     ) -> BaseModel:
         try:
             return klass(**data_default_none(klass, data or {}))
@@ -136,8 +134,8 @@ def gql_class_factory() -> (
 
 
 @pytest.fixture
-def gql_api_builder() -> Callable[[Optional[Mapping]], GqlApi]:
-    def builder(data: Optional[Mapping] = None) -> GqlApi:
+def gql_api_builder() -> Callable[[Mapping | None], GqlApi]:
+    def builder(data: Mapping | None = None) -> GqlApi:
         gql_api = create_autospec(GqlApi)
         gql_api.query.return_value = data
         return gql_api

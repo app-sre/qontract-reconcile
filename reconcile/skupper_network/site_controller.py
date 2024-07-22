@@ -30,14 +30,14 @@ class SiteController:
         """Skupper site token secret."""
         _labels = copy.deepcopy(labels)
         _labels["skupper.io/type"] = "connection-token-request"
-        return dict(
-            apiVersion="v1",
-            kind="Secret",
-            metadata=dict(
-                name=name,
-                labels=_labels,
-            ),
-        )
+        return {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "metadata": {
+                "name": name,
+                "labels": _labels,
+            },
+        }
 
 
 def get_site_controller(site: SkupperSite) -> SiteController:

@@ -1,7 +1,7 @@
 import hashlib
 import inspect
 from abc import ABC, abstractmethod
-from enum import Enum, IntFlag
+from enum import IntFlag, StrEnum
 from typing import Any
 
 from deepdiff import DeepHash
@@ -19,7 +19,7 @@ from kubernetes.client import (
 )
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     SUCCESS: str = "SUCCESS"
     ERROR: str = "ERROR"
     IN_PROGRESS: str = "IN_PROGRESS"
@@ -160,7 +160,7 @@ class K8sJob(ABC):
                     )
                 ),
             )
-            for secret_key_name in self.secret_data().keys()
+            for secret_key_name in self.secret_data()
         ]
 
     def scripts_volume_mount(self, directory: str) -> V1VolumeMount:
@@ -189,7 +189,7 @@ class K8sJob(ABC):
                         key=script_name,
                         path=script_name,
                     )
-                    for script_name in self.scripts().keys()
+                    for script_name in self.scripts()
                 ],
             ),
         )

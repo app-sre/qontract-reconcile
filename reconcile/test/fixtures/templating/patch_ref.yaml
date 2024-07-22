@@ -1,0 +1,23 @@
+---
+template:
+  name: update file
+
+  targetPath: /some/saas/deploy.yml
+
+  patch:
+    path: $.aws_groups
+    identifier: "$ref"
+
+  template: |
+    $ref: /aws/{{ bar }}/admin.yml
+
+  templateTest: []
+current:
+  aws_groups:
+  - $ref: /aws/just-an-account/group.yml
+
+expected: |
+  ---
+  aws_groups:
+  - $ref: /aws/just-an-account/group.yml
+  - $ref: /aws/bar/admin.yml

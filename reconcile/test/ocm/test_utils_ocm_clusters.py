@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from pytest_httpserver import HTTPServer
 from pytest_mock import (
@@ -23,7 +22,10 @@ from reconcile.utils.ocm import (
 from reconcile.utils.ocm.base import (
     ACTIVE_SUBSCRIPTION_STATES,
     ClusterDetails,
+    ClusterManagementReference,
+    FleetManagerServiceCluster,
     OCMCluster,
+    OCMModelLink,
     OCMOrganizationLabel,
     OCMSubscriptionLabel,
     build_label_container,
@@ -34,6 +36,7 @@ from reconcile.utils.ocm.clusters import (
     discover_clusters_for_subscriptions,
     get_cluster_details_for_subscriptions,
     get_node_pools,
+    get_service_clusters,
     get_version,
 )
 from reconcile.utils.ocm.labels import label_filter
@@ -44,8 +47,8 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 def build_cluster_details(
     ocm_cluster: OCMCluster,
     org_id: str = "org_id",
-    org_labels: Optional[list[tuple[str, str]]] = None,
-    subs_labels: Optional[list[tuple[str, str]]] = None,
+    org_labels: list[tuple[str, str]] | None = None,
+    subs_labels: list[tuple[str, str]] | None = None,
 ) -> ClusterDetails:
     return ClusterDetails(
         ocm_cluster=ocm_cluster,
@@ -333,3 +336,43 @@ def test_get_version(mocker: MockFixture) -> None:
     assert version["id"] == version_return["id"]
     assert version["raw_id"] == version_return["raw_id"]
     assert "foo" not in version
+
+
+def test_get_service_clusters_empty(mocker: MockFixture) -> None:
+    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
+    ocm.get_paginated.return_value = []
+
+    service_clusters = list(get_service_clusters(ocm_api=ocm))
+
+    assert service_clusters == []
+
+
+def test_get_service_clusters_no_provision_shard(mocker: MockFixture) -> None:
+    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
+    cluster_a = FleetManagerServiceCluster(
+        cluster_management_reference=ClusterManagementReference(
+            cluster_id="test1",
+            href="href1",
+        ),
+        provision_shard_reference=OCMModelLink(
+            id="shard1",
+        ),
+    )
+    data_a = cluster_a.dict(by_alias=True)
+    cluster_b = FleetManagerServiceCluster(
+        cluster_management_reference=ClusterManagementReference(
+            cluster_id="test2",
+            href="href2",
+        ),
+        provision_shard_reference=OCMModelLink(
+            id="shard2",
+        ),
+    )
+    data_b = cluster_b.dict(by_alias=True)
+    data_b["provision_shard_reference"] = {}
+
+    ocm.get_paginated.return_value = [data_a, data_b]
+
+    service_clusters = list(get_service_clusters(ocm_api=ocm))
+
+    assert service_clusters == [cluster_a]

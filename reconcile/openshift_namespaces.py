@@ -6,10 +6,7 @@ from collections.abc import (
     Mapping,
     Sequence,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from sretoolbox.utils import threaded
 
@@ -130,7 +127,7 @@ def check_results(
     desired_state: Iterable[Mapping[str, str]], results: Iterable[Any]
 ) -> bool:
     err = False
-    for s, e in zip(desired_state, results):
+    for s, e in zip(desired_state, results, strict=False):
         if isinstance(e, Exception):
             err = True
             msg = (
@@ -145,11 +142,11 @@ def check_results(
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
-    cluster_name: Optional[Sequence[str]] = None,
-    namespace_name: Optional[Sequence[str]] = None,
-    defer: Optional[Callable] = None,
+    cluster_name: Sequence[str] | None = None,
+    namespace_name: Sequence[str] | None = None,
+    defer: Callable | None = None,
 ) -> None:
     all_namespaces = get_namespaces_minimal()
     shard_namespaces, duplicates = get_shard_namespaces(all_namespaces)

@@ -3,17 +3,16 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Optional, Union
 
 import yaml
 from tabulate import tabulate
 
 
 def print_output(
-    options: Mapping[str, Union[str, bool]],
+    options: Mapping[str, str | bool],
     content: list[dict],
     columns: Iterable[str] = (),
-) -> Optional[str]:
+) -> str | None:
     if options["sort"]:
         content.sort(key=lambda c: tuple(c.values()))
     if options.get("to_string"):

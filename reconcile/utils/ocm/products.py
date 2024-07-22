@@ -5,9 +5,7 @@ import random
 import string
 from abc import abstractmethod
 from collections.abc import Mapping
-from typing import (
-    Any,
-)
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -356,7 +354,7 @@ class OCMProductRosa(OCMProduct):
             e.cleanup()
             raise OCMValidationException(
                 f"last 10 lines from failed cluster creation job...\n\n{logs}"
-            )
+            ) from None
 
     def update_cluster(
         self,
@@ -631,7 +629,7 @@ class OCMProductHypershift(OCMProduct):
             e.cleanup()
             raise OCMValidationException(
                 f"last 10 lines from failed cluster creation job...\n\n{logs}"
-            )
+            ) from None
 
     def update_cluster(
         self,

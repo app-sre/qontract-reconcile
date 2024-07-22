@@ -5,7 +5,6 @@ import threading
 import time
 from collections.abc import Mapping
 from functools import lru_cache
-from typing import Optional
 
 import hvac
 import requests
@@ -60,11 +59,11 @@ class _VaultClient:
 
     def __init__(
         self,
-        server: Optional[str] = None,
-        role_id: Optional[str] = None,
-        secret_id: Optional[str] = None,
-        kube_auth_role: Optional[str] = None,
-        kube_auth_mount: Optional[str] = None,
+        server: str | None = None,
+        role_id: str | None = None,
+        secret_id: str | None = None,
+        kube_auth_role: str | None = None,
+        kube_auth_mount: str | None = None,
         auto_refresh: bool = True,
     ):
         config = get_config()
@@ -164,7 +163,7 @@ class _VaultClient:
             self._client.auth_approle(self.role_id, self.secret_id)
 
     @retry()
-    def read_all_with_version(self, secret: Mapping) -> tuple[Mapping, Optional[str]]:
+    def read_all_with_version(self, secret: Mapping) -> tuple[Mapping, str | None]:
         """Returns a dictionary of keys and values in a Vault secret and the
         version of the secret, for V1 secrets, version will be None.
 
@@ -215,9 +214,7 @@ class _VaultClient:
 
         return version
 
-    def __read_all_v2(
-        self, path: str, version: Optional[str]
-    ) -> tuple[dict, Optional[str]]:
+    def __read_all_v2(self, path: str, version: str | None) -> tuple[dict, str | None]:
         path_split = path.split("/")
         mount_point = path_split[0]
         read_path = "/".join(path_split[1:])
@@ -237,10 +234,10 @@ class _VaultClient:
             )
         except InvalidPath:
             msg = f"version '{version}' not found " f"for secret with path '{path}'."
-            raise SecretVersionNotFound(msg)
+            raise SecretVersionNotFound(msg) from None
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
-            raise SecretAccessForbidden(msg)
+            raise SecretAccessForbidden(msg) from None
         if secret is None or "data" not in secret or "data" not in secret["data"]:
             raise SecretNotFound(path)
 
@@ -253,7 +250,7 @@ class _VaultClient:
             secret = self._client.read(path)
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
-            raise SecretAccessForbidden(msg)
+            raise SecretAccessForbidden(msg) from None
 
         if secret is None or "data" not in secret:
             raise SecretNotFound(path)
@@ -298,7 +295,7 @@ class _VaultClient:
         try:
             secret_field = data[field]
         except KeyError:
-            raise SecretFieldNotFound(f"{path}/{field} ({version})")
+            raise SecretFieldNotFound(f"{path}/{field} ({version})") from None
         return secret_field
 
     def _read_v1(self, path, field):
@@ -306,7 +303,7 @@ class _VaultClient:
         try:
             secret_field = data[field]
         except KeyError:
-            raise SecretFieldNotFound("{}/{}".format(path, field))
+            raise SecretFieldNotFound(f"{path}/{field}") from None
         return secret_field
 
     @retry()
@@ -358,14 +355,14 @@ class _VaultClient:
             self._read_all_v2.cache_clear()
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
-            raise SecretAccessForbidden(msg)
+            raise SecretAccessForbidden(msg) from None
 
     def _write_v1(self, path, data):
         try:
             self._client.write(path, **data)
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
-            raise SecretAccessForbidden(msg)
+            raise SecretAccessForbidden(msg) from None
 
     def _list_kv2(self, path: str) -> dict:
         try:
@@ -376,22 +373,19 @@ class _VaultClient:
             return response
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing path '{path}'"
-            raise PathAccessForbidden(msg)
+            raise PathAccessForbidden(msg) from None
 
     def _list(self, path: str) -> dict:
         try:
             return self._client.list(path)
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing path '{path}'"
-            raise PathAccessForbidden(msg)
+            raise PathAccessForbidden(msg) from None
 
     def list(self, path: str) -> list[str]:
         """Returns a list of secrets in a given path."""
         kv_version = self._get_mount_version_by_secret_path(path)
-        if kv_version == 2:
-            path_list = self._list_kv2(path)
-        else:
-            path_list = self._list(path)
+        path_list = self._list_kv2(path) if kv_version == 2 else self._list(path)
 
         if not path_list:
             # path list can be None if the path does not exist
@@ -423,7 +417,7 @@ class _VaultClient:
             self._client.delete(path)
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
-            raise SecretAccessForbidden(msg)
+            raise SecretAccessForbidden(msg) from None
 
 
 class VaultClient:

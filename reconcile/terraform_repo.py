@@ -1,9 +1,6 @@
 import logging
 from collections.abc import Callable
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import yaml
 from pydantic import (
@@ -44,10 +41,10 @@ class RepoOutput(BaseModel):
     project_path: str
     delete: bool
     aws_creds: VaultSecret
-    variables: Optional[TerraformRepoVariablesV1]
-    bucket: Optional[str]
-    region: Optional[str]
-    bucket_path: Optional[str]
+    variables: TerraformRepoVariablesV1 | None
+    bucket: str | None
+    region: str | None
+    bucket_path: str | None
     require_fips: bool
     tf_version: str
 
@@ -63,10 +60,10 @@ class OutputFile(BaseModel):
 
 
 class TerraformRepoIntegrationParams(PydanticRunParams):
-    output_file: Optional[str]
+    output_file: str | None
     validate_git: bool
-    gitlab_project_id: Optional[str]
-    gitlab_merge_request_id: Optional[int]
+    gitlab_project_id: str | None
+    gitlab_merge_request_id: int | None
 
 
 class TerraformRepoIntegration(
@@ -86,7 +83,7 @@ class TerraformRepoIntegration(
     def run(
         self,
         dry_run: bool,
-        defer: Optional[Callable] = None,
+        defer: Callable | None = None,
     ) -> None:
         gqlapi = gql.get_api()
 
@@ -112,6 +109,7 @@ class TerraformRepoIntegration(
             # when updating TerraformRepoV1 GQL schema, Pydantic does not gracefully handle these changes and fails to parse
             # the existing state stored in S3. This is due to a behavior in Pydantic V1 that has since been addressed in V2
             # https://docs.pydantic.dev/latest/blog/pydantic-v2/#required-vs-nullable-cleanup
+            # so in this case, tf-repo will just recreate all of those state files in S3 and not actually do a plan or apply
             logging.error(err)
             logging.info(
                 "Unable to parse existing Terraform-Repo state from S3. Note that this is separate from the actual .tfstate files. Terraform Repo will re-create its own state upon merge and will not update any infrastructure. This typically occurs with changes to the Terraform Repo schema files and is normally resolved once state is re-created."
@@ -123,9 +121,6 @@ class TerraformRepoIntegration(
                 state=state,
                 recreate_state=True,
             )
-
-            if repo_diff_result:
-                self.print_output(repo_diff_result, dry_run)
 
     def print_output(self, diff: list[TerraformRepoV1], dry_run: bool) -> OutputFile:
         """Parses and prints the output of a Terraform Repo diff for the executor
@@ -178,7 +173,9 @@ class TerraformRepoIntegration(
                         explicit_start=True,
                     )
             except FileNotFoundError:
-                raise ParameterError(f"Unable to write to '{self.params.output_file}'")
+                raise ParameterError(
+                    f"Unable to write to '{self.params.output_file}'"
+                ) from None
         else:
             print(yaml.safe_dump(data=output.dict(), explicit_start=True))
 
@@ -234,7 +231,7 @@ class TerraformRepoIntegration(
             except (KeyError, AttributeError):
                 raise ParameterError(
                     f'Invalid ref: "{ref}" on repo: "{repo_url}". Or the project repo is not reachable'
-                )
+                ) from None
 
     def merge_results(
         self,
@@ -287,7 +284,7 @@ class TerraformRepoIntegration(
                 # state.add already performs a json.dumps(key) so we export the
                 # pydantic model as a dict to avoid a double json dump with extra quotes
                 state.add(add_key, add_val.dict(by_alias=True), force=True)
-            for delete_key in diff_result.delete.keys():
+            for delete_key in diff_result.delete:
                 state.rm(delete_key)
             for change_key, change_val in diff_result.change.items():
                 if change_val.desired.delete:
@@ -304,9 +301,9 @@ class TerraformRepoIntegration(
         existing_state: list[TerraformRepoV1],
         desired_state: list[TerraformRepoV1],
         dry_run: bool,
-        state: Optional[State],
+        state: State | None,
         recreate_state: bool,
-    ) -> Optional[list[TerraformRepoV1]]:
+    ) -> list[TerraformRepoV1] | None:
         """Calculated the difference between existing and desired state
         to determine what actions the executor will need to take
 
@@ -362,6 +359,8 @@ class TerraformRepoIntegration(
                 )
             if self.params.validate_git:
                 self.check_ref(d.repository, d.ref)
+            if c.force_rerun_timestamp != d.force_rerun_timestamp:
+                logging.info("user has forced a re-run of tf-repo execution")
 
         if len(merged) != 0:
             if not dry_run and state:

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from reconcile.utils.promotion_state import PromotionState
 from reconcile.utils.secret_reader import HasSecret
@@ -18,7 +17,7 @@ class DeploymentInfo:
     success: bool
     saas_file: str
     target_config_hash: str
-    check_in: Optional[datetime]
+    check_in: datetime | None
 
 
 class Publisher:
@@ -37,10 +36,10 @@ class Publisher:
         app_name: str,
         namespace_name: str,
         resource_template_name: str,
-        target_name: Optional[str],
+        target_name: str | None,
         cluster_name: str,
-        auth_code: Optional[HasSecret],
-        publish_job_logs: Optional[bool],
+        auth_code: HasSecret | None,
+        publish_job_logs: bool | None,
         has_subscriber: bool = True,
     ):
         self._ref = ref
@@ -48,7 +47,7 @@ class Publisher:
         self._auth_code = auth_code
         self.channels: set[str] = set()
         self.commit_sha: str = ""
-        self.deployment_info_by_channel: dict[str, Optional[DeploymentInfo]] = {}
+        self.deployment_info_by_channel: dict[str, DeploymentInfo | None] = {}
         self.uid = uid
         self.saas_name = saas_name
         self.saas_file_path = saas_file_path

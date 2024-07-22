@@ -1,7 +1,8 @@
 import os
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
-from unittest.mock import ANY
+from typing import Any
+from unittest.mock import ANY, MagicMock, call
 
 import pytest
 from gitlab import GitlabGetError
@@ -10,11 +11,12 @@ from ruamel import yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionV1,
+    TemplateCollectionVariablesQueriesV1,
     TemplateCollectionVariablesV1,
     TemplateV1,
 )
 from reconcile.templating.lib.merge_request_manager import MergeRequestManager, MrData
-from reconcile.templating.lib.model import TemplateInput
+from reconcile.templating.lib.model import TemplateResult
 from reconcile.templating.renderer import (
     ClonedRepoGitlabPersistence,
     LocalFilePersistence,
@@ -22,11 +24,11 @@ from reconcile.templating.renderer import (
     TemplateOutput,
     TemplateRendererIntegration,
     TemplateRendererIntegrationParams,
-    calc_template_hash,
     join_path,
     unpack_dynamic_variables,
     unpack_static_variables,
 )
+from reconcile.utils.jinja2.utils import Jinja2TemplateError
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.vcs import VCS
@@ -37,6 +39,24 @@ def collection_variables(gql_class_factory: Callable) -> TemplateCollectionVaria
     return gql_class_factory(
         TemplateCollectionVariablesV1,
         {"static": '{"foo": "bar"}', "dynamic": [{"name": "foo", "query": "query {}"}]},
+    )
+
+
+@pytest.fixture
+def each() -> dict[str, Any]:
+    return {"name": "item-0"}
+
+
+@pytest.fixture
+def collection_variables_foreach(
+    gql_class_factory: Callable,
+) -> TemplateCollectionVariablesV1:
+    return gql_class_factory(
+        TemplateCollectionVariablesV1,
+        {
+            "static": '{"foo": "{{ each.name }}"}',
+            "dynamic": [{"name": "foo", "query": "query {{ each.name }}"}],
+        },
     )
 
 
@@ -83,7 +103,7 @@ def template_collection(
 @pytest.fixture
 def local_file_persistence(tmp_path: Path) -> LocalFilePersistence:
     os.mkdir(tmp_path / "data")
-    return LocalFilePersistence(str(tmp_path / "data"))
+    return LocalFilePersistence(False, str(tmp_path / "data"))
 
 
 @pytest.fixture
@@ -99,10 +119,9 @@ def template_renderer_integration(mocker: MockerFixture) -> TemplateRendererInte
 
 
 @pytest.fixture
-def template_input() -> TemplateInput:
-    return TemplateInput(
+def template_result() -> TemplateResult:
+    return TemplateResult(
         collection="test",
-        collection_hash="test",
         enable_auto_approval=False,
     )
 
@@ -125,15 +144,42 @@ def reconcile_mocks(mocker: MockerFixture) -> tuple:
     pt = mocker.patch.object(t, "process_template")
     mocker.patch("reconcile.templating.renderer.init_from_config")
     p = mocker.MagicMock(LocalFilePersistence)
+    p.dry_run = False
     r = create_ruamel_instance()
 
     return t, p, r, pt
 
 
+@pytest.fixture
+def vcs(mocker: MockerFixture) -> MagicMock:
+    return mocker.MagicMock(VCS)
+
+
+@pytest.fixture
+def mr_manager(mocker: MockerFixture) -> MagicMock:
+    return mocker.MagicMock(MergeRequestManager)
+
+
 def test_unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
 ) -> None:
-    assert unpack_static_variables(collection_variables) == {"foo": "bar"}
+    assert unpack_static_variables(collection_variables, {}) == {"foo": "bar"}
+
+
+def test_unpack_static_variables_foreach(
+    collection_variables_foreach: TemplateCollectionVariablesV1,
+    each: dict[str, Any],
+) -> None:
+    assert unpack_static_variables(collection_variables_foreach, each) == {
+        "foo": "item-0"
+    }
+
+
+def test_unpack_static_variables_foreach_error(
+    collection_variables_foreach: TemplateCollectionVariablesV1,
+) -> None:
+    with pytest.raises(Jinja2TemplateError):
+        unpack_static_variables(collection_variables_foreach, {})
 
 
 def test_unpack_dynamic_variables_empty(
@@ -141,7 +187,7 @@ def test_unpack_dynamic_variables_empty(
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
     gql.query.return_value = {}
-    assert unpack_dynamic_variables(collection_variables, gql) == {"foo": {}}
+    assert unpack_dynamic_variables(collection_variables, {}, gql) == {"foo": {}}
 
 
 def test_unpack_dynamic_variables(
@@ -149,7 +195,7 @@ def test_unpack_dynamic_variables(
 ) -> None:
     gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
     gql.query.return_value = {"foo": [{"bar": "baz"}]}
-    assert unpack_dynamic_variables(collection_variables, gql) == {
+    assert unpack_dynamic_variables(collection_variables, {}, gql) == {
         "foo": {"foo": [{"bar": "baz"}]}
     }
 
@@ -162,9 +208,54 @@ def test_unpack_dynamic_variables_multiple_result(
         "baz": [{"baz": "zab"}],
         "foo": [{"bar": "baz"}, {"faa": "baz"}],
     }
-    assert unpack_dynamic_variables(collection_variables, gql) == {
+    assert unpack_dynamic_variables(collection_variables, {}, gql) == {
         "foo": {"baz": [{"baz": "zab"}], "foo": [{"bar": "baz"}, {"faa": "baz"}]}
     }
+
+
+def test_unpack_dynamic_variables_templated_query(
+    mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
+) -> None:
+    gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
+    collection_variables.dynamic = [
+        TemplateCollectionVariablesQueriesV1(
+            name="baz", query="templated query {{ static.foo }}"
+        )
+    ]
+    unpack_dynamic_variables(collection_variables, {}, gql)
+    gql.query.assert_called_once_with("templated query bar")
+
+
+def test_unpack_dynamic_variables_templated_query_jinja_error(
+    mocker: MockerFixture, collection_variables: TemplateCollectionVariablesV1
+) -> None:
+    gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
+    collection_variables.dynamic = [
+        TemplateCollectionVariablesQueriesV1(
+            name="foo", query="templated query {{ static.does_not_exist }}"
+        )
+    ]
+    with pytest.raises(Jinja2TemplateError):
+        unpack_dynamic_variables(collection_variables, {}, gql)
+
+
+def test_unpack_dynamic_variables_foreach(
+    mocker: MockerFixture,
+    collection_variables_foreach: TemplateCollectionVariablesV1,
+    each: dict[str, Any],
+) -> None:
+    gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
+    unpack_dynamic_variables(collection_variables_foreach, each, gql)
+    gql.query.assert_called_once_with("query item-0")
+
+
+def test_unpack_dynamic_variables_foreach_error(
+    mocker: MockerFixture,
+    collection_variables_foreach: TemplateCollectionVariablesV1,
+) -> None:
+    gql = mocker.patch("reconcile.templating.renderer.gql.GqlApi", autospec=True)
+    with pytest.raises(Jinja2TemplateError):
+        unpack_dynamic_variables(collection_variables_foreach, {}, gql)
 
 
 def test_join_path() -> None:
@@ -172,13 +263,22 @@ def test_join_path() -> None:
     assert join_path("foo", "/bar") == "foo/bar"
 
 
-def test_local_file_persistence_write(
-    tmp_path: Path, template_input: TemplateInput
-) -> None:
+def test_local_file_persistence_write(tmp_path: Path) -> None:
     os.makedirs(tmp_path / "data")
-    lfp = LocalFilePersistence(str(tmp_path / "data"))
-    lfp.write([TemplateOutput(path="/foo", content="bar", input=template_input)])
+    with LocalFilePersistence(
+        dry_run=False, app_interface_data_path=str(tmp_path / "data")
+    ) as lfp:
+        lfp.write(TemplateOutput(path="/foo", content="bar"))
     assert (tmp_path / "data" / "foo").read_text() == "bar"
+
+
+def test_local_file_persistence_write_dry_run(tmp_path: Path) -> None:
+    os.makedirs(tmp_path / "data")
+    with LocalFilePersistence(
+        dry_run=True, app_interface_data_path=str(tmp_path / "data")
+    ) as lfp:
+        lfp.write(TemplateOutput(path="/foo", content="bar"))
+    assert not (tmp_path / "data" / "foo").exists()
 
 
 def test_local_file_persistence_read(tmp_path: Path) -> None:
@@ -186,100 +286,151 @@ def test_local_file_persistence_read(tmp_path: Path) -> None:
     os.makedirs(data_dir)
     test_file = data_dir / "foo"
     test_file.write_text("hello")
-    lfp = LocalFilePersistence(str(data_dir))
+    lfp = LocalFilePersistence(dry_run=False, app_interface_data_path=str(data_dir))
     assert lfp.read("foo") == "hello"
 
 
 def test_crg_file_persistence_write(
-    mocker: MockerFixture, tmp_path: Path, template_input: TemplateInput
+    vcs: MagicMock,
+    mr_manager: MagicMock,
+    tmp_path: Path,
+    template_result: TemplateResult,
 ) -> None:
-    vcs = mocker.MagicMock(VCS)
-    mr_manager = mocker.MagicMock(MergeRequestManager)
-    output = [TemplateOutput(path="/foo", content="bar", input=template_input)]
-    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
-    crg.write(output)
+    with ClonedRepoGitlabPersistence(
+        dry_run=False, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
+    ) as crg:
+        crg.result = template_result
+        crg.write(TemplateOutput(path="/foo", content="bar"))
 
     mr_manager.housekeeping.assert_called_once()
     mr_manager.create_merge_request.assert_called_once_with(
-        MrData(data=output, auto_approved=False)
+        MrData(result=template_result, auto_approved=False)
+    )
+
+
+def test_crg_file_persistence_write_dry_run(
+    vcs: MagicMock,
+    mr_manager: MagicMock,
+    tmp_path: Path,
+    template_result: TemplateResult,
+) -> None:
+    with ClonedRepoGitlabPersistence(
+        dry_run=True, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
+    ) as crg:
+        crg.result = template_result
+        crg.write(TemplateOutput(path="/foo", content="bar"))
+
+    mr_manager.housekeeping.assert_not_called()
+    mr_manager.create_merge_request.assert_not_called()
+
+
+def test_crg_file_persistence_write_no_auto_approval(
+    vcs: MagicMock,
+    mr_manager: MagicMock,
+    tmp_path: Path,
+    template_result: TemplateResult,
+) -> None:
+    template_result.enable_auto_approval = False
+    with ClonedRepoGitlabPersistence(
+        dry_run=False, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
+    ) as crg:
+        crg.result = template_result
+        tauto = TemplateOutput(path="/foo", content="bar", auto_approved=True)
+        crg.write(tauto)
+        tnoauto = TemplateOutput(path="/foo2", content="bar2", auto_approved=False)
+        crg.write(tnoauto)
+
+    assert crg.result.outputs == [tauto, tnoauto]
+    mr_manager.create_merge_request.assert_called_with(
+        MrData(result=template_result, auto_approved=False)
     )
 
 
 def test_crg_file_persistence_write_auto_approval(
-    mocker: MockerFixture, tmp_path: Path, template_input: TemplateInput
+    tmp_path: Path,
+    template_result: TemplateResult,
+    vcs: MagicMock,
+    mr_manager: MagicMock,
 ) -> None:
-    vcs = mocker.MagicMock(VCS)
-    mr_manager = mocker.MagicMock(MergeRequestManager)
-    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
+    template_result.enable_auto_approval = True
+    with ClonedRepoGitlabPersistence(
+        dry_run=False, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
+    ) as crg:
+        crg.result = template_result
+        tauto = TemplateOutput(path="/foo", content="bar", auto_approved=True)
+        crg.write(tauto)
+        tnoauto = TemplateOutput(path="/foo2", content="bar2", auto_approved=False)
+        crg.write(tnoauto)
 
-    tauto = TemplateOutput(
-        path="/foo", content="bar", auto_approved=True, input=template_input
-    )
-    tnoauto = TemplateOutput(
-        path="/foo2", content="bar2", auto_approved=False, input=template_input
-    )
-    output = [tauto, tnoauto]
-    crg.write(output)
+    assert mr_manager.create_merge_request.call_count == 2
+    mr_manager.create_merge_request.assert_has_calls([
+        call(
+            MrData(
+                result=TemplateResult(
+                    collection=f"{template_result.collection}-auto-approved",
+                    enable_auto_approval=True,
+                    labels=template_result.labels,
+                    outputs=[tauto],
+                ),
+                auto_approved=True,
+            )
+        ),
+        call(
+            MrData(
+                result=TemplateResult(
+                    collection=f"{template_result.collection}-not-auto-approved",
+                    enable_auto_approval=True,
+                    labels=template_result.labels,
+                    outputs=[tnoauto],
+                ),
+                auto_approved=False,
+            )
+        ),
+    ])
 
-    mr_manager.create_merge_request.assert_called_with(
-        MrData(data=output, auto_approved=False)
-    )
 
-    template_input.enable_auto_approval = True
-    output = [tauto, tnoauto]
-
-    crg.write(output)
-
-    mr_manager.create_merge_request.assert_called_with(
-        MrData(data=[tauto], auto_approved=True)
-    )
-
-
-def test_crg_file_persistence_read_found(mocker: MockerFixture, tmp_path: Path) -> None:
-    vcs = mocker.MagicMock(VCS)
+def test_crg_file_persistence_read_found(
+    vcs: MagicMock, mr_manager: MagicMock, tmp_path: Path
+) -> None:
     os.makedirs(tmp_path / "data")
     test_file = tmp_path / "data" / "foo"
     test_file.write_text("hello")
-    mr_manager = mocker.MagicMock(MergeRequestManager)
-    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
-
+    crg = ClonedRepoGitlabPersistence(False, str(tmp_path), vcs, mr_manager)
     assert crg.read("foo") == "hello"
 
 
-def test_crg_file_persistence_read_miss(mocker: MockerFixture, tmp_path: Path) -> None:
-    vcs = mocker.MagicMock(VCS)
+def test_crg_file_persistence_read_miss(
+    vcs: MagicMock, mr_manager: MagicMock, tmp_path: Path
+) -> None:
     vcs.get_file_content_from_app_interface_master.side_effect = GitlabGetError()
-    mr_manager = mocker.MagicMock(MergeRequestManager)
-    crg = ClonedRepoGitlabPersistence(str(tmp_path), vcs, mr_manager)
-
+    crg = ClonedRepoGitlabPersistence(False, str(tmp_path), vcs, mr_manager)
     assert crg.read("foo") is None
 
 
-def test_persistence_transaction_dry_run(
-    mocker: MockerFixture, template_input: TemplateInput
-) -> None:
-    test_path = "foo"
+def test_persistence_transaction_dry_run(mocker: MockerFixture) -> None:
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
+    output = TemplateOutput(path="foo", content="updated_value")
+    output2 = TemplateOutput(path="foo2", content="updated_value")
 
-    output = TemplateOutput(
-        path=test_path, content="updated_value", input=template_input
-    )
-
-    with PersistenceTransaction(persistence_mock, True) as p:
-        p.write([])
-        p.write([output])
+    persistence_mock.dry_run = True
+    with PersistenceTransaction(persistence_mock) as p:
+        p.write(output)
     persistence_mock.write.assert_not_called()
 
-    with PersistenceTransaction(persistence_mock, False) as p:
-        p.write([])
-        p.write([output])
-    persistence_mock.write.assert_called_once()
+    persistence_mock.dry_run = False
+    print(persistence_mock.dry_run)
+    with PersistenceTransaction(persistence_mock) as p:
+        p.write(output)
+        p.write(output2)
+    assert persistence_mock.write.call_count == 2
+    persistence_mock.write.assert_has_calls([mocker.call(output), mocker.call(output2)])
 
 
 def test_persistence_transaction_read(mocker: MockerFixture) -> None:
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
     persistence_mock.read.return_value = "foo"
-    p = PersistenceTransaction(persistence_mock, False)
+    persistence_mock.dry_run = False
+    p = PersistenceTransaction(persistence_mock)
     p.read("foo")
     p.read("foo")
 
@@ -288,20 +439,18 @@ def test_persistence_transaction_read(mocker: MockerFixture) -> None:
 
 
 def test_persistence_transaction_write(
-    mocker: MockerFixture, template_input: TemplateInput
+    mocker: MockerFixture,
 ) -> None:
     test_path = "foo"
     persistence_mock = mocker.MagicMock(LocalFilePersistence)
     persistence_mock.read.return_value = "initial_value"
-    p = PersistenceTransaction(persistence_mock, False)
+    persistence_mock.dry_run = False
+    p = PersistenceTransaction(persistence_mock)
     p.read(test_path)
     assert p.content_cache == {test_path: "initial_value"}
 
-    output = TemplateOutput(
-        path=test_path, content="updated_value", input=template_input
-    )
-    p.write([])
-    p.write([output])
+    output = TemplateOutput(path=test_path, content="updated_value")
+    p.write(output)
 
     assert p.output_cache == {output.path: output}
     assert p.content_cache == {test_path: "updated_value"}
@@ -314,12 +463,11 @@ def test_process_template_simple(
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
     secret_reader: SecretReader,
-    template_input: TemplateInput,
 ) -> None:
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     t._secret_reader = secret_reader
     output = t.process_template(
-        template_simple, {}, local_file_persistence, ruaml_instance, template_input
+        template_simple, {}, local_file_persistence, ruaml_instance
     )
     assert output
     assert output.path == "/target_path"
@@ -331,15 +479,12 @@ def test_process_template_overwrite(
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
     secret_reader: SecretReader,
-    template_input: TemplateInput,
 ) -> None:
-    local_file_persistence.write([
-        TemplateOutput(path="/target_path", content="bar", input=template_input)
-    ])
+    local_file_persistence.write(TemplateOutput(path="/target_path", content="bar"))
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     t._secret_reader = secret_reader
     output = t.process_template(
-        template_simple, {}, local_file_persistence, ruaml_instance, template_input
+        template_simple, {}, local_file_persistence, ruaml_instance
     )
     assert output
     assert output.path == "/target_path"
@@ -351,14 +496,11 @@ def test_process_template_patch_fail(
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
     secret_reader: SecretReader,
-    template_input: TemplateInput,
 ) -> None:
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     t._secret_reader = secret_reader
     with pytest.raises(ValueError, match="Can not patch non-existing file"):
-        t.process_template(
-            template_patch, {}, local_file_persistence, ruaml_instance, template_input
-        )
+        t.process_template(template_patch, {}, local_file_persistence, ruaml_instance)
 
 
 def test_process_template_wrong_condition(
@@ -366,20 +508,19 @@ def test_process_template_wrong_condition(
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
     secret_reader: SecretReader,
-    template_input: TemplateInput,
 ) -> None:
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     t._secret_reader = secret_reader
 
     template_simple.condition = "{{ false }}"
     output = t.process_template(
-        template_simple, {}, local_file_persistence, ruaml_instance, template_input
+        template_simple, {}, local_file_persistence, ruaml_instance
     )
     assert output is None
 
     template_simple.condition = "{{ true }}"
     output = t.process_template(
-        template_simple, {}, local_file_persistence, ruaml_instance, template_input
+        template_simple, {}, local_file_persistence, ruaml_instance
     )
     # just assert some output is comming back, content does not matter for this case
     assert output is not None
@@ -394,11 +535,7 @@ def test_reconcile_simple(
     gtc.return_value = [template_collection]
 
     t, p, r, pt = reconcile_mocks
-    t.reconcile(
-        False,
-        p,
-        r,
-    )
+    t.reconcile(p, r)
 
     pt.assert_called_once()
     assert pt.call_args[0] == (
@@ -409,13 +546,12 @@ def test_reconcile_simple(
             patch=None,
             template="template",
             autoApproved=None,
+            templateRenderOptions=None,
         ),
         {},
         ANY,
         r,
-        ANY,
     )
-    p.write.assert_called_once()
 
 
 def test_reconcile_twice(
@@ -427,32 +563,9 @@ def test_reconcile_twice(
 
     gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
     gtc.return_value = [template_collection, template_collection]
-    t.reconcile(
-        False,
-        p,
-        r,
-    )
+    t.reconcile(p, r)
 
     assert pt.call_count == 2
-    assert p.write.call_count == 2
-
-
-def test_reconcile_dry_run(
-    mocker: MockerFixture,
-    reconcile_mocks: tuple,
-    template_collection: TemplateCollectionV1,
-) -> None:
-    t, p, r, pt = reconcile_mocks
-    gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
-    gtc.return_value = [template_collection, template_collection]
-    t.reconcile(
-        True,
-        p,
-        r,
-    )
-
-    assert pt.call_count == 2
-    assert p.write.call_count == 0
 
 
 def test_reconcile_variables(
@@ -473,11 +586,7 @@ def test_reconcile_variables(
     usv = mocker.patch("reconcile.templating.renderer.unpack_static_variables")
     usv.return_value = {"baz": "qux"}
 
-    t.reconcile(
-        True,
-        p,
-        r,
-    )
+    t.reconcile(p, r)
 
     pt.assert_called_once()
     assert pt.call_args[0] == (
@@ -485,16 +594,17 @@ def test_reconcile_variables(
         {"dynamic": {"foo": "bar"}, "static": {"baz": "qux"}},
         ANY,
         r,
-        ANY,
     )
 
 
-def test__calc_template_hash(template_collection: TemplateCollectionV1) -> None:
+def test__calc_result_hash(template_result: TemplateResult) -> None:
+    template_result.outputs = [TemplateOutput(path="/target_path", content="bar")]
     assert (
-        calc_template_hash(template_collection, {"foo": "bar"})
-        == "53f3aae861cd9cf2cae255276670f8a69923c1c3f7eec05deb30264414613dcf"
+        template_result.calc_result_hash()
+        == "3200b658845422f81a0abf1366289487e4223147c600b05be3a7ba02a44cddea"
     )
+    template_result.outputs = [TemplateOutput(path="/target_path", content="foo")]
     assert (
-        calc_template_hash(template_collection, {"foo": "baz"})
-        == "21c114ed34b09ad63973de146ef0f9387f919157e7acb53ddc333a92a9d0f531"
+        template_result.calc_result_hash()
+        == "f0b8efdbeb2145808f3f8abe175b3e8eb971e1c86d35fc92dc598911d9d92eaa"
     )

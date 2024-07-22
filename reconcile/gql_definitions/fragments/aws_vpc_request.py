@@ -27,6 +27,12 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
+class DeletionApprovalV1(ConfiguredBaseModel):
+    q_type: str = Field(..., alias="type")
+    name: str = Field(..., alias="name")
+    expiration: str = Field(..., alias="expiration")
+
+
 class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     uid: str = Field(..., alias="uid")
@@ -36,6 +42,8 @@ class AWSAccountV1(ConfiguredBaseModel):
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
     provider_version: str = Field(..., alias="providerVersion")
     terraform_state: Optional[TerraformState] = Field(..., alias="terraformState")
+    enable_deletion: Optional[bool] = Field(..., alias="enableDeletion")
+    deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(..., alias="deletionApprovals")
 
 
 class NetworkV1(ConfiguredBaseModel):
@@ -50,6 +58,7 @@ class VPCRequestSubnetsListsV1(ConfiguredBaseModel):
 
 class VPCRequest(ConfiguredBaseModel):
     identifier: str = Field(..., alias="identifier")
+    delete: Optional[bool] = Field(..., alias="delete")
     account: AWSAccountV1 = Field(..., alias="account")
     region: str = Field(..., alias="region")
     cidr_block: NetworkV1 = Field(..., alias="cidr_block")

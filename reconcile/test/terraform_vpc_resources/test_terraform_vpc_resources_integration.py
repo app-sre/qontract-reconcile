@@ -15,7 +15,6 @@ from reconcile.gql_definitions.fragments.aws_vpc_request import (
 )
 from reconcile.status import ExitCodes
 from reconcile.terraform_vpc_resources.integration import (
-    NoManagedVPCForAccount,
     TerraformVpcResources,
     TerraformVpcResourcesParams,
 )
@@ -92,18 +91,18 @@ def mock_terraform_client(mocker: MockerFixture) -> MockerFixture:
     mocked_tf_client = mocker.patch(
         "reconcile.terraform_vpc_resources.integration.TerraformClient", autospec=True
     )
-    mocked_tf_client.return_value.plan.return_value = False, None
+    mocked_tf_client.return_value.safe_plan.return_value = None
     return mocked_tf_client
 
 
 def secret_reader_side_effect(*args: Any) -> dict[str, Any] | None:
     """Mocking a secret reader call for aws account credentials"""
-    if {
+    if args[0] == {
         "path": "some-path",
         "field": "some-field",
         "version": None,
         "format": None,
-    } == args[0]:
+    }:
         return {
             "aws_access_key_id": "key_id",
             "aws_secret_access_key": "access_key",
@@ -114,32 +113,6 @@ def secret_reader_side_effect(*args: Any) -> dict[str, Any] | None:
 
     # Just to make testing this easier and fail faster
     raise Exception("Argument error")
-
-
-def test_log_message_for_no_vpc_requests(
-    mocker: MockerFixture,
-    caplog: pytest.LogCaptureFixture,
-    gql_class_factory: Callable,
-    mock_gql: MockerFixture,
-    mock_app_interface_vault_settings: MockerFixture,
-    mock_create_secret_reader: MockerFixture,
-) -> None:
-    # Mock a query response without any accounts
-    mocked_query = mocker.patch(
-        "reconcile.terraform_vpc_resources.integration.get_aws_vpc_requests",
-        autospec=True,
-    )
-    mocked_query.return_value = []
-
-    params = TerraformVpcResourcesParams(
-        account_name=None, print_to_file=None, thread_pool_size=1
-    )
-    with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
-        TerraformVpcResources(params).run(dry_run=True)
-    assert sample.value.code == ExitCodes.SUCCESS
-    assert ["No VPC requests found, nothing to do."] == [
-        rec.message for rec in caplog.records
-    ]
 
 
 def test_log_message_for_accounts_having_vpc_requests(
@@ -162,15 +135,15 @@ def test_log_message_for_accounts_having_vpc_requests(
         account_name=account_name, print_to_file=None, thread_pool_size=1
     )
     with (
-        caplog.at_level(logging.INFO),
-        pytest.raises(NoManagedVPCForAccount) as execption,
+        caplog.at_level(logging.DEBUG),
+        pytest.raises(SystemExit) as sample,
     ):
         TerraformVpcResources(params).run(dry_run=True)
 
     error_msg = (
         f"The account {account_name} doesn't have any managed vpc. Verify your input"
     )
-    assert execption.match(error_msg)
+    assert sample.value.code == ExitCodes.SUCCESS
     assert [error_msg] == [rec.message for rec in caplog.records]
 
 

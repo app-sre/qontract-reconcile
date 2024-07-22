@@ -19,12 +19,15 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query TemplateCollection_v1 {
-  template_collection_v1 {
+query TemplateCollection_v1($name: String) {
+  template_collection_v1(name: $name) {
     name
     additionalMrLabels
     description
     enableAutoApproval
+    forEach {
+      items
+    }
     variables {
       static
       dynamic {
@@ -42,6 +45,11 @@ query TemplateCollection_v1 {
         identifier
       }
       template
+      templateRenderOptions {
+        trimBlocks
+        lstripBlocks
+        keepTrailingNewline
+      }
     }
   }
 }
@@ -52,6 +60,10 @@ class ConfiguredBaseModel(BaseModel):
     class Config:
         smart_union=True
         extra=Extra.forbid
+
+
+class TemplateCollectionForEachV1(ConfiguredBaseModel):
+    items: list[Json] = Field(..., alias="items")
 
 
 class TemplateCollectionVariablesQueriesV1(ConfiguredBaseModel):
@@ -69,6 +81,12 @@ class TemplatePatchV1(ConfiguredBaseModel):
     identifier: Optional[str] = Field(..., alias="identifier")
 
 
+class TemplateRenderOptionsV1(ConfiguredBaseModel):
+    trim_blocks: Optional[bool] = Field(..., alias="trimBlocks")
+    lstrip_blocks: Optional[bool] = Field(..., alias="lstripBlocks")
+    keep_trailing_newline: Optional[bool] = Field(..., alias="keepTrailingNewline")
+
+
 class TemplateV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     auto_approved: Optional[bool] = Field(..., alias="autoApproved")
@@ -76,6 +94,7 @@ class TemplateV1(ConfiguredBaseModel):
     target_path: str = Field(..., alias="targetPath")
     patch: Optional[TemplatePatchV1] = Field(..., alias="patch")
     template: str = Field(..., alias="template")
+    template_render_options: Optional[TemplateRenderOptionsV1] = Field(..., alias="templateRenderOptions")
 
 
 class TemplateCollectionV1(ConfiguredBaseModel):
@@ -83,6 +102,7 @@ class TemplateCollectionV1(ConfiguredBaseModel):
     additional_mr_labels: Optional[list[str]] = Field(..., alias="additionalMrLabels")
     description: str = Field(..., alias="description")
     enable_auto_approval: Optional[bool] = Field(..., alias="enableAutoApproval")
+    for_each: Optional[TemplateCollectionForEachV1] = Field(..., alias="forEach")
     variables: Optional[TemplateCollectionVariablesV1] = Field(..., alias="variables")
     templates: list[TemplateV1] = Field(..., alias="templates")
 

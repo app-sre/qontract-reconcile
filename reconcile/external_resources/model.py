@@ -1,4 +1,3 @@
-import base64
 import hashlib
 import json
 from abc import (
@@ -9,7 +8,7 @@ from collections.abc import (
     Iterator,
     MutableMapping,
 )
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
@@ -82,13 +81,12 @@ class ExternalResourcesInventory(MutableMapping):
             for (p, ns) in desired_providers
             for r in p.resources
             if isinstance(
-                r, (NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRoleV1)
+                r, NamespaceTerraformResourceRDSV1 | NamespaceTerraformResourceRoleV1
             )
             and r.managed_by_erv2
         ]
 
         for spec in desired_specs:
-            # self.set(ExternalResourceKey.from_spec(spec), spec)
             self._inventory[ExternalResourceKey.from_spec(spec)] = spec
 
     def __getitem__(self, key: ExternalResourceKey) -> ExternalResourceSpec | None:
@@ -120,10 +118,10 @@ class ExternalResourcesInventory(MutableMapping):
             return self._inventory[key]
         except KeyError:
             msg = f"Resource spec not found: Provider {provider}, Id: {identifier}"
-            raise FetchResourceError(msg)
+            raise FetchResourceError(msg) from None
 
 
-class Action(str, Enum):
+class Action(StrEnum):
     DESTROY: str = "Destroy"
     APPLY: str = "Apply"
 
@@ -239,6 +237,3 @@ class ExternalResource(BaseModel):
         return hashlib.md5(
             json.dumps(self.data, sort_keys=True).encode("utf-8")
         ).hexdigest()
-
-    def serialize_input(self) -> str:
-        return base64.b64encode(json.dumps(self.dict()).encode()).decode()

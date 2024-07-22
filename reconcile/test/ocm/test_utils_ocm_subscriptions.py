@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 
 from reconcile.test.ocm.fixtures import OcmUrl
 from reconcile.test.ocm.test_utils_ocm_labels import build_subscription_label
@@ -18,11 +17,11 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 def build_ocm_subscription(
     name: str,
     org_id: str = "org_id",
-    cluster_id: Optional[str] = None,
+    cluster_id: str | None = None,
     managed: bool = True,
     status: str = "Active",
-    capabilities: Optional[list[tuple[str, str]]] = None,
-    labels: Optional[list[tuple[str, str]]] = None,
+    capabilities: list[tuple[str, str]] | None = None,
+    labels: list[tuple[str, str]] | None = None,
 ) -> OCMSubscription:
     id = f"{name}-id"
     return OCMSubscription(

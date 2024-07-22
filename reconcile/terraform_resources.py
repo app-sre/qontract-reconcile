@@ -1,15 +1,14 @@
 import logging
 from collections.abc import (
     Callable,
+    Collection,
     Iterable,
     Mapping,
+    Sequence,
 )
 from dataclasses import asdict
 from typing import (
     Any,
-    Collection,
-    Optional,
-    Sequence,
     TypedDict,
     cast,
 )
@@ -67,12 +66,12 @@ from reconcile.utils.vault import (
 )
 
 QONTRACT_INTEGRATION = "terraform_resources"
-QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 3)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 5)
 QONTRACT_TF_PREFIX = "qrtf"
 
 
 def get_tf_namespaces(
-    account_names: Optional[Iterable[str]] = None,
+    account_names: Iterable[str] | None = None,
 ) -> list[NamespaceV1]:
     namespaces = get_namespaces()
     return filter_tf_namespaces(namespaces, account_names)
@@ -81,7 +80,7 @@ def get_tf_namespaces(
 def populate_oc_resources(
     spec: ob.CurrentStateSpec,
     ri: ResourceInventory,
-    account_names: Optional[Iterable[str]],
+    account_names: Iterable[str] | None,
 ) -> None:
     if spec.oc is None:
         return
@@ -124,9 +123,9 @@ def populate_oc_resources(
 def fetch_current_state(
     namespaces: Iterable[NamespaceV1],
     thread_pool_size: int,
-    internal: Optional[bool],
+    internal: bool | None,
     use_jump_host: bool,
-    account_names: Optional[Iterable[str]],
+    account_names: Iterable[str] | None,
     secret_reader: SecretReaderBase,
 ) -> tuple[ResourceInventory, OCMap]:
     ri = ResourceInventory()
@@ -159,7 +158,7 @@ def fetch_current_state(
 def init_working_dirs(
     accounts: list[dict[str, Any]],
     thread_pool_size: int,
-    settings: Optional[Mapping[str, Any]] = None,
+    settings: Mapping[str, Any] | None = None,
 ) -> tuple[Terrascript, dict[str, str]]:
     ts = Terrascript(
         QONTRACT_INTEGRATION,
@@ -195,8 +194,8 @@ def validate_account_names(
 
 def get_aws_accounts(
     dry_run: bool,
-    include_accounts: Optional[Collection[str]],
-    exclude_accounts: Optional[Collection[str]],
+    include_accounts: Collection[str] | None,
+    exclude_accounts: Collection[str] | None,
 ) -> list[dict[str, Any]]:
     if exclude_accounts and not dry_run:
         message = "--exclude-accounts is only supported in dry-run mode"
@@ -236,7 +235,7 @@ def setup(
     accounts: list[dict[str, Any]],
     account_names: set[str],
     tf_namespaces: list[NamespaceV1],
-    print_to_file: Optional[str],
+    print_to_file: str | None,
     thread_pool_size: int,
 ) -> tuple[Terraform, TerrascriptClient, SecretReaderBase]:
     vault_settings = get_app_interface_vault_settings()
@@ -277,7 +276,7 @@ def setup(
 
 
 def filter_tf_namespaces(
-    namespaces: Iterable[NamespaceV1], account_names: Optional[Iterable[str]]
+    namespaces: Iterable[NamespaceV1], account_names: Iterable[str] | None
 ) -> list[NamespaceV1]:
     tf_namespaces = []
     for namespace_info in namespaces:
@@ -360,19 +359,19 @@ class CacheSource(TypedDict):
 @defer
 def run(
     dry_run: bool,
-    print_to_file: Optional[str] = None,
+    print_to_file: str | None = None,
     enable_deletion: bool = False,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
     light: bool = False,
     vault_output_path: str = "",
-    account_name: Optional[Sequence[str]] = None,
-    exclude_accounts: Optional[Sequence[str]] = None,
+    account_name: Sequence[str] | None = None,
+    exclude_accounts: Sequence[str] | None = None,
     enable_extended_early_exit: bool = False,
     extended_early_exit_cache_ttl_seconds: int = 3600,
     log_cached_log_output: bool = False,
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> None:
     # account_name is a tuple of account names for more detail go to
     # https://click.palletsprojects.com/en/8.1.x/options/#multiple-options
@@ -400,22 +399,22 @@ def run(
     if print_to_file:
         return
 
-    runner_params: RunnerParams = dict(
-        accounts=accounts,
-        account_names=account_names,
-        tf_namespaces=tf_namespaces,
-        tf=tf,
-        ts=ts,
-        secret_reader=secret_reader,
-        dry_run=dry_run,
-        enable_deletion=enable_deletion,
-        thread_pool_size=thread_pool_size,
-        internal=internal,
-        use_jump_host=use_jump_host,
-        light=light,
-        vault_output_path=vault_output_path,
-        defer=defer,
-    )
+    runner_params: RunnerParams = {
+        "accounts": accounts,
+        "account_names": account_names,
+        "tf_namespaces": tf_namespaces,
+        "tf": tf,
+        "ts": ts,
+        "secret_reader": secret_reader,
+        "dry_run": dry_run,
+        "enable_deletion": enable_deletion,
+        "thread_pool_size": thread_pool_size,
+        "internal": internal,
+        "use_jump_host": use_jump_host,
+        "light": light,
+        "vault_output_path": vault_output_path,
+        "defer": defer,
+    }
 
     if enable_extended_early_exit and get_feature_toggle_state(
         "terraform-resources-extended-early-exit",
@@ -452,11 +451,11 @@ class RunnerParams(TypedDict):
     dry_run: bool
     enable_deletion: bool
     thread_pool_size: int
-    internal: Optional[bool]
+    internal: bool | None
     use_jump_host: bool
     light: bool
     vault_output_path: str
-    defer: Optional[Callable]
+    defer: Callable | None
 
 
 def runner(
@@ -469,11 +468,11 @@ def runner(
     dry_run: bool,
     enable_deletion: bool = False,
     thread_pool_size: int = 10,
-    internal: Optional[bool] = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
     light: bool = False,
     vault_output_path: str = "",
-    defer: Optional[Callable] = None,
+    defer: Callable | None = None,
 ) -> ExtendedEarlyExitRunnerResult:
     if not light:
         disabled_deletions_detected, err = tf.plan(enable_deletion)

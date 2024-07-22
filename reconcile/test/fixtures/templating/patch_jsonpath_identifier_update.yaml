@@ -1,0 +1,35 @@
+---
+template:
+  name: update file
+
+  targetPath: /some/saas/deploy.yml
+
+  patch:
+    path: "$.openshiftResources"
+    identifier: $.variables.name
+
+  template: |
+    provider: resource-template
+    path: /what/ever/it/is.yml
+    variables:
+      name: {{ bar }}
+      just-a-variable: just-a-value
+      just-a-variable2: just-a-value2
+
+  templateTest: []
+current:
+  openshiftResources:
+  - provider: resource-template
+    path: /what/ever/it/is.yml
+    variables:
+      name: bar
+
+expected: |
+  ---
+  openshiftResources:
+  - provider: resource-template
+    path: /what/ever/it/is.yml
+    variables:
+      name: bar
+      just-a-variable: just-a-value
+      just-a-variable2: just-a-value2

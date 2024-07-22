@@ -68,15 +68,17 @@ class MRParser:
         - MR has merge conflicts
         """
         all_open_mrs = self._vcs.get_open_app_interface_merge_requests()
-        sapm_mrs = [mr for mr in all_open_mrs if label in mr.attributes.get("labels")]
+        sapm_mrs = [
+            mr for mr in all_open_mrs if label in mr.attributes.get("labels", [])
+        ]
         open_batcher_mrs: list[ProjectMergeRequest] = []
         open_scheduler_mrs: list[ProjectMergeRequest] = []
 
         for mr in sapm_mrs:
             attrs = mr.attributes
-            desc = attrs.get("description")
+            desc = str(attrs.get("description", ""))
             parts = desc.split(PROMOTION_DATA_SEPARATOR)
-            if not len(parts) == 2:
+            if len(parts) != 2:
                 logging.info(
                     "Bad data separator format. Closing %s",
                     mr.attributes.get("web_url", "NO_WEBURL"),
@@ -142,10 +144,10 @@ class MRParser:
         seen: set[tuple[str, str]] = set()
         for mr in mrs:
             attrs = mr.attributes
-            desc = attrs.get("description")
+            desc = str(attrs.get("description", ""))
             parts = desc.split(PROMOTION_DATA_SEPARATOR)
             promotion_data = parts[1]
-            has_conflicts = attrs.get("has_conflicts", False)
+            has_conflicts = bool(attrs.get("has_conflicts", False))
             if has_conflicts:
                 logging.info(
                     "Merge-conflict detected. Closing %s",
@@ -200,7 +202,7 @@ class MRParser:
             is_batchable_str = self._apply_regex(
                 pattern=self._is_batchable_regex, promotion_data=promotion_data
             )
-            if is_batchable_str not in set(["True", "False"]):
+            if is_batchable_str not in {"True", "False"}:
                 logging.info(
                     "Bad %s format. Closing %s",
                     IS_BATCHABLE,

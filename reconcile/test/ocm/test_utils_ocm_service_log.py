@@ -1,10 +1,9 @@
 from collections.abc import Callable
 from datetime import (
+    UTC,
     datetime,
     timedelta,
-    timezone,
 )
-from typing import Optional
 
 import pytest
 from pytest_mock import MockerFixture
@@ -36,7 +35,7 @@ def build_service_log(
     cluster_uuid: str = "",
     service_name: str = "some-service",
     severity: OCMServiceLogSeverity = OCMServiceLogSeverity.Info,
-    timestamp: datetime = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc),
+    timestamp: datetime = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC),
 ) -> OCMClusterServiceLog:
     return OCMClusterServiceLog(
         id="",
@@ -75,7 +74,7 @@ def example_service_log(
 def test_get_service_logs_for_cluster_uuid(
     ocm_api: OCMBaseClient,
     example_service_log: OCMClusterServiceLog,
-    find_ocm_http_request: Callable[[str, str], Optional[Request]],
+    find_ocm_http_request: Callable[[str, str], Request | None],
 ) -> None:
     cluster_uuid = "cluster_uuid"
     fetched_logs = list(
@@ -93,7 +92,7 @@ def test_get_service_logs_for_cluster_uuid(
 def test_get_service_logs_for_cluster_uuid_with_filter(
     ocm_api: OCMBaseClient,
     example_service_log: OCMClusterServiceLog,
-    find_ocm_http_request: Callable[[str, str], Optional[Request]],
+    find_ocm_http_request: Callable[[str, str], Request | None],
 ) -> None:
     cluster_uuid = "cluster_uuid"
     service_filter = Filter().eq("service_name", "some-service")
@@ -114,9 +113,9 @@ def test_get_service_logs_for_cluster_uuid_with_filter(
 def test_create_service_log(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_ocm_http_request: Callable[[str, str], Optional[Request]],
+    find_ocm_http_request: Callable[[str, str], Request | None],
 ) -> None:
-    timestamp = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=timezone.utc)
+    timestamp = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC)
     register_ocm_url_responses([
         OcmUrl(
             method="POST",
@@ -192,7 +191,7 @@ def test_create_service_log_dedup_timedelta_filter(
 def test_create_service_log_dedup(
     ocm_api: OCMBaseClient,
     example_service_log: OCMClusterServiceLog,
-    find_ocm_http_request: Callable[[str, str], Optional[Request]],
+    find_ocm_http_request: Callable[[str, str], Request | None],
 ) -> None:
     create_service_log(
         ocm_api=ocm_api,
@@ -212,7 +211,7 @@ def test_create_service_log_dedup(
 def test_create_service_log_dedup_no_dup(
     ocm_api: OCMBaseClient,
     register_ocm_url_responses: Callable[[list[OcmUrl]], int],
-    find_ocm_http_request: Callable[[str, str], Optional[Request]],
+    find_ocm_http_request: Callable[[str, str], Request | None],
 ) -> None:
     register_ocm_url_responses([
         OcmUrl(

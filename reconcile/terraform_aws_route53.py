@@ -4,10 +4,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
@@ -206,10 +203,10 @@ def build_desired_state(
 @defer
 def run(
     dry_run: bool = False,
-    print_to_file: Optional[str] = None,
+    print_to_file: str | None = None,
     enable_deletion: bool = True,
     thread_pool_size: int = 10,
-    account_name: Optional[str] = None,
+    account_name: str | None = None,
     defer=None,
 ):
     settings = queries.get_app_interface_settings()

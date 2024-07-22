@@ -6,6 +6,7 @@ users:
     slack_username: user1-slack-username
     pagerduty_username: user1-pagerduty-username
     tag_on_cluster_updates: null
+    tag_on_merge_requests: null
     roles:
       - tag_on_cluster_updates: null
         access:
@@ -18,6 +19,7 @@ users:
     slack_username: user2-slack-username
     pagerduty_username: user2-pagerduty-username
     tag_on_cluster_updates: null
+    tag_on_merge_requests: null
     roles:
       - tag_on_cluster_updates: null
         access:

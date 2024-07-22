@@ -2,8 +2,8 @@ import collections
 import itertools
 import os
 import textwrap
-from collections.abc import Iterable
-from typing import Any, Callable, Optional
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from kubernetes.client import (
     V1Container,
@@ -42,13 +42,13 @@ class LogHandle:
     ) -> Iterable[str]:
         if max_lines <= 0:
             return []
-        with open(self.log_file, "r", encoding="utf-8") as f:
+        with open(self.log_file, encoding="utf-8") as f:
             if from_file_end:
                 return collections.deque(f, maxlen=max_lines)
             return [line.rstrip() for line in itertools.islice(f, max_lines)]
 
     def write_logs_to_logger(self, logger: Callable[..., None]) -> None:
-        with open(self.log_file, "r", encoding="utf-8") as f:
+        with open(self.log_file, encoding="utf-8") as f:
             logger(f.read())
 
     def exists(self) -> bool:
@@ -67,7 +67,7 @@ class RosaCliResult:
         self,
         status: JobStatus,
         command: str,
-        log_handle: Optional[LogHandle] = None,
+        log_handle: LogHandle | None = None,
     ) -> None:
         self.status = status
         self.command = command
@@ -100,7 +100,7 @@ class RosaCliException(Exception, RosaCliResult):
         self,
         status: JobStatus,
         command: str,
-        log_handle: Optional[LogHandle] = None,
+        log_handle: LogHandle | None = None,
     ) -> None:
         Exception.__init__(
             self, f"ROSA CLI execution failed with status: {status}, cmd: {command}"

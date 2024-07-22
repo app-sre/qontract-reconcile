@@ -4,10 +4,7 @@ from collections.abc import (
     Mapping,
     MutableMapping,
 )
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 
 import anymarkup
 
@@ -27,7 +24,7 @@ PROVIDER_CLOUDFLARE = "cloudflare"
 
 
 def get_external_resource_specs(
-    namespace_info: Mapping[str, Any], provision_provider: Optional[str] = None
+    namespace_info: Mapping[str, Any], provision_provider: str | None = None
 ) -> list[ExternalResourceSpec]:
     specs: list[ExternalResourceSpec] = []
     if not managed_external_resources(namespace_info):
@@ -65,10 +62,7 @@ def get_provision_providers(namespace_info: Mapping[str, Any]) -> set[str]:
 
 
 def managed_external_resources(namespace_info: Mapping[str, Any]) -> bool:
-    if namespace_info.get("managedExternalResources"):
-        return True
-
-    return False
+    return bool(namespace_info.get("managedExternalResources"))
 
 
 def get_inventory_count_combinations(
@@ -121,7 +115,7 @@ class ResourceValueResolver:
     def __init__(
         self,
         spec: ExternalResourceSpec,
-        integration_tag: Optional[str] = None,
+        integration_tag: str | None = None,
         identifier_as_value: bool = False,
     ):
         """
@@ -144,7 +138,7 @@ class ResourceValueResolver:
         resource = self._spec.resource
 
         keys_to_add = [
-            key for key in self._spec.resource.keys() if key not in self._IGNORE_KEYS
+            key for key in self._spec.resource if key not in self._IGNORE_KEYS
         ]
 
         defaults_path = resource.get("defaults", None)
@@ -179,7 +173,7 @@ class ResourceValueResolver:
             values.pop("$schema", None)
         except anymarkup.AnyMarkupError:
             e_msg = "Could not parse data. Skipping resource: {}"
-            raise FetchResourceError(e_msg.format(path))
+            raise FetchResourceError(e_msg.format(path)) from None
         return values
 
     @staticmethod
@@ -188,7 +182,7 @@ class ResourceValueResolver:
         try:
             raw_values = gqlapi.get_resource(path)
         except gql.GqlGetResourceError as e:
-            raise FetchResourceError(str(e))
+            raise FetchResourceError(str(e)) from e
         return raw_values
 
     @staticmethod
@@ -207,7 +201,7 @@ class ResourceValueResolver:
 
     @staticmethod
     def _override_values(
-        values: MutableMapping[str, Any], overrides: Optional[str]
+        values: MutableMapping[str, Any], overrides: str | None
     ) -> None:
         if overrides is None:
             return

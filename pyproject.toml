@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 88
 target-version = 'py311'
-required-version = "0.4.5"
+required-version = "0.5.1"
 
 src = ["reconcile", "tools", "release", "dockerfiles/hack", "setup.py"]
 extend-exclude = ["reconcile/gql_definitions"]
@@ -20,6 +20,14 @@ extend-select = [
     "I",
     # pylint
     "PL",
+    # pyupgrade
+    "UP",
+    # flake8-simply
+    "SIM",
+    # flake8-bugbear
+    "B",
+    # flake8-comprehensions
+    "C4",
 
 ]
 ignore = [
@@ -35,6 +43,9 @@ ignore = [
     "PLR6301", # Method XXX could be a function, class method, or static method
     "PLW1641", # Object does not implement `__hash__` method
     "PLW2901", # `for` loop variable `v` overwritten by assignment target
+    "UP031",   # Use format specifiers instead of percent format
+    "SIM102",  # Use a single `if` statement instead of nested `if` statements
+    "B017",    #`pytest.raises(Exception)` should be considered evil
 ]
 [tool.ruff.format]
 preview = true
@@ -116,11 +127,8 @@ module = [
     "reconcile.openshift_namespace_labels",
     "reconcile.openshift_network_policies",
     "reconcile.openshift_resourcequotas",
-    "reconcile.openshift_resources_base",
-    "reconcile.openshift_resources",
     "reconcile.openshift_rolebindings",
     "reconcile.openshift_routes",
-    "reconcile.openshift_serviceaccount_tokens",
     "reconcile.openshift_vault_secrets",
     "reconcile.quay_base",
     "reconcile.quay_membership",

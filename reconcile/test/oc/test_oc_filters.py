@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Optional
 
 import pytest
 
@@ -111,8 +110,8 @@ class Namespace:
 )
 def test_filter_namespaces_by_cluster_and_namespace(
     namespaces: Iterable[Namespace],
-    cluster_names: Optional[Iterable[str]],
-    namespace_names: Optional[Iterable[str]],
+    cluster_names: Iterable[str] | None,
+    namespace_names: Iterable[str] | None,
     expected: Iterable[Namespace],
 ) -> None:
     result = filter_namespaces_by_cluster_and_namespace(

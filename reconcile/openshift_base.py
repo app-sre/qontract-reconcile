@@ -12,9 +12,7 @@ from dataclasses import (
 )
 from typing import (
     Any,
-    Optional,
     Protocol,
-    Union,
     runtime_checkable,
 )
 
@@ -40,6 +38,7 @@ from reconcile.utils.oc import (
     OCClient,
     OCLogMsg,
     PrimaryClusterIPCanNotBeUnsetError,
+    RequestEntityTooLargeError,
     StatefulSetUpdateForbidden,
     StatusCodeError,
     UnsupportedMediaTypeError,
@@ -73,7 +72,7 @@ class BaseStateSpec:
 @dataclass
 class CurrentStateSpec(BaseStateSpec):
     kind: str
-    resource_names: Optional[Iterable[str]]
+    resource_names: Iterable[str] | None
 
 
 @dataclass
@@ -83,7 +82,7 @@ class DesiredStateSpec(BaseStateSpec):
     privileged: bool = False
 
 
-StateSpec = Union[CurrentStateSpec, DesiredStateSpec]
+StateSpec = CurrentStateSpec | DesiredStateSpec
 
 
 @runtime_checkable
@@ -113,7 +112,7 @@ class HasOrgAndGithubUsername(Protocol):
 class ClusterMap(Protocol):
     """An OCMap protocol."""
 
-    def get(self, cluster: str, privileged: bool = False) -> Union[OCCli, OCLogMsg]: ...
+    def get(self, cluster: str, privileged: bool = False) -> OCCli | OCLogMsg: ...
 
     def get_cluster(self, cluster: str, privileged: bool = False) -> OCCli: ...
 
@@ -125,9 +124,9 @@ class ClusterMap(Protocol):
 def init_specs_to_fetch(
     ri: ResourceInventory,
     oc_map: ClusterMap,
-    namespaces: Optional[Iterable[Mapping]] = None,
-    clusters: Optional[Iterable[Mapping]] = None,
-    override_managed_types: Optional[Iterable[str]] = None,
+    namespaces: Iterable[Mapping] | None = None,
+    clusters: Iterable[Mapping] | None = None,
+    override_managed_types: Iterable[str] | None = None,
     managed_types_key: str = "managedResourceTypes",
 ) -> list[StateSpec]:
     state_specs: list[StateSpec] = []
@@ -288,7 +287,7 @@ def populate_current_state(
     ri: ResourceInventory,
     integration: str,
     integration_version: str,
-    caller: Optional[str] = None,
+    caller: str | None = None,
 ):
     # if spec.oc is None: - oc can't be none because init_namespace_specs_to_fetch does not create specs if oc is none
     #    return
@@ -318,17 +317,17 @@ def populate_current_state(
 
 
 def fetch_current_state(
-    namespaces: Optional[Iterable[Mapping]] = None,
-    clusters: Optional[Iterable[Mapping]] = None,
-    thread_pool_size: Optional[int] = None,
-    integration: Optional[str] = None,
-    integration_version: Optional[str] = None,
-    override_managed_types: Optional[Iterable[str]] = None,
-    internal: Optional[bool] = None,
+    namespaces: Iterable[Mapping] | None = None,
+    clusters: Iterable[Mapping] | None = None,
+    thread_pool_size: int | None = None,
+    integration: str | None = None,
+    integration_version: str | None = None,
+    override_managed_types: Iterable[str] | None = None,
+    internal: bool | None = None,
     use_jump_host: bool = True,
     init_api_resources: bool = False,
     cluster_admin: bool = False,
-    caller: Optional[str] = None,
+    caller: str | None = None,
 ) -> tuple[ResourceInventory, OC_Map]:
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
@@ -407,7 +406,11 @@ def apply(
                 namespace, resource_type, resource.name
             )
             oc.apply(namespace, annotated)
-        except (MetaDataAnnotationsTooLongApplyError, UnsupportedMediaTypeError):
+        except (
+            MetaDataAnnotationsTooLongApplyError,
+            UnsupportedMediaTypeError,
+            RequestEntityTooLargeError,
+        ):
             if not oc.get(
                 namespace, resource_type, resource.name, allow_not_found=True
             ):
@@ -567,11 +570,11 @@ class ApplyOptions:
     wait_for_namespace: bool
     recycle_pods: bool
     take_over: bool
-    override_enable_deletion: Optional[bool]
-    caller: Optional[str]
-    all_callers: Optional[Sequence[str]]
-    privileged: Optional[bool]
-    enable_deletion: Optional[bool]
+    override_enable_deletion: bool | None
+    caller: str | None
+    all_callers: Sequence[str] | None
+    privileged: bool | None
+    enable_deletion: bool | None
 
 
 def should_apply(
@@ -805,14 +808,14 @@ def handle_deleted_resources(
             resource_type=resource_type,
             options=options,
         ):
-            privileged = data["use_admin_token"].get(name, False)
+            options.privileged = data["use_admin_token"].get(name, False)
             action = {
                 "action": ACTION_DELETED,
                 "cluster": cluster,
                 "namespace": namespace,
                 "kind": resource_type,
                 "name": name,
-                "privileged": True if privileged else False,
+                "privileged": options.privileged,
             }
             actions.append(action)
             delete_action(
@@ -847,7 +850,7 @@ def apply_action(
             resource=resource,
             wait_for_namespace=options.wait_for_namespace,
             recycle_pods=options.recycle_pods,
-            privileged=True if options.privileged else False,
+            privileged=bool(options.privileged),
         )
 
     except StatusCodeError as e:
@@ -881,12 +884,12 @@ def delete_action(
             namespace=namespace,
             resource_type=resource_type,
             name=resource_name,
-            enable_deletion=True if options.enable_deletion else False,
-            privileged=True if options.privileged else False,
+            enable_deletion=bool(options.enable_deletion),
+            privileged=bool(options.privileged),
         )
     except StatusCodeError as e:
         ri.register_error()
-        msg = "[{}/{}] {}".format(cluster, namespace, str(e))
+        msg = f"[{cluster}/{namespace}] {str(e)}"
         logging.error(msg)
 
 
@@ -931,13 +934,14 @@ def _realize_resource_data_3way_diff(
     actions: list[dict] = []
 
     if ri.has_error_registered(cluster=cluster):
-        msg = ("[{}] skipping realize_data for " "cluster with errors").format(cluster)
+        msg = f"[{cluster}] skipping realize_data for " "cluster with errors"
         logging.error(msg)
         return actions
 
-    options.enable_deletion = False if ri.has_error_registered() else True
+    # don't delete resources if there are errors
+    options.enable_deletion = not ri.has_error_registered()
     # only allow to override enable_deletion if no errors were found
-    if options.enable_deletion is True and options.override_enable_deletion is False:
+    if options.enable_deletion and options.override_enable_deletion is False:
         options.enable_deletion = False
 
     diff_result = differ.diff_mappings(
@@ -1303,10 +1307,88 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
             namespace_info[shared_resources_type] = namespace_type_resources
 
 
+@runtime_checkable
+class HasOpenShiftResources(Protocol):
+    openshift_resources: list | None
+
+
+@runtime_checkable
+class HasOpenshiftServiceAccountTokens(Protocol):
+    openshift_service_account_tokens: list | None
+
+
+@runtime_checkable
+class HasSharedResourcesOpenShiftResources(Protocol):
+    @property
+    def shared_resources(self) -> Sequence[HasOpenShiftResources] | None:
+        pass
+
+
+@runtime_checkable
+class HasSharedResourcesOpenshiftServiceAccountTokens(Protocol):
+    @property
+    def shared_resources(self) -> Sequence[HasOpenshiftServiceAccountTokens] | None:
+        pass
+
+
+@runtime_checkable
+class HasOpenshiftServiceAccountTokensAndSharedResources(
+    HasOpenshiftServiceAccountTokens,
+    HasSharedResourcesOpenshiftServiceAccountTokens,
+    Protocol,
+): ...
+
+
+@runtime_checkable
+class HasOpenShiftResourcesAndSharedResources(
+    HasOpenShiftResources, HasSharedResourcesOpenShiftResources, Protocol
+): ...
+
+
+def aggregate_shared_resources_typed(
+    namespace: HasOpenshiftServiceAccountTokensAndSharedResources
+    | HasOpenShiftResourcesAndSharedResources,
+) -> None:
+    """This function aggregates the shared resources to the appropriate namespace section.
+
+    Attention: It updates the namespace object in place and isn't indempotent!
+    """
+    if not namespace.shared_resources:
+        return
+
+    match namespace:
+        case HasOpenshiftServiceAccountTokensAndSharedResources():
+            shared_type_resources_items = []
+            for ost_shared_resources_item in namespace.shared_resources:
+                if (
+                    shared_type_resources
+                    := ost_shared_resources_item.openshift_service_account_tokens
+                ):
+                    shared_type_resources_items.extend(shared_type_resources)
+            if namespace.openshift_service_account_tokens:
+                namespace.openshift_service_account_tokens.extend(
+                    shared_type_resources_items
+                )
+            else:
+                namespace.openshift_service_account_tokens = shared_type_resources_items
+        case HasOpenShiftResourcesAndSharedResources():
+            shared_type_resources_items = []
+            for or_shared_resources_item in namespace.shared_resources:
+                if (
+                    shared_type_resources
+                    := or_shared_resources_item.openshift_resources
+                ):
+                    shared_type_resources_items.extend(shared_type_resources)
+            if namespace.openshift_resources:
+                namespace.openshift_resources.extend(shared_type_resources_items)
+            else:
+                namespace.openshift_resources = shared_type_resources_items
+
+
 def determine_user_keys_for_access(
     cluster_name: str,
-    auth_list: Sequence[Union[dict[str, str], HasService]],
-    enforced_user_keys: Optional[list[str]] = None,
+    auth_list: Sequence[dict[str, str] | HasService],
+    enforced_user_keys: list[str] | None = None,
 ) -> list[str]:
     """Return user keys based on enabled cluster authentication methods."""
     AUTH_METHOD_USER_KEY = {
@@ -1326,10 +1408,7 @@ def determine_user_keys_for_access(
         return ["github_username"]
 
     for auth in auth_list:
-        if isinstance(auth, HasService):
-            service = auth.service
-        else:
-            service = auth["service"]
+        service = auth.service if isinstance(auth, HasService) else auth["service"]
         try:
             if AUTH_METHOD_USER_KEY[service] in user_keys:
                 continue
@@ -1337,7 +1416,7 @@ def determine_user_keys_for_access(
         except KeyError:
             raise NotImplementedError(
                 f"[{cluster_name}] auth service not implemented: {service}"
-            )
+            ) from None
     return user_keys
 
 
@@ -1352,7 +1431,7 @@ def user_has_cluster_access(
 ) -> bool:
     """Check user has access to cluster."""
     userkeys = determine_user_keys_for_access(cluster.name, cluster.auth)
-    return any((getattr(user, userkey) in cluster_users for userkey in userkeys))
+    return any(getattr(user, userkey) in cluster_users for userkey in userkeys)
 
 
 def get_namespace_type_overrides(namespace: Mapping) -> dict[str, str]:
@@ -1368,7 +1447,7 @@ def get_namespace_type_overrides(namespace: Mapping) -> dict[str, str]:
 
 
 def get_namespace_resource_types(
-    namespace: Mapping, type_overrides: Optional[dict[str, str]] = None
+    namespace: Mapping, type_overrides: dict[str, str] | None = None
 ) -> list[str]:
     """Returns a list with the namespace ResourceTypes, with the overrides in place
 
@@ -1385,7 +1464,7 @@ def get_namespace_resource_types(
 
 
 def get_namespace_resource_names(
-    namespace: Mapping, type_overrides: Optional[dict[str, str]] = None
+    namespace: Mapping, type_overrides: dict[str, str] | None = None
 ) -> dict[str, list[str]]:
     """Returns a list with the namespace ResourceTypeNames, with the overrides in place
 

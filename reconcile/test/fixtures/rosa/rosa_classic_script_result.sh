@@ -3,12 +3,6 @@
 set -e
 set -o pipefail
 
-CURRENT_CLUSTER_COUNT=$(rosa list clusters -o json | jq 'length')
-if (( CURRENT_CLUSTER_COUNT > 0 )); then
-  echo "Error: This account already has a cluster. Only one cluster per account is supported."
-  exit 1
-fi
-
 rosa init
 rosa create ocm-role --admin -y -m auto
 rosa create account-roles --classic -y -m auto
@@ -38,7 +32,7 @@ rosa create cluster -y --cluster-name=cluster-2 \
     --operator-roles-prefix cluster-2 \
     --subnet-ids subnet-a,subnet-b,subnet-c \
     --region us-east-1 \
-    --version 4.10.16 \
+    --version 4.8.10 \
     --machine-cidr 10.0.0.0/16 \
     --service-cidr 172.30.0.0/16 \
     --pod-cidr 10.128.0.0/14 \

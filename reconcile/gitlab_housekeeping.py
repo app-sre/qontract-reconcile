@@ -5,15 +5,12 @@ from collections.abc import (
 )
 from dataclasses import dataclass
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
 from operator import itemgetter
-from typing import (
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any
 
 import gitlab
 from gitlab.v4.objects import (
@@ -70,6 +67,7 @@ HOLD_LABELS = [
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
 
 
 merged_merge_requests = Counter(
@@ -95,6 +93,12 @@ merge_requests_waiting = Gauge(
     name="qontract_reconcile_merge_requests_waiting",
     documentation="Number of merge requests that are in the queue waiting to be merged.",
     labelnames=["project_id"],
+)
+
+gitlab_token_expiration = Gauge(
+    name="qontract_reconcile_gitlab_token_expiration_days",
+    documentation="Time until personal access tokens expire",
+    labelnames=["name", "active"],
 )
 
 
@@ -178,7 +182,7 @@ def close_item(
     gl: GitLabApi,
     enable_closing: bool,
     item_type: str,
-    item: Union[ProjectIssue, ProjectMergeRequest],
+    item: ProjectIssue | ProjectMergeRequest,
 ):
     if enable_closing:
         logging.info([
@@ -236,10 +240,11 @@ def handle_stale_items(
                 continue
 
             # if item has 'stale' label - check the notes
+            # TODO: add request count metrics and maybe server side filter to reduce requests
             cancel_notes = [
                 n
-                for n in item.notes.list()
-                if n.attributes.get("body") == "/{} cancel".format(LABEL)
+                for n in item.notes.list(iterator=True)
+                if n.attributes.get("body") == f"/{LABEL} cancel"
             ]
             if not cancel_notes:
                 continue
@@ -272,7 +277,11 @@ def is_good_to_merge(labels):
 
 def is_rebased(mr, gl: GitLabApi) -> bool:
     target_branch = mr.target_branch
-    head = gl.project.commits.list(ref_name=target_branch, per_page=1)[0].id
+    head = gl.project.commits.list(
+        ref_name=target_branch,
+        per_page=1,
+        page=1,
+    )[0].id
     result = gl.project.repository_compare(mr.sha, head)
     return len(result["commits"]) == 0
 
@@ -280,7 +289,7 @@ def is_rebased(mr, gl: GitLabApi) -> bool:
 def get_merge_requests(
     dry_run: bool,
     gl: GitLabApi,
-    users_allowed_to_label: Optional[Iterable[str]] = None,
+    users_allowed_to_label: Iterable[str] | None = None,
 ) -> list[dict[str, Any]]:
     mrs = gl.get_merge_requests(state=MRState.OPENED)
     return preprocess_merge_requests(
@@ -295,7 +304,7 @@ def preprocess_merge_requests(
     dry_run: bool,
     gl: GitLabApi,
     project_merge_requests: list[ProjectMergeRequest],
-    users_allowed_to_label: Optional[Iterable[str]] = None,
+    users_allowed_to_label: Iterable[str] | None = None,
 ) -> list[dict[str, Any]]:
     results = []
     for mr in project_merge_requests:
@@ -434,7 +443,7 @@ def rebase_merge_requests(
                     rebases += 1
                     rebased_merge_requests.labels(mr.target_project_id).inc()
             except gitlab.exceptions.GitlabMRRebaseError as e:
-                logging.error("unable to rebase {}: {}".format(mr.iid, e))
+                logging.error(f"unable to rebase {mr.iid}: {e}")
         else:
             logging.info([
                 "rebase",
@@ -538,11 +547,21 @@ def merge_merge_requests(
                     return
                 merges += 1
             except gitlab.exceptions.GitlabMRClosedError as e:
-                logging.error("unable to merge {}: {}".format(mr.iid, e))
+                logging.error(f"unable to merge {mr.iid}: {e}")
 
 
 def get_app_sre_usernames(gl: GitLabApi) -> set[str]:
     return {u.username for u in gl.get_app_sre_group_users()}
+
+
+def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
+    pats = gl.get_personal_access_tokens()
+    for pat in pats:
+        expiration_date = datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)
+        days_until_expiration = expiration_date.date() - datetime.now(UTC).date()
+        gitlab_token_expiration.labels(name=pat.name, active=pat.active).set(
+            days_until_expiration.days
+        )
 
 
 def run(dry_run, wait_for_pipeline):
@@ -551,6 +570,8 @@ def run(dry_run, wait_for_pipeline):
     default_enable_closing = False
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
+    with GitLabApi(instance, settings=settings) as gl:
+        publish_access_token_expiration_metrics(gl)
     repos = queries.get_repos_gitlab_housekeeping(server=instance["url"])
     app_sre_usernames: Set[str] = set()
 
