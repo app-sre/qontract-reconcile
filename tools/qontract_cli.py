@@ -139,6 +139,7 @@ from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.ocm import OCM_PRODUCT_ROSA, OCMMap
 from reconcile.utils.ocm_base_client import init_ocm_base_client
 from reconcile.utils.output import print_output
+from reconcile.utils.saasherder.models import TargetSpec
 from reconcile.utils.saasherder.saasherder import SaasHerder
 from reconcile.utils.secret_reader import (
     SecretReader,
@@ -3497,21 +3498,17 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None) -> None:
                 if target.namespace.environment.name != env_name:
                     continue
 
-                parameters: dict[str, Any] = {}
-                parameters.update(target.namespace.environment.parameters or {})
-                parameters.update(saas_file.parameters or {})
-                parameters.update(rt.parameters or {})
-                parameters.update(target.parameters or {})
-
-                for replace_key, replace_value in parameters.items():
-                    if not isinstance(replace_value, str):
-                        continue
-                    replace_pattern = "${" + replace_key + "}"
-                    for k, v in parameters.items():
-                        if not isinstance(v, str):
-                            continue
-                        if replace_pattern in v:
-                            parameters[k] = v.replace(replace_pattern, replace_value)
+                parameters = TargetSpec(
+                    saas_file=saas_file,
+                    resource_template=rt,
+                    target=target,
+                    # process_template options
+                    image_auth=None,  # type: ignore[arg-type]
+                    hash_length=None,  # type: ignore[arg-type]
+                    github=None,  # type: ignore[arg-type]
+                    target_config_hash=None,  # type: ignore[arg-type]
+                    secret_reader=None,  # type: ignore[arg-type]
+                ).parameters()
 
                 parameters_cmd = ""
                 for k, v in parameters.items():
