@@ -3714,20 +3714,20 @@ def deadmanssnitch(ctx):
 )
 def external_resources(
     ctx,
-    workers_cluster: str,
-    workers_namespace: str,
     dry_run_job_suffix: str,
     thread_pool_size: int,
+    workers_cluster: str,
+    workers_namespace: str,
 ):
     import reconcile.external_resources.integration
 
     run_integration(
         reconcile.external_resources.integration,
         ctx.obj,
-        dry_run_job_suffix,
-        thread_pool_size,
-        workers_cluster,
-        workers_namespace,
+        dry_run_job_suffix=dry_run_job_suffix,
+        thread_pool_size=thread_pool_size,
+        workers_cluster=workers_cluster,
+        workers_namespace=workers_namespace,
     )
 
 
