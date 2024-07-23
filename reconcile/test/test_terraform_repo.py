@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -46,6 +47,7 @@ def existing_repo(aws_account, tf_variables) -> TerraformRepoV1:
         requireFips=True,
         tfVersion=A_REPO_VERSION,
         variables=tf_variables,
+        forceRerunTimestamp=None,
     )
 
 
@@ -86,6 +88,7 @@ def new_repo(aws_account_no_state) -> TerraformRepoV1:
         requireFips=False,
         tfVersion=B_REPO_VERSION,
         variables=None,
+        forceRerunTimestamp=None,
     )
 
 
@@ -220,6 +223,27 @@ def test_updating_repo_ref(existing_repo, int_params, state_mock):
     )
 
 
+def test_force_rerun(existing_repo, int_params, state_mock):
+    existing = [existing_repo]
+    updated_repo = TerraformRepoV1.copy(existing_repo)
+    updated_repo.force_rerun_timestamp = datetime.now().isoformat()
+
+    integration = TerraformRepoIntegration(params=int_params)
+    diff = integration.calculate_diff(
+        existing_state=existing,
+        desired_state=[updated_repo],
+        dry_run=False,
+        state=state_mock,
+        recreate_state=False,
+    )
+
+    assert diff == [updated_repo]
+
+    state_mock.add.assert_called_once_with(
+        updated_repo.name, updated_repo.dict(by_alias=True), force=True
+    )
+
+
 def test_fail_on_update_invalid_repo_params(existing_repo, int_params):
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
@@ -291,6 +315,7 @@ def test_get_repo_state(s3_state_builder, int_params, existing_repo, tf_variable
                 "requireFips": True,
                 "tfVersion": A_REPO_VERSION,
                 "variables": tf_variables,
+                "forceRerunTimestamp": None,
                 "account": {
                     "name": "foo",
                     "uid": AWS_UID,

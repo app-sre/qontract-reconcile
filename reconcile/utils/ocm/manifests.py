@@ -33,7 +33,7 @@ def create_manifest(
 
 
 def patch_manifest(
-    ocm_client: OCMBaseClient, cluster_id: str, syncset_id: str, manifest_map: Mapping
+    ocm_client: OCMBaseClient, cluster_id: str, manifest_id: str, manifest_map: Mapping
 ) -> None:
     manifest = Manifest(cluster_id)
-    ocm_client.patch(api_path=manifest.href + "/" + syncset_id, data=manifest_map)
+    ocm_client.patch(api_path=manifest.href + "/" + manifest_id, data=manifest_map)

@@ -53,6 +53,7 @@ query TerraformRepo {
     delete
     requireFips
     tfVersion
+    forceRerunTimestamp
     variables {
       inputs {
         ...VaultSecret
@@ -105,6 +106,7 @@ class TerraformRepoV1(ConfiguredBaseModel):
     delete: Optional[bool] = Field(..., alias="delete")
     require_fips: Optional[bool] = Field(..., alias="requireFips")
     tf_version: str = Field(..., alias="tfVersion")
+    force_rerun_timestamp: Optional[str] = Field(..., alias="forceRerunTimestamp")
     variables: Optional[TerraformRepoVariablesV1] = Field(..., alias="variables")
 
 
