@@ -16,13 +16,10 @@ def test_get_node_pool_specs() -> None:
         "id": "np1",
         "version": {
             "id": "openshift-v4.15.17-candidate",
+            "raw_id": "4.15.17",
         },
     }
     ocm_api.get_paginated.return_value = [node_pool]
-    ocm_api.get.return_value = {
-        "id": "openshift-v4.15.17-candidate",
-        "raw_id": "4.15.17",
-    }
     specs = get_node_pool_specs(ocm_api=ocm_api, cluster_id="cluster-1")
 
     assert specs == [
@@ -34,9 +31,6 @@ def test_get_node_pool_specs() -> None:
     ocm_api.get_paginated.assert_called_once_with(
         "/api/clusters_mgmt/v1/clusters/cluster-1/node_pools"
     )
-    ocm_api.get.assert_called_once_with(
-        "/api/clusters_mgmt/v1/versions/openshift-v4.15.17-candidate"
-    )
 
 
 def test_get_node_pool_specs_by_org_cluster_for_hypershift_cluster() -> None:
@@ -46,13 +40,10 @@ def test_get_node_pool_specs_by_org_cluster_for_hypershift_cluster() -> None:
         "id": "np1",
         "version": {
             "id": "openshift-v4.15.17-candidate",
+            "raw_id": "4.15.17",
         },
     }
     ocm_api.get_paginated.return_value = [node_pool]
-    ocm_api.get.return_value = {
-        "id": "openshift-v4.15.17-candidate",
-        "raw_id": "4.15.17",
-    }
     cluster_details = build_cluster_details("cluster-1", hypershift=True)
     specs = get_node_pool_specs_by_org_cluster(
         ocm_api=ocm_api,
@@ -73,9 +64,6 @@ def test_get_node_pool_specs_by_org_cluster_for_hypershift_cluster() -> None:
     }
     ocm_api.get_paginated.assert_called_once_with(
         f"/api/clusters_mgmt/v1/clusters/{cluster_details.ocm_cluster.id}/node_pools"
-    )
-    ocm_api.get.assert_called_once_with(
-        "/api/clusters_mgmt/v1/versions/openshift-v4.15.17-candidate"
     )
 
 

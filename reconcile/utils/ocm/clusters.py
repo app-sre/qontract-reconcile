@@ -3,7 +3,6 @@ from collections.abc import (
     Generator,
     Iterable,
 )
-from functools import lru_cache
 from typing import Any
 
 from reconcile.utils.ocm.base import (
@@ -40,11 +39,6 @@ NODE_POOL_DESIRED_KEYS = {
     "aws_node_pool",
     "subnet",
     "version",
-}
-
-VERSION_DESIRED_KEYS = {
-    "id",
-    "raw_id",
 }
 
 
@@ -244,14 +238,6 @@ def get_node_pools(ocm_api: OCMBaseClient, cluster_id: str) -> list[dict[str, An
         results.append(result)
 
     return results
-
-
-@lru_cache
-def get_version(ocm_api: OCMBaseClient, version: str) -> dict[str, Any]:
-    api = f"/api/clusters_mgmt/v1/versions/{version}"
-
-    item = ocm_api.get(api)
-    return {k: v for k, v in item.items() if k in VERSION_DESIRED_KEYS}
 
 
 def get_provisioning_shard_id(ocm_api: OCMBaseClient, cluster_id: str) -> str:
