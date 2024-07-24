@@ -26,7 +26,7 @@ PAGE_SIZE = 100
 class GroupSpec:
     group_name: str
     group_access_level: int
-    is_ancestor: bool = False
+    is_child_project: bool = False
 
 
 class GroupAccessLevelError(Exception):
@@ -68,7 +68,7 @@ class GroupPermissionHandler:
         return GroupSpec(
             group_name=self.group.name,
             group_access_level=self.access_level,
-            is_ancestor=True,
+            is_child_project=True,
         )
 
     def can_share_project(self, project: Project) -> bool:
