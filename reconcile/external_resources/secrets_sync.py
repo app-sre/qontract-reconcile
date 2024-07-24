@@ -95,6 +95,43 @@ class SecretHelper:
         return three_way_diff_using_hash(cmp_current, cmp_desired)
 
 
+class OutputSecretsFormatter:
+    """Class to format Module output keys/values into suitable values for K8s Secrets. It currently implements the same
+    behavior as Terraform-Resources."""
+
+    def __init__(self, secret_reader: SecretReaderBase) -> None:
+        self.secret_reader = secret_reader
+
+    def _key_must_be_populated(self, key: str) -> bool:
+        "Only keys containing '__' must be populated to Secrets"
+        return "__" in key
+
+    def _format_key(self, key: str) -> str:
+        if "__" not in key:
+            return key
+        k_split = key.split("__")
+        output_key = k_split[1]
+        if output_key.startswith("db"):
+            output_key = output_key.replace("db_", "db.")
+        return output_key
+
+    def _format_value(self, value: str) -> str:
+        decoded_value = base64.b64decode(value).decode("utf-8")
+        if decoded_value.startswith("__vault__:"):
+            _secret_ref = json.loads(decoded_value.replace("__vault__:", ""))
+            secret_ref = VaultSecret(**_secret_ref)
+            return self.secret_reader.read_secret(secret_ref)
+        else:
+            return decoded_value
+
+    def format(self, data: Mapping[str, str]) -> dict[str, str]:
+        return {
+            self._format_key(key): self._format_value(value)
+            for key, value in data.items()
+            if self._key_must_be_populated(key)
+        }
+
+
 class SecretsReconciler:
     def __init__(
         self,
@@ -281,6 +318,7 @@ class InClusterSecretsReconciler(SecretsReconciler):
         cluster: str,
         namespace: str,
         oc: OCCli,
+        output_secrets_formatter: OutputSecretsFormatter,
         thread_pool_size: int,
         dry_run: bool,
     ):
@@ -292,6 +330,7 @@ class InClusterSecretsReconciler(SecretsReconciler):
         self.source_secrets: list[str] = []
         self.vault_client = vault_client
         self.vault_path = vault_path
+        self.output_secrets_formatter = output_secrets_formatter
 
     def _get_spec_hash(self, spec: ExternalResourceSpec) -> str:
         secret_key = f"{spec.provision_provider}-{spec.provisioner_name}-{spec.provider}-{spec.identifier}"
@@ -313,21 +352,10 @@ class InClusterSecretsReconciler(SecretsReconciler):
         for secret in secrets:
             secret_name = secret["metadata"]["name"]
             spec = secrets_map[secret_name]
-            data = dict[str, str]()
-            for k, v in secret["data"].items():
-                decoded = base64.b64decode(v).decode("utf-8")
-
-                if decoded.startswith("__vault__:"):
-                    _secret_ref = json.loads(decoded.replace("__vault__:", ""))
-                    secret_ref = VaultSecret(**_secret_ref)
-                    data[k] = self.secrets_reader.read_secret(secret_ref)
-                else:
-                    data[k] = decoded
-
+            spec.secret = self.output_secrets_formatter.format(secret["data"])
             spec.metadata[SECRET_UPDATED_AT] = datetime.now(UTC).strftime(
                 SECRET_UPDATED_AT_TIMEFORMAT
             )
-            spec.secret = data
 
     def _delete_source_secret(self, spec: ExternalResourceSpec) -> None:
         secret_name = self._get_spec_outputs_secret_name(spec)
@@ -396,6 +424,7 @@ def build_incluster_secrets_reconciler(
         vault_path=vault_path,
         vault_client=VaultClient(),
         secrets_reader=secrets_reader,
+        output_secrets_formatter=OutputSecretsFormatter(secrets_reader),
         thread_pool_size=thread_pool_size,
         dry_run=dry_run,
     )
