@@ -80,6 +80,9 @@ from reconcile.typed_queries.alerting_services_settings import get_alerting_serv
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.typed_queries.app_quay_repos_escalation_policies import (
+    get_apps_quay_repos_escalation_policies,
+)
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.external_resources import (
     get_modules,
@@ -2841,6 +2844,33 @@ You can view the source of this Markdown to extract the JSON data.
         columns = ["app", "other", "rhel8"]
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], results, columns)
+
+
+@get.command
+@click.pass_context
+def container_image_details(ctx):
+    apps = get_apps_quay_repos_escalation_policies()
+    data: list[dict[str, str]] = []
+    for app in apps:
+        app_name = app.name
+        ep_channels = app.escalation_policy.channels
+        email = ep_channels.email
+        slack = ep_channels.slack_user_group[0].handle
+        for org_items in app.quay_repos or []:
+            org_name = org_items.org.name
+            for repo in org_items.items or []:
+                if repo.mirror:
+                    continue
+                repository = f"quay.io/{org_name}/{repo.name}"
+                item = {
+                    "app": app_name,
+                    "repository": repository,
+                    "email": email,
+                    "slack": slack,
+                }
+                data.append(item)
+    columns = ["app", "repository", "email", "slack"]
+    print_output(ctx.obj["options"], data, columns)
 
 
 @root.group(name="set")

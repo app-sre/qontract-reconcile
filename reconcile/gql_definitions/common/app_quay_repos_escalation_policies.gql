@@ -1,0 +1,26 @@
+# qenerate: plugin=pydantic_v1
+
+query AppQuayReposEscalationPolicies {
+  apps: apps_v1 {
+    name
+    escalationPolicy {
+      channels {
+        email
+        slackUserGroup {
+          handle
+        }
+      }
+    }
+    quayRepos {
+      org {
+        name
+      }
+      items {
+        name
+        mirror {
+          path
+        }
+      }
+    }
+  }
+}
