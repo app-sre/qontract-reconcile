@@ -158,6 +158,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.compare = self._get_saas_file_feature_enabled("compare", default=True)
         self.publish_job_logs = self._get_saas_file_feature_enabled("publish_job_logs")
         self.cluster_admin = self._get_saas_file_feature_enabled("cluster_admin")
+        self.validate_planned_data = self._get_saas_file_feature_enabled(
+            "validate_planned_data", default=True
+        )
 
     def __enter__(self) -> "SaasHerder":
         return self

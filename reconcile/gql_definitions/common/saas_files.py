@@ -233,6 +233,7 @@ query SaasFiles {
       }
     }
     validateTargetsInApp
+    validatePlannedData
     resourceTemplates {
       name
       url
@@ -560,6 +561,7 @@ class SaasFileV2(ConfiguredBaseModel):
     parameters: Optional[Json] = Field(..., alias="parameters")
     secret_parameters: Optional[list[SaasSecretParametersV1]] = Field(..., alias="secretParameters")
     validate_targets_in_app: Optional[bool] = Field(..., alias="validateTargetsInApp")
+    validate_planned_data: Optional[bool] = Field(..., alias="validatePlannedData")
     resource_templates: list[SaasResourceTemplateV2] = Field(..., alias="resourceTemplates")
     self_service_roles: Optional[list[SaasFileV2_RoleV1]] = Field(..., alias="selfServiceRoles")
 
