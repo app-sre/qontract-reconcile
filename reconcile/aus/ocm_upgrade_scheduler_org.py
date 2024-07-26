@@ -67,9 +67,10 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
                             org=org,
                             providers=cluster_health_providers,
                         ),
-                        node_pool_specs_by_cluster_id=node_pool_specs_by_org_cluster[
+                        node_pool_specs_by_cluster_id=node_pool_specs_by_org_cluster.get(
                             org.org_id
-                        ],
+                        )
+                        or {},
                     ),
                 )
                 for org in organizations
