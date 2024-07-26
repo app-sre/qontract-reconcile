@@ -128,6 +128,7 @@ def init_specs_to_fetch(
     clusters: Iterable[Mapping] | None = None,
     override_managed_types: Iterable[str] | None = None,
     managed_types_key: str = "managedResourceTypes",
+    cluster_admin: bool = False,
 ) -> list[StateSpec]:
     state_specs: list[StateSpec] = []
 
@@ -144,7 +145,9 @@ def init_specs_to_fetch(
                 continue
 
             cluster = namespace_info["cluster"]["name"]
-            privileged = namespace_info.get("clusterAdmin", False) is True
+            privileged = (
+                namespace_info.get("clusterAdmin", False) is True or cluster_admin
+            )
             try:
                 oc = oc_map.get_cluster(cluster, privileged)
             except OCLogMsg as ex:
@@ -348,6 +351,7 @@ def fetch_current_state(
         namespaces=namespaces,
         clusters=clusters,
         override_managed_types=override_managed_types,
+        cluster_admin=cluster_admin,
     )
     threaded.run(
         populate_current_state,
@@ -379,7 +383,14 @@ def apply(
     recycle_pods: bool = True,
     privileged: bool = False,
 ) -> None:
-    logging.info(["apply", cluster, namespace, resource_type, resource.name])
+    logging.info([
+        "apply",
+        f"privileged={privileged}",
+        cluster,
+        namespace,
+        resource_type,
+        resource.name,
+    ])
 
     try:
         oc = oc_map.get_cluster(cluster, privileged)
@@ -537,7 +548,14 @@ def delete(
     enable_deletion: bool,
     privileged: bool = False,
 ) -> None:
-    logging.info(["delete", cluster, namespace, resource_type, name])
+    logging.info([
+        "delete",
+        f"privileged={privileged}",
+        cluster,
+        namespace,
+        resource_type,
+        name,
+    ])
 
     if not enable_deletion:
         logging.error("'delete' action is disabled due to previous errors.")
