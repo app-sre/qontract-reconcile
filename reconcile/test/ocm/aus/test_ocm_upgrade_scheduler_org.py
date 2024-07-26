@@ -122,3 +122,32 @@ def test_get_ocm_env_upgrade_specs(
 
     assert upgrade_specs == expected_upgrade_specs
     assert upgrade_specs[org.name].specs[0] == expected_cluster_upgrade_spec
+
+
+def test_get_ocm_env_upgrade_specs_for_org_without_clusters(
+    mocker: MockerFixture,
+    ocm_env: OCMEnvironment,
+) -> None:
+    org = build_organization(org_id=ORG_ID)
+    setup_mocks(
+        mocker,
+        orgs=[org],
+        clusters=[],
+        node_pool_specs_by_org_cluster={},
+    )
+    expected_upgrade_specs = {
+        org.name: OrganizationUpgradeSpec(
+            org=org,
+            specs=[],
+        )
+    }
+    integration = OCMClusterUpgradeSchedulerOrgIntegration(
+        params=AdvancedUpgradeSchedulerBaseIntegrationParams(
+            ocm_organization_ids={ORG_ID},
+            excluded_ocm_organization_ids=set(),
+        ),
+    )
+
+    upgrade_specs = integration.get_ocm_env_upgrade_specs(ocm_env)
+
+    assert upgrade_specs == expected_upgrade_specs
