@@ -3,17 +3,30 @@ from datetime import (
     timedelta,
 )
 
-from reconcile.aus.base import remaining_soak_day_metric_values_for_cluster
+from pytest_mock import MockFixture
+
+from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
+from reconcile.aus.base import (
+    AdvancedUpgradeSchedulerBaseIntegrationParams,
+    remaining_soak_day_metric_values_for_cluster,
+)
 from reconcile.aus.metrics import (
     UPGRADE_BLOCKED_METRIC_VALUE,
     UPGRADE_LONG_RUNNING_METRIC_VALUE,
     UPGRADE_SCHEDULED_METRIC_VALUE,
     UPGRADE_STARTED_METRIC_VALUE,
+    AUSClusterUpgradePolicyInfoMetric,
 )
+from reconcile.aus.models import NodePoolSpec
 from reconcile.test.ocm.aus.fixtures import (
+    build_cluster_health,
     build_cluster_upgrade_policy,
     build_cluster_upgrade_spec,
+    build_organization,
+    build_organization_upgrade_spec,
+    build_upgrade_policy,
 )
+from reconcile.test.ocm.fixtures import build_ocm_cluster
 
 
 def test_remaining_soak_day_metric_values_for_cluster_skip_early_ready() -> None:
@@ -275,3 +288,57 @@ def test_remaining_soak_day_metric_values_for_cluster_not_filtering() -> None:
         "4.13.12": 2.0,
         "4.14.1": UPGRADE_BLOCKED_METRIC_VALUE,
     }
+
+
+def test_expose_org_upgrade_spec_metrics_for_hypershift_node_pool(
+    mocker: MockFixture,
+) -> None:
+    mock_metrics = mocker.patch("reconcile.aus.base.metrics")
+    org_id = "org-1"
+    org = build_organization(org_id=org_id)
+    ocm_env = "env"
+    integration = AdvancedUpgradeServiceIntegration(
+        AdvancedUpgradeSchedulerBaseIntegrationParams(
+            ocm_environment=ocm_env,
+            ocm_organization_ids={org_id},
+        )
+    )
+    cluster_name = "cluster-1"
+    cluster = build_ocm_cluster(
+        name=cluster_name,
+        version="4.12.17",
+        available_upgrades=["4.12.19"],
+        hypershift=True,
+    )
+    upgrade_policy = build_upgrade_policy(
+        workloads=["workload1"], soak_days=0, mutexes=["mutex1"]
+    )
+    health = build_cluster_health()
+    node_pool = NodePoolSpec(id="np", version="4.12.16")
+    upgrade_spec = build_organization_upgrade_spec(
+        specs=[(cluster, upgrade_policy, health, [node_pool])],
+        org=org,
+    )
+    expected_aus_cluster_upgrade_policy_info_metric = AUSClusterUpgradePolicyInfoMetric(
+        integration="advanced-upgrade-scheduler",
+        ocm_env=ocm_env,
+        cluster_uuid=cluster.external_id,
+        org_id=org_id,
+        org_name=org.name,
+        channel=cluster.version.channel_group,
+        current_version="4.12.16",
+        cluster_name=cluster_name,
+        schedule=upgrade_policy.schedule,
+        sector="",
+        mutexes=",".join(upgrade_policy.conditions.mutexes or []),
+        soak_days="0",
+        workloads="workload1",
+        product=cluster.product.id,
+        hypershift=True,
+    )
+
+    integration.expose_org_upgrade_spec_metrics(ocm_env, upgrade_spec)
+
+    mock_metrics.set_info.assert_called_once_with(
+        expected_aus_cluster_upgrade_policy_info_metric
+    )

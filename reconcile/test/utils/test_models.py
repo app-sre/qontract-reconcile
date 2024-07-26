@@ -9,6 +9,8 @@ from pydantic import (
     validator,
 )
 
+from reconcile.aus.models import NodePoolSpec
+from reconcile.test.ocm.aus.fixtures import build_cluster_upgrade_spec
 from reconcile.utils.models import (
     CSV,
     DEFAULT_INT,
@@ -457,3 +459,45 @@ def test_default_data_none_mandatory_union_basemodel_list_without_default() -> N
     assert isinstance(dm.model_fields[1], AnotherDemoFieldModel)
     assert dm.model_fields[1].another_demo_field == "test"
     assert dm.model_fields[1].field == DEFAULT_STRING
+
+
+@pytest.mark.parametrize(
+    "current_version, node_pools, expected_version",
+    [
+        (
+            "4.13.0",
+            [],
+            "4.13.0",
+        ),
+        (
+            "4.13.0",
+            [NodePoolSpec(id="np1", version="4.12.0")],
+            "4.12.0",
+        ),
+        (
+            "4.13.0",
+            [NodePoolSpec(id="np1", version="4.13.0")],
+            "4.13.0",
+        ),
+        (
+            "4.13.0",
+            [
+                NodePoolSpec(id="np1", version="4.12.0"),
+                NodePoolSpec(id="np2", version="4.13.0"),
+            ],
+            "4.12.0",
+        ),
+    ],
+)
+def test_cluster_upgrade_spec_oldest_current_version(
+    current_version: str,
+    node_pools: list[NodePoolSpec],
+    expected_version: str,
+) -> None:
+    spec = build_cluster_upgrade_spec(
+        name="cluster-1",
+        current_version=current_version,
+        node_pools=node_pools,
+    )
+
+    assert spec.oldest_current_version == expected_version

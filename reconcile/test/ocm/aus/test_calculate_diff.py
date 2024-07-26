@@ -18,6 +18,7 @@ from reconcile.aus.cluster_version_data import (
     VersionHistory,
     WorkloadHistory,
 )
+from reconcile.aus.models import NodePoolSpec
 from reconcile.test.ocm.aus.fixtures import (
     build_cluster_health,
     build_cluster_upgrade_spec,
@@ -28,15 +29,6 @@ from reconcile.test.ocm.fixtures import build_ocm_cluster
 from reconcile.utils.ocm.base import OCMVersionGate
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.ocm_base_client import OCMBaseClient
-
-
-@pytest.fixture
-def node_pool_mocks(mocker: MockerFixture) -> tuple[Mock, Mock, Mock]:
-    return (
-        mocker.patch("reconcile.aus.base.get_node_pools"),
-        mocker.patch("reconcile.aus.base.get_version"),
-        mocker.patch("reconcile.aus.base.get_node_pool_upgrade_policies"),
-    )
 
 
 @pytest.fixture
@@ -56,19 +48,17 @@ def cluster() -> OCMCluster:
     )
 
 
+NODE_POOL_SPECS = [
+    NodePoolSpec(id="np-1", version="4.12.16"),
+    NodePoolSpec(id="np-2", version="4.12.16"),
+]
+
+
 @pytest.fixture
 def cluster_hypershift(
-    node_pool_mocks: tuple[Mock, Mock, Mock],
     version_gate_mocks: tuple[Mock, Mock],
     version_gate_4_12_ocp: OCMVersionGate,
 ) -> OCMCluster:
-    node_pool_mocks[0].return_value = [
-        {"id": "np-1", "version": {"raw_id": "openshift-v4.12.16"}},
-        {"id": "np-2", "version": {"raw_id": "openshift-v4.12.16"}},
-    ]
-    node_pool_mocks[1].return_value = {"id": "4.12.16", "raw_id": "4.12.16"}
-    node_pool_mocks[2].return_value = []
-
     version_gate_mocks[0].return_value = [version_gate_4_12_ocp]
     version_gate_mocks[0].return_value = [
         {
@@ -136,6 +126,7 @@ def test_calculate_diff_create_cluster_upgrade_no_gates(
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
                 build_cluster_health(),
+                [],
             ),
         ],
     )
@@ -182,6 +173,7 @@ def test_calculate_diff_create_cluster_upgrade_all_gates_agreed(
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
                 build_cluster_health(),
+                [],
             ),
         ],
     )
@@ -237,6 +229,7 @@ def test_calculate_diff_create_control_plane_upgrade_all_gates_agreed(
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
                 build_cluster_health(),
+                [],
             ),
         ],
     )
@@ -277,6 +270,7 @@ def test_calculate_diff_create_control_plane_upgrade_no_gates(
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
                 build_cluster_health(),
+                [],
             ),
         ],
     )
@@ -317,6 +311,7 @@ def test_calculate_diff_create_control_plane_node_pool_only(
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=10),
                 build_cluster_health(),
+                [],
             ),
         ],
     )
@@ -346,6 +341,7 @@ def test_calculate_diff_not_soaked(
                 cluster,
                 build_upgrade_policy(workloads=[workload], soak_days=12),
                 build_cluster_health(),
+                [],
             ),
         ],
     )
@@ -389,6 +385,7 @@ def test_calculate_diff_mutex_set(
                     workloads=[workload], soak_days=1, mutexes=["foo"]
                 ),
                 build_cluster_health(),
+                [],
             ),
             (
                 cluster_hypershift,
@@ -396,6 +393,7 @@ def test_calculate_diff_mutex_set(
                     workloads=[workload], soak_days=1, mutexes=cluster_2_mutexes
                 ),
                 build_cluster_health(),
+                NODE_POOL_SPECS,
             ),
         ],
     )
@@ -440,6 +438,7 @@ def test_calculate_diff_implicit_mutex_set(
                     mutexes=None,
                 ),
                 build_cluster_health(),
+                [],
             ),
         ],
     )
@@ -466,19 +465,17 @@ def test_calculate_diff_implicit_mutex_set(
 
 
 def test__calculate_node_pool_diffs(
-    ocm_api: OCMBaseClient,
     cluster: OCMCluster,
     now: datetime,
-    node_pool_mocks: tuple[Mock, Mock, Mock],
 ) -> None:
-    node_pool_mocks[0].return_value = [
-        {"id": "foo", "version": {"raw_id": "openshift-v4.12.19"}}
-    ]
-    node_pool_mocks[1].return_value = {"id": "4.12.19", "raw_id": "4.12.19"}
-    node_pool_mocks[2].return_value = []
+    node_pool_spec = NodePoolSpec(id="foo", version="4.12.19")
+    cluster_upgrade_spec = build_cluster_upgrade_spec(
+        name="cluster",
+        node_pools=[node_pool_spec],
+    )
 
-    cluster_upgrade_spec = build_cluster_upgrade_spec(name="cluster")
-    created = _calculate_node_pool_diffs(ocm_api, cluster_upgrade_spec, now)
+    created = _calculate_node_pool_diffs(cluster_upgrade_spec, now)
+
     assert created is not None
     assert isinstance(created.policy, NodePoolUpgradePolicy)
     assert created.policy.node_pool == "foo"
@@ -487,20 +484,20 @@ def test__calculate_node_pool_diffs(
 
 
 def test__calculate_node_pool_diffs_multiple(
-    ocm_api: OCMBaseClient,
     cluster: OCMCluster,
     now: datetime,
-    node_pool_mocks: tuple[Mock, Mock, Mock],
 ) -> None:
-    node_pool_mocks[0].return_value = [
-        {"id": "oof", "version": {"raw_id": "openshift-v4.12.19"}},
-        {"id": "foo", "version": {"raw_id": "openshift-v4.12.19"}},
+    node_pool_specs = [
+        NodePoolSpec(id="oof", version="4.12.19"),
+        NodePoolSpec(id="foo", version="4.12.19"),
     ]
-    node_pool_mocks[1].return_value = {"id": "4.12.19", "raw_id": "4.12.19"}
-    node_pool_mocks[2].return_value = []
+    cluster_upgrade_spec = build_cluster_upgrade_spec(
+        name="cluster",
+        node_pools=node_pool_specs,
+    )
 
-    cluster_upgrade_spec = build_cluster_upgrade_spec(name="cluster")
-    created = _calculate_node_pool_diffs(ocm_api, cluster_upgrade_spec, now)
+    created = _calculate_node_pool_diffs(cluster_upgrade_spec, now)
+
     assert created is not None
     assert isinstance(created.policy, NodePoolUpgradePolicy)
     assert created.policy.node_pool == "oof"

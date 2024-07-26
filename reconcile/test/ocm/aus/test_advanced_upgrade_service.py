@@ -1,9 +1,12 @@
+from typing import Any
+
 import pytest
 from pydantic import ValidationError
 from pytest_mock import MockerFixture
 
 from reconcile.aus import advanced_upgrade_service
 from reconcile.aus.advanced_upgrade_service import (
+    AdvancedUpgradeServiceIntegration,
     ClusterUpgradePolicyLabelSet,
     OrganizationLabelSet,
     OrgRef,
@@ -18,10 +21,24 @@ from reconcile.aus.advanced_upgrade_service import (
     build_version_data_inheritance_network,
     discover_clusters,
 )
-from reconcile.aus.healthchecks import AUSClusterHealthCheckProvider
-from reconcile.aus.models import OrganizationUpgradeSpec
+from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
+from reconcile.aus.healthchecks import AUSClusterHealth, AUSClusterHealthCheckProvider
+from reconcile.aus.models import (
+    ClusterUpgradeSpec,
+    NodePoolSpec,
+    OrganizationUpgradeSpec,
+)
+from reconcile.gql_definitions.common.ocm_env_telemeter import OCMEnvTelemeterQueryData
+from reconcile.gql_definitions.common.ocm_environments import OCMEnvironmentsQueryData
+from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.test.ocm.aus.fixtures import build_organization
+from reconcile.gql_definitions.fragments.upgrade_policy import (
+    ClusterUpgradePolicyConditionsV1,
+    ClusterUpgradePolicyV1,
+)
+from reconcile.test.ocm.aus.fixtures import (
+    build_organization,
+)
 from reconcile.test.ocm.fixtures import (
     build_cluster_details,
     build_label,
@@ -29,6 +46,7 @@ from reconcile.test.ocm.fixtures import (
 )
 from reconcile.utils.clusterhealth.providerbase import EmptyClusterHealthProvider
 from reconcile.utils.ocm.base import (
+    ClusterDetails,
     LabelContainer,
     build_label_container,
 )
@@ -36,6 +54,191 @@ from reconcile.utils.ocm.labels import subscription_label_filter
 from reconcile.utils.ocm.search_filters import Filter
 from reconcile.utils.ocm.sre_capability_labels import build_labelset
 from reconcile.utils.ocm_base_client import OCMBaseClient
+
+ORG_ID = "org-id"
+
+
+def setup_mocks(
+    mocker: MockerFixture,
+    orgs: list[AUSOCMOrganization] | None = None,
+    ocm_envs: list[OCMEnvironment] | None = None,
+    clusters: list[ClusterDetails] | None = None,
+    node_pool_specs_by_org_cluster: dict[str, dict[str, list[NodePoolSpec]]]
+    | None = None,
+) -> dict[str, Any]:
+    return {
+        "gql": mocker.patch("reconcile.aus.base.gql"),
+        "ocm_environment_query": mocker.patch(
+            "reconcile.aus.base.ocm_environment_query",
+            return_value=OCMEnvironmentsQueryData(environments=ocm_envs or []),
+        ),
+        "get_orgs_for_environment": mocker.patch(
+            "reconcile.aus.base.get_orgs_for_environment",
+            return_value=orgs or [],
+        ),
+        "init_ocm_base_client": mocker.patch(
+            "reconcile.aus.advanced_upgrade_service.init_ocm_base_client",
+        ),
+        "discover_clusters": mocker.patch(
+            "reconcile.aus.advanced_upgrade_service.discover_clusters_by_labels",
+            return_value=clusters or [],
+        ),
+        "get_app_interface_vault_settings": mocker.patch(
+            "reconcile.utils.runtime.integration.get_app_interface_vault_settings",
+        ),
+        "create_secret_reader": mocker.patch(
+            "reconcile.utils.runtime.integration.create_secret_reader"
+        ),
+        "ocm_env_telemeter_query": mocker.patch(
+            "reconcile.aus.base.ocm_env_telemeter_query",
+            return_value=OCMEnvTelemeterQueryData(ocm_envs=[]),
+        ),
+        "get_node_pool_specs_by_org_cluster": mocker.patch(
+            "reconcile.aus.advanced_upgrade_service.get_node_pool_specs_by_org_cluster",
+            return_value=node_pool_specs_by_org_cluster or {},
+        ),
+    }
+
+
+def test_advanced_upgrade_service_get_upgrade_specs_when_empty(
+    mocker: MockerFixture,
+    ocm_env: OCMEnvironment,
+) -> None:
+    setup_mocks(mocker)
+    integration = AdvancedUpgradeServiceIntegration(
+        AdvancedUpgradeSchedulerBaseIntegrationParams(
+            ocm_environment=ocm_env.name,
+            ocm_organization_ids={ORG_ID},
+        )
+    )
+
+    upgrade_specs = integration.get_upgrade_specs()
+
+    assert upgrade_specs == {}
+
+
+CLUSTER_NAME = "cluster-1"
+SCHEDULE = "0 * * * 1-5"
+WORKLOADS = ["workload"]
+
+
+def test_advanced_upgrade_service_get_upgrade_specs(
+    mocker: MockerFixture,
+    ocm_env: OCMEnvironment,
+) -> None:
+    org = build_organization(org_id=ORG_ID)
+    org.inherit_version_data = None
+    org.sectors = []
+    cluster = build_cluster_details(
+        CLUSTER_NAME,
+        subscription_labels=build_cluster_upgrade_policy_labels(
+            schedule=SCHEDULE,
+            workloads=WORKLOADS,
+        ),
+        org_id=ORG_ID,
+    )
+    setup_mocks(mocker, orgs=[org], ocm_envs=[ocm_env], clusters=[cluster])
+    expected_cluster_upgrade_spec = ClusterUpgradeSpec(
+        org=org,
+        upgradePolicy=ClusterUpgradePolicyV1(
+            workloads=WORKLOADS,
+            versionGateApprovals=None,
+            schedule=SCHEDULE,
+            conditions=ClusterUpgradePolicyConditionsV1(
+                soakDays=0,
+                mutexes=None,
+                sector=None,
+                blockedVersions=None,
+            ),
+        ),
+        cluster=cluster.ocm_cluster,
+        health=AUSClusterHealth(state={}),
+    )
+    expected_upgrade_specs = {
+        ocm_env.name: {
+            ORG_ID: OrganizationUpgradeSpec(
+                org=org,
+                specs=[expected_cluster_upgrade_spec],
+            )
+        }
+    }
+    integration = AdvancedUpgradeServiceIntegration(
+        AdvancedUpgradeSchedulerBaseIntegrationParams(
+            ocm_environment=ocm_env.name,
+            ocm_organization_ids={ORG_ID},
+        )
+    )
+
+    upgrade_specs = integration.get_upgrade_specs()
+
+    assert upgrade_specs == expected_upgrade_specs
+    assert upgrade_specs[ocm_env.name][ORG_ID].specs[0] == expected_cluster_upgrade_spec
+
+
+def test_advanced_upgrade_service_get_upgrade_specs_for_hypershift(
+    mocker: MockerFixture,
+    ocm_env: OCMEnvironment,
+) -> None:
+    org = build_organization(org_id=ORG_ID)
+    org.inherit_version_data = None
+    org.sectors = []
+    cluster = build_cluster_details(
+        CLUSTER_NAME,
+        subscription_labels=build_cluster_upgrade_policy_labels(
+            schedule=SCHEDULE,
+            workloads=WORKLOADS,
+        ),
+        org_id=ORG_ID,
+        hypershift=True,
+    )
+    node_pool = NodePoolSpec(
+        id="worker-1",
+        version="4.12.0",
+    )
+    setup_mocks(
+        mocker,
+        orgs=[org],
+        ocm_envs=[ocm_env],
+        clusters=[cluster],
+        node_pool_specs_by_org_cluster={ORG_ID: {cluster.ocm_cluster.id: [node_pool]}},
+    )
+    expected_cluster_upgrade_spec = ClusterUpgradeSpec(
+        org=org,
+        upgradePolicy=ClusterUpgradePolicyV1(
+            workloads=WORKLOADS,
+            versionGateApprovals=None,
+            schedule=SCHEDULE,
+            conditions=ClusterUpgradePolicyConditionsV1(
+                soakDays=0,
+                mutexes=None,
+                sector=None,
+                blockedVersions=None,
+            ),
+        ),
+        cluster=cluster.ocm_cluster,
+        health=AUSClusterHealth(state={}),
+        nodePools=[node_pool],
+    )
+    expected_upgrade_specs = {
+        ocm_env.name: {
+            ORG_ID: OrganizationUpgradeSpec(
+                org=org,
+                specs=[expected_cluster_upgrade_spec],
+            )
+        }
+    }
+    integration = AdvancedUpgradeServiceIntegration(
+        AdvancedUpgradeSchedulerBaseIntegrationParams(
+            ocm_environment=ocm_env.name,
+            ocm_organization_ids={ORG_ID},
+        )
+    )
+
+    upgrade_specs = integration.get_upgrade_specs()
+
+    assert upgrade_specs == expected_upgrade_specs
+    assert upgrade_specs[ocm_env.name][ORG_ID].specs[0] == expected_cluster_upgrade_spec
+
 
 #
 # organization label set
@@ -190,6 +393,7 @@ def test_build_org_upgrade_spec(
         cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
             name="empty", provider=EmptyClusterHealthProvider(), enforce=True
         ),
+        node_pool_specs_by_cluster_id={},
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -216,6 +420,7 @@ def test_build_org_upgrade_spec_with_cluster_error(
         cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
             name="empty", provider=EmptyClusterHealthProvider(), enforce=True
         ),
+        node_pool_specs_by_cluster_id={},
     )
     assert len(org_upgrade_spec.cluster_errors) == 1
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -246,6 +451,7 @@ def test_build_org_upgrade_spec_with_version_inheritance(
         cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
             name="empty", provider=EmptyClusterHealthProvider(), enforce=True
         ),
+        node_pool_specs_by_cluster_id={},
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 0
@@ -278,6 +484,7 @@ def test_build_org_upgrade_spec_with_version_inheritance_no_publish(
         cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
             name="empty", provider=EmptyClusterHealthProvider(), enforce=True
         ),
+        node_pool_specs_by_cluster_id={},
     )
     assert len(org_upgrade_spec.cluster_errors) == 0
     assert len(org_upgrade_spec.organization_errors) == 1
@@ -306,6 +513,7 @@ def test_build_org_upgrade_spec_missing_sector(
         cluster_health_provider=AUSClusterHealthCheckProvider().add_provider(
             name="empty", provider=EmptyClusterHealthProvider(), enforce=True
         ),
+        node_pool_specs_by_cluster_id={},
     )
     assert len(org_upgrade_spec.cluster_errors) == 1
     assert len(org_upgrade_spec.organization_errors) == 1
@@ -338,6 +546,7 @@ def test_build_org_upgrade_specs_for_ocm_env(ocm_env: OCMEnvironment) -> None:
         },
         inheritance_network={},
         cluster_health_providers={},
+        node_pool_specs_by_org_cluster={},
     )
     assert org_id in upgrade_specs
 
@@ -372,6 +581,7 @@ def test_build_org_upgrade_specs_for_ocm_env_with_cluster_error(
         },
         inheritance_network={},
         cluster_health_providers={},
+        node_pool_specs_by_org_cluster={},
     )
     assert org_id in upgrade_specs
 
@@ -563,6 +773,7 @@ def build_org_upgrade_specs(
         },
         inheritance_network={},
         cluster_health_providers={},
+        node_pool_specs_by_org_cluster={},
     )
 
 

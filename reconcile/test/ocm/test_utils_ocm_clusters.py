@@ -37,7 +37,6 @@ from reconcile.utils.ocm.clusters import (
     get_cluster_details_for_subscriptions,
     get_node_pools,
     get_service_clusters,
-    get_version,
 )
 from reconcile.utils.ocm.labels import label_filter
 from reconcile.utils.ocm.search_filters import Filter
@@ -320,22 +319,6 @@ def test_get_node_pools(mocker: MockFixture) -> None:
     assert node_pools[0]["instance_type"] == node_pool["instance_type"]
     assert node_pools[0]["replicas"] == node_pool["replicas"]
     assert "foo" not in node_pools[0]
-
-
-def test_get_version(mocker: MockFixture) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
-    ocm.get.return_value = {}
-
-    version = get_version(ocm, "test")
-    assert len(version) == 0
-
-    version_return = {"id": "openshift-v4.12.16", "raw_id": "4.12.16", "foo": "bar"}
-    ocm.get.return_value = version_return
-
-    version = get_version(ocm, "fooo")
-    assert version["id"] == version_return["id"]
-    assert version["raw_id"] == version_return["raw_id"]
-    assert "foo" not in version
 
 
 def test_get_service_clusters_empty(mocker: MockFixture) -> None:
