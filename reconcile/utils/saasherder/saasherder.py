@@ -124,6 +124,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.error_registered = False
         self.saas_files = saas_files
         self.repo_urls = self._collect_repo_urls()
+        self.image_patterns = self._collect_image_patterns()
         self.resolve_templated_parameters(self.saas_files)
         if validate:
             self._validate_saas_files()
@@ -706,6 +707,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             for saas_file in self.saas_files
             for rt in saas_file.resource_templates
         }
+
+    def _collect_image_patterns(self) -> set[str]:
+        return {p for sf in self.saas_files for p in sf.image_patterns}
 
     @staticmethod
     def _get_file_contents_github(repo: Repository, path: str, commit_sha: str) -> str:
