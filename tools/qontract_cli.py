@@ -2852,7 +2852,7 @@ def container_image_details(ctx):
     apps = get_apps_quay_repos_escalation_policies()
     data: list[dict[str, str]] = []
     for app in apps:
-        app_name = app.name
+        app_name = app.parent_app.name if app.parent_app else app.name
         ep_channels = app.escalation_policy.channels
         email = ep_channels.email
         slack = ep_channels.slack_user_group[0].handle

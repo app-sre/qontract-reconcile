@@ -22,6 +22,9 @@ DEFINITION = """
 query AppQuayReposEscalationPolicies {
   apps: apps_v1 {
     name
+    parentApp {
+      name
+    }
     escalationPolicy {
       channels {
         email
@@ -50,6 +53,10 @@ class ConfiguredBaseModel(BaseModel):
     class Config:
         smart_union=True
         extra=Extra.forbid
+
+
+class AppV1_AppV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
 
 
 class PermissionSlackUsergroupV1(ConfiguredBaseModel):
@@ -85,6 +92,7 @@ class AppQuayReposV1(ConfiguredBaseModel):
 
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    parent_app: Optional[AppV1_AppV1] = Field(..., alias="parentApp")
     escalation_policy: AppEscalationPolicyV1 = Field(..., alias="escalationPolicy")
     quay_repos: Optional[list[AppQuayReposV1]] = Field(..., alias="quayRepos")
 
