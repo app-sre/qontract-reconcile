@@ -22,7 +22,10 @@ def get_quay_api_store():
         org_name = org_data["name"]
         org_key = OrgKey(instance_name, org_name)
         base_url = org_data["instance"]["url"]
-        token = secret_reader.read(org_data["automationToken"])
+        automation_token = org_data["automationToken"]
+        if not automation_token:
+            continue
+        token = secret_reader.read(automation_token)
 
         if org_data.get("mirror"):
             mirror = OrgKey(
