@@ -50,12 +50,14 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
     for r in missing_repos:
         logging.error(f"repo is missing from codeComponents: {r}")
     app_int_quay_instances = {i.url for i in get_quay_instances()}
-    app_int_quay_orgs = {f"{o.instance.url}/{o.name}" for o in get_quay_orgs()}
+    app_int_quay_orgs = {(o.instance.url, o.name) for o in get_quay_orgs()}
     missing_image_patterns = [
         p
         for p in saasherder.image_patterns
-        if any(p.startswith(i) for i in app_int_quay_instances)
-        and not any(p.startswith(o) for o in app_int_quay_orgs)
+        if (parts := p.split("/"))
+        and parts[0] in app_int_quay_instances
+        and len(parts) >= 2
+        and (parts[0], parts[1]) not in app_int_quay_orgs
     ]
     for p in missing_image_patterns:
         logging.error(f"image pattern is missing from quayOrgs: {p}")
