@@ -63,5 +63,5 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
         logging.error(f"image pattern is missing from quayOrgs: {p}")
     jjb: JJB = init_jjb(secret_reader)
     saasherder.validate_upstream_jobs(jjb)
-    if not saasherder.valid or missing_repos:
+    if not saasherder.valid or missing_repos or missing_image_patterns:
         sys.exit(ExitCodes.ERROR)
