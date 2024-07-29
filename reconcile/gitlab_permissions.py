@@ -104,7 +104,7 @@ class GroupPermissionHandler:
                 )
                 continue
             logging.info([
-                f"share_group_{self.group.name}_as_{self.access_level_string}",
+                f"share_with_{self.group.name}_as_{self.access_level_string}",
                 repo,
             ])
             if not self.dry_run:
@@ -123,7 +123,7 @@ class GroupPermissionHandler:
                 )
                 continue
             logging.info([
-                f"reshare_group_{self.group.name}_as_{self.access_level_string}",
+                f"reshare_with_{self.group.name}_as_{self.access_level_string}",
                 repo,
             ])
             if not self.dry_run:
