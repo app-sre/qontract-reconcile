@@ -40,5 +40,6 @@ query SelfServiceRolesQuery($name: String) {
     memberSources {
       ...RoleMembershipSource
     }
+    expirationDate
   }
 }

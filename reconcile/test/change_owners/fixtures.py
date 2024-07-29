@@ -306,6 +306,7 @@ def build_role(
         permissions=permissions,
         labels=labels,
         memberSources=None,
+        expirationDate=None,
     )
 
 

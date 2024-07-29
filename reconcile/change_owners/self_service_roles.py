@@ -19,7 +19,7 @@ from reconcile.gql_definitions.change_owners.queries.self_service_roles import (
     PermissionSlackUsergroupV1,
     RoleV1,
 )
-from reconcile.utils import gql
+from reconcile.utils import expiration, gql
 from reconcile.utils.membershipsources.models import (
     RoleBot,
     RoleMember,
@@ -45,7 +45,7 @@ class DatafileIncompatibleWithChangeTypeError(Exception):
 
 def fetch_self_service_roles(gql_api: gql.GqlApi) -> list[RoleV1]:
     roles: list[RoleV1] = []
-    for r in self_service_roles.query(gql_api.query).roles or []:
+    for r in expiration.filter(self_service_roles.query(gql_api.query).roles or []):
         if not r.self_service:
             continue
         validate_self_service_role(r)
