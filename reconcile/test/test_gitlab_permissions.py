@@ -5,10 +5,12 @@ from gitlab.v4.objects import (
     CurrentUser,
     Group,
     GroupMember,
-    GroupProject,
+    GroupProjectManager,
     Project,
     ProjectMember,
     ProjectMemberAllManager,
+    SharedProject,
+    SharedProjectManager,
 )
 from pytest_mock import MockerFixture
 
@@ -60,22 +62,27 @@ def test_run_share_with_group(
     ).return_value = True
     group = create_autospec(Group, id=1234)
     group.name = "app-sre"
-    mocked_gl.get_group.return_value = group
-    mocked_gl.get_all_group_projects.return_value = [
-        create_autospec(
-            GroupProject,
-            web_url="https://test.com",
-            shared_with_groups=[
-                {
-                    "group_access_level": 30,
-                    "group_name": "app-sre",
-                    "group_id": 134,
-                }
-            ],
-        )
+    group.projects = create_autospec(GroupProjectManager)
+    group.shared_projects = create_autospec(SharedProjectManager)
+    mocked_gl.get_items.side_effect = [
+        [],
+        [
+            create_autospec(
+                SharedProject,
+                web_url="https://test.com",
+                shared_with_groups=[
+                    {
+                        "group_access_level": 30,
+                        "group_name": "app-sre",
+                        "group_id": 134,
+                    }
+                ],
+            )
+        ],
     ]
+    mocked_gl.get_group.return_value = group
     mocked_gl.get_access_level.return_value = 40
-    project = create_autospec(Project)
+    project = create_autospec(Project, web_url="https://test.com")
     project.members_all = create_autospec(ProjectMemberAllManager)
     project.members_all.get.return_value = create_autospec(
         ProjectMember, id=mocked_gl.user.id, access_level=40
@@ -96,22 +103,27 @@ def test_run_reshare_with_group(
     ).return_value = True
     group = create_autospec(Group, id=1234)
     group.name = "app-sre"
-    mocked_gl.get_group.return_value = group
-    mocked_gl.get_all_group_projects.return_value = [
-        create_autospec(
-            GroupProject,
-            web_url="https://test-gitlab.com",
-            shared_with_groups=[
-                {
-                    "group_access_level": 30,
-                    "group_name": "app-sre",
-                    "group_id": 1234,
-                }
-            ],
-        )
+    group.projects = create_autospec(GroupProjectManager)
+    group.shared_projects = create_autospec(SharedProjectManager)
+    mocked_gl.get_items.side_effect = [
+        [],
+        [
+            create_autospec(
+                SharedProject,
+                web_url="https://test-gitlab.com",
+                shared_with_groups=[
+                    {
+                        "group_access_level": 30,
+                        "group_name": "app-sre",
+                        "group_id": 1234,
+                    }
+                ],
+            )
+        ],
     ]
+    mocked_gl.get_group.return_value = group
     mocked_gl.get_access_level.return_value = 40
-    project = create_autospec(Project)
+    project = create_autospec(Project, web_url="https://test-gitlab.com")
     project.members_all = create_autospec(ProjectMemberAllManager)
     project.members_all.get.return_value = create_autospec(
         ProjectMember, id=mocked_gl.user.id, access_level=40
@@ -132,20 +144,27 @@ def test_run_share_with_group_failed(
     ).return_value = True
     group = create_autospec(Group, id=1234)
     group.name = "app-sre"
-    mocked_gl.get_group.return_value = group
-    mocked_gl.get_all_group_projects.return_value = [
-        create_autospec(
-            GroupProject,
-            web_url="https://test-gitlab.com",
-            shared_with_groups=[
-                {
-                    "group_access_level": 30,
-                    "group_name": "app-sre",
-                    "group_id": 1234,
-                }
-            ],
-        )
+    group.projects = create_autospec(GroupProjectManager)
+    group.shared_projects = create_autospec(SharedProjectManager)
+    group.projects = create_autospec(GroupProjectManager)
+    group.shared_projects = create_autospec(SharedProjectManager)
+    mocked_gl.get_items.side_effect = [
+        [],
+        [
+            create_autospec(
+                SharedProject,
+                web_url="https://test-gitlab.com",
+                shared_with_groups=[
+                    {
+                        "group_access_level": 30,
+                        "group_name": "app-sre",
+                        "group_id": 134,
+                    }
+                ],
+            )
+        ],
     ]
+    mocked_gl.get_group.return_value = group
     mocked_gl.get_access_level.return_value = 40
     project = create_autospec(Project)
     project.members_all = create_autospec(ProjectMemberAllManager)

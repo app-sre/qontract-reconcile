@@ -26,7 +26,6 @@ PAGE_SIZE = 100
 class GroupSpec:
     group_name: str
     group_access_level: int
-    is_child_project: bool = False
 
 
 class GroupAccessLevelError(Exception):
@@ -44,32 +43,39 @@ class GroupPermissionHandler:
         self.group = self.gl.get_group(group_name)
 
     def run(self, repos: list[str]) -> None:
+        # filter projects belonging to the same group and remove it from the state data
+        filtered_project_repos = self.filter_group_owned_projects(repos)
         desired_state = {
             project_repo_url: GroupSpec(self.group.name, self.access_level)
-            for project_repo_url in repos
+            for project_repo_url in filtered_project_repos
         }
-        projects_from_group = self.gl.get_all_group_projects(self.group)
+        # get all projects shared with group
+        shared_projects = self.gl.get_items(self.group.shared_projects.list)
         current_state = {
-            project.web_url: self.extract_group_spec(project)
-            for project in projects_from_group
+            project.web_url: group_spec
+            for project in shared_projects
+            if (group_spec := self.extract_group_spec(project))
         }
         self.reconcile(desired_state, current_state)
 
-    def extract_group_spec(self, project: GroupProject) -> GroupSpec:
-        # check if the project have shared_with_groups with an access level
-        # in case of group being the only ancestor of project the shared_with_groups will be empty
+    def filter_group_owned_projects(self, repos: list[str]) -> set[str]:
+        # get only the projects that are owned by  group and its sub groups
+        query = {"with_shared": False, "include_subgroups": True}
+        group_owned_projects = self.gl.get_items(
+            self.group.projects.list, query_parameters=query
+        )
+        group_owned_repo_list = {project.web_url for project in group_owned_projects}
+        # remove this group data from repo list
+        return set(repos) - group_owned_repo_list
+
+    def extract_group_spec(self, project: GroupProject) -> GroupSpec | None:
         for group in project.shared_with_groups:
             if group["group_id"] == self.group.id:
                 return GroupSpec(
                     group_name=self.group.name,
                     group_access_level=group["group_access_level"],
                 )
-        # return the desired groupspec data to skip project whose ancestor is the group as they cannot be shared/unshared
-        return GroupSpec(
-            group_name=self.group.name,
-            group_access_level=self.access_level,
-            is_child_project=True,
-        )
+        return None
 
     def can_share_project(self, project: Project) -> bool:
         # check if user have access greater or equal access to be shared with the group

@@ -277,10 +277,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         project.share(group_id, access_level)
 
-    def get_all_group_projects(self, group: Group) -> list[GroupProject]:
-        shared_projects = self.get_items(group.projects.list)
-        return shared_projects
-
     @staticmethod
     def _is_bot_username(username: str) -> bool:
         """crudely checking for the username
