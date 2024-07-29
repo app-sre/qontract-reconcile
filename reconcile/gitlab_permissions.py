@@ -65,7 +65,6 @@ class GroupPermissionHandler:
             self.group.projects.list, query_parameters=query
         )
         group_owned_repo_list = {project.web_url for project in group_owned_projects}
-        # remove this group data from repo list
         return set(repos) - group_owned_repo_list
 
     def extract_group_spec(self, project: GroupProject) -> GroupSpec | None:
