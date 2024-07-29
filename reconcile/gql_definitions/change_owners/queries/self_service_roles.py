@@ -87,6 +87,7 @@ query SelfServiceRolesQuery($name: String) {
     memberSources {
       ...RoleMembershipSource
     }
+    expirationDate
   }
 }
 """
@@ -152,6 +153,7 @@ class RoleV1(ConfiguredBaseModel):
     bots: list[BotV1] = Field(..., alias="bots")
     permissions: Optional[list[Union[PermissionSlackUsergroupV1, PermissionGitlabGroupMembershipV1, PermissionV1]]] = Field(..., alias="permissions")
     member_sources: Optional[list[RoleMembershipSource]] = Field(..., alias="memberSources")
+    expiration_date: Optional[str] = Field(..., alias="expirationDate")
 
 
 class SelfServiceRolesQueryQueryData(ConfiguredBaseModel):
