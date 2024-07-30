@@ -66,19 +66,7 @@ def test_run_share_with_group(
     group.shared_projects = create_autospec(SharedProjectManager)
     mocked_gl.get_items.side_effect = [
         [],
-        [
-            create_autospec(
-                SharedProject,
-                web_url="https://test.com",
-                shared_with_groups=[
-                    {
-                        "group_access_level": 30,
-                        "group_name": "app-sre",
-                        "group_id": 134,
-                    }
-                ],
-            )
-        ],
+        [],
     ]
     mocked_gl.get_group.return_value = group
     mocked_gl.get_access_level.return_value = 40

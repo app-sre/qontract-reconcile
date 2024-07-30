@@ -52,9 +52,8 @@ class GroupPermissionHandler:
         # get all projects shared with group
         shared_projects = self.gl.get_items(self.group.shared_projects.list)
         current_state = {
-            project.web_url: group_spec
+            project.web_url: self.extract_group_spec(project)
             for project in shared_projects
-            if (group_spec := self.extract_group_spec(project))
         }
         self.reconcile(desired_state, current_state)
 
@@ -67,14 +66,15 @@ class GroupPermissionHandler:
         group_owned_repo_list = {project.web_url for project in group_owned_projects}
         return set(repos) - group_owned_repo_list
 
-    def extract_group_spec(self, project: GroupProject) -> GroupSpec | None:
-        for group in project.shared_with_groups:
-            if group["group_id"] == self.group.id:
-                return GroupSpec(
-                    group_name=self.group.name,
-                    group_access_level=group["group_access_level"],
-                )
-        return None
+    def extract_group_spec(self, project: GroupProject) -> GroupSpec:
+        return next(
+            GroupSpec(
+                group_name=self.group.name,
+                group_access_level=group["group_access_level"],
+            )
+            for group in project.shared_with_groups
+            if group["group_id"] == self.group.id
+        )
 
     def can_share_project(self, project: Project) -> bool:
         # check if user have access greater or equal access to be shared with the group
