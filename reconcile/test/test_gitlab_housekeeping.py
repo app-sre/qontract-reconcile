@@ -177,7 +177,7 @@ def project() -> Project:
 def can_be_merged_merge_request() -> Mock:
     mr = create_autospec(ProjectMergeRequest)
     mr.merge_status = "can_be_merged"
-    mr.work_in_progress = False
+    mr.draft = False
     mr.commits.return_value = [create_autospec(ProjectCommit)]
     mr.labels = ["lgtm"]
     mr.iid = 1

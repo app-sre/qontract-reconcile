@@ -2017,7 +2017,7 @@ def app_interface_review_queue(ctx) -> None:
 
         queue_data = []
         for mr in merge_requests:
-            if mr.work_in_progress:
+            if mr.draft:
                 continue
             if len(mr.commits()) == 0:
                 continue
@@ -2116,7 +2116,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx):
     ]
     queue_data = []
     for mr in merge_requests:
-        if mr.work_in_progress:
+        if mr.draft:
             continue
         if len(mr.commits()) == 0:
             continue
