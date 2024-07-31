@@ -44,7 +44,6 @@ class GroupPermissionHandler:
 
     def run(self, repos: list[str]) -> None:
         # filter projects belonging to the same group and remove it from the state data
-        repos = ["https://gitlab.cee.redhat.com/mekhan/app-interface"]
         filtered_project_repos = self.filter_group_owned_projects(repos)
         desired_state = {
             project_repo_url: GroupSpec(self.group.name, self.access_level)
