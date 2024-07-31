@@ -44,6 +44,7 @@ class GroupPermissionHandler:
 
     def run(self, repos: list[str]) -> None:
         # filter projects belonging to the same group and remove it from the state data
+        repos = ["https://gitlab.cee.redhat.com/mekhan/app-interface"]
         filtered_project_repos = self.filter_group_owned_projects(repos)
         desired_state = {
             project_repo_url: GroupSpec(self.group.name, self.access_level)
@@ -104,8 +105,10 @@ class GroupPermissionHandler:
                 )
                 continue
             logging.info([
-                f"share_{self.group.name}_as_{self.access_level_string}",
+                "share",
                 repo,
+                self.group.name,
+                self.access_level_string,
             ])
             if not self.dry_run:
                 self.gl.share_project_with_group(
@@ -123,8 +126,10 @@ class GroupPermissionHandler:
                 )
                 continue
             logging.info([
-                f"reshare_{self.group.name}_as_{self.access_level_string}",
+                "reshare",
                 repo,
+                self.group.name,
+                self.access_level_string,
             ])
             if not self.dry_run:
                 self.gl.share_project_with_group(
