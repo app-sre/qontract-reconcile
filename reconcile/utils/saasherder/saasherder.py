@@ -1948,11 +1948,17 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         has_succeeded_once = True
 
                     check_in = str(now)
-                    if success and current_state and current_state.check_in:
+                    if (
+                        success
+                        and current_state
+                        and current_state.check_in
+                        and current_state.success
+                    ):
                         # We want to avoid an override of the timestamp.
                         # This can happen on re-deployments of the same ref.
-                        # We only re-use the check_in time if the deployment
-                        # was successful - on unsuccessful deployments, we
+                        # We only re-use the check_in time if the previous
+                        # and current deployment was successful.
+                        # On unsuccessful deployments, we
                         # update the check_in time to current time.
                         check_in = current_state.check_in
 
