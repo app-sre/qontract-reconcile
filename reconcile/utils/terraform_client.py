@@ -24,6 +24,7 @@ from typing import (
 )
 
 from botocore.errorfactory import ClientError
+from packaging import version as pkg_version
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -783,6 +784,71 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 raise ValueError(
                     "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
                     f"{resource_name} to a new major version."
+                )
+
+            blue_green_update = after.get("blue_green_update", {}).get("enabled", False)
+            if blue_green_update:
+                self.validate_blue_green_update_requirements(
+                    account_name,
+                    engine,
+                    after_version,
+                    before["db_parameter_group_name"],
+                    before.get("replica_source"),
+                    region_name,
+                )
+
+    def validate_blue_green_update_requirements(
+        self,
+        account_name,
+        engine,
+        version,
+        parameter_group,
+        replica_source,
+        region_name,
+    ):
+        min_supported_versions = {
+            "mysql": [pkg_version.parse("5.7"), pkg_version.parse("8.0.15")],
+            "postgres": [
+                pkg_version.parse("11.21"),
+                pkg_version.parse("12.16"),
+                pkg_version.parse("13.12"),
+                pkg_version.parse("14.9"),
+                pkg_version.parse("15.4"),
+                pkg_version.parse("16.1"),
+            ],
+        }
+
+        def is_supported(engine, version):
+            parsed_version = pkg_version.parse(version)
+            if engine == "mysql":
+                return any(
+                    parsed_version >= min_version
+                    for min_version in min_supported_versions["mysql"]
+                )
+            elif engine == "postgres":
+                return any(
+                    parsed_version >= min_version
+                    for min_version in min_supported_versions["postgres"]
+                )
+            return False
+
+        if not is_supported(engine, version):
+            raise ValueError(
+                f"Engine version {version} is not supported for blue/green updates."
+            )
+
+        if replica_source:
+            raise ValueError(
+                "Blue/green updates are not supported for instances with read replicas."
+            )
+
+        if engine == "postgres" and parameter_group:
+            pg_details = self._aws_api.describe_db_parameter_group(
+                account_name, parameter_group, region_name
+            )
+            if pg_details.get("rds.logical_replication") != "1":
+                raise ValueError(
+                    f"Parameter group {parameter_group} does not have logical replication enabled."
                 )
 
 

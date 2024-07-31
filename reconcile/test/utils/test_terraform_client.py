@@ -621,6 +621,87 @@ def test_validate_db_upgrade_with_empty_valid_upgrade_target(
     )
 
 
+def test_validate_blue_green_update_requirements_supported_version(aws_api, tf):
+    aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}
+
+    tf.validate_blue_green_update_requirements(
+        account_name="a1",
+        engine="postgres",
+        version="12.17",
+        parameter_group="test-pg",
+        replica_source=None,
+        region_name="us-east-1",
+    )
+
+
+def test_validate_blue_green_update_requirements_unsupported_version(aws_api, tf):
+    with pytest.raises(ValueError) as error:
+        tf.validate_blue_green_update_requirements(
+            account_name="a1",
+            engine="postgres",
+            version="11.19",
+            parameter_group="test-pg",
+            replica_source=None,
+            region_name="us-east-1",
+        )
+    assert "not supported for blue/green updates" in str(error.value)
+
+
+def test_validate_blue_green_update_requirements_missing_logical_replication(
+    aws_api, tf
+):
+    aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "0"}
+
+    with pytest.raises(ValueError) as error:
+        tf.validate_blue_green_update_requirements(
+            account_name="a1",
+            engine="postgres",
+            version="12.16",
+            parameter_group="test-pg",
+            replica_source=None,
+            region_name="us-east-1",
+        )
+    assert "does not have logical replication enabled" in str(error.value)
+
+
+def test_validate_blue_green_update_requirements_with_replica_source(aws_api, tf):
+    with pytest.raises(ValueError) as error:
+        tf.validate_blue_green_update_requirements(
+            account_name="a1",
+            engine="postgres",
+            version="12.16",
+            parameter_group="test-pg",
+            replica_source="replica-source",
+            region_name="us-east-1",
+        )
+    assert "not supported for instances with read replicas" in str(error.value)
+
+
+def test_validate_db_upgrade_with_blue_green_update(aws_api, tf):
+    aws_api.get_db_valid_upgrade_target.return_value = [
+        {"Engine": "postgres", "EngineVersion": "12.16", "IsMajorVersionUpgrade": False}
+    ]
+    aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}
+
+    tf.validate_db_upgrade(
+        account_name="a1",
+        resource_name="test-database-1",
+        resource_change={
+            "before": {
+                "engine": "postgres",
+                "engine_version": "11.12",
+                "availability_zone": "us-east-1a",
+                "db_parameter_group_name": "test-pg",
+            },
+            "after": {
+                "engine": "postgres",
+                "engine_version": "12.16",
+                "blue_green_update": {"enabled": True},
+            },
+        },
+    )
+
+
 def test_check_output_debug(
     tf: tfclient.TerraformClient,
     mocker: MockerFixture,
