@@ -57,7 +57,7 @@ def test_single_non_hcp_cluster_create_tokens(
             f"dtp-ingestion-token-{default_cluster.external_id}": ingestion_token,
             f"dtp-operator-token-{default_cluster.external_id}": operator_token,
         },
-        existing_token_ids=set(),
+        existing_token_ids={},
     )
 
     dynatrace_client_by_tenant_id = {

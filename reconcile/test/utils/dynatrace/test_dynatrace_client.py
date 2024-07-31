@@ -33,7 +33,7 @@ def test_dynatrace_create_token_error() -> None:
     api.tokens.create.assert_called_once_with(name="test-token", scopes=["test-scope"])
 
 
-def test_dynatrace_token_ids_for_name_prefix_success() -> None:
+def test_dynatrace_token_ids_map_for_name_prefix_success() -> None:
     api = build_dynatrace_api(
         list_tokens=[
             ("test-prefix-1", "123"),
@@ -43,35 +43,35 @@ def test_dynatrace_token_ids_for_name_prefix_success() -> None:
     )
 
     client = DynatraceClient(environment_url="test-env", api=api)
-    token_ids = client.get_token_ids_for_name_prefix(prefix="test-prefix")
+    token_ids = client.get_token_ids_map_for_name_prefix(prefix="test-prefix")
 
-    assert token_ids == ["123", "456"]
+    assert token_ids == {"123": "test-prefix-1", "456": "test-prefix-2"}
     api.tokens.list.assert_called_once_with()
 
 
-def test_dynatrace_token_ids_for_name_empty_prefix_success() -> None:
+def test_dynatrace_token_ids_map_for_name_empty_prefix_success() -> None:
     api = build_dynatrace_api(
         list_tokens=[
             ("test-prefix-1", "123"),
             ("test-prefix-2", "456"),
-            ("filter-this", "789"),
+            ("other", "789"),
         ]
     )
 
     client = DynatraceClient(environment_url="test-env", api=api)
-    token_ids = client.get_token_ids_for_name_prefix(prefix="")
+    token_ids = client.get_token_ids_map_for_name_prefix(prefix="")
 
-    assert token_ids == ["123", "456", "789"]
+    assert token_ids == {"123": "test-prefix-1", "456": "test-prefix-2", "789": "other"}
     api.tokens.list.assert_called_once_with()
 
 
-def test_dynatrace_token_ids_for_name_prefix_error() -> None:
+def test_dynatrace_token_ids_map_for_name_prefix_error() -> None:
     api = build_dynatrace_api(list_error=Exception("test-error"))
 
     client = DynatraceClient(environment_url="test-env", api=api)
 
     with raises(DynatraceTokenRetrievalError):
-        client.get_token_ids_for_name_prefix(prefix="test-prefix")
+        client.get_token_ids_map_for_name_prefix(prefix="test-prefix")
 
     api.tokens.list.assert_called_once_with()
 

@@ -75,7 +75,7 @@ def test_dry_run(
     dynatrace_client = build_dynatrace_client(
         create_api_token={},
         # Operator token id is missing
-        existing_token_ids={default_ingestion_token.id},
+        existing_token_ids={default_ingestion_token.id: "name123"},
     )
 
     dynatrace_client_by_tenant_id = {
