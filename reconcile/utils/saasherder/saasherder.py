@@ -1947,6 +1947,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     if current_state and current_state.has_succeeded_once:
                         has_succeeded_once = True
 
+                    check_in = str(now)
+                    if success and current_state and current_state.check_in:
+                        # We want to avoid an override of the timestamp.
+                        # This can happen on re-deployments of the same ref.
+                        # We only re-use the check_in time if the deployment
+                        # was successful - on unsuccessful deployments, we
+                        # update the check_in time to current time.
+                        check_in = current_state.check_in
+
                     # publish to state to pass promotion gate
                     self._promotion_state.publish_promotion_data(
                         sha=promotion.commit_sha,
@@ -1957,8 +1966,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             success=success,
                             target_config_hash=promotion.target_config_hash,
                             has_succeeded_once=has_succeeded_once,
-                            # TODO: do not override - check if timestamp already exists
-                            check_in=str(now),
+                            check_in=check_in,
                         ),
                     )
                     logging.info(
