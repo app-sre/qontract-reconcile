@@ -75,7 +75,7 @@ def test_single_non_hcp_cluster_patch_tokens(
         },
         # Operator token id is missing
         existing_token_ids={
-            default_ingestion_token.id,
+            default_ingestion_token.id: "name1",
         },
     )
 
