@@ -1646,7 +1646,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         parameters = {}
         for page in paginator.paginate(DBParameterGroupName=db_parameter_group_name):
             for param in page.get("Parameters", []):
-                parameters[param["ParameterName"]] = param["ParameterValue"]
+                parameters[param["ParameterName"]] = param.get("ParameterValue", "")
         return parameters
 
     def get_organization_billing_account(self, account_name: str) -> str:
