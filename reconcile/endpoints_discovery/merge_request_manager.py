@@ -34,17 +34,6 @@ class EndpointsDiscoveryMR(MergeRequestBase):
         self.labels = labels
         self._commits: list[tuple[str, str, str]] = []
 
-    def __eq__(self, other: object) -> bool:
-        """Needed for easier testing."""
-        if not isinstance(other, EndpointsDiscoveryMR):
-            return False
-        return (
-            self.title == other.title
-            and self.description == other.description
-            and self.labels == other.labels
-            and self._commits == other._commits
-        )
-
     @property
     def title(self) -> str:
         return self._title
