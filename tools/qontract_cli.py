@@ -56,13 +56,21 @@ from reconcile.cli import (
     config_file,
     use_jump_host,
 )
+from reconcile.external_resources.integration import (
+    get_aws_api,
+)
 from reconcile.external_resources.manager import (
     FLAG_RESOURCE_MANAGED_BY_ERV2,
     setup_factories,
 )
 from reconcile.external_resources.model import (
+    ExternalResourceKey,
     ExternalResourcesInventory,
     load_module_inventory,
+)
+from reconcile.external_resources.state import (
+    ExternalResourcesStateDynamoDB,
+    ResourceStatus,
 )
 from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
     query as aus_clusters_query,
@@ -3940,6 +3948,48 @@ def get_input(
     resource = f.create_external_resource(spec)
     f.validate_external_resource(resource)
     print(resource.json(exclude={"data": {FLAG_RESOURCE_MANAGED_BY_ERV2}}))
+
+
+@external_resources.command()
+@click.argument("provision-provider", required=True)
+@click.argument("provisioner", required=True)
+@click.argument("provider", required=True)
+@click.argument("identifier", required=True)
+@click.pass_context
+def request_reconciliation(
+    ctx, provision_provider: str, provisioner: str, provider: str, identifier: str
+):
+    """Marks a resource as it needs to get reconciled. The itegration will reconcile the resource at
+    its next iteration.
+
+    e.g: e.g: qontract-reconcile --config=<config> external-resources request-reconciliation aws app-sre-stage rds dashdotdb-stage
+    """
+    er_settings = get_settings()[0]
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    with get_aws_api(
+        query_func=gql.get_api().query,
+        account_name=er_settings.state_dynamodb_account.name,
+        region=er_settings.state_dynamodb_region,
+        secret_reader=secret_reader,
+    ) as aws_api:
+        state_manager = ExternalResourcesStateDynamoDB(
+            aws_api=aws_api,
+            table_name=er_settings.state_dynamodb_table,
+        )
+        key = ExternalResourceKey(
+            provision_provider=provision_provider,
+            provisioner_name=provisioner,
+            provider=provider,
+            identifier=identifier,
+        )
+        current_state = state_manager.get_external_resource_state(key)
+        if current_state.resource_status != ResourceStatus.NOT_EXISTS:
+            state_manager.update_resource_status(
+                key, ResourceStatus.RECONCILIATION_REQUESTED
+            )
+        else:
+            logging.info("External Resource does not exist")
 
 
 if __name__ == "__main__":

@@ -79,6 +79,7 @@ class ReconcileAction(StrEnum):
     APPLY_ERROR = "Resource status in ERROR state"
     APPLY_SPEC_CHANGED = "Resource spec has changed"
     APPLY_DRIFT_DETECTION = "Resource drift detection run"
+    APPLY_USER_REQUESTED = "Resource reconciliation requested"
     DESTROY_CREATED = "Resource no longer exists in the configuration"
     DESTROY_ERROR = "Resource status in ERROR state"
 
@@ -112,6 +113,8 @@ class ExternalResourcesManager:
     ) -> ReconcileAction:
         if reconciliation.action == Action.APPLY:
             match state.resource_status:
+                case ResourceStatus.RECONCILIATION_REQUESTED:
+                    return ReconcileAction.APPLY_USER_REQUESTED
                 case ResourceStatus.NOT_EXISTS:
                     return ReconcileAction.APPLY_NOT_EXISTS
                 case ResourceStatus.ERROR:
