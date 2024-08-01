@@ -41,9 +41,6 @@ from reconcile.utils.external_resource_spec import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase
 
-FLAG_RESOURCE_MANAGED_BY_ERV2 = "managed_by_erv2"
-FLAG_DELETE_RESOURCE = "delete"
-
 
 def setup_factories(
     settings: ExternalResourcesSettingsV1,
@@ -323,9 +320,7 @@ class ExternalResourcesManager:
         return resource
 
     def _serialize_resource_input(self, resource: ExternalResource) -> str:
-        return resource.json(
-            exclude={"data": {FLAG_RESOURCE_MANAGED_BY_ERV2, FLAG_DELETE_RESOURCE}}
-        )
+        return resource.json()
 
     def handle_resources(self) -> None:
         desired_r = self._get_desired_objects_reconciliations()
