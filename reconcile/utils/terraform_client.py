@@ -772,40 +772,45 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 None,
             )
             if target is None:
-                raise ValueError(
+                logging.error(
                     f"Cannot upgrade RDS instance: {resource_name} "
                     f"from {before_version} to {after_version}"
                 )
+                return
             allow_major_version_upgrade = after.get(
                 "allow_major_version_upgrade",
                 False,
             )
             if target["IsMajorVersionUpgrade"] and not allow_major_version_upgrade:
-                raise ValueError(
+                logging.error(
                     "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
                     f"{resource_name} to a new major version."
                 )
+                return
 
-            blue_green_update = after.get("blue_green_update", {}).get("enabled", False)
-            if blue_green_update:
+            blue_green_update = after.get("blue_green_update", [])
+            if blue_green_update and blue_green_update[0]["enabled"]:
+                replica = before["replicas"] != [] or before["replicate_source_db"]
                 self.validate_blue_green_update_requirements(
                     account_name,
+                    resource_name,
                     engine,
-                    after_version,
-                    before["db_parameter_group_name"],
-                    before.get("replica_source"),
+                    before_version,
+                    replica,
+                    before["parameter_group_name"],
                     region_name,
                 )
 
     def validate_blue_green_update_requirements(
         self,
-        account_name,
-        engine,
-        version,
-        parameter_group,
-        replica_source,
-        region_name,
-    ):
+        account_name: str,
+        resource_name: str,
+        engine: str,
+        version: str,
+        replica: bool,
+        parameter_group: str,
+        region_name: str,
+    ) -> None:
         min_supported_versions = {
             "mysql": [pkg_version.parse("5.7"), pkg_version.parse("8.0.15")],
             "postgres": [
@@ -833,23 +838,29 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             return False
 
         if not is_supported(engine, version):
-            raise ValueError(
+            logging.error(
+                f"Cannot upgrade RDS instance: {resource_name}. "
                 f"Engine version {version} is not supported for blue/green updates."
             )
+            return
 
-        if replica_source:
-            raise ValueError(
+        if replica:
+            logging.error(
+                f"Cannot upgrade RDS instance: {resource_name}. "
                 "Blue/green updates are not supported for instances with read replicas."
             )
+            return
 
-        if engine == "postgres" and parameter_group:
+        if engine == "postgres" and self._aws_api is not None:
             pg_details = self._aws_api.describe_db_parameter_group(
                 account_name, parameter_group, region_name
             )
             if pg_details.get("rds.logical_replication") != "1":
-                raise ValueError(
-                    f"Parameter group {parameter_group} does not have logical replication enabled."
+                logging.error(
+                    f"Cannot upgrade RDS instance: {resource_name}. "
+                    f"Blue/green updates require logical replication to be enabled in the Parameter group {parameter_group}."
                 )
+                return
 
 
 class TerraformPlanFailed(Exception):
