@@ -1,7 +1,6 @@
 import logging
 from collections.abc import Callable, Iterable
 from typing import Any, TypedDict
-from urllib.parse import urlparse
 
 import jinja2
 from pydantic import BaseModel
@@ -76,16 +75,6 @@ def endpoint_prefix(namespace: NamespaceV1) -> str:
 
 def compile_endpoint_name(endpoint_prefix: str, route: Route) -> str:
     return f"{endpoint_prefix}-{route.name}"
-
-
-def extract_hostname(url: str) -> str:
-    """Extract the hostname from an 'URL like' string."""
-    if "://" not in url:
-        # add a protocol to make urlparse work
-        url = f"http://{url}"
-    if not (hostname := urlparse(url).hostname):
-        raise ValueError(f"Can't extract hostname from URL: {url}")
-    return hostname
 
 
 def render_template(template: str, endpoint_name: str, route: Route) -> dict:
@@ -183,10 +172,12 @@ class EndpointsDiscoveryIntegration(
         diff = diff_any_iterables(
             current=endpoints or [],
             desired=routes,
-            # use the hostname as the key for both current and desired
-            current_key=lambda endpoint: extract_hostname(endpoint.url),
-            desired_key=lambda route: route.host,
-            # compare the name and url of the endpoint and route
+            # names are unique, so we can use them as keys
+            current_key=lambda endpoint: endpoint.name,
+            desired_key=lambda route: compile_endpoint_name(endpoint_prefix, route),
+            # compare the endpoint and route by name and url.
+            # we can't use other endpoint attributes because we don't want to query them.
+            # there is a note about that behavior in the template.
             equal=lambda endpoint, route: endpoint.name
             == compile_endpoint_name(endpoint_prefix, route)
             and endpoint.url == route.url,

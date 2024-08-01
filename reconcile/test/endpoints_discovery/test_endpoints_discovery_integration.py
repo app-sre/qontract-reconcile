@@ -1,7 +1,6 @@
 from collections.abc import Callable, Sequence
 from textwrap import dedent
 
-import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.endpoints_discovery.integration import (
@@ -9,7 +8,6 @@ from reconcile.endpoints_discovery.integration import (
     Route,
     compile_endpoint_name,
     endpoint_prefix,
-    extract_hostname,
     render_template,
 )
 from reconcile.endpoints_discovery.merge_request_manager import App, Endpoint
@@ -45,35 +43,6 @@ def test_endpoints_discovery_integration_endpoint_prefix(
 def test_endpoints_discovery_integration_compile_endpoint_name() -> None:
     r = Route(name="with-tls", host="example.com", tls=True)
     assert compile_endpoint_name("prefix", r) == "prefix-with-tls"
-
-
-@pytest.mark.parametrize(
-    ("url", "expected"),
-    [
-        ("https://example.com", "example.com"),
-        ("http://example.com", "example.com"),
-        ("https://example.com:443", "example.com"),
-        ("https://example.com:443/foo/bar", "example.com"),
-        ("example.com", "example.com"),
-        ("example.com:443", "example.com"),
-        pytest.param(
-            "",
-            None,
-            marks=pytest.mark.xfail(strict=True, raises=ValueError),
-            id="empty",
-        ),
-        pytest.param(
-            "https://",
-            None,
-            marks=pytest.mark.xfail(strict=True, raises=ValueError),
-            id="no-host",
-        ),
-    ],
-)
-def test_endpoints_discovery_integration_extract_hostname(
-    url: str, expected: str
-) -> None:
-    assert extract_hostname(url) == expected
 
 
 def test_endpoints_discovery_integration_render_template() -> None:
@@ -149,16 +118,20 @@ def test_endpoints_discovery_integration_get_endpoint_changes(
     intg: EndpointsDiscoveryIntegration,
 ) -> None:
     endpoints = [
-        # obsolete endpoint - must be changed
+        # must be changed
         AppEndPointsV1(name="prefix-change", url="change.com:443"),
-        # obsolete endpoint - must be deleted
+        # must be deleted
         AppEndPointsV1(name="prefix-delete", url="whatever.com"),
+        # up2date
+        AppEndPointsV1(name="prefix-up2date", url="up2date.com:80"),
         # must be ignored
         AppEndPointsV1(name="manual-endpoint", url="https://manual-endpoint.com"),
+        AppEndPointsV1(name="manual-endpoint-new", url="https://new.com"),
     ]
     routes = [
         Route(name="change", host="change.com", tls=False),
         Route(name="new", host="new.com", tls=False),
+        Route(name="up2date", host="up2date.com", tls=False),
     ]
     endpoints_to_add, endpoints_to_change, endpoints_to_delete = (
         intg.get_endpoint_changes(
