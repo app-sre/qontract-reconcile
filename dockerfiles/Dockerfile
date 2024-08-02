@@ -20,7 +20,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.13.0 as dev-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.14.0 as dev-image
 
 ARG CONTAINER_UID=1000
 RUN useradd --uid ${CONTAINER_UID} reconcile
@@ -51,7 +51,7 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 # STAGE 3 - prod-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.13.0 as prod-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.14.0 as prod-image
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}
