@@ -1,7 +1,7 @@
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-builder:0.6.0 as build-image
+FROM quay.io/app-sre/qontract-reconcile-builder:0.7.0 as build-image
 
 WORKDIR /work
 
