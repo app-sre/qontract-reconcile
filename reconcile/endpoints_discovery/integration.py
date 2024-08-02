@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Callable, Iterable
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import jinja2
 from pydantic import BaseModel
@@ -105,16 +105,6 @@ class EndpointsDiscoveryIntegration(
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
-
-    def get_early_exit_desired_state(
-        self, query_func: Callable | None = None
-    ) -> dict[str, Any]:
-        """Return the desired state for early exit."""
-        if not query_func:
-            query_func = gql.get_api().query
-        return {
-            "namespaces": [ns.dict() for ns in self.get_namespaces(query_func)],
-        }
 
     def get_desired_state_shard_config(self) -> None:
         """Sharding (per cluster) is not supported for this integration.

@@ -61,13 +61,6 @@ def test_endpoints_discovery_integration_render_template() -> None:
     }
 
 
-def test_endpoints_discovery_integration_get_early_exit_desired_state(
-    query_func: Callable,
-    intg: EndpointsDiscoveryIntegration,
-) -> None:
-    assert "namespaces" in intg.get_early_exit_desired_state(query_func)
-
-
 def test_endpoints_discovery_integration_get_desired_state_shard_config(
     intg: EndpointsDiscoveryIntegration,
 ) -> None:
