@@ -293,6 +293,7 @@ class EndpointsDiscoveryIntegration(
             use_jump_host=self.params.use_jump_host,
             thread_pool_size=self.params.thread_pool_size,
             internal=self.params.internal,
+            init_projects=True,
         )
 
         if defer:
