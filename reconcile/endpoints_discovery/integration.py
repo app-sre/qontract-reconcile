@@ -175,12 +175,10 @@ class EndpointsDiscoveryIntegration(
             # names are unique, so we can use them as keys
             current_key=lambda endpoint: endpoint.name,
             desired_key=lambda route: compile_endpoint_name(endpoint_prefix, route),
-            # compare the endpoint and route by name and url.
+            # compare the endpoint and route by url.
             # we can't use other endpoint attributes because we don't want to query them.
             # there is a note about that behavior in the template.
-            equal=lambda endpoint, route: endpoint.name
-            == compile_endpoint_name(endpoint_prefix, route)
-            and endpoint.url == route.url,
+            equal=lambda endpoint, route: endpoint.url == route.url,
         )
 
         endpoints_to_add = []
