@@ -170,7 +170,13 @@ class EndpointsDiscoveryIntegration(
             return [], [], []
 
         diff = diff_any_iterables(
-            current=endpoints or [],
+            # exclude manual endpoints
+            current=[
+                endpoint
+                for endpoint in endpoints
+                if endpoint.name.startswith(endpoint_prefix)
+            ]
+            or [],
             desired=routes,
             # names are unique, so we can use them as keys
             current_key=lambda endpoint: endpoint.name,
@@ -199,9 +205,6 @@ class EndpointsDiscoveryIntegration(
             )
 
         for pair in diff.change.values():
-            if not pair.current.name.startswith(endpoint_prefix):
-                # do not update endpoints that were not created by this integration or for another namespace
-                continue
             logging.info(
                 f"{app}: Changing endpoint {pair.current.name} for route {pair.desired.name}"
             )
@@ -218,9 +221,6 @@ class EndpointsDiscoveryIntegration(
                 )
             )
         for delete in diff.delete.values():
-            if not delete.name.startswith(endpoint_prefix):
-                # do not update endpoints that were not created by this integration or for another namespace
-                continue
             logging.info(f"{app}: Deleting endpoint for route {delete.name}")
             endpoints_to_delete.append(Endpoint(name=delete.name))
         return endpoints_to_add, endpoints_to_change, endpoints_to_delete
