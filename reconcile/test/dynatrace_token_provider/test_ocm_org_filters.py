@@ -1,7 +1,6 @@
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
-    DynatraceTokenProviderIntegrationParams,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
 from reconcile.dynatrace_token_provider.ocm import Cluster
@@ -21,6 +20,7 @@ def test_ocm_org_filters(
     default_token_spec: DynatraceTokenProviderTokenSpecV1,
     default_operator_token: DynatraceAPIToken,
     default_ingestion_token: DynatraceAPIToken,
+    default_integration: DynatraceTokenProviderIntegration,
 ) -> None:
     """
     In this case we have 2 clusters. One cluster's ocm org does
@@ -30,10 +30,6 @@ def test_ocm_org_filters(
     Both clusters have a diff to desired state (patch + create).
     However, we expect both clusters to be filtered.
     """
-    integration = DynatraceTokenProviderIntegration(
-        DynatraceTokenProviderIntegrationParams(ocm_organization_ids={"ocm_org_id_a"})
-    )
-
     cluster_a = Cluster(
         id="cluster_a",
         external_id="external_id_a",
@@ -96,7 +92,7 @@ def test_ocm_org_filters(
         },
     )
 
-    integration.reconcile(dry_run=False, dependencies=dependencies)
+    default_integration.reconcile(dry_run=False, dependencies=dependencies)
 
     ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.create_syncset.assert_not_called()  # type: ignore[attr-defined]
