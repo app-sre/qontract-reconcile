@@ -12,6 +12,7 @@ from reconcile.utils.mr.base import (
     MergeRequestProcessingError,
     app_interface_email,
 )
+from reconcile.utils.mr.promote_qontract import PromoteQontractReconcileCommercial
 
 
 class DummyMergeRequest(MergeRequestBase):
@@ -221,3 +222,62 @@ def test_email_template(
         assert email["to"][key] == value
     for key, value in expected_services.items():
         assert email["to"][key] == value
+
+
+def test_process_by_line_search():
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    )
+    content = """
+# this is a comment
+export IMAGE=abcdefg
+"""
+    expected = """
+# this is a comment
+export IMAGE=1q2w3e4
+"""
+    result = mr._process_by_line_search(
+        raw_file=bytes(content, "utf-8"),
+        search_text="export IMAGE=",
+        replace_text="export IMAGE=1q2w3e4",
+    )
+
+    assert expected == result
+
+
+def test_process_by_json_path():
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    )
+    content = """---
+name: saas
+
+resourceTemplates:
+- name: qontract-manager
+  url: https://github.com/app-sre/qontract-reconcile
+  path: /openshift/qontract-manager.yaml
+  targets:
+  - name: stage
+  - name: production
+    ref: 82aeb1b1abb6ccb03bc894d9cd3f406fd598d2b3
+"""
+    expected = """---
+name: saas
+
+resourceTemplates:
+- name: qontract-manager
+  url: https://github.com/app-sre/qontract-reconcile
+  path: /openshift/qontract-manager.yaml
+  targets:
+  - name: stage
+  - name: production
+    ref: 1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p
+"""
+
+    result = mr._process_by_json_path(
+        raw_file=bytes(content, "utf-8"),
+        search_text="$.resourceTemplates[?(@.url == 'https://github.com/app-sre/qontract-reconcile')].targets[?(@.name == 'production')].ref",
+        replace_text="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
+    )
+
+    assert expected == result
