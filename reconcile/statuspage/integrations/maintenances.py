@@ -38,11 +38,11 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
             if not dry_run:
                 provider.create_maintenance(a)
         for c in diff.change.values():
-            raise NotImplementedError(
+            logging.warning(
                 f"Update StatusPage Maintenance is not supported at this time: {c.desired.name}"
             )
         for d in diff.delete.values():
-            raise NotImplementedError(
+            logging.warning(
                 f"Delete StatusPage Maintenance is not supported at this time: {d.name}"
             )
 
