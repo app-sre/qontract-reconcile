@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from mypy_boto3_route53 import Route53Client
     from mypy_boto3_route53.type_defs import (
         HostedZoneTypeDef,
-        ResourceRecordSetTypeDef,
+        ResourceRecordSetExtraOutputTypeDef,
         ResourceRecordTypeDef,
     )
     from mypy_boto3_s3 import S3Client
@@ -66,7 +66,7 @@ else:
         AccessKeyMetadataTypeDef
     ) = ImageTypeDef = TagTypeDef = LaunchPermissionModificationsTypeDef = (
         FilterTypeDef
-    ) = Route53Client = ResourceRecordSetTypeDef = ResourceRecordTypeDef = (
+    ) = Route53Client = ResourceRecordSetExtraOutputTypeDef = ResourceRecordTypeDef = (
         HostedZoneTypeDef
     ) = RDSClient = DBInstanceMessageTypeDef = UpgradeTargetTypeDef = (
         OrganizationsClient
@@ -1379,19 +1379,21 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def _get_hosted_zone_record_sets(
         self, route53: Route53Client, zone_name: str
-    ) -> list[ResourceRecordSetTypeDef]:
+    ) -> list[ResourceRecordSetExtraOutputTypeDef]:
         zones = route53.list_hosted_zones_by_name(DNSName=zone_name)["HostedZones"]
         if not zones:
             return []
         zone_id = self._get_hosted_zone_id(zones[0])
-        return route53.list_resource_record_sets(HostedZoneId=zone_id)[  # type: ignore[return-value]
+        return route53.list_resource_record_sets(HostedZoneId=zone_id)[
             "ResourceRecordSets"
         ]
 
     @staticmethod
     def _filter_record_sets(
-        record_sets: list[ResourceRecordSetTypeDef], zone_name: str, zone_type: str
-    ) -> list[ResourceRecordSetTypeDef]:
+        record_sets: list[ResourceRecordSetExtraOutputTypeDef],
+        zone_name: str,
+        zone_type: str,
+    ) -> list[ResourceRecordSetExtraOutputTypeDef]:
         return [
             r
             for r in record_sets
