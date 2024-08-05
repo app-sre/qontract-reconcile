@@ -1802,6 +1802,49 @@ def openshift_prometheus_rules(
     )
 
 
+@integration.command(short_help="Discover routes and update endpoints")
+@threaded()
+@binary(["oc"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@use_jump_host()
+@cluster_name
+@namespace_name
+@click.option(
+    "--endpoint-tmpl-resource",
+    help="Resource name of the endpoint template in the app-interface.",
+    required=False,
+)
+@click.pass_context
+def endpoints_discovery(
+    ctx,
+    thread_pool_size,
+    internal,
+    use_jump_host,
+    cluster_name,
+    namespace_name,
+    endpoint_tmpl_resource,
+):
+    from reconcile.endpoints_discovery.integration import (
+        EndpointsDiscoveryIntegration,
+        EndpointsDiscoveryIntegrationParams,
+    )
+
+    params = EndpointsDiscoveryIntegrationParams(
+        thread_pool_size=thread_pool_size,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
+    )
+    if endpoint_tmpl_resource:
+        params.endpoint_tmpl_resource = endpoint_tmpl_resource
+    run_class_integration(
+        integration=EndpointsDiscoveryIntegration(params),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Configures the teams and members in Quay.")
 @click.pass_context
 def quay_membership(ctx):

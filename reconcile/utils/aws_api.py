@@ -1384,7 +1384,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         if not zones:
             return []
         zone_id = self._get_hosted_zone_id(zones[0])
-        return route53.list_resource_record_sets(HostedZoneId=zone_id)[
+        return route53.list_resource_record_sets(HostedZoneId=zone_id)[  # type: ignore[return-value]
             "ResourceRecordSets"
         ]
 
