@@ -37,12 +37,12 @@ def test_endpoints_discovery_integration_endpoint_prefix(
     namespaces: Sequence[NamespaceV1],
 ) -> None:
     ns = namespaces[0]
-    assert endpoint_prefix(namespace=ns).endswith(ns.name)
+    assert endpoint_prefix(namespace=ns).endswith(ns.name + "/")
 
 
 def test_endpoints_discovery_integration_compile_endpoint_name() -> None:
     r = Route(name="with-tls", host="example.com", tls=True)
-    assert compile_endpoint_name("prefix", r) == "prefix-with-tls"
+    assert compile_endpoint_name("prefix-", r) == "prefix-with-tls"
 
 
 def test_endpoints_discovery_integration_render_template() -> None:
@@ -96,7 +96,7 @@ def test_endpoints_discovery_integration_get_endpoint_changes_no_routes_no_endpo
 ) -> None:
     assert intg.get_endpoint_changes(
         app="app",
-        endpoint_prefix="prefix",
+        endpoint_prefix="prefix-",
         endpoint_template=TEMPLATE,
         endpoints=[],
         routes=[],
@@ -129,7 +129,7 @@ def test_endpoints_discovery_integration_get_endpoint_changes(
     endpoints_to_add, endpoints_to_change, endpoints_to_delete = (
         intg.get_endpoint_changes(
             app="app",
-            endpoint_prefix="prefix",
+            endpoint_prefix="prefix-",
             endpoint_template=TEMPLATE,
             endpoints=endpoints,
             routes=routes,
@@ -158,9 +158,9 @@ def test_endpoints_discovery_integration_get_apps(
             path="/path/app-1.yml",
             endpoints_to_add=[
                 Endpoint(
-                    name="endpoints-discovery-cluster-1-app-1-ns-1-fake-route",
+                    name="endpoints-discovery/cluster-1/app-1-ns-1/fake-route",
                     data={
-                        "name": "endpoints-discovery-cluster-1-app-1-ns-1-fake-route",
+                        "name": "endpoints-discovery/cluster-1/app-1-ns-1/fake-route",
                         "url": "https://fake-route.com:80",
                     },
                 )
@@ -173,9 +173,9 @@ def test_endpoints_discovery_integration_get_apps(
             path="/path/app-2.yml",
             endpoints_to_add=[
                 Endpoint(
-                    name="endpoints-discovery-cluster-1-app-2-ns-1-fake-route",
+                    name="endpoints-discovery/cluster-1/app-2-ns-1/fake-route",
                     data={
-                        "name": "endpoints-discovery-cluster-1-app-2-ns-1-fake-route",
+                        "name": "endpoints-discovery/cluster-1/app-2-ns-1/fake-route",
                         "url": "https://fake-route.com:80",
                     },
                 )
@@ -201,9 +201,9 @@ def test_endpoints_discovery_integration_runner(
             path="/path/app-2.yml",
             endpoints_to_add=[
                 Endpoint(
-                    name="endpoints-discovery-cluster-1-app-2-ns-1-fake-route",
+                    name="endpoints-discovery/cluster-1/app-2-ns-1/fake-route",
                     data={
-                        "name": "endpoints-discovery-cluster-1-app-2-ns-1-fake-route",
+                        "name": "endpoints-discovery/cluster-1/app-2-ns-1/fake-route",
                         "url": "https://fake-route.com:80",
                     },
                 )

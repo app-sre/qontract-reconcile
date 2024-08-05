@@ -70,11 +70,11 @@ class Route(BaseModel):
 
 
 def endpoint_prefix(namespace: NamespaceV1) -> str:
-    return f"{QONTRACT_INTEGRATION}-{namespace.cluster.name}-{namespace.name}"
+    return f"{QONTRACT_INTEGRATION}/{namespace.cluster.name}/{namespace.name}/"
 
 
 def compile_endpoint_name(endpoint_prefix: str, route: Route) -> str:
-    return f"{endpoint_prefix}-{route.name}"
+    return f"{endpoint_prefix}{route.name}"
 
 
 def render_template(template: str, endpoint_name: str, route: Route) -> dict:
