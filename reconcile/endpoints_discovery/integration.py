@@ -221,6 +221,9 @@ class EndpointsDiscoveryIntegration(
         """Compile a list of apps with their endpoints to add, change and delete."""
         apps: dict[str, App] = {}
         for namespace in namespaces:
+            logging.debug(
+                f"Processing namespace {namespace.cluster.name}/{namespace.name}"
+            )
             routes = self.get_routes(oc_map, namespace)
             endpoints_to_add, endpoints_to_change, endpoints_to_delete = (
                 self.get_endpoint_changes(
