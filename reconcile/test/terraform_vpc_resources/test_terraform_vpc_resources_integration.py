@@ -97,12 +97,12 @@ def mock_terraform_client(mocker: MockerFixture) -> MockerFixture:
 
 def secret_reader_side_effect(*args: Any) -> dict[str, Any] | None:
     """Mocking a secret reader call for aws account credentials"""
-    if {
+    if args[0] == {
         "path": "some-path",
         "field": "some-field",
         "version": None,
         "format": None,
-    } == args[0]:
+    }:
         return {
             "aws_access_key_id": "key_id",
             "aws_secret_access_key": "access_key",

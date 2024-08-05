@@ -223,7 +223,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     )
 
         # product is deleted entirely
-        for product_name in diff_result.delete.keys():
+        for product_name in diff_result.delete:
             for application in current_products[product_name].applications or []:
                 return_list.append(
                     StatusBoardHandler(action="delete", status_board_object=application)

@@ -164,7 +164,7 @@ class VaultSecretReader(SecretReaderBase):
         except Forbidden:
             raise VaultForbidden(
                 f"permission denied reading vault secret " f"at {path}"
-            )
+            ) from None
         except vault.SecretNotFound as e:
             raise SecretNotFound(*e.args) from e
         return data
@@ -316,7 +316,7 @@ class SecretReader(SecretReaderBase):
             except Forbidden:
                 raise VaultForbidden(
                     f"permission denied reading vault secret " f"at {path}"
-                )
+                ) from None
             except vault.SecretNotFound as e:
                 raise SecretNotFound(*e.args) from e
         else:

@@ -204,7 +204,7 @@ class AWSReconciler:
                 except AWSResourceAlreadyExistsException:
                     raise AbortStateTransaction(
                         f"A quota increase for this {new_quota.service_code}/{new_quota.quota_code} already exists. Try it again later."
-                    )
+                    ) from None
                 ids.append(req.id)
 
             _state.value = {"last_applied_quotas": quotas_dict, "ids": ids}

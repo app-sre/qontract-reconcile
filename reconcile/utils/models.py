@@ -94,10 +94,7 @@ class CSV(list[str]):
 
     @classmethod
     def validate(cls, value: str) -> list[str]:
-        if not value:
-            items = []
-        else:
-            items = value.split(",")
+        items = [] if not value else value.split(",")
         return items
 
     @classmethod
@@ -123,4 +120,4 @@ def cron_validator(value: str) -> str:
         croniter(value)
         return value
     except ValueError as e:
-        raise ValueError(f"Invalid cron expression: {e}")
+        raise ValueError(f"Invalid cron expression: {e}") from None

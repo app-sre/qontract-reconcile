@@ -72,6 +72,7 @@ query Integrations {
         }
         cluster {
           name
+          labels
           serverUrl
           insecureSkipTLSVerify
           jumpHost {
@@ -210,6 +211,7 @@ class EnvironmentV1(ConfiguredBaseModel):
 
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     server_url: str = Field(..., alias="serverUrl")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")

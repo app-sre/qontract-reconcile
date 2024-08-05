@@ -36,6 +36,7 @@ class ResourceStatus(StrEnum):
     DELETE_IN_PROGRESS: str = "DELETE_IN_PROGRESS"
     ERROR: str = "ERROR"
     PENDING_SECRET_SYNC: str = "PENDING_SECRET_SYNC"
+    RECONCILIATION_REQUESTED: str = "RECONCILIATION_REQUESTED"
 
 
 class ExternalResourceState(BaseModel):
@@ -235,7 +236,7 @@ class ExternalResourcesStateDynamoDB:
         return partials
 
     def get_all_resource_keys(self) -> set[ExternalResourceKey]:
-        return {k for k in self.partial_resources.keys()}
+        return set(self.partial_resources)
 
     def get_keys_by_status(
         self, resource_status: ResourceStatus

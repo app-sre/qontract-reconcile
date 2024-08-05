@@ -5,6 +5,7 @@ from reconcile.aus.healthchecks import AUSClusterHealth, AUSHealthError
 from reconcile.aus.models import (
     ClusterAddonUpgradeSpec,
     ClusterUpgradeSpec,
+    NodePoolSpec,
     OrganizationUpgradeSpec,
 )
 from reconcile.aus.version_gates.handler import GateHandler
@@ -13,6 +14,8 @@ from reconcile.gql_definitions.fragments.aus_organization import (
     AUSOCMOrganization,
     OpenShiftClusterManagerSectorDependenciesV1,
     OpenShiftClusterManagerSectorV1,
+    OpenShiftClusterManagerUpgradePolicyClusterSpecV1,
+    OpenShiftClusterManagerUpgradePolicyClusterV1,
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1,
     OpenShiftClusterManagerV1_OpenShiftClusterManagerV1_OpenShiftClusterManagerEnvironmentV1,
 )
@@ -55,6 +58,20 @@ def build_upgrade_policy(
             mutexes=mutexes,
             blockedVersions=blocked_versions,
         ),
+    )
+
+
+def build_upgrade_policy_cluster(
+    name: str = "name",
+    server_url: str = "https://server-url",
+    spec_id: str = "spec-id",
+    upgrade_policy: ClusterUpgradePolicyV1 | None = None,
+) -> OpenShiftClusterManagerUpgradePolicyClusterV1:
+    return OpenShiftClusterManagerUpgradePolicyClusterV1(
+        name=name,
+        serverUrl=server_url,
+        spec=OpenShiftClusterManagerUpgradePolicyClusterSpecV1(id=spec_id),
+        upgradePolicy=upgrade_policy or build_upgrade_policy(),
     )
 
 
@@ -153,7 +170,9 @@ def build_organization(
 
 
 def build_organization_upgrade_spec(
-    specs: list[tuple[OCMCluster, ClusterUpgradePolicyV1, AUSClusterHealth]],
+    specs: list[
+        tuple[OCMCluster, ClusterUpgradePolicyV1, AUSClusterHealth, list[NodePoolSpec]]
+    ],
     org: AUSOCMOrganization | None = None,
 ) -> OrganizationUpgradeSpec:
     org = org or build_organization()
@@ -165,8 +184,9 @@ def build_organization_upgrade_spec(
                 cluster=cluster,
                 upgradePolicy=upgrade_policy,
                 health=cluster_health,
+                nodePools=node_pools,
             )
-            for cluster, upgrade_policy, cluster_health in specs
+            for cluster, upgrade_policy, cluster_health, node_pools in specs
         ],
     )
 
@@ -181,6 +201,7 @@ def build_cluster_upgrade_spec(
     mutexes: list[str] | None = None,
     blocked_versions: list[str] | None = None,
     cluster_health: bool = True,
+    node_pools: list[NodePoolSpec] | None = None,
 ) -> ClusterUpgradeSpec:
     return ClusterUpgradeSpec(
         org=org or build_organization(),
@@ -196,6 +217,7 @@ def build_cluster_upgrade_spec(
         health=build_healthy_cluster_health()
         if cluster_health
         else build_unhealthy_cluster_health(),
+        nodePools=node_pools or [],
     )
 
 

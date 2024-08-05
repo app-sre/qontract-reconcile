@@ -231,14 +231,10 @@ def equal_spec_template(t1: dict, t2: dict) -> bool:
     """Compare two spec.templates."""
     t1_copy = copy.deepcopy(t1)
     t2_copy = copy.deepcopy(t2)
-    try:
+    with suppress(KeyError):
         del t1_copy["metadata"]["labels"]["pod-template-hash"]
-    except KeyError:
-        pass
-    try:
+    with suppress(KeyError):
         del t2_copy["metadata"]["labels"]["pod-template-hash"]
-    except KeyError:
-        pass
     return t1_copy == t2_copy
 
 
@@ -740,11 +736,11 @@ class OCCli:  # pylint: disable=too-many-public-methods
         cmd = ["logs", "--all-containers=true", "-n", namespace, f"job/{name}"]
         if follow:
             cmd.append("-f")
-        # pylint: disable=consider-using-with
+
         if isinstance(output, TextIOWrapper):
             output_file = output
         else:
-            output_file = open(os.path.join(output, name), "w", encoding="locale")
+            output_file = open(os.path.join(output, name), "w", encoding="locale")  # noqa: SIM115
 
         if wait_for_logs_process:
             subprocess.run(self.oc_base_cmd + cmd, stdout=output_file, check=False)
@@ -1138,7 +1134,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         try:
             out_json = json.loads(out)
         except ValueError as e:
-            raise JSONParsingError(out + "\n" + str(e))
+            raise JSONParsingError(out + "\n" + str(e)) from e
 
         return out_json
 
@@ -1280,13 +1276,13 @@ class OCNative(OCCli):
 
     @retry(exceptions=(ServerTimeoutError, InternalServerError, ForbiddenError))
     def _get_client(self, server, token):
-        opts = dict(
-            api_key={"authorization": f"Bearer {token}"},
-            host=server,
-            verify_ssl=False,
+        opts = {
+            "api_key": {"authorization": f"Bearer {token}"},
+            "host": server,
+            "verify_ssl": False,
             # default timeout seems to be 1+ minutes
-            retries=5,
-        )
+            "retries": 5,
+        }
         if self.jump_host:
             # the ports could be parameterized, but at this point
             # we only have need of 1 tunnel for 1 service
@@ -1307,7 +1303,7 @@ class OCNative(OCCli):
         try:
             return DynamicClient(k8s_client, discoverer=OpenshiftLazyDiscoverer)
         except urllib3.exceptions.MaxRetryError as e:
-            raise StatusCodeError(f"[{self.server}]: {e}")
+            raise StatusCodeError(f"[{self.server}]: {e}") from None
 
     def _get_obj_client(self, kind, group_version):
         key = f"{kind}.{group_version}"
@@ -1380,7 +1376,7 @@ class OCNative(OCCli):
         except NotFoundError as e:
             if allow_not_found:
                 return {}
-            raise StatusCodeError(f"[{self.server}]: {e}")
+            raise StatusCodeError(f"[{self.server}]: {e}") from None
 
     def get_all(self, kind, all_namespaces=False):
         k, group_version = self._parse_kind(kind)
@@ -1388,7 +1384,7 @@ class OCNative(OCCli):
         try:
             return obj_client.get(_request_timeout=REQUEST_TIMEOUT).to_dict()
         except NotFoundError as e:
-            raise StatusCodeError(f"[{self.server}]: {e}")
+            raise StatusCodeError(f"[{self.server}]: {e}") from None
 
 
 OCClient = OCNative | OCCli
@@ -1640,10 +1636,7 @@ class OC_Map:
                 )
                 return
 
-            if self.use_jump_host:
-                jump_host = cluster_info.get("jumpHost")
-            else:
-                jump_host = None
+            jump_host = cluster_info.get("jumpHost") if self.use_jump_host else None
             if jump_host:
                 self.set_jh_ports(jump_host)
             try:
@@ -1846,17 +1839,14 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
             ]
         # If there are multiple matches, prefer non-List kinds
         if len(results) > 1 and not all(  # pylint: disable=R1729
-            [isinstance(x, ResourceList) for x in results]
+            isinstance(x, ResourceList) for x in results
         ):
             results = [
                 result for result in results if not isinstance(result, ResourceList)
             ]
         # if multiple resources are found that share a GVK, prefer the one with the most supported verbs
-        if (
-            len(results) > 1
-            and len(set((x.group_version, x.kind) for x in results)) == 1
-        ):
-            if len(set(len(x.verbs) for x in results)) != 1:
+        if len(results) > 1 and len({(x.group_version, x.kind) for x in results}) == 1:
+            if len({len(x.verbs) for x in results}) != 1:
                 results = [max(results, key=lambda x: len(x.verbs))]
         if len(results) == 1:
             return results[0]

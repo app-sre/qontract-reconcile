@@ -124,6 +124,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.error_registered = False
         self.saas_files = saas_files
         self.repo_urls = self._collect_repo_urls()
+        self.image_patterns = self._collect_image_patterns()
         self.resolve_templated_parameters(self.saas_files)
         if validate:
             self._validate_saas_files()
@@ -158,6 +159,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.compare = self._get_saas_file_feature_enabled("compare", default=True)
         self.publish_job_logs = self._get_saas_file_feature_enabled("publish_job_logs")
         self.cluster_admin = self._get_saas_file_feature_enabled("cluster_admin")
+        self.validate_planned_data = self._get_saas_file_feature_enabled(
+            "validate_planned_data", default=True
+        )
 
     def __enter__(self) -> "SaasHerder":
         return self
@@ -698,11 +702,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return namespaces
 
     def _collect_repo_urls(self) -> set[str]:
-        return set(
+        return {
             rt.url
             for saas_file in self.saas_files
             for rt in saas_file.resource_templates
-        )
+        }
+
+    def _collect_image_patterns(self) -> set[str]:
+        return {p for sf in self.saas_files for p in sf.image_patterns}
 
     @staticmethod
     def _get_file_contents_github(repo: Repository, path: str, commit_sha: str) -> str:
@@ -969,11 +976,16 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 else True
             )
             consolidated_parameters = spec.parameters(adjust=False)
-            image = consolidated_parameters.get("image", {})
-            if isinstance(image, dict) and not image.get("tag"):
-                commit_sha = self._get_commit_sha(url, ref, github)
-                image_tag = commit_sha[:hash_length]
-                consolidated_parameters.setdefault("image", {})["tag"] = image_tag
+            commit_sha = self._get_commit_sha(url, ref, github)
+            image_tag = commit_sha[:hash_length]
+            image = consolidated_parameters.setdefault("image", {})
+            if isinstance(image, dict):
+                image.setdefault("tag", image_tag)
+            global_parameters = consolidated_parameters.setdefault("global", {})
+            if isinstance(global_parameters, dict):
+                image = global_parameters.setdefault("image", {})
+                if isinstance(image, dict):
+                    image.setdefault("tag", image_tag)
             resources = helm.template_all(
                 url=url,
                 path=path,
@@ -1189,8 +1201,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         creds = self.secret_reader.read_all_secret(saas_file.authentication.image)
         required_docker_config_keys = [".dockerconfigjson"]
         required_keys_basic_auth = ["user", "token"]
-        ok = all(k in creds.keys() for k in required_keys_basic_auth) or all(
-            k in creds.keys() for k in required_docker_config_keys
+        ok = all(k in creds for k in required_keys_basic_auth) or all(
+            k in creds for k in required_docker_config_keys
         )
         if not ok:
             logging.warning(
@@ -1935,6 +1947,21 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     if current_state and current_state.has_succeeded_once:
                         has_succeeded_once = True
 
+                    check_in = str(now)
+                    if (
+                        success
+                        and current_state
+                        and current_state.check_in
+                        and current_state.success
+                    ):
+                        # We want to avoid an override of the timestamp.
+                        # This can happen on re-deployments of the same ref.
+                        # We only re-use the check_in time if the previous
+                        # and current deployment was successful.
+                        # On unsuccessful deployments, we
+                        # update the check_in time to current time.
+                        check_in = current_state.check_in
+
                     # publish to state to pass promotion gate
                     self._promotion_state.publish_promotion_data(
                         sha=promotion.commit_sha,
@@ -1945,8 +1972,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             success=success,
                             target_config_hash=promotion.target_config_hash,
                             has_succeeded_once=has_succeeded_once,
-                            # TODO: do not override - check if timestamp already exists
-                            check_in=str(now),
+                            check_in=check_in,
                         ),
                     )
                     logging.info(

@@ -287,7 +287,7 @@ def check_alertmanager_config(
             f"error validating alertmanager config in {path}: "
             f"missing key {alertmanager_config_key}"
         )
-        raise FetchResourceError(e_msg)
+        raise FetchResourceError(e_msg) from None
 
     if decode_base64:
         config = base64.b64decode(config).decode("utf-8")
@@ -329,10 +329,10 @@ def fetch_provider_resource(
     except TypeError:
         body_type = type(body).__name__
         e_msg = f"invalid resource type {body_type} found in path: {path}"
-        raise FetchResourceError(e_msg)
+        raise FetchResourceError(e_msg) from None
     except anymarkup.AnyMarkupError:
         e_msg = f"Could not parse data. Skipping resource: {path}"
-        raise FetchResourceError(e_msg)
+        raise FetchResourceError(e_msg) from None
 
     if validate_json:
         files = body["data"]
@@ -341,7 +341,7 @@ def fetch_provider_resource(
                 json.loads(file_content)
             except ValueError:
                 e_msg = f"invalid json in {path} under {file_name}"
-                raise FetchResourceError(e_msg)
+                raise FetchResourceError(e_msg) from None
 
     if validate_alertmanager_config:
         if body["kind"] == "Secret":
@@ -383,7 +383,7 @@ def fetch_provider_resource(
             body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=path
         )
     except ConstructResourceError as e:
-        raise FetchResourceError(str(e))
+        raise FetchResourceError(str(e)) from None
 
 
 def fetch_provider_vault_secret(
@@ -430,7 +430,7 @@ def fetch_provider_vault_secret(
     try:
         return OR(body, integration, integration_version, error_details=path)
     except ConstructResourceError as e:
-        raise FetchResourceError(str(e))
+        raise FetchResourceError(str(e)) from None
 
 
 # check to ensure that all of the keys are valid by looking to see if there are
@@ -554,7 +554,7 @@ def fetch_openshift_resource(
             )
         except Exception as e:
             msg = f"could not render template at path {path}\n{e}"
-            raise ResourceTemplateRenderError(msg)
+            raise ResourceTemplateRenderError(msg) from None
     elif provider == "vault-secret":
         path = resource["path"]
         version = resource["version"]
@@ -588,7 +588,7 @@ def fetch_openshift_resource(
                 settings=settings,
             )
         except (SecretVersionNotFound, SecretVersionIsNone) as e:
-            raise FetchSecretError(e)
+            raise FetchSecretError(e) from None
     elif provider == "route":
         path = resource["resource"]["path"]
         _locked_debug_log(f"Processing {provider}: {path}")
@@ -628,7 +628,7 @@ def fetch_openshift_resource(
             )
         except Exception as e:
             msg = f"could not render template at path {path}\n{e}"
-            raise ResourceTemplateRenderError(msg)
+            raise ResourceTemplateRenderError(msg) from None
 
     else:
         raise UnknownProviderError(provider)

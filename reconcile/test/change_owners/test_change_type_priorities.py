@@ -41,7 +41,7 @@ def test_priority_for_changes(
         return_value=[change_type_to_processor(secret_promoter_change_type)]
     )
 
-    assert ChangeTypePriority.MEDIUM == get_priority_for_changes([c1, c2])
+    assert get_priority_for_changes([c1, c2]) == ChangeTypePriority.MEDIUM
 
 
 def test_priorty_for_changes_no_coverage() -> None:

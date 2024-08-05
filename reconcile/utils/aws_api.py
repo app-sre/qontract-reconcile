@@ -818,7 +818,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         assume_role may be None for ROSA (CCS) clusters where we own the account
         """
         required_keys = ["name", "assume_region"]
-        ok = all(elem in account.keys() for elem in required_keys)
+        ok = all(elem in account for elem in required_keys)
         if not ok:
             account_name = account.get("name")
             raise KeyError(f"[{account_name}] account is missing required keys")
@@ -1384,7 +1384,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         if not zones:
             return []
         zone_id = self._get_hosted_zone_id(zones[0])
-        return route53.list_resource_record_sets(HostedZoneId=zone_id)[
+        return route53.list_resource_record_sets(HostedZoneId=zone_id)[  # type: ignore[return-value]
             "ResourceRecordSets"
         ]
 
@@ -1629,6 +1629,25 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         if versions := response["DBEngineVersions"]:
             return versions[0]["ValidUpgradeTarget"]
         return []
+
+    def describe_db_parameter_group(
+        self,
+        account_name: str,
+        db_parameter_group_name: str,
+        region_name: str | None = None,
+    ) -> dict[str, str]:
+        optional_kwargs = {}
+
+        if region_name:
+            optional_kwargs["region_name"] = region_name
+
+        rds = self._account_rds_client(account_name, **optional_kwargs)
+        paginator = rds.get_paginator("describe_db_parameters")
+        parameters = {}
+        for page in paginator.paginate(DBParameterGroupName=db_parameter_group_name):
+            for param in page.get("Parameters", []):
+                parameters[param["ParameterName"]] = param.get("ParameterValue", "")
+        return parameters
 
     def get_organization_billing_account(self, account_name: str) -> str:
         org = self._account_organizations_client(account_name)

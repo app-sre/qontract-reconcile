@@ -110,6 +110,7 @@ query TerraformResourcesNamespaces {
                 assume_action
                 inline_policy
                 role_policy
+                policies
                 output_resource_name
                 annotations
                 lifecycle {

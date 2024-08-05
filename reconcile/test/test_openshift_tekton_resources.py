@@ -121,7 +121,7 @@ class TestOpenshiftTektonResources:
         self.test_data.providers = [self.provider1, self.provider2_wr]
 
         tkn_providers = otr.fetch_tkn_providers(None)
-        keys_expected = set([self.provider1["name"], self.provider2_wr["name"]])
+        keys_expected = {self.provider1["name"], self.provider2_wr["name"]}
         assert tkn_providers.keys() == keys_expected
 
     def test_duplicate_providers(self) -> None:
@@ -146,10 +146,10 @@ class TestOpenshiftTektonResources:
         self.test_data.providers = [self.provider1]
         desired_resources = otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
 
-        expected_task_names = set([
+        expected_task_names = {
             "o-push-gateway-openshift-saas-deploy-task-status-metric",
             "o-openshift-saas-deploy-saas1",
-        ])
+        }
         expected_pipeline_name = "o-saas-deploy-saas1"
 
         task_names = set()

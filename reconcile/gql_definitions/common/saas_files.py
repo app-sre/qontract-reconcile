@@ -233,6 +233,7 @@ query SaasFiles {
       }
     }
     validateTargetsInApp
+    validatePlannedData
     resourceTemplates {
       name
       url
@@ -265,6 +266,7 @@ query SaasFiles {
           publish
           subscribe
           soakDays
+          schedule
           promotion_data {
             channel
             data {
@@ -471,6 +473,7 @@ class SaasResourceTemplateTargetPromotionV1(ConfiguredBaseModel):
     publish: Optional[list[str]] = Field(..., alias="publish")
     subscribe: Optional[list[str]] = Field(..., alias="subscribe")
     soak_days: Optional[int] = Field(..., alias="soakDays")
+    schedule: Optional[str] = Field(..., alias="schedule")
     promotion_data: Optional[list[PromotionDataV1]] = Field(..., alias="promotion_data")
 
 
@@ -558,6 +561,7 @@ class SaasFileV2(ConfiguredBaseModel):
     parameters: Optional[Json] = Field(..., alias="parameters")
     secret_parameters: Optional[list[SaasSecretParametersV1]] = Field(..., alias="secretParameters")
     validate_targets_in_app: Optional[bool] = Field(..., alias="validateTargetsInApp")
+    validate_planned_data: Optional[bool] = Field(..., alias="validatePlannedData")
     resource_templates: list[SaasResourceTemplateV2] = Field(..., alias="resourceTemplates")
     self_service_roles: Optional[list[SaasFileV2_RoleV1]] = Field(..., alias="selfServiceRoles")
 

@@ -252,29 +252,31 @@ class AwsAccountMgmtIntegration(
                 )
 
             secret = self.secret_reader.read_all_secret(payer_account.automation_token)
-            with AWSApi(
-                AWSStaticCredentials(
-                    access_key_id=secret["aws_access_key_id"],
-                    secret_access_key=secret["aws_secret_access_key"],
-                    region=payer_account.resources_default_region,
-                )
-            ) as payer_account_aws_api:
-                with payer_account_aws_api.assume_role(
+            with (
+                AWSApi(
+                    AWSStaticCredentials(
+                        access_key_id=secret["aws_access_key_id"],
+                        secret_access_key=secret["aws_secret_access_key"],
+                        region=payer_account.resources_default_region,
+                    )
+                ) as payer_account_aws_api,
+                payer_account_aws_api.assume_role(
                     account_id=payer_account.uid,
                     role=aws_account_manager_role,
-                ) as acct_manager_role_aws_api:
-                    self.create_accounts(
-                        acct_manager_role_aws_api,
-                        reconciler,
-                        merge_request_manager,
-                        account_template,
-                        payer_account.account_requests or [],
-                    )
-                    self.reconcile_organization_accounts(
-                        acct_manager_role_aws_api,
-                        reconciler,
-                        payer_account.organization_accounts or [],
-                    )
+                ) as acct_manager_role_aws_api,
+            ):
+                self.create_accounts(
+                    acct_manager_role_aws_api,
+                    reconciler,
+                    merge_request_manager,
+                    account_template,
+                    payer_account.account_requests or [],
+                )
+                self.reconcile_organization_accounts(
+                    acct_manager_role_aws_api,
+                    reconciler,
+                    payer_account.organization_accounts or [],
+                )
 
     def reconcile_non_organization_accounts(
         self,

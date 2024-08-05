@@ -25,6 +25,7 @@ query TerraformRepo {
     delete
     requireFips
     tfVersion
+    forceRerunTimestamp
     variables {
       inputs {
         ...VaultSecret

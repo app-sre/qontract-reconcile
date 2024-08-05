@@ -42,7 +42,7 @@ def binary_version(binary, version_args, search_regex, expected_versions):
                     f"Could not execute binary '{binary}' "
                     f"for binary version check: {e}"
                 )
-                raise Exception(msg)
+                raise Exception(msg) from e
 
             found = False
             match = None

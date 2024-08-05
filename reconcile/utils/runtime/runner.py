@@ -213,7 +213,7 @@ def _integration_dry_run(
             return_exceptions=True,
         )
 
-        for shard, result in zip(affected_shard_list, results):
+        for shard, result in zip(affected_shard_list, results, strict=False):
             if _is_task_result_an_error(result):
                 logging.error(f"Failed to run integration shard {shard}: {result}")
         failed_shards_count = sum(1 for _ in filter(_is_task_result_an_error, results))

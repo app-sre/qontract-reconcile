@@ -48,8 +48,8 @@ def test_smtp_client_send_mail(smtp_client: SmtpClient, smtpd):
     smtp_client.send_mail(["benturner"], "subject_subject", "body_body_body")
     assert len(smtpd.messages) == 1
     msg = smtpd.messages[0]
-    assert "subject_subject" == msg.get("subject")
-    assert "benturner@mailAddress.com" == msg.get("to")
+    assert msg.get("subject") == "subject_subject"
+    assert msg.get("to") == "benturner@mailAddress.com"
     assert "\nbody_body_body" in msg.as_string()
 
 
@@ -61,11 +61,11 @@ def test_smtp_client_send_mails(smtp_client: SmtpClient, smtpd):
     assert len(smtpd.messages) == 2
 
     msg = smtpd.messages[0]
-    assert "subject_subject" == msg.get("subject")
-    assert "benturner@mailAddress.com" == msg.get("to")
+    assert msg.get("subject") == "subject_subject"
+    assert msg.get("to") == "benturner@mailAddress.com"
     assert "\nbody_body_body" in msg.as_string()
 
     msg = smtpd.messages[1]
-    assert "2subject_subject2" == msg.get("subject")
-    assert "2benturner2@mailAddress.com" == msg.get("to")
+    assert msg.get("subject") == "2subject_subject2"
+    assert msg.get("to") == "2benturner2@mailAddress.com"
     assert "\n2body_body_body2" in msg.as_string()

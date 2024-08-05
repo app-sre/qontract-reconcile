@@ -79,6 +79,7 @@ class ReconcileAction(StrEnum):
     APPLY_ERROR = "Resource status in ERROR state"
     APPLY_SPEC_CHANGED = "Resource spec has changed"
     APPLY_DRIFT_DETECTION = "Resource drift detection run"
+    APPLY_USER_REQUESTED = "Resource reconciliation requested"
     DESTROY_CREATED = "Resource no longer exists in the configuration"
     DESTROY_ERROR = "Resource status in ERROR state"
 
@@ -112,11 +113,13 @@ class ExternalResourcesManager:
     ) -> ReconcileAction:
         if reconciliation.action == Action.APPLY:
             match state.resource_status:
+                case ResourceStatus.RECONCILIATION_REQUESTED:
+                    return ReconcileAction.APPLY_USER_REQUESTED
                 case ResourceStatus.NOT_EXISTS:
                     return ReconcileAction.APPLY_NOT_EXISTS
                 case ResourceStatus.ERROR:
                     return ReconcileAction.APPLY_ERROR
-                case ResourceStatus.CREATED:
+                case ResourceStatus.CREATED | ResourceStatus.PENDING_SECRET_SYNC:
                     if (
                         reconciliation.resource_hash
                         != state.reconciliation.resource_hash
@@ -153,6 +156,14 @@ class ExternalResourcesManager:
                 reconciliation.key,
             )
         return reconcile
+
+    def get_all_reconciliations(self) -> dict[str, set[Reconciliation]]:
+        """Returns all reconciliations in a dict. Useful to return all data
+        from app-interface to make comparisions (early-exit)"""
+        return {
+            "desired": self._get_desired_objects_reconciliations(),
+            "deleted": self._get_deleted_objects_reconciliations(),
+        }
 
     def _get_desired_objects_reconciliations(self) -> set[Reconciliation]:
         r: set[Reconciliation] = set()
@@ -210,10 +221,10 @@ class ExternalResourcesManager:
         """
         need_secret_sync = False
 
-        if state.resource_status not in set([
+        if state.resource_status not in {
             ResourceStatus.DELETE_IN_PROGRESS,
             ResourceStatus.IN_PROGRESS,
-        ]):
+        }:
             return False
 
         logging.info(
@@ -374,5 +385,5 @@ class ExternalResourcesManager:
         for r in triggered:
             self.reconciler.get_resource_reconcile_logs(reconciliation=r)
 
-        if ReconcileStatus.ERROR in [rs for rs in results.values()]:
+        if ReconcileStatus.ERROR in list(results.values()):
             raise Exception("Some Resources have reconciliation errors.")

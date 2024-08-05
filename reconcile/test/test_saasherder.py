@@ -166,6 +166,7 @@ class TestSaasFileValid(TestCase):
             subscribe=None,
             promotion_data=None,
             soakDays=0,
+            schedule="* * * * *",
         )
         saasherder = SaasHerder(
             [self.saas_file],
@@ -190,6 +191,7 @@ class TestSaasFileValid(TestCase):
             subscribe=None,
             promotion_data=None,
             soakDays=0,
+            schedule="* * * * *",
         )
         saasherder = SaasHerder(
             [self.saas_file],
@@ -909,6 +911,27 @@ class TestCollectRepoUrls(TestCase):
 
 
 @pytest.mark.usefixtures("inject_gql_class_factory")
+class TestCollectImagePatterns(TestCase):
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+        )
+
+    def test_collect_image_patterns(self) -> None:
+        image_pattern = "quay.io/centos/centos:centos8"
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+        )
+        self.assertEqual({image_pattern}, saasherder.image_patterns)
+
+
+@pytest.mark.usefixtures("inject_gql_class_factory")
 class TestGetSaasFileAttribute(TestCase):
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
@@ -1487,39 +1510,39 @@ def test_render_templated_parameters(
     assert saas_file.resource_templates[0].targets[0].secret_parameters == [
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="no-template",
-            secret=dict(
-                path="path/to/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/to/secret",
+                "field": "secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="ignore-go-template",
-            secret=dict(
-                path="path/{{ .GO_PARAM }}/secret",
-                field="{{ .GO_PARAM }}-secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/{{ .GO_PARAM }}/secret",
+                "field": "{{ .GO_PARAM }}-secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="template-param-1",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/appsres03ue1/test-namespace/secret",
+                "field": "secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="template-param-2",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="App-SRE-stage-secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/appsres03ue1/test-namespace/secret",
+                "field": "App-SRE-stage-secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
     ]
 
@@ -1549,38 +1572,38 @@ def test_render_templated_parameters_in_init(
     assert saas_file.resource_templates[0].targets[0].secret_parameters == [
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="no-template",
-            secret=dict(
-                path="path/to/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/to/secret",
+                "field": "secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="ignore-go-template",
-            secret=dict(
-                path="path/{{ .GO_PARAM }}/secret",
-                field="{{ .GO_PARAM }}-secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/{{ .GO_PARAM }}/secret",
+                "field": "{{ .GO_PARAM }}-secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="template-param-1",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/appsres03ue1/test-namespace/secret",
+                "field": "secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
         SaasResourceTemplateTargetV2_SaasSecretParametersV1(
             name="template-param-2",
-            secret=dict(
-                path="path/appsres03ue1/test-namespace/secret",
-                field="App-SRE-stage-secret_key",
-                version=1,
-                format=None,
-            ),
+            secret={
+                "path": "path/appsres03ue1/test-namespace/secret",
+                "field": "App-SRE-stage-secret_key",
+                "version": 1,
+                "format": None,
+            },
         ),
     ]

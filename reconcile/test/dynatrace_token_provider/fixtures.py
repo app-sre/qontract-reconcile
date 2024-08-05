@@ -6,6 +6,7 @@ from unittest.mock import (
     create_autospec,
 )
 
+from reconcile.dynatrace_token_provider.model import K8sSecret
 from reconcile.dynatrace_token_provider.ocm import Cluster, OCMClient
 from reconcile.utils.dynatrace.client import DynatraceAPITokenCreated, DynatraceClient
 
@@ -16,39 +17,70 @@ def tobase64(s: str) -> str:
     return encoded.decode("utf-8")
 
 
+def _build_secret_data(
+    secrets: Iterable[K8sSecret],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
+    secrets_data: list[dict[str, Any]] = []
+    for secret in secrets:
+        data: dict[str, str] = {
+            "apiUrl": tobase64(f"https://{tenant_id}.live.dynatrace.com/api"),
+        }
+        for token in secret.tokens:
+            data[token.secret_key] = tobase64(token.token)
+            data[f"{token.secret_key}Id"] = tobase64(token.id)
+        secrets_data.append({
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "metadata": {
+                "name": secret.secret_name,
+                "namespace": secret.namespace_name,
+            },
+            "data": data,
+        })
+    return secrets_data
+
+
 def build_syncset(
-    operator_token: DynatraceAPITokenCreated,
-    ingestion_token: DynatraceAPITokenCreated,
+    secrets: Iterable[K8sSecret],
     tenant_id: str,
     with_id: bool,
 ) -> dict:
+    secrets_data = _build_secret_data(
+        secrets=secrets,
+        tenant_id=tenant_id,
+    )
     syncset = {
         "kind": "SyncSet",
-        "resources": [
-            {
-                "apiVersion": "v1",
-                "kind": "Secret",
-                "metadata": {
-                    "name": "dynatrace-token-dtp",
-                    "namespace": "dynatrace",
-                },
-                "data": {
-                    "apiUrl": tobase64(f"https://{tenant_id}.live.dynatrace.com/api"),
-                    "dataIngestTokenId": tobase64(ingestion_token.id),
-                    "dataIngestToken": tobase64(ingestion_token.token),
-                    "apiTokenId": tobase64(operator_token.id),
-                    "apiToken": tobase64(operator_token.token),
-                },
-            }
-        ],
+        "resources": secrets_data,
     }
     if with_id:
         syncset["id"] = "ext-dynatrace-tokens-dtp"
     return syncset
 
 
+def build_manifest(
+    secrets: Iterable[K8sSecret],
+    tenant_id: str,
+    with_id: bool,
+) -> dict:
+    secrets_data = _build_secret_data(
+        secrets=secrets,
+        tenant_id=tenant_id,
+    )
+    manifest = {
+        "kind": "Manifest",
+        "workloads": secrets_data,
+    }
+    if with_id:
+        manifest["id"] = "ext-dynatrace-tokens-dtp"
+    return manifest
+
+
 def build_ocm_client(
-    discover_clusters_by_labels: Iterable[Cluster], get_syncset: Mapping[str, Mapping]
+    discover_clusters_by_labels: Iterable[Cluster],
+    get_syncset: Mapping[str, Mapping],
+    get_manifest: Mapping[str, Mapping],
 ) -> OCMClient:
     ocm_client = create_autospec(spec=OCMClient)
     ocm_client.discover_clusters_by_labels.return_value = discover_clusters_by_labels
@@ -56,14 +88,21 @@ def build_ocm_client(
     def get_syncset_side_effect(cluster_id: str, syncset_id: str) -> Any:
         return get_syncset.get(cluster_id)
 
+    def get_manifest_side_effect(cluster_id: str, manifest_id: str) -> Any:
+        return get_manifest.get(cluster_id)
+
     mock_get_syncset = MagicMock(side_effect=get_syncset_side_effect)
     ocm_client.get_syncset = mock_get_syncset
+
+    mock_get_manifest = MagicMock(side_effect=get_manifest_side_effect)
+    ocm_client.get_manifest = mock_get_manifest
+
     return ocm_client
 
 
 def build_dynatrace_client(
     create_api_token: Mapping[str, DynatraceAPITokenCreated],
-    existing_token_ids: set[str],
+    existing_token_ids: dict[str, str],
 ) -> DynatraceClient:
     dynatrace_client = create_autospec(spec=DynatraceClient)
 
@@ -76,6 +115,6 @@ def build_dynatrace_client(
 
     mock_create_api_token = MagicMock(side_effect=create_api_token_side_effect)
     dynatrace_client.create_api_token = mock_create_api_token
-    dynatrace_client.get_token_ids_for_name_prefix.return_value = existing_token_ids
+    dynatrace_client.get_token_ids_map_for_name_prefix.return_value = existing_token_ids
 
     return dynatrace_client

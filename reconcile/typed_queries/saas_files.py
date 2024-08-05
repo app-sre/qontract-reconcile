@@ -126,6 +126,7 @@ class SaasFile(ConfiguredBaseModel):
         ..., alias="secretParameters"
     )
     validate_targets_in_app: bool | None = Field(..., alias="validateTargetsInApp")
+    validate_planned_data: bool | None = Field(..., alias="validatePlannedData")
     managed_resource_names: list[ManagedResourceNamesV1] | None = Field(
         ..., alias="managedResourceNames"
     )
@@ -235,7 +236,7 @@ class SaasFileList:
                 except JsonPathParserError as e:
                     raise ParameterError(
                         f"Invalid jsonpath expression in namespaceSelector '{selector}' :{e}"
-                    )
+                    ) from None
 
         return self._matching_namespaces_cache[selector]
 

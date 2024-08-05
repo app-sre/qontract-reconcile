@@ -398,7 +398,7 @@ class SlackApi:
             result = self._sc.users_lookupByEmail(email=f"{user_name}@{mail_address}")
         except SlackApiError as e:
             if e.response["error"] == "users_not_found":
-                raise UserNotFoundException(e.response["error"])
+                raise UserNotFoundException(e.response["error"]) from None
             raise
 
         return result["user"]["id"]

@@ -48,13 +48,13 @@ def get_values(gql_get_resource_func: Callable, path: str) -> dict[str, Any]:
     try:
         raw_values = gql_get_resource_func(path)
     except GqlGetResourceError as e:
-        raise FetchResourceError(str(e))
+        raise FetchResourceError(str(e)) from e
     try:
         values = anymarkup.parse(raw_values["content"], force_types=None)
         values.pop("$schema", None)
-    except anymarkup.AnyMarkupError:
+    except anymarkup.AnyMarkupError as e:
         e_msg = "Could not parse data. Skipping resource: {}"
-        raise FetchResourceError(e_msg.format(path))
+        raise FetchResourceError(e_msg.format(path)) from e
     return values
 
 

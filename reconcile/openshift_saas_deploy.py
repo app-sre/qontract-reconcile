@@ -238,7 +238,8 @@ def run(
 
     # validate that the deployment will succeed
     # to the best of our ability to predict
-    ob.validate_planned_data(ri, oc_map)
+    if saasherder.validate_planned_data:
+        ob.validate_planned_data(ri, oc_map)
 
     # if saas_file_name is defined, the integration
     # is being called from multiple running instances
