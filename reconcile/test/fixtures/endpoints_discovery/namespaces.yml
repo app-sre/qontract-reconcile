@@ -1,0 +1,78 @@
+---
+namespaces:
+# no endPoints defined
+- name: app-1-ns-1
+  cluster:
+    name: cluster-1
+    serverUrl: 'https://cluster-1'
+    internal: false
+    automationToken:
+      path: token-path
+      field: token
+    clusterAdminAutomationToken:
+      path: token-path
+      field: token
+  app:
+    path: /path/app-1.yml
+    name: app-1
+    endPoints: null
+# manual endPoints defined
+- name: app-2-ns-1
+  cluster:
+    name: cluster-1
+    serverUrl: 'https://cluster-1'
+    internal: false
+    automationToken:
+      path: token-path
+      field: token
+    clusterAdminAutomationToken:
+      path: token-path
+      field: token
+  app:
+    path: /path/app-2.yml
+    name: app-2
+    endPoints:
+    - name: manual-endpoint-1
+      url: https://foobar.com
+
+
+# everything below must be ignored
+- name: deleted-ns
+  delete: true
+  cluster:
+    name: cluster-1
+    serverUrl: 'https://cluster-1'
+    internal: false
+    automationToken:
+      path: token-path
+      field: token
+    clusterAdminAutomationToken:
+      path: token-path
+      field: token
+  app:
+    path: /path/app-3.yml
+    name: app-3
+    endPoints:
+    - name: manual-endpoint-1
+      url: https://foobar.com
+- name: integration-disabled
+  delete: true
+  cluster:
+    name: cluster-2
+    serverUrl: 'https://cluster-2'
+    internal: false
+    disable:
+      integrations:
+      - endPoints-discovery
+    automationToken:
+      path: token-path
+      field: token
+    clusterAdminAutomationToken:
+      path: token-path
+      field: token
+  app:
+    path: /path/app-3.yml
+    name: app-3
+    endPoints:
+    - name: manual-endpoint-1
+      url: https://foobar.com
