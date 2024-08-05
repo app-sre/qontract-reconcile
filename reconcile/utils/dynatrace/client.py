@@ -73,8 +73,8 @@ class DynatraceClient:
         try:
             self._api.tokens.put(
                 token_id=token_id,
-                name=name,
                 api_token=ApiTokenUpdate(
+                    name=name,
                     scopes=scopes,
                 ),
             )
