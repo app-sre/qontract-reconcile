@@ -25,7 +25,7 @@ query ExternalResourcesModules {
         provider
         module_type
         image
-        default_version
+        version
         reconcile_drift_interval_minutes
         reconcile_timeout_minutes
         outputs_secret_sync
@@ -45,9 +45,9 @@ class ExternalResourcesModuleV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
     module_type: str = Field(..., alias="module_type")
     image: str = Field(..., alias="image")
-    default_version: str = Field(..., alias="default_version")
-    reconcile_drift_interval_minutes: str = Field(..., alias="reconcile_drift_interval_minutes")
-    reconcile_timeout_minutes: str = Field(..., alias="reconcile_timeout_minutes")
+    version: str = Field(..., alias="version")
+    reconcile_drift_interval_minutes: int = Field(..., alias="reconcile_drift_interval_minutes")
+    reconcile_timeout_minutes: int = Field(..., alias="reconcile_timeout_minutes")
     outputs_secret_sync: bool = Field(..., alias="outputs_secret_sync")
 
 

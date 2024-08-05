@@ -109,9 +109,9 @@ def build_dynatrace_client(
     def create_api_token_side_effect(
         name: str, scopes: Iterable[str]
     ) -> DynatraceAPITokenCreated:
-        return create_api_token.get(
-            name, DynatraceAPITokenCreated(token="dummy", id="dummy")
-        )
+        if name not in create_api_token:
+            raise ValueError(f"token {name=} not found in dynatrace_mock")
+        return create_api_token[name]
 
     mock_create_api_token = MagicMock(side_effect=create_api_token_side_effect)
     dynatrace_client.create_api_token = mock_create_api_token

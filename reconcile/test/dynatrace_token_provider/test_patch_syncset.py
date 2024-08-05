@@ -58,11 +58,6 @@ def test_single_non_hcp_cluster_patch_tokens(
         "ocm_env_a": ocm_client,
     }
 
-    ingestion_token = DynatraceAPITokenCreated(
-        id=default_ingestion_token.id,
-        token=default_ingestion_token.token,
-    )
-
     operator_token = DynatraceAPITokenCreated(
         id=default_operator_token.id,
         token=default_operator_token.token,
@@ -70,12 +65,11 @@ def test_single_non_hcp_cluster_patch_tokens(
 
     dynatrace_client = build_dynatrace_client(
         create_api_token={
-            f"dtp-ingestion-token-{default_cluster.external_id}": ingestion_token,
-            f"dtp-operator-token-{default_cluster.external_id}": operator_token,
+            "dtp_operator-token_external_id_a_1b6c3b9a7248": operator_token,
         },
-        # Operator token id is missing
+        # Operator token does not exist
         existing_token_ids={
-            default_ingestion_token.id: "name1",
+            default_ingestion_token.id: "dtp_ingestion-token_external_id_a_f6e7fac64719",
         },
     )
 
@@ -97,6 +91,19 @@ def test_single_non_hcp_cluster_patch_tokens(
     ocm_client.create_syncset.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.create_manifest.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]
+    dynatrace_client.update_token.assert_not_called()  # type: ignore[attr-defined]
+
+    dynatrace_client.create_api_token.assert_called_once_with(  # type: ignore[attr-defined]
+        name="dtp_operator-token_external_id_a_1b6c3b9a7248",
+        scopes=[
+            "activeGateTokenManagement.create",
+            "entities.read",
+            "settings.write",
+            "settings.read",
+            "DataExport",
+            "InstallerDownload",
+        ],
+    )
     ocm_client.patch_syncset.assert_called_once_with(  # type: ignore[attr-defined]
         cluster_id=default_cluster.id,
         syncset_id="ext-dynatrace-tokens-dtp",
@@ -114,15 +121,4 @@ def test_single_non_hcp_cluster_patch_tokens(
             tenant_id=default_cluster.dt_tenant,
             with_id=False,
         ),
-    )
-    dynatrace_client.create_api_token.called_once_with(  # type: ignore[attr-defined]
-        name="dtp-operator-token-external_id_a",
-        scopes=[
-            "activeGateTokenManagement.create",
-            "entities.read",
-            "settings.write",
-            "settings.read",
-            "DataExport",
-            "InstallerDownload",
-        ],
     )
