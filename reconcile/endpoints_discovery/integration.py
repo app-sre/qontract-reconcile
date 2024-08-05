@@ -261,7 +261,8 @@ class EndpointsDiscoveryIntegration(
     ) -> ExtendedEarlyExitRunnerResult:
         """Reconcile the endpoints for all namespaces."""
         apps = self.get_apps(oc_map, endpoint_template, namespaces)
-        merge_request_manager.create_merge_request(apps=apps)
+        if apps:
+            merge_request_manager.create_merge_request(apps=apps)
         return ExtendedEarlyExitRunnerResult(payload={}, applied_count=len(apps))
 
     @defer
