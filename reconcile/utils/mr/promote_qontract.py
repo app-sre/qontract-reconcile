@@ -169,5 +169,5 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
             gitlab_cli=gitlab_cli,
             path="data/pipelines/tekton-provider-global-defaults.yaml",
             search_text="$.taskTemplates[?(@.name == 'openshift-saas-deploy')].variables.qontract_reconcile_image_tag",
-            replace_text=self.commit_sha,
+            replace_text=self.version,
         )
