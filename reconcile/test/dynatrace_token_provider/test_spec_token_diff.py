@@ -16,53 +16,37 @@ from reconcile.test.dynatrace_token_provider.fixtures import (
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
-def test_dry_run(
+def test_spec_to_existing_token_diff(
     secret_reader: SecretReaderBase,
     default_token_spec: DynatraceTokenProviderTokenSpecV1,
     default_operator_token: DynatraceAPIToken,
     default_ingestion_token: DynatraceAPIToken,
+    default_cluster: Cluster,
 ) -> None:
     """
-    In this case we have 2 clusters, one that needs a new (create)
-    syncset and one that needs a patch for an existing syncset.
+    We have an existing token in Dynatrace that does not match the spec.
+    We expect DTP to update the token to match the given spec.
     """
     integration = DynatraceTokenProviderIntegration(
         DynatraceTokenProviderIntegrationParams(ocm_organization_ids={"ocm_org_id_a"})
     )
 
-    cluster_a = Cluster(
-        id="cluster_a",
-        external_id="external_id_a",
-        organization_id="ocm_org_id_a",
-        dt_tenant="dt_tenant_a",
-        token_spec_name="default",
-        is_hcp=False,
-    )
-    cluster_b = Cluster(
-        id="cluster_b",
-        external_id="external_id_b",
-        organization_id="ocm_org_id_a",
-        dt_tenant="dt_tenant_a",
-        token_spec_name="default",
-        is_hcp=False,
-    )
-    given_clusters = [cluster_a, cluster_b]
     ocm_client = build_ocm_client(
-        discover_clusters_by_labels=given_clusters,
+        discover_clusters_by_labels=[default_cluster],
         get_manifest={},
         get_syncset={
-            cluster_b.id: build_syncset(
+            default_cluster.id: build_syncset(
                 secrets=[
                     K8sSecret(
-                        secret_name="dynatrace-tokens-dtp",
+                        secret_name="dynatrace-token-dtp",
                         namespace_name="dynatrace",
                         tokens=[
-                            default_operator_token,
                             default_ingestion_token,
+                            default_operator_token,
                         ],
                     )
                 ],
-                tenant_id="dt_tenant_a",
+                tenant_id=default_cluster.dt_tenant,
                 with_id=True,
             )
         },
@@ -74,8 +58,12 @@ def test_dry_run(
 
     dynatrace_client = build_dynatrace_client(
         create_api_token={},
-        # Operator token id is missing
-        existing_token_ids={default_ingestion_token.id: "name123"},
+        # Operator token name indicates that the spec doesnt match the token config.
+        # Ingestion token matches the token spec.
+        existing_token_ids={
+            default_ingestion_token.id: "dtp_ingestion-token_external_id_a_f6e7fac64719",
+            default_operator_token.id: "config-diff",
+        },
     )
 
     dynatrace_client_by_tenant_id = {
@@ -91,11 +79,22 @@ def test_dry_run(
         },
     )
 
-    integration.reconcile(dry_run=True, dependencies=dependencies)
+    integration.reconcile(dry_run=False, dependencies=dependencies)
 
-    ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
-    ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.create_syncset.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.create_manifest.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
     dynatrace_client.create_api_token.assert_not_called()  # type: ignore[attr-defined]
-    dynatrace_client.update_token.assert_not_called()  # type: ignore[attr-defined]
+    dynatrace_client.update_token.assert_called_once_with(  # type: ignore[attr-defined]
+        name="dtp_operator-token_external_id_a_1b6c3b9a7248",
+        scopes=[
+            "activeGateTokenManagement.create",
+            "entities.read",
+            "settings.write",
+            "settings.read",
+            "DataExport",
+            "InstallerDownload",
+        ],
+        token_id=default_operator_token.id,
+    )
