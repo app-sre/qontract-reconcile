@@ -14,3 +14,4 @@ SECRET_UPDATED_AT_TIMEFORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 FLAG_RESOURCE_MANAGED_BY_ERV2 = "managed_by_erv2"
 FLAG_DELETE_RESOURCE = "delete"
+MODULE_OVERRIDES = "module_overrides"

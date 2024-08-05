@@ -60,9 +60,9 @@ from reconcile.external_resources.integration import (
     get_aws_api,
 )
 from reconcile.external_resources.manager import (
-    FLAG_RESOURCE_MANAGED_BY_ERV2,
     setup_factories,
 )
+from reconcile.external_resources.meta import FLAG_RESOURCE_MANAGED_BY_ERV2
 from reconcile.external_resources.model import (
     ExternalResourceKey,
     ExternalResourcesInventory,
