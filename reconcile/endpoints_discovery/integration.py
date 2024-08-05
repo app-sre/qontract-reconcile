@@ -70,11 +70,11 @@ class Route(BaseModel):
 
 
 def endpoint_prefix(namespace: NamespaceV1) -> str:
-    return f"{QONTRACT_INTEGRATION}-{namespace.cluster.name}-{namespace.name}"
+    return f"{QONTRACT_INTEGRATION}/{namespace.cluster.name}/{namespace.name}/"
 
 
 def compile_endpoint_name(endpoint_prefix: str, route: Route) -> str:
-    return f"{endpoint_prefix}-{route.name}"
+    return f"{endpoint_prefix}{route.name}"
 
 
 def render_template(template: str, endpoint_name: str, route: Route) -> dict:
@@ -261,7 +261,8 @@ class EndpointsDiscoveryIntegration(
     ) -> ExtendedEarlyExitRunnerResult:
         """Reconcile the endpoints for all namespaces."""
         apps = self.get_apps(oc_map, endpoint_template, namespaces)
-        merge_request_manager.create_merge_request(apps=apps)
+        if apps:
+            merge_request_manager.create_merge_request(apps=apps)
         return ExtendedEarlyExitRunnerResult(payload={}, applied_count=len(apps))
 
     @defer
