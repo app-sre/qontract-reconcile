@@ -1732,6 +1732,9 @@ class OCLogMsg(Exception):
         """
         return False
 
+    def __str__(self) -> str:
+        return super().__str__() + self.message
+
 
 LABEL_MAX_VALUE_LENGTH = 63
 LABEL_MAX_KEY_NAME_LENGTH = 63
