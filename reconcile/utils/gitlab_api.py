@@ -380,12 +380,10 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return GUEST_ACCESS
 
     def get_group_id_and_projects(self, group_name):
-        groups = self.gl.groups.list()
-        group = [g for g in groups if g.path == group_name]
+        group = [g for g in self.gl.groups.list() if g.path == group_name]
         if not group:
             logging.error(group_name + " group not found")
             return None, []
-        [group] = group
         return group.id, [p.name for p in self.get_items(group.projects.list)]
 
     def get_group(self, group_name: str) -> Group:
