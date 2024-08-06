@@ -1003,7 +1003,7 @@ def aws_saml_roles(
     "--initial-user-secret-vault-path",
     help="The path in Vault to store the initial user secret. Python format string with access to 'account_name' attribute.",
     required=True,
-    default="app-sre-v2/creds/terraform/{account_name}/config",
+    default="app-sre-v2/creds/terraform/{account_name}/config",  # noqa: RUF027
 )
 @click.option(
     "--account-tmpl-resource",
@@ -1799,6 +1799,58 @@ def openshift_prometheus_rules(
         use_jump_host,
         cluster_name=cluster_name,
         namespace_name=namespace_name,
+    )
+
+
+@integration.command(short_help="Discover routes and update endpoints")
+@threaded()
+@binary(["oc"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@use_jump_host()
+@cluster_name
+@namespace_name
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
+@click.option(
+    "--endpoint-tmpl-resource",
+    help="Resource name of the endpoint template in the app-interface.",
+    required=False,
+)
+@click.pass_context
+def endpoints_discovery(
+    ctx,
+    thread_pool_size,
+    internal,
+    use_jump_host,
+    cluster_name,
+    namespace_name,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
+    endpoint_tmpl_resource,
+):
+    from reconcile.endpoints_discovery.integration import (
+        EndpointsDiscoveryIntegration,
+        EndpointsDiscoveryIntegrationParams,
+    )
+
+    params = EndpointsDiscoveryIntegrationParams(
+        thread_pool_size=thread_pool_size,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
+        enable_extended_early_exit=enable_extended_early_exit,
+        extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+        log_cached_log_output=log_cached_log_output,
+    )
+    if endpoint_tmpl_resource:
+        params.endpoint_tmpl_resource = endpoint_tmpl_resource
+    run_class_integration(
+        integration=EndpointsDiscoveryIntegration(params),
+        ctx=ctx.obj,
     )
 
 

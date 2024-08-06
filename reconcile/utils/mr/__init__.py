@@ -12,23 +12,29 @@ from reconcile.utils.mr.ocm_update_recommended_version import (
 from reconcile.utils.mr.ocm_upgrade_scheduler_org_updates import (
     CreateOCMUpgradeSchedulerOrgUpdates,
 )
+from reconcile.utils.mr.promote_qontract import (
+    PromoteQontractReconcileCommercial,
+    PromoteQontractSchemas,
+)
 from reconcile.utils.mr.user_maintenance import (
     CreateDeleteUserAppInterface,
     CreateDeleteUserInfra,
 )
 
 __all__ = [
-    "init_from_sqs_message",
-    "UnknownMergeRequestType",
-    "MergeRequestProcessingError",
-    "CreateAppInterfaceReporter",
-    "CreateDeleteAwsAccessKey",
-    "CreateClustersUpdates",
-    "CreateOCMUpgradeSchedulerOrgUpdates",
-    "CreateOCMUpdateRecommendedVersion",
     "CreateAppInterfaceNotificator",
+    "CreateAppInterfaceReporter",
+    "CreateClustersUpdates",
+    "CreateDeleteAwsAccessKey",
     "CreateDeleteUserAppInterface",
     "CreateDeleteUserInfra",
+    "CreateOCMUpdateRecommendedVersion",
+    "CreateOCMUpgradeSchedulerOrgUpdates",
+    "MergeRequestProcessingError",
+    "PromoteQontractReconcileCommercial",
+    "PromoteQontractSchemas",
+    "UnknownMergeRequestType",
+    "init_from_sqs_message",
 ]
 
 

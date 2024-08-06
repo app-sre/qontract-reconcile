@@ -36,6 +36,7 @@ class ResourceStatus(StrEnum):
     DELETE_IN_PROGRESS: str = "DELETE_IN_PROGRESS"
     ERROR: str = "ERROR"
     PENDING_SECRET_SYNC: str = "PENDING_SECRET_SYNC"
+    RECONCILIATION_REQUESTED: str = "RECONCILIATION_REQUESTED"
 
 
 class ExternalResourceState(BaseModel):

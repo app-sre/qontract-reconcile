@@ -124,6 +124,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.error_registered = False
         self.saas_files = saas_files
         self.repo_urls = self._collect_repo_urls()
+        self.image_patterns = self._collect_image_patterns()
         self.resolve_templated_parameters(self.saas_files)
         if validate:
             self._validate_saas_files()
@@ -158,6 +159,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.compare = self._get_saas_file_feature_enabled("compare", default=True)
         self.publish_job_logs = self._get_saas_file_feature_enabled("publish_job_logs")
         self.cluster_admin = self._get_saas_file_feature_enabled("cluster_admin")
+        self.validate_planned_data = self._get_saas_file_feature_enabled(
+            "validate_planned_data", default=True
+        )
 
     def __enter__(self) -> "SaasHerder":
         return self
@@ -704,6 +708,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             for rt in saas_file.resource_templates
         }
 
+    def _collect_image_patterns(self) -> set[str]:
+        return {p for sf in self.saas_files for p in sf.image_patterns}
+
     @staticmethod
     def _get_file_contents_github(repo: Repository, path: str, commit_sha: str) -> str:
         f = repo.get_contents(path, commit_sha)
@@ -881,7 +888,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     url=url, path=path, ref=ref, github=github
                 )
             except Exception as e:
-                logging.error(f"{error_prefix} error fetching template: {str(e)}")
+                logging.error(f"{error_prefix} error fetching template: {e!s}")
                 raise
 
             # add COMMIT_SHA only if it is unspecified
@@ -923,7 +930,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     logging.error(
                         f"{error_prefix} error generating REPO_DIGEST. "
                         + "Is REGISTRY_IMG missing? "
-                        + f"{str(e)}"
+                        + f"{e!s}"
                     )
                     raise
 
@@ -948,7 +955,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             try:
                 resources = oc.process(template, consolidated_parameters)
             except StatusCodeError as e:
-                logging.error(f"{error_prefix} error processing template: {str(e)}")
+                logging.error(f"{error_prefix} error processing template: {e!s}")
 
         elif provider == "directory":
             try:
@@ -957,7 +964,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 )
             except Exception as e:
                 logging.error(
-                    f"{error_prefix} error fetching directory: {str(e)} "
+                    f"{error_prefix} error fetching directory: {e!s} "
                     + "(We do not support nested directories. Do you by chance have subdirectories?)"
                 )
                 raise
@@ -1134,7 +1141,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             )
         except Exception as e:
             logging.error(
-                f"{error_prefix} Image is invalid: {image}. " + f"details: {str(e)}"
+                f"{error_prefix} Image is invalid: {image}. " + f"details: {e!s}"
             )
 
         return None
@@ -1940,6 +1947,21 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     if current_state and current_state.has_succeeded_once:
                         has_succeeded_once = True
 
+                    check_in = str(now)
+                    if (
+                        success
+                        and current_state
+                        and current_state.check_in
+                        and current_state.success
+                    ):
+                        # We want to avoid an override of the timestamp.
+                        # This can happen on re-deployments of the same ref.
+                        # We only re-use the check_in time if the previous
+                        # and current deployment was successful.
+                        # On unsuccessful deployments, we
+                        # update the check_in time to current time.
+                        check_in = current_state.check_in
+
                     # publish to state to pass promotion gate
                     self._promotion_state.publish_promotion_data(
                         sha=promotion.commit_sha,
@@ -1950,8 +1972,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             success=success,
                             target_config_hash=promotion.target_config_hash,
                             has_succeeded_once=has_succeeded_once,
-                            # TODO: do not override - check if timestamp already exists
-                            check_in=str(now),
+                            check_in=check_in,
                         ),
                     )
                     logging.info(

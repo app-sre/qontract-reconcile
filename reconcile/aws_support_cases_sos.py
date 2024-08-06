@@ -53,7 +53,7 @@ def act(dry_run, gitlab_project_id, accounts, keys_to_delete, defer=None):
         key = k["key"]
         logging.info(["delete_aws_access_key", account, key])
         if not dry_run:
-            path = "data" + [a["path"] for a in accounts if a["name"] == account][0]
+            path = "data" + next(a["path"] for a in accounts if a["name"] == account)
 
             mr = CreateDeleteAwsAccessKey(account, path, key)
             mr.submit(cli=mr_cli)

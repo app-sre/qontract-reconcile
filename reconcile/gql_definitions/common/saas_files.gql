@@ -108,6 +108,7 @@ query SaasFiles {
       }
     }
     validateTargetsInApp
+    validatePlannedData
     resourceTemplates {
       name
       url

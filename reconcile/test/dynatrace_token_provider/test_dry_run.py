@@ -75,7 +75,7 @@ def test_dry_run(
     dynatrace_client = build_dynatrace_client(
         create_api_token={},
         # Operator token id is missing
-        existing_token_ids={default_ingestion_token.id},
+        existing_token_ids={default_ingestion_token.id: "name123"},
     )
 
     dynatrace_client_by_tenant_id = {
@@ -98,3 +98,4 @@ def test_dry_run(
     ocm_client.create_syncset.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.create_manifest.assert_not_called()  # type: ignore[attr-defined]
     dynatrace_client.create_api_token.assert_not_called()  # type: ignore[attr-defined]
+    dynatrace_client.update_token.assert_not_called()  # type: ignore[attr-defined]

@@ -43,7 +43,7 @@ def test_blackbox_exporter_endpoint_loading(mocker):
     assert endpoints is not None
     assert len(endpoints) == 1
 
-    provider = list(endpoints.keys())[0]
+    provider = next(iter(endpoints.keys()))
     assert provider.provider == BLACKBOX_EXPORTER_PROVIDER
     provider_endpoints = endpoints.get(provider)
     assert provider_endpoints is not None
@@ -74,7 +74,7 @@ def test_blackbox_exporter_probe_building(mocker):
     endpoints = get_endpoints(BLACKBOX_EXPORTER_PROVIDER)
     assert len(endpoints) == 1
 
-    provider = list(endpoints.keys())[0]
+    provider = next(iter(endpoints.keys()))
     provider_endpoints = endpoints.get(provider)
     assert provider_endpoints is not None
     probe_resource = blackbox_exporter_probe_builder(provider, provider_endpoints)
@@ -108,7 +108,7 @@ def test_signalfx_probe_building(mocker):
     endpoints = get_endpoints(SIGNALFX_PROVIDER)
     assert len(endpoints) == 1
 
-    provider = list(endpoints.keys())[0]
+    provider = next(iter(endpoints.keys()))
     provider_endpoints = endpoints.get(provider)
     assert provider_endpoints is not None
     probe_resource = signalfx_probe_builder(provider, provider_endpoints)
@@ -157,7 +157,7 @@ def test_blackbox_exporter_filling_desired_state(mocker):
     add_desired_mock = mocker.patch.object(ResourceInventory, "add_desired")
 
     endpoints = get_endpoints(BLACKBOX_EXPORTER_PROVIDER)
-    provider = list(endpoints.keys())[0]
+    provider = next(iter(endpoints.keys()))
     probe = blackbox_exporter_probe_builder(provider, endpoints[provider])
     assert probe is not None
     fill_desired_state(provider, probe, ResourceInventory())
@@ -178,7 +178,7 @@ def test_signalfx_filling_desired_state(mocker):
     add_desired_mock = mocker.patch.object(ResourceInventory, "add_desired")
 
     endpoints = get_endpoints(SIGNALFX_PROVIDER)
-    provider = list(endpoints.keys())[0]
+    provider = next(iter(endpoints.keys()))
     probe = signalfx_probe_builder(provider, endpoints[provider])
     assert probe is not None
     fill_desired_state(provider, probe, ResourceInventory())

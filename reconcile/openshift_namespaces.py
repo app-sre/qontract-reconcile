@@ -132,7 +132,7 @@ def check_results(
             err = True
             msg = (
                 f'cluster: {s["cluster"]}, namespace: {s["namespace"]}, '
-                f"exception: {str(e)}"
+                f"exception: {e!s}"
             )
             logging.error(msg)
     return err

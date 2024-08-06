@@ -738,7 +738,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def get_user_key_status(self, iam: IAMClient, user: str, key: str) -> KeyStatus:
         key_list = self._get_user_key_list(iam, user)
-        return [k["Status"] for k in key_list if k["AccessKeyId"] == key][0]
+        return next(k["Status"] for k in key_list if k["AccessKeyId"] == key)
 
     def get_support_cases(self):
         all_support_cases = {}
@@ -1384,7 +1384,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         if not zones:
             return []
         zone_id = self._get_hosted_zone_id(zones[0])
-        return route53.list_resource_record_sets(HostedZoneId=zone_id)[
+        return route53.list_resource_record_sets(HostedZoneId=zone_id)[  # type: ignore[return-value]
             "ResourceRecordSets"
         ]
 
@@ -1629,6 +1629,25 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         if versions := response["DBEngineVersions"]:
             return versions[0]["ValidUpgradeTarget"]
         return []
+
+    def describe_db_parameter_group(
+        self,
+        account_name: str,
+        db_parameter_group_name: str,
+        region_name: str | None = None,
+    ) -> dict[str, str]:
+        optional_kwargs = {}
+
+        if region_name:
+            optional_kwargs["region_name"] = region_name
+
+        rds = self._account_rds_client(account_name, **optional_kwargs)
+        paginator = rds.get_paginator("describe_db_parameters")
+        parameters = {}
+        for page in paginator.paginate(DBParameterGroupName=db_parameter_group_name):
+            for param in page.get("Parameters", []):
+                parameters[param["ParameterName"]] = param.get("ParameterValue", "")
+        return parameters
 
     def get_organization_billing_account(self, account_name: str) -> str:
         org = self._account_organizations_client(account_name)

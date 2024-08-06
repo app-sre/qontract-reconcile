@@ -147,9 +147,9 @@ def build_desired_state(
                     sys.exit(ExitCodes.ERROR)
                 tf_zone_spec = tf_zone_specs[0]
                 tf_zone_account_name = tf_zone_spec.provisioner_name
-                zone_account = [
+                zone_account = next(
                     a for a in all_accounts if a["name"] == tf_zone_account_name
-                ][0]
+                )
                 tf_zone_region = (
                     tf_zone_spec.resource.get("region")
                     or zone_account["resourcesDefaultRegion"]

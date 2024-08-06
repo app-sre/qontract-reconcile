@@ -250,7 +250,7 @@ class State:
             self.client.head_bucket(Bucket=self.bucket)
         except ClientError as details:
             raise StateInaccessibleException(
-                f"Bucket {self.bucket} is not accessible - {str(details)}"
+                f"Bucket {self.bucket} is not accessible - {details!s}"
             ) from None
 
     def __enter__(self) -> Self:
@@ -301,7 +301,7 @@ class State:
 
             raise StateInaccessibleException(
                 f"Can not access state key {key_path} "
-                f"in bucket {self.bucket} - {str(details)}"
+                f"in bucket {self.bucket} - {details!s}"
             ) from None
 
     def ls(self) -> list[str]:

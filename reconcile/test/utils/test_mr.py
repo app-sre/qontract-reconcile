@@ -1,17 +1,22 @@
 from typing import Any
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 from gitlab.exceptions import GitlabError
 
+import reconcile.typed_queries.smtp
+from reconcile.gql_definitions.common.smtp_client_settings import SmtpSettingsV1
+from reconcile.gql_definitions.fragments.user import User
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import (
     MergeRequestBase,
     MergeRequestProcessingError,
     app_interface_email,
 )
+from reconcile.utils.mr.promote_qontract import PromoteQontractReconcileCommercial
 
 
 class DummyMergeRequest(MergeRequestBase):
@@ -221,3 +226,119 @@ def test_email_template(
         assert email["to"][key] == value
     for key, value in expected_services.items():
         assert email["to"][key] == value
+
+
+def test_process_by_line_search():
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    )
+    content = """
+# this is a comment
+export IMAGE=abcdefg
+"""
+    expected = """
+# this is a comment
+export IMAGE=1q2w3e4
+"""
+    result = mr._process_by_line_search(
+        raw_file=bytes(content, "utf-8"),
+        search_text="export IMAGE=",
+        replace_text="export IMAGE=1q2w3e4",
+    )
+
+    assert expected == result
+
+
+def test_process_by_json_path():
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
+    )
+    content = """---
+name: saas
+
+resourceTemplates:
+- name: qontract-manager
+  url: https://github.com/app-sre/qontract-reconcile
+  path: /openshift/qontract-manager.yaml
+  targets:
+  - name: stage
+  - name: production
+    ref: 82aeb1b1abb6ccb03bc894d9cd3f406fd598d2b3
+"""
+    expected = """---
+name: saas
+
+resourceTemplates:
+- name: qontract-manager
+  url: https://github.com/app-sre/qontract-reconcile
+  path: /openshift/qontract-manager.yaml
+  targets:
+  - name: stage
+  - name: production
+    ref: 1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p
+"""
+
+    result = mr._process_by_json_path(
+        raw_file=bytes(content, "utf-8"),
+        search_text="$.resourceTemplates[?(@.url == 'https://github.com/app-sre/qontract-reconcile')].targets[?(@.name == 'production')].ref",
+        replace_text="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
+    )
+
+    assert expected == result
+
+
+@pytest.fixture
+def users():
+    return [
+        User(
+            name="",
+            org_username="org_user",
+            github_username="github_user",
+            slack_username=None,
+            pagerduty_username=None,
+            tag_on_merge_requests=None,
+        )
+    ]
+
+
+@pytest.fixture
+def smtp_settings():
+    return SmtpSettingsV1(
+        mailAddress="redhat.com",
+        timeout=30,
+        credentials=VaultSecret(path="", field="", version=1, format=""),
+    )
+
+
+def test_author_email_empty():
+    mr = PromoteQontractReconcileCommercial(
+        version="1q2w3e4",
+        commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
+    )
+
+    assert mr.author_email is None
+    assert mr.author() is None
+
+
+@patch.object(reconcile.typed_queries.smtp, "settings", autospec=True)
+def test_author_org_username(settings, users, smtp_settings):
+    mr = PromoteQontractReconcileCommercial(
+        version="1q2w3e4",
+        commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
+        author_email="org_user@redhat.com",
+    )
+    settings.return_value = smtp_settings
+
+    assert mr.author(all_users=users) == "org_user"
+
+
+@patch.object(reconcile.typed_queries.smtp, "settings", autospec=True)
+def test_author_github_username(settings, users, smtp_settings):
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4",
+        "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
+        author_email="github_user@users.noreply.github.com",
+    )
+    settings.return_value = smtp_settings
+
+    assert mr.author(all_users=users) == "org_user"

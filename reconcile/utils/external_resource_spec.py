@@ -88,13 +88,13 @@ class ExternalResourceSpec:
     secret: Mapping[str, str] = field(init=False, default_factory=lambda: {})
     # Metadata is used for processing data that shuold not be included in the secret data
     # e.g: ERV2 adds a updated_at attribute that acts as optimistic lock.
-    metadata: MutableMapping[str, str] = field(
+    metadata: MutableMapping[str, Any] = field(
         init=False, compare=False, repr=False, hash=False, default_factory=lambda: {}
     )
 
     @property
     def marked_to_delete(self) -> bool:
-        return self.resource.get("delete") or False
+        return self.metadata.get("delete") or False
 
     @property
     def provider(self) -> str:

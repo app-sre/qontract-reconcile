@@ -1,6 +1,7 @@
 import base64
+import hashlib
 import logging
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, MutableMapping
 from datetime import timedelta
 from typing import Any
 
@@ -96,7 +97,7 @@ class DynatraceTokenProviderIntegration(
                         for cluster in clusters
                         if cluster.organization_id in self.params.ocm_organization_ids
                     ]
-                existing_dtp_tokens = {}
+                existing_dtp_tokens: dict[str, dict[str, str]] = {}
 
                 for cluster in clusters:
                     try:
@@ -139,8 +140,8 @@ class DynatraceTokenProviderIntegration(
                                 continue
                             if tenant_id not in existing_dtp_tokens:
                                 existing_dtp_tokens[tenant_id] = (
-                                    dt_client.get_token_ids_for_name_prefix(
-                                        prefix="dtp-"
+                                    dt_client.get_token_ids_map_for_name_prefix(
+                                        prefix="dtp"
                                     )
                                 )
 
@@ -172,7 +173,7 @@ class DynatraceTokenProviderIntegration(
         cluster: Cluster,
         dt_client: DynatraceClient,
         ocm_client: OCMClient,
-        existing_dtp_tokens: Iterable[str],
+        existing_dtp_tokens: MutableMapping[str, str],
         tenant_id: str,
         token_spec: DynatraceTokenProviderTokenSpecV1,
     ) -> None:
@@ -217,7 +218,7 @@ class DynatraceTokenProviderIntegration(
                     _expose_errors_as_service_log(
                         ocm_client,
                         cluster.external_id,
-                        f"DTP can't create {token_spec.name=} {str(e.args)}",
+                        f"DTP can't create {token_spec.name=} {e.args!s}",
                     )
             logging.info(
                 f"{token_spec.name=} created in {dt_api_url} for {cluster.external_id=}."
@@ -270,10 +271,50 @@ class DynatraceTokenProviderIntegration(
                         _expose_errors_as_service_log(
                             ocm_client,
                             cluster.external_id,
-                            f"DTP can't patch {token_spec.name=} for {SYNCSET_AND_MANIFEST_ID} due to {str(e.args)}",
+                            f"DTP can't patch {token_spec.name=} for {SYNCSET_AND_MANIFEST_ID} due to {e.args!s}",
                         )
                 logging.info(
                     f"Patched {token_spec.name=} for {SYNCSET_AND_MANIFEST_ID} in {cluster.external_id=}."
+                )
+
+    def scopes_hash(self, scopes: Iterable[str], length: int) -> str:
+        m = hashlib.sha256()
+        msg = ",".join(sorted(scopes))
+        m.update(msg.encode("utf-8"))
+        return m.hexdigest()[:length]
+
+    def dynatrace_token_name(self, spec: DynatraceAPITokenV1, cluster_uuid: str) -> str:
+        scopes_hash = self.scopes_hash(scopes=spec.scopes, length=12)
+        # We have a limit of 100 chars
+        # cluster_uuid = 36 chars
+        # scopes_hash = 12 chars
+        # prefix + separators = 6 chars
+        return f"dtp_{spec.name[:46]}_{cluster_uuid}_{scopes_hash}"
+
+    def sync_token_in_dynatrace(
+        self,
+        token_id: str,
+        spec: DynatraceAPITokenV1,
+        cluster_uuid: str,
+        dt_client: DynatraceClient,
+        token_name_in_dt_api: str,
+        dry_run: bool,
+    ) -> None:
+        """
+        We ensure that the given token is properly configured in Dynatrace
+        according to the given spec.
+
+        A list query on the tokens does not return each tokens configuration.
+        We encode the token configuration in the token name to save API calls.
+        """
+        expected_name = self.dynatrace_token_name(spec=spec, cluster_uuid=cluster_uuid)
+        if token_name_in_dt_api != expected_name:
+            logging.info(
+                f"{token_name_in_dt_api=} != {expected_name=}. Sync dynatrace token {token_id=} with {spec=} for {cluster_uuid=}."
+            )
+            if not dry_run:
+                dt_client.update_token(
+                    token_id=token_id, name=expected_name, scopes=spec.scopes
                 )
 
     def generate_desired(
@@ -281,7 +322,7 @@ class DynatraceTokenProviderIntegration(
         dry_run: bool,
         current_k8s_secrets: Iterable[K8sSecret],
         desired_spec: DynatraceTokenProviderTokenSpecV1,
-        existing_dtp_tokens: Iterable[str],
+        existing_dtp_tokens: MutableMapping[str, str],
         dt_client: DynatraceClient,
         cluster_uuid: str,
     ) -> tuple[bool, Iterable[K8sSecret]]:
@@ -301,15 +342,24 @@ class DynatraceTokenProviderIntegration(
                 else {}
             )
             for desired_token in secret.tokens:
-                new_token = current_tokens_by_name.get(desired_token.name)
-                if not new_token or new_token.id not in existing_dtp_tokens:
+                cur_token = current_tokens_by_name.get(desired_token.name)
+                if not cur_token or cur_token.id not in existing_dtp_tokens:
                     has_diff = True
                     if not dry_run:
-                        new_token = self.create_dynatrace_token(
+                        cur_token = self.create_dynatrace_token(
                             dt_client, cluster_uuid, desired_token
                         )
-                if new_token:
-                    desired_tokens.append(new_token)
+                        existing_dtp_tokens[cur_token.id] = cur_token.name
+                if cur_token:
+                    self.sync_token_in_dynatrace(
+                        token_id=cur_token.id,
+                        spec=desired_token,
+                        cluster_uuid=cluster_uuid,
+                        dt_client=dt_client,
+                        dry_run=dry_run,
+                        token_name_in_dt_api=existing_dtp_tokens[cur_token.id],
+                    )
+                    desired_tokens.append(cur_token)
             desired.append(
                 K8sSecret(
                     secret_name=secret.name,
@@ -323,7 +373,7 @@ class DynatraceTokenProviderIntegration(
     def create_dynatrace_token(
         self, dt_client: DynatraceClient, cluster_uuid: str, token: DynatraceAPITokenV1
     ) -> DynatraceAPIToken:
-        token_name = f"dtp-{token.name}-{cluster_uuid}"
+        token_name = self.dynatrace_token_name(spec=token, cluster_uuid=cluster_uuid)
         new_token = dt_client.create_api_token(
             name=token_name,
             scopes=token.scopes,
@@ -377,15 +427,12 @@ class DynatraceTokenProviderIntegration(
                 raise e
         return manifest
 
-    def get_secrets_from_syncset(
-        self, syncset: Mapping[str, Any], token_spec: DynatraceTokenProviderTokenSpecV1
+    def get_secrets_from_data(
+        self,
+        secret_data_by_name: Mapping[str, Any],
+        token_spec: DynatraceTokenProviderTokenSpecV1,
     ) -> list[K8sSecret]:
         secrets: list[K8sSecret] = []
-        secret_data_by_name = {
-            resource.get("metadata", {}).get("name"): resource.get("data", {})
-            for resource in syncset.get("resources", [])
-            if resource.get("kind") == "Secret"
-        }
         for secret in token_spec.secrets:
             secret_data = secret_data_by_name.get(secret.name)
             if secret_data:
@@ -414,42 +461,29 @@ class DynatraceTokenProviderIntegration(
                 )
         return secrets
 
+    def get_secrets_from_syncset(
+        self, syncset: Mapping[str, Any], token_spec: DynatraceTokenProviderTokenSpecV1
+    ) -> list[K8sSecret]:
+        secret_data_by_name = {
+            resource.get("metadata", {}).get("name"): resource.get("data", {})
+            for resource in syncset.get("resources", [])
+            if resource.get("kind") == "Secret"
+        }
+        return self.get_secrets_from_data(
+            secret_data_by_name=secret_data_by_name, token_spec=token_spec
+        )
+
     def get_secrets_from_manifest(
         self, manifest: Mapping[str, Any], token_spec: DynatraceTokenProviderTokenSpecV1
     ) -> list[K8sSecret]:
-        secrets: list[K8sSecret] = []
         secret_data_by_name = {
             resource.get("metadata", {}).get("name"): resource.get("data", {})
             for resource in manifest.get("workloads", [])
             if resource.get("kind") == "Secret"
         }
-        for secret in token_spec.secrets:
-            secret_data = secret_data_by_name.get(secret.name)
-            if secret_data:
-                tokens = []
-                for token in secret.tokens:
-                    token_id = self.base64_decode(
-                        secret_data.get(f"{token.key_name_in_secret}Id", "")
-                    )
-                    token_value = self.base64_decode(
-                        secret_data.get(token.key_name_in_secret, "")
-                    )
-                    tokens.append(
-                        DynatraceAPIToken(
-                            id=token_id,
-                            token=token_value,
-                            name=token.name,
-                            secret_key=token.key_name_in_secret,
-                        )
-                    )
-                secrets.append(
-                    K8sSecret(
-                        secret_name=secret.name,
-                        namespace_name=secret.namespace,
-                        tokens=tokens,
-                    )
-                )
-        return secrets
+        return self.get_secrets_from_data(
+            secret_data_by_name=secret_data_by_name, token_spec=token_spec
+        )
 
     def construct_secrets_data(
         self,

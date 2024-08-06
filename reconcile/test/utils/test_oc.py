@@ -251,7 +251,7 @@ class TestPodOwnedPVCNames(TestCase):
         oc = OC("cluster", "server", "token", local=True)
         owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
         self.assertEqual(len(owned_pvc_names), 1)
-        self.assertEqual(list(owned_pvc_names)[0], "cm")
+        self.assertEqual(next(iter(owned_pvc_names)), "cm")
 
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)

@@ -911,6 +911,27 @@ class TestCollectRepoUrls(TestCase):
 
 
 @pytest.mark.usefixtures("inject_gql_class_factory")
+class TestCollectImagePatterns(TestCase):
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFile, Fixtures("saasherder").get_anymarkup("saas.gql.yml")
+        )
+
+    def test_collect_image_patterns(self) -> None:
+        image_pattern = "quay.io/centos/centos:centos8"
+        saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+        )
+        self.assertEqual({image_pattern}, saasherder.image_patterns)
+
+
+@pytest.mark.usefixtures("inject_gql_class_factory")
 class TestGetSaasFileAttribute(TestCase):
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture

@@ -6,7 +6,7 @@ query ExternalResourcesModules {
         provider
         module_type
         image
-        default_version
+        version
         reconcile_drift_interval_minutes
         reconcile_timeout_minutes
         outputs_secret_sync

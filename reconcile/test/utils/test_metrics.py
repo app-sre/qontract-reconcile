@@ -403,13 +403,13 @@ def test_transactional_metrics_counter_same_scope() -> None:
         c.inc_counter(cnt)
 
         # the transaction is still pending so while we should see the counter increased within the transaction
-        assert list(c.collect())[0].samples[0].value == 2
+        assert next(iter(c.collect())).samples[0].value == 2
 
         # ... we should not see the counter increased in root yet
-        assert list(root.collect())[0].samples[0].value == 1
+        assert next(iter(root.collect())).samples[0].value == 1
 
     # but when the transaction is committed we should see the counter increased in root
-    assert list(root.collect())[0].samples[0].value == 2
+    assert next(iter(root.collect())).samples[0].value == 2
 
 
 def test_transactional_metrics_counter_different_scope() -> None:
@@ -435,10 +435,10 @@ def test_transactional_metrics_counter_different_scope() -> None:
         c.inc_counter(cnt)
 
         # now we see the counter but it has value 1, so freshly initialized
-        assert list(c.collect())[0].samples[0].value == 1
+        assert next(iter(c.collect())).samples[0].value == 1
 
     # but when the transaction is committed we should see the counter values from both scopes aggregated in root
-    assert list(root.collect())[0].samples[0].value == 2
+    assert next(iter(root.collect())).samples[0].value == 2
 
 
 #
@@ -466,11 +466,11 @@ def test_transactional_metrics_implicitely_nested(demo_gauge: DemoGauge) -> None
             assert len(list(root.collect())) == 0
 
             # the value in the outer transaction should not be affected
-            assert list(outer.collect())[0].samples[0].value == 42
+            assert next(iter(outer.collect())).samples[0].value == 42
 
     # the transaction is committed so we should see the metrics in root
     assert len(list(root.collect())) == 1
-    assert list(root.collect())[0].samples[0].value == 84
+    assert next(iter(root.collect())).samples[0].value == 84
 
 
 #

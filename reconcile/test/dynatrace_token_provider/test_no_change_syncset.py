@@ -73,7 +73,10 @@ def test_no_change_non_hcp_cluster(
             f"dtp-ingestion-token-{default_cluster.external_id}": ingestion_token,
             f"dtp-operator-token-{default_cluster.external_id}": operator_token,
         },
-        existing_token_ids={default_ingestion_token.id, default_operator_token.id},
+        existing_token_ids={
+            default_ingestion_token.id: "name1",
+            default_operator_token.id: "name2",
+        },
     )
 
     dynatrace_client_by_tenant_id = {

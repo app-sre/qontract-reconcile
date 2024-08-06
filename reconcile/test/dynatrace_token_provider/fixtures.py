@@ -102,19 +102,19 @@ def build_ocm_client(
 
 def build_dynatrace_client(
     create_api_token: Mapping[str, DynatraceAPITokenCreated],
-    existing_token_ids: set[str],
+    existing_token_ids: dict[str, str],
 ) -> DynatraceClient:
     dynatrace_client = create_autospec(spec=DynatraceClient)
 
     def create_api_token_side_effect(
         name: str, scopes: Iterable[str]
     ) -> DynatraceAPITokenCreated:
-        return create_api_token.get(
-            name, DynatraceAPITokenCreated(token="dummy", id="dummy")
-        )
+        if name not in create_api_token:
+            raise ValueError(f"token {name=} not found in dynatrace_mock")
+        return create_api_token[name]
 
     mock_create_api_token = MagicMock(side_effect=create_api_token_side_effect)
     dynatrace_client.create_api_token = mock_create_api_token
-    dynatrace_client.get_token_ids_for_name_prefix.return_value = existing_token_ids
+    dynatrace_client.get_token_ids_map_for_name_prefix.return_value = existing_token_ids
 
     return dynatrace_client

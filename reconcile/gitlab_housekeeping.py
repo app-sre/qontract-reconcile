@@ -313,7 +313,7 @@ def preprocess_merge_requests(
             MRStatus.CANNOT_BE_MERGED_RECHECK,
         }:
             continue
-        if mr.work_in_progress:
+        if mr.draft:
             continue
         if len(mr.commits()) == 0:
             continue

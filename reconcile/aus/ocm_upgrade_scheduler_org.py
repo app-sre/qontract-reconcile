@@ -1,11 +1,15 @@
+from collections import defaultdict
+
 from reconcile.aus.healthchecks import (
     AUSClusterHealthCheckProvider,
     build_cluster_health_providers_for_organization,
 )
 from reconcile.aus.models import (
     ClusterUpgradeSpec,
+    NodePoolSpec,
     OrganizationUpgradeSpec,
 )
+from reconcile.aus.node_pool_spec import get_node_pool_specs_by_org_cluster
 from reconcile.aus.ocm_upgrade_scheduler import OCMClusterUpgradeSchedulerIntegration
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
@@ -41,6 +45,15 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
                 ocm_env.name
             )
 
+            clusters_by_org = defaultdict(list)
+            for cluster in clusters:
+                clusters_by_org[cluster.organization_id].append(cluster)
+
+            node_pool_specs_by_org_cluster = get_node_pool_specs_by_org_cluster(
+                ocm_api,
+                clusters_by_org,
+            )
+
             return {
                 org.name: OrganizationUpgradeSpec(
                     org=org,
@@ -48,13 +61,16 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
                         org=org,
                         clusters_by_name={
                             c.ocm_cluster.name: c.ocm_cluster
-                            for c in clusters
-                            if c.organization_id == org.org_id
+                            for c in clusters_by_org[org.org_id]
                         },
                         cluster_health_provider=build_cluster_health_providers_for_organization(
                             org=org,
                             providers=cluster_health_providers,
                         ),
+                        node_pool_specs_by_cluster_id=node_pool_specs_by_org_cluster.get(
+                            org.org_id
+                        )
+                        or {},
                     ),
                 )
                 for org in organizations
@@ -65,6 +81,7 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
         org: AUSOCMOrganization,
         clusters_by_name: dict[str, OCMCluster],
         cluster_health_provider: AUSClusterHealthCheckProvider,
+        node_pool_specs_by_cluster_id: dict[str, list[NodePoolSpec]],
     ) -> list[ClusterUpgradeSpec]:
         return [
             ClusterUpgradeSpec(
@@ -75,9 +92,10 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
                     cluster_external_id=clusters_by_name[cluster.name].external_id,
                     org_id=org.org_id,
                 ),
+                nodePools=node_pool_specs_by_cluster_id.get(ocm_cluster.id) or [],
             )
             for cluster in org.upgrade_policy_clusters or []
             # clusters that are not in the UUID dict will be ignored because
             # they don't exist in the OCM organization (or have been deprovisioned)
-            if cluster.name in clusters_by_name
+            if (ocm_cluster := clusters_by_name.get(cluster.name))
         ]

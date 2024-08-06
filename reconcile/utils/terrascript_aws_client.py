@@ -5734,7 +5734,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 s3_client.head_bucket(Bucket=bucket_name)
             except ClientError as details:
                 raise StateInaccessibleException(
-                    f"Bucket {bucket_name} is not accessible - {str(details)}"
+                    f"Bucket {bucket_name} is not accessible - {details!s}"
                 ) from None
 
             # todo: probably remove 'RedHat' from the object/variable/filepath

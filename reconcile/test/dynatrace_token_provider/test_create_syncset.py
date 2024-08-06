@@ -54,10 +54,10 @@ def test_single_non_hcp_cluster_create_tokens(
 
     dynatrace_client = build_dynatrace_client(
         create_api_token={
-            f"dtp-ingestion-token-{default_cluster.external_id}": ingestion_token,
-            f"dtp-operator-token-{default_cluster.external_id}": operator_token,
+            "dtp_ingestion-token_external_id_a_f6e7fac64719": ingestion_token,
+            "dtp_operator-token_external_id_a_1b6c3b9a7248": operator_token,
         },
-        existing_token_ids=set(),
+        existing_token_ids={},
     )
 
     dynatrace_client_by_tenant_id = {
@@ -78,6 +78,27 @@ def test_single_non_hcp_cluster_create_tokens(
     ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.create_manifest.assert_not_called()  # type: ignore[attr-defined]
+    dynatrace_client.update_token.assert_not_called()  # type: ignore[attr-defined]
+
+    assert (
+        len(dynatrace_client.create_api_token.mock_calls)  # type: ignore[attr-defined]
+        == 2
+    )
+    dynatrace_client.create_api_token.assert_any_call(  # type: ignore[attr-defined]
+        name="dtp_operator-token_external_id_a_1b6c3b9a7248",
+        scopes=[
+            "activeGateTokenManagement.create",
+            "entities.read",
+            "settings.write",
+            "settings.read",
+            "DataExport",
+            "InstallerDownload",
+        ],
+    )
+    dynatrace_client.create_api_token.assert_any_call(  # type: ignore[attr-defined]
+        name="dtp_ingestion-token_external_id_a_f6e7fac64719",
+        scopes=["metrics.ingest", "logs.ingest", "events.ingest"],
+    )
     ocm_client.create_syncset.assert_called_once_with(  # type: ignore[attr-defined]
         cluster_id="cluster_a",
         syncset_map=build_syncset(
@@ -94,23 +115,4 @@ def test_single_non_hcp_cluster_create_tokens(
             tenant_id=default_cluster.dt_tenant,
             with_id=True,
         ),
-    )
-    assert (
-        len(dynatrace_client.create_api_token.mock_calls)  # type: ignore[attr-defined]
-        == 2
-    )
-    dynatrace_client.create_api_token.assert_any_call(  # type: ignore[attr-defined]
-        name="dtp-operator-token-external_id_a",
-        scopes=[
-            "activeGateTokenManagement.create",
-            "entities.read",
-            "settings.write",
-            "settings.read",
-            "DataExport",
-            "InstallerDownload",
-        ],
-    )
-    dynatrace_client.create_api_token.assert_any_call(  # type: ignore[attr-defined]
-        name="dtp-ingestion-token-external_id_a",
-        scopes=["metrics.ingest", "logs.ingest", "events.ingest"],
     )

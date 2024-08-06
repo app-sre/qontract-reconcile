@@ -123,7 +123,7 @@ class AcsNotifiersApi(AcsBaseApi):
         ]
 
     def get_notifier_id_by_name(self, name: str) -> str:
-        return [n["id"] for n in self.get_notifiers() if n["name"] == name][0]
+        return next(n["id"] for n in self.get_notifiers() if n["name"] == name)
 
     def update_jira_notifier(
         self, jira_notifier: JiraNotifier, jira_credentials: JiraCredentials

@@ -5484,6 +5484,11 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "ExternalResourcesModuleOverrides_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "SaasResourceTemplateTargetReference_v2",
                             "ofType": null
                         },
@@ -21469,6 +21474,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "validatePlannedData",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "resourceTemplates",
                             "description": null,
                             "args": [],
@@ -33562,7 +33579,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "default_version",
+                            "name": "version",
                             "description": null,
                             "args": [],
                             "type": {
@@ -33586,7 +33603,7 @@
                                 "name": null,
                                 "ofType": {
                                     "kind": "SCALAR",
-                                    "name": "String",
+                                    "name": "Int",
                                     "ofType": null
                                 }
                             },
@@ -33602,7 +33619,7 @@
                                 "name": null,
                                 "ofType": {
                                     "kind": "SCALAR",
-                                    "name": "String",
+                                    "name": "Int",
                                     "ofType": null
                                 }
                             },
@@ -42492,6 +42509,18 @@
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
+                        },
+                        {
+                            "name": "module_overrides",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "ExternalResourcesModuleOverrides_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
                         }
                     ],
                     "inputFields": null,
@@ -42499,6 +42528,103 @@
                         {
                             "kind": "INTERFACE",
                             "name": "NamespaceTerraformResourceAWS_v1",
+                            "ofType": null
+                        }
+                    ],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "ExternalResourcesModuleOverrides_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "schema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "module_type",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "image",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "version",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "reconcile_timeout_minutes",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Int",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],

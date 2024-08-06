@@ -113,9 +113,9 @@ def fetch_desired_state(clusters):
                 continue
             if aws_infrastructure_access.get("assume_role"):
                 continue
-            aws_account_uid = [
+            aws_account_uid = next(
                 a["uid"] for a in aws_accounts if a["name"] == spec.provisioner_name
-            ][0]
+            )
             cluster = aws_infrastructure_access["cluster"]["name"]
             access_level = aws_infrastructure_access["access_level"]
             item = {

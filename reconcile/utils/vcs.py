@@ -129,7 +129,7 @@ class VCS:
         gitlab_instances: Iterable[GitlabInstanceV1],
     ) -> GitLabApi:
         return GitLabApi(
-            list(gitlab_instances)[0].dict(by_alias=True),
+            next(iter(gitlab_instances)).dict(by_alias=True),
             secret_reader=self._secret_reader,
         )
 
@@ -139,7 +139,7 @@ class VCS:
         app_interface_repo_url: str,
     ) -> GitLabApi:
         return GitLabApi(
-            list(gitlab_instances)[0].dict(by_alias=True),
+            next(iter(gitlab_instances)).dict(by_alias=True),
             secret_reader=self._secret_reader,
             project_url=app_interface_repo_url,
         )

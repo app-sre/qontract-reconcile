@@ -56,13 +56,21 @@ from reconcile.cli import (
     config_file,
     use_jump_host,
 )
+from reconcile.external_resources.integration import (
+    get_aws_api,
+)
 from reconcile.external_resources.manager import (
-    FLAG_RESOURCE_MANAGED_BY_ERV2,
     setup_factories,
 )
+from reconcile.external_resources.meta import FLAG_RESOURCE_MANAGED_BY_ERV2
 from reconcile.external_resources.model import (
+    ExternalResourceKey,
     ExternalResourcesInventory,
     load_module_inventory,
+)
+from reconcile.external_resources.state import (
+    ExternalResourcesStateDynamoDB,
+    ResourceStatus,
 )
 from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
     query as aus_clusters_query,
@@ -79,6 +87,9 @@ from reconcile.status_board import StatusBoardExporterIntegration
 from reconcile.typed_queries.alerting_services_settings import get_alerting_services
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.app_quay_repos_escalation_policies import (
+    get_apps_quay_repos_escalation_policies,
 )
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.external_resources import (
@@ -1113,14 +1124,14 @@ def cidr_blocks(ctx, for_cluster: int, mask: int) -> None:
 
         avail_addr = ipaddress.ip_address(latest_cluster_cidr["to"]) + 1
 
-        print(f"INFO: Latest available network address: {str(avail_addr)}")
+        print(f"INFO: Latest available network address: {avail_addr!s}")
         try:
             result_cidr_block = str(ipaddress.ip_network((avail_addr, mask)))
         except ValueError:
             print(f"ERROR: Invalid CIDR Mask {mask} Provided.")
             sys.exit(1)
-        print(f"INFO: You are reserving {str(2 ** (32 - mask))} network addresses.")
-        print(f"\nYou can use: {str(result_cidr_block)}")
+        print(f"INFO: You are reserving {2 ** (32 - mask)!s} network addresses.")
+        print(f"\nYou can use: {result_cidr_block!s}")
     else:
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], cidrs, columns)
@@ -1733,17 +1744,8 @@ def roles(ctx, org_username):
 
     user = users[0]
 
-    roles = []
-
-    def add(d):
-        for i, r in enumerate(roles):
-            if all(d[k] == r[k] for k in ("type", "name", "resource")):
-                roles.insert(
-                    i + 1, {"type": "", "name": "", "resource": "", "ref": d["ref"]}
-                )
-                return
-
-        roles.append(d)
+    # type, name, resource, [ref]
+    roles: dict[(str, str, str), set] = defaultdict(set)
 
     for role in user["roles"]:
         role_name = role["path"]
@@ -1760,53 +1762,38 @@ def roles(ctx, org_username):
             if "team" in p:
                 r_name += "/" + p["team"]
 
-            add({
-                "type": "permission",
-                "name": p["name"],
-                "resource": r_name,
-                "ref": role_name,
-            })
+            roles[("permission", p["name"], r_name)].add(role_name)
 
         for aws in role.get("aws_groups") or []:
             for policy in aws["policies"]:
-                add({
-                    "type": "aws",
-                    "name": policy,
-                    "resource": aws["account"]["name"],
-                    "ref": aws["path"],
-                })
+                roles[("aws", policy, aws["account"]["name"])].add(aws["path"])
 
         for a in role.get("access") or []:
             if a["cluster"]:
                 cluster_name = a["cluster"]["name"]
-                add({
-                    "type": "cluster",
-                    "name": a["clusterRole"],
-                    "resource": cluster_name,
-                    "ref": role_name,
-                })
+                roles[("cluster", a["clusterRole"], cluster_name)].add(role_name)
             elif a["namespace"]:
                 ns_name = a["namespace"]["name"]
-                add({
-                    "type": "namespace",
-                    "name": a["role"],
-                    "resource": ns_name,
-                    "ref": role_name,
-                })
+                roles[("namespace", a["role"], ns_name)].add(role_name)
 
         for s in role.get("self_service") or []:
             for d in s.get("datafiles") or []:
                 name = d.get("name")
                 if name:
-                    add({
-                        "type": "saas_file",
-                        "name": "owner",
-                        "resource": name,
-                        "ref": role_name,
-                    })
+                    roles[("saas_file", "owner", name)].add(role_name)
 
     columns = ["type", "name", "resource", "ref"]
-    print_output(ctx.obj["options"], roles, columns)
+    rows = [
+        {
+            "type": k[0],
+            "name": k[1],
+            "resource": k[2],
+            "ref": ref,
+        }
+        for k, v in roles.items()
+        for ref in v
+    ]
+    print_output(ctx.obj["options"], rows, columns)
 
 
 @get.command()
@@ -2014,7 +2001,7 @@ def app_interface_review_queue(ctx) -> None:
 
         queue_data = []
         for mr in merge_requests:
-            if mr.work_in_progress:
+            if mr.draft:
                 continue
             if len(mr.commits()) == 0:
                 continue
@@ -2113,7 +2100,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx):
     ]
     queue_data = []
     for mr in merge_requests:
-        if mr.work_in_progress:
+        if mr.draft:
             continue
         if len(mr.commits()) == 0:
             continue
@@ -2841,6 +2828,33 @@ You can view the source of this Markdown to extract the JSON data.
         columns = ["app", "other", "rhel8"]
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], results, columns)
+
+
+@get.command
+@click.pass_context
+def container_image_details(ctx):
+    apps = get_apps_quay_repos_escalation_policies()
+    data: list[dict[str, str]] = []
+    for app in apps:
+        app_name = f"{app.parent_app.name}/{app.name}" if app.parent_app else app.name
+        ep_channels = app.escalation_policy.channels
+        email = ep_channels.email
+        slack = ep_channels.slack_user_group[0].handle
+        for org_items in app.quay_repos or []:
+            org_name = org_items.org.name
+            for repo in org_items.items or []:
+                if repo.mirror:
+                    continue
+                repository = f"quay.io/{org_name}/{repo.name}"
+                item = {
+                    "app": app_name,
+                    "repository": repository,
+                    "email": email,
+                    "slack": slack,
+                }
+                data.append(item)
+    columns = ["app", "repository", "email", "slack"]
+    print_output(ctx.obj["options"], data, columns)
 
 
 @root.group(name="set")
@@ -3910,6 +3924,48 @@ def get_input(
     resource = f.create_external_resource(spec)
     f.validate_external_resource(resource)
     print(resource.json(exclude={"data": {FLAG_RESOURCE_MANAGED_BY_ERV2}}))
+
+
+@external_resources.command()
+@click.argument("provision-provider", required=True)
+@click.argument("provisioner", required=True)
+@click.argument("provider", required=True)
+@click.argument("identifier", required=True)
+@click.pass_context
+def request_reconciliation(
+    ctx, provision_provider: str, provisioner: str, provider: str, identifier: str
+):
+    """Marks a resource as it needs to get reconciled. The itegration will reconcile the resource at
+    its next iteration.
+
+    e.g: e.g: qontract-reconcile --config=<config> external-resources request-reconciliation aws app-sre-stage rds dashdotdb-stage
+    """
+    er_settings = get_settings()[0]
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    with get_aws_api(
+        query_func=gql.get_api().query,
+        account_name=er_settings.state_dynamodb_account.name,
+        region=er_settings.state_dynamodb_region,
+        secret_reader=secret_reader,
+    ) as aws_api:
+        state_manager = ExternalResourcesStateDynamoDB(
+            aws_api=aws_api,
+            table_name=er_settings.state_dynamodb_table,
+        )
+        key = ExternalResourceKey(
+            provision_provider=provision_provider,
+            provisioner_name=provisioner,
+            provider=provider,
+            identifier=identifier,
+        )
+        current_state = state_manager.get_external_resource_state(key)
+        if current_state.resource_status != ResourceStatus.NOT_EXISTS:
+            state_manager.update_resource_status(
+                key, ResourceStatus.RECONCILIATION_REQUESTED
+            )
+        else:
+            logging.info("External Resource does not exist")
 
 
 if __name__ == "__main__":
