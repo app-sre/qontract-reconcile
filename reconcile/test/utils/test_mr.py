@@ -1,11 +1,15 @@
 from typing import Any
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 from gitlab.exceptions import GitlabError
 
+import reconcile.typed_queries.smtp
+from reconcile.gql_definitions.common.smtp_client_settings import SmtpSettingsV1
+from reconcile.gql_definitions.fragments.user import User
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import (
     MergeRequestBase,
@@ -281,3 +285,60 @@ resourceTemplates:
     )
 
     assert expected == result
+
+
+@pytest.fixture
+def users():
+    return [
+        User(
+            name="",
+            org_username="org_user",
+            github_username="github_user",
+            slack_username=None,
+            pagerduty_username=None,
+            tag_on_merge_requests=None,
+        )
+    ]
+
+
+@pytest.fixture
+def smtp_settings():
+    return SmtpSettingsV1(
+        mailAddress="redhat.com",
+        timeout=30,
+        credentials=VaultSecret(path="", field="", version=1, format=""),
+    )
+
+
+def test_author_email_empty():
+    mr = PromoteQontractReconcileCommercial(
+        version="1q2w3e4",
+        commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
+    )
+
+    assert mr.author_email is None
+    assert mr.author() is None
+
+
+@patch.object(reconcile.typed_queries.smtp, "settings", autospec=True)
+def test_author_org_username(settings, users, smtp_settings):
+    mr = PromoteQontractReconcileCommercial(
+        version="1q2w3e4",
+        commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
+        author_email="org_user@redhat.com",
+    )
+    settings.return_value = smtp_settings
+
+    assert mr.author(all_users=users) == "org_user"
+
+
+@patch.object(reconcile.typed_queries.smtp, "settings", autospec=True)
+def test_author_github_username(settings, users, smtp_settings):
+    mr = PromoteQontractReconcileCommercial(
+        "1q2w3e4",
+        "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
+        author_email="github_user@users.noreply.github.com",
+    )
+    settings.return_value = smtp_settings
+
+    assert mr.author(all_users=users) == "org_user"
