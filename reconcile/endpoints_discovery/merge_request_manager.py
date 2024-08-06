@@ -139,6 +139,9 @@ class MergeRequestManager(MergeRequestManagerBase[EPDInfo]):
             # same external resource.
             return None
 
+        if not apps:
+            return None
+
         endpoints_discovery_mr = EndpointsDiscoveryMR(
             title=self._renderer.render_title(),
             description=self._renderer.render_description(hash=apps_hash),
