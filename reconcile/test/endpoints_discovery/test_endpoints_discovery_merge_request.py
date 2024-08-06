@@ -165,6 +165,34 @@ Parts of this description are used to manage the MR.
                 endPoints: []
             """).lstrip(),
         ),
+        # add, change and delete existing endpoints
+        (
+            dedent("""
+                ---
+                name: test
+                endPoints:
+                - name: endpoint1
+                  data: data1
+                - name: endpoint2
+                  data: data2
+                - name: endpoint3
+                  data: data3
+            """),
+            [{"name": "new-endpoint", "data": "new-data"}],
+            {"endpoint2": {"name": "changed-name", "data": "changed-data"}},
+            ["endpoint1"],
+            dedent("""
+                ---
+                name: test
+                endPoints:
+                - name: changed-name
+                  data: changed-data
+                - name: endpoint3
+                  data: data3
+                - name: new-endpoint
+                  data: new-data
+            """).lstrip(),
+        ),
     ],
 )
 def test_endpoints_discovery_merge_request_render_merge_request_content(

@@ -72,13 +72,17 @@ class Renderer:
         """Update the app-interface app file for a merge request."""
         yml = create_ruamel_instance(explicit_start=True)
         content = yml.load(current_content)
-        app_endpoints = content.setdefault("endPoints", [])
-        for i, app_endpoint in enumerate(app_endpoints):
+        new_endpoints = []
+        for app_endpoint in content.setdefault("endPoints", []):
             if app_endpoint["name"] in endpoints_to_delete:
-                app_endpoints.remove(app_endpoint)
-            if app_endpoint["name"] in endpoints_to_change:
-                app_endpoints[i] = endpoints_to_change[app_endpoint["name"]]
-        app_endpoints.extend(endpoints_to_add)
+                continue
+            elif app_endpoint["name"] in endpoints_to_change:
+                new_endpoints.append(endpoints_to_change[app_endpoint["name"]])
+            else:
+                new_endpoints.append(app_endpoint)
+
+        new_endpoints.extend(endpoints_to_add)
+        content["endPoints"] = new_endpoints
         with StringIO() as stream:
             yml.dump(content, stream)
             return stream.getvalue()
