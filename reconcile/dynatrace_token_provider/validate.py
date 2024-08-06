@@ -17,13 +17,6 @@ class KeyNameNotUniqueInSecretError(Exception):
     pass
 
 
-class TokenNameTooLongError(Exception):
-    pass
-
-
-MAX_TOKEN_NAME_LENGTH = 46
-
-
 def validate_token_specs(specs: Iterable[DynatraceTokenProviderTokenSpecV1]) -> None:
     """
     We cannot catch all potential errors through json schema definition.
@@ -41,11 +34,6 @@ def validate_token_specs(specs: Iterable[DynatraceTokenProviderTokenSpecV1]) -> 
             seen_tokens: set[str] = set()
             seen_key_names: set[str] = set()
             for token in secret.tokens:
-                if len(token.name) > MAX_TOKEN_NAME_LENGTH:
-                    raise TokenNameTooLongError(
-                        f"Token name '{token.name}' is too long. The maximum length is {MAX_TOKEN_NAME_LENGTH} characters."
-                    )
-
                 if token.name in seen_tokens:
                     raise TokenNameNotUniqueInSecretError(
                         f"A token name must be unique within a secret. Token name '{token.name}' is used more than once in secret '{secret.name}' in token spec '{spec.name}'."
