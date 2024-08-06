@@ -264,9 +264,13 @@ def test_openshift_serviceaccount_tokens__fetch_desired_state_create_token(
         )
         == 1
     )
-    r = next(iter(ri._clusters["cluster"]["with-openshift-serviceaccount-tokens"]["Secret"][
-            "desired"
-        ].values()))
+    r = next(
+        iter(
+            ri._clusters["cluster"]["with-openshift-serviceaccount-tokens"]["Secret"][
+                "desired"
+            ].values()
+        )
+    )
     assert r.body["type"] == "kubernetes.io/service-account-token"
 
 

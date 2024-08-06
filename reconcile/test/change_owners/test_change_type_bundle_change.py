@@ -174,8 +174,12 @@ def test_parse_bundle_changes_with_backrefs() -> None:
     )
     parsed_bundle_changes = parse_bundle_changes(data_diff)
     assert len(parsed_bundle_changes) == 1
-    assert next(iter(parsed_bundle_changes[0].old_backrefs)).path == "/my/old-datafile.yml"
-    assert next(iter(parsed_bundle_changes[0].new_backrefs)).path == "/my/new-datafile.yml"
+    assert (
+        next(iter(parsed_bundle_changes[0].old_backrefs)).path == "/my/old-datafile.yml"
+    )
+    assert (
+        next(iter(parsed_bundle_changes[0].new_backrefs)).path == "/my/new-datafile.yml"
+    )
 
 
 #
