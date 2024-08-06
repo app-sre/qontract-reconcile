@@ -165,6 +165,30 @@ Parts of this description are used to manage the MR.
                 endPoints: []
             """).lstrip(),
         ),
+        # delete two existing endpoints
+        (
+            dedent("""
+                ---
+                name: test
+                endPoints:
+                - name: endpoint1
+                  data: data
+                - name: endpoint2
+                  data: data
+                - name: endpoint3
+                  data: data1
+            """),
+            [],
+            {},
+            ["endpoint1", "endpoint3"],
+            dedent("""
+                ---
+                name: test
+                endPoints:
+                - name: endpoint2
+                  data: data
+            """).lstrip(),
+        ),
         # add, change and delete existing endpoints
         (
             dedent("""
