@@ -1124,14 +1124,14 @@ def cidr_blocks(ctx, for_cluster: int, mask: int) -> None:
 
         avail_addr = ipaddress.ip_address(latest_cluster_cidr["to"]) + 1
 
-        print(f"INFO: Latest available network address: {str(avail_addr)}")
+        print(f"INFO: Latest available network address: {avail_addr!s}")
         try:
             result_cidr_block = str(ipaddress.ip_network((avail_addr, mask)))
         except ValueError:
             print(f"ERROR: Invalid CIDR Mask {mask} Provided.")
             sys.exit(1)
-        print(f"INFO: You are reserving {str(2 ** (32 - mask))} network addresses.")
-        print(f"\nYou can use: {str(result_cidr_block)}")
+        print(f"INFO: You are reserving {2 ** (32 - mask)!s} network addresses.")
+        print(f"\nYou can use: {result_cidr_block!s}")
     else:
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], cidrs, columns)

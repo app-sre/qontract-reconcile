@@ -680,7 +680,7 @@ def fetch_desired_state(
         UnknownProviderError,
     ) as e:
         ri.register_error()
-        msg = f"[{cluster}/{namespace}] {str(e)}"
+        msg = f"[{cluster}/{namespace}] {e!s}"
         _locked_error_log(msg)
         return
 
@@ -747,7 +747,7 @@ def fetch_states(
 
     except StatusCodeError as e:
         ri.register_error(cluster=spec.cluster)
-        logging.error(f"{spec} - exception: {str(e)}")
+        logging.error(f"{spec} - exception: {e!s}")
 
 
 def fetch_data(

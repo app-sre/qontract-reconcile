@@ -28,6 +28,10 @@ extend-select = [
     "B",
     # flake8-comprehensions
     "C4",
+    # flake8-future-annotations
+    "FA",
+    # ruff special rules
+    "RUF",
 
 ]
 ignore = [
@@ -46,6 +50,8 @@ ignore = [
     "UP031",   # Use format specifiers instead of percent format
     "SIM102",  # Use a single `if` statement instead of nested `if` statements
     "B017",    #`pytest.raises(Exception)` should be considered evil
+    "RUF005",  # Consider "...."instead of concatenation
+    "RUF012",  # Mutable class attributes should be annotated with "typing.ClassVar"
 ]
 [tool.ruff.format]
 preview = true

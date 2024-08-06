@@ -155,7 +155,7 @@ def test_fetch_current_state_ri_initialized(oc_cs1: oc.OCClient, tmpl1: dict[str
         resource_names=[],
     )
 
-    _, _, _, resource = list(ri)[0]
+    _, _, _, resource = next(iter(ri))
     assert len(resource["current"]) == 1
     assert "tmpl1" in resource["current"]
     assert resource["current"]["tmpl1"].kind == "Template"
@@ -178,7 +178,7 @@ def test_fetch_current_state_kind_not_supported(
         resource_names=[],
     )
 
-    _, _, _, resource = list(ri)[0]
+    _, _, _, resource = next(iter(ri))
     assert len(resource["current"]) == 0
 
 
@@ -195,7 +195,7 @@ def test_fetch_current_state_long_kind(oc_cs1: oc.OCClient, tmpl1: dict[str, Any
         resource_names=[],
     )
 
-    _, _, _, resource = list(ri)[0]
+    _, _, _, resource = next(iter(ri))
     assert len(resource["current"]) == 1
     assert "tmpl1" in resource["current"]
     assert resource["current"]["tmpl1"].kind == "Template"
@@ -218,7 +218,7 @@ def test_fetch_current_state_long_kind_not_supported(
         resource_names=[],
     )
 
-    _, _, _, resource = list(ri)[0]
+    _, _, _, resource = next(iter(ri))
     assert len(resource["current"]) == 0
 
 
@@ -227,7 +227,7 @@ def test_fetch_states(current_state_spec: CurrentStateSpec, tmpl1: dict[str, Any
     ri.initialize_resource_type("cs1", "ns1", "Template")
     current_state_spec.oc.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[method-assign]
     orb.fetch_states(ri=ri, spec=current_state_spec)
-    _, _, _, resource = list(ri)[0]
+    _, _, _, resource = next(iter(ri))
     assert len(resource["current"]) == 1
     assert "tmpl1" in resource["current"]
     assert resource["current"]["tmpl1"].kind == "Template"
@@ -238,7 +238,7 @@ def test_fetch_states_unknown_kind(current_state_spec: CurrentStateSpec):
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "UnknownKind")
     orb.fetch_states(ri=ri, spec=current_state_spec)
-    _, _, _, resource = list(ri)[0]
+    _, _, _, resource = next(iter(ri))
     assert len(resource["current"]) == 0
 
 
@@ -250,7 +250,7 @@ def test_fetch_states_oc_error(current_state_spec: CurrentStateSpec):
     ri.initialize_resource_type("cs1", "ns1", "Template")
     orb.fetch_states(ri=ri, spec=current_state_spec)
     assert ri.has_error_registered("cs1")
-    _, _, _, resource = list(ri)[0]
+    _, _, _, resource = next(iter(ri))
     assert len(resource["current"]) == 0
 
 

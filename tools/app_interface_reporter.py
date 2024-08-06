@@ -338,10 +338,10 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                             validt_mx[cluster][namespace] = {}
                         if validation not in validt_mx[cluster][namespace]:
                             validt_mx[cluster][namespace][validation] = {}
-                        if status not in validt_mx[cluster][namespace][validation]:  # noqa: E501
-                            validt_mx[cluster][namespace][validation][status] = {}  # noqa: E501
+                        if status not in validt_mx[cluster][namespace][validation]:
+                            validt_mx[cluster][namespace][validation][status] = {}
                         value = int(sample.value)
-                        validt_mx[cluster][namespace][validation][status] = value  # noqa: E501
+                        validt_mx[cluster][namespace][validation][status] = value
         for family in text_string_to_metric_families(slo_metrics):
             for sample in family.samples:
                 if sample.name == "serviceslometrics":
@@ -358,14 +358,14 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                             slo_mx[cluster] = {}
                         if namespace not in slo_mx[cluster]:
                             slo_mx[cluster][namespace] = {}
-                        if slo_doc_name not in slo_mx[cluster][namespace]:  # pylint: disable=line-too-long # noqa: E501
+                        if slo_doc_name not in slo_mx[cluster][namespace]:  # pylint: disable=line-too-long
                             slo_mx[cluster][namespace][slo_doc_name] = {}
-                        if slo_name not in slo_mx[cluster][namespace][slo_doc_name]:  # noqa: E501
-                            slo_mx[cluster][namespace][slo_doc_name][slo_name] = {  # noqa: E501
+                        if slo_name not in slo_mx[cluster][namespace][slo_doc_name]:
+                            slo_mx[cluster][namespace][slo_doc_name][slo_name] = {
                                 sample.labels["type"]: sample.value
                             }
                         else:
-                            slo_mx[cluster][namespace][slo_doc_name][slo_name].update({  # pylint: disable=line-too-long # noqa: E501
+                            slo_mx[cluster][namespace][slo_doc_name][slo_name].update({  # pylint: disable=line-too-long
                                 sample.labels["type"]: sample.value
                             })
         app["container_vulnerabilities"] = vuln_mx

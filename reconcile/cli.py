@@ -1003,7 +1003,7 @@ def aws_saml_roles(
     "--initial-user-secret-vault-path",
     help="The path in Vault to store the initial user secret. Python format string with access to 'account_name' attribute.",
     required=True,
-    default="app-sre-v2/creds/terraform/{account_name}/config",
+    default="app-sre-v2/creds/terraform/{account_name}/config",  # noqa: RUF027
 )
 @click.option(
     "--account-tmpl-resource",

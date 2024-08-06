@@ -210,7 +210,7 @@ def test_skupper_network_reconciler_connect_sites(
         assert transfer_token.call_count == 0
         assert create_token.call_count == 0
         assert get_token.call_count == 0
-    elif local_token or not local_token and not remote_site_exists:
+    elif local_token or (not local_token and not remote_site_exists):
         assert transfer_token.call_count == 0
         assert create_token.call_count == 0
         assert get_token.call_count == 1

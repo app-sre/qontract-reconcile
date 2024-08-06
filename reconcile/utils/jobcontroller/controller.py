@@ -158,9 +158,7 @@ class K8sJobController:
         the function will wait indefinitely.  If a timeout occures, a TimeoutError will be raised.
         """
         jobs_left = job_names.copy()
-        job_statuses: dict[str, JobStatus] = {
-            name: JobStatus.NOT_EXISTS for name in job_names
-        }
+        job_statuses: dict[str, JobStatus] = dict.fromkeys(job_names, JobStatus.NOT_EXISTS)
 
         start_time = self.time_module.time()
         while jobs_left:
