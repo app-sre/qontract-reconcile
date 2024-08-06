@@ -40,9 +40,9 @@ def validate_token_specs(specs: Iterable[DynatraceTokenProviderTokenSpecV1]) -> 
                     )
                 seen_tokens.add(token.name)
 
-                if token.key_name_in_secret:
-                    if token.key_name_in_secret in seen_key_names:
-                        raise KeyNameNotUniqueInSecretError(
-                            f"A key name must be unique within a secret. Key name '{token.key_name_in_secret}' is used more than once in secret '{secret.name}' in token spec '{spec.name}'."
-                        )
-                    seen_key_names.add(token.key_name_in_secret)
+                secret_key = token.key_name_in_secret or token.name
+                if secret_key in seen_key_names:
+                    raise KeyNameNotUniqueInSecretError(
+                        f"A key name must be unique within a secret. Key name '{secret_key}' is used more than once in secret '{secret.name}' in token spec '{spec.name}'."
+                    )
+                seen_key_names.add(secret_key)
