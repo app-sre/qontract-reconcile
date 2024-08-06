@@ -69,7 +69,14 @@ objects:
                   - qr
                 condition:
                   type: datadog_search
-                  source: -"using gql endpoint" AND -"Certificate did not match expected hostname"
+                  # Google Chat can have problems if too many messages are sent
+                  # all at once, so limit to only /^\[ERROR\].*/
+                  # Unfortunately, it doesn't seem possible to with the
+                  # datadog_search condition type to filter on this sort of
+                  # regular expression, or even *[ERROR]* (with any combination
+                  # of backslashes to escape *, [ and ]). For that reason, the
+                  # filter is *ERROR*
+                  source: -("*using gql endpoint*" OR "*Certificate did not match expected hostname*") AND "*ERROR*"
 
               ### Craft a JSON document that has escaped double quotes and changes the event from the 
               ### Vector-default `message` to `text`, which is require by Slack and Google Chat.
@@ -393,11 +400,11 @@ parameters:
   value: push-gateway-auth-url
 ### APPSRE-8096: Vector Section Begins
 - name: VECTOR_IMAGE
-  value: timberio/vector
+  value: registry.redhat.io/openshift-logging/vector-rhel9
 - name: VECTOR_IMAGE_TAG
-  value: 0.38.0-debian
+  value: v0.34.1-12
 - name: VECTOR_IMAGE_PULL_POLICY
-  value: Always
+  value: IfNotPresent
 ### APPSRE-8096: Vector Section Ends
 - name: INTEG_MEMORY_LIMIT
   value: 90Mi
