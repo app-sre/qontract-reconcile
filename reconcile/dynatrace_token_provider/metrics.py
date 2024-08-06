@@ -50,3 +50,13 @@ class DTPClustersManagedGauge(DTPBaseMetric, GaugeMetric):
     @classmethod
     def name(cls) -> str:
         return "dtp_clusters_managed"
+
+
+class DTPTokensManagedGauge(DTPBaseMetric, GaugeMetric):
+    "Gauge for the number of tokens DTP manages"
+
+    dt_tenant_id: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "dtp_tokens_managed"
