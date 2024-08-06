@@ -1744,17 +1744,8 @@ def roles(ctx, org_username):
 
     user = users[0]
 
-    roles = []
-
-    def add(d):
-        for i, r in enumerate(roles):
-            if all(d[k] == r[k] for k in ("type", "name", "resource")):
-                roles.insert(
-                    i + 1, {"type": "", "name": "", "resource": "", "ref": d["ref"]}
-                )
-                return
-
-        roles.append(d)
+    # type, name, resource, [ref]
+    roles: dict[(str, str, str), set] = defaultdict(set)
 
     for role in user["roles"]:
         role_name = role["path"]
@@ -1771,53 +1762,38 @@ def roles(ctx, org_username):
             if "team" in p:
                 r_name += "/" + p["team"]
 
-            add({
-                "type": "permission",
-                "name": p["name"],
-                "resource": r_name,
-                "ref": role_name,
-            })
+            roles[("permission", p["name"], r_name)].add(role_name)
 
         for aws in role.get("aws_groups") or []:
             for policy in aws["policies"]:
-                add({
-                    "type": "aws",
-                    "name": policy,
-                    "resource": aws["account"]["name"],
-                    "ref": aws["path"],
-                })
+                roles[("aws", policy, aws["account"]["name"])].add(aws["path"])
 
         for a in role.get("access") or []:
             if a["cluster"]:
                 cluster_name = a["cluster"]["name"]
-                add({
-                    "type": "cluster",
-                    "name": a["clusterRole"],
-                    "resource": cluster_name,
-                    "ref": role_name,
-                })
+                roles[("cluster", a["clusterRole"], cluster_name)].add(role_name)
             elif a["namespace"]:
                 ns_name = a["namespace"]["name"]
-                add({
-                    "type": "namespace",
-                    "name": a["role"],
-                    "resource": ns_name,
-                    "ref": role_name,
-                })
+                roles[("namespace", a["role"], ns_name)].add(role_name)
 
         for s in role.get("self_service") or []:
             for d in s.get("datafiles") or []:
                 name = d.get("name")
                 if name:
-                    add({
-                        "type": "saas_file",
-                        "name": "owner",
-                        "resource": name,
-                        "ref": role_name,
-                    })
+                    roles[("saas_file", "owner", name)].add(role_name)
 
     columns = ["type", "name", "resource", "ref"]
-    print_output(ctx.obj["options"], roles, columns)
+    rows = [
+        {
+            "type": k[0],
+            "name": k[1],
+            "resource": k[2],
+            "ref": ref,
+        }
+        for k, v in roles.items()
+        for ref in v
+    ]
+    print_output(ctx.obj["options"], rows, columns)
 
 
 @get.command()
