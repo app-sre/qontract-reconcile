@@ -738,7 +738,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def get_user_key_status(self, iam: IAMClient, user: str, key: str) -> KeyStatus:
         key_list = self._get_user_key_list(iam, user)
-        return [k["Status"] for k in key_list if k["AccessKeyId"] == key][0]
+        return next(k["Status"] for k in key_list if k["AccessKeyId"] == key)
 
     def get_support_cases(self):
         all_support_cases = {}

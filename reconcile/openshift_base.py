@@ -316,7 +316,7 @@ def populate_current_state(
             )
     except StatusCodeError as e:
         ri.register_error(cluster=spec.cluster)
-        logging.error(f"[{spec.cluster}/{spec.namespace}] {str(e)}")
+        logging.error(f"[{spec.cluster}/{spec.namespace}] {e!s}")
 
 
 def fetch_current_state(
@@ -907,7 +907,7 @@ def delete_action(
         )
     except StatusCodeError as e:
         ri.register_error()
-        msg = f"[{cluster}/{namespace}] {str(e)}"
+        msg = f"[{cluster}/{namespace}] {e!s}"
         logging.error(msg)
 
 

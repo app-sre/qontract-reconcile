@@ -391,7 +391,7 @@ def test_resource_inventory_add_desired_resource_short_kind():
 
     assert len(list(ri)) == 1
 
-    cluster_name, namespace_name, resource_type, resource = list(ri)[0]
+    cluster_name, namespace_name, resource_type, resource = next(iter(ri))
     assert cluster_name == "cl"
     assert namespace_name == "ns"
     assert resource_type == "Deployment"
@@ -412,7 +412,7 @@ def test_resource_inventory_add_desired_resource_long_kind():
 
     assert len(list(ri)) == 1
 
-    cluster_name, namespace_name, resource_type, resource = list(ri)[0]
+    cluster_name, namespace_name, resource_type, resource = next(iter(ri))
     assert cluster_name == "cl"
     assert namespace_name == "ns"
     assert resource_type == "Deployment.apps"

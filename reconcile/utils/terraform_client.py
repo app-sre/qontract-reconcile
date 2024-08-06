@@ -523,7 +523,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             self.OUTPUT_TYPE_PASSWORDS,
             self.OUTPUT_TYPE_CONSOLEURLS,
         }:
-            return data[list(data.keys())[0]]
+            return data[next(iter(data.keys()))]
         return data
 
     def populate_terraform_output_secrets(

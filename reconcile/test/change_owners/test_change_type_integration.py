@@ -68,7 +68,7 @@ def test_change_coverage(
             elif str(d.diff.path) == "openshiftResources.[1].version":
                 expected_approver = secret_approver_user
             else:
-                pytest.fail(f"unexpected change path {str(d.diff.path)}")
+                pytest.fail(f"unexpected change path {d.diff.path!s}")
             assert len(d.coverage) == 1
             assert len(d.coverage[0].approvers) == 1
             assert d.coverage[0].approvers[0].org_username == expected_approver

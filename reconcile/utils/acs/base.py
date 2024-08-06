@@ -70,7 +70,7 @@ class AcsBaseApi(BaseModel):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            logging.error(f"{str(e)}: {response.text}")
+            logging.error(f"{e!s}: {response.text}")
             raise
 
         return response

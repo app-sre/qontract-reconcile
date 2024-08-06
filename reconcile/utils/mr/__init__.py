@@ -22,19 +22,19 @@ from reconcile.utils.mr.user_maintenance import (
 )
 
 __all__ = [
-    "init_from_sqs_message",
-    "UnknownMergeRequestType",
-    "MergeRequestProcessingError",
-    "CreateAppInterfaceReporter",
-    "CreateDeleteAwsAccessKey",
-    "CreateClustersUpdates",
-    "CreateOCMUpgradeSchedulerOrgUpdates",
-    "CreateOCMUpdateRecommendedVersion",
     "CreateAppInterfaceNotificator",
+    "CreateAppInterfaceReporter",
+    "CreateClustersUpdates",
+    "CreateDeleteAwsAccessKey",
     "CreateDeleteUserAppInterface",
     "CreateDeleteUserInfra",
-    "PromoteQontractSchemas",
+    "CreateOCMUpdateRecommendedVersion",
+    "CreateOCMUpgradeSchedulerOrgUpdates",
+    "MergeRequestProcessingError",
     "PromoteQontractReconcileCommercial",
+    "PromoteQontractSchemas",
+    "UnknownMergeRequestType",
+    "init_from_sqs_message",
 ]
 
 

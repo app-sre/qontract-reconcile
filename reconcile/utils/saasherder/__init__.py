@@ -9,9 +9,9 @@ from reconcile.utils.saasherder.saasherder import (
 )
 
 __all__ = [
+    "UNIQUE_SAAS_FILE_ENV_COMBO_LEN",
     "Providers",
     "SaasHerder",
     "TriggerSpecUnion",
     "TriggerTypes",
-    "UNIQUE_SAAS_FILE_ENV_COMBO_LEN",
 ]
