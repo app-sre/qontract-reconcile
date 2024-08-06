@@ -398,11 +398,11 @@ parameters:
 - name: BUSYBOX_IMAGE_PULL_POLICY
   value: Always
 - name: FLUENTD_IMAGE
-  value: registry.redhat.io/openshift-logging/vector-rhel9
+  value: quay.io/app-sre/fluentd
 - name: FLUENTD_IMAGE_TAG
-  value: v0.34.1-12
+  value: latest
 - name: FLUENTD_IMAGE_PULL_POLICY
-  value: IfNotPresent
+  value: Always
 - name: ENVIRONMENT_NAME
   value: app-interface
 - name: DRY_RUN
@@ -467,7 +467,7 @@ parameters:
 - name: VECTOR_IMAGE_TAG
   value: v0.34.1-12
 - name: VECTOR_IMAGE_PULL_POLICY
-  value: Always
+  value: IfNotPresent
 ### APPSRE-8096: Vector Section Ends
 - name: INTEGRATIONS_MANAGER_MEMORY_LIMIT
   value: 600Mi
