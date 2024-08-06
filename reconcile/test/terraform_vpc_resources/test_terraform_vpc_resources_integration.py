@@ -2,7 +2,7 @@ import logging
 import random
 from collections.abc import Callable
 from typing import Any
-from unittest.mock import call
+from unittest.mock import MagicMock, call
 
 import pytest
 from pytest_mock import MockerFixture
@@ -59,7 +59,7 @@ def vpc_request_dict() -> dict[str, Any]:
 
 
 @pytest.fixture
-def mock_gql(mocker: MockerFixture) -> MockerFixture:
+def mock_gql(mocker: MockerFixture) -> MagicMock:
     return mocker.patch(
         "reconcile.terraform_vpc_resources.integration.gql",
         autospec=True,
@@ -67,7 +67,7 @@ def mock_gql(mocker: MockerFixture) -> MockerFixture:
 
 
 @pytest.fixture
-def mock_app_interface_vault_settings(mocker: MockerFixture) -> MockerFixture:
+def mock_app_interface_vault_settings(mocker: MockerFixture) -> MagicMock:
     mocked_app_interfafe_vault_settings = mocker.patch(
         "reconcile.terraform_vpc_resources.integration.get_app_interface_vault_settings",
         autospec=True,
@@ -79,7 +79,7 @@ def mock_app_interface_vault_settings(mocker: MockerFixture) -> MockerFixture:
 
 
 @pytest.fixture
-def mock_create_secret_reader(mocker: MockerFixture) -> MockerFixture:
+def mock_create_secret_reader(mocker: MockerFixture) -> MagicMock:
     return mocker.patch(
         "reconcile.terraform_vpc_resources.integration.create_secret_reader",
         autospec=True,
@@ -87,7 +87,7 @@ def mock_create_secret_reader(mocker: MockerFixture) -> MockerFixture:
 
 
 @pytest.fixture
-def mock_terraform_client(mocker: MockerFixture) -> MockerFixture:
+def mock_terraform_client(mocker: MockerFixture) -> MagicMock:
     mocked_tf_client = mocker.patch(
         "reconcile.terraform_vpc_resources.integration.TerraformClient", autospec=True
     )
@@ -118,10 +118,10 @@ def secret_reader_side_effect(*args: Any) -> dict[str, Any] | None:
 def test_log_message_for_accounts_having_vpc_requests(
     mocker: MockerFixture,
     caplog: pytest.LogCaptureFixture,
-    mock_gql: MockerFixture,
+    mock_gql: MagicMock,
     gql_class_factory: Callable,
-    mock_app_interface_vault_settings: MockerFixture,
-    mock_create_secret_reader: MockerFixture,
+    mock_app_interface_vault_settings: MagicMock,
+    mock_create_secret_reader: MagicMock,
 ) -> None:
     # Mock a query with an account that doesn't have the related state
     mocked_query = mocker.patch(
@@ -151,9 +151,9 @@ def test_dry_run(
     mocker: MockerFixture,
     mock_gql: pytest.LogCaptureFixture,
     gql_class_factory: Callable,
-    mock_app_interface_vault_settings: MockerFixture,
-    mock_create_secret_reader: MockerFixture,
-    mock_terraform_client: MockerFixture,
+    mock_app_interface_vault_settings: MagicMock,
+    mock_create_secret_reader: MagicMock,
+    mock_terraform_client: MagicMock,
 ) -> None:
     mocked_query = mocker.patch(
         "reconcile.terraform_vpc_resources.integration.get_aws_vpc_requests",
