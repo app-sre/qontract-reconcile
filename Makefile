@@ -5,6 +5,7 @@ CONTAINER_UID ?= $(shell id -u)
 IMAGE_TEST := reconcile-test
 
 IMAGE_NAME := quay.io/app-sre/qontract-reconcile
+COMMIT_AUTHOR_EMAIL := $(shell git show -s --format='%ae' HEAD)
 COMMIT_SHA := $(shell git rev-parse HEAD)
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
 VENV_CMD := . venv/bin/activate &&
@@ -123,4 +124,4 @@ sqs:
 	@AWS_ACCESS_KEY_ID=$(APP_INTERFACE_SQS_AWS_ACCESS_KEY_ID) \
 	AWS_SECRET_ACCESS_KEY=$(APP_INTERFACE_SQS_AWS_SECRET_ACCESS_KEY) \
 	AWS_REGION=$(APP_INTERFACE_SQS_AWS_REGION) \
-	aws sqs send-message --queue-url $(APP_INTERFACE_SQS_QUEUE_URL) --message-body "{\"pr_type\": \"promote_qontract_reconcile\", \"version\": \"$(IMAGE_TAG)\", \"commit_sha\": \"$(COMMIT_SHA)\"}"
+	aws sqs send-message --queue-url $(APP_INTERFACE_SQS_QUEUE_URL) --message-body "{\"pr_type\": \"promote_qontract_reconcile\", \"version\": \"$(IMAGE_TAG)\", \"commit_sha\": \"$(COMMIT_SHA)\", \"author_email\": \"$(COMMIT_AUTHOR_EMAIL)\"}"
