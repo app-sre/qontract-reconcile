@@ -122,7 +122,7 @@ def lookup_graphql_query_results(query: str, **kwargs: dict[str, Any]) -> list[A
     gqlapi = gql.get_api()
     resource = gqlapi.get_resource(query)["content"]
     rendered_resource = jinja2.Template(resource).render(**kwargs)
-    results = list(gqlapi.query(rendered_resource).values())[0]
+    results = next(iter(gqlapi.query(rendered_resource).values()))
     return results
 
 

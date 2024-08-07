@@ -91,7 +91,7 @@ def oc(
     kubeconfig: str, namespace: str, command: list[str], stdin: bytes | None = None
 ) -> dict | None:
     ret = subprocess.run(
-        ["oc", "--kubeconfig", kubeconfig, "-n", namespace, "-o", "json"] + command,
+        ["oc", "--kubeconfig", kubeconfig, "-n", namespace, "-o", "json", *command],
         input=stdin,
         check=True,
         capture_output=True,

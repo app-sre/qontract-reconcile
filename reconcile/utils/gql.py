@@ -77,7 +77,7 @@ class GqlApiErrorForbiddenSchema(Exception):
 
 class GqlGetResourceError(Exception):
     def __init__(self, path, msg):
-        super().__init__(f"Error getting resource from path {path}: {str(msg)}")
+        super().__init__(f"Error getting resource from path {path}: {msg!s}")
 
 
 class GqlApi:

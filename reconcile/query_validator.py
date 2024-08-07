@@ -42,13 +42,13 @@ def run(dry_run):
                 gqlapi.query(gql.get_resource(q["path"])["content"])
             except (gql.GqlGetResourceError, gql.GqlApiError) as e:
                 error = True
-                logging.error(f"query validation error in {qv_name}: {str(e)}")
+                logging.error(f"query validation error in {qv_name}: {e!s}")
         for r in qv.get("resources") or []:
             try:
                 fetch_openshift_resource(r, qv, settings=settings, skip_validation=True)
             except Exception as e:
                 error = True
-                logging.error(f"query validation error in {qv_name}: {str(e)}")
+                logging.error(f"query validation error in {qv_name}: {e!s}")
 
     if error:
         sys.exit(ExitCodes.ERROR)

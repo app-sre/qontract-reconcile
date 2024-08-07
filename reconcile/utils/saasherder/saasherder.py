@@ -888,7 +888,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     url=url, path=path, ref=ref, github=github
                 )
             except Exception as e:
-                logging.error(f"{error_prefix} error fetching template: {str(e)}")
+                logging.error(f"{error_prefix} error fetching template: {e!s}")
                 raise
 
             # add COMMIT_SHA only if it is unspecified
@@ -930,7 +930,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     logging.error(
                         f"{error_prefix} error generating REPO_DIGEST. "
                         + "Is REGISTRY_IMG missing? "
-                        + f"{str(e)}"
+                        + f"{e!s}"
                     )
                     raise
 
@@ -955,7 +955,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             try:
                 resources = oc.process(template, consolidated_parameters)
             except StatusCodeError as e:
-                logging.error(f"{error_prefix} error processing template: {str(e)}")
+                logging.error(f"{error_prefix} error processing template: {e!s}")
 
         elif provider == "directory":
             try:
@@ -964,7 +964,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 )
             except Exception as e:
                 logging.error(
-                    f"{error_prefix} error fetching directory: {str(e)} "
+                    f"{error_prefix} error fetching directory: {e!s} "
                     + "(We do not support nested directories. Do you by chance have subdirectories?)"
                 )
                 raise
@@ -1141,7 +1141,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             )
         except Exception as e:
             logging.error(
-                f"{error_prefix} Image is invalid: {image}. " + f"details: {str(e)}"
+                f"{error_prefix} Image is invalid: {image}. " + f"details: {e!s}"
             )
 
         return None

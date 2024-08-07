@@ -147,7 +147,7 @@ def collect_compare_diffs(
             # that changes another saas file was merged but is not yet
             # reflected in the baseline graphql endpoint.
             # https://issues.redhat.com/browse/APPSRE-3029
-            logging.debug(f"Diff not found in changed paths, skipping: {str(d)}")
+            logging.debug(f"Diff not found in changed paths, skipping: {d!s}")
             continue
         for c in current_state:
             if d.saas_file_name != c.saas_file_name:

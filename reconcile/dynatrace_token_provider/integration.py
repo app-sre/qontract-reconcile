@@ -218,7 +218,7 @@ class DynatraceTokenProviderIntegration(
                     _expose_errors_as_service_log(
                         ocm_client,
                         cluster.external_id,
-                        f"DTP can't create {token_spec.name=} {str(e.args)}",
+                        f"DTP can't create {token_spec.name=} {e.args!s}",
                     )
             logging.info(
                 f"{token_spec.name=} created in {dt_api_url} for {cluster.external_id=}."
@@ -271,7 +271,7 @@ class DynatraceTokenProviderIntegration(
                         _expose_errors_as_service_log(
                             ocm_client,
                             cluster.external_id,
-                            f"DTP can't patch {token_spec.name=} for {SYNCSET_AND_MANIFEST_ID} due to {str(e.args)}",
+                            f"DTP can't patch {token_spec.name=} for {SYNCSET_AND_MANIFEST_ID} due to {e.args!s}",
                         )
                 logging.info(
                     f"Patched {token_spec.name=} for {SYNCSET_AND_MANIFEST_ID} in {cluster.external_id=}."

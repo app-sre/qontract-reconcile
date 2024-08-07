@@ -128,7 +128,7 @@ def get_config(default=False):
 
 def get_default_config():
     github_config = get_config(default=True)
-    return list(github_config["github"].values())[0]
+    return next(iter(github_config["github"].values()))
 
 
 @retry()
