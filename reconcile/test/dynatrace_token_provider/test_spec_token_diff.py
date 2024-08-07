@@ -1,7 +1,6 @@
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
-    DynatraceTokenProviderIntegrationParams,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
 from reconcile.dynatrace_token_provider.ocm import Cluster
@@ -22,15 +21,12 @@ def test_spec_to_existing_token_diff(
     default_operator_token: DynatraceAPIToken,
     default_ingestion_token: DynatraceAPIToken,
     default_cluster: Cluster,
+    default_integration: DynatraceTokenProviderIntegration,
 ) -> None:
     """
     We have an existing token in Dynatrace that does not match the spec.
     We expect DTP to update the token to match the given spec.
     """
-    integration = DynatraceTokenProviderIntegration(
-        DynatraceTokenProviderIntegrationParams(ocm_organization_ids={"ocm_org_id_a"})
-    )
-
     ocm_client = build_ocm_client(
         discover_clusters_by_labels=[default_cluster],
         get_manifest={},
@@ -79,7 +75,7 @@ def test_spec_to_existing_token_diff(
         },
     )
 
-    integration.reconcile(dry_run=False, dependencies=dependencies)
+    default_integration.reconcile(dry_run=False, dependencies=dependencies)
 
     ocm_client.create_syncset.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.create_manifest.assert_not_called()  # type: ignore[attr-defined]

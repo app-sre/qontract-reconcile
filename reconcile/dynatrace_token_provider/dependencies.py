@@ -36,16 +36,16 @@ class Dependencies:
         self.ocm_client_by_env_name: dict[str, OCMClient] = dict(ocm_client_by_env_name)
         self.token_spec_by_name = dict(token_spec_by_name)
 
-    def populate(self) -> None:
-        self._populate_dynatrace_client_map()
-        self._populate_ocm_clients()
-        self._populate_token_specs()
+    def populate_all(self) -> None:
+        self.populate_dynatrace_client_map()
+        self.populate_ocm_clients()
+        self.populate_token_specs()
 
-    def _populate_token_specs(self) -> None:
+    def populate_token_specs(self) -> None:
         token_specs = get_dynatrace_token_provider_token_specs()
         self.token_spec_by_name = {spec.name: spec for spec in token_specs}
 
-    def _populate_dynatrace_client_map(self) -> None:
+    def populate_dynatrace_client_map(self) -> None:
         dynatrace_environments = get_dynatrace_environments()
         if not dynatrace_environments:
             raise RuntimeError("No Dynatrace environment defined.")
@@ -59,7 +59,7 @@ class Dependencies:
             tenant_id = tenant.environment_url.split(".")[0].removeprefix("https://")
             self.dynatrace_client_by_tenant_id[tenant_id] = dt_client
 
-    def _populate_ocm_clients(self) -> None:
+    def populate_ocm_clients(self) -> None:
         ocm_environments = get_ocm_environments()
         self.ocm_client_by_env_name = {
             env.name: OCMClient(
