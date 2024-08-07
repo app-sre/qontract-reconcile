@@ -1,7 +1,6 @@
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
-    DynatraceTokenProviderIntegrationParams,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
 from reconcile.dynatrace_token_provider.ocm import Cluster
@@ -23,16 +22,13 @@ def test_no_change_non_hcp_cluster(
     default_operator_token: DynatraceAPIToken,
     default_ingestion_token: DynatraceAPIToken,
     default_cluster: Cluster,
+    default_integration: DynatraceTokenProviderIntegration,
 ) -> None:
     """
     We have a non-HCP cluster with an existing syncset and tokens.
     The token ids match with the token ids in Dynatrace.
     We expect no changes.
     """
-    integration = DynatraceTokenProviderIntegration(
-        DynatraceTokenProviderIntegrationParams(ocm_organization_ids={"ocm_org_id_a"})
-    )
-
     ocm_client = build_ocm_client(
         discover_clusters_by_labels=[default_cluster],
         get_manifest={},
@@ -92,7 +88,7 @@ def test_no_change_non_hcp_cluster(
         },
     )
 
-    integration.reconcile(dry_run=False, dependencies=dependencies)
+    default_integration.reconcile(dry_run=False, dependencies=dependencies)
 
     ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.create_syncset.assert_not_called()  # type: ignore[attr-defined]

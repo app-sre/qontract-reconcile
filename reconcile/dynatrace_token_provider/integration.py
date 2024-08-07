@@ -17,6 +17,7 @@ from reconcile.dynatrace_token_provider.ocm import (
     Cluster,
     OCMClient,
 )
+from reconcile.dynatrace_token_provider.validate import validate_token_specs
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceAPITokenV1,
     DynatraceTokenProviderTokenSpecV1,
@@ -66,10 +67,13 @@ class DynatraceTokenProviderIntegration(
             ocm_client_by_env_name={},
             token_spec_by_name={},
         )
-        dependencies.populate()
+        dependencies.populate_all()
         self.reconcile(dry_run=dry_run, dependencies=dependencies)
 
     def reconcile(self, dry_run: bool, dependencies: Dependencies) -> None:
+        token_specs = list(dependencies.token_spec_by_name.values())
+        validate_token_specs(specs=token_specs)
+
         with metrics.transactional_metrics(self.name):
             unhandled_exceptions = []
             for ocm_env_name, ocm_client in dependencies.ocm_client_by_env_name.items():

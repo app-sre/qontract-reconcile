@@ -1,7 +1,6 @@
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
-    DynatraceTokenProviderIntegrationParams,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
 from reconcile.dynatrace_token_provider.ocm import Cluster
@@ -21,15 +20,12 @@ def test_dry_run(
     default_token_spec: DynatraceTokenProviderTokenSpecV1,
     default_operator_token: DynatraceAPIToken,
     default_ingestion_token: DynatraceAPIToken,
+    default_integration: DynatraceTokenProviderIntegration,
 ) -> None:
     """
     In this case we have 2 clusters, one that needs a new (create)
     syncset and one that needs a patch for an existing syncset.
     """
-    integration = DynatraceTokenProviderIntegration(
-        DynatraceTokenProviderIntegrationParams(ocm_organization_ids={"ocm_org_id_a"})
-    )
-
     cluster_a = Cluster(
         id="cluster_a",
         external_id="external_id_a",
@@ -91,7 +87,7 @@ def test_dry_run(
         },
     )
 
-    integration.reconcile(dry_run=True, dependencies=dependencies)
+    default_integration.reconcile(dry_run=True, dependencies=dependencies)
 
     ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]

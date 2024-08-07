@@ -3124,7 +3124,7 @@ def dynatrace_token_provider(ctx, ocm_org_ids):
     run_class_integration(
         integration=DynatraceTokenProviderIntegration(
             DynatraceTokenProviderIntegrationParams(
-                ocm_organization_ids=parsed_ocm_org_ids
+                ocm_organization_ids=parsed_ocm_org_ids,
             )
         ),
         ctx=ctx.obj,
