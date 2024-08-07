@@ -8,7 +8,7 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_req
 
 
 class Reason(Enum):
-    MISSING_UNBATCHING = "Closing this MR because it failed MR check and isn't marked as un-batchable yet. cc @kfischer"
+    MISSING_UNBATCHING = "Closing this MR because it failed MR check and isn't marked as un-batchable yet."
     OUTDATED_CONTENT = "Closing this MR because it has out-dated content."
     NEW_BATCH = "Closing this MR in favor of a new batch MR."
 
