@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import logging
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, MutableMapping
 from datetime import timedelta
 from threading import Lock
@@ -74,10 +75,6 @@ class DynatraceTokenProviderIntegration(
 
     def _token_cnt(self, dt_tenant_id: str, ocm_env_name: str) -> None:
         with self._lock:
-            if ocm_env_name not in self._managed_tokens_cnt:
-                self._managed_tokens_cnt[ocm_env_name] = {}
-            if dt_tenant_id not in self._managed_tokens_cnt[ocm_env_name]:
-                self._managed_tokens_cnt[ocm_env_name][dt_tenant_id] = 0
             self._managed_tokens_cnt[ocm_env_name][dt_tenant_id] += 1
 
     def _expose_token_metrics(self) -> None:
@@ -96,7 +93,7 @@ class DynatraceTokenProviderIntegration(
         token_specs = list(dependencies.token_spec_by_name.values())
         validate_token_specs(specs=token_specs)
         self._lock = Lock()
-        self._managed_tokens_cnt: dict[str, dict[str, int]] = {}
+        self._managed_tokens_cnt: dict[str, Counter[str]] = defaultdict(Counter)
 
         with metrics.transactional_metrics(self.name):
             unhandled_exceptions = []
