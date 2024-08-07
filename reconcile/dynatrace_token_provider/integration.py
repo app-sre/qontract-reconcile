@@ -59,6 +59,11 @@ class ReconcileErrorSummary(Exception):
 class DynatraceTokenProviderIntegration(
     QontractReconcileIntegration[DynatraceTokenProviderIntegrationParams]
 ):
+    def __init__(self, params: DynatraceTokenProviderIntegrationParams) -> None:
+        super().__init__(params=params)
+        self._lock = Lock()
+        self._managed_tokens_cnt: dict[str, Counter[str]] = defaultdict(Counter)
+
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
@@ -92,8 +97,6 @@ class DynatraceTokenProviderIntegration(
     def reconcile(self, dry_run: bool, dependencies: Dependencies) -> None:
         token_specs = list(dependencies.token_spec_by_name.values())
         validate_token_specs(specs=token_specs)
-        self._lock = Lock()
-        self._managed_tokens_cnt: dict[str, Counter[str]] = defaultdict(Counter)
 
         with metrics.transactional_metrics(self.name):
             unhandled_exceptions = []
