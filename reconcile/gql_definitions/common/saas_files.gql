@@ -108,6 +108,7 @@ query SaasFiles {
       }
     }
     validateTargetsInApp
+    validatePlannedData
     resourceTemplates {
       name
       url
@@ -140,6 +141,7 @@ query SaasFiles {
           publish
           subscribe
           soakDays
+          schedule
           promotion_data {
             channel
             data {

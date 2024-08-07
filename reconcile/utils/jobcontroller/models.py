@@ -160,7 +160,7 @@ class K8sJob(ABC):
                     )
                 ),
             )
-            for secret_key_name in self.secret_data().keys()
+            for secret_key_name in self.secret_data()
         ]
 
     def scripts_volume_mount(self, directory: str) -> V1VolumeMount:
@@ -189,7 +189,7 @@ class K8sJob(ABC):
                         key=script_name,
                         path=script_name,
                     )
-                    for script_name in self.scripts().keys()
+                    for script_name in self.scripts()
                 ],
             ),
         )

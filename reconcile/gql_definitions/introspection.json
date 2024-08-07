@@ -3419,6 +3419,47 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "dynatrace_token_provider_token_spec_v1",
+                            "description": null,
+                            "args": [
+                                {
+                                    "name": "path",
+                                    "description": null,
+                                    "type": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    },
+                                    "defaultValue": null
+                                },
+                                {
+                                    "name": "filter",
+                                    "description": null,
+                                    "type": {
+                                        "kind": "SCALAR",
+                                        "name": "JSON",
+                                        "ofType": null
+                                    },
+                                    "defaultValue": null
+                                }
+                            ],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "DynatraceTokenProviderTokenSpec_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "prometheus_instances_v1",
                             "description": null,
                             "args": [
@@ -5439,6 +5480,11 @@
                         {
                             "kind": "OBJECT",
                             "name": "DatabaseAccess_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "ExternalResourcesModuleOverrides_v1",
                             "ofType": null
                         },
                         {
@@ -21428,6 +21474,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "validatePlannedData",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "resourceTemplates",
                             "description": null,
                             "args": [],
@@ -22274,6 +22332,18 @@
                             "type": {
                                 "kind": "SCALAR",
                                 "name": "Int",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "schedule",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -32036,6 +32106,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "forceRerunTimestamp",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "tfVersion",
                             "description": null,
                             "args": [],
@@ -32300,6 +32382,243 @@
                                     "kind": "OBJECT",
                                     "name": "Environment_v1",
                                     "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "DynatraceTokenProviderTokenSpec_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "schema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "description",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "ocm_org_ids",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "LIST",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "SCALAR",
+                                            "name": "String",
+                                            "ofType": null
+                                        }
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "secrets",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "LIST",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "OBJECT",
+                                            "name": "DynatraceTokenProviderTokenSecret_v1",
+                                            "ofType": null
+                                        }
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "DynatraceTokenProviderTokenSecret_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "namespace",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "tokens",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "LIST",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "OBJECT",
+                                            "name": "DynatraceAPIToken_v1",
+                                            "ofType": null
+                                        }
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "DynatraceAPIToken_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "keyNameInSecret",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "scopes",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "LIST",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "SCALAR",
+                                            "name": "String",
+                                            "ofType": null
+                                        }
+                                    }
                                 }
                             },
                             "isDeprecated": false,
@@ -33260,7 +33579,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "default_version",
+                            "name": "version",
                             "description": null,
                             "args": [],
                             "type": {
@@ -33284,7 +33603,7 @@
                                 "name": null,
                                 "ofType": {
                                     "kind": "SCALAR",
-                                    "name": "String",
+                                    "name": "Int",
                                     "ofType": null
                                 }
                             },
@@ -33300,7 +33619,7 @@
                                 "name": null,
                                 "ofType": {
                                     "kind": "SCALAR",
-                                    "name": "String",
+                                    "name": "Int",
                                     "ofType": null
                                 }
                             },
@@ -39132,6 +39451,11 @@
                             "kind": "OBJECT",
                             "name": "NamespaceTerraformResourceRosaAuthenticatorVPCE_V1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "NamespaceTerraformResourceModulePoC_v1",
+                            "ofType": null
                         }
                     ]
                 },
@@ -42185,6 +42509,18 @@
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
+                        },
+                        {
+                            "name": "module_overrides",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "ExternalResourcesModuleOverrides_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
                         }
                     ],
                     "inputFields": null,
@@ -42192,6 +42528,103 @@
                         {
                             "kind": "INTERFACE",
                             "name": "NamespaceTerraformResourceAWS_v1",
+                            "ofType": null
+                        }
+                    ],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "ExternalResourcesModuleOverrides_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "schema",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "module_type",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "image",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "version",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "reconcile_timeout_minutes",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Int",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -42824,6 +43257,26 @@
                                 "kind": "SCALAR",
                                 "name": "String",
                                 "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "policies",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "SCALAR",
+                                        "name": "String",
+                                        "ofType": null
+                                    }
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -46065,6 +46518,206 @@
                                 "kind": "SCALAR",
                                 "name": "String",
                                 "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "NamespaceTerraformResourceModulePoC_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "provider",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "region",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "identifier",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "defaults",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "overrides",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "JSON",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "output_resource_name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "output_format",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "INTERFACE",
+                                "name": "NamespaceTerraformResourceOutputFormat_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "annotations",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "JSON",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "module",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "OBJECT",
+                                    "name": "NamespaceTerraformResourceModulePoCSpec_v1",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "NamespaceTerraformResourceAWS_v1",
+                            "ofType": null
+                        }
+                    ],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "NamespaceTerraformResourceModulePoCSpec_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "url",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "path",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "ref",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null

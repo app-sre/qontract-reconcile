@@ -354,7 +354,7 @@ class OCMProductRosa(OCMProduct):
             e.cleanup()
             raise OCMValidationException(
                 f"last 10 lines from failed cluster creation job...\n\n{logs}"
-            )
+            ) from None
 
     def update_cluster(
         self,
@@ -629,7 +629,7 @@ class OCMProductHypershift(OCMProduct):
             e.cleanup()
             raise OCMValidationException(
                 f"last 10 lines from failed cluster creation job...\n\n{logs}"
-            )
+            ) from None
 
     def update_cluster(
         self,

@@ -181,7 +181,12 @@ class GlitchtipClient(ApiBase):
         return User(
             **self._post(
                 f"/api/0/organizations/{organization_slug}/members/",
-                data={"email": email, "role": role, "teams": []},
+                data={
+                    "email": email,
+                    "send_invite": False,
+                    "orgRole": role,
+                    "teamRoles": [],
+                },
             )
         )
 
@@ -194,7 +199,7 @@ class GlitchtipClient(ApiBase):
         return User(
             **self._put(
                 f"/api/0/organizations/{organization_slug}/members/{pk}/",
-                data={"role": role},
+                data={"orgRole": role},
             )
         )
 

@@ -7,6 +7,7 @@ from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.typed_queries.quay import get_quay_instances, get_quay_orgs
 from reconcile.typed_queries.repos import get_repos
 from reconcile.typed_queries.saas_files import (
     get_saas_files,
@@ -48,7 +49,19 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
     missing_repos = [r for r in saasherder.repo_urls if r not in app_int_repos]
     for r in missing_repos:
         logging.error(f"repo is missing from codeComponents: {r}")
+    app_int_quay_instances = {i.url for i in get_quay_instances()}
+    app_int_quay_orgs = {(o.instance.url, o.name) for o in get_quay_orgs()}
+    missing_image_patterns = [
+        p
+        for p in saasherder.image_patterns
+        if (parts := p.split("/"))
+        and parts[0] in app_int_quay_instances
+        and len(parts) >= 2
+        and (parts[0], parts[1]) not in app_int_quay_orgs
+    ]
+    for p in missing_image_patterns:
+        logging.error(f"image pattern is missing from quayOrgs: {p}")
     jjb: JJB = init_jjb(secret_reader)
     saasherder.validate_upstream_jobs(jjb)
-    if not saasherder.valid or missing_repos:
+    if not saasherder.valid or missing_repos or missing_image_patterns:
         sys.exit(ExitCodes.ERROR)

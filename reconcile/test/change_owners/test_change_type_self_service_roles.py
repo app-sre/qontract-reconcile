@@ -64,6 +64,7 @@ def test_valid_self_service_role() -> None:
         permissions=[],
         labels=None,
         memberSources=[],
+        expirationDate=None,
     )
     validate_self_service_role(role)
 
@@ -92,6 +93,7 @@ def test_invalid_self_service_role_schema_mismatch() -> None:
         permissions=[],
         labels=None,
         memberSources=[],
+        expirationDate=None,
     )
     with pytest.raises(DatafileIncompatibleWithChangeTypeError):
         validate_self_service_role(role)
@@ -134,6 +136,7 @@ def test_change_type_contexts_for_self_service_roles_schema() -> None:
         permissions=[],
         labels=None,
         memberSources=[],
+        expirationDate=None,
     )
     ctp = build_change_type(
         name="schema-admin",

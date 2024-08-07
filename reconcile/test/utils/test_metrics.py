@@ -258,9 +258,7 @@ def test_metrics_container_join_counters() -> None:
     assert len(metrics[0].samples) == 3
 
     for s in metrics[0].samples:
-        if s.labels["field"] == "1":
-            assert s.value == 1
-        elif s.labels["field"] == "2":
+        if s.labels["field"] == "1" or s.labels["field"] == "2":
             assert s.value == 1
         elif s.labels["field"] == "shared":
             assert s.value == 3
@@ -288,9 +286,7 @@ def test_metrics_container_join_gauges() -> None:
     for s in metrics[0].samples:
         if s.labels["field"] == "1":
             assert s.value == 1
-        elif s.labels["field"] == "2":
-            assert s.value == 2
-        elif s.labels["field"] == "shared":
+        elif s.labels["field"] == "2" or s.labels["field"] == "shared":
             assert s.value == 2
 
 

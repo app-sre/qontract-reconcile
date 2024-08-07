@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from collections.abc import (
     Callable,
@@ -142,7 +143,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
     def get_roles(self, query_func: Callable) -> list[RoleV1]:
         """Return the roles with ldap_group set."""
         data = roles_query(query_func, variables={})
-        roles = [role for role in data.roles or []]
+        roles = list(data.roles or [])
         if duplicates := find_duplicates(
             role.ldap_group.name for role in roles if role.ldap_group
         ):
@@ -224,10 +225,8 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         """Reach out to the internal groups API and fetch all managed groups."""
         groups = []
         for group_name in group_names:
-            try:
+            with contextlib.suppress(NotFound):
                 groups.append(internal_groups_client.group(group_name))
-            except NotFound:
-                pass
         return groups
 
     def reconcile(
@@ -263,10 +262,8 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         for group_to_remove in diff_result.delete.values():
             logging.info(["delete_ldap_group", group_to_remove.name])
             if not dry_run:
-                try:
+                with contextlib.suppress(NotFound):
                     internal_groups_client.delete_group(group_to_remove.name)
-                except NotFound:
-                    pass
                 self._managed_groups.remove(group_to_remove.name)
 
         for diff_pair in diff_result.change.values():

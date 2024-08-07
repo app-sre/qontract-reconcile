@@ -109,6 +109,12 @@ query ExternalResourcesNamespaces {
                 }
                 managed_by_erv2
                 delete
+                module_overrides {
+                    module_type
+                    image
+                    version
+                    reconcile_timeout_minutes
+                }
             }
             ... on NamespaceTerraformResourceS3_v1 {
                 region
@@ -535,6 +541,13 @@ class AWSRDSDataClassificationV1(ConfiguredBaseModel):
     loss_impact: Optional[str] = Field(..., alias="loss_impact")
 
 
+class ExternalResourcesModuleOverridesV1(ConfiguredBaseModel):
+    module_type: Optional[str] = Field(..., alias="module_type")
+    image: Optional[str] = Field(..., alias="image")
+    version: Optional[str] = Field(..., alias="version")
+    reconcile_timeout_minutes: Optional[int] = Field(..., alias="reconcile_timeout_minutes")
+
+
 class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
@@ -554,6 +567,7 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     data_classification: Optional[AWSRDSDataClassificationV1] = Field(..., alias="data_classification")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
     delete: Optional[bool] = Field(..., alias="delete")
+    module_overrides: Optional[ExternalResourcesModuleOverridesV1] = Field(..., alias="module_overrides")
 
 
 class AWSS3EventNotificationV1(ConfiguredBaseModel):

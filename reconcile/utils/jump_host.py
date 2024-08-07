@@ -90,7 +90,7 @@ class JumpHostSSH(JumpHostBase):
         try:
             known_hosts = self._gql_api.get_resource(known_hosts_path)
         except gql.GqlGetResourceError as e:
-            raise FetchResourceError(str(e))
+            raise FetchResourceError(str(e)) from None
         return known_hosts["content"]
 
     def _init_known_hosts_file(self) -> None:

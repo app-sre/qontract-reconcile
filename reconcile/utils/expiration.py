@@ -39,6 +39,6 @@ def filter(roles: DictsOrRoles | None) -> DictsOrRoles:
         except ValueError:
             raise ValueError(
                 f"{key} field is not formatted as YYYY-MM-DD, currently set as {expiration_date}"
-            )
+            ) from None
 
     return cast(DictsOrRoles, filtered)

@@ -163,7 +163,7 @@ def _parse_expression(expression: str) -> Any:
     except JsonPathParserError as e:
         raise RuntimeError(
             f"Invalid jsonpath expression in namespaceSelector '{expression}' :{e}"
-        )
+        ) from None
 
 
 def is_namespace_addressed_by_selector(

@@ -84,10 +84,7 @@ class OCMBaseClient:
         max_page_size: int = 100,
         max_pages: int | None = None,
     ) -> Generator[dict[str, Any], None, None]:
-        if not params:
-            params_copy = {}
-        else:
-            params_copy = params.copy()
+        params_copy = {} if not params else params.copy()
         params_copy["size"] = max_page_size
 
         while True:

@@ -13,13 +13,18 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from reconcile.external_resources.meta import (
+    FLAG_DELETE_RESOURCE,
+    FLAG_RESOURCE_MANAGED_BY_ERV2,
+    MODULE_OVERRIDES,
+)
 from reconcile.gql_definitions.external_resources.external_resources_modules import (
     ExternalResourcesModuleV1,
 )
 from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
+    ExternalResourcesModuleOverridesV1,
     NamespaceTerraformProviderResourceAWSV1,
     NamespaceTerraformResourceRDSV1,
-    NamespaceTerraformResourceRoleV1,
     NamespaceV1,
 )
 from reconcile.utils.exceptions import FetchResourceError
@@ -60,30 +65,48 @@ class ExternalResourceKey(BaseModel, frozen=True):
         return f"{self.provision_provider}/{self.provisioner_name}/{self.provider}/{self.identifier}"
 
 
+SUPPORTED_RESOURCE_PROVIDERS = NamespaceTerraformProviderResourceAWSV1
+SUPPORTED_RESOURCE_TYPES = NamespaceTerraformResourceRDSV1
+
+
 class ExternalResourcesInventory(MutableMapping):
     _inventory: dict[ExternalResourceKey, ExternalResourceSpec] = {}
+
+    def _build_external_resource_spec(
+        self,
+        namespace: NamespaceV1,
+        provider: SUPPORTED_RESOURCE_PROVIDERS,
+        resource: SUPPORTED_RESOURCE_TYPES,
+    ) -> ExternalResourceSpec:
+        spec = ExternalResourceSpec(
+            provision_provider=provider.provider,
+            provisioner=provider.provisioner.dict(),
+            resource=resource.dict(
+                exclude={
+                    FLAG_RESOURCE_MANAGED_BY_ERV2,
+                    FLAG_DELETE_RESOURCE,
+                    MODULE_OVERRIDES,
+                }
+            ),
+            namespace=namespace.dict(),
+        )
+        spec.metadata[FLAG_DELETE_RESOURCE] = resource.delete
+        spec.metadata[MODULE_OVERRIDES] = resource.module_overrides
+        return spec
 
     def __init__(self, namespaces: Iterable[NamespaceV1]) -> None:
         desired_providers = [
             (p, ns)
             for ns in namespaces
             for p in ns.external_resources or []
-            if isinstance(p, NamespaceTerraformProviderResourceAWSV1) and p.resources
+            if isinstance(p, SUPPORTED_RESOURCE_PROVIDERS) and p.resources
         ]
 
         desired_specs = [
-            ExternalResourceSpec(
-                provision_provider=p.provider,
-                provisioner=p.provisioner.dict(),
-                resource=r.dict(),
-                namespace=ns.dict(),
-            )
+            self._build_external_resource_spec(ns, p, r)
             for (p, ns) in desired_providers
             for r in p.resources
-            if isinstance(
-                r, NamespaceTerraformResourceRDSV1 | NamespaceTerraformResourceRoleV1
-            )
-            and r.managed_by_erv2
+            if isinstance(r, SUPPORTED_RESOURCE_TYPES) and r.managed_by_erv2
         ]
 
         for spec in desired_specs:
@@ -118,7 +141,7 @@ class ExternalResourcesInventory(MutableMapping):
             return self._inventory[key]
         except KeyError:
             msg = f"Resource spec not found: Provider {provider}, Id: {identifier}"
-            raise FetchResourceError(msg)
+            raise FetchResourceError(msg) from None
 
 
 class Action(StrEnum):
@@ -181,14 +204,22 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
     def resolve_configuration(
         module: ExternalResourcesModuleV1, spec: ExternalResourceSpec
     ) -> "ExternalResourceModuleConfiguration":
-        # TODO: Modify resource schemas to include this attributes
-        data = {
-            "image": module.image,
-            "version": module.default_version,
-            "reconcile_drift_interval_minutes": module.reconcile_drift_interval_minutes,
-            "reconcile_timeout_minutes": module.reconcile_timeout_minutes,
-        }
-        return ExternalResourceModuleConfiguration.parse_obj(data)
+        module_overrides = spec.metadata.get(
+            "module_overrides"
+        ) or ExternalResourcesModuleOverridesV1(
+            module_type=None,
+            image=None,
+            version=None,
+            reconcile_timeout_minutes=None,
+        )
+
+        return ExternalResourceModuleConfiguration(
+            image=module_overrides.image or module.image,
+            version=module_overrides.version or module.version,
+            reconcile_drift_interval_minutes=module.reconcile_drift_interval_minutes,
+            reconcile_timeout_minutes=module_overrides.reconcile_timeout_minutes
+            or module.reconcile_timeout_minutes,
+        )
 
 
 class Reconciliation(BaseModel, frozen=True):

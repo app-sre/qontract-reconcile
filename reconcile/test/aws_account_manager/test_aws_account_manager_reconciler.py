@@ -679,7 +679,7 @@ def test_aws_account_manager_reconcile_create_organization_account(
 ) -> None:
     reconciler._create_account = MagicMock(return_value="id")  # type: ignore
     reconciler._org_account_exists = MagicMock(return_value="uid")  # type: ignore
-    reconciler.create_organization_account(aws_api, "account", "email") == "uid"
+    assert reconciler.create_organization_account(aws_api, "account", "email") == "uid"
 
 
 def test_aws_account_manager_reconcile_create_organization_account_no_request(
@@ -687,7 +687,7 @@ def test_aws_account_manager_reconcile_create_organization_account_no_request(
 ) -> None:
     reconciler._create_account = MagicMock(return_value=None)  # type: ignore
     reconciler._org_account_exists = MagicMock(return_value="uid")  # type: ignore
-    reconciler.create_organization_account(aws_api, "account", "email") is None
+    assert reconciler.create_organization_account(aws_api, "account", "email") is None
     reconciler._org_account_exists.assert_not_called()
 
 
@@ -696,7 +696,7 @@ def test_aws_account_manager_reconcile_create_organization_account_not_created_y
 ) -> None:
     reconciler._create_account = MagicMock(return_value="id")  # type: ignore
     reconciler._org_account_exists = MagicMock(return_value=None)  # type: ignore
-    reconciler.create_organization_account(aws_api, "account", "email") is None
+    assert reconciler.create_organization_account(aws_api, "account", "email") is None
 
 
 def test_aws_account_manager_reconcile_create_iam_user(

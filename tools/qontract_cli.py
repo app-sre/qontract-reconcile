@@ -56,13 +56,21 @@ from reconcile.cli import (
     config_file,
     use_jump_host,
 )
+from reconcile.external_resources.integration import (
+    get_aws_api,
+)
 from reconcile.external_resources.manager import (
-    FLAG_RESOURCE_MANAGED_BY_ERV2,
     setup_factories,
 )
+from reconcile.external_resources.meta import FLAG_RESOURCE_MANAGED_BY_ERV2
 from reconcile.external_resources.model import (
+    ExternalResourceKey,
     ExternalResourcesInventory,
     load_module_inventory,
+)
+from reconcile.external_resources.state import (
+    ExternalResourcesStateDynamoDB,
+    ResourceStatus,
 )
 from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
     query as aus_clusters_query,
@@ -71,6 +79,7 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+from reconcile.gql_definitions.integrations import integrations as integrations_gql
 from reconcile.gql_definitions.maintenance import maintenances as maintenances_gql
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.slack_base import slackapi_from_queries
@@ -78,6 +87,9 @@ from reconcile.status_board import StatusBoardExporterIntegration
 from reconcile.typed_queries.alerting_services_settings import get_alerting_services
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.app_quay_repos_escalation_policies import (
+    get_apps_quay_repos_escalation_policies,
 )
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.external_resources import (
@@ -138,6 +150,7 @@ from reconcile.utils.oc_map import init_oc_map_from_clusters
 from reconcile.utils.ocm import OCM_PRODUCT_ROSA, OCMMap
 from reconcile.utils.ocm_base_client import init_ocm_base_client
 from reconcile.utils.output import print_output
+from reconcile.utils.saasherder.models import TargetSpec
 from reconcile.utils.saasherder.saasherder import SaasHerder
 from reconcile.utils.secret_reader import (
     SecretReader,
@@ -2012,7 +2025,7 @@ def app_interface_review_queue(ctx) -> None:
 
         queue_data = []
         for mr in merge_requests:
-            if mr.work_in_progress:
+            if mr.draft:
                 continue
             if len(mr.commits()) == 0:
                 continue
@@ -2111,7 +2124,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx):
     ]
     queue_data = []
     for mr in merge_requests:
-        if mr.work_in_progress:
+        if mr.draft:
             continue
         if len(mr.commits()) == 0:
             continue
@@ -2728,6 +2741,49 @@ def systems_and_tools(ctx):
     print_output(ctx.obj["options"], inventory.data, inventory.columns)
 
 
+@get.command(short_help="get integration logs")
+@click.argument("integration_name")
+@click.option(
+    "--environment_name", default="production", help="environment to get logs from"
+)
+@click.pass_context
+def logs(ctx, integration_name: str, environment_name: str):
+    integrations = [
+        i
+        for i in integrations_gql.query(query_func=gql.get_api().query).integrations
+        or []
+        if i.name == integration_name
+    ]
+    if not integrations:
+        print("integration not found")
+        return
+    integration = integrations[0]
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    managed = integration.managed
+    if not managed:
+        print("integration is not managed")
+        return
+    namespaces = [
+        m.namespace
+        for m in managed
+        if m.namespace.cluster.labels
+        and m.namespace.cluster.labels.get("environment") == environment_name
+    ]
+    if not namespaces:
+        print(f"no managed {environment_name} namespace found")
+        return
+    namespace = namespaces[0]
+    cluster = namespaces[0].cluster
+    if not cluster.automation_token:
+        print("cluster automation token not found")
+        return
+    token = secret_reader.read_secret(cluster.automation_token)
+
+    command = f"oc --server {cluster.server_url} --token {token} --namespace {namespace.name} logs -c int -l app=qontract-reconcile-{integration.name}"
+    print(command)
+
+
 @get.command
 @click.pass_context
 def jenkins_jobs(ctx):
@@ -2755,7 +2811,7 @@ def jenkins_jobs(ctx):
 
             for pj in project["jobs"]:
                 for job in pj.values():
-                    node = job["node"] if "node" in job else root_node
+                    node = job.get("node", root_node)
                     if node in {"rhel8", "rhel8-app-interface"}:
                         apps[app_name]["rhel8"] += 1
                         totals["rhel8"] += 1
@@ -2796,6 +2852,33 @@ You can view the source of this Markdown to extract the JSON data.
         columns = ["app", "other", "rhel8"]
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], results, columns)
+
+
+@get.command
+@click.pass_context
+def container_image_details(ctx):
+    apps = get_apps_quay_repos_escalation_policies()
+    data: list[dict[str, str]] = []
+    for app in apps:
+        app_name = f"{app.parent_app.name}/{app.name}" if app.parent_app else app.name
+        ep_channels = app.escalation_policy.channels
+        email = ep_channels.email
+        slack = ep_channels.slack_user_group[0].handle
+        for org_items in app.quay_repos or []:
+            org_name = org_items.org.name
+            for repo in org_items.items or []:
+                if repo.mirror:
+                    continue
+                repository = f"quay.io/{org_name}/{repo.name}"
+                item = {
+                    "app": app_name,
+                    "repository": repository,
+                    "email": email,
+                    "slack": slack,
+                }
+                data.append(item)
+    columns = ["app", "repository", "email", "slack"]
+    print_output(ctx.obj["options"], data, columns)
 
 
 @root.group(name="set")
@@ -3453,21 +3536,17 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None) -> None:
                 if target.namespace.environment.name != env_name:
                     continue
 
-                parameters: dict[str, Any] = {}
-                parameters.update(target.namespace.environment.parameters or {})
-                parameters.update(saas_file.parameters or {})
-                parameters.update(rt.parameters or {})
-                parameters.update(target.parameters or {})
-
-                for replace_key, replace_value in parameters.items():
-                    if not isinstance(replace_value, str):
-                        continue
-                    replace_pattern = "${" + replace_key + "}"
-                    for k, v in parameters.items():
-                        if not isinstance(v, str):
-                            continue
-                        if replace_pattern in v:
-                            parameters[k] = v.replace(replace_pattern, replace_value)
+                parameters = TargetSpec(
+                    saas_file=saas_file,
+                    resource_template=rt,
+                    target=target,
+                    # process_template options
+                    image_auth=None,  # type: ignore[arg-type]
+                    hash_length=None,  # type: ignore[arg-type]
+                    github=None,  # type: ignore[arg-type]
+                    target_config_hash=None,  # type: ignore[arg-type]
+                    secret_reader=None,  # type: ignore[arg-type]
+                ).parameters()
 
                 parameters_cmd = ""
                 for k, v in parameters.items():
@@ -3869,6 +3948,48 @@ def get_input(
     resource = f.create_external_resource(spec)
     f.validate_external_resource(resource)
     print(resource.json(exclude={"data": {FLAG_RESOURCE_MANAGED_BY_ERV2}}))
+
+
+@external_resources.command()
+@click.argument("provision-provider", required=True)
+@click.argument("provisioner", required=True)
+@click.argument("provider", required=True)
+@click.argument("identifier", required=True)
+@click.pass_context
+def request_reconciliation(
+    ctx, provision_provider: str, provisioner: str, provider: str, identifier: str
+):
+    """Marks a resource as it needs to get reconciled. The itegration will reconcile the resource at
+    its next iteration.
+
+    e.g: e.g: qontract-reconcile --config=<config> external-resources request-reconciliation aws app-sre-stage rds dashdotdb-stage
+    """
+    er_settings = get_settings()[0]
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    with get_aws_api(
+        query_func=gql.get_api().query,
+        account_name=er_settings.state_dynamodb_account.name,
+        region=er_settings.state_dynamodb_region,
+        secret_reader=secret_reader,
+    ) as aws_api:
+        state_manager = ExternalResourcesStateDynamoDB(
+            aws_api=aws_api,
+            table_name=er_settings.state_dynamodb_table,
+        )
+        key = ExternalResourceKey(
+            provision_provider=provision_provider,
+            provisioner_name=provisioner,
+            provider=provider,
+            identifier=identifier,
+        )
+        current_state = state_manager.get_external_resource_state(key)
+        if current_state.resource_status != ResourceStatus.NOT_EXISTS:
+            state_manager.update_resource_status(
+                key, ResourceStatus.RECONCILIATION_REQUESTED
+            )
+        else:
+            logging.info("External Resource does not exist")
 
 
 if __name__ == "__main__":

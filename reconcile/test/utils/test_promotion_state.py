@@ -35,7 +35,7 @@ def test_key_exists_v1(s3_state_builder: Callable[[Mapping], State]) -> None:
         check_in="2024-04-30 13:47:31.722437+00:00",
     )
     state.ls.assert_called_once_with()  # type: ignore[attr-defined]
-    state.get.assert_called_once_with("promotions_v2/channel/uid/sha")  # type: ignore[attr-defined]
+    state.get.assert_called_once_with("promotions_v2/channel/uid/sha", None)  # type: ignore[attr-defined]
 
 
 def test_key_exists_v2(s3_state_builder: Callable[[Mapping], State]) -> None:
@@ -60,10 +60,27 @@ def test_key_exists_v2(s3_state_builder: Callable[[Mapping], State]) -> None:
         saas_file="saas_file",
     )
     state.ls.assert_called_once_with()  # type: ignore[attr-defined]
-    state.get.assert_called_once_with("promotions_v2/channel/uid/sha")  # type: ignore[attr-defined]
+    state.get.assert_called_once_with("promotions_v2/channel/uid/sha", None)  # type: ignore[attr-defined]
 
 
 def test_key_does_not_exist(s3_state_builder: Callable[[Mapping], State]) -> None:
+    state = s3_state_builder({
+        "ls": [],
+        "get": {},
+    })
+    deployment_state = PromotionState(state=state)
+    deployment_state.cache_commit_shas_from_s3()
+    deployment_info = deployment_state.get_promotion_data(
+        channel="channel", sha="sha", target_uid="uid", pre_check_sha_exists=False
+    )
+    assert deployment_info is None
+    state.ls.assert_called_once_with()  # type: ignore[attr-defined]
+    state.get.assert_called_once_with("promotions_v2/channel/uid/sha", None)  # type: ignore[attr-defined]
+
+
+def test_key_does_not_exist_in_commit_shas(
+    s3_state_builder: Callable[[Mapping], State],
+) -> None:
     state = s3_state_builder({
         "ls": [],
         "get": {},
@@ -78,7 +95,7 @@ def test_key_does_not_exist(s3_state_builder: Callable[[Mapping], State]) -> Non
     state.get.assert_not_called()  # type: ignore[attr-defined]
 
 
-def test_key_does_not_exist_locally(
+def test_key_does_not_exist_in_commit_shas_disabled(
     s3_state_builder: Callable[[Mapping], State],
 ) -> None:
     state = s3_state_builder({
@@ -99,7 +116,7 @@ def test_key_does_not_exist_locally(
         success=True, target_config_hash="hash", saas_file="saas_file"
     )
     state.ls.assert_not_called()  # type: ignore[attr-defined]
-    state.get.assert_called_once_with("promotions_v2/channel/uid/sha")  # type: ignore[attr-defined]
+    state.get.assert_called_once_with("promotions_v2/channel/uid/sha", None)  # type: ignore[attr-defined]
 
 
 def test_publish_info(s3_state_builder: Callable[[Mapping], State]) -> None:
@@ -179,7 +196,7 @@ def test_promotion_data_cache(s3_state_builder: Callable[[Mapping], State]) -> N
         check_in=check_in,
     )
 
-    state.get.assert_called_once_with("promotions_v2/channel/uid/sha")  # type: ignore[attr-defined]
+    state.get.assert_called_once_with("promotions_v2/channel/uid/sha", None)  # type: ignore[attr-defined]
     state.ls.assert_not_called()  # type: ignore[attr-defined]
 
 
@@ -228,5 +245,5 @@ def test_promotion_data_disabled_cache_by_default(
     assert deployment_info_second == expected_promotion
 
     assert state.get.call_count == 2  # type: ignore[attr-defined]
-    state.get.assert_called_with("promotions_v2/channel/uid/sha")  # type: ignore[attr-defined]
+    state.get.assert_called_with("promotions_v2/channel/uid/sha", None)  # type: ignore[attr-defined]
     state.ls.assert_not_called()  # type: ignore[attr-defined]

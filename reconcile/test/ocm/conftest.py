@@ -116,10 +116,7 @@ def _request_matches(
     if f"{parsed_url.scheme}://{parsed_url.netloc}" != base_url:
         return False
 
-    if path and parsed_url.path != path:
-        return False
-
-    return True
+    return not (path and parsed_url.path != path)
 
 
 @pytest.fixture

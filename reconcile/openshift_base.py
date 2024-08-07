@@ -128,6 +128,7 @@ def init_specs_to_fetch(
     clusters: Iterable[Mapping] | None = None,
     override_managed_types: Iterable[str] | None = None,
     managed_types_key: str = "managedResourceTypes",
+    cluster_admin: bool = False,
 ) -> list[StateSpec]:
     state_specs: list[StateSpec] = []
 
@@ -144,7 +145,9 @@ def init_specs_to_fetch(
                 continue
 
             cluster = namespace_info["cluster"]["name"]
-            privileged = namespace_info.get("clusterAdmin", False) is True
+            privileged = (
+                namespace_info.get("clusterAdmin", False) is True or cluster_admin
+            )
             try:
                 oc = oc_map.get_cluster(cluster, privileged)
             except OCLogMsg as ex:
@@ -348,6 +351,7 @@ def fetch_current_state(
         namespaces=namespaces,
         clusters=clusters,
         override_managed_types=override_managed_types,
+        cluster_admin=cluster_admin,
     )
     threaded.run(
         populate_current_state,
@@ -379,7 +383,14 @@ def apply(
     recycle_pods: bool = True,
     privileged: bool = False,
 ) -> None:
-    logging.info(["apply", cluster, namespace, resource_type, resource.name])
+    logging.info([
+        "apply",
+        f"privileged={privileged}",
+        cluster,
+        namespace,
+        resource_type,
+        resource.name,
+    ])
 
     try:
         oc = oc_map.get_cluster(cluster, privileged)
@@ -537,7 +548,14 @@ def delete(
     enable_deletion: bool,
     privileged: bool = False,
 ) -> None:
-    logging.info(["delete", cluster, namespace, resource_type, name])
+    logging.info([
+        "delete",
+        f"privileged={privileged}",
+        cluster,
+        namespace,
+        resource_type,
+        name,
+    ])
 
     if not enable_deletion:
         logging.error("'delete' action is disabled due to previous errors.")
@@ -850,7 +868,7 @@ def apply_action(
             resource=resource,
             wait_for_namespace=options.wait_for_namespace,
             recycle_pods=options.recycle_pods,
-            privileged=True if options.privileged else False,
+            privileged=bool(options.privileged),
         )
 
     except StatusCodeError as e:
@@ -884,8 +902,8 @@ def delete_action(
             namespace=namespace,
             resource_type=resource_type,
             name=resource_name,
-            enable_deletion=True if options.enable_deletion else False,
-            privileged=True if options.privileged else False,
+            enable_deletion=bool(options.enable_deletion),
+            privileged=bool(options.privileged),
         )
     except StatusCodeError as e:
         ri.register_error()
@@ -938,9 +956,10 @@ def _realize_resource_data_3way_diff(
         logging.error(msg)
         return actions
 
-    options.enable_deletion = False if ri.has_error_registered() else True
+    # don't delete resources if there are errors
+    options.enable_deletion = not ri.has_error_registered()
     # only allow to override enable_deletion if no errors were found
-    if options.enable_deletion is True and options.override_enable_deletion is False:
+    if options.enable_deletion and options.override_enable_deletion is False:
         options.enable_deletion = False
 
     diff_result = differ.diff_mappings(
@@ -1359,8 +1378,9 @@ def aggregate_shared_resources_typed(
         case HasOpenshiftServiceAccountTokensAndSharedResources():
             shared_type_resources_items = []
             for ost_shared_resources_item in namespace.shared_resources:
-                if shared_type_resources := getattr(
-                    ost_shared_resources_item, "openshift_service_account_tokens"
+                if (
+                    shared_type_resources
+                    := ost_shared_resources_item.openshift_service_account_tokens
                 ):
                     shared_type_resources_items.extend(shared_type_resources)
             if namespace.openshift_service_account_tokens:
@@ -1372,8 +1392,9 @@ def aggregate_shared_resources_typed(
         case HasOpenShiftResourcesAndSharedResources():
             shared_type_resources_items = []
             for or_shared_resources_item in namespace.shared_resources:
-                if shared_type_resources := getattr(
-                    or_shared_resources_item, "openshift_resources"
+                if (
+                    shared_type_resources
+                    := or_shared_resources_item.openshift_resources
                 ):
                     shared_type_resources_items.extend(shared_type_resources)
             if namespace.openshift_resources:
@@ -1405,10 +1426,7 @@ def determine_user_keys_for_access(
         return ["github_username"]
 
     for auth in auth_list:
-        if isinstance(auth, HasService):
-            service = auth.service
-        else:
-            service = auth["service"]
+        service = auth.service if isinstance(auth, HasService) else auth["service"]
         try:
             if AUTH_METHOD_USER_KEY[service] in user_keys:
                 continue
@@ -1416,7 +1434,7 @@ def determine_user_keys_for_access(
         except KeyError:
             raise NotImplementedError(
                 f"[{cluster_name}] auth service not implemented: {service}"
-            )
+            ) from None
     return user_keys
 
 

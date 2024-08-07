@@ -682,6 +682,7 @@ def test_export_model(
             "parameters": '{"SAAS_PARAM": "foobar"}',
             "secretParameters": None,
             "validateTargetsInApp": None,
+            "validatePlannedData": None,
             "resourceTemplates": [
                 {
                     "name": "deploy-app",
@@ -857,6 +858,7 @@ def test_export_model(
             "parameters": None,
             "secretParameters": None,
             "validateTargetsInApp": None,
+            "validatePlannedData": None,
             "resourceTemplates": [
                 {
                     "name": "deploy-app",
@@ -1032,6 +1034,7 @@ def test_export_model(
             "parameters": None,
             "secretParameters": None,
             "validateTargetsInApp": None,
+            "validatePlannedData": None,
             "resourceTemplates": [
                 {
                     "name": "deploy-app",

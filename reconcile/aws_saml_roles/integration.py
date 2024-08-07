@@ -281,11 +281,11 @@ class AwsSamlRolesIntegration(
         if defer:
             defer(tf.cleanup)
 
-        runner_params: RunnerParams = dict(
-            tf=tf,
-            dry_run=dry_run,
-            enable_deletion=self.params.enable_deletion,
-        )
+        runner_params: RunnerParams = {
+            "tf": tf,
+            "dry_run": dry_run,
+            "enable_deletion": self.params.enable_deletion,
+        }
 
         if self.params.enable_extended_early_exit and get_feature_toggle_state(
             f"{QONTRACT_INTEGRATION}-extended-early-exit", default=True

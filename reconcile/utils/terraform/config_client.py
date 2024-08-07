@@ -84,7 +84,7 @@ class TerraformConfigClientCollection:
             except KeyError:
                 raise ClientNotRegisteredError(
                     f"There aren't any clients registered with the account name: {spec.provisioner_name}"
-                )
+                ) from None
             self.resource_spec_inventory[spec.id_object()] = spec
 
     def populate_resources(self) -> None:

@@ -141,7 +141,7 @@ class UnleashTogglesIntegration(
             except KeyError:
                 raise ValueError(
                     f"[{instance.name}/{project_id}/{add.name}] Invalid feature toggle type '{add.unleash.q_type}', Possible values are: {', '.join(FeatureToggleType.__members__)}"
-                )
+                ) from None
             if not dry_run:
                 client.create_feature_toggle(
                     project_id=project_id,
@@ -161,7 +161,7 @@ class UnleashTogglesIntegration(
             except KeyError:
                 raise ValueError(
                     f"[{instance.name}/{project_id}/{change.current.name}] Invalid feature toggle type '{change.desired.unleash.q_type}', Possible values are: {', '.join(FeatureToggleType.__members__)}"
-                )
+                ) from None
             if not dry_run:
                 client.update_feature_toggle(
                     project_id=project_id,

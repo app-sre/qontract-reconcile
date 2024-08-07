@@ -47,15 +47,15 @@ def test_parse_valid_code_components():
         },
     ]
     expected = github_repo_invites.CodeComponents(
-        urls=set([
+        urls={
             "https://github.com/org1/project1",
             "https://github.com/org2/project1",
             "https://github.com/org2/project2",
-        ]),
-        known_orgs=set([
+        },
+        known_orgs={
             "https://github.com/org1",
             "https://github.com/org2",
-        ]),
+        },
     )
     assert github_repo_invites._parse_code_components(raw_code_components) == expected
 
@@ -84,8 +84,8 @@ def test_accept_invitations_no_dry_run(github):
         ]
     ]
     code_components = github_repo_invites.CodeComponents(
-        urls=set([f"{expected_org}/project1"]),
-        known_orgs=set([expected_org]),
+        urls={f"{expected_org}/project1"},
+        known_orgs={expected_org},
     )
     dry_run = False
     accepted_invitations = github_repo_invites._accept_invitations(
@@ -93,7 +93,7 @@ def test_accept_invitations_no_dry_run(github):
     )
 
     github.accept_repo_invitation.assert_called_once_with(expected_id)
-    assert accepted_invitations == set([expected_org])
+    assert accepted_invitations == {expected_org}
 
 
 def test_accept_invitations_dry_run(github):
@@ -107,8 +107,8 @@ def test_accept_invitations_dry_run(github):
         ],
     ]
     code_components = github_repo_invites.CodeComponents(
-        urls=set([f"{expected_org}/project1"]),
-        known_orgs=set([expected_org]),
+        urls={f"{expected_org}/project1"},
+        known_orgs={expected_org},
     )
     dry_run = True
     accepted_invitations = github_repo_invites._accept_invitations(
@@ -116,4 +116,4 @@ def test_accept_invitations_dry_run(github):
     )
 
     github.accept_repo_invitation.assert_not_called()
-    assert accepted_invitations == set([expected_org])
+    assert accepted_invitations == {expected_org}

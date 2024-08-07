@@ -50,14 +50,14 @@ class TestOCMAdditionalRouters(TestCase):
 
         router_create = ocm_act["create"]
         expected = []
-        for c in router_create.keys():
+        for c in router_create:
             expected.append(call(c, router_create[c]))
         calls = ocm.create_additional_router.call_args_list
         self.assertEqual(calls, expected)
 
         router_delete = ocm_act["delete"]
         expected = []
-        for c in router_delete.keys():
+        for c in router_delete:
             expected.append(call(c, router_delete[c]))
         calls = ocm.delete_additional_router.call_args_list
         self.assertEqual(calls, expected)
@@ -73,7 +73,7 @@ class TestOCMAdditionalRouters(TestCase):
 
         ocm_api = fixture["ocm_api"]
         clusters = []
-        for c in ocm_api.keys():
+        for c in ocm_api:
             clusters.append({"name": c})
         ocm = get.return_value
         ocm.get_additional_routers.side_effect = lambda x: fixture["ocm_api"][x]
@@ -108,7 +108,7 @@ class TestOCMAdditionalRouters(TestCase):
 
         ocm_api = fixture["ocm_api"]
         clusters = []
-        for c in ocm_api.keys():
+        for c in ocm_api:
             clusters.append({"name": c})
         ocm = get.return_value
 
@@ -120,14 +120,14 @@ class TestOCMAdditionalRouters(TestCase):
 
         router_create = ocm_act["create"]
         expected = []
-        for c in router_create.keys():
+        for c in router_create:
             expected.append(call(c, router_create[c]))
         calls = ocm.create_additional_router.call_args_list
         self.assertEqual(calls, expected)
 
         router_delete = ocm_act["delete"]
         expected = []
-        for c in router_delete.keys():
+        for c in router_delete:
             expected.append(call(c, router_delete[c]))
         calls = ocm.delete_additional_router.call_args_list
         self.assertEqual(calls, expected)

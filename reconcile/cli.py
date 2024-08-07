@@ -1802,6 +1802,58 @@ def openshift_prometheus_rules(
     )
 
 
+@integration.command(short_help="Discover routes and update endpoints")
+@threaded()
+@binary(["oc"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@use_jump_host()
+@cluster_name
+@namespace_name
+@enable_extended_early_exit
+@extended_early_exit_cache_ttl_seconds
+@log_cached_log_output
+@click.option(
+    "--endpoint-tmpl-resource",
+    help="Resource name of the endpoint template in the app-interface.",
+    required=False,
+)
+@click.pass_context
+def endpoints_discovery(
+    ctx,
+    thread_pool_size,
+    internal,
+    use_jump_host,
+    cluster_name,
+    namespace_name,
+    enable_extended_early_exit,
+    extended_early_exit_cache_ttl_seconds,
+    log_cached_log_output,
+    endpoint_tmpl_resource,
+):
+    from reconcile.endpoints_discovery.integration import (
+        EndpointsDiscoveryIntegration,
+        EndpointsDiscoveryIntegrationParams,
+    )
+
+    params = EndpointsDiscoveryIntegrationParams(
+        thread_pool_size=thread_pool_size,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
+        enable_extended_early_exit=enable_extended_early_exit,
+        extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
+        log_cached_log_output=log_cached_log_output,
+    )
+    if endpoint_tmpl_resource:
+        params.endpoint_tmpl_resource = endpoint_tmpl_resource
+    run_class_integration(
+        integration=EndpointsDiscoveryIntegration(params),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Configures the teams and members in Quay.")
 @click.pass_context
 def quay_membership(ctx):
@@ -2710,11 +2762,20 @@ def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
 @integration.command(
     short_help="Manage Addons Upgrade Policy schedules in OCM organizations."
 )
+@click.option(
+    "--ocm-env",
+    help="The OCM environment the integration should operator on. If none is specified, all environments will be operated on.",
+    required=False,
+    envvar="OCM_ENV",
+)
 @org_id_multiple
 @exclude_org_id
 @click.pass_context
 def ocm_addons_upgrade_scheduler_org(
-    ctx, org_id: Iterable[str], exclude_org_id: Iterable[str]
+    ctx,
+    ocm_env: str,
+    org_id: Iterable[str],
+    exclude_org_id: Iterable[str],
 ) -> None:
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
     from reconcile.aus.ocm_addons_upgrade_scheduler_org import (
@@ -2724,7 +2785,7 @@ def ocm_addons_upgrade_scheduler_org(
     run_class_integration(
         integration=OCMAddonsUpgradeSchedulerOrgIntegration(
             AdvancedUpgradeSchedulerBaseIntegrationParams(
-                ocm_environment="ocm-integration",
+                ocm_environment=ocm_env,
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
             )
@@ -3705,20 +3766,20 @@ def deadmanssnitch(ctx):
 )
 def external_resources(
     ctx,
-    workers_cluster: str,
-    workers_namespace: str,
     dry_run_job_suffix: str,
     thread_pool_size: int,
+    workers_cluster: str,
+    workers_namespace: str,
 ):
     import reconcile.external_resources.integration
 
     run_integration(
         reconcile.external_resources.integration,
         ctx.obj,
-        dry_run_job_suffix,
-        thread_pool_size,
-        workers_cluster,
-        workers_namespace,
+        dry_run_job_suffix=dry_run_job_suffix,
+        thread_pool_size=thread_pool_size,
+        workers_cluster=workers_cluster,
+        workers_namespace=workers_namespace,
     )
 
 
