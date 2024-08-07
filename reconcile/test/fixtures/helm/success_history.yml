@@ -163,6 +163,12 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
+- name: VECTOR_IMAGE
+  value: registry.redhat.io/openshift-logging/vector-rhel9
+- name: VECTOR_IMAGE_TAG
+  value: v0.34.1-12
+- name: VECTOR_IMAGE_PULL_POLICY
+  value: IfNotPresent
 - name: INTEG_MEMORY_LIMIT
   value: 90Mi
 - name: INTEG_CPU_REQUEST
