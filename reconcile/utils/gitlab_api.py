@@ -378,7 +378,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return REPORTER_ACCESS
         if access == "guest":
             return GUEST_ACCESS
-    
+
     def get_group_id_and_projects(self, group_name: str) -> tuple[str, list[str]]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group = self.gl.groups.get(group_name)
