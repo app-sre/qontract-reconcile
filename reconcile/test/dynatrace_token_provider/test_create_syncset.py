@@ -1,7 +1,6 @@
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
-    DynatraceTokenProviderIntegrationParams,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
 from reconcile.dynatrace_token_provider.ocm import Cluster
@@ -23,15 +22,12 @@ def test_single_non_hcp_cluster_create_tokens(
     default_operator_token: DynatraceAPIToken,
     default_ingestion_token: DynatraceAPIToken,
     default_cluster: Cluster,
+    default_integration: DynatraceTokenProviderIntegration,
 ) -> None:
     """
     We have a single non-HCP cluster that does not have a syncset/token yet.
     New tokens in a new syncset should be created.
     """
-    integration = DynatraceTokenProviderIntegration(
-        DynatraceTokenProviderIntegrationParams(ocm_organization_ids={"ocm_org_id_a"})
-    )
-
     ocm_client = build_ocm_client(
         discover_clusters_by_labels=[default_cluster],
         get_syncset={},
@@ -73,7 +69,7 @@ def test_single_non_hcp_cluster_create_tokens(
         },
     )
 
-    integration.reconcile(dry_run=False, dependencies=dependencies)
+    default_integration.reconcile(dry_run=False, dependencies=dependencies)
 
     ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
     ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]

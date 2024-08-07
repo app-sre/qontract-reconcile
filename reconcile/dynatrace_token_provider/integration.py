@@ -1,14 +1,17 @@
 import base64
 import hashlib
 import logging
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, MutableMapping
 from datetime import timedelta
+from threading import Lock
 from typing import Any
 
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.metrics import (
     DTPClustersManagedGauge,
     DTPOrganizationErrorRate,
+    DTPTokensManagedGauge,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
 from reconcile.dynatrace_token_provider.ocm import (
@@ -17,6 +20,7 @@ from reconcile.dynatrace_token_provider.ocm import (
     Cluster,
     OCMClient,
 )
+from reconcile.dynatrace_token_provider.validate import validate_token_specs
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceAPITokenV1,
     DynatraceTokenProviderTokenSpecV1,
@@ -55,6 +59,11 @@ class ReconcileErrorSummary(Exception):
 class DynatraceTokenProviderIntegration(
     QontractReconcileIntegration[DynatraceTokenProviderIntegrationParams]
 ):
+    def __init__(self, params: DynatraceTokenProviderIntegrationParams) -> None:
+        super().__init__(params=params)
+        self._lock = Lock()
+        self._managed_tokens_cnt: dict[str, Counter[str]] = defaultdict(Counter)
+
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
@@ -66,10 +75,29 @@ class DynatraceTokenProviderIntegration(
             ocm_client_by_env_name={},
             token_spec_by_name={},
         )
-        dependencies.populate()
+        dependencies.populate_all()
         self.reconcile(dry_run=dry_run, dependencies=dependencies)
 
+    def _token_cnt(self, dt_tenant_id: str, ocm_env_name: str) -> None:
+        with self._lock:
+            self._managed_tokens_cnt[ocm_env_name][dt_tenant_id] += 1
+
+    def _expose_token_metrics(self) -> None:
+        for ocm_env_name, counter_by_tenant_id in self._managed_tokens_cnt.items():
+            for dt_tenant_id, cnt in counter_by_tenant_id.items():
+                metrics.set_gauge(
+                    DTPTokensManagedGauge(
+                        integration=self.name,
+                        ocm_env=ocm_env_name,
+                        dt_tenant_id=dt_tenant_id,
+                    ),
+                    cnt,
+                )
+
     def reconcile(self, dry_run: bool, dependencies: Dependencies) -> None:
+        token_specs = list(dependencies.token_spec_by_name.values())
+        validate_token_specs(specs=token_specs)
+
         with metrics.transactional_metrics(self.name):
             unhandled_exceptions = []
             for ocm_env_name, ocm_client in dependencies.ocm_client_by_env_name.items():
@@ -82,13 +110,6 @@ class DynatraceTokenProviderIntegration(
                     )
                 except Exception as e:
                     unhandled_exceptions.append(f"{ocm_env_name}: {e}")
-                metrics.set_gauge(
-                    DTPClustersManagedGauge(
-                        integration=self.name,
-                        ocm_env=ocm_env_name,
-                    ),
-                    len(clusters),
-                )
                 if not clusters:
                     continue
                 if self.params.ocm_organization_ids:
@@ -97,8 +118,16 @@ class DynatraceTokenProviderIntegration(
                         for cluster in clusters
                         if cluster.organization_id in self.params.ocm_organization_ids
                     ]
+
                 existing_dtp_tokens: dict[str, dict[str, str]] = {}
 
+                metrics.set_gauge(
+                    DTPClustersManagedGauge(
+                        integration=self.name,
+                        ocm_env=ocm_env_name,
+                    ),
+                    len(clusters),
+                )
                 for cluster in clusters:
                     try:
                         with DTPOrganizationErrorRate(
@@ -158,11 +187,13 @@ class DynatraceTokenProviderIntegration(
                                 existing_dtp_tokens=existing_dtp_tokens[tenant_id],
                                 tenant_id=tenant_id,
                                 token_spec=token_spec,
+                                ocm_env_name=ocm_env_name,
                             )
                     except Exception as e:
                         unhandled_exceptions.append(
                             f"{ocm_env_name}/{cluster.organization_id}/{cluster.external_id}: {e}"
                         )
+                self._expose_token_metrics()
 
         if unhandled_exceptions:
             raise ReconcileErrorSummary(unhandled_exceptions)
@@ -176,6 +207,7 @@ class DynatraceTokenProviderIntegration(
         existing_dtp_tokens: MutableMapping[str, str],
         tenant_id: str,
         token_spec: DynatraceTokenProviderTokenSpecV1,
+        ocm_env_name: str,
     ) -> None:
         if cluster.organization_id not in token_spec.ocm_org_ids:
             logging.info(
@@ -243,6 +275,8 @@ class DynatraceTokenProviderIntegration(
                 existing_dtp_tokens=existing_dtp_tokens,
                 dt_client=dt_client,
                 cluster_uuid=cluster.external_id,
+                dt_tenant_id=tenant_id,
+                ocm_env_name=ocm_env_name,
             )
             if has_diff:
                 if not dry_run:
@@ -298,6 +332,8 @@ class DynatraceTokenProviderIntegration(
         cluster_uuid: str,
         dt_client: DynatraceClient,
         token_name_in_dt_api: str,
+        ocm_env_name: str,
+        dt_tenant_id: str,
         dry_run: bool,
     ) -> None:
         """
@@ -307,6 +343,7 @@ class DynatraceTokenProviderIntegration(
         A list query on the tokens does not return each tokens configuration.
         We encode the token configuration in the token name to save API calls.
         """
+        self._token_cnt(dt_tenant_id=dt_tenant_id, ocm_env_name=ocm_env_name)
         expected_name = self.dynatrace_token_name(spec=spec, cluster_uuid=cluster_uuid)
         if token_name_in_dt_api != expected_name:
             logging.info(
@@ -325,6 +362,8 @@ class DynatraceTokenProviderIntegration(
         existing_dtp_tokens: MutableMapping[str, str],
         dt_client: DynatraceClient,
         cluster_uuid: str,
+        ocm_env_name: str,
+        dt_tenant_id: str,
     ) -> tuple[bool, Iterable[K8sSecret]]:
         has_diff = False
         desired: list[K8sSecret] = []
@@ -358,6 +397,8 @@ class DynatraceTokenProviderIntegration(
                         dt_client=dt_client,
                         dry_run=dry_run,
                         token_name_in_dt_api=existing_dtp_tokens[cur_token.id],
+                        dt_tenant_id=dt_tenant_id,
+                        ocm_env_name=ocm_env_name,
                     )
                     desired_tokens.append(cur_token)
             desired.append(
