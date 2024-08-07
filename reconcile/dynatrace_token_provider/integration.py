@@ -25,6 +25,9 @@ from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceAPITokenV1,
     DynatraceTokenProviderTokenSpecV1,
 )
+from reconcile.typed_queries.dynatrace_token_provider_token_specs import (
+    get_dynatrace_token_provider_token_specs,
+)
 from reconcile.utils import (
     metrics,
 )
@@ -63,6 +66,14 @@ class DynatraceTokenProviderIntegration(
         super().__init__(params=params)
         self._lock = Lock()
         self._managed_tokens_cnt: dict[str, Counter[str]] = defaultdict(Counter)
+
+    def get_early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        """Return the desired state for early exit."""
+        return {
+            "specs": [
+                spec.dict() for spec in get_dynatrace_token_provider_token_specs()
+            ]
+        }
 
     @property
     def name(self) -> str:
