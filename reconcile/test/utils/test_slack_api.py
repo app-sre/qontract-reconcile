@@ -1,5 +1,6 @@
 from collections import namedtuple
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, TypedDict
 from unittest.mock import (
     MagicMock,
     call,
@@ -457,6 +458,12 @@ def slack_client(httpserver: HTTPServer) -> SlackApi:
     )
 
 
+class JsonResponse(TypedDict):
+    response_json: Any
+    status: int
+    headers: Mapping[str, str] | None
+
+
 def test_slack_api__client_throttle_raise(
     patch_sleep: None, httpserver: HTTPServer, slack_client: SlackApi
 ) -> None:
@@ -478,12 +485,16 @@ def test_slack_api__client_throttle_doesnt_raise(
 ) -> None:
     """Don't raise an exception if the max retries aren't reached."""
     uri_args = ("/api/users.list", "post")
-    uri_kwargs_failure = {
+    uri_kwargs_failure: JsonResponse = {
         "headers": {"Retry-After": "1"},
         "response_json": {"ok": "false", "error": "ratelimited"},
         "status": 429,
     }
-    uri_kwargs_success = {"response_json": {"ok": "true"}, "status": 200}
+    uri_kwargs_success: JsonResponse = {
+        "response_json": {"ok": "true"},
+        "status": 200,
+        "headers": None,
+    }
 
     httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_failure)
     httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_failure)
@@ -514,11 +525,16 @@ def test_slack_api__client_5xx_doesnt_raise(
 ) -> None:
     """Don't raise an exception if the max retries aren't reached."""
     uri_args = ("/api/users.list", "post")
-    uri_kwargs_failure = {
+    uri_kwargs_failure: JsonResponse = {
         "response_json": {"ok": "false", "error": "internal_error"},
         "status": 500,
+        "headers": None,
     }
-    uri_kwargs_success = {"response_json": {"ok": "true"}, "status": 200}
+    uri_kwargs_success: JsonResponse = {
+        "response_json": {"ok": "true"},
+        "status": 200,
+        "headers": None,
+    }
 
     httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_failure)
     httpserver.expect_ordered_request(*uri_args).respond_with_json(**uri_kwargs_failure)

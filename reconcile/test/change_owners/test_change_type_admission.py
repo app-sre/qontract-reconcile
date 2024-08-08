@@ -1,3 +1,5 @@
+from typing import cast
+
 import pytest
 from pytest_mock import MockerFixture
 
@@ -72,7 +74,7 @@ def test_assert_restrictive_non_restrictive(
             ],
         )
     ]
-    changes = [b]
+    changes = [cast(BundleFileChange, b)]  # the cast is to make mypy happy
 
     assert is_change_admitted(changes, "baz", {""})
 
@@ -119,7 +121,7 @@ def test_assert_restrictive_all_need_approval(
             ],
         ),
     ]
-    changes = [b]
+    changes = [cast(BundleFileChange, b)]  # the cast is to make mypy happy
 
     assert is_change_admitted(changes, "baz", {"foo", "bar"})
     assert not is_change_admitted(changes, "baz", {"bar"})
