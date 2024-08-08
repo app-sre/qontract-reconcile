@@ -70,9 +70,10 @@ class DynatraceTokenProviderIntegration(
     def get_early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Return the desired state for early exit."""
         return {
-            "specs": [
-                spec.dict() for spec in get_dynatrace_token_provider_token_specs()
-            ]
+            "specs": {
+                spec.name: spec.dict()
+                for spec in get_dynatrace_token_provider_token_specs()
+            }
         }
 
     @property
