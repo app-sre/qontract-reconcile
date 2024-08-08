@@ -3,7 +3,6 @@ import re
 import sys
 from collections.abc import (
     Callable,
-    Mapping,
 )
 from datetime import (
     datetime,
@@ -11,7 +10,6 @@ from datetime import (
 )
 from typing import (
     TYPE_CHECKING,
-    Any,
 )
 
 from botocore.exceptions import ClientError
@@ -20,7 +18,6 @@ from pydantic import (
     Field,
 )
 
-from reconcile import queries
 from reconcile.gql_definitions.aws_ami_cleanup.asg_namespaces import (
     ASGImageGitV1,
     ASGImageStaticV1,
@@ -30,6 +27,13 @@ from reconcile.gql_definitions.aws_ami_cleanup.asg_namespaces import (
 )
 from reconcile.gql_definitions.aws_ami_cleanup.asg_namespaces import (
     query as query_asg_namespaces,
+)
+from reconcile.gql_definitions.aws_ami_cleanup.aws_accounts import (
+    AWSAccountCleanupOptionAMIV1,
+    AWSAccountV1,
+)
+from reconcile.gql_definitions.aws_ami_cleanup.aws_accounts import (
+    query as aws_accounts_query,
 )
 from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -140,13 +144,13 @@ def get_aws_amis(
 
 
 def get_region(
-    cleanup: Mapping[str, Any],
-    account: Mapping[str, Any],
+    cleanup: AWSAccountCleanupOptionAMIV1,
+    account: AWSAccountV1,
 ) -> str:
     """Defines the region to search for AMIs."""
-    region = cleanup.get("region") or account["resourcesDefaultRegion"]
-    if region not in account["supportedDeploymentRegions"]:
-        raise ValueError(f"region {region} is not supported in {account['name']}")
+    region = cleanup.region or account.resources_default_region
+    if region not in (account.supported_deployment_regions or []):
+        raise ValueError(f"region {region} is not supported in {account.name}")
 
     return region
 
@@ -204,66 +208,69 @@ def check_aws_ami_in_use(
 @defer
 def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> None:
     exit_code = ExitCodes.SUCCESS
-
-    # We still use here a non-typed query; accounts is passed to AWSApi and Terrascript classes
-    # which contain a vast amount of magic based on keys from that dict. Since this integration
-    # cannot still be properly monitored (see https://issues.redhat.com/browse/APPSRE-7674),
-    # it's easy that it breaks without being noticed. Once it is properly monitored, this should
-    # be moved to a typed query.
-    query_data = queries.get_aws_accounts(terraform_state=True, cleanup=True)
+    gqlapi = gql.get_api()
+    aws_accounts = aws_accounts_query(gqlapi.query).accounts
     cleanup_accounts = []
-    for data in query_data:
-        cleanups = data.get("cleanup")
-        if not cleanups:
+    for account in aws_accounts or []:
+        if not account.cleanup:
             continue
         is_ami_related = False
-        for cleanup in cleanups:
-            is_ami_related |= cleanup.get("provider") == "ami"
+        for cleanup in account.cleanup:
+            is_ami_related |= cleanup.provider == "ami"
         if not is_ami_related:
             continue
-        cleanup_accounts.append(data)
+        cleanup_accounts.append(account)
 
     vault_settings = get_app_interface_vault_settings()
+
+    cleanup_accounts_dicted = [
+        account.dict(by_alias=True) for account in cleanup_accounts
+    ]
 
     ts = Terrascript(
         QONTRACT_INTEGRATION,
         "",
         thread_pool_size,
-        cleanup_accounts,
+        cleanup_accounts_dicted,
         settings=vault_settings.dict(by_alias=True),
     )
 
-    gqlapi = gql.get_api()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     namespaces = query_asg_namespaces(query_func=gqlapi.query).namespaces or []
     app_interface_amis = get_app_interface_amis(namespaces, ts)
-
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    aws_api = AWSApi(1, cleanup_accounts, secret_reader=secret_reader, init_users=False)
+    aws_api = AWSApi(
+        1, cleanup_accounts_dicted, secret_reader=secret_reader, init_users=False
+    )
     if defer:  # defer is provided by the method decorator; this makes just mypy happy.
         defer(aws_api.cleanup)
 
     utc_now = datetime.utcnow()
     for account in cleanup_accounts:
-        for cleanup in account["cleanup"]:
-            if cleanup["provider"] != "ami":
+        for cleanup in account.cleanup or []:
+            if not isinstance(cleanup, AWSAccountCleanupOptionAMIV1):
+                continue
+
+            if cleanup.provider != "ami":
                 continue
 
             region = get_region(cleanup, account)
-            regex = cleanup["regex"]
-            age_in_seconds = dhms_to_seconds(cleanup["age"])
+            age_in_seconds = dhms_to_seconds(cleanup.age)
 
-            session = aws_api.get_session(account["name"])
+            session = aws_api.get_session(account.name)
             ec2_client = aws_api.get_session_client(session, "ec2", region)
 
             amis = get_aws_amis(
                 aws_api=aws_api,
                 ec2_client=ec2_client,
-                owner=account["uid"],
-                regex=regex,
+                owner=account.uid,
+                regex=cleanup.regex,
                 age_in_seconds=age_in_seconds,
                 utc_now=utc_now,
                 region=region,
             )
+
+            # find amis in use looking into the current account and the accounts listed
+            # in the sharing section.
 
             for aws_ami in amis:
                 try:
