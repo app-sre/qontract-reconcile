@@ -154,6 +154,9 @@ class DynatraceTokenProviderIntegration(
                                     cluster_uuid=cluster.external_id,
                                     error=f"Missing label {DTP_TENANT_LABEL}",
                                 )
+                                logging.warn(
+                                    f"[{cluster.external_id=}] Missing value for label {DTP_TENANT_LABEL}"
+                                )
                                 continue
                             if (
                                 tenant_id
@@ -163,6 +166,9 @@ class DynatraceTokenProviderIntegration(
                                     ocm_client,
                                     cluster_uuid=cluster.external_id,
                                     error=f"Dynatrace tenant {tenant_id} does not exist",
+                                )
+                                logging.warn(
+                                    f"[{cluster.external_id=}] Dynatrace {tenant_id=} does not exist"
                                 )
                                 continue
                             dt_client = dependencies.dynatrace_client_by_tenant_id[
@@ -177,6 +183,9 @@ class DynatraceTokenProviderIntegration(
                                     ocm_client,
                                     cluster_uuid=cluster.external_id,
                                     error=f"Token spec {cluster.token_spec_name} does not exist",
+                                )
+                                logging.warn(
+                                    f"[{cluster.external_id=}] Token spec '{cluster.token_spec_name}' does not exist"
                                 )
                                 continue
                             if tenant_id not in existing_dtp_tokens:
