@@ -1,3 +1,5 @@
+from typing import cast
+
 import pytest
 import testslide
 from pytest_mock import MockerFixture
@@ -628,11 +630,15 @@ class TestBuildDesiredStateVpcMesh(testslide.TestCase):
         )
         self.maxDiff = None
         self.ocm = testslide.StrictMock(ocm.OCM)
-        self.ocm_map: ocm.OCMMap = {"clustername": self.ocm}  # type: ignore
+        self.ocm_map = cast(
+            ocm.OCMMap, {"clustername": self.ocm}
+        )  # the cast is to make mypy happy
         self.ocm.get_aws_infrastructure_access_terraform_assume_role = (
             lambda cluster, uid, tfuser: self.peer_account["assume_role"]
         )
-        self.awsapi: aws_api.AWSApi = testslide.StrictMock(aws_api.AWSApi)
+        self.awsapi = cast(
+            aws_api.AWSApi, testslide.StrictMock(aws_api.AWSApi)
+        )  # the cast is to make mypy happy
         self.account_vpcs = [
             {
                 "vpc_id": "vpc1",
@@ -776,7 +782,9 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
                 ]
             },
         }
-        self.awsapi: aws_api.AWSApi = testslide.StrictMock(aws_api.AWSApi)
+        self.awsapi = cast(
+            aws_api.AWSApi, testslide.StrictMock(aws_api.AWSApi)
+        )  # the cast is to make mypy happy
         self.mock_constructor(aws_api, "AWSApi").to_return_value(self.awsapi)
         self.find_matching_peering = self.mock_callable(sut, "find_matching_peering")
         self.aws_account = {
@@ -806,7 +814,9 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
         }
         self.maxDiff = None
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
-        self.ocm: ocm.OCM = testslide.StrictMock(template=ocm.OCM)
+        self.ocm = cast(
+            ocm.OCM, testslide.StrictMock(template=ocm.OCM)
+        )  # the cast is to make mypy happy
         self.ocm.get_aws_infrastructure_access_terraform_assume_role = (  # type: ignore
             lambda cluster, uid, tfuser: self.peer_account["assume_role"]
         )
@@ -1064,7 +1074,9 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         )
         self.ocm = testslide.StrictMock(template=ocm.OCM)
         self.ocm_map: ocm.OCMMap = {"clustername": self.ocm}  # type: ignore
-        self.awsapi: aws_api.AWSApi = testslide.StrictMock(aws_api.AWSApi)
+        self.awsapi = cast(
+            aws_api.AWSApi, testslide.StrictMock(aws_api.AWSApi)
+        )  # the cast is to make mypy happy
 
         self.build_single_cluster = self.mock_callable(
             sut, "build_desired_state_vpc_single_cluster"
@@ -1232,8 +1244,12 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
         self.build_single_cluster = self.mock_callable(
             sut, "build_desired_state_single_cluster"
         )
-        self.ocm: ocm.OCM = testslide.StrictMock(template=ocm.OCM)
-        self.awsapi: aws_api.AWSApi = testslide.StrictMock(aws_api.AWSApi)
+        self.ocm = cast(
+            ocm.OCM, testslide.StrictMock(template=ocm.OCM)
+        )  # the cast is to make mypy happy
+        self.awsapi = cast(
+            aws_api.AWSApi, testslide.StrictMock(aws_api.AWSApi)
+        )  # the cast is to make mypy happy
         self.mock_constructor(aws_api, "AWSApi").to_return_value(self.awsapi)
         self.ocm.get_aws_infrastructure_access_terraform_assume_role = (  # type: ignore
             lambda cluster, uid, tfuser: self.aws_account["assume_role"]
