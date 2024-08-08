@@ -49,6 +49,10 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -99,7 +103,7 @@ objects:
                     replace!(
                       del(.message),
                       "\"",
-                      "\\\""),
+                      "\\\\\""),
                     "\"}"
                   ])
 

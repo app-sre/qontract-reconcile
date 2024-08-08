@@ -40,6 +40,10 @@ objects:
             limits:
               memory: 20Mi
           env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -97,7 +101,7 @@ objects:
                     replace!(
                       del(.message),
                       "\"",
-                      "\\\""),
+                      "\\\\\""),
                     "\"}"
                   ])
 

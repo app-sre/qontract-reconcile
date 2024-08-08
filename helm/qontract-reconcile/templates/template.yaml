@@ -115,11 +115,11 @@ objects:
                 key: google_chat.webhook_url
                 name: app-interface
           {{- end }}
+          {{- end }}
           - name: POD_NAME
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
-          {{- end }}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -182,7 +182,7 @@ objects:
                     replace!(
                       del(.message),
                       "\"",
-                      "\\\""),
+                      "\\\\\""),
                     "\"}"
                   ])
 
