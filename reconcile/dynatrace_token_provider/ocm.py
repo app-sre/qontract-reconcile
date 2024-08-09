@@ -59,7 +59,7 @@ class Cluster(BaseModel):
 
             Long-term, we want to remove this behavior.
             """
-            token_spec_name = "default"
+            token_spec_name = "hypershift-management-cluster-v1"
         return Cluster(
             id=cluster.ocm_cluster.id,
             external_id=cluster.ocm_cluster.external_id,
