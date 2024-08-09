@@ -18,6 +18,8 @@ query AWSAccountsAmiCleanup {
       provider
       account {
         name
+        supportedDeploymentRegions
+        resourcesDefaultRegion
       }
       ... on AWSAccountSharingOptionAMI_v1 {
         region

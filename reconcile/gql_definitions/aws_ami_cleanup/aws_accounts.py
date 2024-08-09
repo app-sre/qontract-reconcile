@@ -89,6 +89,8 @@ query AWSAccountsAmiCleanup {
       provider
       account {
         name
+        supportedDeploymentRegions
+        resourcesDefaultRegion
       }
       ... on AWSAccountSharingOptionAMI_v1 {
         region
@@ -117,6 +119,8 @@ class AWSAccountCleanupOptionAMIV1(AWSAccountCleanupOptionV1):
 
 class AWSAccountSharingOptionV1_AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
+    resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
 
 
 class AWSAccountSharingOptionV1(ConfiguredBaseModel):
