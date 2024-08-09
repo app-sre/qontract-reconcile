@@ -254,8 +254,10 @@ objects:
             limits:
               memory: 120Mi
           volumeMounts:
-            - name: vector-config
-              mountPath: /etc/vector
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: vector-config
+            mountPath: /etc/vector
           ### APPSRE-8096: Vector Section Ends
 
         - name: fluentd
