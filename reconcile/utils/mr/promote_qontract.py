@@ -171,7 +171,7 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
             gitlab_cli=gitlab_cli,
             path="resources/jenkins/global/defaults.yaml",
             search_text="    qontract_reconcile_image_tag: ",
-            replace_text=f"    qontract_reconcile_image_tag: '{self.version}'",
+            replace_text=f"    qontract_reconcile_image_tag: {self.version}",
         )
 
         # data/services/app-interface/cicd/ci-ext/saas-qontract-dashboards.yaml
