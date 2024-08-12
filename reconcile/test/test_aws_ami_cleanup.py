@@ -15,13 +15,11 @@ from typing import (
 import boto3
 import pytest
 from moto import mock_ec2
-from pytest_mock import MockerFixture
 
 from reconcile.aws_ami_cleanup.integration import (
     get_aws_amis,
     get_aws_amis_from_launch_templates,
 )
-from reconcile.utils.aws_api import AWSApi
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2 import EC2Client
@@ -48,19 +46,6 @@ def accounts() -> list[dict[str, Any]]:
             "resourcesDefaultRegion": "default-region",
         }
     ]
-
-
-@pytest.fixture
-def aws_api(accounts: list[dict[str, Any]], mocker: MockerFixture) -> AWSApi:
-    mock_secret_reader = mocker.patch(
-        "reconcile.utils.aws_api.SecretReader", autospec=True
-    )
-    mock_secret_reader.return_value.read_all.return_value = {
-        "aws_access_key_id": "key_id",
-        "aws_secret_access_key": "access_key",
-        "region": "tf_state_bucket_region",
-    }
-    return AWSApi(1, accounts, init_users=False)
 
 
 @pytest.fixture
@@ -153,13 +138,11 @@ def suse_launch_template(ec2_client: EC2Client) -> LaunchTemplateVersionTypeDef:
 
 def test_get_aws_amis_success(
     ec2_client: EC2Client,
-    aws_api: AWSApi,
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
     utc_now = datetime.utcnow() + timedelta(seconds=60)
     amis = get_aws_amis(
-        aws_api=aws_api,
         ec2_client=ec2_client,
         owner=MOTO_DEFAULT_ACCOUNT,
         regex="ci-int-jenkins-worker-rhel7.*",
@@ -173,13 +156,11 @@ def test_get_aws_amis_success(
 
 def test_get_aws_amis_unmatched_regex(
     ec2_client: EC2Client,
-    aws_api: AWSApi,
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
     utc_now = datetime.utcnow() + timedelta(seconds=60)
     amis = get_aws_amis(
-        aws_api=aws_api,
         ec2_client=ec2_client,
         owner=MOTO_DEFAULT_ACCOUNT,
         regex="ci-int-jenkins-worker-centos7.*",
@@ -192,13 +173,11 @@ def test_get_aws_amis_unmatched_regex(
 
 def test_get_aws_amis_different_account(
     ec2_client: EC2Client,
-    aws_api: AWSApi,
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
     utc_now = datetime.utcnow() + timedelta(seconds=60)
     amis = get_aws_amis(
-        aws_api=aws_api,
         ec2_client=ec2_client,
         owner="789123456789",
         regex="ci-int-jenkins-worker-rhel7.*",
@@ -211,13 +190,11 @@ def test_get_aws_amis_different_account(
 
 def test_get_aws_amis_too_young(
     ec2_client: EC2Client,
-    aws_api: AWSApi,
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
     utc_now = datetime.utcnow() + timedelta(seconds=60)
     amis = get_aws_amis(
-        aws_api=aws_api,
         ec2_client=ec2_client,
         owner=MOTO_DEFAULT_ACCOUNT,
         regex="ci-int-jenkins-worker-rhel7.*",

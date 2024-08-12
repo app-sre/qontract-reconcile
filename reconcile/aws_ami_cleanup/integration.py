@@ -78,7 +78,6 @@ def get_aws_amis_from_launch_templates(ec2_client: EC2Client) -> set[str]:
 
 
 def get_aws_amis(
-    aws_api: AWSApi,
     ec2_client: EC2Client,
     owner: str,
     regex: str,
@@ -87,40 +86,40 @@ def get_aws_amis(
 ) -> list[AWSAmi]:
     """Get amis that match regex older than given age"""
 
-    images = aws_api.paginate(
-        ec2_client, "describe_images", "Images", {"Owners": [owner]}
-    )
-
     pattern = re.compile(regex)
+    paginator = ec2_client.get_paginator("describe_images")
     results = []
-    for i in images:
-        if not re.search(pattern, i["Name"]):
-            continue
-
-        creation_date = datetime.strptime(i["CreationDate"], "%Y-%m-%dT%H:%M:%S.%fZ")
-        current_delta = utc_now - creation_date
-        delete_delta = timedelta(seconds=age_in_seconds)
-
-        if current_delta < delete_delta:
-            continue
-
-        snapshot_ids = []
-        for bdv in i["BlockDeviceMappings"]:
-            ebs = bdv.get("Ebs")
-            if not ebs:
+    for page in paginator.paginate(Owners=[owner]):
+        for image in page.get("Images", []):
+            if not re.search(pattern, image["Name"]):
                 continue
 
-            if sid := ebs.get("SnapshotId"):
-                snapshot_ids.append(sid)
-
-        results.append(
-            AWSAmi(
-                name=i["Name"],
-                image_id=i["ImageId"],
-                creation_date=creation_date,
-                snapshot_ids=snapshot_ids,
+            creation_date = datetime.strptime(
+                image["CreationDate"], "%Y-%m-%dT%H:%M:%S.%fZ"
             )
-        )
+            current_delta = utc_now - creation_date
+            delete_delta = timedelta(seconds=age_in_seconds)
+
+            if current_delta < delete_delta:
+                continue
+
+            snapshot_ids = []
+            for bdv in image["BlockDeviceMappings"]:
+                ebs = bdv.get("Ebs")
+                if not ebs:
+                    continue
+
+                if sid := ebs.get("SnapshotId"):
+                    snapshot_ids.append(sid)
+
+            results.append(
+                AWSAmi(
+                    name=image["Name"],
+                    image_id=image["ImageId"],
+                    creation_date=creation_date,
+                    snapshot_ids=snapshot_ids,
+                )
+            )
 
     return results
 
@@ -212,9 +211,6 @@ def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> 
             if not isinstance(cleanup_config, AWSAccountCleanupOptionAMIV1):
                 continue
 
-            if cleanup_config.provider != "ami":
-                continue
-
             region = get_region(
                 config_region=cleanup_config.region,
                 account_name=account.name,
@@ -227,7 +223,6 @@ def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> 
             ec2_client = aws_api.get_session_client(session, "ec2", region)
 
             aws_amis = get_aws_amis(
-                aws_api=aws_api,
                 ec2_client=ec2_client,
                 owner=account.uid,
                 regex=cleanup_config.regex,
