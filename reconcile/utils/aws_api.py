@@ -1677,7 +1677,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             "Contents"
         ]
         return [
-            f"s3://{bucket_name}/{obj['Key']}"
+            obj["Key"]
             for obj in sorted(
                 objects, key=lambda obj: obj["LastModified"], reverse=True
             )
