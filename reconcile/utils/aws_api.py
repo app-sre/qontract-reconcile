@@ -1665,6 +1665,21 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             s3.get_object(Bucket=bucket_name, Key=path)["Body"].read().decode("utf-8")
         )
 
+    def list_s3_objects(
+        self,
+        account_name: str,
+        bucket_name: str,
+        path: str,
+        region_name: str | None = None,
+    ) -> list[str]:
+        s3 = self._account_s3_client(account_name, region_name=region_name)
+        return [
+            f"s3://{bucket_name}/{o['Key']}"
+            for o in s3.list_objects_v2(Bucket=bucket_name, Prefix=path, Delimiter="/")[
+                "Contents"
+            ]
+        ]
+
 
 def aws_config_file_path() -> str | None:
     config_file_path = os.path.expanduser(

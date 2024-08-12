@@ -146,6 +146,26 @@ def lookup_s3_object(
         )
 
 
+def list_s3_objects(
+    account_name: str,
+    bucket_name: str,
+    path: str,
+    region_name: str | None = None,
+) -> list[str]:
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_aws_accounts(name=account_name)
+    if not accounts:
+        raise Exception(f"aws account not found: {account_name}")
+
+    with AWSApi(1, accounts, settings=settings, init_users=False) as aws_api:
+        return aws_api.list_s3_objects(
+            account_name,
+            bucket_name,
+            path,
+            region_name=region_name,
+        )
+
+
 @retry()
 def lookup_secret(
     path: str,
@@ -214,6 +234,7 @@ def process_jinja2_template(
         "query": lookup_graphql_query_results,
         "url": url_makes_sense,
         "s3": lookup_s3_object,
+        "s3_ls": list_s3_objects,
         "flatten_dict": flatten,
         "yesterday": lambda: (datetime.datetime.now() - datetime.timedelta(1)).strftime(
             "%Y-%m-%d"
