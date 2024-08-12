@@ -6,6 +6,7 @@ from reconcile.utils.jinja2.filters import (
     hash_list,
     json_pointers,
     matches_jsonpath,
+    str_format,
 )
 
 
@@ -121,3 +122,9 @@ def test_json_pointers() -> None:
     assert json_pointers(input, "items[?@.name=='a']") == ["/items/0"]
     assert json_pointers(input, "items[?@.name=='b']") == ["/items/1", "/items/2"]
     assert json_pointers(input, "items[?@.name=='c']") == []
+
+
+def test_str_format() -> None:
+    value = "path/to/object"
+    format = "s3://%s"
+    assert str_format(value, format) == "s3://path/to/object"

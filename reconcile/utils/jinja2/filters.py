@@ -136,3 +136,7 @@ def json_pointers(input: Any, jsonpath: str) -> list[str]:
     Finds the RFC6901 JSON pointers of the input elements matching the given jsonpath
     """
     return [_convert_pointer(str(i.full_path)) for i in _find_jsonpath(input, jsonpath)]
+
+
+def str_format(value: str, format: str) -> str:
+    return format % value
