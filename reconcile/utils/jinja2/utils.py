@@ -21,6 +21,7 @@ from reconcile.utils.jinja2.filters import (
     json_pointers,
     json_to_dict,
     matches_jsonpath,
+    str_format,
     urlescape,
     urlunescape,
     yaml_to_dict,
@@ -89,6 +90,7 @@ def compile_jinja2_template(
         "extract_jsonpath": extract_jsonpath,
         "matches_jsonpath": matches_jsonpath,
         "json_pointers": json_pointers,
+        "str_format": str_format,
     })
 
     return jinja_env.from_string(body)
