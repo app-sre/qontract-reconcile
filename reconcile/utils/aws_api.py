@@ -1673,11 +1673,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         region_name: str | None = None,
     ) -> list[str]:
         s3 = self._account_s3_client(account_name, region_name=region_name)
+        objects = s3.list_objects_v2(Bucket=bucket_name, Prefix=path, Delimiter="/")[
+            "Contents"
+        ]
         return [
-            f"s3://{bucket_name}/{o['Key']}"
-            for o in s3.list_objects_v2(Bucket=bucket_name, Prefix=path, Delimiter="/")[
-                "Contents"
-            ]
+            f"s3://{bucket_name}/{obj['Key']}"
+            for obj in sorted(
+                objects, key=lambda obj: obj["LastModified"], reverse=True
+            )
         ]
 
 
