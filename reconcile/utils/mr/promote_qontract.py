@@ -1,8 +1,6 @@
 from jsonpath_ng.ext import parser
 from ruamel.yaml.compat import StringIO
 
-from reconcile import typed_queries
-from reconcile.gql_definitions.fragments.user import User
 from reconcile.typed_queries.users import get_users
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
@@ -12,9 +10,10 @@ from reconcile.utils.ruamel import create_ruamel_instance
 class PromoteQontractSchemas(MergeRequestBase):
     name = "promote_qontract_schemas"
 
-    def __init__(self, version: str):
+    def __init__(self, version: str, author_email: str | None = None):
         self.path = ".env"
         self.version = version
+        self.author_email = author_email
 
         super().__init__()
 
@@ -22,7 +21,16 @@ class PromoteQontractSchemas(MergeRequestBase):
 
     @property
     def title(self) -> str:
-        return f"[{self.name}] promote qontract-schemas to version {self.version}"
+        author = self.infer_author(
+            author_email=self.author_email, all_users=get_users()
+        )
+        return f"[{self.name}] promote qontract-schemas to version {self.version}" + (
+            f" by @{author}"
+            if author
+            else f" by {self.author_email}"
+            if self.author_email
+            else ""
+        )
 
     @property
     def description(self) -> str:
@@ -60,27 +68,11 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
 
         self.labels = []
 
-    def author(self, all_users: list[User] | None = None) -> str | None:
-        if not self.author_email:
-            return None
-        if not all_users:
-            return None
-
-        username = self.author_email.split("@")[0]
-        users = None
-        if self.author_email.endswith(typed_queries.smtp.settings().mail_address):
-            users = [u for u in all_users if username == u.org_username]
-        elif self.author_email.endswith("users.noreply.github.com"):
-            users = [u for u in all_users if username == u.github_username]
-
-        if users:
-            return users[0].org_username
-
-        return None
-
     @property
     def title(self) -> str:
-        author = self.author(all_users=get_users())
+        author = self.infer_author(
+            author_email=self.author_email, all_users=get_users()
+        )
         return f"[{self.name}] promote qontract-reconcile to version {self.version}" + (
             f" by @{author}"
             if author
