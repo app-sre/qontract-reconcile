@@ -3557,6 +3557,17 @@ def change_owners(
     )
 
 
+@integration.command(short_help="Analyze bundle diffs by change types.")
+@click.pass_context
+def change_management(ctx):
+    import reconcile.change_owners.change_management
+
+    run_class_integration(
+        reconcile.change_owners.change_management.ChangeManagementIntegration(),
+        ctx.obj,
+    )
+
+
 @integration.command(
     short_help="Configure and enforce glitchtip instance configuration."
 )
