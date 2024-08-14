@@ -88,6 +88,7 @@ query SaasFiles {
     timeout
     skipSuccessfulDeployNotifications
     publishJobLogs
+    hasTestJobs
     clusterAdmin
     imagePatterns
     allowedSecretParameterPaths

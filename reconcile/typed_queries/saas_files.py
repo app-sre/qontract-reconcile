@@ -114,6 +114,7 @@ class SaasFile(ConfiguredBaseModel):
         ..., alias="skipSuccessfulDeployNotifications"
     )
     publish_job_logs: bool | None = Field(..., alias="publishJobLogs")
+    has_test_jobs: bool | None = Field(..., alias="hasTestJobs")
     cluster_admin: bool | None = Field(..., alias="clusterAdmin")
     image_patterns: list[str] = Field(..., alias="imagePatterns")
     allowed_secret_parameter_paths: list[str] | None = Field(

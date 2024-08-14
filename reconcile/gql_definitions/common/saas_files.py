@@ -213,6 +213,7 @@ query SaasFiles {
     timeout
     skipSuccessfulDeployNotifications
     publishJobLogs
+    hasTestJobs
     clusterAdmin
     imagePatterns
     allowedSecretParameterPaths
@@ -553,6 +554,7 @@ class SaasFileV2(ConfiguredBaseModel):
     timeout: Optional[str] = Field(..., alias="timeout")
     skip_successful_deploy_notifications: Optional[bool] = Field(..., alias="skipSuccessfulDeployNotifications")
     publish_job_logs: Optional[bool] = Field(..., alias="publishJobLogs")
+    has_test_jobs: Optional[bool] = Field(..., alias="hasTestJobs")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     image_patterns: list[str] = Field(..., alias="imagePatterns")
     allowed_secret_parameter_paths: Optional[list[str]] = Field(..., alias="allowedSecretParameterPaths")

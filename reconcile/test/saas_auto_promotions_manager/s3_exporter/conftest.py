@@ -20,7 +20,7 @@ def publisher_builder() -> Callable[[Mapping], Publisher]:
             cluster_name=data["cluster_name"],
             target_name=data.get("target_name"),
             resource_template_name=data["resource_template_name"],
-            publish_job_logs=True,
+            has_test_jobs=True,
             has_subscriber=True,
             auth_code=None,
         )

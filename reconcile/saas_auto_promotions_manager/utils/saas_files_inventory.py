@@ -65,7 +65,7 @@ class SaasFilesInventory:
                         cluster_name=target.namespace.cluster.name,
                         resource_template_name=resource_template.name,
                         target_name=target.name,
-                        publish_job_logs=saas_file.publish_job_logs,
+                        has_test_jobs=saas_file.has_test_jobs,
                         auth_code=auth_code,
                     )
 
@@ -122,9 +122,7 @@ class SaasFilesInventory:
                         blocked_versions=blocked_versions.get(
                             resource_template.url, set()
                         ),
-                        # Note: this will be refactored at a later point.
-                        # https://issues.redhat.com/browse/APPSRE-7516
-                        use_target_config_hash=bool(saas_file.publish_job_logs),
+                        use_target_config_hash=bool(saas_file.has_test_jobs),
                     )
                     self.subscribers.append(subscriber)
                     for prom_data in target.promotion.promotion_data or []:
