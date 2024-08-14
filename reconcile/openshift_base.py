@@ -331,6 +331,7 @@ def fetch_current_state(
     init_api_resources: bool = False,
     cluster_admin: bool = False,
     caller: str | None = None,
+    init_projects: bool = False,
 ) -> tuple[ResourceInventory, OC_Map]:
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
@@ -340,6 +341,7 @@ def fetch_current_state(
         integration=integration,
         settings=settings,
         internal=internal,
+        init_projects=init_projects,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
         init_api_resources=init_api_resources,
