@@ -11,3 +11,8 @@ class ElasticSearchResourceMissingSubnetIdError(Exception):
 class ElasticSearchResourceZoneAwareSubnetInvalidError(Exception):
     def __init__(self, msg):
         super().__init__(str(msg))
+
+
+class ElasticSearchResourceColdStorageError(Exception):
+    def __init__(self, msg):
+        super().__init__(str(msg))

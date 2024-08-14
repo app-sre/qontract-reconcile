@@ -161,6 +161,7 @@ from reconcile.utils.cloud_resource_best_practice.aws_rds import (
 )
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.elasticsearch_exceptions import (
+    ElasticSearchResourceColdStorageError,
     ElasticSearchResourceMissingSubnetIdError,
     ElasticSearchResourceNameInvalidError,
     ElasticSearchResourceZoneAwareSubnetInvalidError,
@@ -4631,6 +4632,24 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "warm_type", "ultrawarm1.medium.elasticsearch"
             )
             cluster_vaules["warm_count"] = cluster_config.get("warm_count", 2)
+
+        cold_storage_options = cluster_config.get("cold_storage_options", {})
+        if cold_storage_options.get("enabled", False):
+            if not dedicated_master_enabled:
+                raise ElasticSearchResourceColdStorageError(
+                    f"[{account}] Cold storage can only be enabled when "
+                    + "dedicated_master_enabled is set to true for resource"
+                    f" {values['identifier']}"
+                )
+            if not warm_enabled:
+                raise ElasticSearchResourceColdStorageError(
+                    f"[{account}] Cold storage can only be enabled when "
+                    + "warm_enabled is set to true for resource"
+                    f" {values['identifier']}"
+                )
+            cluster_vaules["cold_storage_options"] = {
+                "enabled": True,
+            }
 
         es_values["cluster_config"] = cluster_vaules
 
