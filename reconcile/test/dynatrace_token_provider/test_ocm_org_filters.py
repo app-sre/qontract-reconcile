@@ -23,35 +23,24 @@ def test_ocm_org_filters(
     default_integration: DynatraceTokenProviderIntegration,
 ) -> None:
     """
-    In this case we have 2 clusters. One cluster's ocm org does
-    not match the ocm org ids given to the integration.
-    The other cluster's ocm org does not match the ocm org id
-    filter on the token spec.
-    Both clusters have a diff to desired state (patch + create).
-    However, we expect both clusters to be filtered.
+    We have a cluster that is not part of its spec's ocm org ids.
+    There is a diff to desired state (patch + create).
+    However, we expect the cluster to be filtered.
     """
     cluster_a = Cluster(
         id="cluster_a",
-        external_id="external_id_a",
-        organization_id="ocm_org_id_a",
-        dt_tenant="dt_tenant_a",
-        token_spec_name="default",
-        is_hcp=False,
-    )
-    cluster_b = Cluster(
-        id="cluster_b",
         external_id="external_id_b",
         organization_id="does-not-exist",
         dt_tenant="dt_tenant_a",
         token_spec_name="default",
         is_hcp=False,
     )
-    given_clusters = [cluster_a, cluster_b]
+    given_clusters = [cluster_a]
     ocm_client = build_ocm_client(
         discover_clusters_by_labels=given_clusters,
         get_manifest={},
         get_syncset={
-            cluster_b.id: build_syncset(
+            cluster_a.id: build_syncset(
                 secrets=[
                     K8sSecret(
                         secret_name="dynatrace-tokens-dtp",

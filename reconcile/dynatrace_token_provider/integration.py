@@ -38,16 +38,12 @@ from reconcile.utils.ocm.base import (
 )
 from reconcile.utils.ocm.labels import subscription_label_filter
 from reconcile.utils.runtime.integration import (
-    PydanticRunParams,
+    NoParams,
     QontractReconcileIntegration,
 )
 
 QONTRACT_INTEGRATION = "dynatrace-token-provider"
 SYNCSET_AND_MANIFEST_ID = "ext-dynatrace-tokens-dtp"
-
-
-class DynatraceTokenProviderIntegrationParams(PydanticRunParams):
-    ocm_organization_ids: set[str] | None = None
 
 
 class ReconcileErrorSummary(Exception):
@@ -59,11 +55,9 @@ class ReconcileErrorSummary(Exception):
         return f"Reconcile exceptions:\n{formatted_exceptions}"
 
 
-class DynatraceTokenProviderIntegration(
-    QontractReconcileIntegration[DynatraceTokenProviderIntegrationParams]
-):
-    def __init__(self, params: DynatraceTokenProviderIntegrationParams) -> None:
-        super().__init__(params=params)
+class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
+    def __init__(self) -> None:
+        super().__init__(NoParams())
         self._lock = Lock()
         self._managed_tokens_cnt: dict[str, Counter[str]] = defaultdict(Counter)
 
@@ -106,6 +100,27 @@ class DynatraceTokenProviderIntegration(
                     cnt,
                 )
 
+    def _filter_clusters(
+        self,
+        clusters: Iterable[Cluster],
+        token_spec_by_name: Mapping[str, DynatraceTokenProviderTokenSpecV1],
+    ) -> list[Cluster]:
+        filtered_clusters = []
+        for cluster in clusters:
+            token_spec = token_spec_by_name.get(cluster.token_spec_name)
+            if not token_spec:
+                logging.debug(
+                    f"[{cluster.external_id=}] Skipping cluster. {cluster.token_spec_name=} does not exist."
+                )
+                continue
+            if cluster.organization_id in token_spec.ocm_org_ids:
+                filtered_clusters.append(cluster)
+            else:
+                logging.debug(
+                    f"[{cluster.external_id=}] Skipping cluster for {token_spec.name=}. {cluster.organization_id=} is not defined in {token_spec.ocm_org_ids=}."
+                )
+        return filtered_clusters
+
     def reconcile(self, dry_run: bool, dependencies: Dependencies) -> None:
         token_specs = list(dependencies.token_spec_by_name.values())
         validate_token_specs(specs=token_specs)
@@ -124,12 +139,10 @@ class DynatraceTokenProviderIntegration(
                     unhandled_exceptions.append(f"{ocm_env_name}: {e}")
                 if not clusters:
                     continue
-                if self.params.ocm_organization_ids:
-                    clusters = [
-                        cluster
-                        for cluster in clusters
-                        if cluster.organization_id in self.params.ocm_organization_ids
-                    ]
+                filtered_clusters = self._filter_clusters(
+                    clusters=clusters,
+                    token_spec_by_name=dependencies.token_spec_by_name,
+                )
 
                 existing_dtp_tokens: dict[str, dict[str, str]] = {}
 
@@ -140,7 +153,7 @@ class DynatraceTokenProviderIntegration(
                     ),
                     len(clusters),
                 )
-                for cluster in clusters:
+                for cluster in filtered_clusters:
                     try:
                         with DTPOrganizationErrorRate(
                             integration=self.name,
@@ -230,11 +243,6 @@ class DynatraceTokenProviderIntegration(
         token_spec: DynatraceTokenProviderTokenSpecV1,
         ocm_env_name: str,
     ) -> None:
-        if cluster.organization_id not in token_spec.ocm_org_ids:
-            logging.info(
-                f"[{token_spec.name=}] Cluster {cluster.external_id} is not part of ocm orgs defined in {token_spec.ocm_org_ids=}"
-            )
-            return
         existing_data = {}
         if cluster.is_hcp:
             existing_data = self.get_manifest(ocm_client=ocm_client, cluster=cluster)

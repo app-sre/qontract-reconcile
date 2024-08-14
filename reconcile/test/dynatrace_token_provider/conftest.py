@@ -5,7 +5,6 @@ import pytest
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
-    DynatraceTokenProviderIntegrationParams,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken
 from reconcile.dynatrace_token_provider.ocm import Cluster
@@ -59,9 +58,7 @@ def default_token_spec(
 
 @pytest.fixture
 def default_integration() -> DynatraceTokenProviderIntegration:
-    return DynatraceTokenProviderIntegration(
-        DynatraceTokenProviderIntegrationParams(ocm_organization_ids={"ocm_org_id_a"})
-    )
+    return DynatraceTokenProviderIntegration()
 
 
 @pytest.fixture
