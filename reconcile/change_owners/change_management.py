@@ -1,6 +1,13 @@
+import logging
+
 from reconcile.change_owners.bundle import (
+    NoOpFileDiffResolver,
     QontractServerDiff,
 )
+from reconcile.change_owners.change_owners import fetch_change_type_processors
+from reconcile.change_owners.change_types import ChangeTypeContext
+from reconcile.change_owners.changes import aggregate_file_moves, parse_bundle_changes
+from reconcile.utils import gql
 from reconcile.utils.runtime.integration import NoParams, QontractReconcileIntegration
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import init_state
@@ -17,14 +24,41 @@ class ChangeManagementIntegration(QontractReconcileIntegration[NoParams]):
         return self.qontract_integration
 
     def run(self, dry_run: bool) -> None:
+        change_type_processors = [
+            ctp
+            for ctp in fetch_change_type_processors(
+                gql.get_api(), NoOpFileDiffResolver()
+            )
+            if ctp.labels and "change_management" in ctp.labels
+        ]
         state = init_state(
             integration=self.name,
         )
         state.state_path = "bundle-archive/diff"
         for item in state.ls():
-            obj = state.get(item.lstrip("/"), None)
+            key = item.lstrip("/")
+            commit = key.rstrip(".json")
+            logging.info(f"Processing commit {commit}")
+            obj = state.get(key, None)
             if not obj:
+                logging.error(f"Error processing commit {commit}")
                 continue
             diff = QontractServerDiff(**obj)
-            # do something with this diff
-            print(diff)
+            changes = aggregate_file_moves(parse_bundle_changes(diff))
+            all_changes_covered = True
+            for change in changes:
+                logging.debug(f"Processing change {change}")
+                for ctp in change_type_processors:
+                    logging.info(f"Processing change type {ctp.name}")
+                    ctx = ChangeTypeContext(
+                        change_type_processor=ctp,
+                        context="",
+                        origin="",
+                        context_file=change.fileref,
+                        approvers=[],
+                    )
+                    change.cover_changes(ctx)
+                if not change.all_changes_covered():
+                    all_changes_covered = False
+            if all_changes_covered:
+                logging.info(f"All changes covered for commit {commit}")
