@@ -35,17 +35,18 @@ class ChangeManagementIntegration(QontractReconcileIntegration[NoParams]):
             integration=self.name,
         )
         state.state_path = "bundle-archive/diff"
+        change_log: dict[str, list[dict]] = {}
         for item in state.ls():
             key = item.lstrip("/")
             commit = key.rstrip(".json")
             logging.info(f"Processing commit {commit}")
+            change_log.setdefault(commit, [])
             obj = state.get(key, None)
             if not obj:
                 logging.error(f"Error processing commit {commit}")
                 continue
             diff = QontractServerDiff(**obj)
             changes = aggregate_file_moves(parse_bundle_changes(diff))
-            all_changes_covered = True
             for change in changes:
                 logging.debug(f"Processing change {change}")
                 for ctp in change_type_processors:
@@ -57,8 +58,10 @@ class ChangeManagementIntegration(QontractReconcileIntegration[NoParams]):
                         context_file=change.fileref,
                         approvers=[],
                     )
-                    change.cover_changes(ctx)
-                if not change.all_changes_covered():
-                    all_changes_covered = False
-            if all_changes_covered:
-                logging.info(f"All changes covered for commit {commit}")
+                    covered_diffs = change.cover_changes(ctx)
+                    if covered_diffs:
+                        change_log[commit].append({
+                            "change_type": ctp.name,
+                        })
+
+        print(change_log)
