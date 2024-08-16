@@ -1,6 +1,5 @@
 import logging
 import re
-import sys
 from collections import defaultdict
 from collections.abc import (
     Callable,
@@ -25,7 +24,6 @@ from reconcile.gql_definitions.aws_ami_cleanup.aws_accounts import (
 from reconcile.gql_definitions.aws_ami_cleanup.aws_accounts import (
     query as aws_accounts_query,
 )
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -273,5 +271,3 @@ def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> 
                             logging.info(e)
                         else:
                             raise
-
-    sys.exit(ExitCodes.SUCCESS)
