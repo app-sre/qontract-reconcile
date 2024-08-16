@@ -36,7 +36,7 @@ def test_use_target_config_hash(
         {
             "path": "/saas2.yml",
             "name": "saas_2",
-            "publishJobLogs": True,
+            "hasTestJobs": True,
             "resourceTemplates": [
                 {
                     "name": "template_2",
