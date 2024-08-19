@@ -22286,7 +22286,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "reDeployOnPublisherConfigChange",
+                            "name": "redeployOnPublisherConfigChange",
                             "description": null,
                             "args": [],
                             "type": {

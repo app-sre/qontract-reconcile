@@ -66,7 +66,7 @@ class SaasFilesInventory:
                         resource_template_name=resource_template.name,
                         target_name=target.name,
                         auth_code=auth_code,
-                        re_deploy_on_config_change=target.promotion.re_deploy_on_publisher_config_change,
+                        redeploy_on_config_change=target.promotion.redeploy_on_publisher_config_change,
                     )
 
                     has_subscriber = False
@@ -123,7 +123,7 @@ class SaasFilesInventory:
                             resource_template.url, set()
                         ),
                         use_target_config_hash=bool(
-                            target.promotion.re_deploy_on_publisher_config_change
+                            target.promotion.redeploy_on_publisher_config_change
                         ),
                     )
                     self.subscribers.append(subscriber)

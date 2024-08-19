@@ -46,7 +46,7 @@ def test_use_target_config_hash(
                             "namespace": {"path": "/namespace2.yml"},
                             "promotion": {
                                 "subscribe": ["channel-a"],
-                                "reDeployOnPublisherConfigChange": True,
+                                "redeployOnPublisherConfigChange": True,
                                 "auto": True,
                             },
                         }
