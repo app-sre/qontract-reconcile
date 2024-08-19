@@ -14,10 +14,10 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 class AWSResourceFactory(ABC):
     def __init__(
-        self, er_inventory: ExternalResourcesInventory, secrets_reader: SecretReaderBase
+        self, er_inventory: ExternalResourcesInventory, secret_reader: SecretReaderBase
     ):
         self.er_inventory = er_inventory
-        self.secrets_reader = secrets_reader
+        self.secret_reader = secret_reader
 
     @abstractmethod
     def resolve(self, spec: ExternalResourceSpec) -> dict[str, Any]: ...

@@ -84,13 +84,13 @@ class TerraformModuleProvisionDataFactory(ModuleProvisionDataFactory):
 
 
 def setup_aws_resource_factories(
-    er_inventory: ExternalResourcesInventory, secrets_reader: SecretReaderBase
+    er_inventory: ExternalResourcesInventory, secret_reader: SecretReaderBase
 ) -> ObjectFactory[AWSResourceFactory]:
     f = ObjectFactory[AWSResourceFactory]()
-    f.register_factory("rds", AWSRdsFactory(er_inventory, secrets_reader))
-    f.register_factory("msk", AWSMskFactory(er_inventory, secrets_reader))
+    f.register_factory("rds", AWSRdsFactory(er_inventory, secret_reader))
+    f.register_factory("msk", AWSMskFactory(er_inventory, secret_reader))
     f.register_factory(
-        "default", AWSDefaultResourceFactory(er_inventory, secrets_reader)
+        "default", AWSDefaultResourceFactory(er_inventory, secret_reader)
     )
     return f
 
