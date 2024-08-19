@@ -29,11 +29,12 @@ class ChangeManagementIntegration(QontractReconcileIntegration[NoParams]):
             for ctp in fetch_change_type_processors(
                 gql.get_api(), NoOpFileDiffResolver()
             )
-            if ctp.labels and "change_management" in ctp.labels
+            if ctp.labels and "change_management_tracking" in ctp.labels
         ]
         state = init_state(
             integration=self.name,
         )
+        int_state_path = state.state_path
         state.state_path = "bundle-archive/diff"
         change_log: dict[str, list[dict]] = {}
         for item in state.ls():
@@ -64,4 +65,5 @@ class ChangeManagementIntegration(QontractReconcileIntegration[NoParams]):
                             "change_type": ctp.name,
                         })
 
-        print(change_log)
+        state.state_path = int_state_path
+        state.add("bundle-diffs.json", change_log, force=True)
