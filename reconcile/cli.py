@@ -3559,7 +3559,7 @@ def change_owners(
 
 @integration.command(short_help="Analyze bundle diffs by change types.")
 @click.pass_context
-def change_management(ctx):
+def change_management_tracking(ctx):
     import reconcile.change_owners.change_management_tracking
 
     run_class_integration(
