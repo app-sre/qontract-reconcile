@@ -63,6 +63,13 @@ urllib3.disable_warnings()
 GET_REPLICASET_MAX_ATTEMPTS = 20
 
 
+
+run_json_execution_counter = Counter(
+    name="run_json_execution_counter",
+    documentation="Counts run_json method executions for each integration",
+    labelnames=["integration"],
+)
+
 class StatusCodeError(Exception):
     pass
 
@@ -1129,6 +1136,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         return result.stdout.strip()
 
     def _run_json(self, cmd, allow_not_found=False):
+        run_json_execution_counter.labels(integration=RunningState().integration).inc()
         out = self._run(cmd, allow_not_found=allow_not_found)
 
         try:
