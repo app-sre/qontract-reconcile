@@ -357,7 +357,7 @@ class ExternalResourcesManager:
         desired_r = self._get_desired_objects_reconciliations()
         deleted_r = self._get_deleted_objects_reconciliations()
         reconciliations = desired_r.union(deleted_r)
-        triggered = set[Reconciliation]()
+        triggered: set[Reconciliation] = set()
 
         for r in reconciliations:
             state = self.state_mgr.get_external_resource_state(key=r.key)
