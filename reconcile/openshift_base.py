@@ -59,8 +59,7 @@ ACTION_DELETED = "deleted"
 get_items_execution_seconds = Histogram(
     name="get_items_execution_seconds",
     documentation="The number of seconds it takes for get_items() function to execute. This is useful to check the execution time difference with and without init projects.",
-    labelnames=["integration", "is_init_projects"],
-    # buckets=(5.0, 10.0, 20.0, 40.0, 60.0, float("inf")),
+    labelnames=["integration", "is_init_projects"]
 )
 
 
