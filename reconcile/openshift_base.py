@@ -308,7 +308,6 @@ def populate_current_state(
         logging.warning(msg)
         return
     try:
-        # add observe() to this part
         start_time = time.time()
         for item in spec.oc.get_items(
             spec.kind, namespace=spec.namespace, resource_names=spec.resource_names
