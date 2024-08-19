@@ -409,6 +409,14 @@ query ExternalResourcesNamespaces {
                     ...VaultSecret
                   }
                 }
+                managed_by_erv2
+                delete
+                module_overrides {
+                  module_type
+                  image
+                  version
+                  reconcile_timeout_minutes
+                }
             }
         }
       }
