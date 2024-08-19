@@ -1,5 +1,6 @@
 import itertools
 import logging
+import time
 from collections import Counter
 from collections.abc import (
     Iterable,
@@ -17,6 +18,7 @@ from typing import (
 )
 
 import yaml
+from prometheus_client import Histogram
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -52,6 +54,14 @@ from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 
 ACTION_APPLIED = "applied"
 ACTION_DELETED = "deleted"
+
+
+get_items_execution_seconds = Histogram(
+    name="get_items_execution_seconds",
+    documentation="The number of seconds it takes for get_items() function to execute. This is useful to check the execution time difference with and without init projects.",
+    labelnames=["integration", "is_init_projects"],
+    # buckets=(5.0, 10.0, 20.0, 40.0, 60.0, float("inf")),
+)
 
 
 class ValidationError(Exception):
@@ -299,6 +309,8 @@ def populate_current_state(
         logging.warning(msg)
         return
     try:
+        # add observe() to this part
+        start_time = time.time()
         for item in spec.oc.get_items(
             spec.kind, namespace=spec.namespace, resource_names=spec.resource_names
         ):
@@ -314,6 +326,9 @@ def populate_current_state(
                 openshift_resource.name,
                 openshift_resource,
             )
+        get_items_execution_seconds.labels(
+            integration=integration, is_init_projects=spec.oc.init_projects
+        ).observe(time.time() - start_time)
     except StatusCodeError as e:
         ri.register_error(cluster=spec.cluster)
         logging.error(f"[{spec.cluster}/{spec.namespace}] {e!s}")
