@@ -56,12 +56,6 @@ ACTION_APPLIED = "applied"
 ACTION_DELETED = "deleted"
 
 
-get_items_execution_seconds = Histogram(
-    name="get_items_execution_seconds",
-    documentation="The number of seconds it takes for get_items() function to execute. This is useful to check the execution time difference with and without init projects.",
-    labelnames=["integration", "is_init_projects"]
-)
-
 
 class ValidationError(Exception):
     pass
@@ -324,9 +318,6 @@ def populate_current_state(
                 openshift_resource.name,
                 openshift_resource,
             )
-        get_items_execution_seconds.labels(
-            integration=integration, is_init_projects=spec.oc.init_projects
-        ).observe(time.time() - start_time)
     except StatusCodeError as e:
         ri.register_error(cluster=spec.cluster)
         logging.error(f"[{spec.cluster}/{spec.namespace}] {e!s}")
