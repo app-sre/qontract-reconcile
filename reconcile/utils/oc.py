@@ -63,12 +63,12 @@ urllib3.disable_warnings()
 GET_REPLICASET_MAX_ATTEMPTS = 20
 
 
-
 run_json_execution_counter = Counter(
     name="run_json_execution_counter",
     documentation="Counts run_json method executions for each integration",
     labelnames=["integration"],
 )
+
 
 class StatusCodeError(Exception):
     pass

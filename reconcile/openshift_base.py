@@ -1,6 +1,5 @@
 import itertools
 import logging
-import time
 from collections import Counter
 from collections.abc import (
     Iterable,
@@ -18,7 +17,6 @@ from typing import (
 )
 
 import yaml
-from prometheus_client import Histogram
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -54,7 +52,6 @@ from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 
 ACTION_APPLIED = "applied"
 ACTION_DELETED = "deleted"
-
 
 
 class ValidationError(Exception):
@@ -302,7 +299,6 @@ def populate_current_state(
         logging.warning(msg)
         return
     try:
-        start_time = time.time()
         for item in spec.oc.get_items(
             spec.kind, namespace=spec.namespace, resource_names=spec.resource_names
         ):
