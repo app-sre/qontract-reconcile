@@ -1088,7 +1088,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
     def _run(self, cmd, **kwargs) -> bytes:
         oc_run_execution_counter.labels(
             integration=RunningState().integration,
-            command=cmd,
+            command=" ".join(cmd),
             invoker=type(self).__name__,
         ).inc()
         stdin = kwargs.get("stdin")
