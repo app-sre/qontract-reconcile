@@ -107,7 +107,11 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
     ) -> list[Cluster]:
         filtered_clusters = []
         for cluster in clusters:
-            token_spec = token_spec_by_name.get(cluster.token_spec_name)
+            token_spec = (
+                token_spec_by_name.get(cluster.token_spec_name)
+                if cluster.token_spec_name
+                else None
+            )
             if not token_spec:
                 logging.debug(
                     f"[{cluster.external_id=}] Skipping cluster. {cluster.token_spec_name=} does not exist."
@@ -188,8 +192,12 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                                 tenant_id
                             ]
 
-                            token_spec = dependencies.token_spec_by_name.get(
-                                cluster.token_spec_name
+                            token_spec = (
+                                dependencies.token_spec_by_name.get(
+                                    cluster.token_spec_name
+                                )
+                                if cluster.token_spec_name
+                                else None
                             )
                             if not token_spec:
                                 _expose_errors_as_service_log(
