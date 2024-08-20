@@ -63,10 +63,10 @@ urllib3.disable_warnings()
 GET_REPLICASET_MAX_ATTEMPTS = 20
 
 
-run_json_execution_counter = Counter(
-    name="run_json_execution_counter",
-    documentation="Counts run_json method executions for each integration",
-    labelnames=["integration"],
+oc_run_execution_counter = Counter(
+    name="oc_run_execution_counter",
+    documentation="Counts _run method executions for each command per integration",
+    labelnames=["integration", "command", "invoker"],
 )
 
 
@@ -1086,6 +1086,11 @@ class OCCli:  # pylint: disable=too-many-public-methods
 
     @retry(exceptions=(StatusCodeError, NoOutputError), max_attempts=10)
     def _run(self, cmd, **kwargs) -> bytes:
+        oc_run_execution_counter.labels(
+            integration=RunningState().integration,
+            command=cmd,
+            invoker=type(self).__name__,
+        ).inc()
         stdin = kwargs.get("stdin")
         stdin_text = stdin.encode() if stdin else None
         result = subprocess.run(
@@ -1136,7 +1141,6 @@ class OCCli:  # pylint: disable=too-many-public-methods
         return result.stdout.strip()
 
     def _run_json(self, cmd, allow_not_found=False):
-        run_json_execution_counter.labels(integration=RunningState().integration).inc()
         out = self._run(cmd, allow_not_found=allow_not_found)
 
         try:
