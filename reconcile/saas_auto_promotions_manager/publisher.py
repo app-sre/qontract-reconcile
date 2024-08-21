@@ -39,7 +39,7 @@ class Publisher:
         target_name: str | None,
         cluster_name: str,
         auth_code: HasSecret | None,
-        redeploy_on_config_change: bool | None,
+        publish_job_logs: bool | None,
         has_subscriber: bool = True,
     ):
         self._ref = ref
@@ -56,7 +56,7 @@ class Publisher:
         self.resource_template_name = resource_template_name
         self.target_name = target_name if target_name else "None"
         self.cluster_name = cluster_name
-        self.redeploy_on_config_change = bool(redeploy_on_config_change)
+        self.publish_job_logs = bool(publish_job_logs)
         self.has_subscriber = has_subscriber
 
     def fetch_commit_shas_and_deployment_info(

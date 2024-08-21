@@ -140,7 +140,6 @@ query SaasFiles {
           auto
           publish
           subscribe
-          redeployOnPublisherConfigChange
           soakDays
           schedule
           promotion_data {

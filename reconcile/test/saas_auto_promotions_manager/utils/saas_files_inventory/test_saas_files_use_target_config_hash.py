@@ -36,6 +36,7 @@ def test_use_target_config_hash(
         {
             "path": "/saas2.yml",
             "name": "saas_2",
+            "publishJobLogs": True,
             "resourceTemplates": [
                 {
                     "name": "template_2",
@@ -46,7 +47,6 @@ def test_use_target_config_hash(
                             "namespace": {"path": "/namespace2.yml"},
                             "promotion": {
                                 "subscribe": ["channel-a"],
-                                "redeployOnPublisherConfigChange": True,
                                 "auto": True,
                             },
                         }

@@ -65,8 +65,8 @@ class SaasFilesInventory:
                         cluster_name=target.namespace.cluster.name,
                         resource_template_name=resource_template.name,
                         target_name=target.name,
+                        publish_job_logs=saas_file.publish_job_logs,
                         auth_code=auth_code,
-                        redeploy_on_config_change=target.promotion.redeploy_on_publisher_config_change,
                     )
 
                     has_subscriber = False
@@ -122,9 +122,9 @@ class SaasFilesInventory:
                         blocked_versions=blocked_versions.get(
                             resource_template.url, set()
                         ),
-                        use_target_config_hash=bool(
-                            target.promotion.redeploy_on_publisher_config_change
-                        ),
+                        # Note: this will be refactored at a later point.
+                        # https://issues.redhat.com/browse/APPSRE-7516
+                        use_target_config_hash=bool(saas_file.publish_job_logs),
                     )
                     self.subscribers.append(subscriber)
                     for prom_data in target.promotion.promotion_data or []:
