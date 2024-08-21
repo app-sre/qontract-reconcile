@@ -62,8 +62,7 @@ class S3Exporter:
         data: dict[str, dict] = {}
         for publisher in publishers:
             publisher_data = PublisherData.from_publisher(publisher)
-            # Note, redeploy_on_config_change indicates that this publisher is a test job
-            key = f"{publisher.app_name}/{publisher.saas_name}/{publisher.resource_template_name}/{publisher.target_name}/{publisher.cluster_name}/{publisher.namespace_name}/{publisher.redeploy_on_config_change}"
+            key = f"{publisher.app_name}/{publisher.saas_name}/{publisher.resource_template_name}/{publisher.target_name}/{publisher.cluster_name}/{publisher.namespace_name}/{publisher.publish_job_logs}"
             data[key] = {
                 "commit_sha": publisher_data.commit_sha,
                 "deployment_state": publisher_data.deployment_state.value,
