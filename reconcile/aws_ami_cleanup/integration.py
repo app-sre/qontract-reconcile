@@ -1,9 +1,8 @@
 import logging
 import re
-import sys
+from collections import defaultdict
 from collections.abc import (
     Callable,
-    Mapping,
 )
 from datetime import (
     datetime,
@@ -11,27 +10,20 @@ from datetime import (
 )
 from typing import (
     TYPE_CHECKING,
-    Any,
 )
 
 from botocore.exceptions import ClientError
 from pydantic import (
     BaseModel,
-    Field,
 )
 
-from reconcile import queries
-from reconcile.gql_definitions.aws_ami_cleanup.asg_namespaces import (
-    ASGImageGitV1,
-    ASGImageStaticV1,
-    NamespaceTerraformProviderResourceAWSV1,
-    NamespaceTerraformResourceASGV1,
-    NamespaceV1,
+from reconcile.gql_definitions.aws_ami_cleanup.aws_accounts import (
+    AWSAccountCleanupOptionAMIV1,
+    AWSAccountSharingOptionAMIV1,
 )
-from reconcile.gql_definitions.aws_ami_cleanup.asg_namespaces import (
-    query as query_asg_namespaces,
+from reconcile.gql_definitions.aws_ami_cleanup.aws_accounts import (
+    query as aws_accounts_query,
 )
-from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -40,7 +32,6 @@ from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.defer import defer
 from reconcile.utils.parse_dhms_duration import dhms_to_seconds
 from reconcile.utils.secret_reader import create_secret_reader
-from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2 import EC2Client
@@ -51,23 +42,9 @@ QONTRACT_INTEGRATION = "aws_ami_cleanup"
 MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
 
 
-class CannotCompareTagsError(Exception):
-    pass
-
-
-class AmiTag(BaseModel):
-    key: str = Field(alias="Key")
-    value: str = Field(alias="Value")
-
-    class Config:
-        allow_population_by_field_name = True
-        frozen = True
-
-
 class AWSAmi(BaseModel):
     name: str
     image_id: str
-    tags: set[AmiTag]
     creation_date: datetime
     snapshot_ids: list[str]
 
@@ -75,237 +52,214 @@ class AWSAmi(BaseModel):
         frozen = True
 
 
-class AIAmi(BaseModel):
-    identifier: str
-    tags: set[AmiTag]
+def get_aws_amis_from_launch_templates(ec2_client: EC2Client) -> set[str]:
+    amis = set()
 
-    class Config:
-        frozen = True
+    paginator = ec2_client.get_paginator("describe_launch_templates")
+    for page in paginator.paginate():
+        for launch_template in page.get("LaunchTemplates", []):
+            if launch_template_id := launch_template.get("LaunchTemplateId"):
+                launch_template_versions = ec2_client.describe_launch_template_versions(
+                    LaunchTemplateId=launch_template_id,
+                    Versions=[str(launch_template.get("LatestVersionNumber"))],
+                ).get("LaunchTemplateVersions", [])
+
+                if launch_template_versions:
+                    if (
+                        ami_id := launch_template_versions[0]
+                        .get("LaunchTemplateData", {})
+                        .get("ImageId")
+                    ):
+                        amis.add(ami_id)
+
+    return amis
 
 
 def get_aws_amis(
-    aws_api: AWSApi,
     ec2_client: EC2Client,
     owner: str,
     regex: str,
     age_in_seconds: int,
     utc_now: datetime,
-    region: str,
 ) -> list[AWSAmi]:
     """Get amis that match regex older than given age"""
 
-    images = aws_api.paginate(
-        ec2_client, "describe_images", "Images", {"Owners": [owner]}
-    )
-
     pattern = re.compile(regex)
+    paginator = ec2_client.get_paginator("describe_images")
     results = []
-    for i in images:
-        if not re.search(pattern, i["Name"]):
-            continue
-
-        creation_date = datetime.strptime(i["CreationDate"], "%Y-%m-%dT%H:%M:%S.%fZ")
-        current_delta = utc_now - creation_date
-        delete_delta = timedelta(seconds=age_in_seconds)
-
-        if current_delta < delete_delta:
-            continue
-
-        # We have nothing to do with untagged AMIs since we will need tags to verify if AMI are
-        # in use or not.
-        if not i.get("Tags"):
-            continue
-
-        snapshot_ids = []
-        for bdv in i["BlockDeviceMappings"]:
-            ebs = bdv.get("Ebs")
-            if not ebs:
+    for page in paginator.paginate(Owners=[owner]):
+        for image in page.get("Images", []):
+            if not re.search(pattern, image["Name"]):
                 continue
 
-            if sid := ebs.get("SnapshotId"):
-                snapshot_ids.append(sid)
-
-        tags = {AmiTag(**tag) for tag in i.get("Tags")}
-        results.append(
-            AWSAmi(
-                name=i["Name"],
-                image_id=i["ImageId"],
-                tags=tags,
-                creation_date=creation_date,
-                snapshot_ids=snapshot_ids,
+            creation_date = datetime.strptime(
+                image["CreationDate"], "%Y-%m-%dT%H:%M:%S.%fZ"
             )
-        )
+            current_delta = utc_now - creation_date
+            delete_delta = timedelta(seconds=age_in_seconds)
+
+            if current_delta < delete_delta:
+                continue
+
+            snapshot_ids = []
+            for bdv in image["BlockDeviceMappings"]:
+                ebs = bdv.get("Ebs")
+                if not ebs:
+                    continue
+
+                if sid := ebs.get("SnapshotId"):
+                    snapshot_ids.append(sid)
+
+            results.append(
+                AWSAmi(
+                    name=image["Name"],
+                    image_id=image["ImageId"],
+                    creation_date=creation_date,
+                    snapshot_ids=snapshot_ids,
+                )
+            )
 
     return results
 
 
 def get_region(
-    cleanup: Mapping[str, Any],
-    account: Mapping[str, Any],
+    config_region: str | None,
+    account_name: str,
+    resources_default_region: str,
+    supported_deployment_regions: list[str] | None,
 ) -> str:
     """Defines the region to search for AMIs."""
-    region = cleanup.get("region") or account["resourcesDefaultRegion"]
-    if region not in account["supportedDeploymentRegions"]:
-        raise ValueError(f"region {region} is not supported in {account['name']}")
+    region = config_region or resources_default_region
+    if region not in (supported_deployment_regions or []):
+        raise ValueError(f"region {region} is not supported in {account_name}")
 
     return region
 
 
-def get_app_interface_amis(
-    namespaces: list[NamespaceV1] | None, ts: Terrascript
-) -> list[AIAmi]:
-    """Returns all the ami referenced in ASGs in app-interface."""
-    app_interface_amis = []
-    for n in namespaces or []:
-        for er in n.external_resources or []:
-            if not isinstance(er, NamespaceTerraformProviderResourceAWSV1):
-                continue
-
-            for r in er.resources:
-                if not isinstance(r, NamespaceTerraformResourceASGV1):
-                    continue
-
-                tags = set()
-                for i in r.image:
-                    if isinstance(i, ASGImageGitV1):
-                        tags.add(
-                            AmiTag(
-                                key=i.tag_name,
-                                value=ts.get_commit_sha(i.dict(by_alias=True)),
-                            )
-                        )
-                    elif isinstance(i, ASGImageStaticV1):
-                        tags.add(AmiTag(key=i.tag_name, value=i.value))
-
-                app_interface_amis.append(AIAmi(identifier=r.identifier, tags=tags))
-
-    return app_interface_amis
-
-
-def check_aws_ami_in_use(
-    aws_ami: AWSAmi, app_interface_amis: list[AIAmi]
-) -> str | None:
-    """Verifies if the given AWS ami is in use in a defined app-interface ASG."""
-    for ai_ami in app_interface_amis:
-        # This can happen if the ASG init template has changed over the time. We don't have a way
-        # to properly delete these automatically since we cannot assure they are not in use.
-        # The integration will fail in this case and these amis will need to be handled manually.
-        if len(ai_ami.tags) > len(aws_ami.tags):
-            raise CannotCompareTagsError(
-                f"{ai_ami.identifier} AI AMI has more tags than {aws_ami.image_id} AWS AMI"
-            )
-
-        if ai_ami.tags.issubset(aws_ami.tags):
-            return ai_ami.identifier
-
-    return None
-
-
 @defer
 def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> None:
-    exit_code = ExitCodes.SUCCESS
+    utc_now = datetime.utcnow()
+    gqlapi = gql.get_api()
+    aws_accounts = aws_accounts_query(gqlapi.query).accounts
 
-    # We still use here a non-typed query; accounts is passed to AWSApi and Terrascript classes
-    # which contain a vast amount of magic based on keys from that dict. Since this integration
-    # cannot still be properly monitored (see https://issues.redhat.com/browse/APPSRE-7674),
-    # it's easy that it breaks without being noticed. Once it is properly monitored, this should
-    # be moved to a typed query.
-    query_data = queries.get_aws_accounts(terraform_state=True, cleanup=True)
+    # Get accounts that have cleanup configured
     cleanup_accounts = []
-    for data in query_data:
-        cleanups = data.get("cleanup")
-        if not cleanups:
+    for account in aws_accounts or []:
+        if not account.cleanup:
             continue
         is_ami_related = False
-        for cleanup in cleanups:
-            is_ami_related |= cleanup.get("provider") == "ami"
+        for cleanup in account.cleanup:
+            is_ami_related |= cleanup.provider == "ami"
         if not is_ami_related:
             continue
-        cleanup_accounts.append(data)
+        cleanup_accounts.append(account)
 
-    vault_settings = get_app_interface_vault_settings()
+    # Build a dict with all accounts that are used to share amis with. Together with
+    # the cleanup account we will look into the account's launch templates in order to
+    # find the AMIs that are currently being used. We will make sure that those are not
+    # deleted even if they have expired.
+    ami_accounts = defaultdict(set)
+    for account in cleanup_accounts:
+        ami_accounts[account.name].add(account.resources_default_region)
 
-    ts = Terrascript(
-        QONTRACT_INTEGRATION,
-        "",
-        thread_pool_size,
-        cleanup_accounts,
-        settings=vault_settings.dict(by_alias=True),
+        for sharing_config in account.sharing or []:
+            if not isinstance(sharing_config, AWSAccountSharingOptionAMIV1):
+                continue
+
+            region = get_region(
+                config_region=sharing_config.region,
+                account_name=sharing_config.account.name,
+                resources_default_region=sharing_config.account.resources_default_region,
+                supported_deployment_regions=sharing_config.account.supported_deployment_regions,
+            )
+
+            ami_accounts[sharing_config.account.name].add(
+                sharing_config.account.resources_default_region
+            )
+
+    # Build AWSApi object. We will use all those accounts listed in ami_accounts since
+    # we will also need to look for used AMIs.
+    accounts_dicted = [
+        account.dict(by_alias=True)
+        for account in aws_accounts or []
+        if account.name in ami_accounts
+    ]
+    secret_reader = create_secret_reader(
+        use_vault=get_app_interface_vault_settings().vault
     )
-
-    gqlapi = gql.get_api()
-    namespaces = query_asg_namespaces(query_func=gqlapi.query).namespaces or []
-    app_interface_amis = get_app_interface_amis(namespaces, ts)
-
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    aws_api = AWSApi(1, cleanup_accounts, secret_reader=secret_reader, init_users=False)
+    aws_api = AWSApi(1, accounts_dicted, secret_reader=secret_reader, init_users=False)
     if defer:  # defer is provided by the method decorator; this makes just mypy happy.
         defer(aws_api.cleanup)
 
-    utc_now = datetime.utcnow()
+    # Get all AMIs used
+    amis_used_in_launch_templates = set()
+    for account_name, regions in ami_accounts.items():
+        for region in regions:
+            session = aws_api.get_session(account_name)
+            ec2_client = aws_api.get_session_client(session, "ec2", region)
+            launch_template_amis = get_aws_amis_from_launch_templates(
+                ec2_client=ec2_client
+            )
+            if launch_template_amis:
+                amis_used_in_launch_templates.update(launch_template_amis)
+
+    # The action
     for account in cleanup_accounts:
-        for cleanup in account["cleanup"]:
-            if cleanup["provider"] != "ami":
+        for cleanup_config in account.cleanup or []:
+            if not isinstance(cleanup_config, AWSAccountCleanupOptionAMIV1):
                 continue
 
-            region = get_region(cleanup, account)
-            regex = cleanup["regex"]
-            age_in_seconds = dhms_to_seconds(cleanup["age"])
+            region = get_region(
+                config_region=cleanup_config.region,
+                account_name=account.name,
+                resources_default_region=account.resources_default_region,
+                supported_deployment_regions=account.supported_deployment_regions,
+            )
+            age_in_seconds = dhms_to_seconds(cleanup_config.age)
 
-            session = aws_api.get_session(account["name"])
+            session = aws_api.get_session(account.name)
             ec2_client = aws_api.get_session_client(session, "ec2", region)
 
-            amis = get_aws_amis(
-                aws_api=aws_api,
+            aws_amis = get_aws_amis(
                 ec2_client=ec2_client,
-                owner=account["uid"],
-                regex=regex,
+                owner=account.uid,
+                regex=cleanup_config.regex,
                 age_in_seconds=age_in_seconds,
                 utc_now=utc_now,
-                region=region,
             )
 
-            for aws_ami in amis:
-                try:
-                    if identifier := check_aws_ami_in_use(aws_ami, app_interface_amis):
-                        logging.info(
-                            "Discarding ami %s with id %s as it is used in app-interface in %s",
-                            aws_ami.name,
-                            aws_ami.image_id,
-                            identifier,
-                        )
-                        continue
-                except CannotCompareTagsError as e:
-                    logging.error(e)
-                    if not dry_run:
-                        exit_code = ExitCodes.ERROR
+            for ami in aws_amis:
+                if ami.image_id in amis_used_in_launch_templates:
+                    logging.info(
+                        "Discarding AMI %s with id %s as it is still in use.",
+                        ami.name,
+                        ami.image_id,
+                    )
                     continue
 
                 logging.info(
                     "Deregistering image %s with id %s created in %s",
-                    aws_ami.name,
-                    aws_ami.image_id,
-                    aws_ami.creation_date,
+                    ami.name,
+                    ami.image_id,
+                    ami.creation_date,
                 )
 
                 try:
-                    ec2_client.deregister_image(
-                        ImageId=aws_ami.image_id, DryRun=dry_run
-                    )
+                    ec2_client.deregister_image(ImageId=ami.image_id, DryRun=dry_run)
                 except ClientError as e:
                     if "DryRunOperation" in str(e):
                         logging.info(e)
                     else:
                         raise
 
-                if not aws_ami.snapshot_ids:
+                if not ami.snapshot_ids:
                     continue
 
-                for snapshot_id in aws_ami.snapshot_ids:
+                for snapshot_id in ami.snapshot_ids:
                     logging.info(
                         "Deleting associated snapshot %s from image %s",
                         snapshot_id,
-                        aws_ami.image_id,
+                        ami.image_id,
                     )
 
                     try:
@@ -317,5 +271,3 @@ def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> 
                             logging.info(e)
                         else:
                             raise
-
-    sys.exit(exit_code)
