@@ -65,8 +65,8 @@ GET_REPLICASET_MAX_ATTEMPTS = 20
 
 oc_run_execution_counter = Counter(
     name="oc_run_execution_counter",
-    documentation="Counts _run method executions for each command per integration",
-    labelnames=["integration", "command", "invoker"],
+    documentation="Counts _run method executions per integration",
+    labelnames=["integration"],
 )
 
 
@@ -1086,11 +1086,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
 
     @retry(exceptions=(StatusCodeError, NoOutputError), max_attempts=10)
     def _run(self, cmd, **kwargs) -> bytes:
-        oc_run_execution_counter.labels(
-            integration=RunningState().integration,
-            command=" ".join(cmd),
-            invoker=type(self).__name__,
-        ).inc()
+        oc_run_execution_counter.labels(integration=RunningState().integration).inc()
         stdin = kwargs.get("stdin")
         stdin_text = stdin.encode() if stdin else None
         result = subprocess.run(
