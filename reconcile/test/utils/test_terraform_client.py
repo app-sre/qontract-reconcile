@@ -740,7 +740,7 @@ def test_validate_db_upgrade_with_blue_green_update(
 def test_validate_blue_green_update_requirements_with_storage_type_change(
     mocker: MockerFixture, aws_api: AWSApi, tf: tfclient.TerraformClient
 ) -> None:
-    aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"} # type: ignore[attr-defined]
+    aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}  # type: ignore[attr-defined]
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
 
     tf.validate_blue_green_update_requirements(
