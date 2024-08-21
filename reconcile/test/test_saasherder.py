@@ -164,6 +164,7 @@ class TestSaasFileValid(TestCase):
             auto=True,
             publish=None,
             subscribe=None,
+            redeployOnPublisherConfigChange=None,
             promotion_data=None,
             soakDays=0,
             schedule="* * * * *",
@@ -190,6 +191,7 @@ class TestSaasFileValid(TestCase):
             publish=None,
             subscribe=None,
             promotion_data=None,
+            redeployOnPublisherConfigChange=None,
             soakDays=0,
             schedule="* * * * *",
         )
