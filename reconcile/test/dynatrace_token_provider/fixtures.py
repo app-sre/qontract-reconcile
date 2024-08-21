@@ -43,9 +43,10 @@ def _build_secret_data(
 
 def build_syncset(
     secrets: Iterable[K8sSecret],
-    tenant_id: str,
+    tenant_id: str | None,
     with_id: bool,
 ) -> dict:
+    tenant_id = tenant_id if tenant_id else ""
     secrets_data = _build_secret_data(
         secrets=secrets,
         tenant_id=tenant_id,
@@ -61,9 +62,10 @@ def build_syncset(
 
 def build_manifest(
     secrets: Iterable[K8sSecret],
-    tenant_id: str,
+    tenant_id: str | None,
     with_id: bool,
 ) -> dict:
+    tenant_id = tenant_id if tenant_id else ""
     secrets_data = _build_secret_data(
         secrets=secrets,
         tenant_id=tenant_id,
