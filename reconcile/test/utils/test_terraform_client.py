@@ -639,6 +639,7 @@ def test_validate_blue_green_update_requirements_supported_version(
         replica=False,
         parameter_group="test-pg",
         region_name="us-east-1",
+        changed_fields=set(),
     )
 
 
@@ -656,6 +657,7 @@ def test_validate_blue_green_update_requirements_unsupported_version(
         replica=False,
         parameter_group="test-pg",
         region_name="us-east-1",
+        changed_fields=set(),
     )
 
     mocked_logging.error.assert_called_once_with(
@@ -677,6 +679,7 @@ def test_validate_blue_green_update_requirements_missing_logical_replication(
         replica=False,
         parameter_group="test-pg",
         region_name="us-east-1",
+        changed_fields=set(),
     )
 
     mocked_logging.error.assert_called_once_with(
@@ -698,6 +701,7 @@ def test_validate_blue_green_update_requirements_with_replica_source(
         parameter_group="test-pg",
         replica=True,
         region_name="us-east-1",
+        changed_fields=set(),
     )
     mocked_logging.error.assert_called_once_with(
         "Cannot upgrade RDS instance: test-database-1. Blue/green updates are not supported for instances with read replicas."
@@ -730,6 +734,28 @@ def test_validate_db_upgrade_with_blue_green_update(
                 "blue_green_update": [{"enabled": True}],
             },
         },
+    )
+
+
+def test_validate_blue_green_update_requirements_with_storage_type_change(
+    mocker: MockerFixture, aws_api: AWSApi, tf: tfclient.TerraformClient
+) -> None:
+    aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    tf.validate_blue_green_update_requirements(
+        account_name="a1",
+        resource_name="test-database-1",
+        engine="postgres",
+        version="12.16",
+        replica=False,
+        parameter_group="test-pg",
+        region_name="us-east-1",
+        changed_fields={"storage_type"},
+    )
+
+    mocked_logging.error.assert_called_once_with(
+        "Cannot upgrade RDS instance: test-database-1. Blue/green updates are not supported when 'storage_type' or 'allocated_storage' has changed."
     )
 
 

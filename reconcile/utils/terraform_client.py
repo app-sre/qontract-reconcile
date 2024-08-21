@@ -790,6 +790,9 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
             blue_green_update = after.get("blue_green_update", [])
             if blue_green_update and blue_green_update[0]["enabled"]:
+                changed_fields = self._resource_diff_changed_fields(
+                    "update", resource_change
+                )
                 replica = before["replicas"] != [] or before["replicate_source_db"]
                 self.validate_blue_green_update_requirements(
                     account_name,
@@ -799,6 +802,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     replica,
                     before["parameter_group_name"],
                     region_name,
+                    changed_fields=changed_fields,
                 )
 
     def validate_blue_green_update_requirements(
@@ -810,6 +814,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         replica: bool,
         parameter_group: str,
         region_name: str,
+        changed_fields: set[str],
     ) -> None:
         min_supported_versions = {
             "mysql": [pkg_version.parse("5.7"), pkg_version.parse("8.0.15")],
@@ -861,6 +866,13 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     f"Blue/green updates require logical replication to be enabled in the Parameter group {parameter_group}."
                 )
                 return
+
+        if "storage_type" in changed_fields or "allocated_storage" in changed_fields:
+            logging.error(
+                f"Cannot upgrade RDS instance: {resource_name}. "
+                f"Blue/green updates are not supported when 'storage_type' or 'allocated_storage' has changed."
+            )
+            return
 
 
 class TerraformPlanFailed(Exception):
