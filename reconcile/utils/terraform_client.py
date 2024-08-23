@@ -331,12 +331,27 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         for resource_change in resource_changes:
             resource_type = resource_change["type"]
             resource_name = resource_change["name"]
+            resource_previous_address = resource_change.get("previous_address")
             resource_change = resource_change["change"]
             actions = resource_change["actions"]
             for action in actions:
+                if resource_previous_address:
+                    # the resource is being moved/renamed in the TF state
+                    with self._log_lock:
+                        logging.info([
+                            "move/rename",
+                            name,
+                            resource_previous_address,
+                            resource_change["address"],
+                        ])
+
                 if action == "no-op":
                     logging.debug([action, name, resource_type, resource_name])
-                    continue
+                    if resource_previous_address:
+                        # apply resource renaming with no-op
+                        self.increment_apply_count()
+                    else:
+                        continue
                 if action == "update" and resource_type == "aws_db_instance":
                     self.validate_db_upgrade(name, resource_name, resource_change)
                     # Ignore RDS modifications that are going to occur during the next
