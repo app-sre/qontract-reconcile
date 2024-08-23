@@ -35,7 +35,6 @@ from sretoolbox.utils import threaded
 # temporary to create aws_ecrpublic_repository
 from terrascript import (
     Backend,
-    Block,
     Data,
     Module,
     Output,
@@ -298,13 +297,6 @@ class UnknownProviderError(Exception):
 
 class UnapprovedSecretPathError(Exception):
     pass
-
-
-class Moved(Block):
-    """Terraform `moved` block, available since Terraform 1.1"""
-
-    def __init__(self, fro: str, to: str):
-        super().__init__(fro=fro, to=to)
 
 
 class aws_ecrpublic_repository(Resource):
@@ -1400,32 +1392,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             # add routes to existing route tables
             route_table_ids = accepter.route_table_ids
             req_cidr_block = requester.cidr_block
-            req_cidr_blocks = requester.cidr_blocks or []
-            if req_cidr_block:
-                req_cidr_blocks.append(req_cidr_block)
-            if route_table_ids and (req_cidr_block or req_cidr_blocks):
+            if route_table_ids and req_cidr_block:
                 for route_table_id in route_table_ids:
-                    for cidr_block in req_cidr_blocks:
-                        values = {
-                            "provider": "aws." + acc_alias,
-                            "route_table_id": route_table_id,
-                            "destination_cidr_block": cidr_block,
-                            "transit_gateway_id": requester.tgw_id,
-                        }
-                        # use the cidr block in the resource name to allow re-ordering
-                        cidr_id = cidr_block.replace(".", "-").replace("/", "_")
-                        route_identifier = (
-                            f"{identifier}-{route_table_id}-dest-{cidr_id}"
-                        )
-                        tf_resource = aws_route(route_identifier, **values)
-                        self.add_resource(infra_account_name, tf_resource)
-                    if req_cidr_block:
-                        req_cidr_id = req_cidr_block.replace(".", "-").replace("/", "_")
-                        moved = Moved(
-                            fro=f"aws_route.{identifier}-{route_table_id}",
-                            to=f"aws_route.{identifier}-{route_table_id}-dest-{req_cidr_id}",
-                        )
-                        self.add_moved(infra_account_name, moved)
+                    values = {
+                        "provider": "aws." + acc_alias,
+                        "route_table_id": route_table_id,
+                        "destination_cidr_block": req_cidr_block,
+                        "transit_gateway_id": requester.tgw_id,
+                    }
+                    route_identifier = f"{identifier}-{route_table_id}"
+                    tf_resource = aws_route(route_identifier, **values)
+                    self.add_resource(infra_account_name, tf_resource)
 
             # add routes to peered transit gateways in the requester's
             # account to achieve global routing from all regions
@@ -4106,19 +4083,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             return
         with self.locks[account]:
             self.tss[account].add(tf_resource)
-
-    def add_moved(self, account: str, moved: Moved):
-        if account not in self.locks:
-            logging.debug(
-                f"integration {self.integration} is disabled for account {account}. "
-                "can not add resource"
-            )
-            return
-        with self.locks[account]:
-            self.tss[account].setdefault("moved", []).append({
-                "from": moved.fro,
-                "to": moved.to,
-            })
 
     def dump(
         self,

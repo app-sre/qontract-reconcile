@@ -161,7 +161,6 @@ def peering_connection_builder(
         account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1 | None = None,
         assume_role: str | None = None,
         cidr_block: str | None = None,
-        cidr_blocks: list[str] | None = None,
         delete: bool | None = None,
     ) -> ClusterPeeringConnectionAccountTGWV1:
         return gql_class_factory(
@@ -173,7 +172,6 @@ def peering_connection_builder(
                 "account": account.dict(by_alias=True) if account is not None else None,
                 "assumeRole": assume_role,
                 "cidrBlock": cidr_block,
-                "cidrBlocks": cidr_blocks,
                 "delete": delete,
             },
         )
@@ -193,7 +191,6 @@ def account_tgw_connection(
         account=tgw_connection_account,
         assume_role=None,
         cidr_block="172.16.0.0/16",
-        cidr_blocks=["10.240.0.0/12"],
         delete=False,
     )
 
@@ -484,7 +481,6 @@ def build_expected_desired_state_item(
             rules=tgw["rules"],
             hostedzones=tgw["hostedzones"],
             cidr_block=connection.cidr_block,
-            cidr_blocks=connection.cidr_blocks or [],
             account=expected_tgw_account,
         ),
         accepter=Accepter(

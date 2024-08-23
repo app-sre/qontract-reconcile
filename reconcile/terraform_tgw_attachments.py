@@ -64,14 +64,11 @@ class ValidationError(Exception):
     pass
 
 
-class TGWAccountProviderInfo(BaseModel):
+class AccountProviderInfo(BaseModel):
     name: str
     uid: str
     assume_role: str | None
     assume_region: str
-
-
-class ClusterAccountProviderInfo(TGWAccountProviderInfo):
     assume_cidr: str
 
 
@@ -82,9 +79,8 @@ class Requester(BaseModel):
     routes: list[dict] | None
     rules: list[dict] | None
     hostedzones: list[str] | None
-    cidr_block: str | None
-    cidr_blocks: list[str]
-    account: TGWAccountProviderInfo
+    cidr_block: str
+    account: AccountProviderInfo
 
 
 class Accepter(BaseModel):
@@ -93,7 +89,7 @@ class Accepter(BaseModel):
     vpc_id: str | None
     route_table_ids: list[str] | None
     subnets_id_az: list[dict] | None
-    account: ClusterAccountProviderInfo
+    account: AccountProviderInfo
     api_security_group_id: str | None
 
 
@@ -229,7 +225,7 @@ def _build_account_with_assume_role(
     region: str,
     cidr_block: str,
     ocm: OCM | None,
-) -> ClusterAccountProviderInfo:
+) -> AccountProviderInfo:
     account = peer_connection.account
     # assume_role is the role to assume to provision the
     # peering connection request, through the accepter AWS account.
@@ -239,7 +235,7 @@ def _build_account_with_assume_role(
     # there is no OCM at all.
     if not assume_role:
         if isinstance(cluster.spec, ClusterSpecROSAV1) and cluster.spec.account:
-            return ClusterAccountProviderInfo(
+            return AccountProviderInfo(
                 name=cluster.spec.account.name,
                 uid=cluster.spec.account.uid,
                 assume_role=assume_role,
@@ -251,7 +247,7 @@ def _build_account_with_assume_role(
         assume_role = ocm.get_aws_infrastructure_access_terraform_assume_role(
             cluster.name, account.uid, account.terraform_username
         )
-    return ClusterAccountProviderInfo(
+    return AccountProviderInfo(
         name=account.name,
         uid=account.uid,
         assume_role=assume_role,
@@ -262,7 +258,7 @@ def _build_account_with_assume_role(
 
 def _build_accepter(
     peer_connection: ClusterPeeringConnectionAccountTGWV1,
-    account: ClusterAccountProviderInfo,
+    account: AccountProviderInfo,
     region: str,
     cidr_block: str,
     awsapi: AWSApi,
@@ -294,10 +290,11 @@ def _build_requester(
     peer_connection: ClusterPeeringConnectionAccountTGWV1,
     tgw: Mapping,
 ) -> Requester:
-    tgw_account = TGWAccountProviderInfo(
+    tgw_account = AccountProviderInfo(
         name=peer_connection.account.name,
         uid=peer_connection.account.uid,
         assume_region=tgw["region"],
+        assume_cidr=peer_connection.cidr_block,
     )
     return Requester(
         tgw_id=tgw["tgw_id"],
@@ -307,7 +304,6 @@ def _build_requester(
         rules=tgw.get("rules"),
         hostedzones=tgw.get("hostedzones"),
         cidr_block=peer_connection.cidr_block,
-        cidr_blocks=peer_connection.cidr_blocks or [],
         account=tgw_account,
     )
 
