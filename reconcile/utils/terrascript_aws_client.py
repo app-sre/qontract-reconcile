@@ -1405,13 +1405,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 req_cidr_blocks.append(req_cidr_block)
             if route_table_ids and (req_cidr_block or req_cidr_blocks):
                 for route_table_id in route_table_ids:
-                    if req_cidr_block:
-                        req_cidr_id = req_cidr_block.replace(".", "-").replace("/", "_")
-                        moved = Moved(
-                            fro=f"aws_route.{identifier}-{route_table_id}",
-                            to=f"aws_route.{identifier}-{route_table_id}-dest-{req_cidr_id}",
-                        )
-                        self.add_moved(infra_account_name, moved)
                     for cidr_block in req_cidr_blocks:
                         values = {
                             "provider": "aws." + acc_alias,
@@ -1426,6 +1419,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         )
                         tf_resource = aws_route(route_identifier, **values)
                         self.add_resource(infra_account_name, tf_resource)
+                    if req_cidr_block:
+                        req_cidr_id = req_cidr_block.replace(".", "-").replace("/", "_")
+                        moved = Moved(
+                            fro=f"aws_route.{identifier}-{route_table_id}",
+                            to=f"aws_route.{identifier}-{route_table_id}-dest-{req_cidr_id}",
+                        )
+                        self.add_moved(infra_account_name, moved)
 
             # add routes to peered transit gateways in the requester's
             # account to achieve global routing from all regions
@@ -4107,7 +4107,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         with self.locks[account]:
             self.tss[account].add(tf_resource)
 
-    def add_moved(self, account: str, moved):
+    def add_moved(self, account: str, moved: Moved):
         if account not in self.locks:
             logging.debug(
                 f"integration {self.integration} is disabled for account {account}. "
