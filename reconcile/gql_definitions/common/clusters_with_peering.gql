@@ -71,7 +71,6 @@ query ClustersWithPeering {
           }
           tags
           cidrBlock
-          cidrBlocks
           manageSecurityGroups
           manageRoute53Associations
           allowPrivateHcpApiAccess

@@ -147,7 +147,6 @@ query ClustersWithPeering {
           }
           tags
           cidrBlock
-          cidrBlocks
           manageSecurityGroups
           manageRoute53Associations
           allowPrivateHcpApiAccess
@@ -269,7 +268,6 @@ class ClusterPeeringConnectionAccountTGWV1(ClusterPeeringConnectionV1):
     account: ClusterPeeringConnectionAccountTGWV1_AWSAccountV1 = Field(..., alias="account")
     tags: Optional[Json] = Field(..., alias="tags")
     cidr_block: Optional[str] = Field(..., alias="cidrBlock")
-    cidr_blocks: Optional[list[str]] = Field(..., alias="cidrBlocks")
     manage_security_groups: Optional[bool] = Field(..., alias="manageSecurityGroups")
     manage_route53_associations: Optional[bool] = Field(..., alias="manageRoute53Associations")
     allow_private_hcp_api_access: Optional[bool] = Field(..., alias="allowPrivateHcpApiAccess")
