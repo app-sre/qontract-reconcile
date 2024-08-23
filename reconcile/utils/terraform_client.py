@@ -331,6 +331,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         for resource_change in resource_changes:
             resource_type = resource_change["type"]
             resource_name = resource_change["name"]
+            resource_address = resource_change["address"]
             resource_previous_address = resource_change.get("previous_address")
             resource_change = resource_change["change"]
             actions = resource_change["actions"]
@@ -342,7 +343,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                             "move/rename",
                             name,
                             resource_previous_address,
-                            resource_change["address"],
+                            resource_address,
                         ])
 
                 if action == "no-op":
