@@ -435,6 +435,29 @@ def test_get_desired_state(
     }
 
 
+def test_get_desired_state_with_error(
+    mocker: MockerFixture,
+    permissions: Sequence[PermissionSlackUsergroupV1],
+    user: UserV1,
+) -> None:
+    mocker.patch(
+        "reconcile.slack_usergroups.get_usernames_from_pagerduty"
+    ).return_value = ["user1"]
+    mocker.patch(
+        "reconcile.slack_usergroups.get_slack_usernames_from_owners"
+    ).side_effect = Exception("some error")
+    mock_pagerduty_map = create_autospec(PagerDutyMap)
+    result = integ.get_desired_state(
+        mock_pagerduty_map,
+        permissions[1:],
+        [user],
+        desired_workspace_name=None,
+        desired_usergroup_name=None,
+    )
+
+    assert result == {}
+
+
 def test_get_desired_state_cluster_usergroups(
     mocker: MockerFixture, slack_map: SlackMap, user: UserV1
 ) -> None:
