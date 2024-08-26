@@ -13,10 +13,10 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import init_state
 
 
-class ChangeManagementIntegration(QontractReconcileIntegration[NoParams]):
+class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
     def __init__(self) -> None:
         super().__init__(NoParams())
-        self.qontract_integration = "change-management-tracking"
+        self.qontract_integration = "change-log-tracking"
         self.qontract_integration_version = make_semver(0, 1, 0)
 
     @property
@@ -29,7 +29,7 @@ class ChangeManagementIntegration(QontractReconcileIntegration[NoParams]):
             for ctp in fetch_change_type_processors(
                 gql.get_api(), NoOpFileDiffResolver()
             )
-            if ctp.labels and "change_management_tracking" in ctp.labels
+            if ctp.labels and "change_log_tracking" in ctp.labels
         ]
         state = init_state(
             integration=self.name,

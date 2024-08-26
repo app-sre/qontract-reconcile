@@ -47,8 +47,8 @@ from reconcile.aus.base import (
 )
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.change_owners.bundle import NoOpFileDiffResolver
-from reconcile.change_owners.change_management_tracking import (
-    ChangeManagementIntegration,
+from reconcile.change_owners.change_log_tracking import (
+    ChangeLogIntegration,
 )
 from reconcile.change_owners.change_owners import (
     fetch_change_type_processors,
@@ -2863,10 +2863,10 @@ def container_image_details(ctx):
 
 @get.command
 @click.pass_context
-def change_management_tracking(ctx):
+def change_log_tracking(ctx):
     repo_url = get_app_interface_repo_url()
     change_types = fetch_change_type_processors(gql.get_api(), NoOpFileDiffResolver())
-    state = init_state(integration=ChangeManagementIntegration().name)
+    state = init_state(integration=ChangeLogIntegration().name)
     change_log: dict[str, Any] = state.get("bundle-diffs.json")
     data: list[dict[str, str]] = []
     for commit, covered_change_types in change_log.items():
