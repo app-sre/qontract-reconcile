@@ -1446,9 +1446,9 @@ data:
         "list": [
           {
             "current": {
-              "selected": false,
+              "selected": true,
               "text": "appsrep09ue1-prometheus",
-              "value": "P7B77307D2CE073BC"
+              "value": "appsrep09ue1-prometheus"
             },
             "hide": 0,
             "includeAll": false,
