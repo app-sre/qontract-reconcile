@@ -27,6 +27,7 @@ from reconcile.test.change_owners.fixtures import (
 def build_def_change_type(name: str, inherit: list[str] | None = None) -> ChangeTypeV1:
     return ChangeTypeV1(
         name=name,
+        labels=None,
         description=name,
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="context-schema",

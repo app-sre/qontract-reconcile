@@ -1,4 +1,5 @@
 name: saas-file-self-service
+labels: '{}'
 description: saas-file-self-service
 
 contextType: datafile

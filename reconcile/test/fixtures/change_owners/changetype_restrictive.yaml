@@ -1,4 +1,5 @@
 name: change-type-restrictive
+labels: '{}'
 description: change-type-restrictive
 
 # this change type can be used on owned role-1 datafiles

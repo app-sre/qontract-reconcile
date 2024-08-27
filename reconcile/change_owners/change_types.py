@@ -22,6 +22,7 @@ import jinja2
 import jinja2.meta
 import jsonpath_ng
 import networkx
+from pydantic import Json
 
 from reconcile.change_owners.approver import (
     Approver,
@@ -474,6 +475,7 @@ class ChangeTypeProcessor:
     """
 
     name: str
+    labels: Json | None
     description: str
     priority: ChangeTypePriority
     context_type: BundleFileType
@@ -715,6 +717,7 @@ def init_change_type_processors(
         # build raw change-type-processor
         processors[change_type.name] = ChangeTypeProcessor(
             name=change_type.name,
+            labels=change_type.labels,
             description=change_type.description,
             priority=ChangeTypePriority(change_type.priority),
             context_type=BundleFileType[change_type.context_type.upper()],
