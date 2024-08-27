@@ -50,6 +50,7 @@ from reconcile.change_owners.bundle import NoOpFileDiffResolver
 from reconcile.change_owners.change_log_tracking import (
     ChangeLog,
     ChangeLogIntegration,
+    ChangeLogIntegrationParams,
     ChangeLogItem,
 )
 from reconcile.change_owners.change_owners import (
@@ -2868,7 +2869,9 @@ def container_image_details(ctx):
 def change_log_tracking(ctx):
     repo_url = get_app_interface_repo_url()
     change_types = fetch_change_type_processors(gql.get_api(), NoOpFileDiffResolver())
-    state = init_state(integration=ChangeLogIntegration().name)
+    state = init_state(
+        integration=ChangeLogIntegration(ChangeLogIntegrationParams()).name
+    )
     change_log = ChangeLog(**state.get("bundle-diffs.json"))
     data: list[dict[str, str]] = []
     for item in change_log.items:
