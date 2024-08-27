@@ -83,7 +83,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                     (i for i in existing_change_log_items if i.commit == commit), None
                 )
                 if existing_change_log_item:
-                    logging.info(f"Found existing commit {commit}")
+                    logging.debug(f"Found existing commit {commit}")
                     change_log.items.append(existing_change_log_item)
                     continue
 
