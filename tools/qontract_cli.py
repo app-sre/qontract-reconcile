@@ -48,6 +48,7 @@ from reconcile.aus.base import (
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.change_owners.bundle import NoOpFileDiffResolver
 from reconcile.change_owners.change_log_tracking import (
+    ChangeLog,
     ChangeLogIntegration,
 )
 from reconcile.change_owners.change_owners import (
@@ -2867,16 +2868,20 @@ def change_log_tracking(ctx):
     repo_url = get_app_interface_repo_url()
     change_types = fetch_change_type_processors(gql.get_api(), NoOpFileDiffResolver())
     state = init_state(integration=ChangeLogIntegration().name)
-    change_log: dict[str, Any] = state.get("bundle-diffs.json")
+    # change_log: dict[str, Any] = state.get("bundle-diffs.json")
+    change_log = ChangeLog(**state.get("bundle-diffs.json"))
     data: list[dict[str, str]] = []
-    for commit, covered_change_types in change_log.items():
-        covered_ct_names = {ct["change_type"] for ct in covered_change_types}
-        covered_change_types = [
-            ct for ct in change_types if ct.name in covered_ct_names
+    # for commit, covered_change_types in change_log.items():
+    for change_log_item in change_log.items:
+        commit = change_log_item.commit
+        covered_change_types_descriptions = [
+            ct.description
+            for ct in change_types
+            if ct.name in change_log_item.change_types
         ]
         item = {
             "commit": f"[{commit}]({repo_url}/commit/{commit})",
-            "changes": ", ".join(ct.description for ct in covered_change_types),
+            "changes": ", ".join(covered_change_types_descriptions),
         }
         data.append(item)
 

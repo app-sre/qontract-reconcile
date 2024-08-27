@@ -1,4 +1,5 @@
 import logging
+from dataclasses import asdict, dataclass, field
 
 from reconcile.change_owners.bundle import (
     NoOpFileDiffResolver,
@@ -11,6 +12,17 @@ from reconcile.utils import gql
 from reconcile.utils.runtime.integration import NoParams, QontractReconcileIntegration
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import init_state
+
+
+@dataclass
+class ChangeLogItem:
+    commit: str
+    change_types: set[str] = field(default_factory=set)
+
+
+@dataclass
+class ChangeLog:
+    items: list[ChangeLogItem] = field(default_factory=list)
 
 
 class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
@@ -36,12 +48,15 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
         )
         int_state_path = state.state_path
         state.state_path = "bundle-archive/diff"
-        change_log: dict[str, list[dict]] = {}
+        change_log = ChangeLog()
         for item in state.ls():
             key = item.lstrip("/")
             commit = key.rstrip(".json")
             logging.info(f"Processing commit {commit}")
-            change_log.setdefault(commit, [])
+            change_log_item = ChangeLogItem(
+                commit=commit,
+            )
+            change_log.items.append(change_log_item)
             obj = state.get(key, None)
             if not obj:
                 logging.error(f"Error processing commit {commit}")
@@ -61,10 +76,8 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
                     )
                     covered_diffs = change.cover_changes(ctx)
                     if covered_diffs:
-                        change_log[commit].append({
-                            "change_type": ctp.name,
-                        })
+                        change_log_item.change_types.add(ctp.name)
 
         state.state_path = int_state_path
         if not dry_run:
-            state.add("bundle-diffs.json", change_log, force=True)
+            state.add("bundle-diffs.json", asdict(change_log), force=True)
