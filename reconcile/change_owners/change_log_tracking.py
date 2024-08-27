@@ -11,10 +11,13 @@ from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.change_owners.changes import aggregate_file_moves, parse_bundle_changes
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
-from reconcile.utils.runtime.integration import NoParams, QontractReconcileIntegration
-from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.runtime.integration import (
+    PydanticRunParams,
+    QontractReconcileIntegration,
+)
 from reconcile.utils.state import init_state
 
+QONTRACT_INTEGRATION = "change-log-tracking"
 BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
 
 
@@ -30,15 +33,14 @@ class ChangeLog:
     items: list[ChangeLogItem] = field(default_factory=list)
 
 
-class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
-    def __init__(self) -> None:
-        super().__init__(NoParams())
-        self.qontract_integration = "change-log-tracking"
-        self.qontract_integration_version = make_semver(0, 1, 0)
+class ChangeLogIntegrationParams(PydanticRunParams):
+    process_existing: bool = False
 
+
+class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationParams]):
     @property
     def name(self) -> str:
-        return self.qontract_integration
+        return QONTRACT_INTEGRATION
 
     @defer
     def run(
@@ -66,10 +68,25 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
             defer(diff_state.cleanup)
         diff_state.state_path = "bundle-archive/diff"
 
-        change_log = ChangeLog(**integration_state.get(BUNDLE_DIFFS_OBJ))
+        if not self.params.process_existing:
+            existing_change_log = ChangeLog(**integration_state.get(BUNDLE_DIFFS_OBJ))
+            existing_change_log_items = [
+                ChangeLogItem(**i)  # type: ignore[arg-type]
+                for i in existing_change_log.items
+            ]
+        change_log = ChangeLog()
         for item in diff_state.ls():
             key = item.lstrip("/")
             commit = key.rstrip(".json")
+            if not self.params.process_existing:
+                existing_change_log_item = next(
+                    (i for i in existing_change_log_items if i.commit == commit), None
+                )
+                if existing_change_log_item:
+                    logging.info(f"Found existing commit {commit}")
+                    change_log.items.append(existing_change_log_item)
+                    continue
+
             logging.info(f"Processing commit {commit}")
             change_log_item = ChangeLogItem(
                 commit=commit,

@@ -3558,13 +3558,25 @@ def change_owners(
 
 
 @integration.command(short_help="Analyze bundle diffs by change types.")
+@click.option(
+    "--process-existing/--no-process-existing",
+    default=False,
+    help="wait for pending/running pipelines before acting.",
+)
 @click.pass_context
-def change_log_tracking(ctx):
-    import reconcile.change_owners.change_log_tracking
+def change_log_tracking(ctx, process_existing):
+    from reconcile.change_owners.change_log_tracking import (
+        ChangeLogIntegration,
+        ChangeLogIntegrationParams,
+    )
 
     run_class_integration(
-        reconcile.change_owners.change_log_tracking.ChangeLogIntegration(),
-        ctx.obj,
+        ChangeLogIntegration(
+            ChangeLogIntegrationParams(
+                process_existing=process_existing,
+            )
+        ),
+        ctx=ctx.obj,
     )
 
 
