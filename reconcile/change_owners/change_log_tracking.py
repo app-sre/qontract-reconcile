@@ -46,10 +46,8 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
         state = init_state(
             integration=self.name,
         )
-        int_state_path = state.state_path
-        state.state_path = "bundle-archive/diff"
         change_log = ChangeLog()
-        for item in state.ls():
+        for item in state.ls(override_state_path="bundle-archive/diff"):
             key = item.lstrip("/")
             commit = key.rstrip(".json")
             logging.info(f"Processing commit {commit}")
@@ -78,6 +76,5 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
                     if covered_diffs:
                         change_log_item.change_types.add(ctp.name)
 
-        state.state_path = int_state_path
         if not dry_run:
             state.add("bundle-diffs.json", asdict(change_log), force=True)
