@@ -2,6 +2,7 @@ import copy
 import json
 import logging
 import os
+import pathlib
 import re
 import subprocess
 import threading
@@ -14,7 +15,6 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
-from io import TextIOWrapper
 from subprocess import Popen
 from threading import Lock
 from typing import Any
@@ -744,10 +744,11 @@ class OCCli:  # pylint: disable=too-many-public-methods
         if follow:
             cmd.append("-f")
 
-        if isinstance(output, TextIOWrapper):
-            output_file = output
-        else:
+        if isinstance(output, str | pathlib.Path):
             output_file = open(os.path.join(output, name), "w", encoding="locale")  # noqa: SIM115
+        else:
+            # assume it's a file-like object, e.g. sys.stdout, TextIO, ...
+            output_file = output
 
         if wait_for_logs_process:
             subprocess.run(self.oc_base_cmd + cmd, stdout=output_file, check=False)
