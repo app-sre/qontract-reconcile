@@ -50,6 +50,7 @@ from reconcile.change_owners.bundle import NoOpFileDiffResolver
 from reconcile.change_owners.change_log_tracking import (
     ChangeLog,
     ChangeLogIntegration,
+    ChangeLogItem,
 )
 from reconcile.change_owners.change_owners import (
     fetch_change_type_processors,
@@ -2870,7 +2871,8 @@ def change_log_tracking(ctx):
     state = init_state(integration=ChangeLogIntegration().name)
     change_log = ChangeLog(**state.get("bundle-diffs.json"))
     data: list[dict[str, str]] = []
-    for change_log_item in change_log.items:
+    for item in change_log.items:
+        change_log_item = ChangeLogItem(**item)
         commit = change_log_item.commit
         covered_change_types_descriptions = [
             ct.description
