@@ -20,6 +20,7 @@ from reconcile.utils.state import init_state
 class ChangeLogItem:
     commit: str
     change_types: list[str] = field(default_factory=list)
+    error: bool = False
 
 
 @dataclass
@@ -75,6 +76,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
             obj = diff_state.get(key, None)
             if not obj:
                 logging.error(f"Error processing commit {commit}")
+                change_log_item.error = True
                 continue
             diff = QontractServerDiff(**obj)
             changes = aggregate_file_moves(parse_bundle_changes(diff))
