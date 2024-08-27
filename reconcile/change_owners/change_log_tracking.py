@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 
 from reconcile.change_owners.bundle import (
@@ -9,6 +10,7 @@ from reconcile.change_owners.change_owners import fetch_change_type_processors
 from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.change_owners.changes import aggregate_file_moves, parse_bundle_changes
 from reconcile.utils import gql
+from reconcile.utils.defer import defer
 from reconcile.utils.runtime.integration import NoParams, QontractReconcileIntegration
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import init_state
@@ -35,7 +37,12 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
     def name(self) -> str:
         return self.qontract_integration
 
-    def run(self, dry_run: bool) -> None:
+    @defer
+    def run(
+        self,
+        dry_run: bool,
+        defer: Callable | None = None,
+    ) -> None:
         change_type_processors = [
             ctp
             for ctp in fetch_change_type_processors(
@@ -46,6 +53,8 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
         state = init_state(
             integration=self.name,
         )
+        if defer:
+            defer(state.cleanup)
         change_log = ChangeLog()
         for item in state.ls(override_state_path="bundle-archive/diff"):
             key = item.lstrip("/")
