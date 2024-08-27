@@ -420,28 +420,13 @@ def get_desired_state(
                     not in managed usergroups {p.workspace.managed_usergroups}"
             )
 
-        all_user_names = [get_slack_username(u) for r in p.roles or [] for u in r.users]
-        slack_usernames_pagerduty = get_usernames_from_pagerduty(
-            pagerduties=p.pagerduty or [],
-            users=users,
-            usergroup=usergroup,
-            pagerduty_map=pagerduty_map,
-        )
-        all_user_names.extend(slack_usernames_pagerduty)
-
-        if p.owners_from_repos:
-            slack_usernames_repo = get_slack_usernames_from_owners(
-                p.owners_from_repos, users, usergroup
+        try:
+            user_names = _get_user_names(p, pagerduty_map, usergroup, users)
+        except Exception:
+            logging.exception(
+                f"Error getting user names for {p.workspace.name} #{usergroup}, skipping"
             )
-            all_user_names.extend(slack_usernames_repo)
-
-        if p.schedule:
-            slack_usernames_schedule = get_slack_usernames_from_schedule(
-                p.schedule.schedule
-            )
-            all_user_names.extend(slack_usernames_schedule)
-
-        user_names = set(all_user_names)
+            continue
 
         try:
             desired_state[p.workspace.name][usergroup].user_names.update(user_names)
@@ -454,6 +439,35 @@ def get_desired_state(
                 description=p.description,
             )
     return desired_state
+
+
+def _get_user_names(
+    permission: PermissionSlackUsergroupV1,
+    pagerduty_map: PagerDutyMap,
+    usergroup: str,
+    users: Iterable[User],
+) -> set[str]:
+    user_names = {
+        get_slack_username(u) for r in permission.roles or [] for u in r.users
+    }
+    slack_usernames_pagerduty = get_usernames_from_pagerduty(
+        pagerduties=permission.pagerduty or [],
+        users=users,
+        usergroup=usergroup,
+        pagerduty_map=pagerduty_map,
+    )
+    user_names.update(slack_usernames_pagerduty)
+    if permission.owners_from_repos:
+        slack_usernames_repo = get_slack_usernames_from_owners(
+            permission.owners_from_repos, users, usergroup
+        )
+        user_names.update(slack_usernames_repo)
+    if permission.schedule:
+        slack_usernames_schedule = get_slack_usernames_from_schedule(
+            permission.schedule.schedule
+        )
+        user_names.update(slack_usernames_schedule)
+    return user_names
 
 
 def get_desired_state_cluster_usergroups(
