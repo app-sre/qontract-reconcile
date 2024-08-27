@@ -50,13 +50,21 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
             )
             if ctp.labels and "change_log_tracking" in ctp.labels
         ]
-        state = init_state(
+
+        integration_state = init_state(
             integration=self.name,
         )
         if defer:
-            defer(state.cleanup)
+            defer(integration_state.cleanup)
+        diff_state = init_state(
+            integration=self.name,
+        )
+        if defer:
+            defer(diff_state.cleanup)
+        diff_state.state_path = "bundle-archive/diff"
+
         change_log = ChangeLog()
-        for item in state.ls(override_state_path="bundle-archive/diff"):
+        for item in diff_state.ls():
             key = item.lstrip("/")
             commit = key.rstrip(".json")
             logging.info(f"Processing commit {commit}")
@@ -64,7 +72,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
                 commit=commit,
             )
             change_log.items.append(change_log_item)
-            obj = state.get(key, None)
+            obj = diff_state.get(key, None)
             if not obj:
                 logging.error(f"Error processing commit {commit}")
                 continue
@@ -86,4 +94,4 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
                         change_log_item.change_types.add(ctp.name)
 
         if not dry_run:
-            state.add("bundle-diffs.json", asdict(change_log), force=True)
+            integration_state.add("bundle-diffs.json", asdict(change_log), force=True)

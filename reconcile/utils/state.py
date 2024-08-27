@@ -304,13 +304,12 @@ class State:
                 f"in bucket {self.bucket} - {details!s}"
             ) from None
 
-    def ls(self, override_state_path: str | None = None) -> list[str]:
+    def ls(self) -> list[str]:
         """
         Returns a list of keys in the state
         """
-        state_path = override_state_path or self.state_path
         objects = self.client.list_objects_v2(
-            Bucket=self.bucket, Prefix=f"{state_path}/"
+            Bucket=self.bucket, Prefix=f"{self.state_path}/"
         )
 
         if "Contents" not in objects:
@@ -321,13 +320,13 @@ class State:
         while objects["IsTruncated"]:
             objects = self.client.list_objects_v2(
                 Bucket=self.bucket,
-                Prefix=f"{state_path}/",
+                Prefix=f"{self.state_path}/",
                 ContinuationToken=objects["NextContinuationToken"],
             )
 
             contents += objects["Contents"]
 
-        return [c["Key"].replace(state_path, "") for c in contents]
+        return [c["Key"].replace(self.state_path, "") for c in contents]
 
     def add(
         self,
