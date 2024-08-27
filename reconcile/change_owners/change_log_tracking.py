@@ -19,7 +19,7 @@ from reconcile.utils.state import init_state
 @dataclass
 class ChangeLogItem:
     commit: str
-    change_types: set[str] = field(default_factory=set)
+    change_types: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -91,7 +91,8 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
                     )
                     covered_diffs = change.cover_changes(ctx)
                     if covered_diffs:
-                        change_log_item.change_types.add(ctp.name)
+                        if ctp.name not in change_log_item.change_types:
+                            change_log_item.change_types.append(ctp.name)
 
         if not dry_run:
             integration_state.add("bundle-diffs.json", asdict(change_log), force=True)
