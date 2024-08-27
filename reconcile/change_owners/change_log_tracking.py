@@ -16,6 +16,8 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import init_state
 
 
+BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
+
 @dataclass
 class ChangeLogItem:
     commit: str
@@ -64,7 +66,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
             defer(diff_state.cleanup)
         diff_state.state_path = "bundle-archive/diff"
 
-        change_log = ChangeLog()
+        change_log = ChangeLog(**integration_state.get(BUNDLE_DIFFS_OBJ))
         for item in diff_state.ls():
             key = item.lstrip("/")
             commit = key.rstrip(".json")
@@ -97,4 +99,4 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
                             change_log_item.change_types.append(ctp.name)
 
         if not dry_run:
-            integration_state.add("bundle-diffs.json", asdict(change_log), force=True)
+            integration_state.add(BUNDLE_DIFFS_OBJ, asdict(change_log), force=True)
