@@ -15,8 +15,8 @@ from reconcile.utils.runtime.integration import NoParams, QontractReconcileInteg
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import init_state
 
-
 BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
+
 
 @dataclass
 class ChangeLogItem:
