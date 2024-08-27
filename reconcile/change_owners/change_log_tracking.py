@@ -66,4 +66,5 @@ class ChangeLogIntegration(QontractReconcileIntegration[NoParams]):
                         })
 
         state.state_path = int_state_path
-        state.add("bundle-diffs.json", change_log, force=True)
+        if not dry_run:
+            state.add("bundle-diffs.json", change_log, force=True)
