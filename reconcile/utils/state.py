@@ -304,7 +304,7 @@ class State:
                 f"in bucket {self.bucket} - {details!s}"
             ) from None
 
-    def ls(self, override_state_path: str | None) -> list[str]:
+    def ls(self, override_state_path: str | None = None) -> list[str]:
         """
         Returns a list of keys in the state
         """
