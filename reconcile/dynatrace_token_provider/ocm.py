@@ -43,23 +43,15 @@ class Cluster(BaseModel):
     id: str
     external_id: str
     organization_id: str
-    dt_tenant: str
-    token_spec_name: str
+    dt_tenant: str | None
+    token_spec_name: str | None
     is_hcp: bool
 
     @staticmethod
     def from_cluster_details(cluster: ClusterDetails) -> Cluster:
         dt_tenant = cluster.labels.get_label_value(DTP_TENANT_LABEL)
         token_spec_name = cluster.labels.get_label_value(DTP_LABEL)
-        if not token_spec_name:
-            """
-            We want to stay backwards compatible.
-            Earlier version of DTP did not set a value for the label.
-            We fall back to a default token in that case.
 
-            Long-term, we want to remove this behavior.
-            """
-            token_spec_name = "hypershift-management-cluster-v1"
         return Cluster(
             id=cluster.ocm_cluster.id,
             external_id=cluster.ocm_cluster.external_id,
