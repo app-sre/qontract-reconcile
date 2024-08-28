@@ -48,6 +48,7 @@ from reconcile.aus.base import (
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.change_owners.bundle import NoOpFileDiffResolver
 from reconcile.change_owners.change_log_tracking import (
+    BUNDLE_DIFFS_OBJ,
     ChangeLog,
     ChangeLogIntegration,
     ChangeLogIntegrationParams,
@@ -2893,7 +2894,7 @@ def change_log_tracking(ctx):
     state = init_state(
         integration=ChangeLogIntegration(ChangeLogIntegrationParams()).name
     )
-    change_log = ChangeLog(**state.get("bundle-diffs.json"))
+    change_log = ChangeLog(**state.get(BUNDLE_DIFFS_OBJ))
     data: list[dict[str, str]] = []
     for item in change_log.items:
         change_log_item = ChangeLogItem(**item)
@@ -2905,12 +2906,13 @@ def change_log_tracking(ctx):
         ]
         item = {
             "commit": f"[{commit}]({repo_url}/commit/{commit})",
+            "apps": ", ".join(change_log_item.apps),
             "changes": ", ".join(covered_change_types_descriptions),
             "error": change_log_item.error,
         }
         data.append(item)
 
-    columns = ["commit", "changes", "error"]
+    columns = ["commit", "apps", "changes", "error"]
     print_output(ctx.obj["options"], data, columns)
 
 

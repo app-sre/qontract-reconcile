@@ -9,6 +9,7 @@ from reconcile.change_owners.bundle import (
 from reconcile.change_owners.change_owners import fetch_change_type_processors
 from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.change_owners.changes import aggregate_file_moves, parse_bundle_changes
+from reconcile.typed_queries.apps import get_apps
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.runtime.integration import (
@@ -26,6 +27,7 @@ class ChangeLogItem:
     commit: str
     change_types: list[str] = field(default_factory=list)
     error: bool = False
+    apps: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -55,6 +57,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             )
             if ctp.labels and "change_log_tracking" in ctp.labels
         ]
+        apps = get_apps()
 
         integration_state = init_state(
             integration=self.name,
@@ -100,7 +103,29 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             diff = QontractServerDiff(**obj)
             changes = aggregate_file_moves(parse_bundle_changes(diff))
             for change in changes:
-                logging.debug(f"Processing change {change}")
+                logging.info(f"Processing change {change}")
+                match change.fileref.schema:
+                    case "/app-sre/app-1.yml":
+                        old_app_name = change.old["name"]
+                        new_app_name = change.new["name"]
+                        change_log_item.apps.extend({old_app_name, new_app_name})
+                    case (
+                        "/app-sre/saas-file-2.yml"
+                        | "/openshift/namespace-1.yml"
+                        | "/dependencies/jenkins-config-1.yml"
+                    ):
+                        old_app = change.old["app"]
+                        new_app = change.new["app"]
+                        changed_apps = {
+                            a.name
+                            for a in apps
+                            if a.path in {old_app["$ref"], new_app["$ref"]}
+                        }
+                        change_log_item.apps.extend(changed_apps)
+
+                # TODO(maorfr): switch apps to set
+                change_log_item.apps = list(set(change_log_item.apps))
+
                 for ctp in change_type_processors:
                     logging.info(f"Processing change type {ctp.name}")
                     ctx = ChangeTypeContext(
