@@ -1093,6 +1093,27 @@ def cidr_blocks(ctx, for_cluster: int, mask: int) -> None:
         for c in clusters
     ]
 
+    tgw_cidrs = [
+        {
+            "type": "account-tgw",
+            "name": connection["account"]["name"],
+            "account": connection["account"]["name"],
+            "cidr": cidr,
+            "from": str(ipaddress.ip_network(cidr)[0]),
+            "to": str(ipaddress.ip_network(cidr)[-1]),
+            "hosts": str(ipaddress.ip_network(cidr).num_addresses),
+            "description": f'CIDR {cidr} routed through account {connection["account"]["name"]} transit gateways',
+        }
+        for c in clusters
+        for connection in (c["peering"] or {}).get("connections") or []
+        if connection["provider"] == "account-tgw"
+        for cidr in [connection["cidrBlock"]] + (connection["cidrBlocks"] or [])
+        if cidr is not None
+    ]
+    # removing dupes using a set of tuple (since dicts are not hashable)
+    unique_tgw_cidrs = [dict(t) for t in {tuple(d.items()) for d in tgw_cidrs}]
+    cidrs.extend(unique_tgw_cidrs)
+
     vpcs = get_aws_vpcs()
     cidrs.extend(
         {
