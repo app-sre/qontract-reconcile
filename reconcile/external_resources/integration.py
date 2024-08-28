@@ -84,7 +84,7 @@ def create_er_manager(
 ) -> ExternalResourcesManager:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    er_settings = get_settings()[0]
+    er_settings = get_settings()
     m_inventory = load_module_inventory(get_modules())
     namespaces = [ns for ns in get_namespaces() if ns.external_resources]
     er_inventory = ExternalResourcesInventory(namespaces)
@@ -139,7 +139,7 @@ def run(
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    er_settings = get_settings()[0]
+    er_settings = get_settings()
 
     if not workers_cluster:
         workers_cluster = er_settings.workers_cluster.name
@@ -173,7 +173,7 @@ def run(
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    er_settings = get_settings()[0]
+    er_settings = get_settings()
 
     with get_aws_api(
         query_func=gql.get_api().query,

@@ -25,7 +25,7 @@ def run(dry_run: bool, thread_pool_size: int) -> None:
     """
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    er_settings = get_settings()[0]
+    er_settings = get_settings()
 
     namespaces = [ns for ns in get_namespaces() if ns.external_resources]
     er_inventory = ExternalResourcesInventory(namespaces)
