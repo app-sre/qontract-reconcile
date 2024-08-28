@@ -1,7 +1,7 @@
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-builder:0.7.0 as build-image
+FROM quay.io/app-sre/qontract-reconcile-builder:0.7.0 AS build-image
 
 WORKDIR /work
 
@@ -20,7 +20,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.14.0 as dev-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.14.0 AS dev-image
 
 ARG CONTAINER_UID=1000
 RUN useradd --uid ${CONTAINER_UID} reconcile
@@ -51,7 +51,7 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 # STAGE 3 - prod-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.14.0 as prod-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.14.0 AS prod-image
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}
@@ -80,7 +80,7 @@ CMD [ "/run-integration.py" ]
 ###############################################################################
 # STAGE 4 - fips-prod-image
 ###############################################################################
-FROM prod-image as fips-prod-image
+FROM prod-image AS fips-prod-image
 ENV OC_VERSION=4.10.15
 
 # oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
