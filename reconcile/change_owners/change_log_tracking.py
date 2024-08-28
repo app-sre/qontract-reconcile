@@ -106,16 +106,19 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                 logging.info(f"Processing change {change}")
                 match change.fileref.schema:
                     case "/app-sre/app-1.yml":
-                        old_app_name = change.old["name"]
-                        new_app_name = change.new["name"]
-                        change_log_item.apps.extend({old_app_name, new_app_name})
+                        old_app_name = change.old["name"] if change.old else None
+                        if old_app_name:
+                            change_log_item.apps.append(old_app_name)
+                        new_app_name = change.new["name"] if change.new else None
+                        if new_app_name:
+                            change_log_item.apps.append(new_app_name)
                     case (
                         "/app-sre/saas-file-2.yml"
                         | "/openshift/namespace-1.yml"
                         | "/dependencies/jenkins-config-1.yml"
                     ):
-                        old_app = change.old["app"]
-                        new_app = change.new["app"]
+                        old_app = change.old["app"] if change.old else None
+                        new_app = change.new["app"] if change.new else None
                         changed_apps = {
                             a.name
                             for a in apps
