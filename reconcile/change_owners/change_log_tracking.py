@@ -117,12 +117,12 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         | "/openshift/namespace-1.yml"
                         | "/dependencies/jenkins-config-1.yml"
                     ):
-                        old_app = change.old["app"] if change.old else None
-                        new_app = change.new["app"] if change.new else None
+                        old_app_path = change.old["app"]["$ref"] if change.old else None
+                        new_app_path = change.new["app"]["$ref"] if change.new else None
                         changed_apps = {
                             a.name
                             for a in apps
-                            if a.path in {old_app["$ref"], new_app["$ref"]}
+                            if a.path in {old_app_path, new_app_path}
                         }
                         change_log_item.apps.extend(changed_apps)
 
