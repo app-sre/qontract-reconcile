@@ -103,7 +103,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             diff = QontractServerDiff(**obj)
             changes = aggregate_file_moves(parse_bundle_changes(diff))
             for change in changes:
-                logging.info(f"Processing change {change}")
+                logging.debug(f"Processing change {change}")
                 match change.fileref.schema:
                     case "/app-sre/app-1.yml":
                         old_app_name = change.old["name"] if change.old else None
