@@ -84,6 +84,8 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                 for i in existing_change_log.items
             ]
         gl = init_gitlab(self.params.gitlab_project_id)
+        if defer:
+            defer(gl.cleanup)
         change_log = ChangeLog()
         for item in diff_state.ls():
             key = item.lstrip("/")
