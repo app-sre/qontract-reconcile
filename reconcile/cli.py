@@ -3107,26 +3107,14 @@ def cluster_auth_rhidp(ctx):
 @integration.command(
     short_help="Automatically provide dedicated Dynatrace tokens to management clusters"
 )
-@click.option(
-    "--ocm-org-ids",
-    help="A comma seperated list of OCM organization IDs DTP should operate on. If none is specified, all organizations are considered.",
-    required=False,
-    envvar="DTP_OCM_ORG_IDS",
-)
 @click.pass_context
-def dynatrace_token_provider(ctx, ocm_org_ids):
+def dynatrace_token_provider(ctx):
     from reconcile.dynatrace_token_provider.integration import (
         DynatraceTokenProviderIntegration,
-        DynatraceTokenProviderIntegrationParams,
     )
 
-    parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     run_class_integration(
-        integration=DynatraceTokenProviderIntegration(
-            DynatraceTokenProviderIntegrationParams(
-                ocm_organization_ids=parsed_ocm_org_ids,
-            )
-        ),
+        integration=DynatraceTokenProviderIntegration(),
         ctx=ctx.obj,
     )
 
@@ -3566,6 +3554,31 @@ def change_owners(
         comparison_sha,
         change_type_processing_mode,
         mr_management,
+    )
+
+
+@integration.command(short_help="Analyze bundle diffs by change types.")
+@gitlab_project_id
+@click.option(
+    "--process-existing/--no-process-existing",
+    default=False,
+    help="wait for pending/running pipelines before acting.",
+)
+@click.pass_context
+def change_log_tracking(ctx, gitlab_project_id, process_existing):
+    from reconcile.change_owners.change_log_tracking import (
+        ChangeLogIntegration,
+        ChangeLogIntegrationParams,
+    )
+
+    run_class_integration(
+        ChangeLogIntegration(
+            ChangeLogIntegrationParams(
+                gitlab_project_id=gitlab_project_id,
+                process_existing=process_existing,
+            )
+        ),
+        ctx=ctx.obj,
     )
 
 

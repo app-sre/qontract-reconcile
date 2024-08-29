@@ -31,6 +31,7 @@ from rich.table import Table
 from rich.tree import Tree
 
 import reconcile.aus.base as aus
+import reconcile.change_owners.change_log_tracking as cl
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 import reconcile.prometheus_rules_tester.integration as ptr
@@ -47,6 +48,11 @@ from reconcile.aus.base import (
 )
 from reconcile.aus.models import OrganizationUpgradeSpec
 from reconcile.change_owners.bundle import NoOpFileDiffResolver
+from reconcile.change_owners.change_log_tracking import (
+    BUNDLE_DIFFS_OBJ,
+    ChangeLog,
+    ChangeLogItem,
+)
 from reconcile.change_owners.change_owners import (
     fetch_change_type_processors,
     fetch_self_service_roles,
@@ -85,6 +91,7 @@ from reconcile.jenkins_job_builder import init_jjb
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.status_board import StatusBoardExporterIntegration
 from reconcile.typed_queries.alerting_services_settings import get_alerting_services
+from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -1085,6 +1092,27 @@ def cidr_blocks(ctx, for_cluster: int, mask: int) -> None:
         }
         for c in clusters
     ]
+
+    tgw_cidrs = [
+        {
+            "type": "account-tgw",
+            "name": connection["account"]["name"],
+            "account": connection["account"]["name"],
+            "cidr": cidr,
+            "from": str(ipaddress.ip_network(cidr)[0]),
+            "to": str(ipaddress.ip_network(cidr)[-1]),
+            "hosts": str(ipaddress.ip_network(cidr).num_addresses),
+            "description": f'CIDR {cidr} routed through account {connection["account"]["name"]} transit gateways',
+        }
+        for c in clusters
+        for connection in (c["peering"] or {}).get("connections") or []
+        if connection["provider"] == "account-tgw"
+        for cidr in [connection["cidrBlock"]] + (connection["cidrBlocks"] or [])
+        if cidr is not None
+    ]
+    # removing dupes using a set of tuple (since dicts are not hashable)
+    unique_tgw_cidrs = [dict(t) for t in {tuple(d.items()) for d in tgw_cidrs}]
+    cidrs.extend(unique_tgw_cidrs)
 
     vpcs = get_aws_vpcs()
     cidrs.extend(
@@ -2854,6 +2882,34 @@ def container_image_details(ctx):
                 }
                 data.append(item)
     columns = ["app", "repository", "email", "slack"]
+    print_output(ctx.obj["options"], data, columns)
+
+
+@get.command
+@click.pass_context
+def change_log_tracking(ctx):
+    repo_url = get_app_interface_repo_url()
+    change_types = fetch_change_type_processors(gql.get_api(), NoOpFileDiffResolver())
+    state = init_state(integration=cl.QONTRACT_INTEGRATION)
+    change_log = ChangeLog(**state.get(BUNDLE_DIFFS_OBJ))
+    data: list[dict[str, str]] = []
+    for item in change_log.items:
+        change_log_item = ChangeLogItem(**item)
+        commit = change_log_item.commit
+        covered_change_types_descriptions = [
+            ct.description
+            for ct in change_types
+            if ct.name in change_log_item.change_types
+        ]
+        item = {
+            "commit": f"[{commit}]({repo_url}/commit/{commit})",
+            "apps": ", ".join(change_log_item.apps),
+            "changes": ", ".join(covered_change_types_descriptions),
+            "error": change_log_item.error,
+        }
+        data.append(item)
+
+    columns = ["commit", "apps", "changes", "error"]
     print_output(ctx.obj["options"], data, columns)
 
 

@@ -1194,6 +1194,7 @@ def early_exit_monkey_patch() -> Generator:
         lookup_github_file_content=DEFAULT,
         url_makes_sense=DEFAULT,
         lookup_s3_object=DEFAULT,
+        list_s3_objects=DEFAULT,
     ) as mocks:
         # mock lookup_secret
         mocks["lookup_secret"].side_effect = (
@@ -1238,6 +1239,17 @@ def early_exit_monkey_patch() -> Generator:
         # needed for jinja2 `is_safe_callable`
         mocks["lookup_s3_object"].unsafe_callable = False
         mocks["lookup_s3_object"].alters_data = False
+
+        # mock list_s3_objects
+        mocks["list_s3_objects"].side_effect = (
+            lambda account_name,
+            bucket_name,
+            path,
+            region_name=None: f"list_s3_objects({account_name}, {bucket_name}, {path}, {region_name})"
+        )
+        # needed for jinja2 `is_safe_callable`
+        mocks["list_s3_objects"].unsafe_callable = False
+        mocks["list_s3_objects"].alters_data = False
 
         with patch(
             "reconcile.openshift_resources_base.check_alertmanager_config",

@@ -265,6 +265,7 @@ query SaasFiles {
           auto
           publish
           subscribe
+          redeployOnPublisherConfigChange
           soakDays
           schedule
           promotion_data {
@@ -472,6 +473,7 @@ class SaasResourceTemplateTargetPromotionV1(ConfiguredBaseModel):
     auto: Optional[bool] = Field(..., alias="auto")
     publish: Optional[list[str]] = Field(..., alias="publish")
     subscribe: Optional[list[str]] = Field(..., alias="subscribe")
+    redeploy_on_publisher_config_change: Optional[bool] = Field(..., alias="redeployOnPublisherConfigChange")
     soak_days: Optional[int] = Field(..., alias="soakDays")
     schedule: Optional[str] = Field(..., alias="schedule")
     promotion_data: Optional[list[PromotionDataV1]] = Field(..., alias="promotion_data")

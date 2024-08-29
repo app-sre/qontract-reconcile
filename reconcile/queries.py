@@ -880,6 +880,7 @@ CLUSTERS_QUERY = """
           }
           tags
           cidrBlock
+          cidrBlocks
           manageSecurityGroups
           assumeRole
         }

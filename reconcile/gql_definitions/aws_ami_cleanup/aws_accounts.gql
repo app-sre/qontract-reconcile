@@ -1,0 +1,29 @@
+# qenerate: plugin=pydantic_v1
+
+query AWSAccountsAmiCleanup {
+  accounts: awsaccounts_v1 {
+    ...AWSAccountCommon
+    terraformState {
+      ...TerraformState
+    }
+    cleanup {
+      provider
+      ... on AWSAccountCleanupOptionAMI_v1 {
+        regex
+        age
+        region
+      }
+    }
+    sharing {
+      provider
+      account {
+        name
+        supportedDeploymentRegions
+        resourcesDefaultRegion
+      }
+      ... on AWSAccountSharingOptionAMI_v1 {
+        region
+      }
+    }
+  }
+}

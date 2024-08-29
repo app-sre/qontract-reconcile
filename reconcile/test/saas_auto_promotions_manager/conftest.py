@@ -131,7 +131,7 @@ def subscriber_builder(
                     app_name="",
                     resource_template_name="",
                     target_name=None,
-                    publish_job_logs=True,
+                    redeploy_on_config_change=True,
                     has_subscriber=True,
                     auth_code=None,
                 )

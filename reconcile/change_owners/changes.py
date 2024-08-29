@@ -102,7 +102,7 @@ class BundleFileChange:
     def is_file_creation(self) -> bool:
         return self.old is None and self.new is not None
 
-    def cover_changes(self, change_type_context: ChangeTypeContext) -> None:
+    def cover_changes(self, change_type_context: ChangeTypeContext) -> dict[str, Diff]:
         """
         Figure out if a ChangeTypeV1 covers detected changes within the BundleFile.
         Base idea:
@@ -121,7 +121,7 @@ class BundleFileChange:
         # as a source of approvers
         if self.metadata_only_change and not self.diffs:
             self._metadata_only_diff_coverage().coverage.append(change_type_context)
-            return
+            return {}
 
         covered_diffs = {}
         # observe the new state for added fields or list items or entire object sutrees
@@ -138,6 +138,8 @@ class BundleFileChange:
                 self._filter_diffs([DiffType.REMOVED]), self.old, change_type_context
             )
         )
+
+        return covered_diffs
 
     def _cover_changes_for_diffs(
         self,

@@ -368,6 +368,7 @@ def build_change_type(
     return change_type_to_processor(
         ChangeTypeV1(
             name=name,
+            labels=None,
             description=name,
             contextType=context_type.value,
             contextSchema=context_schema,

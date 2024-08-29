@@ -22,6 +22,7 @@ from reconcile.test.change_owners.fixtures import (
 def namespace_change_type() -> ChangeTypeV1:
     return ChangeTypeV1(
         name="namespace",
+        labels=None,
         description="namespace",
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="namespace-1.yml",
@@ -50,6 +51,7 @@ def namespace_change_type() -> ChangeTypeV1:
 def rds_defaults_change_type() -> ChangeTypeV1:
     return ChangeTypeV1(
         name="rds-defaults",
+        labels=None,
         description="rds-defaults",
         contextType=BundleFileType.RESOURCEFILE.value,
         contextSchema="rds-defaults-1.yml",
@@ -70,6 +72,7 @@ def rds_defaults_change_type() -> ChangeTypeV1:
 def app_hierarchy_change_type() -> ChangeTypeV1:
     return ChangeTypeV1(
         name="app-hierarchy",
+        labels=None,
         description="app-hierarchy",
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="app-1.yml",
@@ -93,6 +96,7 @@ def app_hierarchy_change_type() -> ChangeTypeV1:
 def saas_file_change_type() -> ChangeTypeV1:
     return ChangeTypeV1(
         name="saas-files-of-namespaces",
+        labels=None,
         description="namespace",
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="namespace-1.yml",
@@ -115,6 +119,7 @@ def saas_file_change_type() -> ChangeTypeV1:
 def app_change_type() -> ChangeTypeV1:
     return ChangeTypeV1(
         name="app",
+        labels=None,
         description="app",
         contextType=BundleFileType.DATAFILE.value,
         contextSchema="app-1.yml",

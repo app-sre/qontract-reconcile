@@ -417,6 +417,7 @@ query TerraformResourcesNamespaces {
                     ...VaultSecret
                   }
                 }
+                managed_by_erv2
             }
         }
       }

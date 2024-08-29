@@ -14,10 +14,10 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 class AWSResourceFactory(ABC):
     def __init__(
-        self, er_inventory: ExternalResourcesInventory, secrets_reader: SecretReaderBase
+        self, er_inventory: ExternalResourcesInventory, secret_reader: SecretReaderBase
     ):
         self.er_inventory = er_inventory
-        self.secrets_reader = secrets_reader
+        self.secret_reader = secret_reader
 
     @abstractmethod
     def resolve(self, spec: ExternalResourceSpec) -> dict[str, Any]: ...
@@ -83,3 +83,51 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
         return data
 
     def validate(self, resource: ExternalResource) -> None: ...
+
+
+class AWSMskFactory(AWSDefaultResourceFactory):
+    def _get_source_db_spec(
+        self, provisioner: str, identifier: str
+    ) -> ExternalResourceSpec:
+        return self.er_inventory.get_inventory_spec(
+            "aws", provisioner, "msk", identifier
+        )
+
+    def resolve(self, spec: ExternalResourceSpec) -> dict[str, Any]:
+        rvr = ResourceValueResolver(spec=spec, identifier_as_value=True)
+        data = rvr.resolve()
+        data["output_prefix"] = spec.output_prefix
+
+        scram_enabled = (
+            data.get("client_authentication", {}).get("sasl", {}).get("scram", False)
+        )
+        data["scram_users"] = {}
+        if scram_enabled:
+            if not data.get("users", []):
+                raise ValueError(
+                    "users attribute must be given when client_authentication.sasl.scram is enabled."
+                )
+            data["scram_users"] = {
+                user["name"]: self.secret_reader.read_all(user["secret"])
+                for user in data["users"]
+            }
+            # the users attribute is not needed in the final data
+            del data["users"]
+        return data
+
+    def validate(self, resource: ExternalResource) -> None:
+        data = resource.data
+        if (
+            data["number_of_broker_nodes"]
+            % len(data["broker_node_group_info"]["client_subnets"])
+            != 0
+        ):
+            raise ValueError(
+                "number_of_broker_nodes must be a multiple of the number of specified client subnets."
+            )
+        # validate user objects
+        for user, secret in data["scram_users"].items():
+            if secret.keys() != {"password", "username"}:
+                raise ValueError(
+                    f"MSK user '{user}' secret must contain only 'username' and 'password' keys!"
+                )

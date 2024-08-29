@@ -4,12 +4,15 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from collections.abc import Iterable
 from typing import Any
 from uuid import uuid4
 
 from gitlab.exceptions import GitlabError
 from jinja2 import Template
 
+from reconcile import typed_queries
+from reconcile.gql_definitions.fragments.user import User
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
@@ -107,6 +110,26 @@ class MergeRequestBase(ABC):
             "pr_type": self.name,
             **self.sqs_msg_data,
         }
+
+    def infer_author(
+        self, author_email: str | None, all_users: Iterable[User] | None = None
+    ) -> str | None:
+        if not author_email:
+            return None
+        if not all_users:
+            return None
+
+        username = author_email.split("@")[0]
+        users = None
+        if author_email.endswith(typed_queries.smtp.settings().mail_address):
+            users = [u for u in all_users if username == u.org_username]
+        elif author_email.endswith("users.noreply.github.com"):
+            users = [u for u in all_users if username == u.github_username]
+
+        if users:
+            return users[0].org_username
+
+        return None
 
     def submit_to_sqs(self, sqs_cli: SQSGateway) -> None:
         """

@@ -331,12 +331,28 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         for resource_change in resource_changes:
             resource_type = resource_change["type"]
             resource_name = resource_change["name"]
+            resource_address = resource_change["address"]
+            resource_previous_address = resource_change.get("previous_address")
             resource_change = resource_change["change"]
             actions = resource_change["actions"]
             for action in actions:
+                if resource_previous_address:
+                    # the resource is being moved/renamed in the TF state
+                    with self._log_lock:
+                        logging.info([
+                            "move/rename",
+                            name,
+                            resource_previous_address,
+                            resource_address,
+                        ])
+
                 if action == "no-op":
                     logging.debug([action, name, resource_type, resource_name])
-                    continue
+                    if resource_previous_address:
+                        # apply resource renaming with no-op
+                        self.increment_apply_count()
+                    else:
+                        continue
                 if action == "update" and resource_type == "aws_db_instance":
                     self.validate_db_upgrade(name, resource_name, resource_change)
                     # Ignore RDS modifications that are going to occur during the next
@@ -790,6 +806,9 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
             blue_green_update = after.get("blue_green_update", [])
             if blue_green_update and blue_green_update[0]["enabled"]:
+                changed_fields = self._resource_diff_changed_fields(
+                    "update", resource_change
+                )
                 replica = before["replicas"] != [] or before["replicate_source_db"]
                 self.validate_blue_green_update_requirements(
                     account_name,
@@ -799,6 +818,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     replica,
                     before["parameter_group_name"],
                     region_name,
+                    changed_fields=changed_fields,
                 )
 
     def validate_blue_green_update_requirements(
@@ -810,6 +830,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         replica: bool,
         parameter_group: str,
         region_name: str,
+        changed_fields: set[str],
     ) -> None:
         min_supported_versions = {
             "mysql": [pkg_version.parse("5.7"), pkg_version.parse("8.0.15")],
@@ -861,6 +882,13 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     f"Blue/green updates require logical replication to be enabled in the Parameter group {parameter_group}."
                 )
                 return
+
+        if "storage_type" in changed_fields or "allocated_storage" in changed_fields:
+            logging.error(
+                f"Cannot upgrade RDS instance: {resource_name}. "
+                f"Blue/green updates are not supported when 'storage_type' or 'allocated_storage' has changed."
+            )
+            return
 
 
 class TerraformPlanFailed(Exception):

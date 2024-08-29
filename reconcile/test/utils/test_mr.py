@@ -310,14 +310,14 @@ def smtp_settings():
     )
 
 
-def test_author_email_empty():
+def test_author_email_empty(users):
     mr = PromoteQontractReconcileCommercial(
         version="1q2w3e4",
         commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
     )
 
     assert mr.author_email is None
-    assert mr.author() is None
+    assert mr.infer_author(mr.author_email, all_users=users) is None
 
 
 @patch.object(reconcile.typed_queries.smtp, "settings", autospec=True)
@@ -329,7 +329,7 @@ def test_author_org_username(settings, users, smtp_settings):
     )
     settings.return_value = smtp_settings
 
-    assert mr.author(all_users=users) == "org_user"
+    assert mr.infer_author(author_email=mr.author_email, all_users=users) == "org_user"
 
 
 @patch.object(reconcile.typed_queries.smtp, "settings", autospec=True)
@@ -341,4 +341,4 @@ def test_author_github_username(settings, users, smtp_settings):
     )
     settings.return_value = smtp_settings
 
-    assert mr.author(all_users=users) == "org_user"
+    assert mr.infer_author(author_email=mr.author_email, all_users=users) == "org_user"
