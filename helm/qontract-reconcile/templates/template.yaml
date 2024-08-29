@@ -80,6 +80,8 @@ objects:
               memory: 20Mi
           env:
           {{- if $logs.slack }}
+          - name: SLACK_CHANNEL_ID
+            value: ${SLACK_CHANNEL_ID}
           - name: SLACK_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
@@ -185,6 +187,15 @@ objects:
                       "\\\\\""),
                     "\"}"
                   ])
+             {{- if $logs.slack }}
+              inject_slack_channel:
+                type: remap
+                inputs:
+                  - rename_message_webhooks
+                source: |-
+                  .message = parse_json!(.message)
+                  .message.channel = "${SLACK_CHANNEL_ID}"
+              {{- end }}
 
             sinks:
               ################
@@ -206,7 +217,7 @@ objects:
               slack:
                 type: http
                 inputs:
-                  - rename_message_webhooks
+                  - inject_slack_channel
                 compression: none
                 encoding:
                   codec: text
@@ -884,6 +895,10 @@ parameters:
   value: 'token'
 - name: LOG_FILE
   value: "/fluentd/log/integration.log"
+ 
+- name: SLACK_CHANNEL_ID
+  # sd-app-sre-reconcile-stage
+  value: "CRQRABVMX"
 - name: SLACK_CHANNEL
   value: "sd-app-sre-reconcile-stage"
 - name: SLACK_CHANNEL_TRIGGER
