@@ -3558,13 +3558,14 @@ def change_owners(
 
 
 @integration.command(short_help="Analyze bundle diffs by change types.")
+@gitlab_project_id
 @click.option(
     "--process-existing/--no-process-existing",
     default=False,
     help="wait for pending/running pipelines before acting.",
 )
 @click.pass_context
-def change_log_tracking(ctx, process_existing):
+def change_log_tracking(ctx, gitlab_project_id, process_existing):
     from reconcile.change_owners.change_log_tracking import (
         ChangeLogIntegration,
         ChangeLogIntegrationParams,
@@ -3573,6 +3574,7 @@ def change_log_tracking(ctx, process_existing):
     run_class_integration(
         ChangeLogIntegration(
             ChangeLogIntegrationParams(
+                gitlab_project_id=gitlab_project_id,
                 process_existing=process_existing,
             )
         ),

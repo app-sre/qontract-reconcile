@@ -6,7 +6,10 @@ from reconcile.change_owners.bundle import (
     NoOpFileDiffResolver,
     QontractServerDiff,
 )
-from reconcile.change_owners.change_owners import fetch_change_type_processors
+from reconcile.change_owners.change_owners import (
+    fetch_change_type_processors,
+    init_gitlab,
+)
 from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.change_owners.changes import aggregate_file_moves, parse_bundle_changes
 from reconcile.typed_queries.apps import get_apps
@@ -25,6 +28,7 @@ BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
 @dataclass
 class ChangeLogItem:
     commit: str
+    created_at: str
     change_types: list[str] = field(default_factory=list)
     error: bool = False
     apps: list[str] = field(default_factory=list)
@@ -36,6 +40,7 @@ class ChangeLog:
 
 
 class ChangeLogIntegrationParams(PydanticRunParams):
+    gitlab_project_id: str
     process_existing: bool = False
 
 
@@ -78,6 +83,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                 ChangeLogItem(**i)  # type: ignore[arg-type]
                 for i in existing_change_log.items
             ]
+        gl = init_gitlab(self.params.gitlab_project_id)
         change_log = ChangeLog()
         for item in diff_state.ls():
             key = item.lstrip("/")
@@ -92,8 +98,10 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                     continue
 
             logging.info(f"Processing commit {commit}")
+            gl_commit = gl.project.commits.get(commit)
             change_log_item = ChangeLogItem(
                 commit=commit,
+                created_at=gl_commit.created_at,
             )
             change_log.items.append(change_log_item)
             obj = diff_state.get(key, None)
@@ -135,5 +143,8 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         if ctp.name not in change_log_item.change_types:
                             change_log_item.change_types.append(ctp.name)
 
+        change_log.items = sorted(
+            change_log.items, key=lambda i: i.created_at, reverse=True
+        )
         if not dry_run:
             integration_state.add(BUNDLE_DIFFS_OBJ, asdict(change_log), force=True)
