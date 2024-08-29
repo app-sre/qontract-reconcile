@@ -149,7 +149,6 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         }
                         change_log_item.apps.extend(changed_apps)
 
-
                 # TODO(maorfr): switch apps to set
                 change_log_item.apps = list(set(change_log_item.apps))
 
