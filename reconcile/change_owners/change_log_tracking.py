@@ -58,6 +58,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             if ctp.labels and "change_log_tracking" in ctp.labels
         ]
         apps = get_apps()
+        app_name_by_path = {a.path: a.name for a in apps}
 
         integration_state = init_state(
             integration=self.name,
@@ -104,25 +105,16 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             changes = aggregate_file_moves(parse_bundle_changes(diff))
             for change in changes:
                 logging.debug(f"Processing change {change}")
+                change_versions = filter(None, [change.old, change.new])
                 match change.fileref.schema:
                     case "/app-sre/app-1.yml":
-                        old_app_name = change.old["name"] if change.old else None
-                        if old_app_name:
-                            change_log_item.apps.append(old_app_name)
-                        new_app_name = change.new["name"] if change.new else None
-                        if new_app_name:
-                            change_log_item.apps.append(new_app_name)
-                    case (
-                        "/app-sre/saas-file-2.yml"
-                        | "/openshift/namespace-1.yml"
-                        | "/dependencies/jenkins-config-1.yml"
-                    ):
-                        old_app_path = change.old["app"]["$ref"] if change.old else None
-                        new_app_path = change.new["app"]["$ref"] if change.new else None
+                        changed_apps = {c["name"] for c in change_versions}
+                        change_log_item.apps.extend(changed_apps)
+                    case "/app-sre/saas-file-2.yml" | "/openshift/namespace-1.yml":
                         changed_apps = {
-                            a.name
-                            for a in apps
-                            if a.path in {old_app_path, new_app_path}
+                            name
+                            for c in change_versions
+                            if (name := app_name_by_path.get(c["app"]["$ref"]))
                         }
                         change_log_item.apps.extend(changed_apps)
 
