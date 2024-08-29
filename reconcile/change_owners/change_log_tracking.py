@@ -9,6 +9,7 @@ from reconcile.change_owners.bundle import (
 from reconcile.change_owners.change_owners import fetch_change_type_processors
 from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.change_owners.changes import aggregate_file_moves, parse_bundle_changes
+from reconcile.typed_queries.apps import get_apps
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.runtime.integration import (
@@ -26,6 +27,7 @@ class ChangeLogItem:
     commit: str
     change_types: list[str] = field(default_factory=list)
     error: bool = False
+    apps: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -55,6 +57,8 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             )
             if ctp.labels and "change_log_tracking" in ctp.labels
         ]
+        apps = get_apps()
+        app_name_by_path = {a.path: a.name for a in apps}
 
         integration_state = init_state(
             integration=self.name,
@@ -101,6 +105,22 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             changes = aggregate_file_moves(parse_bundle_changes(diff))
             for change in changes:
                 logging.debug(f"Processing change {change}")
+                change_versions = filter(None, [change.old, change.new])
+                match change.fileref.schema:
+                    case "/app-sre/app-1.yml":
+                        changed_apps = {c["name"] for c in change_versions}
+                        change_log_item.apps.extend(changed_apps)
+                    case "/app-sre/saas-file-2.yml" | "/openshift/namespace-1.yml":
+                        changed_apps = {
+                            name
+                            for c in change_versions
+                            if (name := app_name_by_path.get(c["app"]["$ref"]))
+                        }
+                        change_log_item.apps.extend(changed_apps)
+
+                # TODO(maorfr): switch apps to set
+                change_log_item.apps = list(set(change_log_item.apps))
+
                 for ctp in change_type_processors:
                     logging.info(f"Processing change type {ctp.name}")
                     ctx = ChangeTypeContext(
