@@ -31,6 +31,7 @@ from rich.table import Table
 from rich.tree import Tree
 
 import reconcile.aus.base as aus
+import reconcile.change_owners.change_log_tracking as cl
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 import reconcile.prometheus_rules_tester.integration as ptr
@@ -50,8 +51,6 @@ from reconcile.change_owners.bundle import NoOpFileDiffResolver
 from reconcile.change_owners.change_log_tracking import (
     BUNDLE_DIFFS_OBJ,
     ChangeLog,
-    ChangeLogIntegration,
-    ChangeLogIntegrationParams,
     ChangeLogItem,
 )
 from reconcile.change_owners.change_owners import (
@@ -2891,9 +2890,7 @@ def container_image_details(ctx):
 def change_log_tracking(ctx):
     repo_url = get_app_interface_repo_url()
     change_types = fetch_change_type_processors(gql.get_api(), NoOpFileDiffResolver())
-    state = init_state(
-        integration=ChangeLogIntegration(ChangeLogIntegrationParams()).name
-    )
+    state = init_state(integration=cl.QONTRACT_INTEGRATION)
     change_log = ChangeLog(**state.get(BUNDLE_DIFFS_OBJ))
     data: list[dict[str, str]] = []
     for item in change_log.items:
