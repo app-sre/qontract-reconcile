@@ -145,7 +145,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         changed_apps = {
                             name
                             for c in change_versions
-                            for name in app_names_by_cluster_name(c["name"])
+                            for name in app_names_by_cluster_name.get(c["name"], [])
                         }
                         change_log_item.apps.extend(changed_apps)
 
