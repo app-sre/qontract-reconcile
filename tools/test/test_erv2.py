@@ -12,30 +12,53 @@ def test_erv2_model_tfresource() -> None:
 
 
 def test_erv2_model_tfresource_list() -> None:
-    tfrl = TfResourceList(
+    # terraform_resource_list
+    terraform_resource_list = TfResourceList(
         resources=[
-            TfResource(address="postfix-module.identifier-postfix"),
-            TfResource(address="prefix-module.prefix-identifier"),
+            TfResource(address="postfix-module.user-1"),
+            TfResource(address="postfix-module.user-2"),
+            TfResource(address="prefix-module.user-1"),
+            TfResource(address="prefix-module.user-2"),
             TfResource(address="exact-module.identifier"),
             TfResource(address="something.else"),
+            # real life example
+            TfResource(
+                address="aws_secretsmanager_secret.AmazonMSK_playground-msk-stage-playground-msk-stage-another-user"
+            ),
+            TfResource(
+                address="aws_secretsmanager_secret.AmazonMSK_playground-msk-stage-playground-msk-stage"
+            ),
         ]
     )
-    assert len(tfrl) == 4
+    assert len(terraform_resource_list) == 8
     # exact match
     assert (
-        tfrl[TfResource(address="exact-module.identifier")].address
+        terraform_resource_list[TfResource(address="exact-module.identifier")].address
         == "exact-module.identifier"
     )
     # with postfix
     assert (
-        tfrl[TfResource(address="postfix-module.identifier")].address
-        == "postfix-module.identifier-postfix"
+        terraform_resource_list[
+            TfResource(address="postfix-module.user-1-postfix")
+        ].address
+        == "postfix-module.user-1"
     )
     # with prefix
     assert (
-        tfrl[TfResource(address="prefix-module.identifier")].address
-        == "prefix-module.prefix-identifier"
+        terraform_resource_list[
+            TfResource(address="prefix-module.prefix-user-1")
+        ].address
+        == "prefix-module.user-1"
+    )
+    # real life example
+    assert (
+        terraform_resource_list[
+            TfResource(
+                address="aws_secretsmanager_secret.AmazonMSK_playground-msk-stage-playground-msk-stage-secret"
+            )
+        ].address
+        == "aws_secretsmanager_secret.AmazonMSK_playground-msk-stage-playground-msk-stage"
     )
 
     with pytest.raises(KeyError):
-        tfrl[TfResource(address="not.found")]
+        terraform_resource_list[TfResource(address="not.found")]
