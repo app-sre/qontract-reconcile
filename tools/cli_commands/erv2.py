@@ -246,25 +246,52 @@ class TfResourceList(BaseModel):
     def __iter__(self) -> Iterator[TfResource]:  # type: ignore
         return iter(self.resources)
 
-    def _get_resource_by_type(self, type: str) -> list[TfResource]:
+    def _get_resource_by_address(self, address: str) -> TfResource | None:
+        for resource in self.resources:
+            if resource.address == address:
+                return resource
+        return None
+
+    def _get_resources_by_type(self, type: str) -> list[TfResource]:
         results = [resource for resource in self.resources if resource.type == type]
         if not results:
             raise KeyError(f"Resource type {type} not found!")
         return results
 
     def __getitem__(self, tf_resource: TfResource) -> TfResource:
-        results = self._get_resource_by_type(tf_resource.type)
+        """Get a resource by searching the resource list.
+
+        self holds the source resources (terraform-resources).
+        The tf_resource is the destination resource (ERv2).
+        """
+        if resource := self._get_resource_by_address(tf_resource.address):
+            # exact match by AWS address
+            return resource
+
+        # a resource with the same ID does not exist
+        # let's try to find the resource by the AWS type
+        results = self._get_resources_by_type(tf_resource.type)
         if len(results) == 1:
-            # best case scenario
+            # there is just one resource with the same type
+            # this must be the searched resource.
             return results[0]
-        # try to find the resource by fuzzy matching the id
+
+        # ok, now it's getting tricky:
+        # * we found multiple resources with the same AWS type
+        # * we need to find the correct resource by the ID
+        # * but we know that the ID is slightly different
+
         # reverse sort to get the longest match first
         for resource in sorted(results, reverse=True):
             if tf_resource.id.startswith(resource.id):
-                # new resource id has a prefix
+                # the resource id has a prefix, e.g.
+                # resource.id (terraform-resources): playground-stage
+                # tf.id (ERv2): playground-stage-msk-cluster
                 return resource
             if tf_resource.id.endswith(resource.id):
-                # new resource id has a suffix
+                # the resource id has a suffix
+                # resource.id (terraform-resources): playground-stage
+                # tf.id (ERv2): msk-cluster-playground-stage
                 return resource
         raise KeyError(f"Resource {tf_resource} not found!")
 
