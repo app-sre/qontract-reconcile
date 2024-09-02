@@ -68,7 +68,7 @@ class Erv2Cli:
         provider: str,
         identifier: str,
         secret_reader: SecretReaderBase,
-        temp_dir: Path | None = None,
+        temp_dir: Path,
         progress_spinner: Progress | None = None,
     ) -> None:
         self._provision_provider = provision_provider
@@ -119,8 +119,6 @@ class Erv2Cli:
 
     @property
     def temp(self) -> Path:
-        if not self._temp_dir:
-            raise ValueError("temp_dir is not set")
         return self._temp_dir
 
     def reconcile(self) -> None:
