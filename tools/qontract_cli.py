@@ -2903,13 +2903,14 @@ def change_log_tracking(ctx):
         ]
         item = {
             "commit": f"[{commit}]({repo_url}/commit/{commit})",
+            "created_at": change_log_item.created_at,
             "apps": ", ".join(change_log_item.apps),
             "changes": ", ".join(covered_change_types_descriptions),
             "error": change_log_item.error,
         }
         data.append(item)
 
-    columns = ["commit", "apps", "changes", "error"]
+    columns = ["commit", "created_at", "apps", "changes", "error"]
     print_output(ctx.obj["options"], data, columns)
 
 
