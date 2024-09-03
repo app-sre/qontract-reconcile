@@ -15,6 +15,7 @@ from reconcile.change_owners.changes import aggregate_file_moves, parse_bundle_c
 from reconcile.typed_queries.apps import get_apps
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
+from reconcile.utils.gitlab_api import MRState
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -28,7 +29,7 @@ BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
 @dataclass
 class ChangeLogItem:
     commit: str
-    created_at: str
+    merged_at: str
     change_types: list[str] = field(default_factory=list)
     error: bool = False
     apps: list[str] = field(default_factory=list)
@@ -101,9 +102,15 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
 
             logging.info(f"Processing commit {commit}")
             gl_commit = gl.project.commits.get(commit)
+            merged_at = max(
+                mr["merged_at"]
+                for mr in gl_commit.merge_requests()
+                if mr["state"] == MRState.MERGED
+                and mr["target_branch"] == gl.project.default_branch
+            )
             change_log_item = ChangeLogItem(
                 commit=commit,
-                created_at=gl_commit.created_at,
+                merged_at=merged_at,
             )
             change_log.items.append(change_log_item)
             obj = diff_state.get(key, None)
