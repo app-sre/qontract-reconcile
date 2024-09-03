@@ -253,9 +253,6 @@ class TfResource(BaseModel):
     def __repr__(self) -> str:
         return str(self)
 
-    def __lt__(self, other: TfResource) -> bool:
-        return self.address < other.address
-
 
 class TfResourceList(BaseModel):
     resources: list[TfResource]
