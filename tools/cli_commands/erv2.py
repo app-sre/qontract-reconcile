@@ -281,7 +281,10 @@ class TfResourceList(BaseModel):
         # * we need to find the correct resource by the ID
         # * but we know that the ID is slightly different
 
-        # reverse sort to get the longest match first
+        # reverse sort to get the longest match first.
+        # if we have resources with a "similar" ID, e.g.
+        # one resource contains the ID of another resource
+        # playground-user and playground-user-foobar
         for resource in sorted(results, reverse=True):
             if tf_resource.id.startswith(resource.id):
                 # the resource id has a prefix, e.g.

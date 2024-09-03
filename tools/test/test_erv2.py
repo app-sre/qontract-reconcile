@@ -23,10 +23,10 @@ def test_erv2_model_tfresource_list() -> None:
             TfResource(address="something.else"),
             # real life example
             TfResource(
-                address="aws_secretsmanager_secret.AmazonMSK_playground-msk-stage-playground-msk-stage-another-user"
+                address="aws_secretsmanager_secret.AmazonMSK_playground-msk-stage-playground-msk-stage"
             ),
             TfResource(
-                address="aws_secretsmanager_secret.AmazonMSK_playground-msk-stage-playground-msk-stage"
+                address="aws_secretsmanager_secret.AmazonMSK_playground-msk-stage-playground-msk-stage-another-user"
             ),
         ]
     )
@@ -59,6 +59,14 @@ def test_erv2_model_tfresource_list() -> None:
         ].address
         == "aws_secretsmanager_secret.AmazonMSK_playground-msk-stage-playground-msk-stage"
     )
-
+    # test sorting in TfResourceList.__getitem__
+    assert (
+        terraform_resource_list[
+            TfResource(
+                address="aws_secretsmanager_secret.AmazonMSK_playground-msk-stage-playground-msk-stage-another-user-secret"
+            )
+        ].address
+        == "aws_secretsmanager_secret.AmazonMSK_playground-msk-stage-playground-msk-stage-another-user"
+    )
     with pytest.raises(KeyError):
         terraform_resource_list[TfResource(address="not.found")]
