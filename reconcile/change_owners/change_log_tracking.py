@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 
@@ -67,11 +68,11 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
         apps = get_apps()
         app_name_by_path = {a.path: a.name for a in apps}
         namespaces = get_namespaces()
-        app_names_by_cluster_name: dict[str, set[str]] = {}
+        app_names_by_cluster_name = defaultdict(set)
         for ns in namespaces:
             cluster = ns.cluster.name
             app = ns.app.name
-            app_names_by_cluster_name.setdefault(cluster, set()).add(app)
+            app_names_by_cluster_name[cluster].add(app)
 
         integration_state = init_state(
             integration=self.name,
