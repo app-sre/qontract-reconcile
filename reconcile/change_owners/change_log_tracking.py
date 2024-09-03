@@ -153,7 +153,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                             change_log_item.change_types.append(ctp.name)
 
         change_log.items = sorted(
-            change_log.items, key=lambda i: i.created_at, reverse=True
+            change_log.items, key=lambda i: i.merged_at, reverse=True
         )
         if not dry_run:
             integration_state.add(BUNDLE_DIFFS_OBJ, asdict(change_log), force=True)
