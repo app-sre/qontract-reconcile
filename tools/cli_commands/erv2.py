@@ -5,6 +5,7 @@ import os
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
+from difflib import get_close_matches
 from enum import Enum
 from pathlib import Path
 from subprocess import CalledProcessError, run
@@ -14,7 +15,7 @@ from pydantic import BaseModel
 from rich import print as rich_print
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
-from rich.prompt import Confirm
+from rich.prompt import Confirm, IntPrompt
 
 from reconcile.external_resources.integration import get_aws_api
 from reconcile.external_resources.manager import setup_factories
@@ -48,6 +49,22 @@ def progress_spinner() -> Progress:
         TimeElapsedColumn(),
         console=console,
     )
+
+
+@contextmanager
+def pause_progress_spinner(progress: Progress | None) -> Iterator:
+    """Pause the progress spinner."""
+    if progress:
+        progress.stop()
+        UP = "\x1b[1A"
+        CLEAR = "\x1b[2K"
+        for task in progress.tasks:
+            if task.finished:
+                continue
+            print(UP + CLEAR + UP)
+    yield
+    if progress:
+        progress.start()
 
 
 @contextmanager
@@ -255,10 +272,10 @@ class TfResourceList(BaseModel):
     def _get_resources_by_type(self, type: str) -> list[TfResource]:
         results = [resource for resource in self.resources if resource.type == type]
         if not results:
-            raise KeyError(f"Resource type {type} not found!")
+            raise KeyError(f"Resource type '{type}' not found!")
         return results
 
-    def __getitem__(self, tf_resource: TfResource) -> TfResource:
+    def __getitem__(self, tf_resource: TfResource) -> list[TfResource]:
         """Get a resource by searching the resource list.
 
         self holds the source resources (terraform-resources).
@@ -266,7 +283,7 @@ class TfResourceList(BaseModel):
         """
         if resource := self._get_resource_by_address(tf_resource.address):
             # exact match by AWS address
-            return resource
+            return [resource]
 
         # a resource with the same ID does not exist
         # let's try to find the resource by the AWS type
@@ -274,29 +291,13 @@ class TfResourceList(BaseModel):
         if len(results) == 1:
             # there is just one resource with the same type
             # this must be the searched resource.
-            return results[0]
+            return results
 
-        # ok, now it's getting tricky:
-        # * we found multiple resources with the same AWS type
-        # * we need to find the correct resource by the ID
-        # * but we know that the ID is slightly different
-
-        # reverse sort to get the longest match first.
-        # if we have resources with a "similar" ID, e.g.
-        # one resource contains the ID of another resource
-        # playground-user and playground-user-foobar
-        for resource in sorted(results, reverse=True):
-            if tf_resource.id.startswith(resource.id):
-                # the resource id has a prefix, e.g.
-                # resource.id (terraform-resources): playground-stage
-                # tf.id (ERv2): playground-stage-msk-cluster
-                return resource
-            if tf_resource.id.endswith(resource.id):
-                # the resource id has a suffix
-                # resource.id (terraform-resources): playground-stage
-                # tf.id (ERv2): msk-cluster-playground-stage
-                return resource
-        raise KeyError(f"Resource {tf_resource} not found!")
+        # ok, now it's getting tricky. Let's use difflib and let the user decide.
+        possible_matches_ids = get_close_matches(
+            tf_resource.id, [r.id for r in results]
+        )
+        return [r for r in results if r.id in possible_matches_ids]
 
     def __len__(self) -> int:
         return len(self.resources)
@@ -365,28 +366,28 @@ class TerraformCli:
         self, source_state_file: Path, source: TfResource, destination: TfResource
     ) -> None:
         """Move the resource from source state file to destination state file."""
-        with task(
-            self.progress_spinner,
-            f"-- Moving {destination} {'[b red](DRY-RUN)' if self._dry_run else ''}",
-        ):
-            if not self._dry_run:
-                self._tf_run(
-                    self._path,
-                    [
-                        "state",
-                        "mv",
-                        "-lock=false",
-                        f"-state={source_state_file!s}",
-                        f"-state-out={self.state_file!s}",
-                        f"{source.address}",
-                        f"{destination.address}",
-                    ],
-                )
+        if self.progress_spinner:
+            self.progress_spinner.log(
+                f"-- Moving {destination} {'[b red](DRY-RUN)' if self._dry_run else ''}"
+            )
+        if not self._dry_run:
+            self._tf_run(
+                self._path,
+                [
+                    "state",
+                    "mv",
+                    "-lock=false",
+                    f"-state={source_state_file!s}",
+                    f"-state-out={self.state_file!s}",
+                    f"{source.address}",
+                    f"{destination.address}",
+                ],
+            )
 
     def migrate_resources(self, source: TerraformCli) -> None:
         """Migrate the resources from source."""
-        if not self.initialized or not source.initialized:
-            raise ValueError("Terraform must be initialized before!")
+        # if not self.initialized or not source.initialized:
+        #     raise ValueError("Terraform must be initialized before!")
 
         source_resources = source.resource_changes(TfAction.DESTROY)
         destionation_resources = self.resource_changes(TfAction.CREATE)
@@ -402,12 +403,31 @@ class TerraformCli:
             )
 
         for destionation_resource in destionation_resources:
-            source_resource = source_resources[destionation_resource]
-            if source_resource.id != destionation_resource.id:
-                if self.progress_spinner:
-                    self.progress_spinner.log(
-                        f"[b red]Resource id mismatch! Please review it carefully![/]\n  {source_resource} -> {destionation_resource}"
+            possible_source_resouces = source_resources[destionation_resource]
+            if not possible_source_resouces:
+                raise ValueError(
+                    f"Source resource for {destionation_resource} not found!"
+                )
+            elif len(possible_source_resouces) == 1:
+                # just one resource found.
+                source_resource = possible_source_resouces[0]
+            else:
+                # more than one resource found. Let the user decide.
+                with pause_progress_spinner(self.progress_spinner):
+                    rich_print(
+                        f"[b red]{destionation_resource.address} not found![/] Please select the related source ID manually!"
                     )
+                    for i, r in enumerate(possible_source_resouces, start=1):
+                        print(f"{i}: {r.address}")
+
+                    index = IntPrompt.ask(
+                        ":boom: Enter the number",
+                        choices=[
+                            str(i) for i in range(1, len(possible_source_resouces) + 1)
+                        ],
+                        show_choices=False,
+                    )
+                    source_resource = possible_source_resouces[index - 1]
 
             self.move_resource(
                 source_state_file=source.state_file,
