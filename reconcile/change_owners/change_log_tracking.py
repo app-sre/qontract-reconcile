@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 
@@ -13,6 +14,7 @@ from reconcile.change_owners.change_owners import (
 from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.change_owners.changes import aggregate_file_moves, parse_bundle_changes
 from reconcile.typed_queries.apps import get_apps
+from reconcile.typed_queries.external_resources import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import MRState
@@ -65,6 +67,12 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
         ]
         apps = get_apps()
         app_name_by_path = {a.path: a.name for a in apps}
+        namespaces = get_namespaces()
+        app_names_by_cluster_name = defaultdict(set)
+        for ns in namespaces:
+            cluster = ns.cluster.name
+            app = ns.app.name
+            app_names_by_cluster_name[cluster].add(app)
 
         integration_state = init_state(
             integration=self.name,
@@ -132,6 +140,13 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                             name
                             for c in change_versions
                             if (name := app_name_by_path.get(c["app"]["$ref"]))
+                        }
+                        change_log_item.apps.extend(changed_apps)
+                    case "/openshift/cluster-1.yml":
+                        changed_apps = {
+                            name
+                            for c in change_versions
+                            for name in app_names_by_cluster_name.get(c["name"], [])
                         }
                         change_log_item.apps.extend(changed_apps)
 
