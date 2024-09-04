@@ -2910,6 +2910,8 @@ def change_log_tracking(ctx):
         }
         data.append(item)
 
+    # TODO(mafriedm): Fix this
+    ctx.obj["options"]["sort"] = False
     columns = ["commit", "merged_at", "apps", "changes", "error"]
     print_output(ctx.obj["options"], data, columns)
 
