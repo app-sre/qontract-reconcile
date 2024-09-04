@@ -4015,6 +4015,10 @@ def migrate(ctx, dry_run: bool) -> None:
 
     E.g: qontract-reconcile --config=<config> external-resources migrate aws app-sre-stage rds dashdotdb-stage
     """
+    if ctx.obj["provider"] == "rds":
+        # The "random_password" is not an AWS resource. It's just in the outputs and can't be migrated :(
+        raise NotImplementedError("RDS migration is not supported yet!")
+
     if not Confirm.ask(
         dedent("""
             Please disable terraform-resources: [i blue]https://app-interface.unleash.devshift.net/projects/default/features/terraform-resources[/]

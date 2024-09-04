@@ -389,15 +389,30 @@ class TerraformCli:
         source_resources = source.resource_changes(TfAction.DESTROY)
         destionation_resources = self.resource_changes(TfAction.CREATE)
 
-        if (
-            not source_resources
-            or not destionation_resources
-            # I'm not sure if this is always true
-            or len(source_resources) != len(destionation_resources)
-        ):
-            raise ValueError(
-                "No resource changes found or the number of resources is different!"
-            )
+        if not source_resources or not destionation_resources:
+            raise ValueError("No resource changes found!")
+
+        if len(source_resources) != len(destionation_resources):
+            with pause_progress_spinner(self.progress_spinner):
+                rich_print(
+                    "[b red]The number of changes (ERv2 vs terraform-resource) does not match! Please review them carefully![/]"
+                )
+                rich_print("ERv2:")
+                rich_print(
+                    "\n".join([
+                        f"  {i}: {r.address}"
+                        for i, r in enumerate(destionation_resources, start=1)
+                    ])
+                )
+                rich_print("Terraform:")
+                rich_print(
+                    "\n".join([
+                        f"  {i}: {r.address}"
+                        for i, r in enumerate(source_resources, start=1)
+                    ])
+                )
+                if not Confirm.ask("Would you like to continue anyway?", default=False):
+                    return
 
         for destionation_resource in destionation_resources:
             possible_source_resouces = source_resources[destionation_resource]
