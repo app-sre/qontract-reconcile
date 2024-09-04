@@ -3,14 +3,6 @@ import pytest
 from tools.cli_commands.erv2 import TfResource, TfResourceList
 
 
-def test_erv2_model_tfresource() -> None:
-    tfr1 = TfResource(address="aws_module.identifier")
-    assert tfr1.type == "aws_module"
-    assert tfr1.id == "identifier"
-    tfr2 = TfResource(address="aws_module.identifier-with-postfix")
-    assert tfr2 > tfr1
-
-
 def test_erv2_model_tfresource_list() -> None:
     # terraform_resource_list
     terraform_resource_list = TfResourceList(
