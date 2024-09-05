@@ -56,6 +56,10 @@ build-test:
 test-app: build-test ## Target to test app with tox on docker
 	@$(CONTAINER_ENGINE) run --rm $(IMAGE_TEST)
 
+print-host-versions:
+	@$(CONTAINER_ENGINE) --version
+	python3 --version
+
 test-container-image: build ## Target to test the final image
 	@CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
 	CTR_STRUCTURE_IMG=$(CTR_STRUCTURE_IMG) \
@@ -64,7 +68,7 @@ test-container-image: build ## Target to test the final image
 	IMAGE_TAG=$(IMAGE_TAG) \
 	$(CURDIR)/run-test-container-image.sh
 
-test: test-app test-container-image
+test: print-host-versions test-app test-container-image
 
 dev-reconcile-loop: build-dev ## Trigger the reconcile loop inside a container for an integration
 	@$(CONTAINER_ENGINE) run --rm -it \
