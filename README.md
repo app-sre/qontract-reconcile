@@ -289,7 +289,7 @@ Install build prerequisites for [psycopg2](https://www.psycopg.org/docs/install.
   - On Fedora, it can be installed with `dnf install libpq-devel`
 
 Note:
-In macOS with M1/M2 `pip` will fail to install in a virtualenvironment unless LDFLAGS reference the openssl library path. It can be fixed with `export LDFLAGS="-I/opt/homebrew/opt/openssl/include -L/opt/homebrew/opt/openssl/lib"`.
+In macOS with Apple silicon, `pip` will fail to install in a virtualenvironment unless LDFLAGS reference the openssl library path. It can be fixed with `export LDFLAGS="-I/opt/homebrew/opt/openssl/include -L/opt/homebrew/opt/openssl/lib"`.
 
 Install the package:
 
