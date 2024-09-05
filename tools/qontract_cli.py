@@ -2897,7 +2897,7 @@ def change_log_tracking(ctx):
         change_log_item = ChangeLogItem(**item)
         commit = change_log_item.commit
         covered_change_types_descriptions = [
-            ct.description
+            ct.description.strip("\n")
             for ct in change_types
             if ct.name in change_log_item.change_types
         ]
