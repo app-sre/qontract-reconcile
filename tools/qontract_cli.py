@@ -4008,8 +4008,13 @@ def request_reconciliation(ctx):
     help="Enable/Disable dry-run. Default: dry-run enabled!",
     default=True,
 )
+@click.option(
+    "--skip-build/--no-skip-build",
+    help="Skip/Do not skip the terraform and CDKTF builds. Default: build everything!",
+    default=False,
+)
 @click.pass_context
-def migrate(ctx, dry_run: bool) -> None:
+def migrate(ctx, dry_run: bool, skip_build: bool) -> None:
     """Migrate an existing external resource managed by terraform-resources to ERv2.
 
 
@@ -4063,23 +4068,26 @@ def migrate(ctx, dry_run: bool) -> None:
         )
 
         with task(progress, "(erv2) Building the terraform configuration"):
-            # build the CDKTF output
-            erv2cli.build_cdktf(credentials_file)
+            if not skip_build:
+                # build the CDKTF output
+                erv2cli.build_cdktf(credentials_file)
             erv2_tf_cli = TerraformCli(
                 temp_erv2, dry_run=dry_run, progress_spinner=progress
             )
-            erv2_tf_cli.init()
+            if not skip_build:
+                erv2_tf_cli.init()
 
         with task(
             progress, "(terraform-resources) Building the terraform configuration"
         ):
             # build the terraform-resources output
             conf_tf = temp_tfr / "conf.tf.json"
-            tfr.run(
-                dry_run=True,
-                print_to_file=str(conf_tf),
-                account_name=[ctx.obj["provisioner"]],
-            )
+            if not skip_build:
+                tfr.run(
+                    dry_run=True,
+                    print_to_file=str(conf_tf),
+                    account_name=[ctx.obj["provisioner"]],
+                )
             # remove comments
             conf_tf.write_text(
                 "\n".join(
@@ -4091,7 +4099,8 @@ def migrate(ctx, dry_run: bool) -> None:
             tfr_tf_cli = TerraformCli(
                 temp_tfr, dry_run=dry_run, progress_spinner=progress
             )
-            tfr_tf_cli.init()
+            if not skip_build:
+                tfr_tf_cli.init()
 
     with progress_spinner() as progress:
         # start a new spinner instance for clean output
