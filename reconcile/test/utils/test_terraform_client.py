@@ -759,6 +759,39 @@ def test_validate_blue_green_update_requirements_with_storage_type_change(
     )
 
 
+def test_validate_db_upgrade_blue_green_update_no_version_change(
+    mocker: MockerFixture, aws_api: AWSApi, tf: tfclient.TerraformClient
+) -> None:
+    aws_api.get_db_valid_upgrade_target.return_value = [  # type: ignore[attr-defined]
+        {"Engine": "postgres", "EngineVersion": "11.12", "IsMajorVersionUpgrade": False}
+    ]
+    aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}  # type: ignore[attr-defined]
+
+    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
+
+    tf.validate_db_upgrade(
+        account_name="a1",
+        resource_name="test-database-1",
+        resource_change={
+            "before": {
+                "engine": "postgres",
+                "engine_version": "11.12",
+                "availability_zone": "us-east-1a",
+                "parameter_group_name": "test-pg",
+                "replicas": [],
+                "replicate_source_db": "",
+            },
+            "after": {
+                "engine": "postgres",
+                "engine_version": "11.12",
+                "blue_green_update": [{"enabled": True}],
+            },
+        },
+    )
+
+    mocked_logging.error.assert_not_called()
+
+
 def test_check_output_debug(
     tf: tfclient.TerraformClient,
     mocker: MockerFixture,
