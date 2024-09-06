@@ -387,12 +387,12 @@ class TerraformCli:
         #     raise ValueError("Terraform must be initialized before!")
 
         source_resources = source.resource_changes(TfAction.DESTROY)
-        destionation_resources = self.resource_changes(TfAction.CREATE)
+        destination_resources = self.resource_changes(TfAction.CREATE)
 
-        if not source_resources or not destionation_resources:
+        if not source_resources or not destination_resources:
             raise ValueError("No resource changes found!")
 
-        if len(source_resources) != len(destionation_resources):
+        if len(source_resources) != len(destination_resources):
             with pause_progress_spinner(self.progress_spinner):
                 rich_print(
                     "[b red]The number of changes (ERv2 vs terraform-resource) does not match! Please review them carefully![/]"
@@ -401,7 +401,7 @@ class TerraformCli:
                 rich_print(
                     "\n".join([
                         f"  {i}: {r.address}"
-                        for i, r in enumerate(destionation_resources, start=1)
+                        for i, r in enumerate(destination_resources, start=1)
                     ])
                 )
                 rich_print("Terraform:")
@@ -414,11 +414,11 @@ class TerraformCli:
                 if not Confirm.ask("Would you like to continue anyway?", default=False):
                     return
 
-        for destionation_resource in destionation_resources:
-            possible_source_resouces = source_resources[destionation_resource]
+        for destination_resource in destination_resources:
+            possible_source_resouces = source_resources[destination_resource]
             if not possible_source_resouces:
                 raise ValueError(
-                    f"Source resource for {destionation_resource} not found!"
+                    f"Source resource for {destination_resource} not found!"
                 )
             elif len(possible_source_resouces) == 1:
                 # just one resource found.
@@ -427,7 +427,7 @@ class TerraformCli:
                 # more than one resource found. Let the user decide.
                 with pause_progress_spinner(self.progress_spinner):
                     rich_print(
-                        f"[b red]{destionation_resource.address} not found![/] Please select the related source ID manually!"
+                        f"[b red]{destination_resource.address} not found![/] Please select the related source ID manually!"
                     )
                     for i, r in enumerate(possible_source_resouces, start=1):
                         print(f"{i}: {r.address}")
@@ -444,7 +444,7 @@ class TerraformCli:
             self.move_resource(
                 source_state_file=source.state_file,
                 source=source_resource,
-                destination=destionation_resource,
+                destination=destination_resource,
             )
 
         if not self._dry_run:
