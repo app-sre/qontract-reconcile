@@ -135,7 +135,11 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                     case "/app-sre/app-1.yml":
                         changed_apps = {c["name"] for c in change_versions}
                         change_log_item.apps.extend(changed_apps)
-                    case "/app-sre/saas-file-2.yml" | "/openshift/namespace-1.yml":
+                    case (
+                        "/app-sre/saas-file-2.yml"
+                        | "/openshift/namespace-1.yml"
+                        | "/dependencies/jenkins-config-1.yml"
+                    ):
                         changed_apps = {
                             name
                             for c in change_versions
