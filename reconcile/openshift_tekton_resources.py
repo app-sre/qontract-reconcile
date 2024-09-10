@@ -464,3 +464,7 @@ def run(
         sys.exit(ExitCodes.ERROR)
 
     sys.exit(0)
+
+
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return fetch_tkn_providers()
