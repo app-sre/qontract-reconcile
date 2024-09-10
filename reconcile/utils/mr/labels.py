@@ -1,5 +1,6 @@
 APPROVED = "bot/approved"
 AUTO_MERGE = "bot/automerge"
+PROGRESSIVE_DELIVERY_MERGE = "not/progressive-delivery"
 AWAITING_APPROVAL = "awaiting-approval"
 BLOCKED_BOT_ACCESS = "blocked/bot-access"
 CHANGES_REQUESTED = "changes-requested"
