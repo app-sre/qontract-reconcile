@@ -125,9 +125,12 @@ def fetch_tkn_providers(saas_file_name: str | None) -> dict[str, Any]:
 
         tkn_providers[provider_name]["saas_files"].append(sf)
 
+    for provider_name in tkn_providers:
+        tkn_providers[provider_name]["saas_files"].sort(key=lambda sf: sf["name"])
+
     return {
         provider_name: sf
-        for provider_name, sf in tkn_providers.items()
+        for provider_name, sf in sorted(tkn_providers.items())
         if is_in_shard(provider_name)
     }
 
