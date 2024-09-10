@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import sys
+import urllib
 from collections import defaultdict
 from datetime import (
     UTC,
@@ -72,8 +73,10 @@ from reconcile.external_resources.meta import FLAG_RESOURCE_MANAGED_BY_ERV2
 from reconcile.external_resources.model import (
     ExternalResourceKey,
     ExternalResourcesInventory,
+    Reconciliation,
     load_module_inventory,
 )
+from reconcile.external_resources.reconciler import ReconciliationK8sJob
 from reconcile.external_resources.state import (
     ExternalResourcesStateDynamoDB,
     ResourceStatus,
@@ -4025,6 +4028,96 @@ def request_reconciliation(
             )
         else:
             logging.info("External Resource does not exist")
+
+
+def _get_er_logs_grafana_url(key: ExternalResourceKey) -> str:
+    r = Reconciliation(key=key)
+    j = ReconciliationK8sJob(reconciliation=r)
+
+    panes = {
+        "dummy": {
+            "datasource": "P1A97A9592CB7F392",
+            "queries": [
+                {
+                    "id": j.name(),
+                    "region": "default",
+                    "namespace": "",
+                    "refId": "A",
+                    "datasource": {"type": "cloudwatch", "uid": "P1A97A9592CB7F392"},
+                    "queryMode": "Logs",
+                    "logGroups": [
+                        {
+                            "arn": "arn:aws:logs:us-east-1:744086762512:log-group:appsrep09ue1.external-resources-jobs:*",
+                            "name": "appsrep09ue1.external-resources-jobs",
+                            "accountId": "744086762512",
+                        }
+                    ],
+                    "expression": f"fields message | filter kubernetes.pod_name like /{j.name()}/\n",
+                    "statsGroups": [],
+                }
+            ],
+            "range": {"from": "now-24h", "to": "now"},
+        }
+    }
+    pane_s = urllib.parse.quote_plus(json.dumps(panes))
+    return f"https://grafana.app-sre.devshift.net/explore?schemaVersion=1&panes={pane_s}&orgId=1"
+
+
+@external_resources.command()
+@click.argument("provision-provider", required=True)
+@click.argument("provisioner", required=True)
+@click.argument("provider", required=True)
+@click.argument("identifier", required=True)
+@click.pass_context
+def get_logs(
+    ctx, provision_provider: str, provisioner: str, provider: str, identifier: str
+):
+    """Gets a link to the Grafana logs explorer for a particular external resource.
+
+    e.g: e.g: qontract-reconcile --config=<config> external-resources get-logs aws app-sre-stage rds dashdotdb-stage
+    """
+
+    key = ExternalResourceKey(
+        provision_provider=provision_provider,
+        provisioner_name=provisioner,
+        provider=provider,
+        identifier=identifier,
+    )
+    print(_get_er_logs_grafana_url(key))
+
+
+@get.command()
+@click.pass_context
+def external_resource_logs(ctx):
+    """Command to generate an outputs page containing all external resource log links, grouped by App name.
+
+    e.g: e.g: qontract-reconcile --config=<config> external-resources request-reconciliation aws app-sre-stage rds dashdotdb-stage
+    """
+
+    namespaces = [ns for ns in get_namespaces() if ns.external_resources]
+    nss_by_app = {}
+    for ns in namespaces:
+        nss_by_app.setdefault(ns.app.name, [])
+        nss_by_app[ns.app.name].append(ns)
+
+    columns = ["provision_provider", "provisioner", "provider", "identifier", "logs"]
+    for app, nss in nss_by_app.items():
+        er = ExternalResourcesInventory(nss)
+        if not er:
+            continue
+        data = []
+        for i in er:
+            url = _get_er_logs_grafana_url(i)
+            item = {
+                "provision_provider": i.provision_provider,
+                "provisioner": i.provisioner_name,
+                "provider": i.provider,
+                "identifier": i.identifier,
+                "logs": f"[Grafana]({url})",
+            }
+            data.append(item)
+        print(f"# {app}")
+        print_output(ctx.obj["options"], data, columns)
 
 
 if __name__ == "__main__":
