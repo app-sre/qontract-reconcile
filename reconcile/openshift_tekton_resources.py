@@ -467,4 +467,4 @@ def run(
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    return fetch_tkn_providers()
+    return fetch_tkn_providers(saas_file_name=None)
