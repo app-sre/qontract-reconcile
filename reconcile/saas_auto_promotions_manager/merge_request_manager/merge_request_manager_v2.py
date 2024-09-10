@@ -30,13 +30,12 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.utils import metrics
-from reconcile.utils.mr.labels import PROGRESSIVE_DELIVERY_MERGE
 from reconcile.utils.vcs import VCS
 
 BATCH_SIZE_LIMIT = 5
 
 SAPM_LABEL = "SAPM"
-SAPM_MR_LABELS = [SAPM_LABEL, PROGRESSIVE_DELIVERY_MERGE]
+SAPM_MR_LABELS = [SAPM_LABEL]
 
 MR_DESC = """
 This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).

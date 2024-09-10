@@ -43,7 +43,6 @@ from reconcile.utils.mr.labels import (
     LGTM,
     NEEDS_REBASE,
     ONBOARDING,
-    PROGRESSIVE_DELIVERY_MERGE,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     prioritized_approval_label,
@@ -53,7 +52,6 @@ MERGE_LABELS_PRIORITY = [
     prioritized_approval_label(p.value) for p in ChangeTypePriority
 ] + [
     APPROVED,
-    PROGRESSIVE_DELIVERY_MERGE,
     AUTO_MERGE,
     LGTM,
 ]
