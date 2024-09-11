@@ -109,7 +109,10 @@ class _VaultClient:
                 self._refresh_client_auth()
                 authenticated = self._client.is_authenticated()
                 break
-            except requests.exceptions.ConnectionError:
+            except (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.TooManyRedirects,
+            ):
                 time.sleep(1)
 
         if not authenticated:
