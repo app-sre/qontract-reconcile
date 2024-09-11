@@ -251,7 +251,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 valid_app_names.add(saas_file.app.parent_app.name)
             if target.namespace.app.name not in valid_app_names:
                 logging.error(
-                    f"[{saas_file.name}] targets must be within app(s) {valid_app_names}"
+                    f"[{saas_file.name}] all targets (i.e., namespaces that you deploy to) within the saas file '{saas_file.name}' must belong to app(s) {valid_app_names}. However, your saas file also deploys to namespace '{target.namespace.name}' which belongs to app '{target.namespace.app.name}'."
                 )
                 self.valid = False
 
