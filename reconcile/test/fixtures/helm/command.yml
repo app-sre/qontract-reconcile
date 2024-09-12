@@ -82,27 +82,27 @@ objects:
                   # filter is *ERROR*
                   source: -("*using gql endpoint*" OR "*Certificate did not match expected hostname*") AND "*ERROR*"
 
+              ### Consolidate messages
+                consolidate_messages:
+                  type: reduce
+                  inputs:
+                    - despam_events
+                  max_events: 20
+                  end_every_period_ms: 1000
+                  merge_strategies:
+                    "message": concat_newline
+
               ### Craft a JSON document that has escaped double quotes and changes the event from the 
               ### Vector-default `message` to `text`, which is require by Slack and Google Chat.
               rename_message_webhooks:
                 type: remap
                 inputs:
-                  - despam_events
+                  - consolidate_messages
                 source: |-
-                  .message = join!(
-                  [
-                    "{\"text\":\"",
-                    format_timestamp!(
-                      now(),
-                      "%Y-%m-%d %H:%M:%S %z"
-                    ),
+                  .message.text = join!([
+                    "[${POD_NAME}]",
                     " ",
-                    " [${POD_NAME}] ",
-                    replace!(
-                      del(.message),
-                      "\"",
-                      "\\\\\""),
-                    "\"}"
+                    del(.message)
                   ])
 
             sinks:
