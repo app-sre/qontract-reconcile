@@ -563,9 +563,6 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
         gitlab_token_expiration.labels(name=pat.name, active=pat.active).set(
             days_until_expiration.days
         )
-        # ensure that inactive tokens no longer send out alerts
-        if not pat.active:
-            gitlab_token_expiration.labels(name=pat.name, active=True).clear()
 
 
 def run(dry_run, wait_for_pipeline):
