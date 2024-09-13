@@ -40,6 +40,10 @@ objects:
             limits:
               memory: 20Mi
           env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -47,8 +51,75 @@ objects:
                 key: log_group_name
           command: ["/bin/sh", "-c"]
           args:
+          # generate /etc/vector/vector.yaml
+          # and generate /fluentd/etc/fluent.conf
           - |
-            # generate fluent.conf
+            ### APPSRE-8096: Vector Section Begins
+            mkdir -p /etc/vector
+            cat > /etc/vector/vector.yaml <<EOF
+            sources:
+              qr:
+                type: file
+                include:
+                  - /fluentd/log/integration.log
+                read_from: beginning
+                data_dir: /fluentd/log
+
+            transforms:
+              ### De-spaminate
+              despam_events:
+                type: filter
+                inputs:
+                  - qr
+                condition:
+                  type: datadog_search
+                  # Google Chat can have problems if too many messages are sent
+                  # all at once, so limit to only /^\[ERROR\].*/
+                  # Unfortunately, it doesn't seem possible to with the
+                  # datadog_search condition type to filter on this sort of
+                  # regular expression, or even *[ERROR]* (with any combination
+                  # of backslashes to escape *, [ and ]). For that reason, the
+                  # filter is *ERROR*
+                  source: -("*using gql endpoint*" OR "*Certificate did not match expected hostname*") AND "*ERROR*"
+
+              ### Consolidate messages
+                consolidate_messages:
+                  type: reduce
+                  inputs:
+                    - despam_events
+                  max_events: 20
+                  end_every_period_ms: 1000
+                  merge_strategies:
+                    "message": concat_newline
+
+              ### Craft a JSON document that has escaped double quotes and changes the event from the 
+              ### Vector-default `message` to `text`, which is require by Slack and Google Chat.
+              rename_message_webhooks:
+                type: remap
+                inputs:
+                  - consolidate_messages
+                source: |-
+                  .message.text = join!([
+                    "[${POD_NAME}]",
+                    " ",
+                    del(.message)
+                  ])
+
+            sinks:
+              ################
+              ### Cloudwatch log sink
+              ################
+              cloudwatch_logs:
+                type: aws_cloudwatch_logs
+                inputs:
+                  - rename_message_webhooks
+                group_name: "${LOG_GROUP_NAME}"
+                encoding:
+                  codec: text
+                stream_name: "integ"
+            EOF
+            ### APPSRE-8096: Vector Section Ends
+            echo "Creating /fluentd/etc/fluent.conf"
             cat > /fluentd/etc/fluent.conf <<EOF
             <source>
               @type tail
@@ -90,6 +161,8 @@ objects:
           volumeMounts:
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          - name: vector-config
+            mountPath: /etc/vector/
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -156,6 +229,39 @@ objects:
             mountPath: /fluentd/log/
           - name: qontract-reconcile-sa-token
             mountPath: ${KUBE_SA_TOKEN_MOUNT_PATH}
+          ### APPSRE-8096: Vector Section Begins
+        - name: vector
+          image: ${VECTOR_IMAGE}:${VECTOR_IMAGE_TAG}
+          imagePullPolicy: ${VECTOR_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_DEFAULT_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+          volumeMounts:
+            - name: logs
+              mountPath: /fluentd/log/
+            - name: vector-config
+              mountPath: /etc/vector
+          ### APPSRE-8096: Vector Section Ends
+
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
           imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
@@ -200,6 +306,8 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
+        - name: vector-config
+          emptyDir: {}
         - name: tmp-dir
           emptyDir: {}
 - apiVersion: apps/v1
@@ -237,6 +345,10 @@ objects:
             limits:
               memory: 20Mi
           env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -244,8 +356,75 @@ objects:
                 key: log_group_name
           command: ["/bin/sh", "-c"]
           args:
+          # generate /etc/vector/vector.yaml
+          # and generate /fluentd/etc/fluent.conf
           - |
-            # generate fluent.conf
+            ### APPSRE-8096: Vector Section Begins
+            mkdir -p /etc/vector
+            cat > /etc/vector/vector.yaml <<EOF
+            sources:
+              qr:
+                type: file
+                include:
+                  - /fluentd/log/integration.log
+                read_from: beginning
+                data_dir: /fluentd/log
+
+            transforms:
+              ### De-spaminate
+              despam_events:
+                type: filter
+                inputs:
+                  - qr
+                condition:
+                  type: datadog_search
+                  # Google Chat can have problems if too many messages are sent
+                  # all at once, so limit to only /^\[ERROR\].*/
+                  # Unfortunately, it doesn't seem possible to with the
+                  # datadog_search condition type to filter on this sort of
+                  # regular expression, or even *[ERROR]* (with any combination
+                  # of backslashes to escape *, [ and ]). For that reason, the
+                  # filter is *ERROR*
+                  source: -("*using gql endpoint*" OR "*Certificate did not match expected hostname*") AND "*ERROR*"
+
+              ### Consolidate messages
+                consolidate_messages:
+                  type: reduce
+                  inputs:
+                    - despam_events
+                  max_events: 20
+                  end_every_period_ms: 1000
+                  merge_strategies:
+                    "message": concat_newline
+
+              ### Craft a JSON document that has escaped double quotes and changes the event from the 
+              ### Vector-default `message` to `text`, which is require by Slack and Google Chat.
+              rename_message_webhooks:
+                type: remap
+                inputs:
+                  - consolidate_messages
+                source: |-
+                  .message.text = join!([
+                    "[${POD_NAME}]",
+                    " ",
+                    del(.message)
+                  ])
+
+            sinks:
+              ################
+              ### Cloudwatch log sink
+              ################
+              cloudwatch_logs:
+                type: aws_cloudwatch_logs
+                inputs:
+                  - rename_message_webhooks
+                group_name: "${LOG_GROUP_NAME}"
+                encoding:
+                  codec: text
+                stream_name: "integ"
+            EOF
+            ### APPSRE-8096: Vector Section Ends
+            echo "Creating /fluentd/etc/fluent.conf"
             cat > /fluentd/etc/fluent.conf <<EOF
             <source>
               @type tail
@@ -287,6 +466,8 @@ objects:
           volumeMounts:
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          - name: vector-config
+            mountPath: /etc/vector/
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -353,6 +534,39 @@ objects:
             mountPath: /fluentd/log/
           - name: qontract-reconcile-sa-token
             mountPath: ${KUBE_SA_TOKEN_MOUNT_PATH}
+          ### APPSRE-8096: Vector Section Begins
+        - name: vector
+          image: ${VECTOR_IMAGE}:${VECTOR_IMAGE_TAG}
+          imagePullPolicy: ${VECTOR_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_DEFAULT_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+          volumeMounts:
+            - name: logs
+              mountPath: /fluentd/log/
+            - name: vector-config
+              mountPath: /etc/vector
+          ### APPSRE-8096: Vector Section Ends
+
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
           imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
@@ -396,6 +610,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: vector-config
           emptyDir: {}
         - name: tmp-dir
           emptyDir: { }
@@ -456,6 +672,9 @@ parameters:
   value: 'token'
 - name: LOG_FILE
   value: "/fluentd/log/integration.log"
+- name: SLACK_CHANNEL_ID
+  # sd-app-sre-reconcile-stage
+  value: "CRQRABVMX"
 - name: SLACK_CHANNEL
   value: "sd-app-sre-reconcile-stage"
 - name: SLACK_CHANNEL_TRIGGER
@@ -488,6 +707,14 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
+### APPSRE-8096: Vector Section Begins
+- name: VECTOR_IMAGE
+  value: registry.redhat.io/openshift-logging/vector-rhel9
+- name: VECTOR_IMAGE_TAG
+  value: v0.34.1-12
+- name: VECTOR_IMAGE_PULL_POLICY
+  value: IfNotPresent
+### APPSRE-8096: Vector Section Ends
 - name: INTEG_MEMORY_LIMIT
   value: 90Mi
 - name: INTEG_CPU_REQUEST
