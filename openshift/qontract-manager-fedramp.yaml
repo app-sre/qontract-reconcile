@@ -88,14 +88,14 @@ objects:
                   source: -("*using gql endpoint*" OR "*Certificate did not match expected hostname*") AND "*ERROR*"
 
               ### Consolidate messages
-                consolidate_messages:
-                  type: reduce
-                  inputs:
-                    - despam_events
-                  max_events: 20
-                  end_every_period_ms: 1000
-                  merge_strategies:
-                    "message": concat_newline
+              consolidate_messages:
+                type: reduce
+                inputs:
+                  - despam_events
+                max_events: 20
+                end_every_period_ms: 1000
+                merge_strategies:
+                  "message": concat_newline
 
               ### Craft a JSON document that has escaped double quotes and changes the event from the 
               ### Vector-default `message` to `text`, which is require by Slack and Google Chat.
