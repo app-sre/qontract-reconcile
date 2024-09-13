@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 
@@ -13,8 +14,10 @@ from reconcile.change_owners.change_owners import (
 from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.change_owners.changes import aggregate_file_moves, parse_bundle_changes
 from reconcile.typed_queries.apps import get_apps
+from reconcile.typed_queries.external_resources import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
+from reconcile.utils.gitlab_api import MRState
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -28,7 +31,7 @@ BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
 @dataclass
 class ChangeLogItem:
     commit: str
-    created_at: str
+    merged_at: str
     change_types: list[str] = field(default_factory=list)
     error: bool = False
     apps: list[str] = field(default_factory=list)
@@ -64,6 +67,12 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
         ]
         apps = get_apps()
         app_name_by_path = {a.path: a.name for a in apps}
+        namespaces = get_namespaces()
+        app_names_by_cluster_name = defaultdict(set)
+        for ns in namespaces:
+            cluster = ns.cluster.name
+            app = ns.app.name
+            app_names_by_cluster_name[cluster].add(app)
 
         integration_state = init_state(
             integration=self.name,
@@ -101,9 +110,15 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
 
             logging.info(f"Processing commit {commit}")
             gl_commit = gl.project.commits.get(commit)
+            merged_at = max(
+                mr["merged_at"]
+                for mr in gl_commit.merge_requests()
+                if mr["state"] == MRState.MERGED
+                and mr["target_branch"] == gl.project.default_branch
+            )
             change_log_item = ChangeLogItem(
                 commit=commit,
-                created_at=gl_commit.created_at,
+                merged_at=merged_at,
             )
             change_log.items.append(change_log_item)
             obj = diff_state.get(key, None)
@@ -120,11 +135,22 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                     case "/app-sre/app-1.yml":
                         changed_apps = {c["name"] for c in change_versions}
                         change_log_item.apps.extend(changed_apps)
-                    case "/app-sre/saas-file-2.yml" | "/openshift/namespace-1.yml":
+                    case (
+                        "/app-sre/saas-file-2.yml"
+                        | "/openshift/namespace-1.yml"
+                        | "/dependencies/jenkins-config-1.yml"
+                    ):
                         changed_apps = {
                             name
                             for c in change_versions
                             if (name := app_name_by_path.get(c["app"]["$ref"]))
+                        }
+                        change_log_item.apps.extend(changed_apps)
+                    case "/openshift/cluster-1.yml":
+                        changed_apps = {
+                            name
+                            for c in change_versions
+                            for name in app_names_by_cluster_name.get(c["name"], [])
                         }
                         change_log_item.apps.extend(changed_apps)
 
@@ -145,8 +171,18 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         if ctp.name not in change_log_item.change_types:
                             change_log_item.change_types.append(ctp.name)
 
+                change_log_item.change_types.extend(
+                    special_dir
+                    for special_dir in ("docs", "hack")
+                    if any(
+                        path.startswith(special_dir)
+                        for gl_diff in gl_commit.diff()
+                        for path in (gl_diff["old_path"], gl_diff["new_path"])
+                    )
+                )
+
         change_log.items = sorted(
-            change_log.items, key=lambda i: i.created_at, reverse=True
+            change_log.items, key=lambda i: i.merged_at, reverse=True
         )
         if not dry_run:
             integration_state.add(BUNDLE_DIFFS_OBJ, asdict(change_log), force=True)

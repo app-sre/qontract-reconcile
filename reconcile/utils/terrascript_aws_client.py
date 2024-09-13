@@ -287,6 +287,10 @@ class OutputResourceNameNotUniqueException(Exception):
         )
 
 
+class RDSParameterGroupValidationError(Exception):
+    pass
+
+
 class StateInaccessibleException(Exception):
     pass
 
@@ -1670,6 +1674,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 elif provider != provider_region:
                     raise ValueError("region does not match availability zone")
 
+        def validate_parameter_group(parameter_group: aws_db_parameter_group) -> None:
+            parameter_group_name = parameter_group.get("name")
+            for parameter in parameter_group.get("parameter", []):
+                if parameter.get("name") == "rds.logical_replication":
+                    apply_method = parameter.get("apply_method")
+                    if apply_method != "pending-reboot":
+                        raise RDSParameterGroupValidationError(
+                            f"{parameter_group_name=} rds.logical_replication {apply_method=} must be set to 'pending-reboot'"
+                        )
+
         def populate_parameter_group(name: str) -> aws_db_parameter_group:
             pg_values = self.get_values(name)
             # Parameter group name is not required by terraform.
@@ -1683,7 +1697,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             pg_values["parameter"] = pg_values.pop("parameters")
             if self._multiregion_account(account) and len(provider) > 0:
                 pg_values["provider"] = provider
-            return aws_db_parameter_group(pg_identifier, **pg_values)
+            parameter_group = aws_db_parameter_group(pg_identifier, **pg_values)
+            validate_parameter_group(parameter_group=parameter_group)
+            return parameter_group
 
         # 'deps' should contain a list of terraform resource names
         # (not full objects) that must be created

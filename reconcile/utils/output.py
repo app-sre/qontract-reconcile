@@ -1,4 +1,5 @@
 import json
+import re
 from collections.abc import (
     Iterable,
     Mapping,
@@ -27,7 +28,9 @@ def print_output(
         formatted_content = format_table(content, columns)
         print(formatted_content)
     elif output == "md":
-        formatted_content = format_table(content, columns, table_format="github")
+        formatted_content = re.sub(
+            r" +", " ", format_table(content, columns, table_format="github")
+        )
         print(formatted_content)
     elif output == "json":
         formatted_content = json.dumps(content)

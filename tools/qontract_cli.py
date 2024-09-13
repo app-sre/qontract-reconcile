@@ -2903,13 +2903,16 @@ def change_log_tracking(ctx):
         ]
         item = {
             "commit": f"[{commit}]({repo_url}/commit/{commit})",
+            "merged_at": change_log_item.merged_at,
             "apps": ", ".join(change_log_item.apps),
             "changes": ", ".join(covered_change_types_descriptions),
             "error": change_log_item.error,
         }
         data.append(item)
 
-    columns = ["commit", "apps", "changes", "error"]
+    # TODO(mafriedm): Fix this
+    ctx.obj["options"]["sort"] = False
+    columns = ["commit", "merged_at", "apps", "changes", "error"]
     print_output(ctx.obj["options"], data, columns)
 
 

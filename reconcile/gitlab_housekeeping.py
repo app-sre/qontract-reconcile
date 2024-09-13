@@ -47,6 +47,7 @@ from reconcile.utils.mr.labels import (
     SELF_SERVICEABLE,
     prioritized_approval_label,
 )
+from reconcile.utils.sharding import is_in_shard
 
 MERGE_LABELS_PRIORITY = [
     prioritized_approval_label(p.value) for p in ChangeTypePriority
@@ -573,6 +574,7 @@ def run(dry_run, wait_for_pipeline):
     with GitLabApi(instance, settings=settings) as gl:
         publish_access_token_expiration_metrics(gl)
     repos = queries.get_repos_gitlab_housekeeping(server=instance["url"])
+    repos = [r for r in repos if is_in_shard(r["url"])]
     app_sre_usernames: Set[str] = set()
 
     for repo in repos:
