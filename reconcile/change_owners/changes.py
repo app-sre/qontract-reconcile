@@ -10,6 +10,7 @@ from dataclasses import (
 from typing import Any
 
 import anymarkup
+import jsonpath_ng
 
 from reconcile.change_owners.bundle import (
     DATAFILE_PATH_FIELD_NAME,
@@ -456,3 +457,35 @@ def parse_bundle_changes(
             )
 
     return change_list
+
+
+def aggregate_resource_changes(
+    bundle_changes: list[BundleFileChange],
+    content_store: list[dict[str, Any]],
+) -> list[BundleFileChange]:
+    new_bundle_changes: list[BundleFileChange] = []
+    resource_changes: list[BundleFileChange] = []
+    for change in bundle_changes:
+        new_bundle_changes.append(change)
+        for file_ref in change.old_backrefs | change.new_backrefs:
+            file_content = next(c for c in content_store if c["path"] == file_ref.path)
+            resource_changes.append(
+                BundleFileChange(
+                    fileref=file_ref,
+                    old=file_content,
+                    new=file_content,
+                    old_content_sha="",
+                    new_content_sha="",
+                    diffs=[
+                        Diff(
+                            path=jsonpath_ng.parse(file_ref.json_path),
+                            diff_type=DiffType.CHANGED,
+                            old=file_content,
+                            new=file_content,
+                        )
+                    ],
+                )
+            )
+    new_bundle_changes.extend(resource_changes)
+
+    return new_bundle_changes

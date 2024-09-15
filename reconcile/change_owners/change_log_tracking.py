@@ -3,8 +3,6 @@ from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 
-import jsonpath_ng
-
 from reconcile.change_owners.bundle import (
     NoOpFileDiffResolver,
     QontractServerDiff,
@@ -15,11 +13,10 @@ from reconcile.change_owners.change_owners import (
 )
 from reconcile.change_owners.change_types import ChangeTypeContext
 from reconcile.change_owners.changes import (
-    BundleFileChange,
     aggregate_file_moves,
+    aggregate_resource_changes,
     parse_bundle_changes,
 )
-from reconcile.change_owners.diff import Diff, DiffType
 from reconcile.typed_queries.apps import get_apps
 from reconcile.typed_queries.external_resources import get_namespaces
 from reconcile.typed_queries.jenkins import get_jenkins_configs
@@ -136,39 +133,10 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                 change_log_item.error = True
                 continue
             diff = QontractServerDiff(**obj)
-            changes = aggregate_file_moves(parse_bundle_changes(diff))
-            resource_changes: list[BundleFileChange] = []
-            for change in changes:
-                for file_ref in change.old_backrefs | change.new_backrefs:
-                    file_content = None
-                    match file_ref.schema:
-                        case "/openshift/namespace-1.yml":
-                            file_content = next(
-                                n for n in namespaces if n.path == file_ref.path
-                            ).dict()
-                        case "/dependencies/jenkins-config-1.yml":
-                            file_content = next(
-                                c for c in jenkins_configs if c.path == file_ref.path
-                            ).dict()
-                    if file_content:
-                        resource_changes.append(
-                            BundleFileChange(
-                                fileref=file_ref,
-                                old=file_content,
-                                new=file_content,
-                                old_content_sha="",
-                                new_content_sha="",
-                                diffs=[
-                                    Diff(
-                                        path=jsonpath_ng.parse(file_ref.json_path),
-                                        diff_type=DiffType.CHANGED,
-                                        old=file_content,
-                                        new=file_content,
-                                    )
-                                ],
-                            )
-                        )
-            changes.extend(resource_changes)
+            changes = aggregate_resource_changes(
+                aggregate_file_moves(parse_bundle_changes(diff)),
+                [c.dict() for c in namespaces + jenkins_configs],
+            )
             for change in changes:
                 logging.debug(f"Processing change {change}")
                 change_versions = filter(None, [change.old, change.new])
