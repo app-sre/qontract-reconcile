@@ -22,6 +22,7 @@ from reconcile.change_owners.changes import (
 from reconcile.change_owners.diff import Diff, DiffType
 from reconcile.typed_queries.apps import get_apps
 from reconcile.typed_queries.external_resources import get_namespaces
+from reconcile.typed_queries.jenkins import get_jenkins_configs
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import MRState
@@ -80,6 +81,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             cluster = ns.cluster.name
             app = ns.app.name
             app_names_by_cluster_name[cluster].add(app)
+        jenkins_configs = get_jenkins_configs()
 
         integration_state = init_state(
             integration=self.name,
@@ -143,6 +145,10 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         case "/openshift/namespace-1.yml":
                             file_content = next(
                                 n for n in namespaces if n.path == file_ref.path
+                            ).dict()
+                        case "/dependencies/jenkins-config-1.yml":
+                            file_content = next(
+                                c for c in jenkins_configs if c.path == file_ref.path
                             ).dict()
                     if file_content:
                         resource_changes.append(

@@ -2,7 +2,11 @@
 
 query JenkinsConfigs {
   jenkins_configs: jenkins_configs_v1 {
+    path
     name
+    app {
+      name
+    }
     ...on JenkinsConfig_v1 {
       instance {
         name

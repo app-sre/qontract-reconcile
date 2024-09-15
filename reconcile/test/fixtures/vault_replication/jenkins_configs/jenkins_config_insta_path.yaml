@@ -11,5 +11,8 @@ jenkins_configs:
       format: null
       path: path/to/token
       version: null
+  path: path/to/config
   name: ci-jenkins-secrets
+  app:
+    name: my-app
   type: secrets

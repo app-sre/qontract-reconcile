@@ -30,7 +30,11 @@ fragment VaultSecret on VaultSecret_v1 {
 
 query JenkinsConfigs {
   jenkins_configs: jenkins_configs_v1 {
+    path
     name
+    app {
+      name
+    }
     ...on JenkinsConfig_v1 {
       instance {
         name
@@ -57,8 +61,14 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
-class JenkinsConfigV1(ConfiguredBaseModel):
+class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+
+
+class JenkinsConfigV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
+    name: str = Field(..., alias="name")
+    app: AppV1 = Field(..., alias="app")
 
 
 class JenkinsInstanceV1(ConfiguredBaseModel):
