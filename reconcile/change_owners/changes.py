@@ -434,6 +434,7 @@ def parse_bundle_changes(
                     file_type=BundleFileType.DATAFILE,
                     path=br.path,
                     schema=br.datafileschema,
+                    json_path=br.jsonpath,
                 )
                 for br in (rf.old.backrefs if rf.old and rf.old.backrefs else [])
             ],
@@ -442,6 +443,7 @@ def parse_bundle_changes(
                     file_type=BundleFileType.DATAFILE,
                     path=br.path,
                     schema=br.datafileschema,
+                    json_path=br.jsonpath,
                 )
                 for br in (rf.new.backrefs if rf.new and rf.new.backrefs else [])
             ],
