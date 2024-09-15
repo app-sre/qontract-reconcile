@@ -5,6 +5,7 @@
 
 query ExternalResourcesNamespaces {
   namespaces: namespaces_v1 {
+    path
     name
     delete
     clusterAdmin

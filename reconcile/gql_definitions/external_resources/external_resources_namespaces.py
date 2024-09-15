@@ -62,6 +62,7 @@ fragment VaultSecret on VaultSecret_v1 {
 
 query ExternalResourcesNamespaces {
   namespaces: namespaces_v1 {
+    path
     name
     delete
     clusterAdmin
@@ -1044,6 +1045,7 @@ class NamespaceV1_ClusterV1(ConfiguredBaseModel):
 
 
 class NamespaceV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     delete: Optional[bool] = Field(..., alias="delete")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
