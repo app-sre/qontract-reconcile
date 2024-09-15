@@ -138,28 +138,30 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             resource_changes: list[BundleFileChange] = []
             for change in changes:
                 for file_ref in change.old_backrefs | change.new_backrefs:
+                    file_content = None
                     match file_ref.schema:
                         case "/openshift/namespace-1.yml":
                             file_content = next(
                                 n for n in namespaces if n.path == file_ref.path
                             ).dict()
-                    resource_changes.append(
-                        BundleFileChange(
-                            fileref=file_ref,
-                            old=file_content,
-                            new=file_content,
-                            old_content_sha="",
-                            new_content_sha="",
-                            diffs=[
-                                Diff(
-                                    path=jsonpath_ng.parse(file_ref.json_path),
-                                    diff_type=DiffType.CHANGED,
-                                    old=file_content,
-                                    new=file_content,
-                                )
-                            ],
+                    if file_content:
+                        resource_changes.append(
+                            BundleFileChange(
+                                fileref=file_ref,
+                                old=file_content,
+                                new=file_content,
+                                old_content_sha="",
+                                new_content_sha="",
+                                diffs=[
+                                    Diff(
+                                        path=jsonpath_ng.parse(file_ref.json_path),
+                                        diff_type=DiffType.CHANGED,
+                                        old=file_content,
+                                        new=file_content,
+                                    )
+                                ],
+                            )
                         )
-                    )
             changes.extend(resource_changes)
             for change in changes:
                 logging.debug(f"Processing change {change}")
