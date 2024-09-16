@@ -106,10 +106,10 @@ class ExternalResourcesInventory(MutableMapping):
         ]
 
         desired_specs = [
-            self._build_external_resource_spec(ns, p, r)  # type:ignore[arg-type]
+            self._build_external_resource_spec(ns, p, r)
             for (p, ns) in desired_providers
             for r in p.resources
-            if isinstance(r, SUPPORTED_RESOURCE_TYPES) and r.managed_by_erv2  # type:ignore[union-attr, misc, arg-type]
+            if isinstance(r, SUPPORTED_RESOURCE_TYPES) and r.managed_by_erv2
         ]
 
         for spec in desired_specs:

@@ -39,6 +39,11 @@ class ExternalResourcesReconciler(ABC):
     ) -> ReconcileStatus: ...
 
     @abstractmethod
+    def get_resource_reconcile_duration(
+        self, reconciliation: Reconciliation
+    ) -> int | None: ...
+
+    @abstractmethod
     def reconcile_resource(self, reconciliation: Reconciliation) -> None: ...
 
     @abstractmethod
@@ -198,6 +203,12 @@ class K8sExternalResourcesReconciler(ExternalResourcesReconciler):
     ) -> ReconcileStatus:
         job_name = ReconciliationK8sJob(reconciliation=reconciliation).name()
         return ReconcileStatus(self.controller.get_job_status(job_name))
+
+    def get_resource_reconcile_duration(
+        self, reconciliation: Reconciliation
+    ) -> int | None:
+        job_name = ReconciliationK8sJob(reconciliation=reconciliation).name()
+        return self.controller.get_success_job_duration(job_name)
 
     def reconcile_resource(self, reconciliation: Reconciliation) -> None:
         concurrency_policy = (
