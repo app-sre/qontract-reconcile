@@ -44,7 +44,6 @@ class ExternalResourceState(BaseModel):
     ts: datetime
     resource_status: ResourceStatus
     reconciliation: Reconciliation
-    reconciliation_errors: int = 0
 
 
 class DynamoDBStateAdapter:
@@ -53,7 +52,6 @@ class DynamoDBStateAdapter:
 
     RESOURCE_STATUS = "resource_status"
     TIMESTAMP = "time_stamp"
-    RECONCILIATION_ERRORS = "reconciliation_errors"
 
     ER_KEY = "external_resource_key"
     ER_KEY_PROVISION_PROVIDER = "provision_provider"
@@ -120,9 +118,6 @@ class DynamoDBStateAdapter:
             ts=self._get_value(item, self.TIMESTAMP),
             resource_status=self._get_value(item, self.RESOURCE_STATUS),
             reconciliation=r,
-            reconciliation_errors=int(
-                self._get_value(item, self.RECONCILIATION_ERRORS, _type="N")
-            ),
         )
 
     def serialize(self, state: ExternalResourceState) -> dict[str, Any]:
@@ -130,7 +125,6 @@ class DynamoDBStateAdapter:
             self.ER_KEY_HASH: {"S": state.key.hash()},
             self.TIMESTAMP: {"S": state.ts.isoformat()},
             self.RESOURCE_STATUS: {"S": state.resource_status.value},
-            self.RECONCILIATION_ERRORS: {"N": str(state.reconciliation_errors)},
             self.ER_KEY: {
                 "M": {
                     self.ER_KEY_PROVISION_PROVIDER: {"S": state.key.provision_provider},
@@ -176,7 +170,6 @@ class ExternalResourcesStateDynamoDB:
         DynamoDBStateAdapter.ER_KEY,
         DynamoDBStateAdapter.TIMESTAMP,
         DynamoDBStateAdapter.RESOURCE_STATUS,
-        DynamoDBStateAdapter.RECONCILIATION_ERRORS,
         f"{DynamoDBStateAdapter.RECONC}.{DynamoDBStateAdapter.RECONC_RESOURCE_HASH}",
     ])
 

@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import datetime
 from typing import Protocol, TextIO
 
 from kubernetes.client import (  # type: ignore[attr-defined]
@@ -142,6 +143,25 @@ class K8sJobController:
         elif status.get("failed", 0) > backofflimit:
             return JobStatus.ERROR
         return JobStatus.IN_PROGRESS
+
+    def get_success_job_duration(self, job_name: str) -> int | None:
+        """
+        Returns the number of seconds the job took to complete.
+        * If a job is not completed with success, returns None
+        """
+        if self.get_job_status(job_name) != JobStatus.SUCCESS:
+            return None
+        job_resource = self.cache.get(job_name)
+        if job_resource is None:
+            return None
+        status = job_resource.body.get("status") or {}
+        start_time = status.get("startTime", None)
+        completion_time = status.get("completionTime", None)
+        if not completion_time or not start_time:
+            return None
+        dt_start_time = datetime.fromisoformat(start_time)
+        dt_completion_time = datetime.fromisoformat(completion_time)
+        return int((dt_completion_time - dt_start_time).total_seconds())
 
     def wait_for_job_list_completion(
         self, job_names: set[str], check_interval_seconds: int, timeout_seconds: int

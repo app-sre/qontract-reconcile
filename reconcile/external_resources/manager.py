@@ -13,7 +13,10 @@ from reconcile.external_resources.factories import (
     TerraformModuleProvisionDataFactory,
     setup_aws_resource_factories,
 )
-from reconcile.external_resources.metrics import ExternalResourcesReconcileErrorsGauge
+from reconcile.external_resources.metrics import (
+    ExternalResourcesReconcileErrorsCounter,
+    ExternalResourcesReconcileTimeGauge,
+)
 from reconcile.external_resources.model import (
     Action,
     ExternalResource,
@@ -24,7 +27,10 @@ from reconcile.external_resources.model import (
     ModuleInventory,
     Reconciliation,
 )
-from reconcile.external_resources.reconciler import ExternalResourcesReconciler
+from reconcile.external_resources.reconciler import (
+    ExternalResourcesReconciler,
+    ReconciliationK8sJob,
+)
 from reconcile.external_resources.secrets_sync import InClusterSecretsReconciler
 from reconcile.external_resources.state import (
     ExternalResourcesStateDynamoDB,
@@ -232,6 +238,7 @@ class ExternalResourcesManager:
 
         # Need to check the reconciliation set in the state, not the desired one
         # as the reconciliation object might be from a previous desired state
+        job_name = ReconciliationK8sJob(reconciliation=r).name()
         error = False
         match self.reconciler.get_resource_reconcile_status(state.reconciliation):
             case ReconcileStatus.SUCCESS:
@@ -242,12 +249,22 @@ class ExternalResourcesManager:
                 )
                 if r.action == Action.APPLY:
                     state.resource_status = ResourceStatus.PENDING_SECRET_SYNC
-                    state.reconciliation_errors = 0
                     self.state_mgr.set_external_resource_state(state)
                     need_secret_sync = True
                 elif r.action == Action.DESTROY:
                     state.resource_status = ResourceStatus.DELETED
                     self.state_mgr.del_external_resource_state(r.key)
+
+                metrics.set_gauge(
+                    ExternalResourcesReconcileTimeGauge(
+                        provision_provider=r.key.provision_provider,
+                        provisioner_name=r.key.provisioner_name,
+                        provider=r.key.provider,
+                        identifier=r.key.identifier,
+                        job_name=job_name,
+                    ),
+                    self.reconciler.get_resource_reconcile_duration(r) or 0,
+                )
             case ReconcileStatus.ERROR:
                 logging.info(
                     "Reconciliation ended with ERROR: Action:%s, Key:%s",
@@ -264,8 +281,16 @@ class ExternalResourcesManager:
                 error = True
         if error:
             state.resource_status = ResourceStatus.ERROR
-            state.reconciliation_errors += 1
             self.state_mgr.set_external_resource_state(state)
+            metrics.inc_counter(
+                ExternalResourcesReconcileErrorsCounter(
+                    provision_provider=r.key.provision_provider,
+                    provisioner_name=r.key.provisioner_name,
+                    provider=r.key.provider,
+                    identifier=r.key.identifier,
+                    job_name=job_name,
+                )
+            )
 
         return need_secret_sync
 
@@ -331,16 +356,6 @@ class ExternalResourcesManager:
             need_sync = self._update_in_progress_state(r, state)
             if need_sync:
                 to_sync_keys.add(r.key)
-
-            metrics.set_gauge(
-                ExternalResourcesReconcileErrorsGauge(
-                    provision_provider=r.key.provision_provider,
-                    provisioner_name=r.key.provisioner_name,
-                    provider=r.key.provider,
-                    identifier=r.key.identifier,
-                ),
-                float(state.reconciliation_errors),
-            )
 
             if self._resource_needs_reconciliation(reconciliation=r, state=state):
                 self.reconciler.reconcile_resource(reconciliation=r)
