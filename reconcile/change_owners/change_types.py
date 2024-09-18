@@ -55,6 +55,7 @@ class ChangeTypePriority(Enum):
     CRITICAL = "critical"
     URGENT = "urgent"
     HIGH = "high"
+    PROGRESSIVE_DELIVERY = "progressive-delivery"
     MEDIUM = "medium"
     LOW = "low"
 

@@ -3,6 +3,7 @@ from collections.abc import Iterable
 
 from gitlab.exceptions import GitlabGetError
 
+from reconcile.change_owners.change_types import ChangeTypePriority
 from reconcile.saas_auto_promotions_manager.merge_request_manager.batcher import (
     Addition,
     Batcher,
@@ -30,12 +31,16 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
 )
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.utils import metrics
+from reconcile.utils.mr.labels import prioritized_approval_label
 from reconcile.utils.vcs import VCS
 
 BATCH_SIZE_LIMIT = 5
 
 SAPM_LABEL = "SAPM"
-SAPM_MR_LABELS = [SAPM_LABEL]
+SAPM_MR_LABELS = [
+    SAPM_LABEL,
+    prioritized_approval_label(ChangeTypePriority.PROGRESSIVE_DELIVERY.value),
+]
 
 MR_DESC = """
 This is an auto-promotion triggered by app-interface's [saas-auto-promotions-manager](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/saas_auto_promotions_manager) (SAPM).
