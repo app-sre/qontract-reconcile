@@ -1,0 +1,579 @@
+apiVersion: v1
+data:
+  external-resource-logs.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": 935114,
+      "links": [],
+      "panels": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "P1A97A9592CB7F392"
+          },
+          "gridPos": {
+            "h": 2,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 3,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "# ${provision_provider}/${provisioner}/${provider}/${identifier}\n\n",
+            "mode": "markdown"
+          },
+          "pluginVersion": "10.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "P1A97A9592CB7F392"
+              },
+              "dimensions": {},
+              "expression": "",
+              "id": "",
+              "label": "",
+              "logGroups": [],
+              "matchExact": true,
+              "metricEditorMode": 0,
+              "metricName": "",
+              "metricQueryType": 0,
+              "namespace": "",
+              "period": "",
+              "queryMode": "Metrics",
+              "refId": "A",
+              "region": "default",
+              "sqlExpression": "",
+              "statistic": "Average"
+            }
+          ],
+          "type": "text"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7B77307D2CE073BC"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 3,
+            "w": 5,
+            "x": 0,
+            "y": 2
+          },
+          "id": 2,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "pluginVersion": "10.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P7B77307D2CE073BC"
+              },
+              "disableTextWrap": false,
+              "editorMode": "code",
+              "expr": "sum(external_resources_reconcile_errors{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\", identifier=\"$identifier\"}) or on() vector(0)",
+              "fullMetaSearch": false,
+              "includeNullMetadata": true,
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A",
+              "useBackend": false
+            }
+          ],
+          "title": "Reconcile Errors",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7B77307D2CE073BC"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 3,
+            "w": 5,
+            "x": 5,
+            "y": 2
+          },
+          "id": 4,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "pluginVersion": "10.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P7B77307D2CE073BC"
+              },
+              "disableTextWrap": false,
+              "editorMode": "code",
+              "expr": "sum(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\", identifier=\"$identifier\"}) or on() vector(0)",
+              "fullMetaSearch": false,
+              "includeNullMetadata": true,
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A",
+              "useBackend": false
+            }
+          ],
+          "title": "Reconcile Time (seconds)",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "P1A97A9592CB7F392"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": -1,
+                "drawStyle": "bars",
+                "fillOpacity": 100,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 15,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 24,
+            "x": 0,
+            "y": 5
+          },
+          "id": 5,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "P1A97A9592CB7F392"
+              },
+              "dimensions": {
+                "LogGroupName": "appsrep09ue1.external-resources-jobs"
+              },
+              "expression": "filter kubernetes.pod_name like /$jobname/ | stats count(@timestamp) as logs by bin(30s)",
+              "id": "",
+              "label": "",
+              "logGroups": [
+                {
+                  "accountId": "744086762512",
+                  "arn": "arn:aws:logs:us-east-1:744086762512:log-group:appsrep09ue1.external-resources-jobs:*",
+                  "name": "appsrep09ue1.external-resources-jobs"
+                }
+              ],
+              "matchExact": true,
+              "metricEditorMode": 1,
+              "metricName": "IncomingLogEvents",
+              "metricQueryType": 1,
+              "namespace": "AWS/Logs",
+              "period": "",
+              "queryMode": "Logs",
+              "refId": "A",
+              "region": "default",
+              "sql": {
+                "from": {
+                  "property": {
+                    "name": "AWS/Logs",
+                    "type": "string"
+                  },
+                  "type": "property"
+                },
+                "select": {
+                  "name": "AVG",
+                  "parameters": [
+                    {
+                      "name": "IncomingLogEvents",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                },
+                "where": {
+                  "expressions": [
+                    {
+                      "operator": {
+                        "name": "=",
+                        "value": "appsrep09ue1.external-resources-jobs"
+                      },
+                      "property": {
+                        "name": "LogGroupName",
+                        "type": "string"
+                      },
+                      "type": "operator"
+                    }
+                  ],
+                  "type": "and"
+                }
+              },
+              "sqlExpression": "SELECT AVG(IncomingLogEvents) FROM \"AWS/Logs\" WHERE LogGroupName = 'appsrep09ue1.external-resources-jobs' AND FilterName",
+              "statistic": "Sum",
+              "statsGroups": [
+                "bin(30s)"
+              ]
+            }
+          ],
+          "title": "Logs Volume",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "P1A97A9592CB7F392"
+          },
+          "gridPos": {
+            "h": 14,
+            "w": 24,
+            "x": 0,
+            "y": 12
+          },
+          "id": 1,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": true,
+            "showCommonLabels": false,
+            "showLabels": false,
+            "showTime": true,
+            "sortOrder": "Ascending",
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "P1A97A9592CB7F392"
+              },
+              "dimensions": {},
+              "expression": "fields @timestamp, message | filter kubernetes.pod_name like /$jobname/ ",
+              "id": "",
+              "label": "",
+              "logGroups": [
+                {
+                  "accountId": "744086762512",
+                  "arn": "arn:aws:logs:us-east-1:744086762512:log-group:appsrep09ue1.external-resources-jobs:*",
+                  "name": "appsrep09ue1.external-resources-jobs"
+                }
+              ],
+              "matchExact": true,
+              "metricEditorMode": 0,
+              "metricName": "",
+              "metricQueryType": 0,
+              "namespace": "",
+              "period": "",
+              "queryMode": "Logs",
+              "refId": "A",
+              "region": "default",
+              "sqlExpression": "",
+              "statistic": "Average",
+              "statsGroups": []
+            }
+          ],
+          "title": "Logs",
+          "type": "logs"
+        }
+      ],
+      "refresh": "",
+      "schemaVersion": 39,
+      "tags": [],
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "selected": false,
+              "text": "aws",
+              "value": "aws"
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "P7B77307D2CE073BC"
+            },
+            "definition": "label_values(external_resources_reconcile_status,provision_provider)",
+            "hide": 0,
+            "includeAll": false,
+            "multi": false,
+            "name": "provision_provider",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(external_resources_reconcile_status,provision_provider)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "current": {
+              "selected": false,
+              "text": "app-sre-stage",
+              "value": "app-sre-stage"
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "P7B77307D2CE073BC"
+            },
+            "definition": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\"},provisioner_name)",
+            "hide": 0,
+            "includeAll": false,
+            "multi": false,
+            "name": "provisioner",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\"},provisioner_name)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "current": {
+              "selected": false,
+              "text": "rds",
+              "value": "rds"
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "P7B77307D2CE073BC"
+            },
+            "definition": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\"},provider)",
+            "hide": 0,
+            "includeAll": false,
+            "multi": false,
+            "name": "provider",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\"},provider)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "current": {
+              "selected": true,
+              "text": "glitchtip-stage",
+              "value": "glitchtip-stage"
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "P7B77307D2CE073BC"
+            },
+            "definition": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\"},identifier)",
+            "hide": 0,
+            "includeAll": false,
+            "multi": false,
+            "name": "identifier",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\"},identifier)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "current": {
+              "selected": false,
+              "text": "er-ef97de4e28",
+              "value": "er-ef97de4e28"
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "P7B77307D2CE073BC"
+            },
+            "definition": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\", identifier=\"$identifier\"},job_name)",
+            "hide": 0,
+            "includeAll": false,
+            "label": "jobname",
+            "multi": false,
+            "name": "jobname",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\", identifier=\"$identifier\"},job_name)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 2,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 0,
+            "type": "query"
+          }
+        ]
+      },
+      "time": {
+        "from": "now-24h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "External Resource Logs",
+      "uid": "fdxnk94xrcwsgf",
+      "version": 26,
+      "weekStart": ""
+    }
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-qr-external-resource-logs
+  labels:
+    grafana_dashboard: "true"
+  annotations:
+    grafana-folder: /grafana-dashboard-definitions/0
