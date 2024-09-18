@@ -432,6 +432,12 @@ def setup_mocks(
     mocked_ocm = mocked_ocm_map.return_value.get.return_value
     mocked_ocm.get_machine_pools.return_value = machine_pools or []
     mocked_ocm.get_node_pools.return_value = node_pools or []
+    if clusters:
+        ocm_cluster_specs = {
+            c.name
+            for c in clusters
+        }
+        mocked_ocm_map.return_value.cluster_specs.return_value = (ocm_cluster_specs, [])
 
     mocked_queries = mocker.patch("reconcile.ocm_machine_pools.queries")
 
