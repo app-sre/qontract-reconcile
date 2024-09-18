@@ -146,6 +146,9 @@ class Renderer:
 
 {VERSION_REF}: {SAPM_VERSION}
 
+This MR is auto-approved
+
+/lgtm
         """
 
     def render_title(
