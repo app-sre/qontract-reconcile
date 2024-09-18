@@ -534,6 +534,10 @@ def run(dry_run: bool):
         settings=settings,
     )
 
+    # further filter cluster to only ones that are on ocm
+    ocm_clusters, _ = ocm_map.cluster_specs()
+    filtered_clusters = [c for c in filtered_clusters if c.name in ocm_clusters]
+
     current_state = fetch_current_state(ocm_map, filtered_clusters)
     desired_state = create_desired_state_from_gql(filtered_clusters)
     diffs, errors = calculate_diff(current_state, desired_state)
