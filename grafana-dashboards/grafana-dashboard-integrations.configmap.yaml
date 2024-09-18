@@ -27,7 +27,7 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 933348,
+      "id": 951487,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -1425,7 +1425,7 @@ data:
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "qontract_reconcile_gitlab_token_expiration_days{active=\"True\"}",
+              "expr": "max by(name) (qontract_reconcile_gitlab_token_expiration_days{active=\"True\"})",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
@@ -1446,9 +1446,9 @@ data:
         "list": [
           {
             "current": {
-              "selected": true,
+              "selected": false,
               "text": "appsrep09ue1-prometheus",
-              "value": "appsrep09ue1-prometheus"
+              "value": "P7B77307D2CE073BC"
             },
             "hide": 0,
             "includeAll": false,
@@ -1522,7 +1522,7 @@ data:
       "timezone": "",
       "title": "Integrations",
       "uid": "Integrations",
-      "version": 1,
+      "version": 2,
       "weekStart": ""
     }
 kind: ConfigMap
