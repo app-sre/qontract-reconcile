@@ -1370,6 +1370,50 @@ def aws_creds(ctx, account_name):
     print(f"export AWS_ACCESS_KEY_ID={secret['aws_access_key_id']}")
     print(f"export AWS_SECRET_ACCESS_KEY={secret['aws_secret_access_key']}")
 
+@root.command()
+@click.argument("account_name")
+@click.argument("bucket")
+@click.argument("src")
+@click.argument("dest")
+@click.argument("region", required=False, default="us-east-1")
+@click.pass_context
+def copy_tfstate(ctx, account_name, bucket, src, dest, region):
+    """copy a manually managed terraform state file to the correct location expected by
+    the terraform-repo integration.
+
+    SRC should include the full filename including the extension
+
+    DEST should include the filename without extension.
+    """
+    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(settings=settings)
+    accounts = queries.get_aws_accounts(name=account_name, terraform_state=True)
+    if not accounts:
+        print(f"{account_name} not found.")
+        sys.exit(1)
+    account = accounts[0]
+
+    state_key = [i for i in account["terraformState"]["integrations"] if i["integration"] == "terraform-repo"]
+    if len(state_key) == 0:
+        logging.error("terraform-repo is missing a section in this account's '/dependencies/terraform-state-1.yml' file, please add one using the docs in https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/terraform-repo/sop/migrating-existing-state.md?ref_type=heads and then try again")
+        return
+    
+    dest_key = f"{state_key[0]['key']}/{dest}-tf-repo.tfstate"
+    dest_bucket = account["terraformState"]["bucket"]
+
+    with AWSApi(1, accounts, settings, secret_reader) as aws:
+        prompt_text = f"Are you sure you want to copy 's3://{bucket}/{src}' to 's3://{dest_bucket}/{dest_key}'? This will overwrite any object currently at the destination path."
+        if click.confirm(prompt_text):
+            session = aws.get_session(account_name)
+            s3_client = aws.get_session_client(session, "s3", region)   
+            copy_source = {
+                'Bucket': bucket,
+                'Key': src,
+            }
+
+            s3_client.copy(copy_source, dest_bucket, dest_key)
+            logging.info("successfully copied the statefile to the new location")
+
 
 @get.command(short_help='obtain "rosa create cluster" command by cluster name')
 @click.argument("cluster_name")
