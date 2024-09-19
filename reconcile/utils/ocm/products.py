@@ -46,6 +46,7 @@ SPEC_ATTR_SUBNET_IDS = "subnet_ids"
 SPEC_ATTR_AVAILABILITY_ZONES = "availability_zones"
 
 SPEC_ATTR_NETWORK = "network"
+IGNORE_NETWORK_TYPE_ATTR = "type"
 
 SPEC_ATTR_CONSOLE_URL = "consoleUrl"
 SPEC_ATTR_SERVER_URL = "serverUrl"

@@ -461,6 +461,18 @@ def test_get_ocm_cluster_update_spec_network_banned(
     assert err is True
 
 
+def test_get_ocm_cluster_update_spec_network_type_ignored(
+    osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
+):
+    current_spec = ocm_osd_cluster_spec
+    desired_spec = current_spec.copy(deep=True)
+    desired_spec.network.type = "OVNKubernetes"
+    upd, err = occ.get_cluster_ocm_update_spec(
+        osd_product, "cluster1", current_spec, desired_spec
+    )
+    assert (upd, err) == ({}, False)
+
+
 @typing.no_type_check
 def test_get_ocm_cluster_update_spec_allowed_change(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
