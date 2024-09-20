@@ -23,6 +23,7 @@ from reconcile.status import ExitCodes
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.jobcontroller.controller import build_job_controller
 from reconcile.utils.ocm.products import (
+    IGNORE_NETWORK_TYPE_ATTR,
     OCMProduct,
     OCMProductPortfolio,
     OCMValidationException,
@@ -248,10 +249,14 @@ def get_cluster_ocm_update_spec(
         desired_spec.network.type = "OVNKubernetes"
 
     cspec = current_spec.spec.dict()
-    cspec[ocmmod.SPEC_ATTR_NETWORK] = current_spec.network.dict()
+    cspec[ocmmod.SPEC_ATTR_NETWORK] = current_spec.network.dict(
+        exclude={IGNORE_NETWORK_TYPE_ATTR}
+    )
 
     dspec = desired_spec.spec.dict()
-    dspec[ocmmod.SPEC_ATTR_NETWORK] = desired_spec.network.dict()
+    dspec[ocmmod.SPEC_ATTR_NETWORK] = desired_spec.network.dict(
+        exclude={IGNORE_NETWORK_TYPE_ATTR}
+    )
 
     # Convert ocm specs to dicts, removing null values and excluded attributes
     current_ocm_spec = {
