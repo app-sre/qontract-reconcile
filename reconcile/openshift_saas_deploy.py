@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from collections.abc import Callable
-from datetime import datetime
+
 import reconcile.openshift_base as ob
 from reconcile import (
     jenkins_base,
@@ -118,7 +118,6 @@ def run(
     saas_file_list: SaasFileList | None = None,
     defer: Callable | None = None,
 ) -> None:
-    start_time = datetime.now()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
@@ -342,6 +341,3 @@ def run(
             json_file = os.path.join(io_dir, "dockerconfigjson")
             with open(json_file, "w", encoding="locale") as f:
                 f.write(json.dumps(image_auth.getDockerConfigJson(), indent=2))
-    print("**time taken by intergration ***")
-    print(datetime.now()-start_time)
-    print("******")

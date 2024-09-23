@@ -4,7 +4,7 @@ from typing import TypedDict
 
 import jinja2
 from pydantic import BaseModel
-from datetime import datetime
+
 from reconcile.endpoints_discovery.merge_request import Renderer, create_parser
 from reconcile.endpoints_discovery.merge_request_manager import (
     App,
@@ -267,7 +267,6 @@ class EndpointsDiscoveryIntegration(
     @defer
     def run(self, dry_run: bool, defer: Callable | None = None) -> None:
         """Run the integration."""
-        start_time = datetime.now()
         gql_api = gql.get_api()
         namespaces = self.get_namespaces(
             gql_api.query,
@@ -338,6 +337,3 @@ class EndpointsDiscoveryIntegration(
             )
         else:
             self.runner(**runner_params)
-        print("********** integration execution time **********")
-        print(datetime.now()-start_time)
-        print("********************")
