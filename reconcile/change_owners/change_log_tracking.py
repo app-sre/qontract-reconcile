@@ -180,15 +180,15 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         if ctp.name not in change_log_item.change_types:
                             change_log_item.change_types.append(ctp.name)
 
-                change_log_item.change_types.extend(
-                    special_dir
-                    for special_dir in ("docs", "hack")
-                    if any(
-                        path.startswith(special_dir)
-                        for gl_diff in gl_commit.diff()
-                        for path in (gl_diff["old_path"], gl_diff["new_path"])
-                    )
+            change_log_item.change_types.extend(
+                special_dir
+                for special_dir in ("docs", "hack")
+                if any(
+                    path.startswith(special_dir)
+                    for gl_diff in gl_commit.diff()
+                    for path in (gl_diff["old_path"], gl_diff["new_path"])
                 )
+            )
 
         change_log.items = sorted(
             change_log.items, key=lambda i: i.merged_at, reverse=True
