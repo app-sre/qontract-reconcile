@@ -135,7 +135,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             diff = QontractServerDiff(**obj)
             changes = aggregate_resource_changes(
                 aggregate_file_moves(parse_bundle_changes(diff)),
-                [c.dict() for c in namespaces + jenkins_configs],
+                {c.path: c.dict() for c in namespaces + jenkins_configs},
             )
             for change in changes:
                 logging.debug(f"Processing change {change}")

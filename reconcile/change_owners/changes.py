@@ -461,14 +461,14 @@ def parse_bundle_changes(
 
 def aggregate_resource_changes(
     bundle_changes: list[BundleFileChange],
-    content_store: list[dict[str, Any]],
+    content_store: dict[str, Any],
 ) -> list[BundleFileChange]:
     new_bundle_changes: list[BundleFileChange] = []
     resource_changes: list[BundleFileChange] = []
     for change in bundle_changes:
         new_bundle_changes.append(change)
         for file_ref in change.old_backrefs | change.new_backrefs:
-            file_content = next(c for c in content_store if c["path"] == file_ref.path)
+            file_content = content_store[file_ref.path]
             resource_changes.append(
                 BundleFileChange(
                     fileref=file_ref,
