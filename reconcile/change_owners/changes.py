@@ -463,29 +463,25 @@ def aggregate_resource_changes(
     bundle_changes: list[BundleFileChange],
     content_store: dict[str, Any],
 ) -> list[BundleFileChange]:
-    new_bundle_changes: list[BundleFileChange] = []
-    resource_changes: list[BundleFileChange] = []
-    for change in bundle_changes:
-        new_bundle_changes.append(change)
-        for file_ref in change.old_backrefs | change.new_backrefs:
-            file_content = content_store[file_ref.path]
-            resource_changes.append(
-                BundleFileChange(
-                    fileref=file_ref,
+    resource_changes = [
+        BundleFileChange(
+            fileref=file_ref,
+            old=file_content,
+            new=file_content,
+            old_content_sha="",
+            new_content_sha="",
+            diffs=[
+                Diff(
+                    path=jsonpath_ng.parse(file_ref.json_path),
+                    diff_type=DiffType.CHANGED,
                     old=file_content,
                     new=file_content,
-                    old_content_sha="",
-                    new_content_sha="",
-                    diffs=[
-                        Diff(
-                            path=jsonpath_ng.parse(file_ref.json_path),
-                            diff_type=DiffType.CHANGED,
-                            old=file_content,
-                            new=file_content,
-                        )
-                    ],
                 )
-            )
-    new_bundle_changes.extend(resource_changes)
+            ],
+        )
+        for change in bundle_changes
+        for file_ref in change.old_backrefs | change.new_backrefs
+        if (file_content := content_store[file_ref.path])
+    ]
 
-    return new_bundle_changes
+    return bundle_changes + resource_changes
