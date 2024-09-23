@@ -3,6 +3,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import (
     GroupProject,
     Project,
@@ -78,7 +79,10 @@ class GroupPermissionHandler:
 
     def can_share_project(self, project: Project) -> bool:
         # check if user have access greater or equal access to be shared with the group
-        user = project.members_all.get(id=self.gl.user.id)
+        try:
+            user = project.members_all.get(id=self.gl.user.id)
+        except GitlabGetError:
+            return False
         return user.access_level >= self.access_level
 
     def reconcile(
