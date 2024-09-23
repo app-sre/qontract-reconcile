@@ -12,9 +12,14 @@ from reconcile.change_owners.change_owners import (
     init_gitlab,
 )
 from reconcile.change_owners.change_types import ChangeTypeContext
-from reconcile.change_owners.changes import aggregate_file_moves, parse_bundle_changes
+from reconcile.change_owners.changes import (
+    aggregate_file_moves,
+    aggregate_resource_changes,
+    parse_bundle_changes,
+)
 from reconcile.typed_queries.apps import get_apps
 from reconcile.typed_queries.external_resources import get_namespaces
+from reconcile.typed_queries.jenkins import get_jenkins_configs
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import MRState
@@ -73,6 +78,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             cluster = ns.cluster.name
             app = ns.app.name
             app_names_by_cluster_name[cluster].add(app)
+        jenkins_configs = get_jenkins_configs()
 
         integration_state = init_state(
             integration=self.name,
@@ -127,7 +133,10 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                 change_log_item.error = True
                 continue
             diff = QontractServerDiff(**obj)
-            changes = aggregate_file_moves(parse_bundle_changes(diff))
+            changes = aggregate_resource_changes(
+                aggregate_file_moves(parse_bundle_changes(diff)),
+                {c.path: c.dict() for c in namespaces + jenkins_configs},
+            )
             for change in changes:
                 logging.debug(f"Processing change {change}")
                 change_versions = filter(None, [change.old, change.new])

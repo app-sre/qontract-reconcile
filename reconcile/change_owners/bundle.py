@@ -32,6 +32,7 @@ class FileRef:
     file_type: BundleFileType
     path: str
     schema: str | None
+    json_path: str | None = None
 
     def __str__(self) -> str:
         return f"{self.file_type.value}:{self.path}"
@@ -106,6 +107,7 @@ class QontractServerResourcefileBackref(BaseModel):
 
     path: str
     datafileschema: str = Field(..., alias="datafileSchema")
+    jsonpath: str = Field(..., alias="jsonpath")
 
 
 class QontractServerResourcefileDiffState(BaseModel):

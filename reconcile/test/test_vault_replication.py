@@ -5,6 +5,7 @@ import pytest
 import reconcile.vault_replication as integ
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
+    AppV1,
     JenkinsConfigsQueryData,
     JenkinsConfigV1_JenkinsConfigV1,
     JenkinsInstanceV1,
@@ -32,7 +33,11 @@ def jenkins_config_query_data() -> JenkinsConfigsQueryData:
     return JenkinsConfigsQueryData(
         jenkins_configs=[
             JenkinsConfigV1_JenkinsConfigV1(
+                path="path/to/config",
                 name="jenkins-secrets-config",
+                app=AppV1(
+                    name="my-app",
+                ),
                 instance=JenkinsInstanceV1(
                     name="jenkins-instance",
                     serverUrl="https://test.net",
