@@ -157,7 +157,9 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         changed_apps = {
                             name
                             for c in change_versions
-                            if (name := app_name_by_path.get(c["app"]["$ref"]))
+                            if (app := c["app"])
+                            and (app_path := app.get("$ref") or app.get("path"))
+                            and (name := app_name_by_path.get(app_path))
                         }
                         change_log_item.apps.extend(changed_apps)
                     case "/openshift/cluster-1.yml":
