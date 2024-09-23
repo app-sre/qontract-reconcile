@@ -903,6 +903,9 @@ class OCCli:  # pylint: disable=too-many-public-methods
             return
 
         dep_annotations = dep_resource.body["metadata"].get("annotations", {})
+        if dep_annotations is None:
+            # Note, that annotations might have been set to None explicitly
+            dep_annotations = {}
         qontract_recycle = dep_annotations.get("qontract.recycle")
         if qontract_recycle is True:
             raise RecyclePodsInvalidAnnotationValue('should be "true"')
