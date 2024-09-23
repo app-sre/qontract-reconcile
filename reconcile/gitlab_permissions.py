@@ -7,6 +7,7 @@ from gitlab.v4.objects import (
     GroupProject,
     Project,
 )
+from gitlab.exceptions import GitlabGetError
 from sretoolbox.utils import threaded
 
 from reconcile import queries
@@ -78,14 +79,11 @@ class GroupPermissionHandler:
 
     def can_share_project(self, project: Project) -> bool:
         # check if user have access greater or equal access to be shared with the group
-        try:
+        try: 
             user = project.members_all.get(id=self.gl.user.id)
-            return user.access_level >= self.access_level
-        except Exception as e:
-            logging.error(
-                f"Could not fetch member from repository {project.attributes.get('web_url', 'WEB_URL_NOT_SET')} - did you forget to make our devtools-bot a maintainer of that repo?"
-            )
-            raise e
+        except GitlabGetError:
+            return False
+        return user.access_level >= self.access_level
 
     def reconcile(
         self,
