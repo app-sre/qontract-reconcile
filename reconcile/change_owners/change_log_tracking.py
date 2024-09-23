@@ -148,6 +148,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         "/app-sre/saas-file-2.yml"
                         | "/openshift/namespace-1.yml"
                         | "/dependencies/jenkins-config-1.yml"
+                        | "/dependencies/status-page-component-1.yml"
                     ):
                         changed_apps = {
                             name
