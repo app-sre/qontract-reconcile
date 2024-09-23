@@ -442,6 +442,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         self.api_resources_lock = threading.RLock()
         self.init_api_resources = init_api_resources
         self.api_resources = {}
+        self.projects = []
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
 
@@ -606,20 +607,19 @@ class OCCli:  # pylint: disable=too-many-public-methods
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     def project_exists(self, name):
-        if self.init_projects:
-            return name in self.projects
-
-        try:
-            print("getting the project....")
-            if self.is_kind_supported("Project"):
-                self.get(None, "Project.project.openshift.io", name)
-            else:
-                self.get(None, "Namespace", name)
-        except StatusCodeError as e:
-            if "NotFound" in str(e):
-                return False
-            raise e
-        return True
+        if name in self.projects:
+            return True
+        else:
+            try:
+                if self.is_kind_supported("Project"):
+                    self.get(None, "Project.project.openshift.io", name)
+                else:
+                    self.get(None, "Namespace", name)
+            except StatusCodeError as e:
+                if "NotFound" in str(e):
+                    return False
+                raise e
+            return True
 
     @OCDecorators.process_reconcile_time
     def new_project(self, namespace):
