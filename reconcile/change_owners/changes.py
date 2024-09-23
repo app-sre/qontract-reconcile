@@ -462,6 +462,7 @@ def parse_bundle_changes(
 def aggregate_resource_changes(
     bundle_changes: list[BundleFileChange],
     content_store: dict[str, Any],
+    supported_schemas: set[str],
 ) -> list[BundleFileChange]:
     resource_changes = [
         BundleFileChange(
@@ -481,7 +482,8 @@ def aggregate_resource_changes(
         )
         for change in bundle_changes
         for file_ref in change.old_backrefs | change.new_backrefs
-        if (file_content := content_store[file_ref.path])
+        if file_ref.schema in supported_schemas
+        and (file_content := content_store[file_ref.path])
     ]
 
     return bundle_changes + resource_changes

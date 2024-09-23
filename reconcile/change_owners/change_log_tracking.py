@@ -134,8 +134,12 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                 continue
             diff = QontractServerDiff(**obj)
             changes = aggregate_resource_changes(
-                aggregate_file_moves(parse_bundle_changes(diff)),
-                {c.path: c.dict() for c in namespaces + jenkins_configs},
+                bundle_changes=aggregate_file_moves(parse_bundle_changes(diff)),
+                content_store={c.path: c.dict() for c in namespaces + jenkins_configs},
+                supported_schemas={
+                    "/openshift/namespace-1.yml",
+                    "/dependencies/jenkins-config-1.yml",
+                },
             )
             for change in changes:
                 logging.debug(f"Processing change {change}")
