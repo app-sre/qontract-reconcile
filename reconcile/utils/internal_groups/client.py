@@ -14,6 +14,8 @@ from sretoolbox.utils import retry
 
 from reconcile.utils.internal_groups.models import Group
 
+REQUEST_TIMEOUT = 30
+
 
 class NotFound(Exception):
     """Not found exception."""
@@ -60,7 +62,11 @@ class InternalGroupsApi:
 
     @retry(exceptions=(TokenExpiredError,), max_attempts=2)
     def _request(
-        self, method: str, url: str, json: dict[Any, Any] | None = None
+        self,
+        method: str,
+        url: str,
+        json: dict[Any, Any] | None = None,
+        timeout: int = REQUEST_TIMEOUT,
     ) -> Response:
         try:
             return self._client.request(
@@ -69,6 +75,7 @@ class InternalGroupsApi:
                 json=json,
                 # Content-Type is required for GET too :(
                 headers={"Content-Type": "application/json"},
+                timeout=timeout,
             )
         except TokenExpiredError:
             self._client.token = self._fetch_token()
