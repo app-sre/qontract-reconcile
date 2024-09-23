@@ -988,7 +988,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     image.setdefault("tag", image_tag)
             resources = helm.template_all(
                 url=url,
-                ref=commit_sha,
                 path=path,
                 name=resource_template_name,
                 values=consolidated_parameters,
