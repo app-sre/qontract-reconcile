@@ -470,14 +470,15 @@ class OCCli:  # pylint: disable=too-many-public-methods
 
     def get_items(self, kind, **kwargs):
         cmd = ["get", kind, "-o", "json"]
-
+        
         if "namespace" in kwargs:
             namespace = kwargs["namespace"]
             # for cluster scoped integrations
             # currently only openshift-clusterrolebindings
             if namespace != "cluster":
-                if not self.project_exists(namespace):
-                    return []
+                if not kwargs.get("skip_namespace_check",False):
+                    if not self.project_exists(namespace):
+                        return []
             cmd.extend(["-n", namespace])
 
         if "labels" in kwargs:
@@ -1334,8 +1335,9 @@ class OCNative(OCCli):
             # for cluster scoped integrations
             # currently only openshift-clusterrolebindings
             if namespace != "cluster":
-                if not self.project_exists(namespace):
-                    return []
+                if not kwargs.get("skip_namespace_check",False):
+                    if not self.project_exists(namespace):
+                        return []
 
         labels = ""
         if "labels" in kwargs:
@@ -1389,6 +1391,7 @@ class OCNative(OCCli):
             raise StatusCodeError(f"[{self.server}]: {e}") from None
 
     def get_all(self, kind, all_namespaces=False):
+        print("hello from OC native - get_all()")
         k, group_version = self._parse_kind(kind)
         obj_client = self._get_obj_client(group_version=group_version, kind=k)
         try:

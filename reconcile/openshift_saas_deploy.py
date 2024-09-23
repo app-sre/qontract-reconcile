@@ -225,6 +225,8 @@ def run(
         init_api_resources=True,
         cluster_admin=bool(saasherder.cluster_admin),
         use_jump_host=use_jump_host,
+        init_projects=False,
+        skip_namespace_check=False,
     )
     if defer:  # defer is provided by the method decorator. this makes just mypy happy
         defer(oc_map.cleanup)
