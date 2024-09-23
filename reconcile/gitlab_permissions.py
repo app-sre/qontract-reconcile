@@ -3,11 +3,11 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import (
     GroupProject,
     Project,
 )
-from gitlab.exceptions import GitlabGetError
 from sretoolbox.utils import threaded
 
 from reconcile import queries
@@ -79,7 +79,7 @@ class GroupPermissionHandler:
 
     def can_share_project(self, project: Project) -> bool:
         # check if user have access greater or equal access to be shared with the group
-        try: 
+        try:
             user = project.members_all.get(id=self.gl.user.id)
         except GitlabGetError:
             return False
