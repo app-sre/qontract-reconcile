@@ -315,6 +315,7 @@ def populate_current_state(
                 openshift_resource,
             )
     except StatusCodeError as e:
+        print("Handled.....")
         ri.register_error(cluster=spec.cluster)
         logging.error(f"[{spec.cluster}/{spec.namespace}] {e!s}")
 

@@ -478,7 +478,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
             if namespace != "cluster":
                 if not self.project_exists(namespace):
                     return []
-                cmd.extend(["-n", namespace])
+            cmd.extend(["-n", namespace])
 
         if "labels" in kwargs:
             labels_list = [f"{k}={v}" for k, v in kwargs.get("labels").items()]
@@ -609,6 +609,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
             return name in self.projects
 
         try:
+            print("getting the project....")
             if self.is_kind_supported("Project"):
                 self.get(None, "Project.project.openshift.io", name)
             else:
@@ -1368,11 +1369,11 @@ class OCNative(OCCli):
         items = items_list.get("items")
         if items is None:
             raise Exception("Expecting items")
-
         return items
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError, ForbiddenError))
     def get(self, namespace, kind, name=None, allow_not_found=False):
+        print("hello from OC native")
         k, group_version = self._parse_kind(kind)
         obj_client = self._get_obj_client(group_version=group_version, kind=k)
         try:

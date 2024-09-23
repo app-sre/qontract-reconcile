@@ -71,6 +71,13 @@ reconcile_time = Histogram(
     buckets=(60.0, 150.0, 300.0, 600.0, 1200.0, 1800.0, 2400.0, 3000.0, float("inf")),
 )
 
+# get_items_execution_time= Histogram(
+#     name="qontract_reconcile_function_" "elapsed_seconds_since_bundle_commit",
+#     documentation="Run time seconds for tracked " "functions",
+#     labelnames=["name", "integration"],
+#     buckets=(60.0, 150.0, 300.0, 600.0, 1200.0, 1800.0, 2400.0, 3000.0, float("inf")),
+# )
+
 registry_reachouts = Counter(
     name="qontract_reconcile_registry_get_manifest_total",
     documentation="Number of GET requests on image registries",
