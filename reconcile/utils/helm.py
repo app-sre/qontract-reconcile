@@ -28,7 +28,7 @@ class JSONEncoder(json.JSONEncoder):
 def do_template(
     values: Mapping[str, Any],
     path: str,
-    name: str,
+    namespace: str,
 ) -> str:
     try:
         with (
@@ -76,8 +76,8 @@ def do_template(
                     "helm",
                     "template",
                     path,
-                    "-n",
-                    name,
+                    "--namespace",
+                    namespace,
                     "-f",
                     values_file.name,
                     "--repository-config",
@@ -100,20 +100,20 @@ def do_template(
 def template(
     values: Mapping[str, Any],
     path: str = "./helm/qontract-reconcile",
-    name: str = "qontract-reconcile",
+    namespace: str = "qontract-reconcile",
 ) -> Mapping[str, Any]:
-    return yaml.safe_load(do_template(values=values, path=path, name=name))
+    return yaml.safe_load(do_template(values=values, path=path, namespace=namespace))
 
 
 def template_all(
     url: str,
     path: str,
-    name: str,
+    namespace: str,
     values: Mapping[str, Any],
     ssl_verify: bool = True,
 ) -> Iterable[Mapping[str, Any]]:
     with tempfile.TemporaryDirectory() as wd:
         git.clone(url, wd, depth=1, verify=ssl_verify)
         return yaml.safe_load_all(
-            do_template(values=values, path=f"{wd}{path}", name=name)
+            do_template(values=values, path=f"{wd}{path}", namespace=namespace)
         )
