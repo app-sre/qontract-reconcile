@@ -622,6 +622,7 @@ def test_populate_current_state_resource_name_filtering(
         "Kind.fully.qualified",
         namespace="ns1",
         resource_names=["name1", "name2"],
+        skip_namespace_check=False,
     )
 
 
