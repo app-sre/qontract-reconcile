@@ -483,6 +483,7 @@ query ExternalResourcesNamespaces {
       name
     }
     app {
+      path
       name
     }
     cluster {
@@ -1021,6 +1022,7 @@ class EnvironmentV1(ConfiguredBaseModel):
 
 
 class AppV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
 
 
