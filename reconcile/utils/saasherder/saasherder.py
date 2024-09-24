@@ -989,7 +989,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             resources = helm.template_all(
                 url=url,
                 path=path,
-                namespace=spec.target.namespace,
+                namespace=spec.target.namespace.name,
                 values=consolidated_parameters,
                 ssl_verify=ssl_verify,
             )
