@@ -291,7 +291,6 @@ def populate_current_state(
     integration: str,
     integration_version: str,
     caller: str | None = None,
-    skip_namespace_check: bool = False,
 ):
     # if spec.oc is None: - oc can't be none because init_namespace_specs_to_fetch does not create specs if oc is none
     #    return
@@ -304,7 +303,6 @@ def populate_current_state(
             spec.kind,
             namespace=spec.namespace,
             resource_names=spec.resource_names,
-            skip_namespace_check=skip_namespace_check,
         ):
             openshift_resource = OR(item, integration, integration_version)
 
@@ -336,7 +334,6 @@ def fetch_current_state(
     cluster_admin: bool = False,
     caller: str | None = None,
     init_projects: bool = False,
-    skip_namespace_check: bool = False,
 ) -> tuple[ResourceInventory, OC_Map]:
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
@@ -368,7 +365,6 @@ def fetch_current_state(
         integration=integration,
         integration_version=integration_version,
         caller=caller,
-        skip_namespace_check=skip_namespace_check,
     )
 
     return ri, oc_map

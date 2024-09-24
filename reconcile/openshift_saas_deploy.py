@@ -33,6 +33,8 @@ from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import init_state
+from reconcile.utils.unleash import get_feature_toggle_state
+from datetime import datetime
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -216,6 +218,11 @@ def run(
         logging.warning("no targets found")
         sys.exit(ExitCodes.SUCCESS)
 
+    # check enable_init_projects flag status
+    enable_init_projects = get_feature_toggle_state(
+        "enable_init_projects",
+        default=False,
+    )
     ri, oc_map = ob.fetch_current_state(
         namespaces=[ns.dict(by_alias=True) for ns in saasherder.namespaces],
         thread_pool_size=thread_pool_size,
@@ -224,8 +231,7 @@ def run(
         init_api_resources=True,
         cluster_admin=bool(saasherder.cluster_admin),
         use_jump_host=use_jump_host,
-        init_projects=True,
-        skip_namespace_check=True,
+        init_projects=enable_init_projects,
     )
     if defer:  # defer is provided by the method decorator. this makes just mypy happy
         defer(oc_map.cleanup)

@@ -370,6 +370,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         self.api_resources_lock = threading.RLock()
         self.init_api_resources = init_api_resources
         self.api_resources = {}
+        self.projects={}
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
 
@@ -379,7 +380,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
                 kind = "Project.project.openshift.io"
             else:
                 kind = "Namespace"
-            self.projects = [p["metadata"]["name"] for p in self.get_all(kind)["items"]]
+            self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
         self.slow_oc_reconcile_threshold = float(
             os.environ.get("SLOW_OC_RECONCILE_THRESHOLD", 600)
@@ -442,7 +443,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         self.api_resources_lock = threading.RLock()
         self.init_api_resources = init_api_resources
         self.api_resources = {}
-        self.projects = []
+        self.projects = {}
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
 
@@ -452,7 +453,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
                 kind = "Project.project.openshift.io"
             else:
                 kind = "Namespace"
-            self.projects = [p["metadata"]["name"] for p in self.get_all(kind)["items"]]
+            self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
         self.slow_oc_reconcile_threshold = float(
             os.environ.get("SLOW_OC_RECONCILE_THRESHOLD", 600)
@@ -477,9 +478,8 @@ class OCCli:  # pylint: disable=too-many-public-methods
             # for cluster scoped integrations
             # currently only openshift-clusterrolebindings
             if namespace != "cluster":
-                if not kwargs.get("skip_namespace_check", False):
-                    if not self.project_exists(namespace):
-                        return []
+                if not self.project_exists(namespace):
+                    return []
             cmd.extend(["-n", namespace])
 
         if "labels" in kwargs:
@@ -609,17 +609,16 @@ class OCCli:  # pylint: disable=too-many-public-methods
     def project_exists(self, name):
         if name in self.projects:
             return True
-        else:
-            try:
-                if self.is_kind_supported("Project"):
-                    self.get(None, "Project.project.openshift.io", name)
-                else:
-                    self.get(None, "Namespace", name)
-            except StatusCodeError as e:
-                if "NotFound" in str(e):
-                    return False
-                raise e
-            return True
+        try:
+            if self.is_kind_supported("Project"):
+                self.get(None, "Project.project.openshift.io", name)
+            else:
+                self.get(None, "Namespace", name)
+        except StatusCodeError as e:
+            if "NotFound" in str(e):
+                return False
+            raise e
+        return True
 
     @OCDecorators.process_reconcile_time
     def new_project(self, namespace):
@@ -1265,14 +1264,14 @@ class OCNative(OCCli):
             raise Exception("A method relies on client/api_kind_version to be set")
 
         self.object_clients: dict[Any, Any] = {}
-
+        self.projects = {}
         self.init_projects = init_projects
         if self.init_projects:
             if self.is_kind_supported("Project"):
                 kind = "Project.project.openshift.io"
             else:
                 kind = "Namespace"
-            self.projects = [p["metadata"]["name"] for p in self.get_all(kind)["items"]]
+            self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
     def __enter__(self):
         return self
@@ -1335,9 +1334,8 @@ class OCNative(OCCli):
             # for cluster scoped integrations
             # currently only openshift-clusterrolebindings
             if namespace != "cluster":
-                if not kwargs.get("skip_namespace_check", False):
-                    if not self.project_exists(namespace):
-                        return []
+                if not self.project_exists(namespace):
+                    return []
 
         labels = ""
         if "labels" in kwargs:
