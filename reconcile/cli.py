@@ -3564,8 +3564,9 @@ def change_owners(
     default=False,
     help="wait for pending/running pipelines before acting.",
 )
+@click.option("--commit", help="Reconcile just this commit.", default=None)
 @click.pass_context
-def change_log_tracking(ctx, gitlab_project_id, process_existing):
+def change_log_tracking(ctx, gitlab_project_id, process_existing, commit):
     from reconcile.change_owners.change_log_tracking import (
         ChangeLogIntegration,
         ChangeLogIntegrationParams,
@@ -3576,6 +3577,7 @@ def change_log_tracking(ctx, gitlab_project_id, process_existing):
             ChangeLogIntegrationParams(
                 gitlab_project_id=gitlab_project_id,
                 process_existing=process_existing,
+                commit=commit,
             )
         ),
         ctx=ctx.obj,

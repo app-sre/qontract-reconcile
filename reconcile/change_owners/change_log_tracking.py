@@ -50,6 +50,7 @@ class ChangeLog:
 class ChangeLogIntegrationParams(PydanticRunParams):
     gitlab_project_id: str
     process_existing: bool = False
+    commit: str | None = None
 
 
 class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationParams]):
@@ -105,6 +106,8 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
         for item in diff_state.ls():
             key = item.lstrip("/")
             commit = key.rstrip(".json")
+            if self.params.commit and self.params.commit != commit:
+                continue
             if not self.params.process_existing:
                 existing_change_log_item = next(
                     (i for i in existing_change_log_items if i.commit == commit), None
