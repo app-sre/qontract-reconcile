@@ -19,6 +19,13 @@ def clone(repo_url, wd, depth=None, verify=True):
         raise GitError(f"git clone failed: {repo_url}")
 
 
+def fetch(commit: str, wd: str, remote: str = "origin"):
+    cmd = ["git", "fetch", remote, commit]
+    result = subprocess.run(cmd, cwd=wd, capture_output=True, check=False)
+    if result.returncode != 0:
+        raise GitError(f"git fetch failed: {commit}")
+
+
 def checkout(commit, wd):
     cmd = ["git", "checkout", commit]
     result = subprocess.run(cmd, cwd=wd, capture_output=True, check=False)
