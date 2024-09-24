@@ -34,7 +34,6 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.slack_api import SlackApi
 from reconcile.utils.state import init_state
 from reconcile.utils.unleash import get_feature_toggle_state
-from datetime import datetime
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

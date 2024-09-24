@@ -370,7 +370,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         self.api_resources_lock = threading.RLock()
         self.init_api_resources = init_api_resources
         self.api_resources = {}
-        self.projects={}
+        self.projects = {}
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
 
