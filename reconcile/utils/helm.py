@@ -78,7 +78,7 @@ def do_template(
                     path,
                     "--namespace",
                     namespace,
-                    "-f",
+                    "--values",
                     values_file.name,
                     "--repository-config",
                     repository_config_file.name,
