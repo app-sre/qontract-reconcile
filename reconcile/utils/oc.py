@@ -370,7 +370,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         self.api_resources_lock = threading.RLock()
         self.init_api_resources = init_api_resources
         self.api_resources = {}
-        self.projects = {}
+        self.projects = set()
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
 
@@ -443,7 +443,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         self.api_resources_lock = threading.RLock()
         self.init_api_resources = init_api_resources
         self.api_resources = {}
-        self.projects = {}
+        self.projects = set()
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
 
@@ -1264,7 +1264,7 @@ class OCNative(OCCli):
             raise Exception("A method relies on client/api_kind_version to be set")
 
         self.object_clients: dict[Any, Any] = {}
-        self.projects = {}
+        self.projects = set()
         self.init_projects = init_projects
         if self.init_projects:
             if self.is_kind_supported("Project"):
