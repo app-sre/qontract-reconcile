@@ -480,7 +480,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
             if namespace != "cluster":
                 if not self.project_exists(namespace):
                     return []
-            cmd.extend(["-n", namespace])
+                cmd.extend(["-n", namespace])
 
         if "labels" in kwargs:
             labels_list = [f"{k}={v}" for k, v in kwargs.get("labels").items()]
