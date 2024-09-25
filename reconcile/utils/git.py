@@ -19,17 +19,16 @@ def clone(repo_url, wd, depth=None, verify=True):
         raise GitError(f"git clone failed: {repo_url}")
 
 
-def current_ref(wd: str) -> str:
-    try:
-        # First try to get the current branch or tag
-        cmd = ["git", "symbolic-ref", "--short", "HEAD"]
-        result = subprocess.run(cmd, cwd=wd, capture_output=True, text=True, check=True)
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        # If not on a branch (detached HEAD), get the commit hash
-        cmd = ["git", "rev-parse", "HEAD"]
-        result = subprocess.run(cmd, cwd=wd, capture_output=True, text=True, check=True)
-        return result.stdout.strip()
+def rev_parse(ref: str, wd: str) -> str:
+    cmd = ["git", "rev-parse", ref]
+    result = subprocess.run(cmd, cwd=wd, capture_output=True, text=True, check=True)
+    if result.returncode != 0:
+        raise GitError(f"git rev-parse failed: {ref}")
+    return result.stdout.strip()
+
+
+def is_current_ref(ref: str, wd: str) -> bool:
+    return rev_parse("HEAD", wd) == rev_parse(ref, wd)
 
 
 def fetch(ref: str, wd: str, remote: str = "origin", depth: int | None = None):
@@ -42,7 +41,7 @@ def fetch(ref: str, wd: str, remote: str = "origin", depth: int | None = None):
 
 
 def checkout(ref: str, wd: str):
-    if ref != current_ref(wd):
+    if not is_current_ref(ref, wd):
         fetch(ref, wd, depth=1)
     cmd = ["git", "checkout", ref]
     result = subprocess.run(cmd, cwd=wd, capture_output=True, check=False)
