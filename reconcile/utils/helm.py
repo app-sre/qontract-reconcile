@@ -108,12 +108,14 @@ def template(
 def template_all(
     url: str,
     path: str,
+    ref: str,
     namespace: str,
     values: Mapping[str, Any],
     ssl_verify: bool = True,
 ) -> Iterable[Mapping[str, Any]]:
     with tempfile.TemporaryDirectory() as wd:
         git.clone(url, wd, depth=1, verify=ssl_verify)
+        git.checkout(ref, wd, verify=ssl_verify)
         return yaml.safe_load_all(
             do_template(values=values, path=f"{wd}{path}", namespace=namespace)
         )
