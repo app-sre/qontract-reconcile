@@ -134,8 +134,12 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                 continue
             diff = QontractServerDiff(**obj)
             changes = aggregate_resource_changes(
-                aggregate_file_moves(parse_bundle_changes(diff)),
-                {c.path: c.dict() for c in namespaces + jenkins_configs},
+                bundle_changes=aggregate_file_moves(parse_bundle_changes(diff)),
+                content_store={c.path: c.dict() for c in namespaces + jenkins_configs},
+                supported_schemas={
+                    "/openshift/namespace-1.yml",
+                    "/dependencies/jenkins-config-1.yml",
+                },
             )
             for change in changes:
                 logging.debug(f"Processing change {change}")
@@ -148,11 +152,14 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         "/app-sre/saas-file-2.yml"
                         | "/openshift/namespace-1.yml"
                         | "/dependencies/jenkins-config-1.yml"
+                        | "/dependencies/status-page-component-1.yml"
                     ):
                         changed_apps = {
                             name
                             for c in change_versions
-                            if (name := app_name_by_path.get(c["app"]["$ref"]))
+                            if (app := c["app"])
+                            and (app_path := app.get("$ref") or app.get("path"))
+                            and (name := app_name_by_path.get(app_path))
                         }
                         change_log_item.apps.extend(changed_apps)
                     case "/openshift/cluster-1.yml":
@@ -180,15 +187,15 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         if ctp.name not in change_log_item.change_types:
                             change_log_item.change_types.append(ctp.name)
 
-                change_log_item.change_types.extend(
-                    special_dir
-                    for special_dir in ("docs", "hack")
-                    if any(
-                        path.startswith(special_dir)
-                        for gl_diff in gl_commit.diff()
-                        for path in (gl_diff["old_path"], gl_diff["new_path"])
-                    )
+            change_log_item.change_types.extend(
+                special_dir
+                for special_dir in ("docs", "hack")
+                if any(
+                    path.startswith(special_dir)
+                    for gl_diff in gl_commit.diff()
+                    for path in (gl_diff["old_path"], gl_diff["new_path"])
                 )
+            )
 
         change_log.items = sorted(
             change_log.items, key=lambda i: i.merged_at, reverse=True

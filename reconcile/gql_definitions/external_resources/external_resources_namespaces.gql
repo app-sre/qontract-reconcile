@@ -426,6 +426,7 @@ query ExternalResourcesNamespaces {
       name
     }
     app {
+      path
       name
     }
     cluster {
