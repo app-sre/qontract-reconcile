@@ -27,7 +27,7 @@ def current_ref(wd: str) -> str:
         return result.stdout.strip()
     except subprocess.CalledProcessError:
         # If not on a branch (detached HEAD), get the commit hash
-        cmd = ["git", "rev-parse", "--short", "HEAD"]
+        cmd = ["git", "rev-parse", "HEAD"]
         result = subprocess.run(cmd, cwd=wd, capture_output=True, text=True, check=True)
         return result.stdout.strip()
 
