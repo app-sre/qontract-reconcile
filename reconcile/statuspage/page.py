@@ -146,20 +146,24 @@ class StatusMaintenance(BaseModel):
             for c in page_components
             if c.app.name in affected_services
         ]
-        if affected_components:
-            statuspage_announcements = [
-                StatusMaintenanceAnnouncement.init_from_announcement(
-                    cast(MaintenanceStatuspageAnnouncementV1, m)
-                )
-                for m in maintenance.announcements or []
-                if m.provider == PROVIDER_NAME
-            ]
-        else:
-            statuspage_announcements = [StatusMaintenanceAnnouncement()]
+        if not affected_components:
+            raise ValueError(
+                f"No StatusPage component found for maintenance '{maintenance.name}'"
+                f"via apps {affected_services}. Please define at least one StatusPage component."
+            )
+
+        statuspage_announcements = [
+            StatusMaintenanceAnnouncement.init_from_announcement(
+                cast(MaintenanceStatuspageAnnouncementV1, m)
+            )
+            for m in maintenance.announcements or []
+            if m.provider == PROVIDER_NAME
+        ]
         if len(statuspage_announcements) != 1:
             raise ValueError(
-                f"Maintenanace announcements must include exactly one item of provider {PROVIDER_NAME}"
+                f"Maintenance announcements must include exactly one item of provider {PROVIDER_NAME}"
             )
+
         return cls(
             name=maintenance.name,
             message=maintenance.message.rstrip("\n"),
