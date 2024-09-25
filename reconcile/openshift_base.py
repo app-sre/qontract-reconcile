@@ -300,7 +300,9 @@ def populate_current_state(
         return
     try:
         for item in spec.oc.get_items(
-            spec.kind, namespace=spec.namespace, resource_names=spec.resource_names
+            spec.kind,
+            namespace=spec.namespace,
+            resource_names=spec.resource_names,
         ):
             openshift_resource = OR(item, integration, integration_version)
 
@@ -331,6 +333,7 @@ def fetch_current_state(
     init_api_resources: bool = False,
     cluster_admin: bool = False,
     caller: str | None = None,
+    init_projects: bool = False,
 ) -> tuple[ResourceInventory, OC_Map]:
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
@@ -344,6 +347,7 @@ def fetch_current_state(
         thread_pool_size=thread_pool_size,
         init_api_resources=init_api_resources,
         cluster_admin=cluster_admin,
+        init_projects=init_projects,
     )
     state_specs = init_specs_to_fetch(
         ri,
