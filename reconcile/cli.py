@@ -2718,11 +2718,16 @@ def ocm_addons_upgrade_tests_trigger(ctx):
 
 
 @integration.command(short_help="Manage Machine Pools in OCM.")
+@gitlab_project_id
 @click.pass_context
-def ocm_machine_pools(ctx):
+def ocm_machine_pools(ctx, gitlab_project_id: str):
     import reconcile.ocm_machine_pools
 
-    run_integration(reconcile.ocm_machine_pools, ctx.obj)
+    run_integration(
+        reconcile.ocm_machine_pools,
+        ctx.obj,
+        gitlab_project_id=gitlab_project_id,
+    )
 
 
 @integration.command(short_help="Manage Upgrade Policy schedules in OCM organizations.")

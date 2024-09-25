@@ -512,7 +512,7 @@ def _cluster_is_compatible(cluster: ClusterV1) -> bool:
     return cluster.ocm is not None and cluster.machine_pools is not None
 
 
-def run(dry_run: bool):
+def run(dry_run: bool, gitlab_project_id: str):
     clusters = get_clusters()
 
     filtered_clusters = [
