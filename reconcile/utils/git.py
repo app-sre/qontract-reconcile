@@ -19,18 +19,35 @@ def clone(repo_url, wd, depth=None, verify=True):
         raise GitError(f"git clone failed: {repo_url}")
 
 
-def fetch(commit: str, wd: str, remote: str = "origin"):
-    cmd = ["git", "fetch", remote, commit]
-    result = subprocess.run(cmd, cwd=wd, capture_output=True, check=False)
-    if result.returncode != 0:
-        raise GitError(f"git fetch failed: {commit}")
+def ref(wd: str) -> str:
+    try:
+        # First try to get the current branch or tag
+        cmd = ["git", "symbolic-ref", "--short", "HEAD"]
+        result = subprocess.run(cmd, cwd=wd, capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        # If not on a branch (detached HEAD), get the commit hash
+        cmd = ["git", "rev-parse", "--short", "HEAD"]
+        result = subprocess.run(cmd, cwd=wd, capture_output=True, text=True, check=True)
+        return result.stdout.strip()
 
 
-def checkout(commit, wd):
-    cmd = ["git", "checkout", commit]
+def fetch(ref: str, wd: str, remote: str = "origin", depth: int | None = None):
+    cmd = ["git", "fetch", remote, ref]
+    if depth:
+        cmd += ["--depth", str(depth)]
     result = subprocess.run(cmd, cwd=wd, capture_output=True, check=False)
     if result.returncode != 0:
-        raise GitError(f"git checkout failed: {commit}")
+        raise GitError(f"git fetch failed: {ref}")
+
+
+def checkout(ref: str, wd: str):
+    if ref != ref():
+        fetch(ref, wd, depth=1)
+    cmd = ["git", "checkout", ref]
+    result = subprocess.run(cmd, cwd=wd, capture_output=True, check=False)
+    if result.returncode != 0:
+        raise GitError(f"git checkout failed: {ref}")
 
 
 def is_file_in_git_repo(file_path):
