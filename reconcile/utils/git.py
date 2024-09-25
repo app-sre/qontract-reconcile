@@ -22,8 +22,6 @@ def clone(repo_url, wd, depth=None, verify=True):
 def rev_parse(ref: str, wd: str) -> str:
     cmd = ["git", "rev-parse", ref]
     result = subprocess.run(cmd, cwd=wd, capture_output=True, text=True, check=True)
-    if result.returncode != 0:
-        raise GitError(f"git rev-parse failed: {ref}")
     return result.stdout.strip()
 
 
@@ -31,22 +29,35 @@ def is_current_ref(ref: str, wd: str) -> bool:
     return rev_parse("HEAD", wd) == rev_parse(ref, wd)
 
 
-def fetch(ref: str, wd: str, remote: str = "origin", depth: int | None = None):
-    cmd = ["git", "fetch", remote, ref]
+def fetch(
+    ref: str,
+    wd: str,
+    remote: str = "origin",
+    depth: int | None = None,
+    verify: bool = True,
+):
+    cmd = ["git"]
+    if not verify:
+        cmd += ["-c", "http.sslVerify=false"]
+    cmd += ["fetch", remote, ref]
     if depth:
         cmd += ["--depth", str(depth)]
-    result = subprocess.run(cmd, cwd=wd, capture_output=True, check=False)
+    result = subprocess.run(cmd, cwd=wd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
-        raise GitError(f"git fetch failed: {ref}")
+        raise GitError(f"git fetch failed for {ref}: {result.stderr}")
 
 
-def checkout(ref: str, wd: str):
+def checkout(
+    ref: str,
+    wd: str,
+    verify: bool = True,
+):
     if not is_current_ref(ref, wd):
-        fetch(ref, wd, depth=1)
+        fetch(ref, wd, depth=1, verify=verify)
     cmd = ["git", "checkout", ref]
-    result = subprocess.run(cmd, cwd=wd, capture_output=True, check=False)
+    result = subprocess.run(cmd, cwd=wd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
-        raise GitError(f"git checkout failed: {ref}")
+        raise GitError(f"git checkout failed for {ref}: {result.stderr}")
 
 
 def is_file_in_git_repo(file_path):
