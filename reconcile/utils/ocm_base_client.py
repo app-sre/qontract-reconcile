@@ -142,7 +142,11 @@ class OCMBaseClient:
     def delete(self, api_path: str):
         ocm_request.labels(verb="DELETE", client_id=self._access_token_client_id).inc()
         r = self._session.delete(f"{self._url}{api_path}", timeout=REQUEST_TIMEOUT_SEC)
-        r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except Exception:
+            logging.error(r.text)
+            raise
 
     def close(self) -> None:
         self._session.close()
