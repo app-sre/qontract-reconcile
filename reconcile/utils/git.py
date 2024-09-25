@@ -19,7 +19,7 @@ def clone(repo_url, wd, depth=None, verify=True):
         raise GitError(f"git clone failed: {repo_url}")
 
 
-def ref(wd: str) -> str:
+def current_ref(wd: str) -> str:
     try:
         # First try to get the current branch or tag
         cmd = ["git", "symbolic-ref", "--short", "HEAD"]
@@ -42,7 +42,7 @@ def fetch(ref: str, wd: str, remote: str = "origin", depth: int | None = None):
 
 
 def checkout(ref: str, wd: str):
-    if ref != ref():
+    if ref != current_ref(wd):
         fetch(ref, wd, depth=1)
     cmd = ["git", "checkout", ref]
     result = subprocess.run(cmd, cwd=wd, capture_output=True, check=False)
