@@ -80,6 +80,7 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
                     for m in p.maintenances or []
                     if datetime.fromisoformat(m.scheduled_start) > now
                 ]
+                desired_state = sorted(desired_state, key=lambda d: d.name)
                 page_provider = AtlassianStatusPageProvider.init_from_page(
                     page=p,
                     token=self.secret_reader.read_secret(p.credentials),
@@ -90,6 +91,7 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
                     for m in page_provider.scheduled_maintenances
                     if page_provider.has_component_binding_for(m.name)
                 ]
+                current_state = sorted(current_state, key=lambda c: c.name)
                 self.reconcile(
                     dry_run=dry_run,
                     desired_state=desired_state,
