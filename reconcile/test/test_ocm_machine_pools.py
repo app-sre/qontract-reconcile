@@ -551,6 +551,7 @@ def new_workers_machine_pool() -> dict:
         "id": "workers-new",
         "instance_type": "m5.2xlarge",
         "replicas": 3,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -587,7 +588,7 @@ def expected_ocm_machine_pool_create_payload() -> dict:
         "instance_type": "m5.2xlarge",
         "labels": None,
         "replicas": 3,
-        "subnet": None,
+        "subnet": "subnet-1234567890",
         "taints": [],
     }
 
@@ -638,7 +639,7 @@ def existing_updated_default_machine_pool() -> dict:
         "id": "worker",
         "instance_type": "m5.xlarge",
         "replicas": 3,
-        "subnet": None,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -748,7 +749,7 @@ def expected_ocm_machine_pool_delete_payload() -> dict:
         "labels": None,
         "replicas": 3,
         "taints": None,
-        "subnet": None,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -929,6 +930,7 @@ def default_hypershift_worker_machine_pool() -> dict:
         "id": "workers",
         "instance_type": "m5.xlarge",
         "replicas": 2,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -949,7 +951,7 @@ def expected_node_pool_create_payload() -> dict:
         "id": "workers",
         "labels": None,
         "replicas": 2,
-        "subnet": None,
+        "subnet": "subnet-1234567890",
         "taints": [],
     }
 
@@ -976,6 +978,7 @@ def existing_updated_hypershift_node_pools() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         }
     ]
 
@@ -1016,6 +1019,7 @@ def non_default_hypershift_node_pool() -> dict:
         "id": "new-workers",
         "aws_node_pool": {"instance_type": "m5.xlarge"},
         "replicas": 3,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -1026,11 +1030,13 @@ def existing_multiple_hypershift_node_pools() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
         {
             "id": "new-workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
     ]
 
@@ -1044,7 +1050,7 @@ def expected_hypershift_node_pool_delete_payload() -> dict:
         "aws_node_pool": {"instance_type": "m5.xlarge"},
         "labels": None,
         "replicas": 3,
-        "subnet": None,
+        "subnet": "subnet-1234567890",
         "taints": None,
     }
 
@@ -1075,6 +1081,7 @@ def non_default_hypershift_worker_machine_pool() -> dict:
         "id": "new-workers",
         "instance_type": "m5.xlarge",
         "replicas": 3,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -1093,16 +1100,19 @@ def existing_multiple_hypershift_node_pools_with_defaults() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
         {
             "id": "workers-1",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
         {
             "id": "new-workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
     ]
 
