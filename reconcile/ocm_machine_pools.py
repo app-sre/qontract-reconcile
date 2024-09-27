@@ -102,6 +102,7 @@ class AbstractPool(ABC, BaseModel):
     cluster: str
     cluster_type: ClusterType = Field(..., exclude=True)
     autoscaling: AbstractAutoscaling | None
+    subnet: str | None
 
     @root_validator()
     @classmethod
@@ -214,6 +215,7 @@ class MachinePool(AbstractPool):
             labels=pool.labels,
             cluster=cluster,
             cluster_type=cluster_type,
+            subnet=pool.subnet,
         )
 
 
@@ -225,7 +227,6 @@ class NodePool(AbstractPool):
     # Node pool, used for HyperShift clusters
 
     aws_node_pool: AWSNodePool
-    subnet: str | None
 
     def delete(self, ocm: OCM) -> None:
         ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
@@ -409,6 +410,7 @@ def fetch_current_state_for_cluster(cluster, ocm):
             labels=machine_pool.get("labels"),
             cluster=cluster.name,
             cluster_type=cluster_type,
+            subnet=machine_pool.get("subnet"),
         )
         for machine_pool in ocm.get_machine_pools(cluster.name)
     ]
