@@ -3,6 +3,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from enum import Enum
 
@@ -433,7 +434,9 @@ def create_desired_state_from_gql(
 def calculate_diff(
     current_state: Mapping[str, list[AbstractPool]],
     desired_state: Mapping[str, DesiredMachinePool],
-) -> tuple[list[PoolHandler], list[InvalidUpdateError]]:
+) -> tuple[
+    list[PoolHandler], list[InvalidUpdateError], Mapping[str, list[AbstractPool]]
+]:
     current_machine_pools = {
         (cluster_name, machine_pool.id): machine_pool
         for cluster_name, machine_pools in current_state.items()
@@ -454,6 +457,7 @@ def calculate_diff(
 
     diffs: list[PoolHandler] = []
     errors: list[InvalidUpdateError] = []
+    failed_for_subnet: Mapping[str, list[AbstractPool]] = defaultdict(lambda: [])
 
     for (cluster_name, _), desired_machine_pool in diff_result.add.items():
         diffs.append(
@@ -465,6 +469,10 @@ def calculate_diff(
     for (cluster_name, _), diff_pair in diff_result.change.items():
         invalid_diff = diff_pair.current.invalid_diff(diff_pair.desired)
         if invalid_diff:
+            # We save current state for pools that alread have subnets
+            if invalid_diff == "subnet" and diff_pair.current.subnet:
+                failed_for_subnet[diff_pair.current.cluster].append(diff_pair.current)
+                continue
             errors.append(
                 InvalidUpdateError(
                     f"can not update {invalid_diff} for existing machine pool on cluster {cluster_name}"
@@ -499,7 +507,7 @@ def calculate_diff(
                 )
             )
 
-    return diffs, errors
+    return diffs, errors, failed_for_subnet
 
 
 def act(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> None:
@@ -542,7 +550,7 @@ def run(dry_run: bool, gitlab_project_id: str):
 
     current_state = fetch_current_state(ocm_map, filtered_clusters)
     desired_state = create_desired_state_from_gql(filtered_clusters)
-    diffs, errors = calculate_diff(current_state, desired_state)
+    diffs, errors, failed_for_subnet = calculate_diff(current_state, desired_state)
 
     act(dry_run, diffs, ocm_map)
 
