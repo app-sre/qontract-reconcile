@@ -99,7 +99,7 @@ merge_requests_waiting = Gauge(
 gitlab_token_expiration = Gauge(
     name="qontract_reconcile_gitlab_token_expiration_days",
     documentation="Time until personal access tokens expire",
-    labelnames=["name", "active"],
+    labelnames=["name"],
 )
 
 
@@ -557,12 +557,14 @@ def get_app_sre_usernames(gl: GitLabApi) -> set[str]:
 
 def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
     pats = gl.get_personal_access_tokens()
+
     for pat in pats:
-        expiration_date = datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)
-        days_until_expiration = expiration_date.date() - datetime.now(UTC).date()
-        gitlab_token_expiration.labels(name=pat.name, active=pat.active).set(
-            days_until_expiration.days
-        )
+        if pat.active:
+            expiration_date = datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)
+            days_until_expiration = expiration_date.date() - datetime.now(UTC).date()
+            gitlab_token_expiration.labels(name=pat.name).set(
+                days_until_expiration.days
+            )
 
 
 def run(dry_run, wait_for_pipeline):
