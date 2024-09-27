@@ -1425,7 +1425,7 @@ data:
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "max by(name) (qontract_reconcile_gitlab_token_expiration_days{active=\"True\"})",
+              "expr": "max by(name) (qontract_reconcile_gitlab_token_expiration_days)",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
