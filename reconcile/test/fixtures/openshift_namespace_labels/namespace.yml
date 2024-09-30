@@ -1,4 +1,5 @@
 app:
+  path: app-path
   name: test-app
   serviceOwners:
   - email: owner@owner
