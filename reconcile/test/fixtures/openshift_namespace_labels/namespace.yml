@@ -58,3 +58,5 @@ managedResourceNames: null
 managedRoles: true
 name: name
 quota: null
+path: path
+openshiftResources: []
