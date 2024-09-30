@@ -565,7 +565,7 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
             days_until_expiration = expiration_date.date() - datetime.now(UTC).date()
             gitlab_token_expiration.labels(pat.name).set(days_until_expiration.days)
         else:
-            with suppress(KeyError | ValueError):
+            with suppress(KeyError, ValueError):
                 # there's no publicly exposed method to determine if a label exists for a gauge
                 # which is why I wrapped the error like this
                 gitlab_token_expiration.remove(pat.name)
