@@ -3,6 +3,7 @@ from collections.abc import (
     Iterable,
     Set,
 )
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import (
     UTC,
@@ -562,9 +563,12 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
         if pat.active:
             expiration_date = datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)
             days_until_expiration = expiration_date.date() - datetime.now(UTC).date()
-            gitlab_token_expiration.labels(name=pat.name).set(
-                days_until_expiration.days
-            )
+            gitlab_token_expiration.labels(pat.name).set(days_until_expiration.days)
+        else:
+            with suppress(KeyError):
+                # there's no publicly exposed method to determine if a label exists for a gauge
+                # which is why I wrapped the error like this
+                gitlab_token_expiration.remove(pat.name)
 
 
 def run(dry_run, wait_for_pipeline):
