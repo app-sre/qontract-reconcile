@@ -2,6 +2,7 @@
 
 query Namespaces {
   namespaces: namespaces_v1 {
+    path
     name
     delete
     labels
@@ -13,6 +14,29 @@ query Namespaces {
         name
         email
       }
+    }
+    openshiftResources {
+        provider
+        ... on NamespaceOpenshiftResourceResource_v1 {
+          path {
+            content
+          }
+        }
+        ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
+          path {
+            content
+          }
+        }
+        ... on NamespaceOpenshiftResourceRoute_v1 {
+          path {
+            content
+          }
+        }
+        ... on NamespaceOpenshiftResourcePrometheusRule_v1 {
+          path {
+            content
+          }
+        }
     }
     managedExternalResources
     externalResources {

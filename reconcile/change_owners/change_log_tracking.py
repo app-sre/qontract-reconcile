@@ -18,8 +18,8 @@ from reconcile.change_owners.changes import (
     parse_bundle_changes,
 )
 from reconcile.typed_queries.apps import get_apps
-from reconcile.typed_queries.external_resources import get_namespaces
 from reconcile.typed_queries.jenkins import get_jenkins_configs
+from reconcile.typed_queries.namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import MRState
