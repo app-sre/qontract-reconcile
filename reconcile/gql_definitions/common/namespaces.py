@@ -48,6 +48,7 @@ fragment VaultSecret on VaultSecret_v1 {
 
 query Namespaces {
   namespaces: namespaces_v1 {
+    path
     name
     delete
     labels
@@ -59,6 +60,29 @@ query Namespaces {
         name
         email
       }
+    }
+    openshiftResources {
+        provider
+        ... on NamespaceOpenshiftResourceResource_v1 {
+          path {
+            content
+          }
+        }
+        ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
+          path {
+            content
+          }
+        }
+        ... on NamespaceOpenshiftResourceRoute_v1 {
+          path {
+            content
+          }
+        }
+        ... on NamespaceOpenshiftResourcePrometheusRule_v1 {
+          path {
+            content
+          }
+        }
     }
     managedExternalResources
     externalResources {
@@ -172,6 +196,42 @@ class AppV1(ConfiguredBaseModel):
     service_owners: Optional[list[OwnerV1]] = Field(..., alias="serviceOwners")
 
 
+class NamespaceOpenshiftResourceV1(ConfiguredBaseModel):
+    provider: str = Field(..., alias="provider")
+
+
+class ResourceV1(ConfiguredBaseModel):
+    content: str = Field(..., alias="content")
+
+
+class NamespaceOpenshiftResourceResourceV1(NamespaceOpenshiftResourceV1):
+    path: Optional[ResourceV1] = Field(..., alias="path")
+
+
+class NamespaceOpenshiftResourceResourceTemplateV1_ResourceV1(ConfiguredBaseModel):
+    content: str = Field(..., alias="content")
+
+
+class NamespaceOpenshiftResourceResourceTemplateV1(NamespaceOpenshiftResourceV1):
+    path: Optional[NamespaceOpenshiftResourceResourceTemplateV1_ResourceV1] = Field(..., alias="path")
+
+
+class NamespaceOpenshiftResourceRouteV1_ResourceV1(ConfiguredBaseModel):
+    content: str = Field(..., alias="content")
+
+
+class NamespaceOpenshiftResourceRouteV1(NamespaceOpenshiftResourceV1):
+    path: Optional[NamespaceOpenshiftResourceRouteV1_ResourceV1] = Field(..., alias="path")
+
+
+class NamespaceOpenshiftResourcePrometheusRuleV1_ResourceV1(ConfiguredBaseModel):
+    content: str = Field(..., alias="content")
+
+
+class NamespaceOpenshiftResourcePrometheusRuleV1(NamespaceOpenshiftResourceV1):
+    path: Optional[NamespaceOpenshiftResourcePrometheusRuleV1_ResourceV1] = Field(..., alias="path")
+
+
 class ExternalResourcesProvisionerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
@@ -261,12 +321,14 @@ class ResourceQuotaV1(ConfiguredBaseModel):
 
 
 class NamespaceV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     delete: Optional[bool] = Field(..., alias="delete")
     labels: Optional[Json] = Field(..., alias="labels")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     managed_roles: Optional[bool] = Field(..., alias="managedRoles")
     app: AppV1 = Field(..., alias="app")
+    openshift_resources: Optional[list[Union[NamespaceOpenshiftResourceResourceV1, NamespaceOpenshiftResourceResourceTemplateV1, NamespaceOpenshiftResourceRouteV1, NamespaceOpenshiftResourcePrometheusRuleV1, NamespaceOpenshiftResourceV1]]] = Field(..., alias="openshiftResources")
     managed_external_resources: Optional[bool] = Field(..., alias="managedExternalResources")
     external_resources: Optional[list[Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]]] = Field(..., alias="externalResources")
     cluster: ClusterV1 = Field(..., alias="cluster")
