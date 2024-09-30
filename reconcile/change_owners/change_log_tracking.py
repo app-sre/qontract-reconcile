@@ -160,14 +160,16 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         | "/dependencies/status-page-component-1.yml"
                         | "/app-sre/app-changelog-1.yml"
                     ):
-                        changed_apps = {
-                            name
-                            for c in change_versions
-                            if (app := c["app"])
-                            and (app_path := app.get("$ref") or app.get("path"))
-                            and (name := app_name_by_path.get(app_path))
-                        }
-                        change_log_item.apps.extend(changed_apps)
+                        for c in change_versions:
+                            app = c["app"]
+                            app_path = app.get("$ref") or app.get("path")
+                            app_name = app_name_by_path.get(app_path)
+                            if app_name:
+                                change_log_item.apps.append(app_name)
+                            else:
+                                raise KeyError(
+                                    "app path is expected. missing in query?"
+                                )
                     case "/openshift/cluster-1.yml":
                         changed_apps = {
                             name
