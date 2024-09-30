@@ -159,5 +159,5 @@ def test_update_in_progress_state_status(
     _r = Reconciliation.parse_obj(r_dict)
     manager.reconciler.get_resource_reconcile_status.return_value = _reconcile_status  # type:ignore
 
-    manager._update_in_progress_state(_r, state)
+    manager._update_in_progress_state(_r, state, "dummy")
     assert state.resource_status == _expected_status
