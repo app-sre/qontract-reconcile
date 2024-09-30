@@ -431,7 +431,7 @@ data:
               "type": "prometheus",
               "uid": "P7B77307D2CE073BC"
             },
-            "definition": "label_values(external_resources_reconcile_status,provision_provider)",
+            "definition": "label_values(external_resources_resource_status,provision_provider)",
             "hide": 0,
             "includeAll": false,
             "multi": false,
@@ -439,7 +439,7 @@ data:
             "options": [],
             "query": {
               "qryType": 1,
-              "query": "label_values(external_resources_reconcile_status,provision_provider)",
+              "query": "label_values(external_resources_resource_status,provision_provider)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
             "refresh": 1,
@@ -458,7 +458,7 @@ data:
               "type": "prometheus",
               "uid": "P7B77307D2CE073BC"
             },
-            "definition": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\"},provisioner_name)",
+            "definition": "label_values(external_resources_resource_status{provision_provider=\"$provision_provider\"},provisioner_name)",
             "hide": 0,
             "includeAll": false,
             "multi": false,
@@ -466,7 +466,7 @@ data:
             "options": [],
             "query": {
               "qryType": 1,
-              "query": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\"},provisioner_name)",
+              "query": "label_values(external_resources_resource_status{provision_provider=\"$provision_provider\"},provisioner_name)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
             "refresh": 1,
@@ -485,7 +485,7 @@ data:
               "type": "prometheus",
               "uid": "P7B77307D2CE073BC"
             },
-            "definition": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\"},provider)",
+            "definition": "label_values(external_resources_resource_status{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\"},provider)",
             "hide": 0,
             "includeAll": false,
             "multi": false,
@@ -493,7 +493,7 @@ data:
             "options": [],
             "query": {
               "qryType": 1,
-              "query": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\"},provider)",
+              "query": "label_values(external_resources_resource_status{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\"},provider)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
             "refresh": 1,
@@ -512,7 +512,7 @@ data:
               "type": "prometheus",
               "uid": "P7B77307D2CE073BC"
             },
-            "definition": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\"},identifier)",
+            "definition": "label_values(external_resources_resource_status{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\"},identifier)",
             "hide": 0,
             "includeAll": false,
             "multi": false,
@@ -520,7 +520,7 @@ data:
             "options": [],
             "query": {
               "qryType": 1,
-              "query": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\"},identifier)",
+              "query": "label_values(external_resources_resource_status{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\"},identifier)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
             "refresh": 1,
@@ -539,7 +539,7 @@ data:
               "type": "prometheus",
               "uid": "P7B77307D2CE073BC"
             },
-            "definition": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\", identifier=\"$identifier\"},job_name)",
+            "definition": "label_values(external_resources_resource_status{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\", identifier=\"$identifier\"},job_name)",
             "hide": 0,
             "includeAll": false,
             "label": "jobname",
@@ -548,7 +548,7 @@ data:
             "options": [],
             "query": {
               "qryType": 1,
-              "query": "label_values(external_resources_reconcile_time{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\", identifier=\"$identifier\"},job_name)",
+              "query": "label_values(external_resources_resource_status{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\", identifier=\"$identifier\"},job_name)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
             "refresh": 2,

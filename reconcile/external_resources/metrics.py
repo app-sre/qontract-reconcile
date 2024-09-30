@@ -24,3 +24,11 @@ class ExternalResourcesReconcileTimeGauge(ExternalResourcesBaseMetric, GaugeMetr
     @classmethod
     def name(cls) -> str:
         return "external_resources_reconcile_time"
+
+
+class ExternalResourcesResourceStatus(ExternalResourcesBaseMetric, GaugeMetric):
+    status: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "external_resources_resource_status"
