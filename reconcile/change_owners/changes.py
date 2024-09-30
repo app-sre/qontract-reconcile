@@ -10,7 +10,6 @@ from dataclasses import (
 from typing import Any
 
 import anymarkup
-import jsonpath_ng
 
 from reconcile.change_owners.bundle import (
     DATAFILE_PATH_FIELD_NAME,
@@ -473,7 +472,7 @@ def aggregate_resource_changes(
             new_content_sha="",
             diffs=[
                 Diff(
-                    path=jsonpath_ng.parse(file_ref.json_path),
+                    path=parse_jsonpath(file_ref.json_path),
                     diff_type=DiffType.CHANGED,
                     old=file_content,
                     new=file_content,

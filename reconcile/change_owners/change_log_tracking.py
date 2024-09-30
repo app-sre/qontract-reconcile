@@ -18,8 +18,8 @@ from reconcile.change_owners.changes import (
     parse_bundle_changes,
 )
 from reconcile.typed_queries.apps import get_apps
-from reconcile.typed_queries.external_resources import get_namespaces
 from reconcile.typed_queries.jenkins import get_jenkins_configs
+from reconcile.typed_queries.namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import MRState
@@ -135,7 +135,9 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             diff = QontractServerDiff(**obj)
             changes = aggregate_resource_changes(
                 bundle_changes=aggregate_file_moves(parse_bundle_changes(diff)),
-                content_store={c.path: c.dict() for c in namespaces + jenkins_configs},
+                content_store={
+                    c.path: c.dict(by_alias=True) for c in namespaces + jenkins_configs
+                },
                 supported_schemas={
                     "/openshift/namespace-1.yml",
                     "/dependencies/jenkins-config-1.yml",
