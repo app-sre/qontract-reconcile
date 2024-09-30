@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
+from typing import Any
 
 from reconcile.change_owners.bundle import (
     NoOpFileDiffResolver,
@@ -169,15 +170,18 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         | "/app-sre/app-changelog-1.yml"
                     ):
                         for c in change_versions:
-                            app = c["app"]
-                            app_path = app.get("$ref") or app.get("path")
-                            app_name = app_name_by_path.get(app_path)
-                            if app_name:
-                                change_log_item.apps.append(app_name)
-                            else:
+                            c_app: dict[str, str] = c["app"]
+                            app_path = c_app.get("$ref") or c_app.get("path")
+                            if not app_path:
                                 raise KeyError(
                                     "app path is expected. missing in query?"
                                 )
+                            app_name = app_name_by_path.get(app_path)
+                            if not app_name:
+                                raise KeyError(
+                                    "app name is expected. missing in query?"
+                                )
+                            change_log_item.apps.append(app_name)
                     case "/openshift/cluster-1.yml":
                         changed_apps = {
                             name
