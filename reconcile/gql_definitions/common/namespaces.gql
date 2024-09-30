@@ -9,6 +9,7 @@ query Namespaces {
     clusterAdmin
     managedRoles
     app {
+      path
       name
       serviceOwners {
         name
