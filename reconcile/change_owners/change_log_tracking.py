@@ -135,7 +135,9 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             diff = QontractServerDiff(**obj)
             changes = aggregate_resource_changes(
                 bundle_changes=aggregate_file_moves(parse_bundle_changes(diff)),
-                content_store={c.path: c.dict() for c in namespaces + jenkins_configs},
+                content_store={
+                    c.path: c.dict(by_alias=True) for c in namespaces + jenkins_configs
+                },
                 supported_schemas={
                     "/openshift/namespace-1.yml",
                     "/dependencies/jenkins-config-1.yml",
