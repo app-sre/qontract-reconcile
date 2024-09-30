@@ -46,6 +46,14 @@ class ChangeLogItem:
 class ChangeLog:
     items: list[ChangeLogItem] = field(default_factory=list)
 
+    @property
+    def apps(self) -> set[str]:
+        return {app for item in self.items for app in item.apps}
+
+    @property
+    def change_types(self) -> set[str]:
+        return {change_type for item in self.items for change_type in item.change_types}
+
 
 class ChangeLogIntegrationParams(PydanticRunParams):
     gitlab_project_id: str
@@ -204,6 +212,9 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                     for path in (gl_diff["old_path"], gl_diff["new_path"])
                 )
             )
+
+        logging.info(f"apps: {change_log.apps}")
+        logging.info(f"change_types: {change_log.change_types}")
 
         change_log.items = sorted(
             change_log.items, key=lambda i: i.merged_at, reverse=True
