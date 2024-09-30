@@ -2,7 +2,6 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
-from typing import Any
 
 from reconcile.change_owners.bundle import (
     NoOpFileDiffResolver,
