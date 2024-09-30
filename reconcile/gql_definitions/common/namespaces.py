@@ -55,6 +55,7 @@ query Namespaces {
     clusterAdmin
     managedRoles
     app {
+      path
       name
       serviceOwners {
         name
@@ -192,6 +193,7 @@ class OwnerV1(ConfiguredBaseModel):
 
 
 class AppV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     service_owners: Optional[list[OwnerV1]] = Field(..., alias="serviceOwners")
 
