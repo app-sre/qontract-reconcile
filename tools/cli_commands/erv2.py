@@ -85,7 +85,7 @@ class Erv2Cli:
         provider: str,
         identifier: str,
         secret_reader: SecretReaderBase,
-        temp_dir: Path,
+        temp_dir: Path | None = None,
         progress_spinner: Progress | None = None,
     ) -> None:
         self._provision_provider = provision_provider
@@ -136,6 +136,8 @@ class Erv2Cli:
 
     @property
     def temp(self) -> Path:
+        if not self._temp_dir:
+            raise ValueError("Temp directory is not set!")
         return self._temp_dir
 
     def reconcile(self) -> None:
@@ -172,6 +174,8 @@ class Erv2Cli:
         run(["docker", "rm", "-f", "erv2"], capture_output=True, check=True)
 
         try:
+            cdktf_outdir = "/tmp/cdktf.out"
+
             # run cdktf synth
             with task(self.progress_spinner, "-- Running CDKTF synth"):
                 run(
@@ -185,8 +189,13 @@ class Erv2Cli:
                         "--mount",
                         f"type=bind,source={credentials!s},target=/credentials",
                         "-e",
-                        "DRY_RUN=True",
+                        "AWS_SHARED_CREDENTIALS_FILE=/credentials",
+                        "--entrypoint",
+                        "cdktf",
                         self.image,
+                        "synth",
+                        "--output",
+                        cdktf_outdir,
                     ],
                     check=True,
                     capture_output=True,
@@ -198,7 +207,7 @@ class Erv2Cli:
                     [
                         "docker",
                         "cp",
-                        "erv2:/home/app/cdktf.out/stacks/CDKTF/cdk.tf.json",
+                        f"erv2:{cdktf_outdir}/stacks/CDKTF/cdk.tf.json",
                         str(self.temp),
                     ],
                     check=True,
