@@ -173,12 +173,12 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                             app_path = c_app.get("$ref") or c_app.get("path")
                             if not app_path:
                                 raise KeyError(
-                                    "app path is expected. missing in query?"
+                                    f"app path is expected. missing in query? app information: {c_app}"
                                 )
                             app_name = app_name_by_path.get(app_path)
                             if not app_name:
                                 raise KeyError(
-                                    "app name is expected. missing in query?"
+                                    f"app name is expected. missing in query? app information: {c_app}"
                                 )
                             change_log_item.apps.append(app_name)
                     case "/openshift/cluster-1.yml":
