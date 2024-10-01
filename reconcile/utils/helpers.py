@@ -39,6 +39,23 @@ def flatten(
     return dict(items)
 
 
+def unflatten(
+    d: Mapping[str, str], parent_key: str = "", sep: str = "."
+) -> dict[str, Any]:
+    result = {}
+    for key, value in d.items():
+        parts = key.split(sep)
+        d_ref = result
+        for part in parts[:-1]:
+            if part not in d_ref:
+                d_ref[part] = {}
+            d_ref = d_ref[part]
+        d_ref[parts[-1]] = value
+    if parent_key:
+        return result[parent_key]
+    return result
+
+
 Item = TypeVar("Item")
 
 
