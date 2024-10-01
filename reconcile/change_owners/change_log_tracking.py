@@ -170,6 +170,10 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                     ):
                         for c in change_versions:
                             c_app: dict[str, str] = c["app"]
+                            app_name = c_app.get("name")
+                            if app_name:
+                                change_log_item.apps.append(app_name)
+                                continue
                             app_path = c_app.get("$ref") or c_app.get("path")
                             if not app_path:
                                 raise KeyError(
