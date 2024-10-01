@@ -1673,9 +1673,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         region_name: str | None = None,
     ) -> list[str]:
         s3 = self._account_s3_client(account_name, region_name=region_name)
-        objects = s3.list_objects_v2(Bucket=bucket_name, Prefix=path, Delimiter="/")[
-            "Contents"
-        ]
+        objects = self.paginate(
+            client=s3,
+            method="list_objects_v2",
+            key="Contents",
+            params={"Bucket": bucket_name, "Prefix": path, "Delimiter": "/"},
+        )
         return [
             obj["Key"]
             for obj in sorted(
