@@ -43,7 +43,7 @@ from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "endpoints-discovery"
-QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 1)
 
 
 class EndpointsDiscoveryIntegrationParams(PydanticRunParams):
@@ -137,14 +137,21 @@ class EndpointsDiscoveryIntegration(
             )
             return []
 
-        return [
-            Route(
+        routes = {}
+        for item in sorted(
+            oc.get_items(kind="Route", namespace=namespace.name),
+            key=lambda x: x["metadata"]["name"],
+            reverse=True,
+        ):
+            tls = bool(item["spec"].get("tls"))
+            host = item["spec"]["host"]
+            routes[f"{host}:{tls}"] = Route(
                 name=item["metadata"]["name"],
-                host=item["spec"]["host"],
-                tls=bool(item["spec"].get("tls")),
+                host=host,
+                tls=tls,
             )
-            for item in oc.get_items(kind="Route", namespace=namespace.name)
-        ]
+
+        return list(routes.values())
 
     def get_endpoint_changes(
         self,
