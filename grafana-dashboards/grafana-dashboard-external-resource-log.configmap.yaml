@@ -1,4 +1,11 @@
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-qr-external-resource-logs
+  labels:
+    grafana_dashboard: "true"
+  annotations:
+    grafana-folder: /grafana-dashboard-definitions/0
 data:
   external-resource-logs.json: |
     {
@@ -21,7 +28,6 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 935114,
       "links": [],
       "panels": [
         {
@@ -82,6 +88,7 @@ data:
               "color": {
                 "mode": "thresholds"
               },
+              "decimals": 0,
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
@@ -92,7 +99,7 @@ data:
                   },
                   {
                     "color": "red",
-                    "value": 80
+                    "value": 3
                   }
                 ]
               }
@@ -108,9 +115,9 @@ data:
           "id": 2,
           "options": {
             "colorMode": "value",
-            "graphMode": "area",
+            "graphMode": "none",
             "justifyMode": "auto",
-            "orientation": "auto",
+            "orientation": "horizontal",
             "reduceOptions": {
               "calcs": [
                 "lastNotNull"
@@ -131,7 +138,7 @@ data:
               },
               "disableTextWrap": false,
               "editorMode": "code",
-              "expr": "sum(external_resources_reconcile_errors{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\", identifier=\"$identifier\"}) or on() vector(0)",
+              "expr": "sum(increase(external_resources_reconcile_errors_total{provision_provider=\"$provision_provider\", provisioner_name=\"$provisioner\", provider=\"$provider\", identifier=\"$identifier\"}[$__range])) or on() vector(0)",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
@@ -154,6 +161,7 @@ data:
               "color": {
                 "mode": "thresholds"
               },
+              "decimals": 0,
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
@@ -176,7 +184,7 @@ data:
           "id": 4,
           "options": {
             "colorMode": "value",
-            "graphMode": "area",
+            "graphMode": "none",
             "justifyMode": "auto",
             "orientation": "auto",
             "reduceOptions": {
@@ -295,7 +303,7 @@ data:
               "dimensions": {
                 "LogGroupName": "appsrep09ue1.external-resources-jobs"
               },
-              "expression": "filter kubernetes.pod_name like /$jobname/ | stats count(@timestamp) as logs by bin(30s)",
+              "expression": "filter kubernetes.pod_name like /$jobname/ | stats count(@timestamp) as logs by bin(10m)",
               "id": "",
               "label": "",
               "logGroups": [
@@ -352,7 +360,7 @@ data:
               "sqlExpression": "SELECT AVG(IncomingLogEvents) FROM \"AWS/Logs\" WHERE LogGroupName = 'appsrep09ue1.external-resources-jobs' AND FilterName",
               "statistic": "Sum",
               "statsGroups": [
-                "bin(30s)"
+                "bin(10m)"
               ]
             }
           ],
@@ -423,7 +431,7 @@ data:
         "list": [
           {
             "current": {
-              "selected": false,
+              "selected": true,
               "text": "aws",
               "value": "aws"
             },
@@ -451,8 +459,8 @@ data:
           {
             "current": {
               "selected": false,
-              "text": "app-sre-stage",
-              "value": "app-sre-stage"
+              "text": "insights-perf",
+              "value": "insights-perf"
             },
             "datasource": {
               "type": "prometheus",
@@ -478,8 +486,8 @@ data:
           {
             "current": {
               "selected": false,
-              "text": "rds",
-              "value": "rds"
+              "text": "msk",
+              "value": "msk"
             },
             "datasource": {
               "type": "prometheus",
@@ -504,9 +512,9 @@ data:
           },
           {
             "current": {
-              "selected": true,
-              "text": "glitchtip-stage",
-              "value": "glitchtip-stage"
+              "selected": false,
+              "text": "consoledot-perf",
+              "value": "consoledot-perf"
             },
             "datasource": {
               "type": "prometheus",
@@ -532,8 +540,8 @@ data:
           {
             "current": {
               "selected": false,
-              "text": "er-ef97de4e28",
-              "value": "er-ef97de4e28"
+              "text": "er-16c68767e2",
+              "value": "er-16c68767e2"
             },
             "datasource": {
               "type": "prometheus",
@@ -567,13 +575,6 @@ data:
       "timezone": "browser",
       "title": "External Resource Logs",
       "uid": "fdxnk94xrcwsgf",
-      "version": 26,
+      "version": 1,
       "weekStart": ""
     }
-kind: ConfigMap
-metadata:
-  name: grafana-dashboard-qr-external-resource-logs
-  labels:
-    grafana_dashboard: "true"
-  annotations:
-    grafana-folder: /grafana-dashboard-definitions/0
