@@ -2902,7 +2902,7 @@ def change_log_tracking(ctx):
             if ct.name in change_log_item.change_types
         ]
         item = {
-            "commit": f"[{commit}]({repo_url}/commit/{commit})",
+            "commit": f"[{commit[:7]}]({repo_url}/commit/{commit})",
             "merged_at": change_log_item.merged_at,
             "apps": ", ".join(change_log_item.apps),
             "changes": ", ".join(covered_change_types_descriptions),
