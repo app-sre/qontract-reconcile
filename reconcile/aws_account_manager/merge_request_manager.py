@@ -88,10 +88,8 @@ class MergeRequestManager:
             self._vcs.get_file_content_from_app_interface_master(
                 file_path=account_tmpl_file_path
             )
-            # File already exists
-            raise FileExistsError(
-                f"File {account_tmpl_file_path} already exists in the repository"
-            )
+            # File already exists. nothing to do.
+            return
         except GitlabGetError as e:
             if e.response_code != 404:
                 raise e
