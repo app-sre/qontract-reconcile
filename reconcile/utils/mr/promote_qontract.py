@@ -1,4 +1,3 @@
-from sys import version
 from jsonpath_ng.ext import parser
 from ruamel.yaml.compat import StringIO
 
