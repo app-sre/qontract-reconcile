@@ -181,10 +181,11 @@ def test_calculate_diff_create():
         )
     }
 
-    diff, error = calculate_diff(current, desired)
+    diff, error, failed_for_subnet = calculate_diff(current, desired)
     assert len(diff) == 1
     assert diff[0].action == "create"
     assert not error
+    assert not failed_for_subnet
 
 
 def test_calculate_diff_noop(current_with_pool):
@@ -205,9 +206,10 @@ def test_calculate_diff_noop(current_with_pool):
             ],
         ),
     }
-    diff, error = calculate_diff(current_with_pool, desired)
+    diff, error, failed_for_subnet = calculate_diff(current_with_pool, desired)
     assert len(diff) == 0
     assert not error
+    assert not failed_for_subnet
 
 
 def test_calculate_diff_update(current_with_pool):
@@ -229,10 +231,11 @@ def test_calculate_diff_update(current_with_pool):
         ),
     }
 
-    diff, error = calculate_diff(current_with_pool, desired)
+    diff, error, failed_for_subnet = calculate_diff(current_with_pool, desired)
     assert len(diff) == 1
     assert diff[0].action == "update"
     assert not error
+    assert not failed_for_subnet
 
 
 @pytest.fixture
@@ -280,10 +283,11 @@ def test_calculate_diff_delete(current_with_2_pools):
         ),
     }
 
-    diff, error = calculate_diff(current_with_2_pools, desired)
+    diff, error, failed_for_subnet = calculate_diff(current_with_2_pools, desired)
     assert len(diff) == 1
     assert diff[0].action == "delete"
     assert not error
+    assert not failed_for_subnet
 
 
 def test_calculate_diff_delete_all_fail_validation(current_with_pool):
@@ -295,9 +299,10 @@ def test_calculate_diff_delete_all_fail_validation(current_with_pool):
         ),
     }
 
-    diff, error = calculate_diff(current_with_pool, desired)
+    diff, error, failed_for_subnet = calculate_diff(current_with_pool, desired)
     assert len(diff) == 0
     assert len(error) == 1
+    assert not failed_for_subnet
 
 
 def test_act_dry_run(test_pool, ocm_mock):
@@ -380,7 +385,13 @@ def test_machine_pool_update(machine_pool, ocm_mock):
 
     ocm_mock.update_machine_pool.assert_called_once_with(
         "cluster1",
-        {"id": "pool1", "replicas": 2, "cluster": "cluster1", "autoscaling": None},
+        {
+            "id": "pool1",
+            "replicas": 2,
+            "cluster": "cluster1",
+            "autoscaling": None,
+            "subnet": None,
+        },
     )
 
     machine_pool.labels = {"foo": "bar"}
@@ -393,6 +404,7 @@ def test_machine_pool_update(machine_pool, ocm_mock):
             "cluster": "cluster1",
             "labels": {"foo": "bar"},
             "autoscaling": None,
+            "subnet": None,
         },
     )
 
@@ -432,6 +444,9 @@ def setup_mocks(
     mocked_ocm = mocked_ocm_map.return_value.get.return_value
     mocked_ocm.get_machine_pools.return_value = machine_pools or []
     mocked_ocm.get_node_pools.return_value = node_pools or []
+    if clusters:
+        ocm_cluster_specs = {c.name for c in clusters}
+        mocked_ocm_map.return_value.cluster_specs.return_value = (ocm_cluster_specs, [])
 
     mocked_queries = mocker.patch("reconcile.ocm_machine_pools.queries")
 
@@ -446,7 +461,7 @@ def setup_mocks(
 def test_run_no_action(mocker: MockerFixture) -> None:
     mocks = setup_mocks(mocker, clusters=[])
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["get_clusters"].assert_called_once_with()
     mocks["OCMMap"].assert_not_called()
@@ -510,6 +525,7 @@ def default_worker_machine_pool() -> dict:
         "id": "worker",
         "instance_type": "m5.xlarge",
         "replicas": 2,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -535,6 +551,7 @@ def new_workers_machine_pool() -> dict:
         "id": "workers-new",
         "instance_type": "m5.2xlarge",
         "replicas": 3,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -571,6 +588,7 @@ def expected_ocm_machine_pool_create_payload() -> dict:
         "instance_type": "m5.2xlarge",
         "labels": None,
         "replicas": 3,
+        "subnet": "subnet-1234567890",
         "taints": [],
     }
 
@@ -587,7 +605,7 @@ def test_run_create_machine_pool_for_osd_cluster(
         machine_pools=[default_worker_machine_pool],
     )
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["OCM"].create_machine_pool.assert_called_once_with(
         osd_cluster_with_default_and_new_machine_pools.name,
@@ -607,7 +625,7 @@ def test_run_create_machine_pool_for_rosa_cluster(
         machine_pools=[default_worker_machine_pool],
     )
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["OCM"].create_machine_pool.assert_called_once_with(
         rosa_cluster_with_default_and_new_machine_pools.name,
@@ -621,6 +639,7 @@ def existing_updated_default_machine_pool() -> dict:
         "id": "worker",
         "instance_type": "m5.xlarge",
         "replicas": 3,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -631,6 +650,7 @@ def expected_ocm_machine_pool_update_payload() -> dict:
         "cluster": "ocm-cluster",
         "id": "worker",
         "replicas": 2,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -646,7 +666,7 @@ def test_run_update_machine_pool_for_osd_cluster(
         machine_pools=[existing_updated_default_machine_pool],
     )
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["OCM"].update_machine_pool.assert_called_once_with(
         osd_cluster_with_default_machine_pool.name,
@@ -666,7 +686,7 @@ def test_run_update_machine_pool_for_rosa_cluster(
         machine_pools=[existing_updated_default_machine_pool],
     )
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["OCM"].update_machine_pool.assert_called_once_with(
         rosa_cluster_with_default_machine_pool.name,
@@ -695,7 +715,7 @@ def test_run_update_machine_pool_error_for_osd_cluster(
     )
 
     with pytest.raises(ExceptionGroup) as eg:
-        run(False)
+        run(False, "gitlab_id")
 
     assert len(eg.value.exceptions) == 1
     assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
@@ -713,7 +733,7 @@ def test_run_update_machine_pool_error_for_rosa_cluster(
     )
 
     with pytest.raises(ExceptionGroup) as eg:
-        run(False)
+        run(False, "gitlab_id")
 
     assert len(eg.value.exceptions) == 1
     assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
@@ -729,6 +749,7 @@ def expected_ocm_machine_pool_delete_payload() -> dict:
         "labels": None,
         "replicas": 3,
         "taints": None,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -745,7 +766,7 @@ def test_run_delete_machine_pool_for_osd_cluster(
         machine_pools=[default_worker_machine_pool, new_workers_machine_pool],
     )
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["OCM"].delete_machine_pool.assert_called_once_with(
         osd_cluster_with_default_machine_pool.name,
@@ -766,7 +787,7 @@ def test_run_delete_machine_pool_for_rosa_cluster(
         machine_pools=[default_worker_machine_pool, new_workers_machine_pool],
     )
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["OCM"].delete_machine_pool.assert_called_once_with(
         rosa_cluster_with_default_machine_pool.name,
@@ -800,7 +821,7 @@ def test_run_delete_machine_pool_fail_validation_for_osd_cluster(
     )
 
     with pytest.raises(ExceptionGroup) as eg:
-        run(False)
+        run(False, "gitlab_id")
 
     assert len(eg.value.exceptions) == 1
     assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
@@ -818,7 +839,7 @@ def test_run_delete_machine_pool_fail_validation_for_rosa_cluster(
     )
 
     with pytest.raises(ExceptionGroup) as eg:
-        run(False)
+        run(False, "gitlab_id")
 
     assert len(eg.value.exceptions) == 1
     assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
@@ -853,7 +874,7 @@ def test_run_delete_default_machine_pool_fail_validation_for_osd_cluster(
     )
 
     with pytest.raises(ExceptionGroup) as eg:
-        run(False)
+        run(False, "gitlab_id")
 
     assert len(eg.value.exceptions) == 1
     assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
@@ -871,7 +892,7 @@ def test_run_delete_default_machine_pool_success_for_rosa_cluster(
         machine_pools=[default_worker_machine_pool, new_workers_machine_pool],
     )
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["OCM"].delete_machine_pool.assert_called_once()
 
@@ -909,6 +930,7 @@ def default_hypershift_worker_machine_pool() -> dict:
         "id": "workers",
         "instance_type": "m5.xlarge",
         "replicas": 2,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -929,7 +951,7 @@ def expected_node_pool_create_payload() -> dict:
         "id": "workers",
         "labels": None,
         "replicas": 2,
-        "subnet": None,
+        "subnet": "subnet-1234567890",
         "taints": [],
     }
 
@@ -941,7 +963,7 @@ def test_run_create_node_pool(
 ) -> None:
     mocks = setup_mocks(mocker, clusters=[hypershift_cluster])
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["OCM"].create_node_pool.assert_called_once_with(
         hypershift_cluster.name,
@@ -956,6 +978,7 @@ def existing_updated_hypershift_node_pools() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         }
     ]
 
@@ -982,7 +1005,7 @@ def test_run_update_node_pool(
         node_pools=existing_updated_hypershift_node_pools,
     )
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["OCM"].update_node_pool.assert_called_once_with(
         hypershift_cluster.name,
@@ -996,6 +1019,7 @@ def non_default_hypershift_node_pool() -> dict:
         "id": "new-workers",
         "aws_node_pool": {"instance_type": "m5.xlarge"},
         "replicas": 3,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -1006,11 +1030,13 @@ def existing_multiple_hypershift_node_pools() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
         {
             "id": "new-workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
     ]
 
@@ -1024,7 +1050,7 @@ def expected_hypershift_node_pool_delete_payload() -> dict:
         "aws_node_pool": {"instance_type": "m5.xlarge"},
         "labels": None,
         "replicas": 3,
-        "subnet": None,
+        "subnet": "subnet-1234567890",
         "taints": None,
     }
 
@@ -1041,7 +1067,7 @@ def test_run_delete_node_pool(
         node_pools=existing_multiple_hypershift_node_pools,
     )
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["OCM"].delete_node_pool.assert_called_once_with(
         hypershift_cluster.name,
@@ -1055,6 +1081,7 @@ def non_default_hypershift_worker_machine_pool() -> dict:
         "id": "new-workers",
         "instance_type": "m5.xlarge",
         "replicas": 3,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -1073,16 +1100,19 @@ def existing_multiple_hypershift_node_pools_with_defaults() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
         {
             "id": "workers-1",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
         {
             "id": "new-workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
     ]
 
@@ -1098,6 +1128,6 @@ def test_run_delete_default_node_pool(
         node_pools=existing_multiple_hypershift_node_pools_with_defaults,
     )
 
-    run(False)
+    run(False, "gitlab_id")
 
     mocks["OCM"].delete_node_pool.assert_called()

@@ -3,6 +3,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from enum import Enum
 
@@ -12,7 +13,7 @@ from pydantic import (
     root_validator,
 )
 
-from reconcile import queries
+from reconcile import mr_client_gateway, queries
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
     ClusterSpecAutoScaleV1,
@@ -102,6 +103,7 @@ class AbstractPool(ABC, BaseModel):
     cluster: str
     cluster_type: ClusterType = Field(..., exclude=True)
     autoscaling: AbstractAutoscaling | None
+    subnet: str | None
 
     @root_validator()
     @classmethod
@@ -214,6 +216,7 @@ class MachinePool(AbstractPool):
             labels=pool.labels,
             cluster=cluster,
             cluster_type=cluster_type,
+            subnet=pool.subnet,
         )
 
 
@@ -225,7 +228,6 @@ class NodePool(AbstractPool):
     # Node pool, used for HyperShift clusters
 
     aws_node_pool: AWSNodePool
-    subnet: str | None
 
     def delete(self, ocm: OCM) -> None:
         ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
@@ -409,6 +411,7 @@ def fetch_current_state_for_cluster(cluster, ocm):
             labels=machine_pool.get("labels"),
             cluster=cluster.name,
             cluster_type=cluster_type,
+            subnet=machine_pool.get("subnet"),
         )
         for machine_pool in ocm.get_machine_pools(cluster.name)
     ]
@@ -431,7 +434,9 @@ def create_desired_state_from_gql(
 def calculate_diff(
     current_state: Mapping[str, list[AbstractPool]],
     desired_state: Mapping[str, DesiredMachinePool],
-) -> tuple[list[PoolHandler], list[InvalidUpdateError]]:
+) -> tuple[
+    list[PoolHandler], list[InvalidUpdateError], Mapping[str, list[AbstractPool]]
+]:
     current_machine_pools = {
         (cluster_name, machine_pool.id): machine_pool
         for cluster_name, machine_pools in current_state.items()
@@ -452,6 +457,7 @@ def calculate_diff(
 
     diffs: list[PoolHandler] = []
     errors: list[InvalidUpdateError] = []
+    failed_for_subnet: Mapping[str, list[AbstractPool]] = defaultdict(lambda: [])
 
     for (cluster_name, _), desired_machine_pool in diff_result.add.items():
         diffs.append(
@@ -463,6 +469,10 @@ def calculate_diff(
     for (cluster_name, _), diff_pair in diff_result.change.items():
         invalid_diff = diff_pair.current.invalid_diff(diff_pair.desired)
         if invalid_diff:
+            # We save current state for pools that alread have subnets
+            if invalid_diff == "subnet" and diff_pair.current.subnet:
+                failed_for_subnet[diff_pair.current.cluster].append(diff_pair.current)
+                continue
             errors.append(
                 InvalidUpdateError(
                     f"can not update {invalid_diff} for existing machine pool on cluster {cluster_name}"
@@ -497,7 +507,7 @@ def calculate_diff(
                 )
             )
 
-    return diffs, errors
+    return diffs, errors, dict(failed_for_subnet)
 
 
 def act(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> None:
@@ -512,7 +522,25 @@ def _cluster_is_compatible(cluster: ClusterV1) -> bool:
     return cluster.ocm is not None and cluster.machine_pools is not None
 
 
-def run(dry_run: bool):
+def _recuperate_pools(
+    failed_pools: Mapping[str, list[AbstractPool]],
+    clusters: Mapping[str, ClusterV1],
+    gitlab_project_id: str,
+) -> None:
+    # Doing the import here to prevent circular imports errors
+    # machine_pools_updates is importing AbtractPool which is defined here
+    import reconcile.utils.mr.machine_pools_updates as mpu
+
+    for cluster_name, pools in failed_pools.items():
+        mr = mpu.CreateMachinePoolsUpdate(
+            machine_pools_updates=pools, cluster=clusters[cluster_name]
+        )
+
+        with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
+            mr.submit(cli=mr_cli)
+
+
+def run(dry_run: bool, gitlab_project_id: str):
     clusters = get_clusters()
 
     filtered_clusters = [
@@ -534,9 +562,17 @@ def run(dry_run: bool):
         settings=settings,
     )
 
+    # further filter cluster to only ones that are on ocm
+    ocm_clusters, _ = ocm_map.cluster_specs()
+    filtered_clusters = [c for c in filtered_clusters if c.name in ocm_clusters]
+
     current_state = fetch_current_state(ocm_map, filtered_clusters)
     desired_state = create_desired_state_from_gql(filtered_clusters)
-    diffs, errors = calculate_diff(current_state, desired_state)
+    diffs, errors, failed_for_subnet = calculate_diff(current_state, desired_state)
+
+    if failed_for_subnet:
+        cluster_map = {c.name: c for c in filtered_clusters}
+        _recuperate_pools(failed_for_subnet, cluster_map, gitlab_project_id)
 
     act(dry_run, diffs, ocm_map)
 
