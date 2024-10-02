@@ -28,13 +28,13 @@ def get_namespaces(query_func: Callable | None = None) -> list[NamespaceV1]:
     return list(data.namespaces or [])
 
 
-def get_settings(
-    query_func: Callable | None = None,
-) -> list[ExternalResourcesSettingsV1]:
+def get_settings(query_func: Callable | None = None) -> ExternalResourcesSettingsV1:
     if not query_func:
         query_func = gql.get_api().query
     data = query_settings(query_func=query_func)
-    return list(data.settings or [])
+    if not data.settings:
+        raise ValueError("No external resources settings found.")
+    return data.settings[0]
 
 
 def get_modules(

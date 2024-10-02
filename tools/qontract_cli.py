@@ -14,7 +14,9 @@ from datetime import (
     timedelta,
 )
 from operator import itemgetter
+from pathlib import Path
 from statistics import median
+from textwrap import dedent
 from typing import Any
 
 import boto3
@@ -23,10 +25,9 @@ import click.core
 import requests
 import yaml
 from rich import box
-from rich.console import (
-    Console,
-    Group,
-)
+from rich import print as rich_print
+from rich.console import Console, Group
+from rich.prompt import Confirm
 from rich.table import Table
 from rich.tree import Tree
 
@@ -59,24 +60,10 @@ from reconcile.change_owners.change_owners import (
 )
 from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import (
+    TERRAFORM_VERSION,
+    TERRAFORM_VERSION_REGEX,
     config_file,
     use_jump_host,
-)
-from reconcile.external_resources.integration import (
-    get_aws_api,
-)
-from reconcile.external_resources.manager import (
-    setup_factories,
-)
-from reconcile.external_resources.meta import FLAG_RESOURCE_MANAGED_BY_ERV2
-from reconcile.external_resources.model import (
-    ExternalResourceKey,
-    ExternalResourcesInventory,
-    load_module_inventory,
-)
-from reconcile.external_resources.state import (
-    ExternalResourcesStateDynamoDB,
-    ResourceStatus,
 )
 from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
     query as aus_clusters_query,
@@ -99,11 +86,6 @@ from reconcile.typed_queries.app_quay_repos_escalation_policies import (
     get_apps_quay_repos_escalation_policies,
 )
 from reconcile.typed_queries.clusters import get_clusters
-from reconcile.typed_queries.external_resources import (
-    get_modules,
-    get_namespaces,
-    get_settings,
-)
 from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.typed_queries.status_board import get_status_board
@@ -168,6 +150,12 @@ from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from tools.cli_commands.cost_report.aws import AwsCostReportCommand
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
+from tools.cli_commands.erv2 import (
+    Erv2Cli,
+    TerraformCli,
+    progress_spinner,
+    task,
+)
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
@@ -3945,85 +3933,185 @@ def remove(ctx, sso_client_vault_secret_path: str):
 
 
 @root.group()
+@click.option(
+    "--provision-provider",
+    required=True,
+    help="externalResources.provider",
+    default="aws",
+)
+@click.option(
+    "--provisioner",
+    required=True,
+    help="externalResources.provisioner.name. E.g. app-sre-stage",
+    prompt=True,
+)
+@click.option(
+    "--provider",
+    required=True,
+    help="externalResources.resources.provider. E.g. rds, msk, ...",
+    prompt=True,
+)
+@click.option(
+    "--identifier",
+    required=True,
+    help="externalResources.resources.identifier. E.g. erv2-example",
+    prompt=True,
+)
 @click.pass_context
-def external_resources(ctx):
+def external_resources(
+    ctx, provision_provider: str, provisioner: str, provider: str, identifier: str
+):
     """External resources commands"""
+    ctx.obj["provision_provider"] = provision_provider
+    ctx.obj["provisioner"] = provisioner
+    ctx.obj["provider"] = provider
+    ctx.obj["identifier"] = identifier
+    vault_settings = get_app_interface_vault_settings()
+    ctx.obj["secret_reader"] = create_secret_reader(use_vault=vault_settings.vault)
 
 
 @external_resources.command()
-@click.argument("provision-provider", required=True)
-@click.argument("provisioner", required=True)
-@click.argument("provider", required=True)
-@click.argument("identifier", required=True)
 @click.pass_context
-def get_input(
-    ctx, provision_provider: str, provisioner: str, provider: str, identifier: str
-):
+def get_input(ctx):
     """Gets the input data for an external resource asset. Input data is what is used
-    in the Reconciliation Job to manage the resource.
-
-    e.g: qontract-reconcile --config=<config> external-resources get-input aws app-sre-stage rds dashdotdb-stage
-    """
-    namespaces = [ns for ns in get_namespaces() if ns.external_resources]
-    er_inventory = ExternalResourcesInventory(namespaces)
-
-    spec = er_inventory.get_inventory_spec(
-        provision_provider=provision_provider,
-        provisioner=provisioner,
-        provider=provider,
-        identifier=identifier,
+    in the Reconciliation Job to manage the resource."""
+    erv2cli = Erv2Cli(
+        provision_provider=ctx.obj["provision_provider"],
+        provisioner=ctx.obj["provisioner"],
+        provider=ctx.obj["provider"],
+        identifier=ctx.obj["identifier"],
+        secret_reader=ctx.obj["secret_reader"],
     )
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    er_settings = get_settings()[0]
-    m_inventory = load_module_inventory(get_modules())
-    factories = setup_factories(er_settings, m_inventory, er_inventory, secret_reader)
-    f = factories.get_factory(spec.provision_provider)
-    resource = f.create_external_resource(spec)
-    f.validate_external_resource(resource)
-    print(resource.json(exclude={"data": {FLAG_RESOURCE_MANAGED_BY_ERV2}}))
+    print(erv2cli.input_data)
 
 
 @external_resources.command()
-@click.argument("provision-provider", required=True)
-@click.argument("provisioner", required=True)
-@click.argument("provider", required=True)
-@click.argument("identifier", required=True)
 @click.pass_context
-def request_reconciliation(
-    ctx, provision_provider: str, provisioner: str, provider: str, identifier: str
-):
+def request_reconciliation(ctx):
     """Marks a resource as it needs to get reconciled. The itegration will reconcile the resource at
-    its next iteration.
+    its next iteration."""
+    erv2cli = Erv2Cli(
+        provision_provider=ctx.obj["provision_provider"],
+        provisioner=ctx.obj["provisioner"],
+        provider=ctx.obj["provider"],
+        identifier=ctx.obj["identifier"],
+        secret_reader=ctx.obj["secret_reader"],
+    )
+    erv2cli.reconcile()
 
-    e.g: e.g: qontract-reconcile --config=<config> external-resources request-reconciliation aws app-sre-stage rds dashdotdb-stage
+
+@external_resources.command()
+@binary(["terraform"])
+@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@click.option(
+    "--dry-run/--no-dry-run",
+    help="Enable/Disable dry-run. Default: dry-run enabled!",
+    default=True,
+)
+@click.option(
+    "--skip-build/--no-skip-build",
+    help="Skip/Do not skip the terraform and CDKTF builds. Default: build everything!",
+    default=False,
+)
+@click.pass_context
+def migrate(ctx, dry_run: bool, skip_build: bool) -> None:
+    """Migrate an existing external resource managed by terraform-resources to ERv2.
+
+
+    E.g: qontract-reconcile --config=<config> external-resources migrate aws app-sre-stage rds dashdotdb-stage
     """
-    er_settings = get_settings()[0]
-    vault_settings = get_app_interface_vault_settings()
-    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-    with get_aws_api(
-        query_func=gql.get_api().query,
-        account_name=er_settings.state_dynamodb_account.name,
-        region=er_settings.state_dynamodb_region,
-        secret_reader=secret_reader,
-    ) as aws_api:
-        state_manager = ExternalResourcesStateDynamoDB(
-            aws_api=aws_api,
-            table_name=er_settings.state_dynamodb_table,
-        )
-        key = ExternalResourceKey(
-            provision_provider=provision_provider,
-            provisioner_name=provisioner,
-            provider=provider,
-            identifier=identifier,
-        )
-        current_state = state_manager.get_external_resource_state(key)
-        if current_state.resource_status != ResourceStatus.NOT_EXISTS:
-            state_manager.update_resource_status(
-                key, ResourceStatus.RECONCILIATION_REQUESTED
+    if ctx.obj["provider"] == "rds":
+        # The "random_password" is not an AWS resource. It's just in the outputs and can't be migrated :(
+        raise NotImplementedError("RDS migration is not supported yet!")
+
+    if not Confirm.ask(
+        dedent("""
+            Please disable terraform-resources: [i blue]https://app-interface.unleash.devshift.net/projects/default/features/terraform-resources[/]
+            in Unleash before proceeding!
+
+            Do you want to proceed?"""),
+        default=True,
+    ):
+        sys.exit(0)
+
+    # use a temporary directory in $HOME. The MacOS colima default configuration allows docker mounts from $HOME.
+    tempdir = Path.home() / ".erv2-migration"
+    rich_print(f"Using temporary directory: [b]{tempdir}[/]")
+    tempdir.mkdir(exist_ok=True)
+    temp_erv2 = Path(tempdir) / "erv2"
+    temp_erv2.mkdir(exist_ok=True)
+    temp_tfr = tempdir / "terraform-resources"
+    temp_tfr.mkdir(exist_ok=True)
+
+    with progress_spinner() as progress:
+        with task(progress, "Preparing AWS credentials for CDKTF and local terraform"):
+            # prepare AWS credentials for CDKTF and local terraform
+            credentials_file = tempdir / "credentials"
+            credentials_file.write_text(
+                ctx.obj["secret_reader"].read_with_parameters(
+                    path=f"app-sre/external-resources/{ctx.obj['provisioner']}",
+                    field="credentials",
+                    format=None,
+                    version=None,
+                )
             )
-        else:
-            logging.info("External Resource does not exist")
+        os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(credentials_file)
+
+        erv2cli = Erv2Cli(
+            provision_provider=ctx.obj["provision_provider"],
+            provisioner=ctx.obj["provisioner"],
+            provider=ctx.obj["provider"],
+            identifier=ctx.obj["identifier"],
+            secret_reader=ctx.obj["secret_reader"],
+            temp_dir=temp_erv2,
+            progress_spinner=progress,
+        )
+
+        with task(progress, "(erv2) Building the terraform configuration"):
+            if not skip_build:
+                # build the CDKTF output
+                erv2cli.build_cdktf(credentials_file)
+            erv2_tf_cli = TerraformCli(
+                temp_erv2, dry_run=dry_run, progress_spinner=progress
+            )
+            if not skip_build:
+                erv2_tf_cli.init()
+
+        with task(
+            progress, "(terraform-resources) Building the terraform configuration"
+        ):
+            # build the terraform-resources output
+            conf_tf = temp_tfr / "conf.tf.json"
+            if not skip_build:
+                tfr.run(
+                    dry_run=True,
+                    print_to_file=str(conf_tf),
+                    account_name=[ctx.obj["provisioner"]],
+                )
+            # remove comments
+            conf_tf.write_text(
+                "\n".join(
+                    line
+                    for line in conf_tf.read_text().splitlines()
+                    if not line.startswith("#")
+                )
+            )
+            tfr_tf_cli = TerraformCli(
+                temp_tfr, dry_run=dry_run, progress_spinner=progress
+            )
+            if not skip_build:
+                tfr_tf_cli.init()
+
+    with progress_spinner() as progress:
+        # start a new spinner instance for clean output
+        erv2_tf_cli.progress_spinner = progress
+        with task(
+            progress,
+            "Migrating the resources from terraform-resources to ERv2",
+        ):
+            erv2_tf_cli.migrate_resources(source=tfr_tf_cli)
+
+    rich_print(f"[b red]Please remove the temporary directory ({tempdir}) manually!")
 
 
 if __name__ == "__main__":
