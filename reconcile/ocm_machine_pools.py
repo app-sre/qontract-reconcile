@@ -13,7 +13,7 @@ from pydantic import (
     root_validator,
 )
 
-from reconcile import queries
+from reconcile import mr_client_gateway, queries
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
     ClusterSpecAutoScaleV1,
@@ -507,7 +507,7 @@ def calculate_diff(
                 )
             )
 
-    return diffs, errors, failed_for_subnet
+    return diffs, errors, dict(failed_for_subnet)
 
 
 def act(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> None:
@@ -520,6 +520,24 @@ def act(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> None:
 
 def _cluster_is_compatible(cluster: ClusterV1) -> bool:
     return cluster.ocm is not None and cluster.machine_pools is not None
+
+
+def _recuperate_pools(
+    failed_pools: Mapping[str, list[AbstractPool]],
+    clusters: Mapping[str, ClusterV1],
+    gitlab_project_id: str,
+) -> None:
+    # Doing the import here to prevent circular imports errors
+    # machine_pools_updates is importing AbtractPool which is defined here
+    import reconcile.utils.mr.machine_pools_updates as mpu
+
+    for cluster_name, pools in failed_pools.items():
+        mr = mpu.CreateMachinePoolsUpdate(
+            machine_pools_updates=pools, cluster=clusters[cluster_name]
+        )
+
+        with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
+            mr.submit(cli=mr_cli)
 
 
 def run(dry_run: bool, gitlab_project_id: str):
@@ -551,6 +569,10 @@ def run(dry_run: bool, gitlab_project_id: str):
     current_state = fetch_current_state(ocm_map, filtered_clusters)
     desired_state = create_desired_state_from_gql(filtered_clusters)
     diffs, errors, failed_for_subnet = calculate_diff(current_state, desired_state)
+
+    if failed_for_subnet:
+        cluster_map = {c.name: c for c in filtered_clusters}
+        _recuperate_pools(failed_for_subnet, cluster_map, gitlab_project_id)
 
     act(dry_run, diffs, ocm_map)
 
