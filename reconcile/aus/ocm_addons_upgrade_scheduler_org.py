@@ -251,7 +251,9 @@ def calculate_diff(
         addon_id,
     )
     for current in addon_current_state:
-        if addon_id == current.addon_id and current.schedule_type == "automatic":
+        if addon_id == current.addon_id and (
+            current.schedule_type == "automatic" or current.state == "completed"
+        ):
             diffs.append(
                 aus.UpgradePolicyHandler(
                     action="delete",
