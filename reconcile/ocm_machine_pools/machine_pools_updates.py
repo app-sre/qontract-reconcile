@@ -2,7 +2,7 @@ from ruamel.yaml import YAML
 
 from reconcile.change_owners.decision import DecisionCommand
 from reconcile.gql_definitions.common.clusters import ClusterV1
-from reconcile.ocm_machine_pools import AbstractPool
+from reconcile.ocm_machine_pools.integration import AbstractPool
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 
