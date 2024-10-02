@@ -1,3 +1,4 @@
+from sys import version
 from jsonpath_ng.ext import parser
 from ruamel.yaml.compat import StringIO
 
@@ -182,6 +183,15 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
             path="data/services/app-interface/cicd/ci-int/saas-qontract-manager-int.yaml",
             search_text="$.resourceTemplates[?(@.url == 'https://github.com/app-sre/qontract-reconcile')].targets[?(@.name == 'app-interface-production')].ref",
             replace_text=self.commit_sha,
+        )
+
+        # data/services/app-interface/terraform-repo/cicd/ci-int/saas-terraform-repo.yaml
+        self._process_by(
+            "json_path",
+            gitlab_cli=gitlab_cli,
+            path="data/services/app-interface/terraform-repo/cicd/ci-int/saas-terraform-repo.yaml",
+            search_text="$.resourceTemplates[?(@.url == 'https://gitlab.cee.redhat.com/app-sre/terraform-repo-tekton')].targets[?(@.name == 'tf-repo-prod')].parameters.QR_IMAGE_TAG",
+            replace_text=self.version,
         )
 
         # data/pipelines/tekton-provider-global-defaults.yaml
