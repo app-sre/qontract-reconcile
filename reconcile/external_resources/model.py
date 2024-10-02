@@ -73,8 +73,6 @@ SUPPORTED_RESOURCE_TYPES = (
 
 
 class ExternalResourcesInventory(MutableMapping):
-    _inventory: dict[ExternalResourceKey, ExternalResourceSpec] = {}
-
     def _build_external_resource_spec(
         self,
         namespace: NamespaceV1,
@@ -98,6 +96,8 @@ class ExternalResourcesInventory(MutableMapping):
         return spec
 
     def __init__(self, namespaces: Iterable[NamespaceV1]) -> None:
+        self._inventory: dict[ExternalResourceKey, ExternalResourceSpec] = {}
+
         desired_providers = [
             (p, ns)
             for ns in namespaces
@@ -106,10 +106,10 @@ class ExternalResourcesInventory(MutableMapping):
         ]
 
         desired_specs = [
-            self._build_external_resource_spec(ns, p, r)
+            self._build_external_resource_spec(ns, p, r)  # type: ignore[unused-ignore, arg-type]
             for (p, ns) in desired_providers
             for r in p.resources
-            if isinstance(r, SUPPORTED_RESOURCE_TYPES) and r.managed_by_erv2
+            if isinstance(r, SUPPORTED_RESOURCE_TYPES) and r.managed_by_erv2  # type: ignore[unused-ignore, union-attr, misc, arg-type]
         ]
 
         for spec in desired_specs:
