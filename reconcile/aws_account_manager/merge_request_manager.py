@@ -89,6 +89,10 @@ class MergeRequestManager:
                 file_path=account_tmpl_file_path
             )
             # File already exists. nothing to do.
+            logging.debug(
+                "The template collection file %s already exists. This may happen if the MR has been merged but template-renderer isn't running yet.",
+                account_tmpl_file_path,
+            )
             return
         except GitlabGetError as e:
             if e.response_code != 404:
