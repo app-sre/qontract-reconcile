@@ -84,8 +84,8 @@ class ConfiguredBaseModel(BaseModel):
 
 class SLOExternalPrometheusAccessV1(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
-    username: VaultSecret = Field(..., alias="username")
-    password: VaultSecret = Field(..., alias="password")
+    username: Optional[VaultSecret] = Field(..., alias="username")
+    password: Optional[VaultSecret] = Field(..., alias="password")
 
 
 class AppV1(ConfiguredBaseModel):

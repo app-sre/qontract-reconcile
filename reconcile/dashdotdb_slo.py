@@ -100,10 +100,10 @@ class DashdotdbSLO(DashdotdbBase):
         LOG.debug("SLO: processing %s", slo_document.name)
         result: list[ServiceSLO] = []
         for namespace_access in slo_document.namespaces:
-            # TODO: APPSRE-8513 Dashdotdb SLO collector should deal with
-            # namespaceTargets. This `if` is a temporary workaround until
-            # APPSRE-8513 is implemented.
-            if namespace_access.slo_namespace:
+            if (
+                namespace_access.slo_namespace
+                and namespace_access.prometheus_access is None
+            ):
                 continue
 
             ns = namespace_access.namespace
@@ -112,12 +112,16 @@ class DashdotdbSLO(DashdotdbBase):
             password: str | None = None
             if namespace_access.prometheus_access:
                 promurl = namespace_access.prometheus_access.url
-                username = self.secret_reader.read_secret(
+                if (
                     namespace_access.prometheus_access.username
-                )
-                password = self.secret_reader.read_secret(
-                    namespace_access.prometheus_access.password
-                )
+                    and namespace_access.prometheus_access.password
+                ):
+                    username = self.secret_reader.read_secret(
+                        namespace_access.prometheus_access.username
+                    )
+                    password = self.secret_reader.read_secret(
+                        namespace_access.prometheus_access.password
+                    )
             else:
                 promurl = ns.cluster.prometheus_url
                 if not ns.cluster.automation_token:
@@ -132,13 +136,22 @@ class DashdotdbSLO(DashdotdbBase):
                 template = jinja2.Template(expr)
                 window = slo.slo_parameters.window
                 promquery = template.render({"window": window})
-                prom_response = self._promget(
-                    url=promurl,
-                    params={"query": (f"{promquery}")},
-                    token=promtoken,
-                    username=username,
-                    password=password,
-                )
+                try:
+                    prom_response = self._promget(
+                        url=promurl,
+                        params={"query": (f"{promquery}")},
+                        token=promtoken,
+                        username=username,
+                        password=password,
+                    )
+                except requests.exceptions.ConnectionError as error:
+                    # This can happen when prometheus is unreachble, or when running locally
+                    # and some prometheus URL are openshift service names. The trick is to run
+                    # with `oc port-forward` and update the local hosts file if we need to query those.
+                    LOG.error(
+                        f"{self.logmarker} Could not reach prometheus at {promurl}: {error}. Skipping {slo.name}"
+                    )
+                    continue
                 prom_result = prom_response["data"]["result"]
                 if not prom_result:
                     continue
