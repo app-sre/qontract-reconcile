@@ -83,20 +83,14 @@ class DashdotdbSLO(DashdotdbBase):
             if self.dry_run:
                 continue
 
-            if isnan(item.value):
-                LOG.info(
-                    f"{self.logmarker} Skipping SLO '{slo_name}' in SLO doc '{item.slo_doc_name}'"
-                    "as the obtained value is not a number"
-                )
-                continue
-
             LOG.info("%s syncing slo %s", self.logmarker, slo_name)
             try:
                 response = self._do_post(endpoint, payload)
                 response.raise_for_status()
-            except requests.exceptions.HTTPError as details:
-                LOG.error("%s error posting %s - %s", self.logmarker, slo_name, details)
-            except requests.exceptions.InvalidJSONError as details:
+            except (
+                requests.exceptions.HTTPError,
+                requests.exceptions.InvalidJSONError,
+            ) as details:
                 LOG.error("%s error posting %s - %s", self.logmarker, slo_name, details)
 
             LOG.info("%s slo %s synced", self.logmarker, slo_name)
@@ -154,6 +148,12 @@ class DashdotdbSLO(DashdotdbBase):
                     continue
 
                 slo_value = float(slo_value[1])
+                if isnan(slo_value):
+                    LOG.warning(
+                        f"{self.logmarker} Skipping SLO '{slo.name}' in SLO doc '{slo_document.name}'"
+                        "as the obtained value is not a number (maybe a division by 0?)"
+                    )
+                    continue
                 slo_target = float(slo.slo_target)
 
                 # In Dash.DB we want to always store SLOs in percentages
