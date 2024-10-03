@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from collections.abc import Callable, Iterable
 from typing import TypedDict
 
@@ -137,21 +138,22 @@ class EndpointsDiscoveryIntegration(
             )
             return []
 
-        routes = {}
-        for item in sorted(
-            oc.get_items(kind="Route", namespace=namespace.name),
-            key=lambda x: x["metadata"]["name"],
-            reverse=True,
-        ):
+        routes = defaultdict(list)
+        for item in oc.get_items(kind="Route", namespace=namespace.name):
             tls = bool(item["spec"].get("tls"))
             host = item["spec"]["host"]
-            routes[f"{host}:{tls}"] = Route(
-                name=item["metadata"]["name"],
+            # group all routes with the same hostname/tls
+            routes[(host, tls)].append(item["metadata"]["name"])
+
+        # merge all routes with the same hostname into one and combine the names
+        return [
+            Route(
+                name="|".join(sorted(names)),
                 host=host,
                 tls=tls,
             )
-
-        return list(routes.values())
+            for (host, tls), names in routes.items()
+        ]
 
     def get_endpoint_changes(
         self,
