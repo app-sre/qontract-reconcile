@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
+from math import isnan
 from typing import Any
 
 import jinja2
@@ -83,10 +84,13 @@ class DashdotdbSLO(DashdotdbBase):
                 continue
 
             LOG.info("%s syncing slo %s", self.logmarker, slo_name)
-            response = self._do_post(endpoint, payload)
             try:
+                response = self._do_post(endpoint, payload)
                 response.raise_for_status()
-            except requests.exceptions.HTTPError as details:
+            except (
+                requests.exceptions.HTTPError,
+                requests.exceptions.InvalidJSONError,
+            ) as details:
                 LOG.error("%s error posting %s - %s", self.logmarker, slo_name, details)
 
             LOG.info("%s slo %s synced", self.logmarker, slo_name)
@@ -144,6 +148,12 @@ class DashdotdbSLO(DashdotdbBase):
                     continue
 
                 slo_value = float(slo_value[1])
+                if isnan(slo_value):
+                    LOG.warning(
+                        f"{self.logmarker} Skipping SLO '{slo.name}' in SLO doc '{slo_document.name}'"
+                        "as the obtained value is not a number (maybe a division by 0?)"
+                    )
+                    continue
                 slo_target = float(slo.slo_target)
 
                 # In Dash.DB we want to always store SLOs in percentages
