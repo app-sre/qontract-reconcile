@@ -88,10 +88,12 @@ class MergeRequestManager:
             self._vcs.get_file_content_from_app_interface_master(
                 file_path=account_tmpl_file_path
             )
-            # File already exists
-            raise FileExistsError(
-                f"File {account_tmpl_file_path} already exists in the repository"
+            # File already exists. nothing to do.
+            logging.debug(
+                "The template collection file %s already exists. This may happen if the MR has been merged but template-renderer isn't running yet.",
+                account_tmpl_file_path,
             )
+            return
         except GitlabGetError as e:
             if e.response_code != 404:
                 raise e
