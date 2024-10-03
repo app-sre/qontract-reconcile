@@ -189,7 +189,7 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
             "json_path",
             gitlab_cli=gitlab_cli,
             path="data/services/app-interface/terraform-repo/cicd/ci-int/saas-terraform-repo.yaml",
-            search_text="$.resourceTemplates[?(@.url == 'https://gitlab.cee.redhat.com/app-sre/terraform-repo-tekton')].targets[?(@.name == 'tf-repo-prod')].parameters.QR_IMAGE_TAG",
+            search_text="$.resourceTemplates[?(@.name == 'terraform-repo')].targets[?(@.name == 'tf-repo-prod')].parameters.QR_IMAGE_TAG",
             replace_text=self.version,
         )
 
