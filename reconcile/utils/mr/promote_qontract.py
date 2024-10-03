@@ -184,6 +184,15 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
             replace_text=self.commit_sha,
         )
 
+        # data/services/app-interface/terraform-repo/cicd/ci-int/saas-terraform-repo.yaml
+        self._process_by(
+            "json_path",
+            gitlab_cli=gitlab_cli,
+            path="data/services/app-interface/terraform-repo/cicd/ci-int/saas-terraform-repo.yaml",
+            search_text="$.resourceTemplates[?(@.name == 'terraform-repo')].targets[?(@.name == 'tf-repo-prod')].parameters.QR_IMAGE_TAG",
+            replace_text=self.version,
+        )
+
         # data/pipelines/tekton-provider-global-defaults.yaml
         self._process_by(
             "json_path",
