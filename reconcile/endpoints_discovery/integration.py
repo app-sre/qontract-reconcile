@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from collections.abc import Callable, Iterable
 from typing import TypedDict
 
@@ -43,7 +44,7 @@ from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "endpoints-discovery"
-QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 1)
 
 
 class EndpointsDiscoveryIntegrationParams(PydanticRunParams):
@@ -137,13 +138,21 @@ class EndpointsDiscoveryIntegration(
             )
             return []
 
+        routes = defaultdict(list)
+        for item in oc.get_items(kind="Route", namespace=namespace.name):
+            tls = bool(item["spec"].get("tls"))
+            host = item["spec"]["host"]
+            # group all routes with the same hostname/tls
+            routes[(host, tls)].append(item["metadata"]["name"])
+
+        # merge all routes with the same hostname into one and combine the names
         return [
             Route(
-                name=item["metadata"]["name"],
-                host=item["spec"]["host"],
-                tls=bool(item["spec"].get("tls")),
+                name="|".join(sorted(names)),
+                host=host,
+                tls=tls,
             )
-            for item in oc.get_items(kind="Route", namespace=namespace.name)
+            for (host, tls), names in routes.items()
         ]
 
     def get_endpoint_changes(

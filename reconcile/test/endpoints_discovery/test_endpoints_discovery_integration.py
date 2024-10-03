@@ -88,7 +88,7 @@ def test_endpoints_discovery_integration_get_routes(
     # see fake_route fixture!
     assert len(routes) == 1
     assert isinstance(routes[0], Route)
-    assert routes[0].name == "fake-route"
+    assert routes[0].name == "fake-route|zzz-fake-route"
 
 
 def test_endpoints_discovery_integration_get_endpoint_changes_no_routes_no_endpoints(
@@ -158,9 +158,9 @@ def test_endpoints_discovery_integration_get_apps(
             path="/path/app-1.yml",
             endpoints_to_add=[
                 Endpoint(
-                    name="endpoints-discovery/cluster-1/app-1-ns-1/fake-route",
+                    name="endpoints-discovery/cluster-1/app-1-ns-1/fake-route|zzz-fake-route",
                     data={
-                        "name": "endpoints-discovery/cluster-1/app-1-ns-1/fake-route",
+                        "name": "endpoints-discovery/cluster-1/app-1-ns-1/fake-route|zzz-fake-route",
                         "url": "https://fake-route.com:80",
                     },
                 )
@@ -173,9 +173,9 @@ def test_endpoints_discovery_integration_get_apps(
             path="/path/app-2.yml",
             endpoints_to_add=[
                 Endpoint(
-                    name="endpoints-discovery/cluster-1/app-2-ns-1/fake-route",
+                    name="endpoints-discovery/cluster-1/app-2-ns-1/fake-route|zzz-fake-route",
                     data={
-                        "name": "endpoints-discovery/cluster-1/app-2-ns-1/fake-route",
+                        "name": "endpoints-discovery/cluster-1/app-2-ns-1/fake-route|zzz-fake-route",
                         "url": "https://fake-route.com:80",
                     },
                 )

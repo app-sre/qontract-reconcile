@@ -1,4 +1,5 @@
 from collections.abc import Callable, Mapping
+from copy import deepcopy
 from typing import Any
 
 import pytest
@@ -68,7 +69,10 @@ def fake_route() -> dict[str, Any]:
 def oc(mocker: MockerFixture, fake_route: dict[str, Any]) -> OCNative:
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     oc.project_exists.return_value = True
-    oc.get_items.return_value = [fake_route]
+    # return 2 routes with the same hostname. this should be filtered out by get_routes
+    fake_route2 = deepcopy(fake_route)
+    fake_route2["metadata"]["name"] = "zzz-fake-route"
+    oc.get_items.return_value = [fake_route, fake_route2]
     return oc
 
 
