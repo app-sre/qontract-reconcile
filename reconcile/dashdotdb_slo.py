@@ -145,13 +145,13 @@ class DashdotdbSLO(DashdotdbBase):
                         password=password,
                     )
                 except requests.exceptions.ConnectionError as error:
-                    # This can happen when prometheus is unreachble, or when running locally
+                    # This can happen when prometheus is unreachable, or when running locally
                     # and some prometheus URL are openshift service names. The trick is to run
                     # with `oc port-forward` and update the local hosts file if we need to query those.
                     LOG.error(
                         f"{self.logmarker} Could not reach prometheus at {promurl}: {error}. Skipping {slo.name}"
                     )
-                    continue
+                    raise
                 prom_result = prom_response["data"]["result"]
                 if not prom_result:
                     continue
