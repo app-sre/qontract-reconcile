@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
+from math import isnan
 from typing import Any
 
 import jinja2
@@ -82,11 +83,20 @@ class DashdotdbSLO(DashdotdbBase):
             if self.dry_run:
                 continue
 
+            if isnan(item.value):
+                LOG.info(
+                    f"{self.logmarker} Skipping SLO '{slo_name}' in SLO doc '{item.slo_doc_name}'"
+                    "as the obtained value is not a number"
+                )
+                continue
+
             LOG.info("%s syncing slo %s", self.logmarker, slo_name)
-            response = self._do_post(endpoint, payload)
             try:
+                response = self._do_post(endpoint, payload)
                 response.raise_for_status()
             except requests.exceptions.HTTPError as details:
+                LOG.error("%s error posting %s - %s", self.logmarker, slo_name, details)
+            except requests.exceptions.InvalidJSONError as details:
                 LOG.error("%s error posting %s - %s", self.logmarker, slo_name, details)
 
             LOG.info("%s slo %s synced", self.logmarker, slo_name)
