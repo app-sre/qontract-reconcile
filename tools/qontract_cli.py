@@ -1377,8 +1377,13 @@ def aws_creds(ctx, account_name):
 @click.argument("src")
 @click.argument("dest")
 @click.argument("region", required=False, default="us-east-1")
+@click.option(
+    "--force/--no-force",
+    help="Force the copy even if a statefile already exists at the destination",
+    default=False,
+)
 @click.pass_context
-def copy_tfstate(ctx, account_name, bucket, src, dest, region):
+def copy_tfstate(ctx, account_name, bucket, src, dest, region, force):
     """copy a manually managed terraform state file to the correct location expected by
     the terraform-repo integration.
 
@@ -1409,15 +1414,32 @@ def copy_tfstate(ctx, account_name, bucket, src, dest, region):
     dest_bucket = account["terraformState"]["bucket"]
 
     with AWSApi(1, accounts, settings, secret_reader) as aws:
-        prompt_text = f"Are you sure you want to copy 's3://{bucket}/{src}' to 's3://{dest_bucket}/{dest_key}'? This will overwrite any object currently at the destination path."
-        if click.confirm(prompt_text):
-            session = aws.get_session(account_name)
-            s3_client = aws.get_session_client(session, "s3", region)
-            copy_source = {
-                "Bucket": bucket,
-                "Key": src,
-            }
+        session = aws.get_session(account_name)
+        s3_client = aws.get_session_client(session, "s3", region)
+        copy_source = {
+            "Bucket": bucket,
+            "Key": src,
+        }
 
+        dest_pretty_path = f"s3://{dest_bucket}/{dest_key}"
+        # check if dest already exists
+        response = s3_client.list_objects_v2(
+            Bucket=dest_bucket, Prefix=dest_key, MaxKeys=1
+        )
+
+        if "Contents" in response:
+            if force:
+                logging.warning(
+                    f"Existing object at '{dest_pretty_path}' will be overwritten as --force is set"
+                )
+            else:
+                logging.error(
+                    f"Will not overwrite existing object at '{dest_pretty_path}'. Use --force to overwrite the destination object"
+                )
+                return
+
+        prompt_text = f"Are you sure you want to copy 's3://{bucket}/{src}' to '{dest_pretty_path}'?"
+        if click.confirm(prompt_text):
             s3_client.copy(copy_source, dest_bucket, dest_key)
             logging.info("successfully copied the statefile to the new location")
 
