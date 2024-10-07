@@ -5313,12 +5313,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # forward
         if not default_target:
             raise KeyError("expected a single default target")
+        ssl_policy = resource.get("ssl_policy") or "ELBSecurityPolicy-TLS13-1-0-2021-06"
         values = {
             "provider": provider,
             "load_balancer_arn": f"${{{lb_tf_resource.arn}}}",
             "port": 443,
             "protocol": "HTTPS",
-            "ssl_policy": "ELBSecurityPolicy-TLS-1-2-2017-01",
+            "ssl_policy": ssl_policy,
             "certificate_arn": resource["certificate_arn"],
             "default_action": {
                 "type": "forward",
