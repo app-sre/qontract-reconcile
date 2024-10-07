@@ -169,6 +169,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         | "/app-sre/app-changelog-1.yml"
                         | "/app-sre/slo-document-1.yml"
                         | "/app-sre/scorecard-2.yml"
+                        | "/app-sre/sre-checkpoint-1.yml"
                     ):
                         for c in change_versions:
                             c_app: dict[str, str] = c["app"]
