@@ -167,6 +167,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                         | "/dependencies/jenkins-config-1.yml"
                         | "/dependencies/status-page-component-1.yml"
                         | "/app-sre/app-changelog-1.yml"
+                        | "/app-sre/slo-document-1.yml"
                     ):
                         for c in change_versions:
                             c_app: dict[str, str] = c["app"]
