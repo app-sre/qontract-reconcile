@@ -251,6 +251,7 @@ query TerraformResourcesNamespaces {
                 enable_http2
                 ip_address_type
                 access_logs
+                ssl_policy
                 targets {
                     name
                     default
