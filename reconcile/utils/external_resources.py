@@ -65,14 +65,14 @@ def managed_external_resources(namespace_info: Mapping[str, Any]) -> bool:
 
 
 def get_inventory_count_combinations(
-    inventory: MutableMapping,
+    inventory: Mapping,
 ) -> Counter[tuple]:
     return Counter(
         (k.provision_provider, k.provisioner_name, k.provider) for k in inventory
     )
 
 
-def publish_metrics(inventory: MutableMapping, integration: str) -> None:
+def publish_metrics(inventory: Mapping, integration: str) -> None:
     count_combinations = get_inventory_count_combinations(inventory)
     integration_name = metrics.normalize_integration_name(integration)
     for combination, count in count_combinations.items():
