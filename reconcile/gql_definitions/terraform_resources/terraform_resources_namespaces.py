@@ -308,6 +308,7 @@ query TerraformResourcesNamespaces {
                 enable_http2
                 ip_address_type
                 access_logs
+                ssl_policy
                 targets {
                     name
                     default
@@ -876,6 +877,7 @@ class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):
     enable_http2: Optional[bool] = Field(..., alias="enable_http2")
     ip_address_type: Optional[str] = Field(..., alias="ip_address_type")
     access_logs: Optional[bool] = Field(..., alias="access_logs")
+    ssl_policy: Optional[str] = Field(..., alias="ssl_policy")
     targets: list[NamespaceTerraformResourceALBTargetsV1] = Field(..., alias="targets")
     rules: list[NamespaceTerraformResourceALBRulesV1] = Field(..., alias="rules")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
