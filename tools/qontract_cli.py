@@ -1749,6 +1749,85 @@ You can view the source of this Markdown to extract the JSON data.
         print_output(ctx.obj["options"], results, columns)
 
 
+@get.command
+@click.pass_context
+def rds_recommendations(ctx):
+    IGNORED_STATUSES = ("resolved",)
+    IGNORED_SEVERITIES = ("informational",)
+
+    settings = queries.get_app_interface_settings()
+
+    # Only check AWS accounts for which we have RDS resources defined
+    targetted_accounts = []
+    namespaces = queries.get_namespaces()
+    for namespace_info in namespaces:
+        if not managed_external_resources(namespace_info):
+            continue
+        for spec in get_external_resource_specs(namespace_info):
+            if spec.provider == "rds":
+                targetted_accounts.append(spec.provisioner_name)
+
+    accounts = [
+        a for a in queries.get_aws_accounts() if a["name"] in targetted_accounts
+    ]
+    accounts.sort(key=lambda a: a["name"])
+
+    columns = [
+        # 'RecommendationId',
+        # 'TypeId',
+        # 'ResourceArn',
+        "ResourceName",  # Non-AWS field
+        "Severity",
+        "Category",
+        "Impact",
+        "Status",
+        "Detection",
+        "Recommendation",
+        "Description",
+        # 'Source',
+        # 'TypeDetection',
+        # 'TypeRecommendation',
+        # 'AdditionalInfo'
+    ]
+
+    ctx.obj["options"]["sort"] = False
+
+    print("[TOC]")
+    for account in accounts:
+        account_name = account.get("name")
+        account_deployment_regions = account.get("supportedDeploymentRegions")
+        for region in account_deployment_regions or []:
+            with AWSApi(1, [account], settings=settings, init_users=False) as aws:
+                try:
+                    data = aws.describe_rds_recommendations(account_name, region)
+                    recommendations = data.get("DBRecommendations", [])
+                except Exception as e:
+                    logging.error(f"Error describing RDS recommendations: {e}")
+                    continue
+
+                # Add field ResourceName infered from ResourceArn
+                recommendations = [
+                    {**rec, "ResourceName": rec["ResourceArn"].split(":")[-1]}
+                    for rec in recommendations
+                    if rec.get("Status") not in IGNORED_STATUSES
+                    and rec.get("Severity") not in IGNORED_SEVERITIES
+                ]
+                # The Description field has \n that are causing issues with the markdown table
+                recommendations = [
+                    {**rec, "Description": rec["Description"].replace("\n", " ")}
+                    for rec in recommendations
+                ]
+                # If we have no recommendations to show, skip
+                if not recommendations:
+                    continue
+                # Sort by ResourceName
+                recommendations.sort(key=lambda r: r["ResourceName"])
+
+                print(f"# {account_name} - {region}")
+                print("Note: Severity informational is not shown.")
+                print_output(ctx.obj["options"], recommendations, columns)
+
+
 @get.command()
 @click.pass_context
 def products(ctx):

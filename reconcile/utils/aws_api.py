@@ -1598,6 +1598,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         rds = self._account_rds_client(account_name, **optional_kwargs)
         return rds.describe_db_instances(DBInstanceIdentifier=db_instance_name)
 
+    def describe_rds_recommendations(
+        self,
+        account_name: str,
+        region_name: str | None = None,
+    ):
+        rds = self._account_rds_client(account_name, region_name)
+        return rds.describe_db_recommendations()
+
     def get_db_valid_upgrade_target(
         self,
         account_name: str,
