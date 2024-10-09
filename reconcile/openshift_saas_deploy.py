@@ -234,7 +234,7 @@ def run(
     )
     if defer:  # defer is provided by the method decorator. this makes just mypy happy
         defer(oc_map.cleanup)
-    saasherder.populate_desired_state(ri)
+    saasherder.populate_desired_state(ri, oc_map)
 
     # validate that this deployment is valid
     # based on promotion information in targets

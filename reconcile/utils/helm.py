@@ -29,6 +29,7 @@ def do_template(
     values: Mapping[str, Any],
     path: str,
     namespace: str,
+    api_versions: list[str],
 ) -> str:
     try:
         with (
@@ -84,6 +85,8 @@ def do_template(
                     repository_config_file.name,
                     "--repository-cache",
                     repository_cache_dir,
+                    "--api-versions",
+                    ",".join(api_versions),
                 ]
                 result = run(cmd, capture_output=True, check=True)
     except CalledProcessError as e:
@@ -102,7 +105,7 @@ def template(
     path: str = "./helm/qontract-reconcile",
     namespace: str = "qontract-reconcile",
 ) -> Mapping[str, Any]:
-    return yaml.safe_load(do_template(values=values, path=path, namespace=namespace))
+    return yaml.safe_load(do_template(values=values, path=path, namespace=namespace, api_versions=[]))
 
 
 def template_all(
@@ -111,11 +114,12 @@ def template_all(
     ref: str,
     namespace: str,
     values: Mapping[str, Any],
+    api_versions: list[str],
     ssl_verify: bool = True,
 ) -> Iterable[Mapping[str, Any]]:
     with tempfile.TemporaryDirectory() as wd:
         git.clone(url, wd, depth=1, verify=ssl_verify)
         git.checkout(ref, wd, verify=ssl_verify)
         return yaml.safe_load_all(
-            do_template(values=values, path=f"{wd}{path}", namespace=namespace)
+            do_template(values=values, path=f"{wd}{path}", namespace=namespace, api_versions=api_versions)
         )
