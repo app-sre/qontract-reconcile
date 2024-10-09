@@ -650,7 +650,7 @@ class ChangeTypeProcessor:
             file_schema,
         ) in self._expressions_by_file_type_schema:
             for change_type_path_expression in self._expressions_by_file_type_schema[
-                (file_type, file_schema)
+                file_type, file_schema
             ]:
                 paths.extend([
                     p.full_path
@@ -668,7 +668,7 @@ class ChangeTypeProcessor:
             self._change_detectors.append(detector)
             change_schema = detector.change_schema or self.context_schema
             expressions = self._expressions_by_file_type_schema[
-                (self.context_type, change_schema)
+                self.context_type, change_schema
             ]
             for path_expression in detector.json_path_expressions:
                 if path_expression not in expressions:

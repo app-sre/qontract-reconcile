@@ -117,12 +117,12 @@ def change_type_contexts_for_self_service_roles(
                 if ss.datafiles:
                     for df in ss.datafiles:
                         role_lookup[
-                            (BundleFileType.DATAFILE, df.path, ss.change_type.name)
+                            BundleFileType.DATAFILE, df.path, ss.change_type.name
                         ].append(r)
                 if ss.resources:
                     for res in ss.resources:
                         role_lookup[
-                            (BundleFileType.RESOURCEFILE, res, ss.change_type.name)
+                            BundleFileType.RESOURCEFILE, res, ss.change_type.name
                         ].append(r)
                 if (
                     ss.change_type.context_schema
@@ -132,7 +132,7 @@ def change_type_contexts_for_self_service_roles(
                     # change types mentioned without datafiels or resources apply
                     # to all datafiles and resources of the given schema
                     schema_role_lookup[
-                        (ss.change_type.context_schema, ss.change_type.name)
+                        ss.change_type.context_schema, ss.change_type.name
                     ].append(r)
 
     # resolve approvers for self-service roles, either directly or via member sources
@@ -161,21 +161,17 @@ def change_type_contexts_for_self_service_roles(
                     owning_roles.update({
                         role.name: role
                         for role in role_lookup[
-                            (
-                                ownership.owned_file_ref.file_type,
-                                ownership.owned_file_ref.path,
-                                ct_lineage,
-                            )
+                            ownership.owned_file_ref.file_type,
+                            ownership.owned_file_ref.path,
+                            ct_lineage,
                         ]
                     })
                 owning_roles.update({
                     role.name: role
                     for role in (
                         schema_role_lookup[
-                            (
-                                ownership.owned_file_ref.schema,
-                                ownership.change_type.name,
-                            )
+                            ownership.owned_file_ref.schema,
+                            ownership.change_type.name,
                         ]
                         if ownership.owned_file_ref.schema
                         else []

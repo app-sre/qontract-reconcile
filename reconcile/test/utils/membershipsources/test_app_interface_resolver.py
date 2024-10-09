@@ -72,4 +72,4 @@ def test_resolve_app_interface_membership_source(
     )
 
     assert ("provider", "role1") in groups
-    assert {m.org_username for m in groups[("provider", "role1")]} == {"user", "bot"}
+    assert {m.org_username for m in groups["provider", "role1"]} == {"user", "bot"}
