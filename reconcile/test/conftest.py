@@ -91,12 +91,10 @@ def vault_secret():
 
 
 @pytest.fixture
-def data_factory() -> (
-    Callable[
-        [type[BaseModel], MutableMapping[str, Any] | None],
-        MutableMapping[str, Any],
-    ]
-):
+def data_factory() -> Callable[
+    [type[BaseModel], MutableMapping[str, Any] | None],
+    MutableMapping[str, Any],
+]:
     """Set default values to None."""
 
     def _data_factory(
@@ -112,12 +110,10 @@ class GQLClassFactoryError(Exception):
 
 
 @pytest.fixture
-def gql_class_factory() -> (
-    Callable[
-        [type[BaseModel], MutableMapping[str, Any] | None],
-        BaseModel,
-    ]
-):
+def gql_class_factory() -> Callable[
+    [type[BaseModel], MutableMapping[str, Any] | None],
+    BaseModel,
+]:
     """Create a GQL class from a fixture and set default values to None."""
 
     def _gql_class_factory(

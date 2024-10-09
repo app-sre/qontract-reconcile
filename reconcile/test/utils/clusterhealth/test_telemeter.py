@@ -11,9 +11,9 @@ from reconcile.utils.prometheus import PrometheusVector
 
 
 @pytest.fixture
-def telemeter_cluster_health_querier_builder() -> (
-    Callable[[dict[str, list[str]]], PrometheusQuerier]
-):
+def telemeter_cluster_health_querier_builder() -> Callable[
+    [dict[str, list[str]]], PrometheusQuerier
+]:
     def build(cluster_alerts: dict[str, list[str]]) -> PrometheusQuerier:
         class StubTelemeterClusterHealthQuerier(PrometheusQuerier):
             def instant_vector_query(self, query: str) -> list[PrometheusVector]:
