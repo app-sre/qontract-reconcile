@@ -1,10 +1,15 @@
 from pydantic import BaseModel
 
-from reconcile.utils.metrics import CounterMetric, GaugeMetric
+from reconcile.external_resources.meta import QONTRACT_INTEGRATION
+from reconcile.utils.metrics import (
+    CounterMetric,
+    GaugeMetric,
+    normalize_integration_name,
+)
 
 
 class ExternalResourcesBaseMetric(BaseModel):
-    integration = "external_resources"
+    integration = normalize_integration_name(QONTRACT_INTEGRATION)
     provision_provider: str
     provisioner_name: str
     provider: str

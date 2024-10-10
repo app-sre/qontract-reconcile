@@ -30,6 +30,7 @@ from reconcile.typed_queries.external_resources import (
 )
 from reconcile.utils import gql
 from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
+from reconcile.utils.external_resources import publish_metrics
 from reconcile.utils.jobcontroller.controller import (
     build_job_controller,
 )
@@ -167,6 +168,7 @@ def run(
                 for k, e in er_mgr.errors.items():
                     logging.error("ExternalResourceKey: %s, Error: %s" % (k, e))
         else:
+            publish_metrics(er_mgr.er_inventory, QONTRACT_INTEGRATION)
             er_mgr.handle_resources()
 
 
