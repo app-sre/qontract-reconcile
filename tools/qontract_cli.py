@@ -1930,25 +1930,25 @@ def roles(ctx, org_username):
             if "team" in p:
                 r_name += "/" + p["team"]
 
-            roles[("permission", p["name"], r_name)].add(role_name)
+            roles["permission", p["name"], r_name].add(role_name)
 
         for aws in role.get("aws_groups") or []:
             for policy in aws["policies"]:
-                roles[("aws", policy, aws["account"]["name"])].add(aws["path"])
+                roles["aws", policy, aws["account"]["name"]].add(aws["path"])
 
         for a in role.get("access") or []:
             if a["cluster"]:
                 cluster_name = a["cluster"]["name"]
-                roles[("cluster", a["clusterRole"], cluster_name)].add(role_name)
+                roles["cluster", a["clusterRole"], cluster_name].add(role_name)
             elif a["namespace"]:
                 ns_name = a["namespace"]["name"]
-                roles[("namespace", a["role"], ns_name)].add(role_name)
+                roles["namespace", a["role"], ns_name].add(role_name)
 
         for s in role.get("self_service") or []:
             for d in s.get("datafiles") or []:
                 name = d.get("name")
                 if name:
-                    roles[("saas_file", "owner", name)].add(role_name)
+                    roles["saas_file", "owner", name].add(role_name)
 
     columns = ["type", "name", "resource", "ref"]
     rows = [

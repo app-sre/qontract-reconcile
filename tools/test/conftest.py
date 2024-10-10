@@ -58,12 +58,10 @@ def fx() -> Callable:
 
 
 @pytest.fixture
-def gql_class_factory() -> (
-    Callable[
-        [type[BaseModel], MutableMapping[str, Any] | None],
-        BaseModel,
-    ]
-):
+def gql_class_factory() -> Callable[
+    [type[BaseModel], MutableMapping[str, Any] | None],
+    BaseModel,
+]:
     """Create a GQL class from a fixture and set default values to None."""
 
     def _gql_class_factory(

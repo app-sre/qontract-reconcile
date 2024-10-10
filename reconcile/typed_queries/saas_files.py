@@ -249,8 +249,8 @@ class SaasFileList:
             for match in self._matching_namespaces(include):
                 cluster_name = match.value["cluster"]["name"]
                 ns_name = match.value["name"]
-                filtered_namespaces[(cluster_name, ns_name)] = self.cluster_namespaces[
-                    (cluster_name, ns_name)
+                filtered_namespaces[cluster_name, ns_name] = self.cluster_namespaces[
+                    cluster_name, ns_name
                 ]
 
         for exclude in namespace_selector.json_path_selectors.exclude or []:

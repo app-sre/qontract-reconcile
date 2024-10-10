@@ -243,8 +243,7 @@ def validate_boards(
                     if exit_on_permission_errors:
                         error = True
                 case (
-                    ValidationError.PERMISSION_ERROR
-                    | ValidationError.CANT_CREATE_ISSUE
+                    ValidationError.PERMISSION_ERROR | ValidationError.CANT_CREATE_ISSUE
                 ):
                     # we can't create jira tickets, and we don't have all needed the permissions
                     error = True

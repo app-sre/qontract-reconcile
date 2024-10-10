@@ -143,7 +143,7 @@ class EndpointsDiscoveryIntegration(
             tls = bool(item["spec"].get("tls"))
             host = item["spec"]["host"]
             # group all routes with the same hostname/tls
-            routes[(host, tls)].append(item["metadata"]["name"])
+            routes[host, tls].append(item["metadata"]["name"])
 
         # merge all routes with the same hostname into one and combine the names
         return [
