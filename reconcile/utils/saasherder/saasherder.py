@@ -44,6 +44,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.oc import (
+    OC_Map,
     OCLocal,
     StatusCodeError,
 )
@@ -982,6 +983,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 ref=ref,
                 namespace=spec.target.namespace.name,
                 values=consolidated_parameters,
+                api_versions=spec.oc.api_resources or [],
                 ssl_verify=ssl_verify,
             )
 
@@ -1210,11 +1212,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             docker_config=json.loads(creds.get(".dockerconfigjson") or "{}"),
         )
 
-    def populate_desired_state(self, ri: ResourceInventory) -> None:
+    def populate_desired_state(self, ri: ResourceInventory, oc_map: OC_Map) -> None:
         results = threaded.run(
             self._init_populate_desired_state_specs,
             self.saas_files,
             self.thread_pool_size,
+            oc_map=oc_map,
         )
         desired_state_specs = list(itertools.chain.from_iterable(results))
         promotions = threaded.run(
@@ -1226,7 +1229,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.promotions: list[Promotion | None] = promotions
 
     def _init_populate_desired_state_specs(
-        self, saas_file: SaasFile
+        self,
+        saas_file: SaasFile,
+        oc_map: OC_Map,
     ) -> list[TargetSpec]:
         specs = []
         github = self._initiate_github(saas_file)
@@ -1261,6 +1266,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         saas_file=saas_file,
                         resource_template=rt,
                         target=target,
+                        oc=oc_map.get(target.namespace.cluster.name),
                         # process_template options
                         image_auth=image_auth,
                         hash_length=hash_length,
