@@ -13,7 +13,7 @@ from reconcile.gql_definitions.common.clusters import (
     ClusterSpecAutoScaleV1,
     ClusterV1,
 )
-from reconcile.ocm_machine_pools import (
+from reconcile.ocm_machine_pools.integration import (
     AbstractPool,
     AWSNodePool,
     ClusterType,
@@ -438,9 +438,12 @@ def setup_mocks(
     node_pools: list[dict] | None = None,
 ) -> dict:
     mocked_get_clusters = mocker.patch(
-        "reconcile.ocm_machine_pools.get_clusters", return_value=clusters or []
+        "reconcile.ocm_machine_pools.integration.get_clusters",
+        return_value=clusters or [],
     )
-    mocked_ocm_map = mocker.patch("reconcile.ocm_machine_pools.OCMMap", autospec=True)
+    mocked_ocm_map = mocker.patch(
+        "reconcile.ocm_machine_pools.integration.OCMMap", autospec=True
+    )
     mocked_ocm = mocked_ocm_map.return_value.get.return_value
     mocked_ocm.get_machine_pools.return_value = machine_pools or []
     mocked_ocm.get_node_pools.return_value = node_pools or []
@@ -448,7 +451,7 @@ def setup_mocks(
         ocm_cluster_specs = {c.name for c in clusters}
         mocked_ocm_map.return_value.cluster_specs.return_value = (ocm_cluster_specs, [])
 
-    mocked_queries = mocker.patch("reconcile.ocm_machine_pools.queries")
+    mocked_queries = mocker.patch("reconcile.ocm_machine_pools.integration.queries")
 
     return {
         "get_clusters": mocked_get_clusters,
