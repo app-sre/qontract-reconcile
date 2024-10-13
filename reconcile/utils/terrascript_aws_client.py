@@ -1630,6 +1630,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             raise UnknownProviderError(provider)
 
     def populate_tf_resource_rds(self, spec):
+        if spec.marked_to_delete:
+            return
         account = spec.provisioner_name
         identifier = spec.identifier
         values = self.init_values(spec)
