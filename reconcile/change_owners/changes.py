@@ -482,7 +482,7 @@ def aggregate_resource_changes(
         for change in bundle_changes
         for file_ref in change.old_backrefs | change.new_backrefs
         if file_ref.schema in supported_schemas
-        and (file_content := content_store[file_ref.path])
+        and (file_content := content_store.get(file_ref.path))
     ]
 
     return bundle_changes + resource_changes
