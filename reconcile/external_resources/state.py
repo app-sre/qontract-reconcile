@@ -74,7 +74,9 @@ class DynamoDBStateAdapter:
         return item[key][_type]
 
     def deserialize(
-        self, item: Mapping[str, Any], partial_data: bool = False
+        self,
+        item: Mapping[str, Any],
+        partial_data: bool = False,
     ) -> ExternalResourceState:
         _key = self._get_value(item, self.ER_KEY, _type="M")
         key = ExternalResourceKey(

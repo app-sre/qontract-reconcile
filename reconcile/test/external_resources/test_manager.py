@@ -144,7 +144,7 @@ def test_resource_needs_reconciliation_drift(
         ),
     ],
 )
-def test_update_in_progress_state_status(
+def test_get_reconciliation_status(
     manager: ExternalResourcesManager,
     reconciliation: Reconciliation,
     state: ExternalResourceState,
@@ -158,6 +158,5 @@ def test_update_in_progress_state_status(
     r_dict["action"] = _action
     _r = Reconciliation.parse_obj(r_dict)
     manager.reconciler.get_resource_reconcile_status.return_value = _reconcile_status  # type:ignore
-
-    manager._update_in_progress_state(_r, state, "dummy")
-    assert state.resource_status == _expected_status
+    status = manager._get_reconciliation_status(_r, state)
+    assert status.resource_status == _expected_status
