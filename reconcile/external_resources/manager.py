@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from enum import StrEnum
 
+from pydantic import BaseModel
 from sretoolbox.utils import threaded
 
 from reconcile.external_resources.factories import (
@@ -88,6 +89,61 @@ class ReconcileAction(StrEnum):
     DESTROY_ERROR = "Resource status in ERROR state"
 
 
+class ReconciliationStatus(BaseModel):
+    reconcile_time: int = 0
+    resource_status: ResourceStatus
+
+    @property
+    def has_errors(self) -> bool:
+        return self.resource_status == ResourceStatus.ERROR
+
+    @property
+    def needs_secret_sync(self) -> bool:
+        return self.resource_status == ResourceStatus.PENDING_SECRET_SYNC
+
+    def publish_metrics(self, r: Reconciliation, spec: ExternalResourceSpec) -> None:
+        job_name = ReconciliationK8sJob(reconciliation=r).name()
+
+        metrics.set_gauge(
+            ExternalResourcesResourceStatus(
+                app=spec.namespace["app"]["name"],
+                environment=spec.namespace["environment"]["name"],
+                provision_provider=r.key.provision_provider,
+                provisioner_name=r.key.provisioner_name,
+                provider=r.key.provider,
+                identifier=r.key.identifier,
+                job_name=job_name,
+                status=self.resource_status,
+            ),
+            1,
+        )
+        metrics.set_gauge(
+            ExternalResourcesReconcileTimeGauge(
+                app=spec.namespace["app"]["name"],
+                environment=spec.namespace["environment"]["name"],
+                provision_provider=r.key.provision_provider,
+                provisioner_name=r.key.provisioner_name,
+                provider=r.key.provider,
+                identifier=r.key.identifier,
+                job_name=job_name,
+            ),
+            self.reconcile_time,
+        )
+
+        if self.has_errors:
+            metrics.inc_counter(
+                ExternalResourcesReconcileErrorsCounter(
+                    app=spec.namespace["app"]["name"],
+                    environment=spec.namespace["environment"]["name"],
+                    provision_provider=r.key.provision_provider,
+                    provisioner_name=r.key.provisioner_name,
+                    provider=r.key.provider,
+                    identifier=r.key.identifier,
+                    job_name=job_name,
+                )
+            )
+
+
 class ExternalResourcesManager:
     def __init__(
         self,
@@ -150,16 +206,17 @@ class ExternalResourcesManager:
         state: ExternalResourceState,
     ) -> bool:
         reconcile_action = self._get_reconcile_action(reconciliation, state)
-        reconcile = reconcile_action != ReconcileAction.NOOP
-        if reconcile:
-            logging.info(
-                "Reconciling: Status: [%s], Action: [%s], reason: [%s], key:[%s]",
-                state.resource_status.value,
-                reconciliation.action.value,
-                reconcile_action.value,
-                reconciliation.key,
-            )
-        return reconcile
+        if reconcile_action == ReconcileAction.NOOP:
+            return False
+
+        logging.info(
+            "Reconciling: Status: [%s], Action: [%s], reason: [%s], key:[%s]",
+            state.resource_status.value,
+            reconciliation.action.value,
+            reconcile_action.value,
+            reconciliation.key,
+        )
+        return True
 
     def get_all_reconciliations(self) -> dict[str, set[Reconciliation]]:
         """Returns all reconciliations in a dict. Useful to return all data
@@ -212,24 +269,27 @@ class ExternalResourcesManager:
             to_reconcile.add(r)
         return to_reconcile
 
-    def _update_in_progress_state(
-        self, r: Reconciliation, state: ExternalResourceState, job_name: str
-    ) -> bool:
+    def _get_reconciliation_status(
+        self,
+        r: Reconciliation,
+        state: ExternalResourceState,
+    ) -> ReconciliationStatus:
         """Gets the resource reconciliation state from the Job and updates the
         Resource state accordingly. It also returns if the target outputs secret needs
         to be reconciled.
 
         :param r: Reconciliation object
         :param state: State object
-        :return: True/False if target Secret needs to be reconciled.
+        :return: ReconciliationStatus
         """
-        need_secret_sync = False
+
+        status = ReconciliationStatus(resource_status=state.resource_status)
 
         if state.resource_status not in {
             ResourceStatus.DELETE_IN_PROGRESS,
             ResourceStatus.IN_PROGRESS,
         }:
-            return False
+            return status
 
         logging.info(
             "Reconciliation In progress. Action: %s, Key:%s",
@@ -239,7 +299,8 @@ class ExternalResourcesManager:
 
         # Need to check the reconciliation set in the state, not the desired one
         # as the reconciliation object might be from a previous desired state
-        error = False
+        status.resource_status = state.resource_status
+
         match self.reconciler.get_resource_reconcile_status(state.reconciliation):
             case ReconcileStatus.SUCCESS:
                 logging.info(
@@ -248,22 +309,11 @@ class ExternalResourcesManager:
                     r.key,
                 )
                 if r.action == Action.APPLY:
-                    state.resource_status = ResourceStatus.PENDING_SECRET_SYNC
-                    self.state_mgr.set_external_resource_state(state)
-                    need_secret_sync = True
+                    status.resource_status = ResourceStatus.PENDING_SECRET_SYNC
                 elif r.action == Action.DESTROY:
-                    state.resource_status = ResourceStatus.DELETED
-                    self.state_mgr.del_external_resource_state(r.key)
-
-                metrics.set_gauge(
-                    ExternalResourcesReconcileTimeGauge(
-                        provision_provider=r.key.provision_provider,
-                        provisioner_name=r.key.provisioner_name,
-                        provider=r.key.provider,
-                        identifier=r.key.identifier,
-                        job_name=job_name,
-                    ),
-                    self.reconciler.get_resource_reconcile_duration(r) or 0,
+                    status.resource_status = ResourceStatus.DELETED
+                status.reconcile_time = (
+                    self.reconciler.get_resource_reconcile_duration(r) or 0
                 )
             case ReconcileStatus.ERROR:
                 logging.info(
@@ -271,29 +321,40 @@ class ExternalResourcesManager:
                     r.action.value,
                     r.key,
                 )
-                error = True
+                status.resource_status = ResourceStatus.ERROR
             case ReconcileStatus.NOT_EXISTS:
                 logging.info(
                     "Reconciliation should exist but it doesn't. Marking as ERROR to retrigger: Action:%s, Key:%s",
                     r.action.value,
                     r.key,
                 )
-                error = True
-        if error:
-            state.resource_status = ResourceStatus.ERROR
-            self.state_mgr.set_external_resource_state(state)
-            metrics.inc_counter(
-                ExternalResourcesReconcileErrorsCounter(
-                    provision_provider=r.key.provision_provider,
-                    provisioner_name=r.key.provisioner_name,
-                    provider=r.key.provider,
-                    identifier=r.key.identifier,
-                    job_name=job_name,
-                )
-            )
-        return need_secret_sync
+                status.resource_status = ResourceStatus.ERROR
 
-    def _update_state(self, r: Reconciliation, state: ExternalResourceState) -> None:
+        return status
+
+    def _update_resource_state(
+        self,
+        r: Reconciliation,
+        state: ExternalResourceState,
+        status: ReconciliationStatus,
+    ) -> None:
+        # There is no need to update the state
+        # if it's marked in progress
+        if state.resource_status in {
+            ResourceStatus.DELETE_IN_PROGRESS,
+            ResourceStatus.IN_PROGRESS,
+        }:
+            return
+        state.ts = datetime.now(UTC)
+        if status.resource_status == ResourceStatus.DELETED:
+            self.state_mgr.del_external_resource_state(r.key)
+        else:
+            state.resource_status = status.resource_status
+            self.state_mgr.set_external_resource_state(state)
+
+    def _set_resource_reconciliation_in_progress(
+        self, r: Reconciliation, state: ExternalResourceState
+    ) -> None:
         state.ts = datetime.now(UTC)
         if r.action == Action.APPLY:
             state.resource_status = ResourceStatus.IN_PROGRESS
@@ -352,26 +413,18 @@ class ExternalResourcesManager:
         to_sync_keys: set[ExternalResourceKey] = set()
         for r in desired_r.union(deleted_r):
             state = self.state_mgr.get_external_resource_state(r.key)
-            job_name = ReconciliationK8sJob(reconciliation=r).name()
-            need_sync = self._update_in_progress_state(r, state, job_name)
-            if need_sync:
+            status = self._get_reconciliation_status(r, state)
+            self._update_resource_state(r, state, status)
+
+            if status.needs_secret_sync:
                 to_sync_keys.add(r.key)
 
             if self._resource_needs_reconciliation(reconciliation=r, state=state):
                 self.reconciler.reconcile_resource(reconciliation=r)
-                self._update_state(r, state)
+                self._set_resource_reconciliation_in_progress(r, state)
 
-            metrics.set_gauge(
-                ExternalResourcesResourceStatus(
-                    provision_provider=r.key.provision_provider,
-                    provisioner_name=r.key.provisioner_name,
-                    provider=r.key.provider,
-                    identifier=r.key.identifier,
-                    job_name=job_name,
-                    status=state.resource_status,
-                ),
-                1,
-            )
+            if spec := self.er_inventory.get(r.key):
+                status.publish_metrics(r, spec)
 
         pending_sync_keys = self.state_mgr.get_keys_by_status(
             ResourceStatus.PENDING_SECRET_SYNC
