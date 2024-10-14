@@ -107,12 +107,12 @@ class ExternalResource(BaseModel):
     ) -> semver.VersionInfo:
         if isinstance(v, semver.VersionInfo):
             return v
-        return parse_semver(v, optional_minor_and_patch=True)
+        return parse_semver(str(v), optional_minor_and_patch=True)
 
     @root_validator(pre=True)
     def set_resource_engine_version_format(cls, values: dict) -> dict:
         resource_engine_version, resource_engine_version_format = (
-            values.get("resource_engine_version"),
+            str(values.get("resource_engine_version")),
             values.get("resource_engine_version_format"),
         )
         if not resource_engine_version:
