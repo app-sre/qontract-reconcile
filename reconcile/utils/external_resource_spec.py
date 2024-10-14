@@ -94,7 +94,7 @@ class ExternalResourceSpec:
 
     @property
     def marked_to_delete(self) -> bool:
-        return self.metadata.get("delete") or False
+        return self.metadata.get("delete") or self.resource.get("delete") or False
 
     @property
     def provider(self) -> str:
