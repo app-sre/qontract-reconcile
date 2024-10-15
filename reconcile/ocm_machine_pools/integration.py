@@ -13,13 +13,19 @@ from pydantic import (
     root_validator,
 )
 
-from reconcile import mr_client_gateway, queries
+from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
     ClusterSpecAutoScaleV1,
     ClusterV1,
 )
+from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.clusters import get_clusters
+from reconcile.typed_queries.github_orgs import get_github_orgs
+from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
@@ -27,6 +33,8 @@ from reconcile.utils.ocm import (
     OCM,
     OCMMap,
 )
+from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
+from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "ocm-machine-pools"
 
@@ -523,21 +531,44 @@ def _cluster_is_compatible(cluster: ClusterV1) -> bool:
 
 
 def _recuperate_pools(
+    dry_run: bool,
     failed_pools: Mapping[str, list[AbstractPool]],
     clusters: Mapping[str, ClusterV1],
     gitlab_project_id: str,
+    secret_reader: SecretReaderBase,
 ) -> None:
     # Doing the import here to prevent circular imports errors
-    # machine_pools_updates is importing AbtractPool which is defined here
-    import reconcile.utils.mr.machine_pools_updates as mpu
+    # merge_request_manager is importing AbtractPool which is defined here
+    from reconcile.ocm_machine_pools.machine_pools_updates import (
+        Renderer,
+        create_parser,
+    )
+    from reconcile.ocm_machine_pools.merge_request_manager import (
+        MachinePoolsUpdateMR,
+        MrData,
+    )
+
+    vcs = VCS(
+        secret_reader=secret_reader,
+        github_orgs=get_github_orgs(),
+        gitlab_instances=get_gitlab_instances(),
+        app_interface_repo_url=get_app_interface_repo_url(),
+        dry_run=dry_run,
+        allow_deleting_mrs=False,
+        allow_opening_mrs=True,
+    )
+
+    mr_manager = MachinePoolsUpdateMR(
+        vcs=vcs,
+        renderer=Renderer,
+        parser=create_parser(),
+        auto_merge_enabled=True,
+    )
+
+    mr_manager._fetch_managed_open_merge_requests()
 
     for cluster_name, pools in failed_pools.items():
-        mr = mpu.CreateMachinePoolsUpdate(
-            machine_pools_updates=pools, cluster=clusters[cluster_name]
-        )
-
-        with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
-            mr.submit(cli=mr_cli)
+        mr_manager.create_merge_request(MrData)
 
 
 def run(dry_run: bool, gitlab_project_id: str):
@@ -572,7 +603,15 @@ def run(dry_run: bool, gitlab_project_id: str):
 
     if failed_for_subnet:
         cluster_map = {c.name: c for c in filtered_clusters}
-        _recuperate_pools(failed_for_subnet, cluster_map, gitlab_project_id)
+        vault_settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+        _recuperate_pools(
+            dry_run=dry_run,
+            failed_pools=failed_for_subnet,
+            clusters=cluster_map,
+            gitlab_project_id=gitlab_project_id,
+            secret_reader=secret_reader,
+        )
 
     act(dry_run, diffs, ocm_map)
 
