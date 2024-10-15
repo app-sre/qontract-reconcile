@@ -11,12 +11,19 @@ from reconcile.typed_queries.cost_report.cost_namespaces import (
 )
 from reconcile.utils import gql
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
-from tools.cli_commands.cost_report.model import OptimizationReport, OptimizationReportItem
+from tools.cli_commands.cost_report.model import (
+    OptimizationReport,
+    OptimizationReportItem,
+)
 from tools.cli_commands.cost_report.response import (
-    OpenShiftCostOptimizationReportResponse, OpenShiftCostOptimizationResponse, ResourceConfigResponse,
+    OpenShiftCostOptimizationReportResponse,
+    OpenShiftCostOptimizationResponse,
+    ResourceConfigResponse,
 )
 from tools.cli_commands.cost_report.util import fetch_cost_report_secret
-from tools.cli_commands.cost_report.view import render_openshift_cost_optimization_report
+from tools.cli_commands.cost_report.view import (
+    render_openshift_cost_optimization_report,
+)
 
 THREAD_POOL_SIZE = 10
 
@@ -124,7 +131,9 @@ class OpenShiftCostOptimizationReportCommand:
             recommend_cpu_limit=self._build_resource_config(recommend.limits.cpu),
             recommend_cpu_request=self._build_resource_config(recommend.requests.cpu),
             recommend_memory_limit=self._build_resource_config(recommend.limits.memory),
-            recommend_memory_request=self._build_resource_config(recommend.requests.memory),
+            recommend_memory_request=self._build_resource_config(
+                recommend.requests.memory
+            ),
         )
 
     @staticmethod
