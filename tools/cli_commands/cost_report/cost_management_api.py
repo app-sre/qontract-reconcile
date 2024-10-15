@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from typing import Self
 
+from requests import Response
 from urllib3.util import Retry
 
 from reconcile.utils.oauth2_backend_application_session import (
@@ -14,6 +15,7 @@ from tools.cli_commands.cost_report.response import (
 )
 
 REQUEST_TIMEOUT = 60
+PAGE_LIMIT = 100
 
 
 class CostManagementApi(ApiBase):
@@ -99,6 +101,7 @@ class CostManagementApi(ApiBase):
         params = {
             "cluster": cluster,
             "project": project,
+            "limit": PAGE_LIMIT,
         }
         response = self.session.request(
             method="GET",
@@ -107,7 +110,26 @@ class CostManagementApi(ApiBase):
             timeout=self.read_timeout,
         )
         response.raise_for_status()
-        return OpenShiftCostOptimizationReportResponse.parse_obj(response.json())
+
+        data = self._get_paginated(response)
+        return OpenShiftCostOptimizationReportResponse.parse_obj(data)
+
+    def _get_paginated(
+        self,
+        response: Response,
+    ) -> dict[str, list]:
+        body = response.json()
+        data = body.get("data", [])
+
+        while next_url := body.get("links", {}).get("next"):
+            r = self.session.request(
+                method="GET", url=next_url, timeout=self.read_timeout
+            )
+            r.raise_for_status()
+            body = r.json()
+            data.extend(body.get("data", []))
+
+        return {"data": data}
 
     @classmethod
     def create_from_secret(
