@@ -151,14 +151,14 @@ from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from tools.cli_commands.cost_report.aws import AwsCostReportCommand
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
+from tools.cli_commands.cost_report.openshift_cost_optimization import (
+    OpenShiftCostOptimizationReportCommand,
+)
 from tools.cli_commands.erv2 import (
     Erv2Cli,
     TerraformCli,
     progress_spinner,
     task,
-)
-from tools.cli_commands.cost_report.openshift_cost_optimization import (
-    OpenShiftCostOptimizationReportCommand,
 )
 from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,

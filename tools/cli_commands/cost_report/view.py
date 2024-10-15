@@ -1,10 +1,10 @@
-from collections.abc import Callable, Mapping, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel
 
-from tools.cli_commands.cost_report.model import Report, OptimizationReport
+from tools.cli_commands.cost_report.model import OptimizationReport, Report
 
 LAYOUT = """\
 [TOC]
@@ -454,14 +454,38 @@ def render_optimization(
         fields=[
             TableField(key="namespace", label="Namespace", sortable=True),
             TableField(key="workload", label="Workload", sortable=True),
-            TableField(key="current_cpu_request", label="Current CPU Request", sortable=True),
-            TableField(key="recommend_cpu_request", label="Recommend CPU Request", sortable=True),
-            TableField(key="current_cpu_limit", label="Current CPU Limit", sortable=True),
-            TableField(key="recommend_cpu_limit", label="Recommend CPU Limit", sortable=True),
-            TableField(key="current_memory_request", label="Current Memory Request", sortable=True),
-            TableField(key="recommend_memory_request", label="Recommend Memory Request", sortable=True),
-            TableField(key="current_memory_limit", label="Current Memory Limit", sortable=True),
-            TableField(key="recommend_memory_limit", label="Recommend Memory Limit", sortable=True),
+            TableField(
+                key="current_cpu_request", label="Current CPU Request", sortable=True
+            ),
+            TableField(
+                key="recommend_cpu_request",
+                label="Recommend CPU Request",
+                sortable=True,
+            ),
+            TableField(
+                key="current_cpu_limit", label="Current CPU Limit", sortable=True
+            ),
+            TableField(
+                key="recommend_cpu_limit", label="Recommend CPU Limit", sortable=True
+            ),
+            TableField(
+                key="current_memory_request",
+                label="Current Memory Request",
+                sortable=True,
+            ),
+            TableField(
+                key="recommend_memory_request",
+                label="Recommend Memory Request",
+                sortable=True,
+            ),
+            TableField(
+                key="current_memory_limit", label="Current Memory Limit", sortable=True
+            ),
+            TableField(
+                key="recommend_memory_limit",
+                label="Recommend Memory Limit",
+                sortable=True,
+            ),
         ],
     )
     return OPTIMIZATION.format(

@@ -6,7 +6,10 @@ from pytest_mock import MockerFixture
 
 from reconcile.typed_queries.cost_report.app_names import App
 from reconcile.typed_queries.cost_report.cost_namespaces import CostNamespace
-from tools.cli_commands.cost_report.model import OptimizationReportItem, OptimizationReport
+from tools.cli_commands.cost_report.model import (
+    OptimizationReport,
+    OptimizationReportItem,
+)
 from tools.cli_commands.cost_report.openshift_cost_optimization import (
     OpenShiftCostOptimizationReportCommand,
 )
@@ -159,21 +162,23 @@ def test_openshift_cost_optimization_report_get_reports(
 
 APP_REPORT = OptimizationReport(
     app_name=APP.name,
-    items=[OptimizationReportItem(
-        cluster=APP_NAMESPACE.cluster_name,
-        project=APP_NAMESPACE.name,
-        workload="test-deployment",
-        workload_type="deployment",
-        container="test",
-        current_cpu_limit="4",
-        current_cpu_request="1",
-        current_memory_limit="5Gi",
-        current_memory_request="400Mi",
-        recommend_cpu_request="3",
-        recommend_cpu_limit="5",
-        recommend_memory_request="700Mi",
-        recommend_memory_limit="6Gi",
-    )]
+    items=[
+        OptimizationReportItem(
+            cluster=APP_NAMESPACE.cluster_name,
+            project=APP_NAMESPACE.name,
+            workload="test-deployment",
+            workload_type="deployment",
+            container="test",
+            current_cpu_limit="4",
+            current_cpu_request="1",
+            current_memory_limit="5Gi",
+            current_memory_request="400Mi",
+            recommend_cpu_request="3",
+            recommend_cpu_limit="5",
+            recommend_memory_request="700Mi",
+            recommend_memory_limit="6Gi",
+        )
+    ],
 )
 
 
