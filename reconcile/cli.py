@@ -2718,15 +2718,13 @@ def ocm_addons_upgrade_tests_trigger(ctx):
 
 
 @integration.command(short_help="Manage Machine Pools in OCM.")
-@gitlab_project_id
 @click.pass_context
-def ocm_machine_pools(ctx, gitlab_project_id: str):
+def ocm_machine_pools(ctx):
     import reconcile.ocm_machine_pools.integration
 
     run_integration(
         reconcile.ocm_machine_pools.integration,
         ctx.obj,
-        gitlab_project_id=gitlab_project_id,
     )
 
 
