@@ -47,7 +47,12 @@ rosa create cluster --cluster-name={{ cluster_name }} \
     --service-cidr {{ cluster.network.service }} \
     --pod-cidr {{ cluster.network.pod }} \
     --host-prefix 23 \
-    --replicas {{ cluster.machine_pools | length }} \
+    {#
+        Due to rosa create cluster limitation, not managing independent worker pool at creation, we need a bit of a bet here:
+        - fixed capacity (no autoscaling)
+        - same replicas count in each declared workers-* machinepool, so we get a multiple of 3
+    -#}
+    --replicas {{ cluster.machine_pools | selectattr("id", "in", ["workers-0", "workers-1", "workers-2"]) | sum(attribute='replicas') | default(0) }} \
     --compute-machine-type {{ cluster.machine_pools[0].instance_type }} \
     {% if cluster.spec.private -%}
     --private \

@@ -46,6 +46,7 @@ spec:
 machinePools:
 - id: worker
   instance_type: m5.xlarge
+  replicas: 3
 network:
   type: OpenShiftSDN
   vpc: 10.0.0.0/16

@@ -46,8 +46,9 @@ spec:
   - us-east-1b
   - us-east-1c
 machinePools:
-- id: worker
+- id: workers-0
   instance_type: m5.xlarge
+  replicas: 3
 network:
   type: OpenShiftSDN
   vpc: 10.0.0.0/16
