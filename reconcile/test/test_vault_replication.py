@@ -504,20 +504,19 @@ def test_get_policy_secret_list(mocker):
     vault_client.list_all.side_effect = [
         ["policy/path/1/secret1", "policy/path/1/secret2"],
         ["policy/path/2/secret1", "policy/path/2/secret2"],
-        ["my-policy/path_to_it/3/secret1"],
     ]
 
     assert set(
         integ.get_policy_secret_list(
             vault_client,
-            ["policy/path/1/*", "policy/path/2/*", "policy/path/3/secret1"],
+            ["policy/path/1/*", "policy/path/2/*", "policy/p-a_th/3/secret1_1-1"],
         )
     ) == {
         "policy/path/1/secret1",
         "policy/path/1/secret2",
         "policy/path/2/secret1",
         "policy/path/2/secret2",
-        "policy/path/3/secret1",
+        "policy/p-a_th/3/secret1_1-1",
     }
 
 
