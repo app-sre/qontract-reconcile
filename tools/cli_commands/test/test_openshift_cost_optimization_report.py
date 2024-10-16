@@ -16,6 +16,7 @@ from tools.cli_commands.cost_report.openshift_cost_optimization import (
 from tools.cli_commands.test.conftest import (
     COST_REPORT_SECRET,
     OPENSHIFT_COST_OPTIMIZATION_RESPONSE,
+    OPENSHIFT_COST_OPTIMIZATION_WITH_FUZZY_MATCH_RESPONSE,
 )
 
 
@@ -99,7 +100,7 @@ APP_NAMESPACE = CostNamespace(
     name="some-project",
     app_name=APP.name,
     cluster_name="some-cluster",
-    cluster_external_id="cluster_external_id",
+    cluster_external_id="some-cluster-uuid",
 )
 
 
@@ -149,6 +150,24 @@ def test_openshift_cost_optimization_report_get_reports(
     mocked_api = mock_cost_management_api.create_from_secret.return_value
     mocked_api.get_openshift_cost_optimization_report.return_value = (
         OPENSHIFT_COST_OPTIMIZATION_RESPONSE
+    )
+
+    reports = openshift_cost_optimization_report_command.get_reports([APP_NAMESPACE])
+
+    assert reports == {APP_NAMESPACE: OPENSHIFT_COST_OPTIMIZATION_RESPONSE}
+    mocked_api.get_openshift_cost_optimization_report.assert_called_once_with(
+        project=APP_NAMESPACE.name,
+        cluster=APP_NAMESPACE.cluster_external_id,
+    )
+
+
+def test_openshift_cost_optimization_report_get_reports_with_fuzzy_results(
+    openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
+    mock_cost_management_api: Any,
+) -> None:
+    mocked_api = mock_cost_management_api.create_from_secret.return_value
+    mocked_api.get_openshift_cost_optimization_report.return_value = (
+        OPENSHIFT_COST_OPTIMIZATION_WITH_FUZZY_MATCH_RESPONSE
     )
 
     reports = openshift_cost_optimization_report_command.get_reports([APP_NAMESPACE])
