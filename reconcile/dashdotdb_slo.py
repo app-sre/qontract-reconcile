@@ -136,6 +136,7 @@ class DashdotdbSLO(DashdotdbBase):
                 template = jinja2.Template(expr)
                 window = slo.slo_parameters.window
                 promquery = template.render({"window": window})
+
                 try:
                     prom_response = self._promget(
                         url=promurl,
@@ -149,9 +150,19 @@ class DashdotdbSLO(DashdotdbBase):
                     # and some prometheus URL are openshift service names. The trick is to run
                     # with `oc port-forward` and update the local hosts file if we need to query those.
                     LOG.error(
-                        f"{self.logmarker} Could not reach prometheus at {promurl}: {error}. Skipping {slo.name}"
+                        f"{self.logmarker} Could not reach prometheus at {promurl}: {error}."
+                        f"Skipping SLOs from SLO doc {slo_document.name}"
                     )
+                    # cannot connect to this prometheus, skip all
                     raise
+                except requests.exceptions.HTTPError as error:
+                    LOG.error(
+                        f"{self.logmarker} Error wile querying {promurl}: {error}."
+                        f"Skipping SLO '{slo.name} from SLO doc {slo_document.name}"
+                    )
+                    # it could be a query issue, keep processing other SLOs from this doc
+                    continue
+
                 prom_result = prom_response["data"]["result"]
                 if not prom_result:
                     continue
