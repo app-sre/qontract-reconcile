@@ -464,7 +464,7 @@ def setup_mocks(
 def test_run_no_action(mocker: MockerFixture) -> None:
     mocks = setup_mocks(mocker, clusters=[])
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["get_clusters"].assert_called_once_with()
     mocks["OCMMap"].assert_not_called()
@@ -608,7 +608,7 @@ def test_run_create_machine_pool_for_osd_cluster(
         machine_pools=[default_worker_machine_pool],
     )
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["OCM"].create_machine_pool.assert_called_once_with(
         osd_cluster_with_default_and_new_machine_pools.name,
@@ -628,7 +628,7 @@ def test_run_create_machine_pool_for_rosa_cluster(
         machine_pools=[default_worker_machine_pool],
     )
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["OCM"].create_machine_pool.assert_called_once_with(
         rosa_cluster_with_default_and_new_machine_pools.name,
@@ -669,7 +669,7 @@ def test_run_update_machine_pool_for_osd_cluster(
         machine_pools=[existing_updated_default_machine_pool],
     )
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["OCM"].update_machine_pool.assert_called_once_with(
         osd_cluster_with_default_machine_pool.name,
@@ -689,7 +689,7 @@ def test_run_update_machine_pool_for_rosa_cluster(
         machine_pools=[existing_updated_default_machine_pool],
     )
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["OCM"].update_machine_pool.assert_called_once_with(
         rosa_cluster_with_default_machine_pool.name,
@@ -718,7 +718,7 @@ def test_run_update_machine_pool_error_for_osd_cluster(
     )
 
     with pytest.raises(ExceptionGroup) as eg:
-        run(False, "gitlab_id")
+        run(False)
 
     assert len(eg.value.exceptions) == 1
     assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
@@ -736,7 +736,7 @@ def test_run_update_machine_pool_error_for_rosa_cluster(
     )
 
     with pytest.raises(ExceptionGroup) as eg:
-        run(False, "gitlab_id")
+        run(False)
 
     assert len(eg.value.exceptions) == 1
     assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
@@ -769,7 +769,7 @@ def test_run_delete_machine_pool_for_osd_cluster(
         machine_pools=[default_worker_machine_pool, new_workers_machine_pool],
     )
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["OCM"].delete_machine_pool.assert_called_once_with(
         osd_cluster_with_default_machine_pool.name,
@@ -790,7 +790,7 @@ def test_run_delete_machine_pool_for_rosa_cluster(
         machine_pools=[default_worker_machine_pool, new_workers_machine_pool],
     )
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["OCM"].delete_machine_pool.assert_called_once_with(
         rosa_cluster_with_default_machine_pool.name,
@@ -824,7 +824,7 @@ def test_run_delete_machine_pool_fail_validation_for_osd_cluster(
     )
 
     with pytest.raises(ExceptionGroup) as eg:
-        run(False, "gitlab_id")
+        run(False)
 
     assert len(eg.value.exceptions) == 1
     assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
@@ -842,7 +842,7 @@ def test_run_delete_machine_pool_fail_validation_for_rosa_cluster(
     )
 
     with pytest.raises(ExceptionGroup) as eg:
-        run(False, "gitlab_id")
+        run(False)
 
     assert len(eg.value.exceptions) == 1
     assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
@@ -877,7 +877,7 @@ def test_run_delete_default_machine_pool_fail_validation_for_osd_cluster(
     )
 
     with pytest.raises(ExceptionGroup) as eg:
-        run(False, "gitlab_id")
+        run(False)
 
     assert len(eg.value.exceptions) == 1
     assert isinstance(eg.value.exceptions[0], InvalidUpdateError)
@@ -895,7 +895,7 @@ def test_run_delete_default_machine_pool_success_for_rosa_cluster(
         machine_pools=[default_worker_machine_pool, new_workers_machine_pool],
     )
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["OCM"].delete_machine_pool.assert_called_once()
 
@@ -966,7 +966,7 @@ def test_run_create_node_pool(
 ) -> None:
     mocks = setup_mocks(mocker, clusters=[hypershift_cluster])
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["OCM"].create_node_pool.assert_called_once_with(
         hypershift_cluster.name,
@@ -1008,7 +1008,7 @@ def test_run_update_node_pool(
         node_pools=existing_updated_hypershift_node_pools,
     )
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["OCM"].update_node_pool.assert_called_once_with(
         hypershift_cluster.name,
@@ -1070,7 +1070,7 @@ def test_run_delete_node_pool(
         node_pools=existing_multiple_hypershift_node_pools,
     )
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["OCM"].delete_node_pool.assert_called_once_with(
         hypershift_cluster.name,
@@ -1131,6 +1131,6 @@ def test_run_delete_default_node_pool(
         node_pools=existing_multiple_hypershift_node_pools_with_defaults,
     )
 
-    run(False, "gitlab_id")
+    run(False)
 
     mocks["OCM"].delete_node_pool.assert_called()
