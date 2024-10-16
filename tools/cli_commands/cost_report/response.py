@@ -70,7 +70,7 @@ class OpenShiftReportCostResponse(BaseModel):
 
 
 class ResourceConfigResponse(BaseModel):
-    amount: float
+    amount: float | None = None
     format: str | None = None
 
 
