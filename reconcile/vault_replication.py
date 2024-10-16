@@ -34,6 +34,7 @@ from reconcile.utils.vault import (
 )
 
 QONTRACT_INTEGRATION = "vault-replication"
+SECRET_PATH_PATTERN = re.compile(r"^[\w/-]+?(?P<folder>/\*?)?$")
 
 
 class VaultInvalidPaths(Exception):
@@ -232,14 +233,21 @@ def get_policy_secret_list(
     vault_instance: _VaultClient, policy_paths: Iterable[str]
 ) -> list[str]:
     """Returns a list of secrets to be copied from the given policy"""
-    secret_list = []
+    secrets = set()
     for path in policy_paths:
-        # Remove the * at the end of the path because list method expects
-        # a folder path without any secret or wilcard
-        path = path[:-1] if path.endswith("*") else path
-        secret_list.extend(vault_instance.list_all(path))
+        match = SECRET_PATH_PATTERN.match(path)
+        if not match:
+            logging.error(["get_policy_secret_list", "Invalid path to replicate", path])
+            raise VaultInvalidPaths
 
-    return secret_list
+        if match.group("folder"):
+            # Remove the * at the end of the path because list method expects
+            # a folder path without any secret or wilcard
+            secrets.update(vault_instance.list_all(path.rstrip("*")))
+        else:
+            secrets.add(path)
+
+    return list(secrets)
 
 
 def get_jenkins_secret_list(
