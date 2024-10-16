@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from typing import Self
+from urllib.parse import urljoin, urlparse
 
 from requests import Response
 from urllib3.util import Retry
@@ -44,8 +45,11 @@ class CostManagementApi(ApiBase):
             backoff_factor=15,  # large backoff required for server-side processing
             status_forcelist=[500, 502, 503, 504],
         )
+        self.base_url = base_url
+        parsed_url = urlparse(base_url)
+        host = f"{parsed_url.scheme}://{parsed_url.netloc}/"
         super().__init__(
-            host=base_url,
+            host=host,
             session=session,
             read_timeout=REQUEST_TIMEOUT,
             max_retries=max_retries,
@@ -63,7 +67,7 @@ class CostManagementApi(ApiBase):
         }
         response = self.session.request(
             method="GET",
-            url=f"{self.host}/reports/aws/costs/",
+            url=f"{self.base_url}/reports/aws/costs/",
             params=params,
             timeout=self.read_timeout,
         )
@@ -86,7 +90,7 @@ class CostManagementApi(ApiBase):
         }
         response = self.session.request(
             method="GET",
-            url=f"{self.host}/reports/openshift/costs/",
+            url=f"{self.base_url}/reports/openshift/costs/",
             params=params,
             timeout=self.read_timeout,
         )
@@ -105,7 +109,7 @@ class CostManagementApi(ApiBase):
         }
         response = self.session.request(
             method="GET",
-            url=f"{self.host}/recommendations/openshift",
+            url=f"{self.base_url}/recommendations/openshift",
             params=params,
             timeout=self.read_timeout,
         )
@@ -123,7 +127,9 @@ class CostManagementApi(ApiBase):
 
         while next_url := body.get("links", {}).get("next"):
             r = self.session.request(
-                method="GET", url=next_url, timeout=self.read_timeout
+                method="GET",
+                url=urljoin(self.host, next_url),
+                timeout=self.read_timeout,
             )
             r.raise_for_status()
             body = r.json()

@@ -168,14 +168,14 @@ class ViewChildAppReport(BaseModel):
 class ViewOptimizationReportItem(BaseModel):
     namespace: str
     workload: str
-    current_cpu_limit: str
-    current_cpu_request: str
-    current_memory_limit: str
-    current_memory_request: str
-    recommend_cpu_limit: str
-    recommend_cpu_request: str
-    recommend_memory_limit: str
-    recommend_memory_request: str
+    current_cpu_limit: str | None
+    current_cpu_request: str | None
+    current_memory_limit: str | None
+    current_memory_request: str | None
+    recommend_cpu_limit: str | None
+    recommend_cpu_request: str | None
+    recommend_memory_limit: str | None
+    recommend_memory_request: str | None
 
 
 def format_cost_value(value: Decimal) -> str:

@@ -25,6 +25,7 @@ from tools.cli_commands.cost_report.response import (
     TotalMetaResponse,
 )
 from tools.cli_commands.test.conftest import (
+    COST_MANAGEMENT_API_HOST,
     COST_REPORT_SECRET,
     OPENSHIFT_COST_OPTIMIZATION_RESPONSE,
 )
@@ -40,7 +41,7 @@ def mock_session(mocker: MockerFixture) -> Any:
 
 @pytest.fixture
 def base_url(httpserver: HTTPServer) -> str:
-    return httpserver.url_for("")
+    return httpserver.url_for("/")
 
 
 TOKEN_URL = "token_url"
@@ -54,7 +55,8 @@ def test_cost_management_api_create_from_secret(
 ) -> None:
     api = CostManagementApi.create_from_secret(COST_REPORT_SECRET)
 
-    assert api.host == COST_REPORT_SECRET["api_base_url"]
+    assert api.host == COST_MANAGEMENT_API_HOST
+    assert api.base_url == COST_REPORT_SECRET["api_base_url"]
     assert api.session == mock_session.return_value
     mock_session.assert_called_once_with(
         client_id=CLIENT_ID,
@@ -74,7 +76,7 @@ def test_cost_management_api_init(mock_session: Any, base_url: str) -> None:
     ) as api:
         pass
 
-    assert api.host == base_url
+    assert api.base_url == base_url
     assert api.session == mock_session.return_value
 
     mock_session.assert_called_once_with(
@@ -156,7 +158,10 @@ EXPECTED_REPORT_COST_RESPONSE = AwsReportCostResponse(
 
 
 def test_get_aws_costs_report(
-    cost_management_api: CostManagementApi, fx: Callable, httpserver: HTTPServer
+    cost_management_api: CostManagementApi,
+    fx: Callable,
+    httpserver: HTTPServer,
+    base_url: str,
 ) -> None:
     response_body = fx("aws_cost_report.json")
     httpserver.expect_request(
@@ -289,6 +294,7 @@ def test_get_openshift_cost_optimization_report(
         query_string={
             "cluster": cluster,
             "project": project,
+            "limit": "100",
         },
     ).respond_with_data(response_body)
 

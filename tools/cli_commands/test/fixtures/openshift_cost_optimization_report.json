@@ -184,9 +184,8 @@
     "offset": 0
   },
   "links": {
-    "first": "string",
-    "previous": "string",
-    "next": "string",
-    "last": "string"
+    "first": "",
+    "previous": "",
+    "last": ""
   }
 }

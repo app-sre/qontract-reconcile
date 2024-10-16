@@ -29,8 +29,10 @@ COST_MANAGEMENT_CONSOLE_BASE_URL = (
     "https://console.redhat.com/openshift/cost-management"
 )
 
+COST_MANAGEMENT_API_HOST = "https://host/"
+
 COST_REPORT_SECRET = {
-    "api_base_url": "base_url",
+    "api_base_url": f"{COST_MANAGEMENT_API_HOST}/v1",
     "token_url": "token_url",
     "client_id": "client_id",
     "client_secret": "client_secret",

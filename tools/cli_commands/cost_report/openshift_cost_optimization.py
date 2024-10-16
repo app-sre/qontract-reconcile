@@ -163,7 +163,9 @@ class OpenShiftCostOptimizationReportCommand:
         )
 
     @staticmethod
-    def _build_resource_config(response: ResourceConfigResponse) -> str:
+    def _build_resource_config(response: ResourceConfigResponse) -> str | None:
+        if response.amount is None:
+            return None
         if response.format is None:
             return str(round(response.amount))
         return f"{round(response.amount)}{response.format}"
