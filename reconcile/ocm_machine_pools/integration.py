@@ -1,23 +1,27 @@
 import logging
-from abc import (
-    ABC,
-    abstractmethod,
-)
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
-from enum import Enum
 
 from pydantic import (
     BaseModel,
-    Field,
     root_validator,
 )
 
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
-    ClusterSpecAutoScaleV1,
     ClusterV1,
+)
+from reconcile.ocm_machine_pools.abstract_autoscaling import AbstractAutoscaling
+from reconcile.ocm_machine_pools.abstract_pool import AbstractPool
+from reconcile.ocm_machine_pools.cluster_type import ClusterType
+from reconcile.ocm_machine_pools.machine_pools_updates import (
+    Renderer,
+    create_parser,
+)
+from reconcile.ocm_machine_pools.merge_request_manager import (
+    MachinePoolsUpdateMR,
+    MrData,
 )
 from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -39,30 +43,8 @@ from reconcile.utils.vcs import VCS
 QONTRACT_INTEGRATION = "ocm-machine-pools"
 
 
-class ClusterType(Enum):
-    OSD = "osd"
-    ROSA_CLASSIC = "rosa"
-    ROSA_HCP = "hypershift"
-
-
 class InvalidUpdateError(Exception):
     pass
-
-
-class AbstractAutoscaling(BaseModel):
-    def has_diff(self, autoscale: ClusterSpecAutoScaleV1) -> bool:
-        return (
-            self.get_min() != autoscale.min_replicas
-            or self.get_max() != autoscale.max_replicas
-        )
-
-    @abstractmethod
-    def get_min(self):
-        pass
-
-    @abstractmethod
-    def get_max(self):
-        pass
 
 
 class MachinePoolAutoscaling(AbstractAutoscaling):
@@ -99,59 +81,6 @@ class NodePoolAutoscaling(AbstractAutoscaling):
 
     def get_max(self) -> int:
         return self.max_replica
-
-
-class AbstractPool(ABC, BaseModel):
-    # Abstract class for machine pools, to be implemented by OSD/HyperShift classes
-
-    id: str
-    replicas: int | None
-    taints: list[Mapping[str, str]] | None
-    labels: Mapping[str, str] | None
-    cluster: str
-    cluster_type: ClusterType = Field(..., exclude=True)
-    autoscaling: AbstractAutoscaling | None
-    subnet: str | None
-
-    @root_validator()
-    @classmethod
-    def validate_scaling(cls, field_values):
-        if field_values.get("autoscaling") and field_values.get("replicas"):
-            raise ValueError("autoscaling and replicas are mutually exclusive")
-        return field_values
-
-    @abstractmethod
-    def create(self, ocm: OCM) -> None:
-        pass
-
-    @abstractmethod
-    def delete(self, ocm: OCM) -> None:
-        pass
-
-    @abstractmethod
-    def update(self, ocm: OCM) -> None:
-        pass
-
-    @abstractmethod
-    def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
-        pass
-
-    @abstractmethod
-    def invalid_diff(self, pool: ClusterMachinePoolV1) -> str | None:
-        pass
-
-    @abstractmethod
-    def deletable(self) -> bool:
-        pass
-
-    def _has_diff_autoscale(self, pool):
-        match (self.autoscaling, pool.autoscale):
-            case (None, None):
-                return False
-            case (None, _) | (_, None):
-                return True
-            case _:
-                return self.autoscaling.has_diff(pool.autoscale)
 
 
 class MachinePool(AbstractPool):
@@ -534,19 +463,18 @@ def _recuperate_pools(
     dry_run: bool,
     failed_pools: Mapping[str, list[AbstractPool]],
     clusters: Mapping[str, ClusterV1],
-    gitlab_project_id: str,
     secret_reader: SecretReaderBase,
 ) -> None:
     # Doing the import here to prevent circular imports errors
     # merge_request_manager is importing AbtractPool which is defined here
-    from reconcile.ocm_machine_pools.machine_pools_updates import (
-        Renderer,
-        create_parser,
-    )
-    from reconcile.ocm_machine_pools.merge_request_manager import (
-        MachinePoolsUpdateMR,
-        MrData,
-    )
+    # from reconcile.ocm_machine_pools.machine_pools_updates import (
+    #     Renderer,
+    #     create_parser,
+    # )
+    # from reconcile.ocm_machine_pools.merge_request_manager import (
+    #     MachinePoolsUpdateMR,
+    #     MrData,
+    # )
 
     vcs = VCS(
         secret_reader=secret_reader,
@@ -560,7 +488,7 @@ def _recuperate_pools(
 
     mr_manager = MachinePoolsUpdateMR(
         vcs=vcs,
-        renderer=Renderer,
+        renderer=Renderer(),
         parser=create_parser(),
         auto_merge_enabled=True,
     )
@@ -568,10 +496,15 @@ def _recuperate_pools(
     mr_manager._fetch_managed_open_merge_requests()
 
     for cluster_name, pools in failed_pools.items():
-        mr_manager.create_merge_request(MrData)
+        mr_manager.create_merge_request(
+            MrData(
+                cluster=clusters[cluster_name],
+                machine_pools=pools,
+            )
+        )
 
 
-def run(dry_run: bool, gitlab_project_id: str):
+def run(dry_run: bool):
     clusters = get_clusters()
 
     filtered_clusters = [
@@ -609,7 +542,6 @@ def run(dry_run: bool, gitlab_project_id: str):
             dry_run=dry_run,
             failed_pools=failed_for_subnet,
             clusters=cluster_map,
-            gitlab_project_id=gitlab_project_id,
             secret_reader=secret_reader,
         )
 
