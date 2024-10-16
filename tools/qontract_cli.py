@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import sys
+import textwrap
 from collections import defaultdict
 from datetime import (
     UTC,
@@ -1372,53 +1373,70 @@ def aws_creds(ctx, account_name):
 
 
 @root.command()
-@click.argument("account_name")
-@click.argument("bucket")
-@click.argument("src")
-@click.argument("dest")
-@click.argument("region", required=False, default="us-east-1")
+@click.option(
+    "--account-uid",
+    help="account UID of the account that owns the bucket",
+    required=True,
+)
+@click.option(
+    "--source-bucket",
+    help="aws bucket where the source statefile is stored",
+    required=True,
+)
+@click.option(
+    "--source-object-path",
+    help="path in the bucket where the statefile is stored",
+    required=True,
+)
+@click.option(
+    "--rename",
+    help="optionally rename the destination repo, otherwise keep the same name for the new location",
+)
+@click.option("--region", help="AWS region")
 @click.option(
     "--force/--no-force",
     help="Force the copy even if a statefile already exists at the destination",
     default=False,
 )
 @click.pass_context
-def copy_tfstate(ctx, account_name, bucket, src, dest, region, force):
-    """copy a manually managed terraform state file to the correct location expected by
-    the terraform-repo integration.
-
-    SRC should include the full filename including the extension
-
-    DEST should include the filename without extension.
-    """
+def copy_tfstate(
+    ctx, source_bucket, source_object_path, account_uid, rename, region, force
+):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
-    accounts = queries.get_aws_accounts(name=account_name, terraform_state=True)
+    accounts = queries.get_aws_accounts(uid=account_uid, terraform_state=True)
     if not accounts:
-        print(f"{account_name} not found.")
+        print(f"{account_uid} not found in App-Interface.")
         sys.exit(1)
     account = accounts[0]
 
-    state_key = [
+    # terraform repo stores its statefiles within a "folder" in AWS S3 which is defined in App-Interface
+    dest_folder = [
         i
         for i in account["terraformState"]["integrations"]
         if i["integration"] == "terraform-repo"
     ]
-    if len(state_key) == 0:
+    if len(dest_folder) == 0:
         logging.error(
-            "terraform-repo is missing a section in this account's '/dependencies/terraform-state-1.yml' file, please add one using the docs in https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/terraform-repo/sop/migrating-existing-state.md?ref_type=heads and then try again"
+            "terraform-repo is missing a section in this account's '/dependencies/terraform-state-1.yml' file, please add one using the docs in https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/terraform-repo/getting-started.md?ref_type=heads#step-1-setup-aws-account and then try again"
         )
         return
 
-    dest_key = f"{state_key[0]['key']}/{dest}-tf-repo.tfstate"
+    dest_filename = ""
+    if rename:
+        dest_filename = rename.removesuffix(".tfstate")
+    else:
+        dest_filename = source_object_path.removesuffix(".tfstate")
+
+    dest_key = f"{dest_folder[0]['key']}/{dest_filename}-tf-repo.tfstate"
     dest_bucket = account["terraformState"]["bucket"]
 
     with AWSApi(1, accounts, settings, secret_reader) as aws:
-        session = aws.get_session(account_name)
+        session = aws.get_session(account["name"])
         s3_client = aws.get_session_client(session, "s3", region)
         copy_source = {
-            "Bucket": bucket,
-            "Key": src,
+            "Bucket": source_bucket,
+            "Key": source_object_path,
         }
 
         dest_pretty_path = f"s3://{dest_bucket}/{dest_key}"
@@ -1438,10 +1456,25 @@ def copy_tfstate(ctx, account_name, bucket, src, dest, region, force):
                 )
                 return
 
-        prompt_text = f"Are you sure you want to copy 's3://{bucket}/{src}' to '{dest_pretty_path}'?"
+        prompt_text = f"Are you sure you want to copy 's3://{source_bucket}/{source_object_path}' to '{dest_pretty_path}'?"
         if click.confirm(prompt_text):
             s3_client.copy(copy_source, dest_bucket, dest_key)
-            logging.info("successfully copied the statefile to the new location")
+            print(
+                textwrap.dedent(f"""
+                            Nicely done! Your tfstate file has been migrated. Now you can create a repo definition in App-Interface like so:
+
+                            ---
+                            $schema: /aws/terraform-repo-1.yml
+
+                            account:
+                                $ref: {account["path"]}
+
+                            name: {dest_filename}
+                            repository: <FILL_IN>
+                            projectPath: <FILL_IN>
+                            tfVersion: <FILL_IN>
+                            ref: <FILL_IN>""")
+            )
 
 
 @get.command(short_help='obtain "rosa create cluster" command by cluster name')
