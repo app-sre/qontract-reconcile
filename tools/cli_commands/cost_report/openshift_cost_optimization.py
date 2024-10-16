@@ -88,7 +88,33 @@ class OpenShiftCostOptimizationReportCommand:
             project=cost_namespace.name,
             cluster=cluster,
         )
+        response.data = [
+            data
+            for data in response.data
+            if self._match_cost_namespace(data, cost_namespace)
+        ]
         return cost_namespace, response
+
+    @staticmethod
+    def _match_cost_namespace(
+        response: OpenShiftCostOptimizationResponse,
+        cost_namespace: CostNamespace,
+    ) -> bool:
+        """
+        Exactly match the cost namespace from the response data.
+        Cost Management API returns fuzzy match on fields.
+        Client side filter is needed.
+
+        :param response: OpenShiftCostOptimizationResponse
+        :param cost_namespace: CostNamespace
+        :return: exactly match or not
+        """
+        if cluster_uuid := cost_namespace.cluster_external_id:
+            if response.cluster_uuid != cluster_uuid:
+                return False
+        elif response.cluster_alias != cost_namespace.cluster_name:
+            return False
+        return response.project == cost_namespace.name
 
     @staticmethod
     def render(
