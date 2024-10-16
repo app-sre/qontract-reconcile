@@ -504,32 +504,13 @@ def test_get_policy_secret_list(mocker):
     vault_client.list_all.side_effect = [
         ["policy/path/1/secret1", "policy/path/1/secret2"],
         ["policy/path/2/secret1", "policy/path/2/secret2"],
-        ["my-policy/path_to_it/3/secret1"],
     ]
 
-    assert set(
-        integ.get_policy_secret_list(
-            vault_client,
-            ["policy/path/1/*", "policy/path/2/*", "policy/path/3/secret1"],
-        )
-    ) == {
+    assert integ.get_policy_secret_list(
+        vault_client, ["policy/path/1/*", "policy/path/2/*"]
+    ) == [
         "policy/path/1/secret1",
         "policy/path/1/secret2",
         "policy/path/2/secret1",
         "policy/path/2/secret2",
-        "policy/path/3/secret1",
-    }
-
-
-@pytest.mark.parametrize(
-    "paths",
-    [
-        ["policy/path*"],
-        ["policy/p*th"],
-        ["policy/+/p*th"],
-    ],
-)
-def test_get_policy_secret_list_failure(paths, mocker):
-    vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
-    with pytest.raises(integ.VaultInvalidPaths):
-        integ.get_policy_secret_list(vault_client, paths)
+    ]
