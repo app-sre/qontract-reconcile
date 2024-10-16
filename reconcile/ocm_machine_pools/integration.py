@@ -53,8 +53,8 @@ class MachinePoolAutoscaling(AbstractAutoscaling):
 
     @root_validator()
     @classmethod
-    def max_greater_min(cls, field_values):
-        if field_values.get("min_replicas") > field_values.get("max_replicas"):
+    def max_greater_min(cls, field_values: Mapping[str, int]) -> Mapping[str, int]:
+        if int(field_values.get("min_replicas") or 0) > int(field_values.get("max_replicas") or 0):
             raise ValueError("max_replicas must be greater than min_replicas")
         return field_values
 
@@ -71,8 +71,8 @@ class NodePoolAutoscaling(AbstractAutoscaling):
 
     @root_validator()
     @classmethod
-    def max_greater_min(cls, field_values):
-        if field_values.get("min_replica") > field_values.get("max_replica"):
+    def max_greater_min(cls, field_values: Mapping[str, int]) -> Mapping[str, int]:
+        if int(field_values.get("min_replica") or 0) > int(field_values.get("max_replica") or 0):
             raise ValueError("max_replicas must be greater than min_replicas")
         return field_values
 
@@ -285,7 +285,7 @@ class DesiredMachinePool(BaseModel):
 def fetch_current_state(
     ocm_map: OCMMap,
     clusters: Iterable[ClusterV1],
-) -> Mapping[str, list[AbstractPool]]:
+) -> Mapping[str, Iterable[AbstractPool]]:
     return {
         c.name: fetch_current_state_for_cluster(c, ocm_map.get(c.name))
         for c in clusters
@@ -308,7 +308,7 @@ def _classify_cluster_type(cluster: ClusterV1) -> ClusterType:
             raise ValueError(f"unknown cluster type for cluster {cluster.name}")
 
 
-def fetch_current_state_for_cluster(cluster, ocm):
+def fetch_current_state_for_cluster(cluster, ocm) -> Iterable[AbstractPool]:
     cluster_type = _classify_cluster_type(cluster)
     if cluster_type == ClusterType.ROSA_HCP:
         return [
@@ -504,7 +504,7 @@ def _recuperate_pools(
         )
 
 
-def run(dry_run: bool):
+def run(dry_run: bool) -> None:
     clusters = get_clusters()
 
     filtered_clusters = [

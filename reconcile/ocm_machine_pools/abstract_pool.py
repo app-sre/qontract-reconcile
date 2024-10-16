@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
+from typing import Any
 
 from pydantic import BaseModel, Field, root_validator
 
@@ -23,7 +24,7 @@ class AbstractPool(ABC, BaseModel):
 
     @root_validator()
     @classmethod
-    def validate_scaling(cls, field_values):
+    def validate_scaling(cls, field_values: Mapping[str, int]) -> Mapping[str, int]:
         if field_values.get("autoscaling") and field_values.get("replicas"):
             raise ValueError("autoscaling and replicas are mutually exclusive")
         return field_values
@@ -52,11 +53,11 @@ class AbstractPool(ABC, BaseModel):
     def deletable(self) -> bool:
         pass
 
-    def _has_diff_autoscale(self, pool):
+    def _has_diff_autoscale(self, pool) -> bool:
         match (self.autoscaling, pool.autoscale):
             case (None, None):
                 return False
             case (None, _) | (_, None):
                 return True
-            case _:
+            case (_, _):
                 return self.autoscaling.has_diff(pool.autoscale)

@@ -13,9 +13,9 @@ class AbstractAutoscaling(BaseModel):
         )
 
     @abstractmethod
-    def get_min(self):
+    def get_min(self) -> int:
         pass
 
     @abstractmethod
-    def get_max(self):
+    def get_max(self) -> int:
         pass
