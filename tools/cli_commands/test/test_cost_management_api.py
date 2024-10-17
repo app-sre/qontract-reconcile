@@ -10,6 +10,7 @@ from requests import HTTPError
 
 from tools.cli_commands.cost_report.cost_management_api import CostManagementApi
 from tools.cli_commands.cost_report.response import (
+    AwsReportCostResponse,
     CostResponse,
     CostTotalResponse,
     DeltaResponse,
@@ -18,11 +19,15 @@ from tools.cli_commands.cost_report.response import (
     OpenShiftReportCostResponse,
     ProjectCostResponse,
     ProjectCostValueResponse,
-    ReportCostResponse,
     ReportMetaResponse,
     ServiceCostResponse,
     ServiceCostValueResponse,
     TotalMetaResponse,
+)
+from tools.cli_commands.test.conftest import (
+    COST_MANAGEMENT_API_HOST,
+    COST_REPORT_SECRET,
+    OPENSHIFT_COST_OPTIMIZATION_RESPONSE,
 )
 
 
@@ -36,13 +41,29 @@ def mock_session(mocker: MockerFixture) -> Any:
 
 @pytest.fixture
 def base_url(httpserver: HTTPServer) -> str:
-    return httpserver.url_for("")
+    return httpserver.url_for("/")
 
 
 TOKEN_URL = "token_url"
-CLIENT_ID = "client_id"
-CLIENT_SECRET = "client_secret"
-SCOPE = ["some-scope"]
+CLIENT_ID = COST_REPORT_SECRET["client_id"]
+CLIENT_SECRET = COST_REPORT_SECRET["client_secret"]
+SCOPE = ["scope"]
+
+
+def test_cost_management_api_create_from_secret(
+    mock_session: Any,
+) -> None:
+    api = CostManagementApi.create_from_secret(COST_REPORT_SECRET)
+
+    assert api.host == COST_MANAGEMENT_API_HOST
+    assert api.base_url == COST_REPORT_SECRET["api_base_url"]
+    assert api.session == mock_session.return_value
+    mock_session.assert_called_once_with(
+        client_id=CLIENT_ID,
+        client_secret=CLIENT_SECRET,
+        token_url=TOKEN_URL,
+        scope=SCOPE,
+    )
 
 
 def test_cost_management_api_init(mock_session: Any, base_url: str) -> None:
@@ -55,7 +76,7 @@ def test_cost_management_api_init(mock_session: Any, base_url: str) -> None:
     ) as api:
         pass
 
-    assert api.host == base_url
+    assert api.base_url == base_url
     assert api.session == mock_session.return_value
 
     mock_session.assert_called_once_with(
@@ -81,7 +102,7 @@ def cost_management_api(mock_session: Any, base_url: str) -> CostManagementApi:
     )
 
 
-EXPECTED_REPORT_COST_RESPONSE = ReportCostResponse(
+EXPECTED_REPORT_COST_RESPONSE = AwsReportCostResponse(
     meta=ReportMetaResponse(
         delta=DeltaResponse(
             value=Decimal(100),
@@ -137,7 +158,10 @@ EXPECTED_REPORT_COST_RESPONSE = ReportCostResponse(
 
 
 def test_get_aws_costs_report(
-    cost_management_api: CostManagementApi, fx: Callable, httpserver: HTTPServer
+    cost_management_api: CostManagementApi,
+    fx: Callable,
+    httpserver: HTTPServer,
+    base_url: str,
 ) -> None:
     response_body = fx("aws_cost_report.json")
     httpserver.expect_request(
@@ -250,6 +274,51 @@ def test_get_openshift_costs_report_error(
 
     with pytest.raises(HTTPError) as error:
         cost_management_api.get_openshift_costs_report(
+            cluster="some-cluster",
+            project="some-project",
+        )
+
+    assert error.value.response.status_code == 500
+
+
+def test_get_openshift_cost_optimization_report(
+    cost_management_api: CostManagementApi,
+    fx: Callable,
+    httpserver: HTTPServer,
+) -> None:
+    response_body = fx("openshift_cost_optimization_report.json")
+    project = "some-project"
+    cluster = "some-cluster-uuid"
+    httpserver.expect_request(
+        "/recommendations/openshift",
+        query_string={
+            "cluster": cluster,
+            "project": project,
+            "limit": "100",
+            "memory-unit": "MiB",
+            "cpu-unit": "millicores",
+        },
+    ).respond_with_data(response_body)
+
+    report_cost_response = cost_management_api.get_openshift_cost_optimization_report(
+        cluster=cluster,
+        project=project,
+    )
+
+    assert report_cost_response == OPENSHIFT_COST_OPTIMIZATION_RESPONSE
+
+
+def test_get_openshift_cost_optimization_report_error(
+    cost_management_api: CostManagementApi,
+    fx: Callable,
+    httpserver: HTTPServer,
+) -> None:
+    httpserver.expect_request("/recommendations/openshift").respond_with_data(
+        status=500
+    )
+
+    with pytest.raises(HTTPError) as error:
+        cost_management_api.get_openshift_cost_optimization_report(
             cluster="some-cluster",
             project="some-project",
         )

@@ -5,16 +5,17 @@ from typing import Any
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.gql_definitions.common.app_interface_vault_settings import (
-    AppInterfaceSettingsV1,
-)
-from reconcile.gql_definitions.cost_report.settings import CostReportSettingsV1
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.typed_queries.cost_report.app_names import App
-from reconcile.typed_queries.cost_report.cost_namespaces import CostNamespace
+from reconcile.typed_queries.cost_report.cost_namespaces import (
+    CostNamespace,
+    CostNamespaceLabels,
+)
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
 from tools.cli_commands.cost_report.response import OpenShiftReportCostResponse
+from tools.cli_commands.test.conftest import (
+    COST_REPORT_SECRET,
+)
 
 
 @pytest.fixture
@@ -30,55 +31,18 @@ def mock_cost_management_api(mocker: MockerFixture) -> Any:
     )
 
 
-VAULT_SETTINGS = AppInterfaceSettingsV1(vault=True)
-COST_REPORT_SETTINGS = CostReportSettingsV1(
-    credentials=VaultSecret(
-        path="some-path",
-        field="all",
-        version=None,
-        format=None,
-    )
-)
-
-
 @pytest.fixture
-def mock_get_app_interface_vault_settings(mocker: MockerFixture) -> Any:
+def mock_fetch_cost_report_secret(mocker: MockerFixture) -> Any:
     return mocker.patch(
-        "tools.cli_commands.cost_report.openshift.get_app_interface_vault_settings",
-        return_value=VAULT_SETTINGS,
-    )
-
-
-@pytest.fixture
-def mock_create_secret_reader(mocker: MockerFixture) -> Any:
-    mock = mocker.patch(
-        "tools.cli_commands.cost_report.openshift.create_secret_reader",
-        autospec=True,
-    )
-    mock.return_value.read_all_secret.return_value = {
-        "api_base_url": "base_url",
-        "token_url": "token_url",
-        "client_id": "client_id",
-        "client_secret": "client_secret",
-        "scope": "scope",
-    }
-    return mock
-
-
-@pytest.fixture
-def mock_get_cost_report_settings(mocker: MockerFixture) -> Any:
-    return mocker.patch(
-        "tools.cli_commands.cost_report.openshift.get_cost_report_settings",
-        return_value=COST_REPORT_SETTINGS,
+        "tools.cli_commands.cost_report.openshift.fetch_cost_report_secret",
+        return_value=COST_REPORT_SECRET,
     )
 
 
 def test_openshift_cost_report_create(
     mock_gql: Any,
     mock_cost_management_api: Any,
-    mock_get_app_interface_vault_settings: Any,
-    mock_create_secret_reader: Any,
-    mock_get_cost_report_settings: Any,
+    mock_fetch_cost_report_secret: Any,
 ) -> None:
     openshift_cost_report_command = OpenShiftCostReportCommand.create()
 
@@ -86,33 +50,20 @@ def test_openshift_cost_report_create(
     assert openshift_cost_report_command.gql_api == mock_gql.get_api.return_value
     assert (
         openshift_cost_report_command.cost_management_api
-        == mock_cost_management_api.return_value
+        == mock_cost_management_api.create_from_secret.return_value
     )
     assert openshift_cost_report_command.thread_pool_size == 10
-    mock_cost_management_api.assert_called_once_with(
-        base_url="base_url",
-        token_url="token_url",
-        client_id="client_id",
-        client_secret="client_secret",
-        scope=["scope"],
+    mock_cost_management_api.create_from_secret.assert_called_once_with(
+        COST_REPORT_SECRET
     )
-    mock_get_app_interface_vault_settings.assert_called_once_with(
-        mock_gql.get_api.return_value.query
-    )
-    mock_get_cost_report_settings.assert_called_once_with(mock_gql.get_api.return_value)
-    mock_create_secret_reader.assert_called_once_with(use_vault=True)
-    mock_create_secret_reader.return_value.read_all_secret.assert_called_once_with(
-        COST_REPORT_SETTINGS.credentials
-    )
+    mock_fetch_cost_report_secret.assert_called_once_with(mock_gql.get_api.return_value)
 
 
 @pytest.fixture
 def openshift_cost_report_command(
     mock_gql: Any,
     mock_cost_management_api: Any,
-    mock_get_app_interface_vault_settings: Any,
-    mock_create_secret_reader: Any,
-    mock_get_cost_report_settings: Any,
+    mock_fetch_cost_report_secret: Any,
 ) -> OpenShiftCostReportCommand:
     return OpenShiftCostReportCommand.create()
 
@@ -132,12 +83,14 @@ CHILD_APP = App(name="child", parent_app_name="parent")
 
 PARENT_APP_NAMESPACE = CostNamespace(
     name="parent_namespace",
+    labels=CostNamespaceLabels(),
     app_name=PARENT_APP.name,
     cluster_name="parent_cluster",
     cluster_external_id="parent_cluster_external_id",
 )
 CHILD_APP_NAMESPACE = CostNamespace(
     name="child_namespace",
+    labels=CostNamespaceLabels(),
     app_name=CHILD_APP.name,
     cluster_name="child_cluster",
     cluster_external_id="child_cluster_external_id",
@@ -253,14 +206,13 @@ def test_openshift_cost_report_get_reports(
     openshift_cost_report_command: OpenShiftCostReportCommand,
     mock_cost_management_api: Any,
 ) -> None:
-    mock_cost_management_api.return_value.get_openshift_costs_report.return_value = (
-        PARENT_APP_COST_RESPONSE
-    )
+    mocked_api = mock_cost_management_api.create_from_secret.return_value
+    mocked_api.get_openshift_costs_report.return_value = PARENT_APP_COST_RESPONSE
 
     reports = openshift_cost_report_command.get_reports([PARENT_APP_NAMESPACE])
 
     assert reports == {PARENT_APP_NAMESPACE: PARENT_APP_COST_RESPONSE}
-    mock_cost_management_api.return_value.get_openshift_costs_report.assert_called_once_with(
+    mocked_api.get_openshift_costs_report.assert_called_once_with(
         project=PARENT_APP_NAMESPACE.name,
         cluster=PARENT_APP_NAMESPACE.cluster_external_id,
     )

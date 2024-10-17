@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from json import dumps
 from unittest.mock import ANY
 
 import pytest
@@ -8,6 +9,7 @@ from reconcile.gql_definitions.cost_report.cost_namespaces import (
 )
 from reconcile.typed_queries.cost_report.cost_namespaces import (
     CostNamespace,
+    CostNamespaceLabels,
     get_cost_namespaces,
 )
 from reconcile.utils.gql import GqlApi
@@ -33,6 +35,7 @@ def namespace_response(
             "namespaces": [
                 {
                     "name": "n",
+                    "labels": '{"insights_cost_management_optimizations":"true"}',
                     "app": {"name": "a"},
                     "cluster": {
                         "name": "c",
@@ -48,6 +51,7 @@ def namespace_response(
 def expected_cost_namespace() -> CostNamespace:
     return CostNamespace(
         name="n",
+        labels=CostNamespaceLabels(insights_cost_management_optimizations="true"),
         app_name="a",
         cluster_name="c",
         cluster_external_id="id",
@@ -59,7 +63,12 @@ def test_get_cost_namespaces(
     namespace_response: CostNamespacesQueryData,
     expected_cost_namespace: CostNamespace,
 ) -> None:
-    gql_api = gql_api_builder(namespace_response.dict(by_alias=True))
+    response = namespace_response.dict(by_alias=True)
+    # .dict will convert all nested fields to dicts, including labels
+    # the mocked response need to be json string to match data type
+    for n in response["namespaces"]:
+        n["labels"] = dumps(n["labels"])
+    gql_api = gql_api_builder(response)
     expected_vars = {
         "filter": {
             "cluster": {

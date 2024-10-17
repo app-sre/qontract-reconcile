@@ -22,6 +22,7 @@ DEFINITION = """
 query CostNamespaces($filter: JSON) {
   namespaces: namespaces_v1(filter: $filter) {
     name
+    labels
     app {
       name
     }
@@ -57,6 +58,7 @@ class ClusterV1(ConfiguredBaseModel):
 
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     app: AppV1 = Field(..., alias="app")
     cluster: ClusterV1 = Field(..., alias="cluster")
 

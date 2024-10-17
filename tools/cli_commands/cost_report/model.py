@@ -26,3 +26,24 @@ class Report(BaseModel):
     items_delta_value: Decimal
     items_total: Decimal
     total: Decimal
+
+
+class OptimizationReportItem(BaseModel):
+    cluster: str
+    project: str
+    workload: str
+    workload_type: str
+    container: str
+    current_cpu_limit: str | None
+    current_cpu_request: str | None
+    current_memory_limit: str | None
+    current_memory_request: str | None
+    recommend_cpu_limit: str | None
+    recommend_cpu_request: str | None
+    recommend_memory_limit: str | None
+    recommend_memory_request: str | None
+
+
+class OptimizationReport(BaseModel):
+    app_name: str
+    items: list[OptimizationReportItem]

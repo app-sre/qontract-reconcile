@@ -42,7 +42,7 @@ class CostResponse(BaseModel):
     services: list[ServiceCostResponse]
 
 
-class ReportCostResponse(BaseModel):
+class AwsReportCostResponse(BaseModel):
     meta: ReportMetaResponse
     data: list[CostResponse]
 
@@ -67,3 +67,58 @@ class OpenShiftCostResponse(BaseModel):
 class OpenShiftReportCostResponse(BaseModel):
     meta: ReportMetaResponse
     data: list[OpenShiftCostResponse]
+
+
+class ResourceConfigResponse(BaseModel):
+    amount: float | None = None
+    format: str | None = None
+
+
+class ResourceResponse(BaseModel):
+    cpu: ResourceConfigResponse
+    memory: ResourceConfigResponse
+
+
+class RecommendationResourcesResponse(BaseModel):
+    limits: ResourceResponse
+    requests: ResourceResponse
+
+
+class RecommendationEngineResponse(BaseModel):
+    config: RecommendationResourcesResponse
+    variation: RecommendationResourcesResponse
+
+
+class RecommendationEnginesResponse(BaseModel):
+    cost: RecommendationEngineResponse
+    performance: RecommendationEngineResponse
+
+
+class RecommendationTermResponse(BaseModel):
+    recommendation_engines: RecommendationEnginesResponse | None = None
+
+
+class RecommendationTermsResponse(BaseModel):
+    long_term: RecommendationTermResponse
+    medium_term: RecommendationTermResponse
+    short_term: RecommendationTermResponse
+
+
+class RecommendationsResponse(BaseModel):
+    current: RecommendationResourcesResponse
+    recommendation_terms: RecommendationTermsResponse
+
+
+class OpenShiftCostOptimizationResponse(BaseModel):
+    cluster_alias: str
+    cluster_uuid: str
+    container: str
+    id: str
+    project: str
+    recommendations: RecommendationsResponse
+    workload: str
+    workload_type: str
+
+
+class OpenShiftCostOptimizationReportResponse(BaseModel):
+    data: list[OpenShiftCostOptimizationResponse]
