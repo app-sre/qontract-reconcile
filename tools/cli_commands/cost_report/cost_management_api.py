@@ -17,6 +17,8 @@ from tools.cli_commands.cost_report.response import (
 
 REQUEST_TIMEOUT = 60
 PAGE_LIMIT = 100
+MEMORY_UNIT = "MiB"
+CPU_UNIT = "millicores"
 
 
 class CostManagementApi(ApiBase):
@@ -106,6 +108,8 @@ class CostManagementApi(ApiBase):
             "cluster": cluster,
             "project": project,
             "limit": PAGE_LIMIT,
+            "memory-unit": MEMORY_UNIT,
+            "cpu-unit": CPU_UNIT,
         }
         response = self.session.request(
             method="GET",
