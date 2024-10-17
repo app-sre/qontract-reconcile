@@ -6,7 +6,10 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.typed_queries.cost_report.app_names import App
-from reconcile.typed_queries.cost_report.cost_namespaces import CostNamespace
+from reconcile.typed_queries.cost_report.cost_namespaces import (
+    CostNamespace,
+    CostNamespaceLabels,
+)
 from tools.cli_commands.cost_report.model import ChildAppReport, Report, ReportItem
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
 from tools.cli_commands.cost_report.response import OpenShiftReportCostResponse
@@ -80,12 +83,14 @@ CHILD_APP = App(name="child", parent_app_name="parent")
 
 PARENT_APP_NAMESPACE = CostNamespace(
     name="parent_namespace",
+    labels=CostNamespaceLabels(),
     app_name=PARENT_APP.name,
     cluster_name="parent_cluster",
     cluster_external_id="parent_cluster_external_id",
 )
 CHILD_APP_NAMESPACE = CostNamespace(
     name="child_namespace",
+    labels=CostNamespaceLabels(),
     app_name=CHILD_APP.name,
     cluster_name="child_cluster",
     cluster_external_id="child_cluster_external_id",

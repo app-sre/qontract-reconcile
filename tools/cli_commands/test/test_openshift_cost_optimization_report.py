@@ -5,7 +5,10 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.typed_queries.cost_report.app_names import App
-from reconcile.typed_queries.cost_report.cost_namespaces import CostNamespace
+from reconcile.typed_queries.cost_report.cost_namespaces import (
+    CostNamespace,
+    CostNamespaceLabels,
+)
 from tools.cli_commands.cost_report.model import (
     OptimizationReport,
     OptimizationReportItem,
@@ -98,6 +101,15 @@ APP = App(name="app", parent_app_name=None)
 
 APP_NAMESPACE = CostNamespace(
     name="some-project",
+    labels=CostNamespaceLabels(insights_cost_management_optimizations="true"),
+    app_name=APP.name,
+    cluster_name="some-cluster",
+    cluster_external_id="some-cluster-uuid",
+)
+
+APP_NAMESPACE_OPTIMIZATION_DISABLED = CostNamespace(
+    name="some-project-disabled",
+    labels=CostNamespaceLabels(),
     app_name=APP.name,
     cluster_name="some-cluster",
     cluster_external_id="some-cluster-uuid",
@@ -132,6 +144,21 @@ def test_openshift_cost_optimization_report_get_apps(
 
 
 def test_openshift_cost_optimization_report_get_cost_namespaces(
+    openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
+    mock_get_cost_namespaces: Any,
+) -> None:
+    expected_namespaces = [APP_NAMESPACE]
+    mock_get_cost_namespaces.return_value = [
+        APP_NAMESPACE,
+        APP_NAMESPACE_OPTIMIZATION_DISABLED,
+    ]
+
+    apps = openshift_cost_optimization_report_command.get_cost_namespaces()
+
+    assert apps == expected_namespaces
+
+
+def test_openshift_cost_optimization_report_get_cost_namespaces_filter(
     openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
     mock_get_cost_namespaces: Any,
 ) -> None:

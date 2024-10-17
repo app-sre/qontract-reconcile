@@ -50,7 +50,12 @@ class OpenShiftCostOptimizationReportCommand:
         return get_app_names(self.gql_api)
 
     def get_cost_namespaces(self) -> list[CostNamespace]:
-        return get_cost_namespaces(self.gql_api)
+        cost_namespaces = get_cost_namespaces(self.gql_api)
+        return [
+            n
+            for n in cost_namespaces
+            if n.labels.insights_cost_management_optimizations == "true"
+        ]
 
     def get_reports(
         self,
