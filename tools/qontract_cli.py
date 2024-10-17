@@ -1416,7 +1416,7 @@ def copy_tfstate(
         for i in account["terraformState"]["integrations"]
         if i["integration"] == "terraform-repo"
     ]
-    if len(dest_folder) == 0:
+    if not dest_folder:
         logging.error(
             "terraform-repo is missing a section in this account's '/dependencies/terraform-state-1.yml' file, please add one using the docs in https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/terraform-repo/getting-started.md?ref_type=heads#step-1-setup-aws-account and then try again"
         )
