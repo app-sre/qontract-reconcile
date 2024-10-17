@@ -295,6 +295,8 @@ def test_get_openshift_cost_optimization_report(
             "cluster": cluster,
             "project": project,
             "limit": "100",
+            "memory-unit": "MiB",
+            "cpu-unit": "millicores",
         },
     ).respond_with_data(response_body)
 
