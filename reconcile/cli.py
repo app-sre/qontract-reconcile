@@ -2720,9 +2720,12 @@ def ocm_addons_upgrade_tests_trigger(ctx):
 @integration.command(short_help="Manage Machine Pools in OCM.")
 @click.pass_context
 def ocm_machine_pools(ctx):
-    import reconcile.ocm_machine_pools
+    import reconcile.ocm_machine_pools.integration
 
-    run_integration(reconcile.ocm_machine_pools, ctx.obj)
+    run_integration(
+        reconcile.ocm_machine_pools.integration,
+        ctx.obj,
+    )
 
 
 @integration.command(short_help="Manage Upgrade Policy schedules in OCM organizations.")
