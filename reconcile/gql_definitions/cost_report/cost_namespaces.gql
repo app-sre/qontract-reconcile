@@ -3,6 +3,7 @@
 query CostNamespaces($filter: JSON) {
   namespaces: namespaces_v1(filter: $filter) {
     name
+    labels
     app {
       name
     }

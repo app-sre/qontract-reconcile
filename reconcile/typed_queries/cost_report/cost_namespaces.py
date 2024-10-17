@@ -4,14 +4,16 @@ from reconcile.gql_definitions.cost_report.cost_namespaces import query
 from reconcile.utils.gql import GqlApi
 
 
-class CostNamespace(BaseModel):
+class CostNamespaceLabels(BaseModel, frozen=True):
+    insights_cost_management_optimizations: str | None = None
+
+
+class CostNamespace(BaseModel, frozen=True):
     name: str
+    labels: CostNamespaceLabels
     app_name: str
     cluster_name: str
     cluster_external_id: str | None
-
-    class Config:
-        frozen = True
 
 
 def get_cost_namespaces(
@@ -30,6 +32,7 @@ def get_cost_namespaces(
     return [
         CostNamespace(
             name=namespace.name,
+            labels=CostNamespaceLabels.parse_obj(namespace.labels or {}),
             app_name=namespace.app.name,
             cluster_name=namespace.cluster.name,
             cluster_external_id=namespace.cluster.spec.external_id
