@@ -107,7 +107,7 @@ class CostManagementApi(ApiBase):
         params = {
             "cluster": cluster,
             "project": project,
-            "limit": PAGE_LIMIT,
+            "limit": str(PAGE_LIMIT),
             "memory-unit": MEMORY_UNIT,
             "cpu-unit": CPU_UNIT,
         }
