@@ -49,7 +49,11 @@ rosa create cluster -y --cluster-name={{ cluster_name }} \
     --service-cidr {{ cluster.network.service }} \
     --pod-cidr {{ cluster.network.pod }} \
     --host-prefix 23 \
-    --replicas {{ cluster.machine_pools | length }} \
+    {#
+        Due to rosa create cluster limitation, not managing independent worker pool at creation, we need a bit of a bet here:
+        - fixed capacity (no autoscaling)
+    -#}
+    --replicas {{ cluster.machine_pools | selectattr("id", "eq", "worker") | sum(attribute='replicas') }} \
     --compute-machine-type {{ cluster.machine_pools[0].instance_type }} \
     {% if cluster.spec.disable_user_workload_monitoring -%}
     --disable-workload-monitoring \
