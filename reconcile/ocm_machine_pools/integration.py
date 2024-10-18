@@ -1,24 +1,35 @@
 import logging
-from abc import (
-    ABC,
-    abstractmethod,
-)
+from collections import defaultdict
 from collections.abc import Iterable, Mapping
-from enum import Enum
 
 from pydantic import (
     BaseModel,
-    Field,
     root_validator,
 )
 
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
-    ClusterSpecAutoScaleV1,
     ClusterV1,
 )
+from reconcile.ocm_machine_pools.abstract_autoscaling import AbstractAutoscaling
+from reconcile.ocm_machine_pools.abstract_pool import AbstractPool
+from reconcile.ocm_machine_pools.cluster_type import ClusterType
+from reconcile.ocm_machine_pools.machine_pools_updates import (
+    Renderer,
+    create_parser,
+)
+from reconcile.ocm_machine_pools.merge_request_manager import (
+    MachinePoolsUpdateMR,
+    MrData,
+)
+from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.clusters import get_clusters
+from reconcile.typed_queries.github_orgs import get_github_orgs
+from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import (
@@ -26,34 +37,14 @@ from reconcile.utils.ocm import (
     OCM,
     OCMMap,
 )
+from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
+from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "ocm-machine-pools"
 
 
-class ClusterType(Enum):
-    OSD = "osd"
-    ROSA_CLASSIC = "rosa"
-    ROSA_HCP = "hypershift"
-
-
 class InvalidUpdateError(Exception):
     pass
-
-
-class AbstractAutoscaling(BaseModel):
-    def has_diff(self, autoscale: ClusterSpecAutoScaleV1) -> bool:
-        return (
-            self.get_min() != autoscale.min_replicas
-            or self.get_max() != autoscale.max_replicas
-        )
-
-    @abstractmethod
-    def get_min(self):
-        pass
-
-    @abstractmethod
-    def get_max(self):
-        pass
 
 
 class MachinePoolAutoscaling(AbstractAutoscaling):
@@ -62,8 +53,8 @@ class MachinePoolAutoscaling(AbstractAutoscaling):
 
     @root_validator()
     @classmethod
-    def max_greater_min(cls, field_values):
-        if field_values.get("min_replicas") > field_values.get("max_replicas"):
+    def max_greater_min(cls, field_values: Mapping[str, int]) -> Mapping[str, int]:
+        if int(field_values.get("min_replicas") or 0) > int(field_values.get("max_replicas") or 0):
             raise ValueError("max_replicas must be greater than min_replicas")
         return field_values
 
@@ -80,8 +71,8 @@ class NodePoolAutoscaling(AbstractAutoscaling):
 
     @root_validator()
     @classmethod
-    def max_greater_min(cls, field_values):
-        if field_values.get("min_replica") > field_values.get("max_replica"):
+    def max_greater_min(cls, field_values: Mapping[str, int]) -> Mapping[str, int]:
+        if int(field_values.get("min_replica") or 0) > int(field_values.get("max_replica") or 0):
             raise ValueError("max_replicas must be greater than min_replicas")
         return field_values
 
@@ -90,58 +81,6 @@ class NodePoolAutoscaling(AbstractAutoscaling):
 
     def get_max(self) -> int:
         return self.max_replica
-
-
-class AbstractPool(ABC, BaseModel):
-    # Abstract class for machine pools, to be implemented by OSD/HyperShift classes
-
-    id: str
-    replicas: int | None
-    taints: list[Mapping[str, str]] | None
-    labels: Mapping[str, str] | None
-    cluster: str
-    cluster_type: ClusterType = Field(..., exclude=True)
-    autoscaling: AbstractAutoscaling | None
-
-    @root_validator()
-    @classmethod
-    def validate_scaling(cls, field_values):
-        if field_values.get("autoscaling") and field_values.get("replicas"):
-            raise ValueError("autoscaling and replicas are mutually exclusive")
-        return field_values
-
-    @abstractmethod
-    def create(self, ocm: OCM) -> None:
-        pass
-
-    @abstractmethod
-    def delete(self, ocm: OCM) -> None:
-        pass
-
-    @abstractmethod
-    def update(self, ocm: OCM) -> None:
-        pass
-
-    @abstractmethod
-    def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
-        pass
-
-    @abstractmethod
-    def invalid_diff(self, pool: ClusterMachinePoolV1) -> str | None:
-        pass
-
-    @abstractmethod
-    def deletable(self) -> bool:
-        pass
-
-    def _has_diff_autoscale(self, pool):
-        match (self.autoscaling, pool.autoscale):
-            case (None, None):
-                return False
-            case (None, _) | (_, None):
-                return True
-            case _:
-                return self.autoscaling.has_diff(pool.autoscale)
 
 
 class MachinePool(AbstractPool):
@@ -214,6 +153,7 @@ class MachinePool(AbstractPool):
             labels=pool.labels,
             cluster=cluster,
             cluster_type=cluster_type,
+            subnet=pool.subnet,
         )
 
 
@@ -225,7 +165,6 @@ class NodePool(AbstractPool):
     # Node pool, used for HyperShift clusters
 
     aws_node_pool: AWSNodePool
-    subnet: str | None
 
     def delete(self, ocm: OCM) -> None:
         ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
@@ -346,7 +285,7 @@ class DesiredMachinePool(BaseModel):
 def fetch_current_state(
     ocm_map: OCMMap,
     clusters: Iterable[ClusterV1],
-) -> Mapping[str, list[AbstractPool]]:
+) -> Mapping[str, Iterable[AbstractPool]]:
     return {
         c.name: fetch_current_state_for_cluster(c, ocm_map.get(c.name))
         for c in clusters
@@ -369,7 +308,7 @@ def _classify_cluster_type(cluster: ClusterV1) -> ClusterType:
             raise ValueError(f"unknown cluster type for cluster {cluster.name}")
 
 
-def fetch_current_state_for_cluster(cluster, ocm):
+def fetch_current_state_for_cluster(cluster, ocm) -> Iterable[AbstractPool]:
     cluster_type = _classify_cluster_type(cluster)
     if cluster_type == ClusterType.ROSA_HCP:
         return [
@@ -409,6 +348,7 @@ def fetch_current_state_for_cluster(cluster, ocm):
             labels=machine_pool.get("labels"),
             cluster=cluster.name,
             cluster_type=cluster_type,
+            subnet=machine_pool.get("subnet"),
         )
         for machine_pool in ocm.get_machine_pools(cluster.name)
     ]
@@ -431,7 +371,9 @@ def create_desired_state_from_gql(
 def calculate_diff(
     current_state: Mapping[str, list[AbstractPool]],
     desired_state: Mapping[str, DesiredMachinePool],
-) -> tuple[list[PoolHandler], list[InvalidUpdateError]]:
+) -> tuple[
+    list[PoolHandler], list[InvalidUpdateError], Mapping[str, list[AbstractPool]]
+]:
     current_machine_pools = {
         (cluster_name, machine_pool.id): machine_pool
         for cluster_name, machine_pools in current_state.items()
@@ -452,6 +394,7 @@ def calculate_diff(
 
     diffs: list[PoolHandler] = []
     errors: list[InvalidUpdateError] = []
+    failed_for_subnet: Mapping[str, list[AbstractPool]] = defaultdict(lambda: [])
 
     for (cluster_name, _), desired_machine_pool in diff_result.add.items():
         diffs.append(
@@ -463,6 +406,10 @@ def calculate_diff(
     for (cluster_name, _), diff_pair in diff_result.change.items():
         invalid_diff = diff_pair.current.invalid_diff(diff_pair.desired)
         if invalid_diff:
+            # We save current state for pools that alread have subnets
+            if invalid_diff == "subnet" and diff_pair.current.subnet:
+                failed_for_subnet[diff_pair.current.cluster].append(diff_pair.current)
+                continue
             errors.append(
                 InvalidUpdateError(
                     f"can not update {invalid_diff} for existing machine pool on cluster {cluster_name}"
@@ -497,7 +444,7 @@ def calculate_diff(
                 )
             )
 
-    return diffs, errors
+    return diffs, errors, dict(failed_for_subnet)
 
 
 def act(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> None:
@@ -512,7 +459,52 @@ def _cluster_is_compatible(cluster: ClusterV1) -> bool:
     return cluster.ocm is not None and cluster.machine_pools is not None
 
 
-def run(dry_run: bool):
+def _recuperate_pools(
+    dry_run: bool,
+    failed_pools: Mapping[str, list[AbstractPool]],
+    clusters: Mapping[str, ClusterV1],
+    secret_reader: SecretReaderBase,
+) -> None:
+    # Doing the import here to prevent circular imports errors
+    # merge_request_manager is importing AbtractPool which is defined here
+    # from reconcile.ocm_machine_pools.machine_pools_updates import (
+    #     Renderer,
+    #     create_parser,
+    # )
+    # from reconcile.ocm_machine_pools.merge_request_manager import (
+    #     MachinePoolsUpdateMR,
+    #     MrData,
+    # )
+
+    vcs = VCS(
+        secret_reader=secret_reader,
+        github_orgs=get_github_orgs(),
+        gitlab_instances=get_gitlab_instances(),
+        app_interface_repo_url=get_app_interface_repo_url(),
+        dry_run=dry_run,
+        allow_deleting_mrs=False,
+        allow_opening_mrs=True,
+    )
+
+    mr_manager = MachinePoolsUpdateMR(
+        vcs=vcs,
+        renderer=Renderer(),
+        parser=create_parser(),
+        auto_merge_enabled=True,
+    )
+
+    mr_manager._fetch_managed_open_merge_requests()
+
+    for cluster_name, pools in failed_pools.items():
+        mr_manager.create_merge_request(
+            MrData(
+                cluster=clusters[cluster_name],
+                machine_pools=pools,
+            )
+        )
+
+
+def run(dry_run: bool) -> None:
     clusters = get_clusters()
 
     filtered_clusters = [
@@ -534,9 +526,24 @@ def run(dry_run: bool):
         settings=settings,
     )
 
+    # further filter cluster to only ones that are on ocm
+    ocm_clusters, _ = ocm_map.cluster_specs()
+    filtered_clusters = [c for c in filtered_clusters if c.name in ocm_clusters]
+
     current_state = fetch_current_state(ocm_map, filtered_clusters)
     desired_state = create_desired_state_from_gql(filtered_clusters)
-    diffs, errors = calculate_diff(current_state, desired_state)
+    diffs, errors, failed_for_subnet = calculate_diff(current_state, desired_state)
+
+    if failed_for_subnet:
+        cluster_map = {c.name: c for c in filtered_clusters}
+        vault_settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+        _recuperate_pools(
+            dry_run=dry_run,
+            failed_pools=failed_for_subnet,
+            clusters=cluster_map,
+            secret_reader=secret_reader,
+        )
 
     act(dry_run, diffs, ocm_map)
 

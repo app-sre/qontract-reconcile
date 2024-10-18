@@ -13,7 +13,7 @@ from reconcile.gql_definitions.common.clusters import (
     ClusterSpecAutoScaleV1,
     ClusterV1,
 )
-from reconcile.ocm_machine_pools import (
+from reconcile.ocm_machine_pools.integration import (
     AbstractPool,
     AWSNodePool,
     ClusterType,
@@ -181,10 +181,11 @@ def test_calculate_diff_create():
         )
     }
 
-    diff, error = calculate_diff(current, desired)
+    diff, error, failed_for_subnet = calculate_diff(current, desired)
     assert len(diff) == 1
     assert diff[0].action == "create"
     assert not error
+    assert not failed_for_subnet
 
 
 def test_calculate_diff_noop(current_with_pool):
@@ -205,9 +206,10 @@ def test_calculate_diff_noop(current_with_pool):
             ],
         ),
     }
-    diff, error = calculate_diff(current_with_pool, desired)
+    diff, error, failed_for_subnet = calculate_diff(current_with_pool, desired)
     assert len(diff) == 0
     assert not error
+    assert not failed_for_subnet
 
 
 def test_calculate_diff_update(current_with_pool):
@@ -229,10 +231,11 @@ def test_calculate_diff_update(current_with_pool):
         ),
     }
 
-    diff, error = calculate_diff(current_with_pool, desired)
+    diff, error, failed_for_subnet = calculate_diff(current_with_pool, desired)
     assert len(diff) == 1
     assert diff[0].action == "update"
     assert not error
+    assert not failed_for_subnet
 
 
 @pytest.fixture
@@ -280,10 +283,11 @@ def test_calculate_diff_delete(current_with_2_pools):
         ),
     }
 
-    diff, error = calculate_diff(current_with_2_pools, desired)
+    diff, error, failed_for_subnet = calculate_diff(current_with_2_pools, desired)
     assert len(diff) == 1
     assert diff[0].action == "delete"
     assert not error
+    assert not failed_for_subnet
 
 
 def test_calculate_diff_delete_all_fail_validation(current_with_pool):
@@ -295,9 +299,10 @@ def test_calculate_diff_delete_all_fail_validation(current_with_pool):
         ),
     }
 
-    diff, error = calculate_diff(current_with_pool, desired)
+    diff, error, failed_for_subnet = calculate_diff(current_with_pool, desired)
     assert len(diff) == 0
     assert len(error) == 1
+    assert not failed_for_subnet
 
 
 def test_act_dry_run(test_pool, ocm_mock):
@@ -380,7 +385,13 @@ def test_machine_pool_update(machine_pool, ocm_mock):
 
     ocm_mock.update_machine_pool.assert_called_once_with(
         "cluster1",
-        {"id": "pool1", "replicas": 2, "cluster": "cluster1", "autoscaling": None},
+        {
+            "id": "pool1",
+            "replicas": 2,
+            "cluster": "cluster1",
+            "autoscaling": None,
+            "subnet": None,
+        },
     )
 
     machine_pool.labels = {"foo": "bar"}
@@ -393,6 +404,7 @@ def test_machine_pool_update(machine_pool, ocm_mock):
             "cluster": "cluster1",
             "labels": {"foo": "bar"},
             "autoscaling": None,
+            "subnet": None,
         },
     )
 
@@ -426,14 +438,20 @@ def setup_mocks(
     node_pools: list[dict] | None = None,
 ) -> dict:
     mocked_get_clusters = mocker.patch(
-        "reconcile.ocm_machine_pools.get_clusters", return_value=clusters or []
+        "reconcile.ocm_machine_pools.integration.get_clusters",
+        return_value=clusters or [],
     )
-    mocked_ocm_map = mocker.patch("reconcile.ocm_machine_pools.OCMMap", autospec=True)
+    mocked_ocm_map = mocker.patch(
+        "reconcile.ocm_machine_pools.integration.OCMMap", autospec=True
+    )
     mocked_ocm = mocked_ocm_map.return_value.get.return_value
     mocked_ocm.get_machine_pools.return_value = machine_pools or []
     mocked_ocm.get_node_pools.return_value = node_pools or []
+    if clusters:
+        ocm_cluster_specs = {c.name for c in clusters}
+        mocked_ocm_map.return_value.cluster_specs.return_value = (ocm_cluster_specs, [])
 
-    mocked_queries = mocker.patch("reconcile.ocm_machine_pools.queries")
+    mocked_queries = mocker.patch("reconcile.ocm_machine_pools.integration.queries")
 
     return {
         "get_clusters": mocked_get_clusters,
@@ -510,6 +528,7 @@ def default_worker_machine_pool() -> dict:
         "id": "worker",
         "instance_type": "m5.xlarge",
         "replicas": 2,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -535,6 +554,7 @@ def new_workers_machine_pool() -> dict:
         "id": "workers-new",
         "instance_type": "m5.2xlarge",
         "replicas": 3,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -571,6 +591,7 @@ def expected_ocm_machine_pool_create_payload() -> dict:
         "instance_type": "m5.2xlarge",
         "labels": None,
         "replicas": 3,
+        "subnet": "subnet-1234567890",
         "taints": [],
     }
 
@@ -621,6 +642,7 @@ def existing_updated_default_machine_pool() -> dict:
         "id": "worker",
         "instance_type": "m5.xlarge",
         "replicas": 3,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -631,6 +653,7 @@ def expected_ocm_machine_pool_update_payload() -> dict:
         "cluster": "ocm-cluster",
         "id": "worker",
         "replicas": 2,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -729,6 +752,7 @@ def expected_ocm_machine_pool_delete_payload() -> dict:
         "labels": None,
         "replicas": 3,
         "taints": None,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -909,6 +933,7 @@ def default_hypershift_worker_machine_pool() -> dict:
         "id": "workers",
         "instance_type": "m5.xlarge",
         "replicas": 2,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -929,7 +954,7 @@ def expected_node_pool_create_payload() -> dict:
         "id": "workers",
         "labels": None,
         "replicas": 2,
-        "subnet": None,
+        "subnet": "subnet-1234567890",
         "taints": [],
     }
 
@@ -956,6 +981,7 @@ def existing_updated_hypershift_node_pools() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         }
     ]
 
@@ -996,6 +1022,7 @@ def non_default_hypershift_node_pool() -> dict:
         "id": "new-workers",
         "aws_node_pool": {"instance_type": "m5.xlarge"},
         "replicas": 3,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -1006,11 +1033,13 @@ def existing_multiple_hypershift_node_pools() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
         {
             "id": "new-workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
     ]
 
@@ -1024,7 +1053,7 @@ def expected_hypershift_node_pool_delete_payload() -> dict:
         "aws_node_pool": {"instance_type": "m5.xlarge"},
         "labels": None,
         "replicas": 3,
-        "subnet": None,
+        "subnet": "subnet-1234567890",
         "taints": None,
     }
 
@@ -1055,6 +1084,7 @@ def non_default_hypershift_worker_machine_pool() -> dict:
         "id": "new-workers",
         "instance_type": "m5.xlarge",
         "replicas": 3,
+        "subnet": "subnet-1234567890",
     }
 
 
@@ -1073,16 +1103,19 @@ def existing_multiple_hypershift_node_pools_with_defaults() -> list[dict]:
             "id": "workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
         {
             "id": "workers-1",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
         {
             "id": "new-workers",
             "aws_node_pool": {"instance_type": "m5.xlarge"},
             "replicas": 3,
+            "subnet": "subnet-1234567890",
         },
     ]
 
