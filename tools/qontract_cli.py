@@ -151,6 +151,9 @@ from reconcile.utils.state import init_state
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from tools.cli_commands.cost_report.aws import AwsCostReportCommand
 from tools.cli_commands.cost_report.openshift import OpenShiftCostReportCommand
+from tools.cli_commands.cost_report.openshift_cost_optimization import (
+    OpenShiftCostOptimizationReportCommand,
+)
 from tools.cli_commands.erv2 import (
     Erv2Cli,
     TerraformCli,
@@ -2769,6 +2772,13 @@ def aws_cost_report(ctx):
 @click.pass_context
 def openshift_cost_report(ctx):
     command = OpenShiftCostReportCommand.create()
+    print(command.execute())
+
+
+@get.command()
+@click.pass_context
+def openshift_cost_optimization_report(ctx):
+    command = OpenShiftCostOptimizationReportCommand.create()
     print(command.execute())
 
 
