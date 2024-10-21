@@ -6,6 +6,7 @@ from typing import Generic, TypeVar
 
 from reconcile.external_resources.aws import (
     AWSDefaultResourceFactory,
+    AWSElasticacheFactory,
     AWSMskFactory,
     AWSRdsFactory,
     AWSResourceFactory,
@@ -87,6 +88,9 @@ def setup_aws_resource_factories(
     er_inventory: ExternalResourcesInventory, secret_reader: SecretReaderBase
 ) -> ObjectFactory[AWSResourceFactory]:
     f = ObjectFactory[AWSResourceFactory]()
+    f.register_factory(
+        "elasticache", AWSElasticacheFactory(er_inventory, secret_reader)
+    )
     f.register_factory("rds", AWSRdsFactory(er_inventory, secret_reader))
     f.register_factory("msk", AWSMskFactory(er_inventory, secret_reader))
     f.register_factory(

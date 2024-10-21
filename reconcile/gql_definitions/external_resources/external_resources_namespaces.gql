@@ -87,6 +87,14 @@ query ExternalResourcesNamespaces {
                 overrides
                 output_resource_name
                 annotations
+                managed_by_erv2
+                delete
+                module_overrides {
+                  module_type
+                  image
+                  version
+                  reconcile_timeout_minutes
+                }
             }
             ... on NamespaceTerraformResourceServiceAccount_v1 {
                 identifier
