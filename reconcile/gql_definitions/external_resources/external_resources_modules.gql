@@ -10,5 +10,7 @@ query ExternalResourcesModules {
         reconcile_drift_interval_minutes
         reconcile_timeout_minutes
         outputs_secret_sync
+        outputs_secret_image
+        outputs_secret_version
     }
 }

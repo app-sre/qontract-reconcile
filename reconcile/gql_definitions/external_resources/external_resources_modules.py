@@ -29,6 +29,8 @@ query ExternalResourcesModules {
         reconcile_drift_interval_minutes
         reconcile_timeout_minutes
         outputs_secret_sync
+        outputs_secret_image
+        outputs_secret_version
     }
 }
 """
@@ -49,6 +51,8 @@ class ExternalResourcesModuleV1(ConfiguredBaseModel):
     reconcile_drift_interval_minutes: int = Field(..., alias="reconcile_drift_interval_minutes")
     reconcile_timeout_minutes: int = Field(..., alias="reconcile_timeout_minutes")
     outputs_secret_sync: bool = Field(..., alias="outputs_secret_sync")
+    outputs_secret_image: Optional[str] = Field(..., alias="outputs_secret_image")
+    outputs_secret_version: Optional[str] = Field(..., alias="outputs_secret_version")
 
 
 class ExternalResourcesModulesQueryData(ConfiguredBaseModel):
