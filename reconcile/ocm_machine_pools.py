@@ -3,7 +3,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, MutableMapping
 from enum import Enum
 
 from pydantic import (
@@ -428,6 +428,37 @@ def create_desired_state_from_gql(
     }
 
 
+def validate_desired_pools(
+    desired_pools: Mapping[tuple[str, str], ClusterMachinePoolV1],
+) -> list[InvalidUpdateError]:
+    """Raises an error of the desired machine pools
+    can cause the integration to fail after the cluster is provisioned,
+    this only happens if we use the same ids as the default in rosa cli creation"""
+    default_pools_id_hcp = ["workers-0", "workers-1", "workers-2"]
+
+    grouped_diffs: MutableMapping[str, list[ClusterMachinePoolV1]] = {}
+    for (cluster_name, _), diff in desired_pools.items():
+        if cluster_name in grouped_diffs:
+            grouped_diffs[cluster_name].append(diff)
+        else:
+            grouped_diffs[cluster_name] = [diff]
+
+    errors = []
+    for cluster, diffs in grouped_diffs.items():
+        ids = [d.q_id for d in diffs]
+
+        # If we choose the same ids as the defaults we can have problems with the subnet ids being out of order
+        if sorted(ids) != default_pools_id_hcp:
+            continue
+        diffs.sort(key=lambda d: d.q_id)
+        subnets = [d.subnet for d in diffs]
+        if subnets != sorted(subnets, key=str):
+            err_msg = f"""can not update cluster {cluster} machine pools, machine pool id and subnet should be in alphabetical order"""
+            errors.append(InvalidUpdateError(err_msg))
+
+    return errors
+
+
 def calculate_diff(
     current_state: Mapping[str, list[AbstractPool]],
     desired_state: Mapping[str, DesiredMachinePool],
@@ -452,6 +483,8 @@ def calculate_diff(
 
     diffs: list[PoolHandler] = []
     errors: list[InvalidUpdateError] = []
+
+    errors += validate_desired_pools(diff_result.add)
 
     for (cluster_name, _), desired_machine_pool in diff_result.add.items():
         diffs.append(
