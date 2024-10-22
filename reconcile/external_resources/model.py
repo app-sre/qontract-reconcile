@@ -29,6 +29,9 @@ from reconcile.gql_definitions.external_resources.external_resources_namespaces 
     NamespaceTerraformResourceRDSV1,
     NamespaceV1,
 )
+from reconcile.gql_definitions.external_resources.external_resources_settings import (
+    ExternalResourcesSettingsV1,
+)
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
@@ -195,18 +198,26 @@ def load_module_inventory(
 
 
 class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
-    image: str = ""
-    version: str = ""
+    image: str
+    version: str
     reconcile_drift_interval_minutes: int = -1000
     reconcile_timeout_minutes: int = -1000
+    outputs_secret_image: str
+    outputs_secret_version: str
 
     @property
     def image_version(self) -> str:
         return f"{self.image}:{self.version}"
 
+    @property
+    def outputs_secret_image_version(self) -> str:
+        return f"{self.outputs_secret_image}:{self.outputs_secret_version}"
+
     @staticmethod
     def resolve_configuration(
-        module: ExternalResourcesModuleV1, spec: ExternalResourceSpec
+        module: ExternalResourcesModuleV1,
+        spec: ExternalResourceSpec,
+        settings: ExternalResourcesSettingsV1,
     ) -> "ExternalResourceModuleConfiguration":
         module_overrides = spec.metadata.get(
             "module_overrides"
@@ -215,6 +226,8 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
             image=None,
             version=None,
             reconcile_timeout_minutes=None,
+            outputs_secret_image=None,
+            outputs_secret_version=None,
         )
 
         return ExternalResourceModuleConfiguration(
@@ -223,6 +236,12 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
             reconcile_drift_interval_minutes=module.reconcile_drift_interval_minutes,
             reconcile_timeout_minutes=module_overrides.reconcile_timeout_minutes
             or module.reconcile_timeout_minutes,
+            outputs_secret_image=module_overrides.outputs_secret_image
+            or module.outputs_secret_image
+            or settings.outputs_secret_image,
+            outputs_secret_version=module_overrides.outputs_secret_version
+            or module.outputs_secret_version
+            or settings.outputs_secret_version,
         )
 
 
@@ -232,7 +251,9 @@ class Reconciliation(BaseModel, frozen=True):
     input: str = ""
     action: Action = Action.APPLY
     module_configuration: ExternalResourceModuleConfiguration = (
-        ExternalResourceModuleConfiguration()
+        ExternalResourceModuleConfiguration(
+            image="", version="", outputs_secret_image="", outputs_secret_version=""
+        )
     )
 
 

@@ -115,6 +115,8 @@ query ExternalResourcesNamespaces {
                     image
                     version
                     reconcile_timeout_minutes
+                    outputs_secret_image
+                    outputs_secret_version
                 }
             }
             ... on NamespaceTerraformResourceS3_v1 {
@@ -151,6 +153,8 @@ query ExternalResourcesNamespaces {
                   image
                   version
                   reconcile_timeout_minutes
+                  outputs_secret_image
+                  outputs_secret_version
                 }
             }
             ... on NamespaceTerraformResourceServiceAccount_v1 {
@@ -482,6 +486,8 @@ query ExternalResourcesNamespaces {
                   image
                   version
                   reconcile_timeout_minutes
+                  outputs_secret_image
+                  outputs_secret_version
                 }
             }
         }
@@ -564,6 +570,8 @@ class ExternalResourcesModuleOverridesV1(ConfiguredBaseModel):
     image: Optional[str] = Field(..., alias="image")
     version: Optional[str] = Field(..., alias="version")
     reconcile_timeout_minutes: Optional[int] = Field(..., alias="reconcile_timeout_minutes")
+    outputs_secret_image: Optional[str] = Field(..., alias="outputs_secret_image")
+    outputs_secret_version: Optional[str] = Field(..., alias="outputs_secret_version")
 
 
 class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
@@ -615,6 +623,8 @@ class NamespaceTerraformResourceElastiCacheV1_ExternalResourcesModuleOverridesV1
     image: Optional[str] = Field(..., alias="image")
     version: Optional[str] = Field(..., alias="version")
     reconcile_timeout_minutes: Optional[int] = Field(..., alias="reconcile_timeout_minutes")
+    outputs_secret_image: Optional[str] = Field(..., alias="outputs_secret_image")
+    outputs_secret_version: Optional[str] = Field(..., alias="outputs_secret_version")
 
 
 class NamespaceTerraformResourceElastiCacheV1(NamespaceTerraformResourceAWSV1):
@@ -1016,6 +1026,8 @@ class NamespaceTerraformResourceMskV1_ExternalResourcesModuleOverridesV1(Configu
     image: Optional[str] = Field(..., alias="image")
     version: Optional[str] = Field(..., alias="version")
     reconcile_timeout_minutes: Optional[int] = Field(..., alias="reconcile_timeout_minutes")
+    outputs_secret_image: Optional[str] = Field(..., alias="outputs_secret_image")
+    outputs_secret_version: Optional[str] = Field(..., alias="outputs_secret_version")
 
 
 class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):

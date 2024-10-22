@@ -36,6 +36,8 @@ query ExternalResourcesSettings {
         tf_state_region
         tf_state_dynamodb_table
         vault_secrets_path
+        outputs_secret_image
+        outputs_secret_version
     }
 }
 """
@@ -69,6 +71,8 @@ class ExternalResourcesSettingsV1(ConfiguredBaseModel):
     tf_state_region: Optional[str] = Field(..., alias="tf_state_region")
     tf_state_dynamodb_table: Optional[str] = Field(..., alias="tf_state_dynamodb_table")
     vault_secrets_path: str = Field(..., alias="vault_secrets_path")
+    outputs_secret_image: str = Field(..., alias="outputs_secret_image")
+    outputs_secret_version: str = Field(..., alias="outputs_secret_version")
 
 
 class ExternalResourcesSettingsQueryData(ConfiguredBaseModel):

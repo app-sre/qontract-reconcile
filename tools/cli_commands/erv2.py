@@ -122,7 +122,7 @@ class Erv2Cli:
         f.validate_external_resource(self._resource)
         self._module_configuration = (
             ExternalResourceModuleConfiguration.resolve_configuration(
-                m_inventory.get_from_spec(spec), spec
+                m_inventory.get_from_spec(spec), spec, self._er_settings
             )
         )
 

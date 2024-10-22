@@ -38,6 +38,8 @@ def settings() -> ExternalResourcesSettingsV1:
         workers_cluster=ClusterV1(name="appint-ex-01"),
         workers_namespace=NamespaceV1(name="external-resources-poc"),
         vault_secrets_path="app-sre/integration-outputs/external-resources",
+        outputs_secret_image="path/to/er-output-secret-image",
+        outputs_secret_version="er-output-secret-version",
     )
 
 
@@ -63,6 +65,8 @@ def reconciliation(key: ExternalResourceKey) -> Reconciliation:
             version="0.0.1",
             reconcile_drift_interval_minutes=120,
             reconcile_timeout_minutes=30,
+            outputs_secret_image="path/to/er-output-secret-image",
+            outputs_secret_version="er-output-secret-version",
         ),
     )
 
@@ -91,6 +95,8 @@ def module() -> ExternalResourcesModuleV1:
         reconcile_drift_interval_minutes=60,
         reconcile_timeout_minutes=60,
         outputs_secret_sync=True,
+        outputs_secret_image=None,
+        outputs_secret_version=None,
     )
 
 
