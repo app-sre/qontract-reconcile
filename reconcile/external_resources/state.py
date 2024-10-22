@@ -112,8 +112,6 @@ class DynamoDBStateAdapter:
                     reconcile_timeout_minutes=self._get_value(
                         _modconf, self.MODCONF_TIMEOUT_MINS, _type="N"
                     ),
-                    outputs_secret_image="",
-                    outputs_secret_version="",
                 ),
             )
 

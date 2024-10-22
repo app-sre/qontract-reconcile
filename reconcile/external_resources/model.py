@@ -198,12 +198,12 @@ def load_module_inventory(
 
 
 class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
-    image: str
-    version: str
+    image: str = ""
+    version: str = ""
     reconcile_drift_interval_minutes: int = -1000
     reconcile_timeout_minutes: int = -1000
-    outputs_secret_image: str
-    outputs_secret_version: str
+    outputs_secret_image: str = ""
+    outputs_secret_version: str = ""
 
     @property
     def image_version(self) -> str:
@@ -251,9 +251,7 @@ class Reconciliation(BaseModel, frozen=True):
     input: str = ""
     action: Action = Action.APPLY
     module_configuration: ExternalResourceModuleConfiguration = (
-        ExternalResourceModuleConfiguration(
-            image="", version="", outputs_secret_image="", outputs_secret_version=""
-        )
+        ExternalResourceModuleConfiguration()
     )
 
 
