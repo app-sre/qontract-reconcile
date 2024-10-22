@@ -1,4 +1,6 @@
 import logging
+import random
+import string
 from collections import Counter
 from collections.abc import (
     Iterable,
@@ -44,3 +46,9 @@ Item = TypeVar("Item")
 
 def find_duplicates(items: Iterable[Item]) -> list[Item]:
     return [item for item, count in Counter(items).items() if count > 1]
+
+
+def generate_random_password(string_length: int = 20) -> str:
+    """Generate a random string of letters and digits"""
+    letters_and_digits = string.ascii_letters + string.digits
+    return "".join(random.choices(letters_and_digits, k=string_length))

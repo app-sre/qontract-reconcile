@@ -24,6 +24,7 @@ from reconcile.gql_definitions.external_resources.external_resources_modules imp
 from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
     ExternalResourcesModuleOverridesV1,
     NamespaceTerraformProviderResourceAWSV1,
+    NamespaceTerraformResourceElastiCacheV1,
     NamespaceTerraformResourceMskV1,
     NamespaceTerraformResourceRDSV1,
     NamespaceV1,
@@ -68,7 +69,9 @@ class ExternalResourceKey(BaseModel, frozen=True):
 
 SUPPORTED_RESOURCE_PROVIDERS = NamespaceTerraformProviderResourceAWSV1
 SUPPORTED_RESOURCE_TYPES = (
-    NamespaceTerraformResourceRDSV1 | NamespaceTerraformResourceMskV1
+    NamespaceTerraformResourceRDSV1
+    | NamespaceTerraformResourceMskV1
+    | NamespaceTerraformResourceElastiCacheV1
 )
 
 

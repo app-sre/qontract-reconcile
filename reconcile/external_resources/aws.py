@@ -9,6 +9,7 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
 )
 from reconcile.utils.external_resources import ResourceValueResolver
+from reconcile.utils.helpers import generate_random_password
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
@@ -31,6 +32,57 @@ class AWSDefaultResourceFactory(AWSResourceFactory):
         return ResourceValueResolver(spec=spec, identifier_as_value=True).resolve()
 
     def validate(self, resource: ExternalResource) -> None: ...
+
+
+class AWSElasticacheFactory(AWSDefaultResourceFactory):
+    def _get_source_db_spec(
+        self, provisioner: str, identifier: str
+    ) -> ExternalResourceSpec:
+        return self.er_inventory.get_inventory_spec(
+            "aws", provisioner, "elasticache", identifier
+        )
+
+    def resolve(self, spec: ExternalResourceSpec) -> dict[str, Any]:
+        """Resolve the elasticache resource specification and translate some attributes to AWS >= 5.60.0 provider format."""
+        rvr = ResourceValueResolver(spec=spec, identifier_as_value=True)
+        data = rvr.resolve()
+        data["output_prefix"] = spec.output_prefix
+
+        if "replication_group_id" not in data:
+            data["replication_group_id"] = spec.identifier
+
+        if cluster_mode := data.pop("cluster_mode", {}):
+            for k, v in cluster_mode.items():
+                data[k] = v
+
+        if "parameter_group" in data:
+            pg_data = rvr._get_values(data["parameter_group"])
+            data["parameter_group"] = pg_data
+
+        if data.get("transit_encryption_enabled", False):
+            data["auth_token"] = (
+                spec.get_secret_field("db.auth_token") or generate_random_password()
+            )
+        return data
+
+    def validate(self, resource: ExternalResource) -> None:
+        """Validate the elasticache resource specification."""
+        data = resource.data
+        if data.get("parameter_group"):
+            if not data["parameter_group"].get("name"):
+                data["parameter_group"]["name"] = f"{data['replication_group_id']}-pg"
+
+            if (
+                data.get("parameter_group_name")
+                and data["parameter_group"]["name"] != data["parameter_group_name"]
+            ):
+                raise ValueError(
+                    "Custom parameter_group set and parameter_group_name given. Either remove parameter_group_name or set it to the same value as parameter_group.name."
+                )
+
+            if not data.get("parameter_group_name"):
+                # automatically set /aws/elasticache-defaults-1.yml/parameter_group_name to /aws/parameter-group-1.yml/name
+                data["parameter_group_name"] = data["parameter_group"]["name"]
 
 
 class AWSRdsFactory(AWSDefaultResourceFactory):
