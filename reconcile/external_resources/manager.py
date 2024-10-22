@@ -104,19 +104,22 @@ class ReconciliationStatus(BaseModel):
     def publish_metrics(self, r: Reconciliation, spec: ExternalResourceSpec) -> None:
         job_name = ReconciliationK8sJob(reconciliation=r).name()
 
-        metrics.set_gauge(
-            ExternalResourcesResourceStatus(
-                app=spec.namespace["app"]["name"],
-                environment=spec.namespace["environment"]["name"],
-                provision_provider=r.key.provision_provider,
-                provisioner_name=r.key.provisioner_name,
-                provider=r.key.provider,
-                identifier=r.key.identifier,
-                job_name=job_name,
-                status=self.resource_status,
-            ),
-            1,
-        )
+        # Use transactional_metrics to remove old status, we just want to expose the latest status
+        with metrics.transactional_metrics(scope=job_name) as metrics_container:
+            metrics_container.set_gauge(
+                ExternalResourcesResourceStatus(
+                    app=spec.namespace["app"]["name"],
+                    environment=spec.namespace["environment"]["name"],
+                    provision_provider=r.key.provision_provider,
+                    provisioner_name=r.key.provisioner_name,
+                    provider=r.key.provider,
+                    identifier=r.key.identifier,
+                    job_name=job_name,
+                    status=self.resource_status,
+                ),
+                1,
+            )
+
         metrics.set_gauge(
             ExternalResourcesReconcileTimeGauge(
                 app=spec.namespace["app"]["name"],
