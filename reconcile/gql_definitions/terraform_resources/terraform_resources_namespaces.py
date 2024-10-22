@@ -106,6 +106,7 @@ query TerraformResourcesNamespaces {
                     loss_impact
                 }
                 managed_by_erv2
+                delete
             }
             ... on NamespaceTerraformResourceS3_v1 {
                 region
@@ -568,6 +569,7 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     event_notifications: Optional[list[AWSRDSEventNotificationV1]] = Field(..., alias="event_notifications")
     data_classification: Optional[AWSRDSDataClassificationV1] = Field(..., alias="data_classification")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
+    delete: Optional[bool] = Field(..., alias="delete")
 
 
 class AWSS3EventNotificationV1(ConfiguredBaseModel):
