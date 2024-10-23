@@ -76,7 +76,25 @@ SUPPORTED_RESOURCE_TYPES = (
 
 
 class ExternalResourcesInventory(MutableMapping):
-    _inventory: dict[ExternalResourceKey, ExternalResourceSpec] = {}
+    def __init__(self, namespaces: Iterable[NamespaceV1]) -> None:
+        self._inventory: dict[ExternalResourceKey, ExternalResourceSpec] = {}
+
+        desired_providers = [
+            (p, ns)
+            for ns in namespaces
+            for p in ns.external_resources or []
+            if isinstance(p, SUPPORTED_RESOURCE_PROVIDERS) and p.resources
+        ]
+
+        desired_specs = [
+            self._build_external_resource_spec(ns, p, r)
+            for (p, ns) in desired_providers
+            for r in p.resources
+            if isinstance(r, SUPPORTED_RESOURCE_TYPES) and r.managed_by_erv2
+        ]
+
+        for spec in desired_specs:
+            self._inventory[ExternalResourceKey.from_spec(spec)] = spec
 
     def _build_external_resource_spec(
         self,
@@ -99,24 +117,6 @@ class ExternalResourcesInventory(MutableMapping):
         spec.metadata[FLAG_DELETE_RESOURCE] = resource.delete
         spec.metadata[MODULE_OVERRIDES] = resource.module_overrides
         return spec
-
-    def __init__(self, namespaces: Iterable[NamespaceV1]) -> None:
-        desired_providers = [
-            (p, ns)
-            for ns in namespaces
-            for p in ns.external_resources or []
-            if isinstance(p, SUPPORTED_RESOURCE_PROVIDERS) and p.resources
-        ]
-
-        desired_specs = [
-            self._build_external_resource_spec(ns, p, r)
-            for (p, ns) in desired_providers
-            for r in p.resources
-            if isinstance(r, SUPPORTED_RESOURCE_TYPES) and r.managed_by_erv2
-        ]
-
-        for spec in desired_specs:
-            self._inventory[ExternalResourceKey.from_spec(spec)] = spec
 
     def __getitem__(self, key: ExternalResourceKey) -> ExternalResourceSpec | None:
         return self._inventory[key]
@@ -161,8 +161,6 @@ class ExternalResourceModuleKey(BaseModel, frozen=True):
 
 
 class ModuleInventory:
-    inventory: dict[ExternalResourceModuleKey, ExternalResourcesModuleV1]
-
     def __init__(
         self, inventory: dict[ExternalResourceModuleKey, ExternalResourcesModuleV1]
     ):
