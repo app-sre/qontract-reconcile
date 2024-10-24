@@ -1,9 +1,6 @@
 import json
 from collections import Counter
-from collections.abc import (
-    Mapping,
-    MutableMapping,
-)
+from collections.abc import Mapping, MutableMapping
 from typing import Any
 
 import anymarkup
@@ -25,7 +22,8 @@ PROVIDER_CLOUDFLARE = "cloudflare"
 
 
 def get_external_resource_specs(
-    namespace_info: Mapping[str, Any], provision_provider: str | None = None
+    namespace_info: Mapping[str, Any],
+    provision_provider: str | None = None,
 ) -> list[ExternalResourceSpec]:
     specs: list[ExternalResourceSpec] = []
     if not managed_external_resources(namespace_info):
@@ -34,8 +32,6 @@ def get_external_resource_specs(
     external_resources = namespace_info.get("externalResources") or []
     for e in external_resources:
         for r in e.get("resources", []):
-            if r.get("managed_by_erv2"):
-                continue
             spec = ExternalResourceSpec(
                 provision_provider=e["provider"],
                 provisioner=e["provisioner"],

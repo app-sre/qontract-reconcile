@@ -14,6 +14,7 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceUniqueKey,
 )
+from reconcile.utils.terrascript_aws_client import ProviderExcludedError
 
 
 @pytest.fixture
@@ -160,6 +161,15 @@ def expected_additional_aws_providers():
             "skip_region_validation": True,
         },
     ]
+
+
+@pytest.fixture
+def mock_provider_exclusions_by_provider(mocker):
+    mock = mocker.patch(
+        "reconcile.queries.get_tf_resources_provider_exclusions_by_provisioner",
+        autospec=True,
+    )
+    mock.return_value = []
 
 
 def test_populate_additional_providers(
@@ -327,7 +337,7 @@ def test_get_commit_sha(mocker, ts: tsclient.TerrascriptClient, repo_info, expec
     assert ts.get_commit_sha(repo_info) == expected
 
 
-def test_tf_disabled_namespace_with_resources(ts):
+def test_tf_disabled_namespace_with_resources(mock_provider_exclusions_by_provider, ts):
     """
     even if a namespace has tf resources, they are not considered when the
     namespace is not enabled for tf resource management
@@ -347,7 +357,9 @@ def test_tf_disabled_namespace_with_resources(ts):
     assert not specs
 
 
-def test_resource_specs_without_account_filter(ts):
+def test_resource_specs_without_account_filter(
+    mock_provider_exclusions_by_provider, ts
+):
     """
     if no account filter is given, all resources of namespaces with
     enabled tf resource management are expected to be returned
@@ -368,7 +380,7 @@ def test_resource_specs_without_account_filter(ts):
     assert specs == {ExternalResourceUniqueKey.from_spec(spec): spec}
 
 
-def test_resource_specs_with_account_filter(ts):
+def test_resource_specs_with_account_filter(mock_provider_exclusions_by_provider, ts):
     """
     if an account filter is given only the resources defined for
     that account are expected
@@ -751,7 +763,9 @@ def test_get_resource_lifecycle_all(
     assert lifecycle == expected
 
 
-def test_output_resource_name_not_unique_raises_exception(ts):
+def test_output_resource_name_not_unique_raises_exception(
+    mock_provider_exclusions_by_provider, ts
+):
     external_resource_1 = {
         "identifier": "a",
         "provider": "rds",
@@ -780,7 +794,7 @@ def test_output_resource_name_not_unique_raises_exception(ts):
         ts.init_populate_specs(namespaces, "account")
 
 
-def test_output_resource_name_unique_success(ts):
+def test_output_resource_name_unique_success(mock_provider_exclusions_by_provider, ts):
     external_resource_1 = {
         "identifier": "a",
         "provider": "rds",
@@ -806,3 +820,68 @@ def test_output_resource_name_unique_success(ts):
     namespaces = [namespace_1]
 
     ts.init_populate_specs(namespaces, "account")
+
+
+def test_managed_by_erv2_is_excluded(mock_provider_exclusions_by_provider, ts):
+    external_resource_1 = {
+        "identifier": "a",
+        "managed_by_erv2": True,
+        "provider": "rds",
+        "output_resource_name": "oa",
+    }
+    external_resource_2 = {
+        "identifier": "b",
+        "provider": "rds",
+        "output_resource_name": "ob",
+    }
+    namespace_1 = {
+        "name": "ns1",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": "aws",
+                "provisioner": {"name": "a"},
+                "resources": [external_resource_1, external_resource_2],
+            }
+        ],
+        "cluster": {"name": "test"},
+    }
+    namespaces = [namespace_1]
+
+    ts.init_populate_specs(namespaces, "account")
+    assert len(ts.resource_spec_inventory) == 1
+
+
+def test_excluded_provider_throws_exception(mocker, ts):
+    external_resource_1 = {
+        "identifier": "a",
+        "provider": "rds",
+        "output_resource_name": "oa",
+    }
+    external_resource_2 = {
+        "identifier": "b",
+        "provider": "rds",
+        "output_resource_name": "ob",
+    }
+    namespace_1 = {
+        "name": "ns1",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": "aws",
+                "provisioner": {"name": "a"},
+                "resources": [external_resource_1, external_resource_2],
+            }
+        ],
+        "cluster": {"name": "test"},
+    }
+    namespaces = [namespace_1]
+
+    mock = mocker.patch(
+        "reconcile.queries.get_tf_resources_provider_exclusions_by_provisioner",
+        autospec=True,
+    )
+    mock.return_value = [{"provisioner": {"name": "a"}, "excludedProviders": ["rds"]}]
+
+    with pytest.raises(ProviderExcludedError):
+        ts.init_populate_specs(namespaces, "account")
