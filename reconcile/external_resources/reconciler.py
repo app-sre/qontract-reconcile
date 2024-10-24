@@ -131,7 +131,6 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
                         V1Container(
                             name="outputs",
                             image=self.reconciliation.module_configuration.outputs_secret_image_version,
-                            command=["/bin/bash", "/app/entrypoint.sh"],
                             image_pull_policy="Always",
                             env=[
                                 V1EnvVar(
