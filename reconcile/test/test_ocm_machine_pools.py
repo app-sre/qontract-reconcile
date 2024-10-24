@@ -25,6 +25,7 @@ from reconcile.ocm_machine_pools import (
     PoolHandler,
     calculate_diff,
     run,
+    validate_desired_pools,
 )
 from reconcile.utils.ocm import OCM
 
@@ -1101,3 +1102,89 @@ def test_run_delete_default_node_pool(
     run(False)
 
     mocks["OCM"].delete_node_pool.assert_called()
+
+
+@pytest.fixture
+def unordered_machine_pools() -> Mapping[tuple[str, str], ClusterMachinePoolV1]:
+    return {
+        ("cluster1", "workers-0"): ClusterMachinePoolV1(
+            id="workers-0",
+            instance_type="m5.2xlarge",
+            replicas=3,
+            autoscale=None,
+            labels=None,
+            subnet="subnet-03",
+            taints=None,
+        ),
+        ("cluster1", "workers-1"): ClusterMachinePoolV1(
+            id="workers-1",
+            instance_type="m5.2xlarge",
+            replicas=3,
+            autoscale=None,
+            labels=None,
+            subnet="subnet-02",
+            taints=None,
+        ),
+        ("cluster1", "workers-2"): ClusterMachinePoolV1(
+            id="workers-2",
+            instance_type="m5.2xlarge",
+            replicas=3,
+            autoscale=None,
+            labels=None,
+            subnet="subnet-01",
+            taints=None,
+        ),
+    }
+
+
+@pytest.fixture
+def ordered_machine_pools() -> Mapping[tuple[str, str], ClusterMachinePoolV1]:
+    return {
+        ("cluster1", "workers-0"): ClusterMachinePoolV1(
+            id="workers-0",
+            instance_type="m5.2xlarge",
+            replicas=3,
+            autoscale=None,
+            labels=None,
+            subnet="subnet-00",
+            taints=None,
+        ),
+        ("cluster1", "workers-1"): ClusterMachinePoolV1(
+            id="workers-1",
+            instance_type="m5.2xlarge",
+            replicas=3,
+            autoscale=None,
+            labels=None,
+            subnet="subnet-01",
+            taints=None,
+        ),
+        ("cluster1", "workers-2"): ClusterMachinePoolV1(
+            id="workers-2",
+            instance_type="m5.2xlarge",
+            replicas=3,
+            autoscale=None,
+            labels=None,
+            subnet="subnet-02",
+            taints=None,
+        ),
+    }
+
+
+def test_validate_desired_pools_error_message(
+    unordered_machine_pools: Mapping[tuple[str, str], ClusterMachinePoolV1],
+) -> None:
+    errors = validate_desired_pools(unordered_machine_pools)
+
+    cluster = "cluster1"
+    assert (
+        errors[0].args[0]
+        == f"can not update cluster {cluster} machine pools, machine pool id and subnet should be in alphabetical order"
+    )
+
+
+def test_validate_desired_pools_no_errors(
+    ordered_machine_pools: Mapping[tuple[str, str], ClusterMachinePoolV1],
+) -> None:
+    errors = validate_desired_pools(ordered_machine_pools)
+
+    assert errors == []
