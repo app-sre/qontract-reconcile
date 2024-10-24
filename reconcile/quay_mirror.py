@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import sys
 import tempfile
 import time
@@ -29,6 +28,7 @@ from reconcile.utils import (
     metrics,
     sharding,
 )
+from reconcile.utils.helpers import match_patterns
 from reconcile.utils.instrumented_wrappers import InstrumentedImage as Image
 from reconcile.utils.instrumented_wrappers import InstrumentedSkopeo as Skopeo
 from reconcile.utils.secret_reader import SecretReader
@@ -205,20 +205,38 @@ class QuayMirror:
         return summary
 
     @staticmethod
-    def sync_tag(tags, tags_exclude, candidate):
-        if tags is not None:
-            # When tags is defined, we don't look at tags_exclude
-            return any(re.match(tag, candidate) for tag in tags)
-
-        if tags_exclude is not None:
-            for tag_exclude in tags_exclude:
-                if re.match(tag_exclude, candidate):
-                    return False
+    def sync_tag(
+        tags: Iterable[str] | None,
+        tags_exclude: Iterable[str] | None,
+        candidate: str,
+    ) -> bool:
+        """
+        Determine if the candidate tag should sync, tags_exclude check take precedence.
+        :param tags: regex patterns to filter, match means to sync, None means no filter
+        :param tags_exclude: regex patterns to filter, match means not to sync, None means no filter
+        :param candidate: tag to check
+        :return: bool, True means to sync, False means not to sync
+        """
+        if not tags and not tags_exclude:
             return True
 
-        # Both tags and tags_exclude are None, so
-        # tag must be synced
-        return True
+        if not tags:
+            # only tags_exclude provided
+            assert tags_exclude  # mypy can't infer not None
+            return not match_patterns(tags_exclude, candidate)
+
+        if not tags_exclude:
+            # only tags provided
+            return match_patterns(tags, candidate)
+
+        # both tags and tags_exclude provided
+        return not match_patterns(
+            tags_exclude,
+            candidate,
+        ) and match_patterns(
+            tags,
+            candidate,
+        )
 
     def process_sync_tasks(self):
         if self.is_compare_tags:
