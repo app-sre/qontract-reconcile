@@ -96,22 +96,15 @@ class TestIsCompareTags:
         (["^sha256-.+sig$", "^main-.+"], None, "main-755781cc", True),
         (["^sha256-.+sig$", "^main-.+"], None, "sha256-8b5.sig", True),
         (["^sha256-.+sig$", "^main-.+"], None, "1.2.3", False),
-        # Tags exclude tests.
+        # # Tags exclude tests.
         (None, ["^sha256-.+sig$", "^main-.+"], "main-755781cc", False),
         (None, ["^sha256-.+sig$", "^main-.+"], "sha256-8b5.sig", False),
-        # When both includes and excludes are explicitly given, includes take precedence.
-        (
-            ["^sha256-.+sig$", "^main-.+"],
-            ["^sha256-.+sig$", "^main-.+"],
-            "main-755781cc",
-            True,
-        ),
-        (
-            ["^sha256-.+sig$", "^main-.+"],
-            ["^sha256-.+sig$", "^main-.+"],
-            "sha256-8b5.sig",
-            True,
-        ),
+        (None, ["^sha256-.+sig$", "^main-.+"], "1.2.3", True),
+        # When both includes and excludes are explicitly given, exclude take precedence.
+        (["^sha256-.+sig$", "^main-.+"], ["main-755781cc"], "main-755781cc", False),
+        (["^sha256-.+sig$", "^main-.+"], ["main-755781cc"], "sha256-8b5.sig", True),
+        # both include and exclude are not set
+        (None, None, "main-755781cc", True),
     ],
 )
 def test_sync_tag(tags, tags_exclude, candidate, result):

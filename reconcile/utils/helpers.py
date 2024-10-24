@@ -1,5 +1,6 @@
 import logging
 import random
+import re
 import string
 from collections import Counter
 from collections.abc import (
@@ -52,3 +53,13 @@ def generate_random_password(string_length: int = 20) -> str:
     """Generate a random string of letters and digits"""
     letters_and_digits = string.ascii_letters + string.digits
     return "".join(random.choices(letters_and_digits, k=string_length))
+
+
+def match_patterns(patterns: Iterable[str], s: str) -> bool:
+    """
+    Check if any pattern matches the string.
+    :param patterns: patterns to match
+    :param s: string to check
+    :return: True if any pattern matches, False otherwise
+    """
+    return any(re.match(p, s) for p in patterns)

@@ -11,6 +11,7 @@ from reconcile.utils.helpers import (
     DEFAULT_TOGGLE_LEVEL,
     find_duplicates,
     flatten,
+    match_patterns,
     toggle_logger,
 )
 
@@ -98,3 +99,17 @@ def test_flatten(input_dict: dict, expected: dict, sep: str) -> None:
 )
 def test_find_duplicates(items: Iterable[Any], expected: Sequence[Any]) -> None:
     assert find_duplicates(items) == expected
+
+
+@pytest.mark.parametrize(
+    "patterns, string, expected",
+    [
+        [[], "abc", False],
+        [["abc"], "abc", True],
+        [[r"\w+"], "abc", True],
+        [[r"\d+"], "abc", False],
+        [[r"\d+", r"\w+"], "abc", True],
+    ],
+)
+def test_match_patterns(patterns: Iterable[str], string: str, expected: bool) -> None:
+    assert match_patterns(patterns, string) == expected
