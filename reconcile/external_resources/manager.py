@@ -247,7 +247,7 @@ class ExternalResourcesManager:
                 input=self._serialize_resource_input(resource),
                 action=Action.APPLY,
                 module_configuration=ExternalResourceModuleConfiguration.resolve_configuration(
-                    module, spec
+                    module, spec, self.settings
                 ),
             )
             r.add(reconciliation)

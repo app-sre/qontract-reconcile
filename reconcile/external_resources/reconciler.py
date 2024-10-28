@@ -130,8 +130,7 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
                     containers=[
                         V1Container(
                             name="outputs",
-                            image="quay.io/app-sre/er-outputs-secrets:0.0.1",
-                            command=["/bin/bash", "/app/entrypoint.sh"],
+                            image=self.reconciliation.module_configuration.outputs_secret_image_version,
                             image_pull_policy="Always",
                             env=[
                                 V1EnvVar(

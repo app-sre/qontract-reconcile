@@ -57,6 +57,30 @@ def test_dynamodb_serialize(
 def test_dynamodb_deserialize(
     state: ExternalResourceState, dynamodb_serialized_values: Mapping
 ) -> None:
+    # the output_secret_image/version are not stored in the state
     adapter = DynamoDBStateAdapter()
     result = adapter.deserialize(dynamodb_serialized_values)
-    assert result == state
+    # not all fields are stored in the state, therefore we need to compare them separately
+    assert result.key == state.key
+    assert result.ts == state.ts
+    assert result.resource_status == state.resource_status
+    assert result.reconciliation.action == state.reconciliation.action
+    assert result.reconciliation.input == state.reconciliation.input
+    assert result.reconciliation.resource_hash == state.reconciliation.resource_hash
+    assert (
+        result.reconciliation.module_configuration.image
+        == state.reconciliation.module_configuration.image
+    )
+    assert (
+        result.reconciliation.module_configuration.version
+        == state.reconciliation.module_configuration.version
+    )
+    assert (
+        result.reconciliation.module_configuration.reconcile_drift_interval_minutes
+        == state.reconciliation.module_configuration.reconcile_drift_interval_minutes
+    )
+    assert (
+        result.reconciliation.module_configuration.reconcile_timeout_minutes
+        == state.reconciliation.module_configuration.reconcile_timeout_minutes
+    )
+    # the rest of the fields are not stored in the state
