@@ -241,7 +241,7 @@ def setup(
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
-    settings = queries.get_app_interface_settings()
+    settings = queries.get_app_interface_settings() or {}
     # initialize terrascript (scripting engine to generate terraform manifests)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size, settings=settings)
 
@@ -265,7 +265,15 @@ def setup(
     else:
         ocm_map = None
     tf_namespaces_dicts = [ns.dict(by_alias=True) for ns in tf_namespaces]
-    ts.init_populate_specs(tf_namespaces_dicts, account_names)
+
+    provider_exclusions_by_provisioner = (
+        settings.get("terraformResourcesProviderExclusionsByProvisioner") or []
+    )
+    ts.init_populate_specs(
+        tf_namespaces_dicts,
+        account_names,
+        provider_exclusions_by_provisioner=provider_exclusions_by_provisioner,
+    )
     tf.populate_terraform_output_secrets(
         resource_specs=ts.resource_spec_inventory, init_rds_replica_source=True
     )

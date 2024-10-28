@@ -102,6 +102,12 @@ APP_INTERFACE_SETTINGS_QUERY = """
       readTimeout
       connectTimeout
     }
+    terraformResourcesProviderExclusionsByProvisioner {
+      provisioner {
+          name
+      }
+      excludedProviders
+    }
   }
 }
 """
@@ -2754,3 +2760,24 @@ JENKINS_CONFIGS = """
 def get_jenkins_configs():
     gqlapi = gql.get_api()
     return gqlapi.query(JENKINS_CONFIGS)["jenkins_configs"]
+
+
+TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER = """
+{
+  tf_provider_exclusions_by_provisioner: app_interface_settings_v1 {
+    terraformResourcesProviderExclusionsByProvisioner {
+      provisioner {
+          name
+      }
+      excludedProviders
+    }
+  }
+}
+"""
+
+
+def get_tf_resources_provider_exclusions_by_provisioner():
+    gqlapi = gql.get_api()
+    return gqlapi.query(TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER)[
+        "tf_provider_exclusions_by_provisioner"
+    ]
