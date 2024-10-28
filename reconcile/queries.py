@@ -2776,8 +2776,16 @@ TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER = """
 """
 
 
-def get_tf_resources_provider_exclusions_by_provisioner():
+def get_tf_resources_provider_exclusions_by_provisioner() -> (
+    list[dict[str, Any]] | None
+):
     gqlapi = gql.get_api()
-    return gqlapi.query(TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER)[
+    settings = gqlapi.query(TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER)[
         "tf_provider_exclusions_by_provisioner"
     ]
+    if (
+        len(settings) == 1
+        and "terraformResourcesProviderExclusionsByProvisioner" in settings[0]
+    ):
+        return settings[0]["terraformResourcesProviderExclusionsByProvisioner"]
+    return None
