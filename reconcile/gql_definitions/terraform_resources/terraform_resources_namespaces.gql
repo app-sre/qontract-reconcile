@@ -77,6 +77,7 @@ query TerraformResourcesNamespaces {
                 overrides
                 output_resource_name
                 annotations
+                managed_by_erv2
             }
             ... on NamespaceTerraformResourceServiceAccount_v1 {
                 identifier
