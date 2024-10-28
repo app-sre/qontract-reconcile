@@ -1586,14 +1586,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.resource_spec_inventory: ExternalResourceSpecInventory = {}
 
         # Ensure provider exclusions are fetched
-        if not provider_exclusions_by_provisioner:
+        if provider_exclusions_by_provisioner is None:
             provider_exclusions_by_provisioner = (
                 queries.get_tf_resources_provider_exclusions_by_provisioner() or []
             )
 
         provider_exclusions_by_provisioner_name = {
             p["provisioner"]["name"]: p["excludedProviders"]
-            for p in provider_exclusions_by_provisioner
+            for p in provider_exclusions_by_provisioner or []
         }
 
         for namespace_info in namespaces:
