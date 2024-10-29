@@ -2789,3 +2789,30 @@ def get_tf_resources_provider_exclusions_by_provisioner() -> (
     ):
         return settings[0]["terraformResourcesProviderExclusionsByProvisioner"]
     return None
+
+
+SCHEMAS_QUERY = """
+{
+  schemas: __schema {
+    types {
+      name
+      fields {
+        name
+        type {
+          kind
+          name
+          ofType {
+            kind
+            name
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def get_schemas() -> dict:
+    gqlapi = gql.get_api()
+    return gqlapi.query(SCHEMAS_QUERY)["schemas"]
