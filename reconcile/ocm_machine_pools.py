@@ -465,7 +465,7 @@ def calculate_diff(
         if invalid_diff:
             errors.append(
                 InvalidUpdateError(
-                    f"can not update {invalid_diff} for existing machine pool on cluster {cluster_name}"
+                    f"can not update {invalid_diff} for existing machine pool on cluster {cluster_name}, CURRENT: {diff_pair.current.json()}, DESIRED: {diff_pair.desired.json()}"
                 )
             )
         else:
