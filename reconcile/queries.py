@@ -2813,6 +2813,7 @@ SCHEMAS_QUERY = """
 """
 
 
+# TODO: replace with typed query following https://issues.redhat.com/browse/APPSRE-10983
 def get_schemas() -> dict:
     gqlapi = gql.get_api()
     return gqlapi.query(SCHEMAS_QUERY)["schemas"]
