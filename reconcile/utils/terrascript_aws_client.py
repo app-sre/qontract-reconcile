@@ -9,7 +9,7 @@ import string
 import tempfile
 from collections import Counter
 from collections.abc import Iterable, Mapping, MutableMapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from ipaddress import (
     ip_address,
     ip_network,
@@ -377,12 +377,6 @@ class ElasticSearchLogGroupInfo:
     account_id: str
     region: str
     log_group_identifier: str
-
-
-@dataclass
-class Exclusion:
-    all: bool = False
-    provisioners: set[str] = field(default_factory=set)
 
 
 class ProviderExcludedError(Exception):
@@ -1549,49 +1543,38 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             for spec in specs:
                 self.populate_tf_resources(spec, ocm_map=ocm_map)
 
-    def _is_provisioner_excluded(
+    def _get_provisioner_provider_exclusions(
         self,
         spec: ExternalResourceSpec,
-        provider_exclusions: Mapping[str, Exclusion],
-    ) -> bool:
-        e = provider_exclusions.get(spec.provider)
-        if not e:
-            return False
-        return e.all or spec.provisioner_name in e.provisioners
+        provider_exclusions_by_provisioner_name: Mapping[str, Iterable[str]],
+    ) -> list[str]:
+        return list(
+            provider_exclusions_by_provisioner_name.get(spec.provisioner["name"], [])
+        )
 
     def _filter_specs_managed_by_erv2(
         self,
         specs: Iterable[ExternalResourceSpec],
-        provider_exclusions: Mapping[str, Exclusion],
+        provider_exclusions_by_provisioner_name: Mapping[str, Iterable[str]],
     ) -> list[ExternalResourceSpec]:
-        filtered_specs = [
-            spec for spec in specs if not spec.resource.get("managed_by_erv2")
-        ]
+        filtered_specs: list[ExternalResourceSpec] = []
+        for spec in specs:
+            if spec.resource.get("managed_by_erv2"):
+                continue
 
-        for spec in filtered_specs:
-            if self._is_provisioner_excluded(spec, provider_exclusions):
+            if spec.provider in self._get_provisioner_provider_exclusions(
+                spec, provider_exclusions_by_provisioner_name
+            ):
                 raise ProviderExcludedError(spec)
 
+            filtered_specs.append(spec)
         return filtered_specs
-
-    def _get_provider_exclusions_query_dict(
-        self, provider_exclusions: Iterable[Mapping[str, Any]]
-    ) -> dict[str, Exclusion]:
-        return {
-            item["provider"]: Exclusion(
-                all=item.get("excludeAllProvisioners") or False,
-                provisioners={
-                    p["name"] for p in (item.get("excludeProvisioners") or [])
-                },
-            )
-            for item in provider_exclusions
-        }
 
     def init_populate_specs(
         self,
         namespaces: Iterable[Mapping[str, Any]],
         account_names: Iterable[str] | None,
-        provider_exclusions: Iterable[Mapping[str, Any]] | None = None,
+        provider_exclusions_by_provisioner: Iterable[Mapping[str, Any]] | None = None,
     ) -> None:
         """
         Initiates resource specs from the definitions in app-interface
@@ -1603,14 +1586,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.resource_spec_inventory: ExternalResourceSpecInventory = {}
 
         # Ensure provider exclusions are fetched
-        if provider_exclusions is None:
-            provider_exclusions = (
+        if provider_exclusions_by_provisioner is None:
+            provider_exclusions_by_provisioner = (
                 queries.get_tf_resources_provider_exclusions_by_provisioner() or []
             )
 
-        provider_exclusions_query_dict = self._get_provider_exclusions_query_dict(
-            provider_exclusions
-        )
+        provider_exclusions_by_provisioner_name = {
+            p["provisioner"]["name"]: p["excludedProviders"]
+            for p in provider_exclusions_by_provisioner or []
+        }
 
         for namespace_info in namespaces:
             all_specs = get_external_resource_specs(
@@ -1618,7 +1602,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 provision_provider=PROVIDER_AWS,
             )
             specs = self._filter_specs_managed_by_erv2(
-                all_specs, provider_exclusions_query_dict
+                all_specs, provider_exclusions_by_provisioner_name
             )
             name_counter = Counter(spec.output_resource_name for spec in specs)
             duplicates = [name for name, count in name_counter.items() if count > 1]
