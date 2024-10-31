@@ -266,11 +266,13 @@ def setup(
         ocm_map = None
     tf_namespaces_dicts = [ns.dict(by_alias=True) for ns in tf_namespaces]
 
-    provider_exclusions = settings.get("terraformResourcesProviderExclusions") or []
+    provider_exclusions_by_provisioner = (
+        settings.get("terraformResourcesProviderExclusionsByProvisioner") or []
+    )
     ts.init_populate_specs(
         tf_namespaces_dicts,
         account_names,
-        provider_exclusions,
+        provider_exclusions_by_provisioner=provider_exclusions_by_provisioner,
     )
     tf.populate_terraform_output_secrets(
         resource_specs=ts.resource_spec_inventory, init_rds_replica_source=True
