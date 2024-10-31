@@ -881,42 +881,7 @@ def test_excluded_provider_throws_exception(mocker, ts):
         "reconcile.queries.get_tf_resources_provider_exclusions_by_provisioner",
         autospec=True,
     )
-    mock.return_value = [{"provider": "rds", "excludeProvisioners": [{"name": "a"}]}]
-
-    with pytest.raises(ProviderExcludedError):
-        ts.init_populate_specs(namespaces, "account")
-
-
-def test_exclude_all_provisioners_throws_exception(mocker, ts):
-    external_resource_1 = {
-        "identifier": "a",
-        "provider": "rds",
-        "output_resource_name": "oa",
-    }
-    external_resource_2 = {
-        "identifier": "b",
-        "provider": "rds",
-        "output_resource_name": "ob",
-    }
-    namespace_1 = {
-        "name": "ns1",
-        "managedExternalResources": True,
-        "externalResources": [
-            {
-                "provider": "aws",
-                "provisioner": {"name": "a"},
-                "resources": [external_resource_1, external_resource_2],
-            }
-        ],
-        "cluster": {"name": "test"},
-    }
-    namespaces = [namespace_1]
-
-    mock = mocker.patch(
-        "reconcile.queries.get_tf_resources_provider_exclusions_by_provisioner",
-        autospec=True,
-    )
-    mock.return_value = [{"provider": "rds", "excludeAllProvisioners": True}]
+    mock.return_value = [{"provisioner": {"name": "a"}, "excludedProviders": ["rds"]}]
 
     with pytest.raises(ProviderExcludedError):
         ts.init_populate_specs(namespaces, "account")
