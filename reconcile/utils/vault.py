@@ -221,14 +221,14 @@ class _VaultClient:
         path_split = path.split("/")
         mount_point = path_split[0]
         read_path = "/".join(path_split[1:])
+
         if version is None:
             msg = "version can not be null " f"for secret with path '{path}'."
             raise SecretVersionIsNone(msg)
+
         if version == SECRET_VERSION_LATEST:
-            # https://github.com/hvac/hvac/blob/
-            # ec048ded30d21c13c21cfa950d148c8bfc1467b0/
-            # hvac/api/secrets_engines/kv_v2.py#L85
             version = None
+
         try:
             secret = self._client.secrets.kv.v2.read_secret_version(
                 mount_point=mount_point,
@@ -236,17 +236,28 @@ class _VaultClient:
                 version=version,
             )
         except InvalidPath:
-            msg = f"version '{version}' not found " f"for secret with path '{path}'."
-            raise SecretVersionNotFound(msg) from None
+            # Retry with the latest version if specified version is not found
+            version = None
+            try:
+                secret = self._client.secrets.kv.v2.read_secret_version(
+                        mount_point=mount_point,
+                        path=read_path,
+                        version=version,
+                )
+            except InvalidPath:
+                msg = f"Secret with path '{path}' and version '{version}' not found, even for the latest version."
+                raise SecretVersionNotFound(msg) from None
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
             raise SecretAccessForbidden(msg) from None
+
         if secret is None or "data" not in secret or "data" not in secret["data"]:
             raise SecretNotFound(path)
 
         data = secret["data"]["data"]
         secret_version = secret["data"]["metadata"]["version"]
         return data, secret_version
+
 
     def _read_all_v1(self, path):
         try:
