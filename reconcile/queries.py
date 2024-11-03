@@ -2776,8 +2776,44 @@ TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER = """
 """
 
 
-def get_tf_resources_provider_exclusions_by_provisioner():
+def get_tf_resources_provider_exclusions_by_provisioner() -> (
+    list[dict[str, Any]] | None
+):
     gqlapi = gql.get_api()
-    return gqlapi.query(TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER)[
+    settings = gqlapi.query(TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER)[
         "tf_provider_exclusions_by_provisioner"
     ]
+    if (
+        len(settings) == 1
+        and "terraformResourcesProviderExclusionsByProvisioner" in settings[0]
+    ):
+        return settings[0]["terraformResourcesProviderExclusionsByProvisioner"]
+    return None
+
+
+SCHEMAS_QUERY = """
+{
+  schemas: __schema {
+    types {
+      name
+      fields {
+        name
+        type {
+          kind
+          name
+          ofType {
+            kind
+            name
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+# TODO: replace with typed query following https://issues.redhat.com/browse/APPSRE-10983
+def get_schemas() -> dict:
+    gqlapi = gql.get_api()
+    return gqlapi.query(SCHEMAS_QUERY)["schemas"]
