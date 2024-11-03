@@ -5,8 +5,12 @@ from gitlab import GitlabGetError
 from gitlab.const import MAINTAINER_ACCESS
 
 from reconcile import queries
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import BLOCKED_BOT_ACCESS
+from reconcile.utils.secret_reader import create_secret_reader
 
 LOG = logging.getLogger(__name__)
 
@@ -38,10 +42,11 @@ class GitlabForkCompliance:
         self.maintainers_group = maintainers_group
 
         self.instance = queries.get_gitlab_instance()
-        self.settings = queries.get_app_interface_settings()
+        vault_settings = get_app_interface_vault_settings()
+        self.secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
         self.gl_cli = GitLabApi(
-            self.instance, project_id=project_id, settings=self.settings
+            self.instance, project_id=project_id, secret_reader=self.secret_reader
         )
         self.mr = self.gl_cli.get_merge_request(mr_id)
 
@@ -94,7 +99,7 @@ class GitlabForkCompliance:
             self.src = GitLabApi(
                 self.instance,
                 project_id=self.mr.source_project_id,
-                settings=self.settings,
+                secret_reader=self.secret_reader,
             )
         except GitlabGetError:
             self.handle_error("access denied for user {bot}", MSG_ACCESS)
