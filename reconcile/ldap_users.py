@@ -37,6 +37,9 @@ def init_users() -> list[dict[str, list]]:
         for a in user.get("aws_accounts", []):
             item = {"type": PathTypes.AWS_ACCOUNTS, "path": "data" + a["path"]}
             users[u].append(item)
+        for s in user.get("schedules"):
+            item = {"type": PathTypes.SCHEDULE, "path": "data" + s["path"]}
+            users[u].append(item)
 
     return [{"username": username, "paths": paths} for username, paths in users.items()]
 
