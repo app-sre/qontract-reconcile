@@ -72,10 +72,13 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
             elif path_type == PathTypes.SCHEDULE:
                 raw_file = gitlab_cli.project.files.get(file_path=path, ref=self.branch)
                 content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+                delete_indexes: list[set[int, int]] = []
                 for schedule_index, schedule_record in enumerate(content["schedule"]):
                     for user_index, user in enumerate(schedule_record["users"]):
                         if self.username in user["$ref"]:
-                            del content["schedule"][schedule_index]["users"][user_index]
+                            delete_indexes.append((schedule_index, user_index))
+                for schedule_index, user_index in reversed(delete_indexes):
+                    del content["schedule"][schedule_index]["users"][user_index]
                 new_content = "---\n"
                 new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
                 gitlab_cli.update_file(
