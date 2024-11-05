@@ -102,11 +102,12 @@ APP_INTERFACE_SETTINGS_QUERY = """
       readTimeout
       connectTimeout
     }
-    terraformResourcesProviderExclusionsByProvisioner {
-      provisioner {
-          name
+    terraformResourcesProviderExclusions {
+      provider
+      excludeProvisioners {
+        name
       }
-      excludedProviders
+      excludeAllProvisioners
     }
   }
 }
@@ -2767,12 +2768,13 @@ def get_jenkins_configs():
 
 TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER = """
 {
-  tf_provider_exclusions_by_provisioner: app_interface_settings_v1 {
-    terraformResourcesProviderExclusionsByProvisioner {
-      provisioner {
-          name
+  tf_provider_exclusions: app_interface_settings_v1 {
+    terraformResourcesProviderExclusions {
+      provider
+      excludeProvisioners {
+        name
       }
-      excludedProviders
+      excludeAllProvisioners
     }
   }
 }
@@ -2784,13 +2786,10 @@ def get_tf_resources_provider_exclusions_by_provisioner() -> (
 ):
     gqlapi = gql.get_api()
     settings = gqlapi.query(TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER)[
-        "tf_provider_exclusions_by_provisioner"
+        "tf_provider_exclusions"
     ]
-    if (
-        len(settings) == 1
-        and "terraformResourcesProviderExclusionsByProvisioner" in settings[0]
-    ):
-        return settings[0]["terraformResourcesProviderExclusionsByProvisioner"]
+    if len(settings) == 1 and "terraformResourcesProviderExclusions" in settings[0]:
+        return settings[0]["terraformResourcesProviderExclusions"]
     return None
 
 
