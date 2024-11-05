@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from ruamel import yaml
 
 from reconcile.utils.gitlab_api import GitLabApi
@@ -75,7 +77,7 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
                 delete_indexes: list[set[int, int]] = []
                 for schedule_index, schedule_record in enumerate(content["schedule"]):
                     for user_index, user in enumerate(schedule_record["users"]):
-                        if self.username in user["$ref"]:
+                        if self.username == Path(user["$ref"]).stem:
                             delete_indexes.append((schedule_index, user_index))
                 for schedule_index, user_index in reversed(delete_indexes):
                     del content["schedule"][schedule_index]["users"][user_index]
