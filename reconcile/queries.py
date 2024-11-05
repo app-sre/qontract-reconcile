@@ -1832,6 +1832,9 @@ USERS_QUERY = """
     gabi_instances {
       path
     }
+    schedules {
+      path
+    }
     {% endif %}
   }
 }

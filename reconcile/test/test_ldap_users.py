@@ -14,6 +14,7 @@ def patched_queries_get_users(mocker):
             "requests": [{"path": "test_path1"}],
             "queries": [{"path": "another_test_path1"}],
             "gabi_instances": [{"path": "yet_another_test_path1"}],
+            "schedules": [{"path": "and_yet_another_test_path1"}],
             "path": "blah",
         },
         {
@@ -21,6 +22,7 @@ def patched_queries_get_users(mocker):
             "requests": [{"path": "test_path2"}],
             "queries": [{"path": "another_test_path2"}],
             "gabi_instances": [{"path": "yet_another_test_path2"}],
+            "schedules": [{"path": "and_yet_another_test_path2"}],
             "path": "blah",
         },
         {
@@ -28,6 +30,7 @@ def patched_queries_get_users(mocker):
             "requests": [{"path": "test_path3"}],
             "queries": [{"path": "another_test_path3"}],
             "gabi_instances": [{"path": "yet_another_test_path3"}],
+            "schedules": [{"path": "and_yet_another_test_path3"}],
             "path": "blah",
         },
     ]
@@ -100,6 +103,7 @@ def test_ldap_users_no_dry_run(
             {"path": "datatest_path3", "type": 1},
             {"path": "dataanother_test_path3", "type": 2},
             {"path": "datayet_another_test_path3", "type": 3},
+            {"path": "dataand_yet_another_test_path3", "type": 5},
         ],
     )
     assert patched_create_delete_user.method_calls[0][0] == "().submit"
